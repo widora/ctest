@@ -71,11 +71,12 @@ char strf[STRBUFF]; //--for file name
 while(1)
 {
      //-------------- reload total_numbe after one round show ---------    
+      printf("    Ncount =%d  \n",Ncount);
       if( Ncount < 0)
       {
           /* find out all BMP files in specified path  */
-          printf("\n\n==================   reload BMP file directory   =================\n");
           Find_BMP_files(argv[1]);
+          printf("\n\n===============  reload BMP file, totally  %d BMP-files found.   =================\n",BMP_file_total);
           if(BMP_file_total == 0){
              printf("\n No BMP file found! \n");
              return 1; }
@@ -99,11 +100,11 @@ while(1)
           continue; 
           }
          else
-          printf("\n %s opened successfully!",strf);
+          printf("%s opened successfully!\n",strf);
 
     //------------    seek position and readin picWidth and picHeight   ----------
         if(lseek(fp,offp,SEEK_SET)<0)
-           printf("\n Fail to offset seek position!");
+           printf("Fail to offset seek position!\n");
         read(fp,buff,8);
         //for(i=0;i<8;i++){
         //    printf("buff[%d]=%0x2  ",i,buff[i]);
@@ -172,7 +173,7 @@ while(1)
       /*-------------- calculate time slot ------------*/ 
        cost_times=t_end.tv_sec-t_start.tv_sec;
        cost_timeus=t_end.tv_usec-t_start.tv_usec;
-       printf("Cost time: %ld s + %ld us\n",cost_times,cost_timeus);
+       printf("Cost time: %ld s + %ld us\n\n\n",cost_times,cost_timeus);
 
        sleep(10);
 
@@ -215,6 +216,8 @@ DIR *d;
 struct dirent *file;
 int fn_len;
 
+BMP_file_total=0; //--reset file number
+   
 /*----------- if open dir error ------*/
 if(!(d=opendir(path)))
 {
@@ -231,6 +234,8 @@ while((file=readdir(d))!=NULL)
    strncpy(BMP_file_name[BMP_file_num++],file->d_name,fn_len);
    BMP_file_total++;   
  }
+ 
+ 
  closedir(d);
  return 0;
 }
