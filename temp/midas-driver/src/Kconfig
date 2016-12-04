@@ -1,0 +1,5 @@
+config MIDAS-DRIVER
+	tristate "Midas-driver"
+        default m
+	help
+	  This is an test for midas-driver
