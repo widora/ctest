@@ -20,7 +20,7 @@ int MapLen; // file size,mmap size
 char file_path[256];
 char BMP_file_name[256][STRBUFF]; //---BMP file directory and name
 int BMP_file_num; 
-int BMP_file_total=0;
+int BMP_file_total=0; //--total number of BMP files 
 
 /*------------- time struct -------------*/
 struct timeval t_start,t_end;
@@ -34,7 +34,7 @@ int Find_BMP_files(char* path);
 int main(int argc, char* argv[])
 {
  int i,j,k,nn;
- int Ncount;
+ int Ncount=-1; //--index number of picture displayed
  uint32_t total; // --total bytes of pic file
  uint16_t residual; // --residual after total divided by BUFFSIZE
  uint16_t nbuff;
@@ -48,14 +48,6 @@ char strf[STRBUFF]; //--for file name
  uint16_t picWidth, picHeight;
  offp=18; // file offset  position for picture Width and Height data
 
- /* ----------- find out all BMP files in specified path -------- */
-   //Find_BMP_files(file_path);
-   Find_BMP_files(argv[1]);
-   if(BMP_file_total == 0){
-     printf("\n No BMP file found! \n");
-     return 1; }
-
-    Ncount=BMP_file_total-1; //--[Nount] from 0   
 
  /*---------------- Exit Signal Process ----------------*/
    signal(SIGINT,ExitClean);
@@ -79,9 +71,18 @@ char strf[STRBUFF]; //--for file name
 while(1)
 {
      //-------------- reload total_numbe after one round show ---------    
-       if( Ncount < 1)
-          Ncount=BMP_file_total-1;    
-     
+      if( Ncount < 0)
+      {
+          /* find out all BMP files in specified path  */
+          printf("\n\n==================   reload BMP file directory   =================\n");
+          Find_BMP_files(argv[1]);
+          if(BMP_file_total == 0){
+             printf("\n No BMP file found! \n");
+             return 1; }
+          Ncount=BMP_file_total-1; //--[Nount] from 0        
+      }
+
+    
      //----- load BMP file path -------------
         sprintf(strf,"%s%s",argv[1],BMP_file_name[Ncount]);
         printf("str = %s\n",strf);         
@@ -109,7 +110,7 @@ while(1)
         //    printf("\n");}
         picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
         picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-        printf("\n picWidth=%d    picHeight=%d \n",picWidth,picHeight);
+        printf("\n picWidth=%d    picHeight=%d",picWidth,picHeight);
  
       /*--------------------- MMAP -----------------------*/
         MapLen=picWidth*picHeight*3+54; 
@@ -162,7 +163,7 @@ while(1)
          if(residual!=0)
                  WriteNData(offp+pmap+i*SPIBUFF,residual);
   
-    printf("---------------------   Finish drawing the picture -------------\n\n");
+    printf("---------------------   Finish drawing the picture -------------\n");
    
       /*---------------- get end time ------------------*/
        gettimeofday(&t_end,NULL);
@@ -180,9 +181,9 @@ while(1)
 //WriteComm(0x28);WriteData(0x00);  //--disply off
 
 munmap(pmap,MapLen);
-printf(" before close: fp=%d\n",fp);
+//printf(" before close: fp=%d\n",fp);
 close(fp); //--fp will not set to NULL however close
-printf("after close: fp=%d\n",fp);
+//printf("after close: fp=%d\n",fp);
 }
 
 /* =========================  close files and release mem   ======================== */
