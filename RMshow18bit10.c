@@ -19,7 +19,7 @@ int MapLen; // file size,mmap size
 
 char file_path[256];
 char BMP_file_name[256][STRBUFF]; //---BMP file directory and name
-int BMP_file_num; 
+int BMP_file_num=0;//----BMP file name index 
 int BMP_file_total=0; //--total number of BMP files 
 
 /*------------- time struct -------------*/
@@ -216,8 +216,8 @@ DIR *d;
 struct dirent *file;
 int fn_len;
 
-BMP_file_total=0; //--reset file number
-   
+BMP_file_total=0; //--reset total  file number
+BMP_file_num=0; //--reset file  index   
 /*----------- if open dir error ------*/
 if(!(d=opendir(path)))
 {
