@@ -29,11 +29,13 @@
 #define CODE_PLAY_PAUSE 68
 #define CODE_VOLUME_UP 9
 #define CODE_VOLUME_DOWN 21
+#define CODE_RELOAD 25 //---- 2 arrows 
 
 #define MAXLINE 100
 #define List_Item_Max_Num 15
 
 char str_dev[]="/dev/LIRC_dev";
+char str_radio_list[]="/mplayer/radio.list";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
 
 
@@ -115,6 +117,12 @@ while(1)
                         flag_3D=true;	
                      }
                      break;
+               case CODE_RELOAD: 
+                    sprintf(strCMD,"echo 'loadlist %s'>/mplayer/slave",str_radio_list);
+                    printf("%s \n",strCMD);
+                    system(strCMD);
+                    nList_Item=1;
+                    break;
                case CODE_MUTE: 
                     system("echo 'mute'>/mplayer/slave");
                     printf("echo 'mute'>/mplayer/slave \n");
