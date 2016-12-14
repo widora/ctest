@@ -31,15 +31,19 @@
 #define CODE_VOLUME_DOWN 21
 
 #define MAXLINE 100
+#define List_Item_Max_Num 15
 
 char str_dev[]="/dev/LIRC_dev";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
+
 
 int main(int argc, char** argv)
 {
 
 //----------- LIRC ------------
    int fd;
+   int nList_Item=1; //--List Item Number
+   int nList_Gap=0; //--- difference between selected item number and current item number.
    bool flag_3D=false;
    unsigned int LIRC_DATA = 0; //---raw data from LIRC module 
    unsigned int LIRC_CODE =0;
@@ -68,14 +72,20 @@ while(1)
            switch(LIRC_CODE)
            {
                case CODE_NEXT:
+                    if(nList_Item<List_Item_Max_Num)
+                       nList_Item+=1; 
  		    system("echo 'pt_step 1'>/mplayer/slave");
  		    printf("echo 'pt_step 1'>/mplayer/slave \n");
                     break;
                case CODE_PREV:
+                    if(nList_Item>1)
+                       nList_Item-=1; 
  		    system("echo 'pt_step -1'>/mplayer/slave");
  		    printf("echo 'pt_step -1'>/mplayer/slave \n");
                     break;
                case CODE_PLAY_PAUSE:
+                    system("echo 'pause'>/mplayer/slave");
+ 		    printf("echo 'pause'>/mplayer/slave \n");
                      break;
                case CODE_VOLUME_UP: 
                     if(volume_val<125)
@@ -113,17 +123,27 @@ while(1)
 
                  switch(LIRC_CODE)
                   {
-                     case CODE_NUM_1:PLAY_LIST_NUM=1;break;
-                     case CODE_NUM_2:PLAY_LIST_NUM=2;break;
-                     case CODE_NUM_3:PLAY_LIST_NUM=3;break;
-                     case CODE_NUM_4:PLAY_LIST_NUM=4;break;
-                     case CODE_NUM_5:PLAY_LIST_NUM=5;break;
-                     case CODE_NUM_6:PLAY_LIST_NUM=6;break;
+                     case CODE_NUM_1:nList_Gap=1-nList_Item;nList_Item=1;break;
+                     case CODE_NUM_2:nList_Gap=2-nList_Item;nList_Item=2;break;
+                     case CODE_NUM_3:nList_Gap=3-nList_Item;nList_Item=3;break;
+                     case CODE_NUM_4:nList_Gap=4-nList_Item;nList_Item=4;break;
+                     case CODE_NUM_5:nList_Gap=5-nList_Item;nList_Item=5;break;
+                     case CODE_NUM_6:nList_Gap=6-nList_Item;nList_Item=6;break;
+                     case CODE_NUM_7:nList_Gap=7-nList_Item;nList_Item=7;break;
+                     case CODE_NUM_8:nList_Gap=8-nList_Item;nList_Item=8;break;
+                     case CODE_NUM_9:nList_Gap=9-nList_Item;nList_Item=9;break;
                      default:
                         printf("Unrecognizable code! \n");
                    }
 
-                printf("PLAY_LIST_NUM =%d \n",PLAY_LIST_NUM);          
+                if(nList_Gap!=0)
+                 {
+                     sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
+                     printf("%s \n",strCMD);
+                     system(strCMD);
+                     nList_Gap=0;
+                 }
+                //printf("PLAY_LIST_NUM =%d \n",PLAY_LIST_NUM);          
                 usleep(100000);continue;
            } 
      }
