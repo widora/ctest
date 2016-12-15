@@ -68,6 +68,7 @@ void  play_fm(float freq)
     char strCMD[50];
     kill_mplay();
     sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
+    usleep(250000);
     system(strCMD);
     printf("%s\n",strCMD);
 }
