@@ -24,6 +24,7 @@
 
 #define CODE_MODE 70
 #define CODE_MUTE 71
+#define CODE_EQ   7
 #define CODE_NEXT 67
 #define CODE_PREV 64
 #define CODE_PLAY_PAUSE 68
@@ -33,17 +34,53 @@
 
 #define MAXLINE 100
 #define List_Item_Max_Num 15
+#define MODE_MPLAYER 0
+#define MODE_RADIO 1
+
 
 char str_dev[]="/dev/LIRC_dev";
 char str_radio_list[]="/mplayer/radio.list";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
 
+void kill_fm(void)
+{
+   system("killall -9 fm");
+   system("killall -9 rtl_fm");
+   system("killall -9 aplay");
+}
+void kill_mplay(void)
+{
+    system("killall -9 mplay");
+    system("killall -9 mplayer1");
+    system("killall -9 reaplay");
+    system("killall -9 aplay "); 
+}
+void play_mplayer(void)
+{
+    char strCMD[100];
+    kill_fm();
+    sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
+    printf("%s \n",strCMD);
+    system(strCMD);
+}
+void  play_fm(float freq)
+{
+    char strCMD[50];
+    kill_mplay();
+    sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
+    system(strCMD);
+    printf("%s\n",strCMD);
+}
 
+
+
+//====================================    main   =================================
 int main(int argc, char** argv)
 {
 
 //----------- LIRC ------------
    int fd;
+   int play_mode=0; // 0-mplayer 1-radio
    int nList_Item=1; //--List Item Number
    int nList_Gap=0; //--- difference between selected item number and current item number.
    bool flag_3D=false;
@@ -51,6 +88,10 @@ int main(int argc, char** argv)
    unsigned int LIRC_CODE =0;
    unsigned int volume_val=100;
    char strCMD[50];
+   float FM_FREQ[10];
+   FM_FREQ[0]=87.9;FM_FREQ[1]=89.9;FM_FREQ[2]=91.4;FM_FREQ[3]=93.4;FM_FREQ[4]=97.7;
+   FM_FREQ[5]=99.1;FM_FREQ[6]=101.7;FM_FREQ[7]=103.7;FM_FREQ[8]=105.7;FM_FREQ[9]=107.7;
+   unsigned int num_Freq=9;
 
 //---------------  OPEN LIRC DEVICE   --------------
     fd = open(str_dev, O_RDWR | O_NONBLOCK);
@@ -63,14 +104,56 @@ int main(int argc, char** argv)
 //------------------------- loop for input command and receive response ---------------------
 while(1)
   {
-     //--------------- receive LIRC data ---------
-     read(fd, &LIRC_DATA, sizeof(LIRC_DATA));
-     if(LIRC_DATA!=0)
-         {
-           printf("LIRC_DATA: 0x%0x\n",LIRC_DATA);  
-           LIRC_CODE=(LIRC_DATA>>16)&0x000000ff;
-           printf("LIRC_CODE: %d\n",LIRC_CODE);
+    //--------------- receive LIRC data ---------
+    read(fd, &LIRC_DATA, sizeof(LIRC_DATA));
+    if(LIRC_DATA!=0)
+    {
+      printf("LIRC_DATA: 0x%0x\n",LIRC_DATA);  
+      LIRC_CODE=(LIRC_DATA>>16)&0x000000ff;
+      printf("LIRC_CODE: %d\n",LIRC_CODE);
 
+      if(LIRC_CODE==CODE_MODE)
+        {
+           play_mode=!play_mode; //shift play_mode value         
+           if(play_mode==MODE_MPLAYER)
+              {   
+                 printf("------- shift to MPLAYER SLAVE mode \n");
+                 play_mplayer();
+               }
+            else if(play_mode==MODE_RADIO)
+               {
+                 printf("-------  shift to SDR RADIO mode \n");
+                 play_fm(FM_FREQ[num_Freq]);
+                }
+           continue;
+        }
+
+      if(LIRC_CODE==CODE_VOLUME_UP) //----------  VOLUME ADJUST ---------
+        {
+            if(volume_val<125)
+                  volume_val+=2;
+             sprintf(strCMD,"amixer set Speaker %d",volume_val);
+             system(strCMD);
+             printf("%s \n",strCMD);
+             continue;
+         }
+      if(LIRC_CODE==CODE_VOLUME_DOWN)
+        {
+              if(volume_val>20)
+                   volume_val-=2;
+              sprintf(strCMD,"amixer set Speaker %d",volume_val);
+              system(strCMD);
+              printf("%s \n",strCMD);
+              continue;
+        } 
+
+
+       //-----!! WARNING use {} for every switch,case and default structre, or compilation will fail.    
+      switch(play_mode)
+      {
+        case MODE_MPLAYER: //-----------------------------------for  MPLAYER ------------------------
+        {
+         printf("-------  MPLAYER SLAVE mode --------\n");
            switch(LIRC_CODE)
            {
                case CODE_NEXT:
@@ -89,6 +172,7 @@ while(1)
                     system("echo 'pause'>/mplayer/slave");
  		    printf("echo 'pause'>/mplayer/slave \n");
                      break;
+/*
                case CODE_VOLUME_UP: 
                     if(volume_val<125)
                         volume_val+=2;
@@ -103,7 +187,8 @@ while(1)
                     system(strCMD);
                     printf("%s \n",strCMD);
                     break; 
-      	       case CODE_MODE:
+*/
+      	       case CODE_EQ:
 		    if(flag_3D)
                     {
          		system("amixer set 3D 0");
@@ -128,9 +213,9 @@ while(1)
                     printf("echo 'mute'>/mplayer/slave \n");
                     break;
                default: 
-
+               {
                  switch(LIRC_CODE)
-                  {
+                 {
                      case CODE_NUM_1:nList_Gap=1-nList_Item;nList_Item=1;break;
                      case CODE_NUM_2:nList_Gap=2-nList_Item;nList_Item=2;break;
                      case CODE_NUM_3:nList_Gap=3-nList_Item;nList_Item=3;break;
@@ -142,26 +227,55 @@ while(1)
                      case CODE_NUM_9:nList_Gap=9-nList_Item;nList_Item=9;break;
                      default:
                         printf("Unrecognizable code! \n");
-                   }
-
-                if(nList_Gap!=0)
+                        break;   
+                 }
+                if(nList_Gap!=0) //---still in default
                  {
                      sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
                      printf("%s \n",strCMD);
                      system(strCMD);
                      nList_Gap=0;
                  }
-                //printf("PLAY_LIST_NUM =%d \n",PLAY_LIST_NUM);          
-                usleep(100000);continue;
-           } 
-     }
-     else //--- ii LIRC_DATA==0
-          {
-              usleep(100000);
-              continue;  //---- no LIRC data received
-           }
+                // break;
+              };break;//--default
+        };//---switch (LIRC_CODE) end
+       }; break; //---- case MODE_MPLAY end
 
-    usleep(100000); //---sleep
+        case MODE_RADIO: //--------------------------- for SDR FM RADIO ----------------------------------------
+        {
+         printf("-------  SDR RADIO mode  --------\n");
+         switch(LIRC_CODE)
+          {
+              case CODE_NUM_0:num_Freq=0;break;
+              case CODE_NUM_1:num_Freq=1;break;
+              case CODE_NUM_2:num_Freq=2;break;
+              case CODE_NUM_3:num_Freq=3;break;
+              case CODE_NUM_4:num_Freq=4;break;
+              case CODE_NUM_5:num_Freq=5;break;
+              case CODE_NUM_6:num_Freq=6;break;
+              case CODE_NUM_7:num_Freq=7;break;
+              case CODE_NUM_8:num_Freq=8;break;
+              case CODE_NUM_9:num_Freq=9;break;
+              default:
+                   printf("Unrecognizable code! \n");
+          }
+         play_fm(FM_FREQ[num_Freq]);
+
+        };break;//--  case MODE_RADIO end
+
+        default: //-----------------------------------  default -----------------------------------------------
+          usleep(100000);continue;
+
+      } //--switch play_mode end
+ 
+     }  //---if end
+     else //--- ii LIRC_DATA==0
+     {
+        //usleep(100000);
+        continue;  //---- no LIRC data received
+      }
+
+    usleep(200000); //---sleep
 
   } //--end while()
 
