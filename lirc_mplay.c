@@ -84,7 +84,7 @@ int main(int argc, char** argv)
    int play_mode=0; // 0-mplayer 1-radio
    int nList_Item=1; //--List Item Number
    int nList_Gap=0; //--- difference between selected item number and current item number.
-   bool flag_3D=false;
+   bool flag_3D=false; //----3D effect sound
    unsigned int LIRC_DATA = 0; //---raw data from LIRC module 
    unsigned int LIRC_CODE =0;
    unsigned int volume_val=100;
@@ -115,11 +115,14 @@ while(1)
 
       if(LIRC_CODE==CODE_MODE)
         {
-           play_mode=!play_mode; //shift play_mode value         
+
+           play_mode=!play_mode; //------ shift play_mode value         
+
            if(play_mode==MODE_MPLAYER)
               {   
                  printf("------- shift to MPLAYER SLAVE mode \n");
                  play_mplayer();
+                 nList_Item=1;
                }
             else if(play_mode==MODE_RADIO)
                {
@@ -162,12 +165,14 @@ while(1)
                        nList_Item+=1; 
  		    system("echo 'pt_step 1'>/mplayer/slave");
  		    printf("echo 'pt_step 1'>/mplayer/slave \n");
+                    printf("nList_Item=%d\n",nList_Item);
                     break;
                case CODE_PREV:
                     if(nList_Item>1)
                        nList_Item-=1; 
  		    system("echo 'pt_step -1'>/mplayer/slave");
  		    printf("echo 'pt_step -1'>/mplayer/slave \n");
+                    printf("nList_Item=%d\n",nList_Item);
                     break;
                case CODE_PLAY_PAUSE:
                     system("echo 'pause'>/mplayer/slave");
@@ -192,14 +197,15 @@ while(1)
       	       case CODE_EQ:
 		    if(flag_3D)
                     {
-         		system("amixer set 3D 0");
-                        printf("amixer set 3D 0 \n");
+         		system("amixer set 3D off");
+                        printf("amixer set 3D off \n");
                         flag_3D=false;
                     }
                     else
-                    {
-                        system("amixer set 3D 15");
-                        printf("amixer set 3D 15 \n");
+                    {   
+                        system("amixer set 3D 12");
+                        system("amixer set 3D on");
+                        printf("amixer set 3D 12 & on \n");
                         flag_3D=true;	
                      }
                      break;
@@ -233,6 +239,7 @@ while(1)
                 if(nList_Gap!=0) //---still in default
                  {
                      sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
+                     printf("nList_Item=%d\n",nList_Item);
                      printf("%s \n",strCMD);
                      system(strCMD);
                      nList_Gap=0;
@@ -258,14 +265,17 @@ while(1)
               case CODE_NUM_8:num_Freq=8;break;
               case CODE_NUM_9:num_Freq=9;break;
               default:
+                  {
                    printf("Unrecognizable code! \n");
+                   continue; //----------
+                  }
           }
          play_fm(FM_FREQ[num_Freq]);
 
         };break;//--  case MODE_RADIO end
 
         default: //-----------------------------------  default -----------------------------------------------
-          usleep(100000);continue;
+          usleep(250000);continue;
 
       } //--switch play_mode end
  
@@ -276,7 +286,7 @@ while(1)
         continue;  //---- no LIRC data received
       }
 
-    usleep(200000); //---sleep
+    usleep(250000); //---sleep
 
   } //--end while()
 
