@@ -38,29 +38,32 @@
 #define MODE_MPLAYER 0
 #define MODE_RADIO 1
 #define MODE_AIRBAND 2
+#define MODE_XIAMEN 3
+
 
 char str_dev[]="/dev/LIRC_dev";
 char str_radio_list[]="/mplayer/radio.list";
+char str_xiamen_list[]="/mplayer/xiamen.list";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
 
 void kill_fm(void)
 {
    system("killall -9 fm");
-   system("killall -9 rtl_fm");
-   system("killall -9 aplay");
+//   system("killall -9 rtl_fm");
+//   system("killall -9 aplay");
 }
 void kill_mplay(void)
 {
     system("killall -9 mplay");
-    system("killall -9 mplayer1");
-    system("killall -9 reaplay");
-    system("killall -9 aplay "); 
+//    system("killall -9 mplayer1");
+//    system("killall -9 reaplay");
+//    system("killall -9 aplay "); 
 }
 void kill_am(void)
 {
    system("killall -9 am");
-   system("killall -9 rtl_fm");
-   system("killall -9 aplay");
+//   system("killall -9 rtl_fm");
+//   system("killall -9 aplay");
 }
 
 
@@ -69,10 +72,23 @@ void play_mplayer(void)
     char strCMD[100];
     kill_fm();
     kill_am();
+    kill_mplay();
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     printf("%s \n",strCMD);
     system(strCMD);
 }
+
+void play_xiamen(void)
+{
+    char strCMD[100];
+    kill_fm();
+    kill_am();
+    kill_mplay();
+    sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -aid 2 -playlist  %s",str_xiamen_list);
+    printf("%s \n",strCMD);
+    system(strCMD);
+}
+
 void  play_fm(float freq)
 {
     char strCMD[50];
@@ -142,15 +158,22 @@ while(1)
 
       if(LIRC_CODE==CODE_MODE)
         {
-          if(play_mode<2)
+          if(play_mode<3)
              play_mode+=1; //------ shift play_mode value         
           else
              play_mode=0;   
 
+           //--------------------------------SELECT PLAY MODE --------------------------
            if(play_mode==MODE_MPLAYER)
               {   
                  printf("------- shift to MPLAYER SLAVE mode \n");
                  play_mplayer();
+                 nList_Item=1;
+               }
+           else if(play_mode==MODE_XIAMEN)
+              {   
+                 printf("------- shift to XIAMEN-RADIO MPLAYER SLAVE mode \n");
+                 play_xiamen();
                  nList_Item=1;
                }
             else if(play_mode==MODE_RADIO)
@@ -322,7 +345,82 @@ while(1)
         {
          printf("-------  SDR AIR-BAND RECEIVER mode  --------\n");
 
-        }
+        };break;
+
+        case MODE_XIAMEN: //----------------------------------- for XIAMEN RADIO ---------------------------------------------
+        {
+         printf("-------  XIAMEN RADIO mode  --------\n");
+           switch(LIRC_CODE)
+           {
+               case CODE_NEXT:
+                    if(nList_Item<List_Item_Max_Num)
+                       nList_Item+=1; 
+ 		    system("echo 'pt_step 1'>/mplayer/slave");
+ 		    printf("echo 'pt_step 1'>/mplayer/slave \n");
+                    printf("nList_Item=%d\n",nList_Item);
+                    break;
+               case CODE_PREV:
+                    if(nList_Item>1)
+                       nList_Item-=1; 
+ 		    system("echo 'pt_step -1'>/mplayer/slave");
+ 		    printf("echo 'pt_step -1'>/mplayer/slave \n");
+                    printf("nList_Item=%d\n",nList_Item);
+                    break;
+               case CODE_PLAY_PAUSE:
+                    system("echo 'pause'>/mplayer/slave");
+ 		    printf("echo 'pause'>/mplayer/slave \n");
+                     break;
+      	       case CODE_EQ:
+		    if(flag_3D)
+                    {
+         		system("amixer set 3D off");
+                        printf("amixer set 3D off \n");
+                        flag_3D=false;
+                    }
+                    else
+                    {   
+                        system("amixer set 3D 12");
+                        system("amixer set 3D on");
+                        printf("amixer set 3D 12 & on \n");
+                        flag_3D=true;	
+                     }
+                     break;
+               case CODE_RELOAD: 
+                    sprintf(strCMD,"echo 'loadlist %s'>/mplayer/slave",str_radio_list);
+                    printf("%s \n",strCMD);
+                    system(strCMD);
+                    nList_Item=1;
+                    break;
+               case CODE_MUTE: 
+                    system("echo 'mute'>/mplayer/slave");
+                    printf("echo 'mute'>/mplayer/slave \n");
+                    break;
+               default: 
+               {
+                 switch(LIRC_CODE)
+                 {
+                     case CODE_NUM_1:nList_Gap=1-nList_Item;nList_Item=1;break;
+                     case CODE_NUM_2:nList_Gap=2-nList_Item;nList_Item=2;break;
+                     case CODE_NUM_3:nList_Gap=3-nList_Item;nList_Item=3;break;
+                     case CODE_NUM_4:nList_Gap=4-nList_Item;nList_Item=4;break;
+                     case CODE_NUM_5:nList_Gap=5-nList_Item;nList_Item=5;break;
+                     default:
+                        printf("Unrecognizable code! \n");
+                        break;   
+                 }
+                if(nList_Gap!=0) //---still in default
+                 {
+                     sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
+                     printf("nList_Item=%d\n",nList_Item);
+                     printf("%s \n",strCMD);
+                     system(strCMD);
+                     nList_Gap=0;
+                 }
+                // break;
+              };break;//--default
+        };//---switch (LIRC_CODE) end
+       }; break; //---- case MODE_XIAMEN end
+
 
         default: //-----------------------------------  default -----------------------------------------------
           usleep(250000);continue;
