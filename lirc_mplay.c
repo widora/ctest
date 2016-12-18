@@ -22,6 +22,7 @@
 #define CODE_NUM_8 82
 #define CODE_NUM_9 74
 
+#define CODE_SHUTDOWN 69
 #define CODE_MODE 70
 #define CODE_MUTE 71
 #define CODE_EQ   7
@@ -36,7 +37,7 @@
 #define List_Item_Max_Num 15
 #define MODE_MPLAYER 0
 #define MODE_RADIO 1
-
+#define MODE_AIRBAND 2
 
 char str_dev[]="/dev/LIRC_dev";
 char str_radio_list[]="/mplayer/radio.list";
@@ -55,10 +56,19 @@ void kill_mplay(void)
     system("killall -9 reaplay");
     system("killall -9 aplay "); 
 }
+void kill_am(void)
+{
+   system("killall -9 am");
+   system("killall -9 rtl_fm");
+   system("killall -9 aplay");
+}
+
+
 void play_mplayer(void)
 {
     char strCMD[100];
     kill_fm();
+    kill_am();
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     printf("%s \n",strCMD);
     system(strCMD);
@@ -67,13 +77,30 @@ void  play_fm(float freq)
 {
     char strCMD[50];
     kill_mplay();
+    kill_am();
     sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
     usleep(250000);
     system(strCMD);
     printf("%s\n",strCMD);
 }
 
+void  play_am(void)
+{
+    char strCMD[50];
+    kill_mplay();
+    kill_fm();
+    sprintf(strCMD,"screen -dmS AM /mplayer/am");
+    usleep(250000);
+    system(strCMD);
+    printf("%s\n",strCMD);
+}
 
+void shut_down(void)
+{
+    kill_am();
+    kill_fm();
+    kill_mplay();
+}
 
 //====================================    main   =================================
 int main(int argc, char** argv)
@@ -115,8 +142,10 @@ while(1)
 
       if(LIRC_CODE==CODE_MODE)
         {
-
-           play_mode=!play_mode; //------ shift play_mode value         
+          if(play_mode<2)
+             play_mode+=1; //------ shift play_mode value         
+          else
+             play_mode=0;   
 
            if(play_mode==MODE_MPLAYER)
               {   
@@ -126,11 +155,25 @@ while(1)
                }
             else if(play_mode==MODE_RADIO)
                {
-                 printf("-------  shift to SDR RADIO mode \n");
+                 printf("-------  shift to SDR FM RADIO mode \n");
                  play_fm(FM_FREQ[num_Freq]);
+                }
+            else if(play_mode==MODE_AIRBAND)
+               {
+                 printf("-------  shift to SDR AIR-BAND receiver mode \n");
+                 play_am();
                 }
            continue;
         }
+
+      if(LIRC_CODE==CODE_SHUTDOWN) //----------  SHUT DOWN ---------
+        {
+           shut_down();
+           printf("--------  SHUT DOWN NOW -------- \n");
+
+            continue;
+        }
+
 
       if(LIRC_CODE==CODE_VOLUME_UP) //----------  VOLUME ADJUST ---------
         {
@@ -274,15 +317,22 @@ while(1)
 
         };break;//--  case MODE_RADIO end
 
+
+        case MODE_AIRBAND: //--------------------------- for SDR AIR-BAND RECEIVER ----------------------------------------
+        {
+         printf("-------  SDR AIR-BAND RECEIVER mode  --------\n");
+
+        }
+
         default: //-----------------------------------  default -----------------------------------------------
           usleep(250000);continue;
 
       } //--switch play_mode end
  
      }  //---if end
-     else //--- ii LIRC_DATA==0
+     else //---  LIRC_DATA==0
      {
-        //usleep(100000);
+        usleep(250000);
         continue;  //---- no LIRC data received
       }
 
