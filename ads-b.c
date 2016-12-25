@@ -54,9 +54,11 @@ static int get_NL(double lat)
 
 void main(int argc, char* argv[])
 {
+char str_HEX_CODE[3][30];
+strcpy(str_HEX_CODE[0],"8D40621D58C382D690C8AC2863A7");
+strcpy(str_HEX_CODE[1],"8D40621D58C386435CC412692AD6");
+strcpy(str_HEX_CODE[2],"8D4840D6202CC371C32CE0576098");
 
-//char* str_HEX_CODE="8D4840D6202CC371C32CE0576098";
-char* str_HEX_CODE="8D40621D58C382D690C8AC2863A7";
 
 char str_ICAO24[6+1]=""; //--4*6=24bits
 int  int_ICAO24;
@@ -65,24 +67,31 @@ char str_BIN_CODE[CODE_BIN_LENGTH-1];
 char str_Temp[8];
 char str_CALL_SIGN[8+1]="";
 int n_div=CODE_HEX_LENGTH/8+1; // =4
-int i,j,k,tmp;
+int nj,i,j,k,tmp;
 int  int_CODE_DF; 
 int  int_CODE_TC;
 int  int_NL; //number of longitude zones
 
-double  dbl_lat_cpr_even,dbl_lon_cpr_even;  //--even frame latitude and longitude value
-double  dbl_lat_cpr_odd,dbl_lon_cpr_odd; //--odd frame latitude and longitude value
-
 unsigned long bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array
-char str_32BIT[8*4];  
+
+double  dbl_lat_cpr_even=0,dbl_lon_cpr_even=0;  //--even frame latitude and longitude value
+double  dbl_lat_cpr_odd=0,dbl_lon_cpr_odd=0; //--odd frame latitude and longitude value
+int int_lat_index; // latitude index
+
+
+//=======================  loop for message receiving and decoding =================
+for(nj=0;nj<3;nj++)
+{
+
 
 //--------------  convert hex code to bin code in string -----------
 for(i=0;i<n_div;i++)
  {
-    strmid(str_Temp,str_HEX_CODE,8,i*8);
+    strmid(str_Temp,str_HEX_CODE[nj],8,i*8);
     bin32_code[i]=strtoul(str_Temp,NULL,16);
     printf("%x",bin32_code[i]); 
  }
+ printf("\n");
 
 //-------------------------- get DF and TC ---------------------------- 
 int_CODE_DF=(bin32_code[0]>>(32-5))&(0b11111);
@@ -93,7 +102,7 @@ int_ICAO24=(bin32_code[0]&0xffffff);
 
 //-------------------------  get int_FRAME  ----------------------------
 int_FRAME=(bin32_code[1]>>(32-(54-32)))&(0b1);
-
+printf("int_FRAME=%d \n",int_FRAME);
 
 if(int_CODE_TC>0 && int_CODE_TC<5)  //-------DF=17, TC=1to4  Aircraft identification
 {
@@ -108,43 +117,46 @@ if(int_CODE_TC>0 && int_CODE_TC<5)  //-------DF=17, TC=1to4  Aircraft identifica
     tmp=(bin32_code[2]>>(32-(6+6*j)))&(0x3f);
     str_CALL_SIGN[j+4]=LOOKUP_TABLE[tmp];  
   }
-}
+} ///----- Aircraft identification decode end
+
 
 if((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23))//-----Airborne position
 //---TC=9to18 Airborne position (Baro Alt)  TC=20to22 Airborne position (GNSS Height)
 {
  double lat=atof(argv[1]);  
-
  int_NL=get_NL(lat);
  printf("int_NL=%d \n",int_NL);
-
 
 //-------------------------   calculate Latitude and Longitude  -----------------------
 if(int_FRAME==EVEN_FRAME)
 {
 dbl_lat_cpr_even= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit  2^17=131072
 dbl_lon_cpr_even= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
-printf("LAT_CPR_EVEN=%.8f   LON_CPR_EVEN=%.8f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
+printf("LAT_CPR_EVEN=%.16f   LON_CPR_EVEN=%.16f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
 }
 else if(int_FRAME==ODD_FRAME)
 {
-dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072; // 55-41 bit
-dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072; //72-88 bit
-printf("LAT_CPR_ODD=%.8f   LON_CPR_ODD=%.8f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
+dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit
+dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
+printf("LAT_CPR_ODD=%.16f   LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
 }
 
+//-------------------------   calculate Latitude Index  ----------------------------
+//-- !!!!!!!!!!!! to ensure that lat_cpr_even and odd are both valid !!!!!!!!!!!
+int_lat_index=floor(59.0*dbl_lat_cpr_even-60.0*dbl_lat_cpr_odd+1/2.0);
+printf("Latitude Index = %d \n",int_lat_index);
+
+}///---- Airebore Position decode end
 
 
-}
-
-
-
-printf("\n");
 printf("DF=%d \n",int_CODE_DF);
 printf("TC=%d \n",int_CODE_TC);
 printf("ICAO24=%x \n",int_ICAO24);
 printf("FRAME: %s \n",(int_FRAME>0)?"Odd":"Even");
 printf("CALL SIGN: %s \n",str_CALL_SIGN);
+printf("----------------  end of message --------------\n");
 
 
-}
+ } /// end of for() 
+
+} //// end of main()
