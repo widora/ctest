@@ -2,6 +2,7 @@
 
 Try to decode ADS-B messages
 
+including  -lm  to compile the program
 
 midaszhou@qq.com
 -------------------------------------------------*/
@@ -18,9 +19,9 @@ char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789#
 #define ODD_FRAME 1
 #define NZ 15  //--Number of geographic latitude zones between equator and a pole. NZ=15 for Mode-S CPR encoding.
 
-/*------------------   function  strmid()   ------------------------
-to copy 'n' chars from 'src' starting from 'm'_th char to 'dst'
-------------------------------------------------------------------*/
+/*------------------   function  strmid()   ------------------------------
+to copy 'n' chars from 'src' to 'dst', starting from 'm'_th char in 'src'
+------------------------------------------------------------------------*/
 static char* strmid(char *dst,char *src,int n,int m)  
 {
  char *p=src;
@@ -35,13 +36,13 @@ static char* strmid(char *dst,char *src,int n,int m)
  return dst;
 }
 
-/*-----------------------    function cal_NL()   -------------------------
+/*-----------------------    function get_NL()   -------------------------
 calcuate number of longitude zones by given value of latitude angle 
 --------------------------------------------------------------------*/
-static int cal_NL(double lat)
+static int get_NL(double lat)
 {
- double pi=3.1415926535897;  //--double 15~16 digital precision
-
+ double pi=3.1415926535897932;  //--double: 16 digital precision exclude '.'
+ //printf("pi=%.15f \n",pi);
  if(lat==0) return 59;
  else if(lat==87) return 2;
  else if(lat==-87) return 2;
@@ -69,6 +70,9 @@ int  int_CODE_DF;
 int  int_CODE_TC;
 int  int_NL; //number of longitude zones
 
+double  dbl_lat_cpr_even,dbl_lon_cpr_even;  //--even frame latitude and longitude value
+double  dbl_lat_cpr_odd,dbl_lon_cpr_odd; //--odd frame latitude and longitude value
+
 unsigned long bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array
 char str_32BIT[8*4];  
 
@@ -77,10 +81,7 @@ for(i=0;i<n_div;i++)
  {
     strmid(str_Temp,str_HEX_CODE,8,i*8);
     bin32_code[i]=strtoul(str_Temp,NULL,16);
-    //ltmp=strtoul(str_Temp,NULL,16);
-    //ltoa(ltmp,str_32BIT,2);
     printf("%x",bin32_code[i]); 
-    //printf("%s \n",str_32BIT);
  }
 
 //-------------------------- get DF and TC ---------------------------- 
@@ -114,8 +115,24 @@ if((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23))//---
 {
  double lat=atof(argv[1]);  
 
- int_NL=cal_NL(lat);
+ int_NL=get_NL(lat);
  printf("int_NL=%d \n",int_NL);
+
+
+//-------------------------   calculate Latitude and Longitude  -----------------------
+if(int_FRAME==EVEN_FRAME)
+{
+dbl_lat_cpr_even= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit  2^17=131072
+dbl_lon_cpr_even= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
+printf("LAT_CPR_EVEN=%.8f   LON_CPR_EVEN=%.8f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
+}
+else if(int_FRAME==ODD_FRAME)
+{
+dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072; // 55-41 bit
+dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072; //72-88 bit
+printf("LAT_CPR_ODD=%.8f   LON_CPR_ODD=%.8f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
+}
+
 
 
 }
