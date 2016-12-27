@@ -13,7 +13,7 @@ midaszhou@qq.com
 #include <math.h> //-floor() pow() cos() acos()
 #include <sys/time.h> //-gettimeofday()
 #include <time.h> // ctime(),time_t,
-#include <unistd.h> //-pipe()
+#include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
 
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112 
@@ -52,6 +52,19 @@ for(i=0;i<len-1;i++)
   str[i]=str[i+1];
 
 return 0;
+}
+
+/*---------------------- function str_findb()   ---------------------------
+if find tg[0] in src, return 1; else return 0; 
+---------------------------------------------------------------------------*/
+static int str_findb(char* src,char tg)
+{
+  int len=strlen(src);
+  int i,ret=0;
+  for(i=0;i<len;i++)
+     if(src[i]==tg)
+         { ret=1; break; }
+  return ret;
 }
 
 /*-----------------------    function get_NL()   -------------------------
@@ -132,12 +145,14 @@ for(i=0;i<n_div;i++)
  printf("\n");
 */
 
+setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail
+
 sleep(1);
 while(1)
 {
 
 usleep(500000); //--!!!!!! wait rtl_adbs to finish printing to STDOUT
-int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, or try &str_hexcode[0], the size must be 32 bytes.
+int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, set iobuff=0 by the sender  the size must be 32 bytes.
 //str_hexcode[int_ret]=0; //---add a NULL for string end
 trim_strfb(str_hexcode); //--trim "*" in the string
 //printf("str_hexcode :%s   int_ret=%d \n",str_hexcode,int_ret); //--strlen(str) str must have a '/0' end
@@ -181,12 +196,16 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
     tmp=(bin32_code[2]>>(32-(6+6*j)))&(0x3f);
     str_CALL_SIGN[j+4]=LOOKUP_TABLE[tmp];  
   }
- printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
- printf("bin32_code: %x%x%x%x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]);
- printf("TC=%d \n",int_CODE_TC);
- time(&tm_record);
- printf("----------------------------------       CALL SIGN: %s       %s ",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
 
+  printf("CALL SIGN: %s \n",str_CALL_SIGN);
+  if(!str_findb(str_CALL_SIGN,'#')) //--It's valid only there is no '#' in the CALLSIGN
+     {
+	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
+	 printf("bin32_code: %x%x%x%x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]);
+	 printf("TC=%d \n",int_CODE_TC);
+	 time(&tm_record);
+	 printf("----------------------------------       CALL SIGN: %s       %s ",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
+     }
 } ///----- Aircraft identification decode end
 
 
