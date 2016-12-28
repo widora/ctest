@@ -197,7 +197,7 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
     str_CALL_SIGN[j+4]=LOOKUP_TABLE[tmp];  
   }
 
-  printf("CALL SIGN: %s \n",str_CALL_SIGN);
+  //printf("CALL SIGN: %s \n",str_CALL_SIGN);
   if(!str_findb(str_CALL_SIGN,'#')) //--It's valid only there is no '#' in the CALLSIGN
      {
 	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
