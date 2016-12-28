@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------
-
+Test program for ADSB-CRC.H
 
 midaszhou@qq.com
 -------------------------------------------------------------------*/
@@ -9,26 +9,7 @@ midaszhou@qq.com
 #include <string.h> //-strlen()
 #include <stdint.h> //uint32_t
 #include "adsb-crc.h"
-
-
-
-/*------------------   function  strmid()   ------------------------------
-to copy 'n' chars from 'src' to 'dst', starting from 'm'_th char in 'src'
-------------------------------------------------------------------------*/
-static char* strmid(char *dst,char *src,int n,int m)  
-{
- char *p=src;
- char *q=dst;
- unsigned int len=strlen(src);
- if(n>len) n=len-m;
- if(m<0) m=0;
- if(m>len) return NULL;
- p+=m;
- while(n--) *(q++)=*(p++);
- *(q++)='\0';
- return dst;
-}
-
+#include "cstring.h" //strmid()
 
 
 

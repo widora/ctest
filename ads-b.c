@@ -4,6 +4,8 @@ It carrys information such as identity,position,velocity,status etc.
 
 including  -lm  to compile the program
 
+!!! screen will intercept STDIO buffer, so use sh -c "....." to avoid it.
+
 midaszhou@qq.com
 -------------------------------------------------------------------*/
 
@@ -14,6 +16,9 @@ midaszhou@qq.com
 #include <sys/time.h> //-gettimeofday()
 #include <time.h> // ctime(),time_t,
 #include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
+#include <stdint.h> //uint32_t
+#include "cstring.h" //strmid(),trim_strfb(),str_findb()
+#include "adsb-crc.h" //adsb_crc24( )
 
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112 
@@ -23,49 +28,7 @@ char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789#
 #define ODD_FRAME 1
 #define NZ 15  //--Number of geographic latitude zones between equator and a pole. NZ=15 for Mode-S CPR encoding.
 
-/*------------------   function  strmid()   ------------------------------
-to copy 'n' chars from 'src' to 'dst', starting from 'm'_th char in 'src'
-------------------------------------------------------------------------*/
-static char* strmid(char *dst,char *src,int n,int m)  
-{
- char *p=src;
- char *q=dst;
- unsigned int len=strlen(src);
- if(n>len) n=len-m;
- if(m<0) m=0;
- if(m>len) return NULL;
- p+=m;
- while(n--) *(q++)=*(p++);
- *(q++)='\0';
- return dst;
-}
 
-
-/*-----------------------    function trim_strfb()   -------------------------
- trim first byte of a string 
---------------------------------------------------------------------*/
-static int trim_strfb(char* str)
-{
-int i;
-int len=strlen(str);
-for(i=0;i<len-1;i++)
-  str[i]=str[i+1];
-
-return 0;
-}
-
-/*---------------------- function str_findb()   ---------------------------
-if find tg[0] in src, return 1; else return 0; 
----------------------------------------------------------------------------*/
-static int str_findb(char* src,char tg)
-{
-  int len=strlen(src);
-  int i,ret=0;
-  for(i=0;i<len;i++)
-     if(src[i]==tg)
-         { ret=1; break; }
-  return ret;
-}
 
 /*-----------------------    function get_NL()   -------------------------
 calcuate number of longitude zones by given value of latitude angle 
@@ -120,7 +83,9 @@ int  int_CODE_DF;
 int  int_CODE_TC;
 int  int_NL; //number of longitude zones
 
-unsigned long bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array
+uint32_t bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array, meaningful data 112bits
+uint32_t bin32_message[3]; //88bits meaningful,message data in the 112-bits CODE after ripping 24bits CRC, used as dividend in CRC calculation.
+uint32_t bin32_CRC24; //CRC calculated from bin32_message
 
 double  dbl_lat_cpr_even=0,dbl_lon_cpr_even=0;  //--even frame latitude and longitude factor value
 double  dbl_lat_cpr_odd=0,dbl_lon_cpr_odd=0; //--odd frame latitude and longitude factor value
@@ -157,14 +122,20 @@ int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, set iobuff=0 b
 trim_strfb(str_hexcode); //--trim "*" in the string
 //printf("str_hexcode :%s   int_ret=%d \n",str_hexcode,int_ret); //--strlen(str) str must have a '/0' end
 //printf("bin32_code: ");
-for(i=0;i<n_div;i++)
+for(i=0;i<4;i++) //---convert CODE to bin type
  {
     strmid(str_Temp,str_hexcode,8,i*8);
     bin32_code[i]=strtoul(str_Temp,NULL,16);
+    if(i==3)
+          bin32_code[i]=(bin32_code[i]<<16);  //--shift/adjust the last 16bits to left significent order 
    // printf("%x",bin32_code[i]); 
  }
 //  printf("\n");
-
+//---------- extract message data, get rid of 24bits CRC 
+  bin32_message[0]=bin32_code[0];
+  bin32_message[1]=bin32_code[1];
+  bin32_message[2]=bin32_code[2]&0xffffff00;
+ // printf("Message Data for CRC check: %08x%08x%08x \n",bin32_message[0],bin32_message[1],bin32_message[2]);
 
 //-------------------------- get DF and TC ---------------------------- 
 int_CODE_DF=(bin32_code[0]>>(32-5))&(0b11111);
@@ -201,10 +172,11 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
   if(!str_findb(str_CALL_SIGN,'#')) //--It's valid only there is no '#' in the CALLSIGN
      {
 	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
+         bin32_CRC24=adsb_crc24(bin32_message); //calculate CRC 24
 	 printf("bin32_code: %x%x%x%x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]);
-	 printf("TC=%d \n",int_CODE_TC);
-	 time(&tm_record);
-	 printf("----------------------------------       CALL SIGN: %s       %s ",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
+	 printf("TC=%d       CRC24 =%06x \n",int_CODE_TC,bin32_CRC24);
+	 time(&tm_record); 
+	 printf("----------------------------------       CALL SIGN: %s       %s \n",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
      }
 } ///----- Aircraft identification decode end
 
