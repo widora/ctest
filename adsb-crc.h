@@ -17,7 +17,7 @@ uint32_t adsb_crc24(uint32_t *bin32_divid)
 int j;
 uint32_t crc32_GP=0xFFFA0480;//0x04C11DB7; // CRC Generator Polynomial alread inlucdes the highest first bit, while standard CRC usually omitted. 
 
- printf("INPUT CRC DIVIDEND (22x4bits) : %08x%08x%06x \n",*bin32_divid,*(bin32_divid+1),*(bin32_divid+2)>>8);
+//printf("INPUT CRC DIVIDEND (22x4bits) : %08x%08x%06x \n",*bin32_divid,*(bin32_divid+1),*(bin32_divid+2)>>8);
 
 for(j=0;j<88;j++)
  {

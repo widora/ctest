@@ -85,7 +85,9 @@ int  int_NL; //number of longitude zones
 
 uint32_t bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array, meaningful data 112bits
 uint32_t bin32_message[3]; //88bits meaningful,message data in the 112-bits CODE after ripping 24bits CRC, used as dividend in CRC calculation.
+uint32_t bin32_checksum; // checksum in ADS-B  message, last 24bits in bin32_code.
 uint32_t bin32_CRC24; //CRC calculated from bin32_message
+
 
 double  dbl_lat_cpr_even=0,dbl_lon_cpr_even=0;  //--even frame latitude and longitude factor value
 double  dbl_lat_cpr_odd=0,dbl_lon_cpr_odd=0; //--odd frame latitude and longitude factor value
@@ -111,12 +113,11 @@ for(i=0;i<n_div;i++)
 */
 
 setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail
-
-sleep(1);
+//sleep(1);
 while(1)
 {
 
-usleep(500000); //--!!!!!! wait rtl_adbs to finish printing to STDOUT
+//usleep(500000); //-- wait rtl_adbs to finish printing to STDOUT
 int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, set iobuff=0 by the sender  the size must be 32 bytes.
 //str_hexcode[int_ret]=0; //---add a NULL for string end
 trim_strfb(str_hexcode); //--trim "*" in the string
@@ -130,6 +131,9 @@ for(i=0;i<4;i++) //---convert CODE to bin type
           bin32_code[i]=(bin32_code[i]<<16);  //--shift/adjust the last 16bits to left significent order 
    // printf("%x",bin32_code[i]); 
  }
+
+bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); //--get checksum at last 24bits of codes
+
 //  printf("\n");
 //---------- extract message data, get rid of 24bits CRC 
   bin32_message[0]=bin32_code[0];
@@ -173,10 +177,10 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      {
 	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
          bin32_CRC24=adsb_crc24(bin32_message); //calculate CRC 24
-	 printf("bin32_code: %x%x%x%x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]);
-	 printf("TC=%d       CRC24 =%06x \n",int_CODE_TC,bin32_CRC24);
+	 printf("Received ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
+	 printf("TC=%d    CRC24 =%06x    CHECKSUM =%06x\n",int_CODE_TC,bin32_CRC24,bin32_checksum);
 	 time(&tm_record); 
-	 printf("----------------------------------       CALL SIGN: %s       %s \n",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
+	 printf("-----------------------------------------       CALL SIGN: %s       %s \n",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
      }
 } ///----- Aircraft identification decode end
 
