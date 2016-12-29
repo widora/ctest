@@ -1,5 +1,7 @@
 /*-------------------------------------------------------------------
-
+Function: Decode ADS-B Message
+Usage:     crc24  28chars
+Example:   crc24 8D40621D58C382D690C8AC2863A7
 
 midaszhou@qq.com
 -------------------------------------------------------------------*/
@@ -8,12 +10,7 @@ midaszhou@qq.com
 #include <stdlib.h>
 #include <string.h> //-strlen()
 #include <stdint.h> //uint32_t
-//#include <math.h> //-floor() pow() cos() acos()
-//#include <sys/time.h> //-gettimeofday()
-//#include <time.h> // ctime(),time_t,
-//#include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
-
-
+#include "adsb_crc.h"
 
 
 /*------------------   function  strmid()   ------------------------------
@@ -59,10 +56,16 @@ uint32_t bin32_code[4]; //store full binary ADS-B CODE in 4 groups of 32bit arra
 uint32_t bin32_divid[4]={0,0,0,0};//dividend = message(88)+crc(24)=112bits
 
 //--------------- get str_HEX_CODE from input -----------------
+ if(argc<1)
+  {
+    printf("please enter 28bits ADS-B code!\n");
+    return;
+  }
  if(strlen(argv[1])<28)
  {  
      printf("input data: %s\n",argv[1]);
      printf("ADS-B Code not correct!\n"); 
+     return; 
  }
  strcpy(str_HEX_CODE,argv[1]);
 
@@ -77,7 +80,12 @@ for(i=0;i<4;i++)
  }
  printf("\n");
 
-//------------------------- CRC calculation -------------------------------
+//--------------call the function to calculate CRC ------------------------
+ printf("88bits  CRC24: %06x \n",adsb_crc(bin32_code,88));
+ printf("112bits CRC24: %06x \n",adsb_crc(bin32_code,112));
+
+//--------------------- CRC calculation ----------------------
+/*
   //------- prepare dividend for CRC calculation 
   bin32_divid[0]=bin32_code[0];
   bin32_divid[1]=bin32_code[1];
@@ -94,9 +102,10 @@ for(j=0;j<88;j++)
     if(bin32_divid[2] & 0x80000000)  bin32_divid[1]|=1; // shift code[2] to code[1]
     bin32_divid[2]=(bin32_divid[2]<<1);
  }
-  printf("CRC: %08x \n",bin32_divid[0]); 
+//  printf("CRC: %08x \n",bin32_divid[0]); 
   printf("CRC24: %06x \n",bin32_divid[0]>>8);
 //  printf("CRC: %08x \n",bin32_divid[0]<<1); //--CRC Width = Generator Golynomial - 1
+*/
 
 
 } //// end of main()

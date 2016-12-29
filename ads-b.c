@@ -18,7 +18,7 @@ midaszhou@qq.com
 #include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
 #include <stdint.h> //uint32_t
 #include "cstring.h" //strmid(),trim_strfb(),str_findb()
-#include "adsb-crc.h" //adsb_crc24( )
+#include "adsb_crc.h" //adsb_crc24( )
 
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112 
