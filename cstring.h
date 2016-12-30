@@ -37,9 +37,13 @@ static int trim_strfb(char* str)
 {
 int i;
 int len=strlen(str);
-for(i=0;i<len-1;i++)
-  str[i]=str[i+1];
-return 0;
+if(str[0]=='*')
+ {
+  for(i=0;i<len-1;i++)
+    str[i]=str[i+1];
+  return 0;
+  }
+return 1;
 }
 
 /*---------------------- function str_findb()   ---------------------------

@@ -21,13 +21,25 @@ midaszhou@qq.com
 #include "adsb_crc.h" //adsb_crc24( )
 
 #define BUFSIZE 40
-#define CODE_BIN_LENGTH 112 
+#define CODE_BIN_LENGTH 112
 #define CODE_HEX_LENGTH 28
 char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######";
 #define EVEN_FRAME 0
 #define ODD_FRAME 1
 #define NZ 15  //--Number of geographic latitude zones between equator and a pole. NZ=15 for Mode-S CPR encoding.
+/*
+#define max(x,y) ({\
+typeof(x) _x=(x);\
+typeof(y) _y=(y);\
+(void)(&_x==&_y);\
+_x>_y?_x:_y;})
+*/
 
+//-----------------------    function max(x,y)   -------------------------
+static double max(double x, double y)
+{
+return  x>y?x:y;
+}
 
 
 /*-----------------------    function get_NL()   -------------------------
@@ -81,18 +93,20 @@ int n_div=CODE_HEX_LENGTH/8+1; // =4
 int nj,i,j,k,tmp;
 int  int_CODE_DF; 
 int  int_CODE_TC;
-int  int_NL; //number of longitude zones
-
+int  int_NL; //number of latitude zones
+int  int_NI; // =MAX(NL(Late),1)
+int  int_M;
 uint32_t bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array, meaningful data 112bits
 uint32_t bin32_message[3]; //88bits meaningful,message data in the 112-bits CODE after ripping 24bits CRC, used as dividend in CRC calculation.
 uint32_t bin32_checksum; // checksum in ADS-B  message, last 24bits in bin32_code.
 uint32_t bin32_CRC24; //CRC calculated from bin32_message
 
-
 double  dbl_lat_cpr_even=0,dbl_lon_cpr_even=0;  //--even frame latitude and longitude factor value
 double  dbl_lat_cpr_odd=0,dbl_lon_cpr_odd=0; //--odd frame latitude and longitude factor value
 int int_lat_index; // latitude index
 double dbl_lat_even,dbl_lat_odd; //--relative latitude values
+double dbl_lat_val,dbl_lon_val; //--final latitude and longitude valudes
+double dbl_DLon;// =360/int_NI
 struct timeval tv_even,tv_odd;//---time stamp
 time_t tm_record; //--record time 
 
@@ -100,8 +114,6 @@ time_t tm_record; //--record time
 /*
 for(nj=0;nj<3;nj++)
 {
-
-
 //--------------  convert hex code to bin code in string -----------
 for(i=0;i<n_div;i++)
  {
@@ -116,11 +128,13 @@ setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail
 //sleep(1);
 while(1)
 {
-
-//usleep(500000); //-- wait rtl_adbs to finish printing to STDOUT
-int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, set iobuff=0 by the sender  the size must be 32 bytes.
+memset(str_hexcode,'\0',sizeof(str_hexcode)); //--clear buffer str
+//usleep(500); //-- wait rtl_adbs to finish printing to STDOUT
+int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, it will stop at '\0'!!!!.  set iobuff=0 by the sender  the size must be 32 bytes.
+////////// try to fflush stdin; the data will remaind in buffer until new data enter to reflash   ///////////
+fflush(stdin);
 //str_hexcode[int_ret]=0; //---add a NULL for string end
-trim_strfb(str_hexcode); //--trim "*" in the string
+trim_strfb(str_hexcode); //--trim first char "*" in the string 
 //printf("str_hexcode :%s   int_ret=%d \n",str_hexcode,int_ret); //--strlen(str) str must have a '/0' end
 //printf("bin32_code: ");
 for(i=0;i<4;i++) //---convert CODE to bin type
@@ -131,6 +145,7 @@ for(i=0;i<4;i++) //---convert CODE to bin type
           bin32_code[i]=(bin32_code[i]<<16);  //--shift/adjust the last 16bits to left significent order 
    // printf("%x",bin32_code[i]); 
  }
+
 
 bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); //--get checksum at last 24bits of codes
 
@@ -184,11 +199,9 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      }
 } ///----- Aircraft identification decode end
 
-
 if(int_CODE_DF==17 && ((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23)))//-----Airborne position
 //---TC=9to18 Airborne position (Baro Alt)  TC=20to22 Airborne position (GNSS Height)
 {
-
 // double lat=atof(argv[1]);  
 //int_NL=get_NL(lat);
 // printf("int_NL=%d \n",int_NL);
@@ -222,9 +235,46 @@ dbl_lat_odd=360.0/59.0*(mod(int_lat_index,59)+dbl_lat_cpr_odd);
 //--convert value to within [-90,+90]
 if(dbl_lat_even >=270.0)dbl_lat_even-=360.0;
 if(dbl_lat_odd >=270.0)dbl_lat_odd-=360.0;
-//printf("Latitude-Even = %.14f \n",dbl_lat_even);
-//printf("Latitude-Odd = %.14f \n",dbl_lat_odd);
+printf("Latitude-Even = %.14f \n",dbl_lat_even);
+printf("Latitude-Odd = %.14f \n",dbl_lat_odd);
 
+//------- compare time value of even and odd frame, get final Latitude and Longitutde -----
+if((tv_even.tv_sec > tv_odd.tv_sec) || ((tv_even.tv_sec==tv_odd.tv_sec) && (tv_even.tv_usec >= tv_odd.tv_usec)))
+//--- if tv_even > tv_odd
+{
+  dbl_lat_val=dbl_lat_even;  //---final Lat. value 
+  
+  //-----------------   calculate Longitude  --------------------------
+  if(get_NL(dbl_lat_even)==get_NL(dbl_lat_odd)) //--ensure there in the same lat zone.
+  {
+     int_NI=max(get_NL(dbl_lat_even),1);
+     dbl_DLon=360.0/int_NI;
+     int_M=floor(dbl_lon_cpr_even*(get_NL(dbl_lat_even)-1)-dbl_lon_cpr_odd*get_NL(dbl_lat_even)+0.5);
+     dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_even);
+      printf(" tv_even>tv_odd final Longitude =%.14f \n",dbl_lon_val);
+
+  }
+}
+//else  //----tv_odd > tv_even
+{
+  dbl_lat_val=dbl_lat_odd;  //----final Lat. value
+
+  //-----------------   calculate Longitude  --------------------------
+  if(get_NL(dbl_lat_even)==get_NL(dbl_lat_odd)) //--ensure there in the same lat zone.
+   {
+      int_NI=max((get_NL(dbl_lat_odd)-1),1);
+      printf("NL_odd=%d\n",(get_NL(dbl_lat_odd)));
+      printf("int_NI=%d\n",int_NI);
+      dbl_DLon=360.0/int_NI;
+      printf("DLon=%.14f\n",dbl_DLon);
+      printf("LoncprE=%.14f  LoncprO=%.14f \n",dbl_lon_cpr_even,dbl_lon_cpr_odd);
+      int_M=floor(dbl_lon_cpr_even*(get_NL(dbl_lat_odd)-1)-dbl_lon_cpr_odd*get_NL(dbl_lat_odd)+0.5);
+      printf("int_M=%d\n",int_M);
+      dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_odd);
+   } 
+}
+  printf(" final Latitude =%.14f \n",dbl_lat_val);
+  printf(" final Longitude =%.14f \n",dbl_lon_val);
 
 }///---- Airebore Position decode end
 
@@ -238,7 +288,7 @@ printf("FRAME: %s \n",(int_FRAME>0)?"Odd":"Even");
 printf("----------------  end of message --------------\n");
 */
 
-usleep(200000);
+usleep(50000);
  } /// end of for() or while()
 
 } //// end of main()
