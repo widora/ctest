@@ -176,7 +176,7 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
   if(!str_findb(str_CALL_SIGN,'#')) //--It's valid only there is no '#' in the CALLSIGN
      {
 	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
-         bin32_CRC24=adsb_crc24(bin32_message); //calculate CRC 24
+         bin32_CRC24=adsb_crc(bin32_code,88); //calculate CRC 24
 	 printf("Received ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
 	 printf("TC=%d    CRC24 =%06x    CHECKSUM =%06x\n",int_CODE_TC,bin32_CRC24,bin32_checksum);
 	 time(&tm_record); 

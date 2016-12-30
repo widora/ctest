@@ -80,6 +80,9 @@ for(i=0;i<4;i++)
  }
  printf("\n");
 
+//-------------- try to find and fix ibit error in bin32_code -----------
+adsb_fixerror_slow(bin32_code);
+
 //--------------call the function to calculate CRC ------------------------
  printf("88bits  CRC24: %06x \n",adsb_crc(bin32_code,88));
  printf("112bits CRC24: %06x \n",adsb_crc(bin32_code,112));

@@ -14,6 +14,7 @@ midaszhou@qq.com
 
 /********************************************************** 
 //-------------- using POINTER call is DANGEROUS !!!! and will contaminate original datas  --------------------
+
 uint32_t adsb_crc24(uint32_t *bin32_divid)
 {
 //bin32_divid: message data, totally will be 88-bits  
@@ -69,10 +70,11 @@ for(j=0;j<88;j++)
 
 
 
-//------------  passing VALUE instead of POINTER to function(), it's safer,but cost time. -------------------
-uint32_t adsb_crc24( uint32_t *bin32_divid) // for 88bits message
+//------------  passing VALUE instead of POINTER to function(), it's safer,but cost time.!!!!!! -----------------
+//---  return 24bits CRC in uint32_t 
+uint32_t adsb_crc_88bits( uint32_t *bin32_divid) // for 88bits message
 {
-// bin32_divid[0-2]: message data, totally will be 88-bits 
+//--- bin32_divid[0-2]: message data, totally will be 88-bits 
 
 uint32_t tbin32_divid[3];
 int j;
@@ -99,40 +101,38 @@ for(j=0;j<88;j++)
 
 
 /*========================================================================================
-                            CRC CALCULATION FOR VARIOUS BITS 
+                            CRC CALCULATION FOR VARIABLE WIDTH 
  adsb_crc(uint32_t *bin32_divid, int nbits)
- bin32_divid:  pointer to he original message as for dividend of CRC calculation, 
- nbits:   bit-length of the input message
+ *bin32_divid :  pointer to full message
+ nbits:     width of messsage for CRC check
+ Return:  24bits CRC
+ Note: original data uncontaminated.
 ========================================================================================*/
 uint32_t adsb_crc(uint32_t *bin32_divid, int nbits)
 {
-// bin32_divid[0-3]: message data, Max. to be 112-bits 
-
+//--- bin32_divid[0-3]: message data, Max. to be 112-bits 
 uint32_t tbin32_divid[4]={0,0,0,0};
-int32_t tmp=0xffffffff;
+int32_t mask=0xffffffff;
 int i,j,k,m;
 uint32_t crc32_GP=0xFFFA0480;//0x04C11DB7; // CRC Generator Polynomial alread inlucdes the highest first bit, while standard CRC usually omitted. 
 
-//---copy message data to a temp. array tbin32_divid[], so following proceeding  will not contaminate original datas 
+//---copy message data to a temp. array tbin32_divid[], so following proceeding  will not contaminate original data
 if(nbits>112) //---nbits Max 112
 {
     printf("Message length great than 28*4=112bits, use 112 as Max. value.\n");
     nbits=112;
 }
-
 k=nbits/32;
 m=nbits%32;
 //printf("k=%d, m=%d \n",k,m);
-
 if(k>0)
 {
   for(i=0;i<k;i++)
      tbin32_divid[i]=bin32_divid[i];
 }  
-tmp=tmp<<(32-m);
-tbin32_divid[k]=bin32_divid[k] & tmp;
+mask=mask<<(32-m);
+tbin32_divid[k]=bin32_divid[k] & mask;
 //printf("INPUT CRC DIVIDEND : %08x%08x%08x%04x \n",tbin32_divid[0],tbin32_divid[1],tbin32_divid[2],tbin32_divid[3]>>16);
-
 for(j=0;j<nbits;j++) //------CRC calculation
  {
     if(*tbin32_divid & 0x80000000)
@@ -151,11 +151,41 @@ for(j=0;j<nbits;j++) //------CRC calculation
 
 
 /*========================================================================== 
-    find  1bit error in message data
-    return position of the error
+    -------  FIX 1BIT ERROR IN MESSAGE --------- 
+    return position of the error bit starting from 0
+    *bin32_code : full message 
+     nbits:   width of messsage for CRC check
+     Return:   -1:error unfixable;     0: no error;     1: error fixed;
+     Note: original data will be modified! !!! ensure pointer safe !!!!
 ===========================================================================*/
-//int adsb_fixcrc_slow( uint32_t tbin32_divid[])
+int adsb_fixerror_slow(uint32_t *bin32_code)
+{
+   int ret=-1;
+   int i,j,k,m;  
+   uint32_t mask=0x80000000;
+   if(!adsb_crc(bin32_code,112))
+   {
+      printf("CRC check OK.  No error in original message.\n");
+      return 0;
+   }
 
+   for(i=0;i<112;i++)
+   {
+      k=i/32;
+      m=i%32;
+      mask=(0x80000000>>m);
+      bin32_code[k]^=mask; // exchange 1 and 0 
+      if(!adsb_crc(bin32_code,112))
+      {  
+         printf("1bit error in bin32_code[%d] fixed! \n",32*k+m);
+         return 1;
+      } 
+      bin32_code[k]^=mask; // exchange 1 and 0, resume data
+    }
+
+    printf("More than 1 bit error, can't fix the error!\n");
+    return -1;  
+}
 
 
 #endif
