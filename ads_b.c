@@ -95,6 +95,7 @@ int nj,i,j,k,tmp;
 int  int_CODE_DF; 
 int  int_CODE_TC;
 int  int_NL; //number of latitude zones
+int  int_EVEN_NL,int_ODD_NL;
 int  int_NI; // =MAX(NL(Late),1)
 int  int_M;
 uint32_t bin32_code[4]; //store binary ADS-B CODE in 4 groups of 32bit array, meaningful data 112bits
@@ -148,11 +149,12 @@ for(i=0;i<4;i++) //---convert CODE to bin type
           bin32_code[i]=(bin32_code[i]<<16);  //--shift/adjust the last 16bits to left significent order 
    // printf("%x",bin32_code[i]); 
  }
-//-------try to fix 1bit error in original code ---------
+
+//------- try to fix 1bit error in original code ---------
 int_ret_errorfix=adsb_fixerror_slow(bin32_code);
 
-
-bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); //--get checksum at last 24bits of codes
+//------- get checksum at last 24bits of codes -----------
+bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); 
 
 //  printf("\n");
 //---------- extract message data, get rid of 24bits CRC 
@@ -205,6 +207,7 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      }
 } ///----- Aircraft identification decode end
 
+
 //===========================     AIRBOREN POSITION  CALCUALTION    =======================
 if(int_CODE_DF==17 && ((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23)))//$$$$$$$-- Airborne position --$$$$$$$$$
 //---TC=9to18 Airborne position (Baro Alt)  TC=20to22 Airborne position (GNSS Height)
@@ -231,9 +234,10 @@ gettimeofday(&tv_odd,0);
 dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit
 dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
 //printf("LAT_CPR_ODD=%.16f \n  LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
+
 }
 
-if(int_ODD_ICAO24==int_EVEN_ICAO24)
+if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
   {
 	//-------------------------   calculate Latitude Index  ----------------------------
 	//-- !!!!!!!!!!!! to ensure that lat_cpr_even and odd are both valid !!!!!!!!!!!
@@ -248,6 +252,8 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24)
 	if(dbl_lat_odd >=270.0)dbl_lat_odd-=360.0;
 	//printf("Latitude-Even = %.14f \n",dbl_lat_even);
 	//printf("Latitude-Odd = %.14f \n",dbl_lat_odd);
+        int_EVEN_NL=get_NL(dbl_lat_even);
+        int_ODD_NL=get_NL(dbl_lat_odd);
 
 
 	//------- compare time value of even and odd frame, get final Latitude and Longitutde -----
@@ -257,34 +263,35 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24)
  	  dbl_lat_val=dbl_lat_even;  //---final Lat. value 
   
 	  //-----------------   calculate Longitude Teven >Todd --------------------------
-	  if(get_NL(dbl_lat_even)==get_NL(dbl_lat_odd)) //--ensure there in the same lat zone.
+	  if(int_EVEN_NL==int_ODD_NL) //--ensure they are in the same lat zone.
 	  {
-	     int_NI=max(get_NL(dbl_lat_even),1);
+	     int_NI=max(int_EVEN_NL,1);
 	     dbl_DLon=360.0/int_NI;
-	     int_M=floor(dbl_lon_cpr_even*(get_NL(dbl_lat_even)-1)-dbl_lon_cpr_odd*get_NL(dbl_lat_even)+0.5);
+	     int_M=floor(dbl_lon_cpr_even*(int_EVEN_NL-1)-dbl_lon_cpr_odd*int_EVEN_NL+0.5);
 	     dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_even);
 	//      printf(" tv_even>tv_odd final Longitude =%.14f \n",dbl_lon_val);
-
 	  }
 	}
 	else  //----tv_odd > tv_even
 	{
 	  dbl_lat_val=dbl_lat_odd;  //----final Lat. value
-
 	  //-----------------   calculate Longitude Teven < Todd -------------------------
-	  if(get_NL(dbl_lat_even)==get_NL(dbl_lat_odd)) //--ensure there in the same lat zone.
+	  if(int_EVEN_NL==int_ODD_NL) //--ensure they are in the same lat zone.
 	   {
-	      int_NI=max((get_NL(dbl_lat_odd)-1),1);
+	      int_NI=max((int_ODD_NL-1),1);
 	//      printf("NL_odd=%d\n",(get_NL(dbl_lat_odd)));
 	 //     printf("int_NI=%d\n",int_NI);
 	      	dbl_DLon=360.0/int_NI;
 	 //     printf("DLon=%.14f\n",dbl_DLon);
 	 //     printf("LoncprE=%.14f  LoncprO=%.14f \n",dbl_lon_cpr_even,dbl_lon_cpr_odd);
-	      int_M=floor(dbl_lon_cpr_even*(get_NL(dbl_lat_odd)-1)-dbl_lon_cpr_odd*get_NL(dbl_lat_odd)+0.5);
+	      int_M=floor(dbl_lon_cpr_even*(int_ODD_NL-1)-dbl_lon_cpr_odd*int_ODD_NL+0.5);
 	 //     printf("int_M=%d\n",int_M);
 	      dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_odd);
 	   } 
 	}
+
+        if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
+
        printf("Received ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
        printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14f Long: %.14f ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
 
