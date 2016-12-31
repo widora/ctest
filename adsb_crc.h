@@ -165,7 +165,7 @@ int adsb_fixerror_slow(uint32_t *bin32_code)
    uint32_t mask=0x80000000;
    if(!adsb_crc(bin32_code,112))
    {
-      printf("CRC check OK.  No error in original message.\n");
+//      printf("CRC check OK.  No error in original message.\n");
       return 0;
    }
 
@@ -177,13 +177,13 @@ int adsb_fixerror_slow(uint32_t *bin32_code)
       bin32_code[k]^=mask; // exchange 1 and 0 
       if(!adsb_crc(bin32_code,112))
       {  
-         printf("1bit error in bin32_code[%d] fixed! \n",32*k+m);
+ //        printf("1bit error in bin32_code[%d] fixed! \n",32*k+m);
          return 1;
       } 
       bin32_code[k]^=mask; // exchange 1 and 0, resume data
     }
 
-    printf("More than 1 bit error, can't fix the error!\n");
+//    printf("More than 1 bit error, can't fix the error!\n");
     return -1;  
 }
 
