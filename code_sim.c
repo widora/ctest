@@ -8,15 +8,16 @@ void main(void)
 int i,j,k;
 char strcode[5][32];
 //------!!! \0  end of a string  \n  return !!!------- 
-memset(strcode,'*',5*32);
-strcpy(strcode[0],"*8D40621D58C382D690C8AC2863A7  \0");
-strcpy(strcode[1],"*8D40621D58C386435CC412692AD6  \0");
-//strcpy(strcode[2],"--\0");
-strcode[2][15]='\0';
-//strcpy(strcode[3],"--\0");
-strcode[3][15]='\0';
-//strcpy(strcode[4],"--\0");
-strcode[4][31]='\0';
+memset(strcode,'\0',5*32);
+//strcpy(strcode[0],"*8D40621D58C382D690C8AC2863A7  \0");
+//strcpy(strcode[1],"*8D40621D58C386435CC412692AD6  \0");
+strcpy(strcode[0],"*8D78053B6035C48771C11C143B1A");
+strcpy(strcode[1],"*8D78053B60352487C5C1F772F3AD");
+strcpy(strcode[2],"*8D78053B6033D487F3C26AFB6307");
+strcpy(strcode[3],"*8D78053B6031D48879C39409C42C");
+//strcode[2][15]='\0';
+//strcode[3][15]='\0';
+//strcode[4][31]='\0';
 
  setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff
 // char str[]="123456789;\r\n";

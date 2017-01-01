@@ -20,10 +20,12 @@ midaszhou@qq.com
 #include "cstring.h" //strmid(),trim_strfb(),str_findb()
 #include "adsb_crc.h" //adsb_crc24( )
 
+static int PRINT_ON=0;
+
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112
 #define CODE_HEX_LENGTH 28
-char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######";
+static char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######";
 #define EVEN_FRAME 0
 #define ODD_FRAME 1
 #define NZ 15  //--Number of geographic latitude zones between equator and a pole. NZ=15 for Mode-S CPR encoding.
@@ -104,6 +106,7 @@ uint32_t bin32_checksum; // checksum in ADS-B  message, last 24bits in bin32_cod
 uint32_t bin32_CRC24; //CRC calculated from bin32_message
 
 int int_ret_errorfix; // return value from adsb_fixerror_slow()
+int int_ret_opt;// retrun value from getopt()
 
 double  dbl_lat_cpr_even=0,dbl_lon_cpr_even=0;  //--even frame latitude and longitude factor value
 double  dbl_lat_cpr_odd=0,dbl_lon_cpr_odd=0; //--odd frame latitude and longitude factor value
@@ -114,21 +117,31 @@ double dbl_DLon;// =360/int_NI
 struct timeval tv_even,tv_odd;//---time stamp
 time_t tm_record; //--record time 
 
-//=======================  loop for message receiving and decoding =================
-/*
-for(nj=0;nj<3;nj++)
+
+//-------------- get option -----------------
+while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
 {
-//--------------  convert hex code to bin code in string -----------
-for(i=0;i<n_div;i++)
- {
-    strmid(str_Temp,str_HEX_CODE[nj],8,i*8);
-    bin32_code[i]=strtoul(str_Temp,NULL,16);
-    printf("%x",bin32_code[i]); 
- }
- printf("\n");
-*/
+    switch(int_ret_opt)
+    {
+       case 'h':
+           printf("usage:  rtl_adsb | ads_b \n");   
+           printf("         -h   help \n");   
+           printf("         -d   printf debug information \n");   
+           return;
+       case 'd':
+           printf("----- Debug information available now! \n");
+           PRINT_ON=1;
+           break;
+       default:
+           break;
+    }//--end switch
+}//--end while()
+
+
 
 setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail
+
+//=======================  loop for message receiving and decoding =================
 //sleep(1);
 while(1)
 {
@@ -139,7 +152,7 @@ int_ret=read(STDIN_FILENO,str_hexcode,32); //--readin from stdin, it will stop a
 fflush(stdin);
 //str_hexcode[int_ret]=0; //---add a NULL for string end
 trim_strfb(str_hexcode); //--trim first char "*" in the string 
-//printf("str_hexcode :%s   int_ret=%d \n",str_hexcode,int_ret); //--strlen(str) str must have a '/0' end
+if(PRINT_ON)printf("str_hexcode :%s   int_ret=%d \n",str_hexcode,int_ret); //--strlen(str) str must have a '/0' end
 //printf("bin32_code: ");
 for(i=0;i<4;i++) //---convert CODE to bin type
  {
@@ -152,13 +165,11 @@ for(i=0;i<4;i++) //---convert CODE to bin type
 
 //------- try to fix 1bit error in original code ---------
 int_ret_errorfix=adsb_fixerror_slow(bin32_code);
-//if(int_ret_errorfix<0)continue;  // !!!!! suspending until CALLSIGN printed --if can't fix the error then drop it.
-
+//if(int_ret_errorfix<0)continue;  // !!!!!!!! WARNING !!!!!!!! temporarily suspending until CALLSIGN printed --if can't fix the error then drop it.
 
 //------- get checksum at last 24bits of codes -----------
 bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); 
 
-//  printf("\n");
 /*
 //---------- extract message data, get rid of 24bits CRC 
   bin32_message[0]=bin32_code[0];
@@ -211,11 +222,12 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      }
 } ///----- Aircraft identification decode end
 
-
+//---- !!!!! WARNING !!!!!    only temporarily use----   --or  any error in int_FRMAE,TC etc.  will pass on and affect later position decoding  ---------
 if(int_ret_errorfix<0)continue;  //--After CALL-SIGN decoding. If can't fix CRC error, then drop the codes and continue a new loop.
-//---any error in codes will affect later position decoding  ---------
+
 
 //===========================     AIRBOREN POSITION  CALCUALTION    =======================
+//
 if(int_CODE_DF==17 && ((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23)))//$$$$$$$-- Airborne position --$$$$$$$$$
 //---TC=9to18 Airborne position (Baro Alt)  TC=20to22 Airborne position (GNSS Height)
 {
@@ -262,7 +274,6 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
         int_EVEN_NL=get_NL(dbl_lat_even);
         int_ODD_NL=get_NL(dbl_lat_odd);
 
-
 	//------- compare time value of even and odd frame, get final Latitude and Longitutde -----
 	if((tv_even.tv_sec > tv_odd.tv_sec) || ((tv_even.tv_sec==tv_odd.tv_sec) && (tv_even.tv_usec >= tv_odd.tv_usec)))
 	//--- if tv_even > tv_odd
@@ -278,6 +289,7 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 	     dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_even);
 	//      printf(" tv_even>tv_odd final Longitude =%.14f \n",dbl_lon_val);
 	  }
+          else continue;
 	}
 	else  //----tv_odd > tv_even
 	{
@@ -294,12 +306,13 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 	      int_M=floor(dbl_lon_cpr_even*(int_ODD_NL-1)-dbl_lon_cpr_odd*int_ODD_NL+0.5);
 	 //     printf("int_M=%d\n",int_M);
 	      dbl_lon_val=dbl_DLon*(mod(int_M,int_NI)+dbl_lon_cpr_odd);
-	   } 
+	   }
+          else continue; 
 	}
 
-        if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
+       if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
 
-       printf("TC=%d  Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
+       printf("TC=%d NL=%d  Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,int_EVEN_NL,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
        printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14fN Long: %.14fE ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
 
  }//-----end of  if(int_ODD_ICAO24==int_EVEN_ICAO24)
