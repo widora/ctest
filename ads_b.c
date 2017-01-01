@@ -152,16 +152,20 @@ for(i=0;i<4;i++) //---convert CODE to bin type
 
 //------- try to fix 1bit error in original code ---------
 int_ret_errorfix=adsb_fixerror_slow(bin32_code);
+//if(int_ret_errorfix<0)continue;  // !!!!! suspending until CALLSIGN printed --if can't fix the error then drop it.
+
 
 //------- get checksum at last 24bits of codes -----------
 bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); 
 
 //  printf("\n");
+/*
 //---------- extract message data, get rid of 24bits CRC 
   bin32_message[0]=bin32_code[0];
   bin32_message[1]=bin32_code[1];
   bin32_message[2]=bin32_code[2]&0xffffff00;
  // printf("Message Data for CRC check: %08x%08x%08x \n",bin32_message[0],bin32_message[1],bin32_message[2]);
+*/
 
 //-------------------------- get DF and TC ---------------------------- 
 int_CODE_DF=(bin32_code[0]>>(32-5))&(0b11111);
@@ -207,6 +211,9 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      }
 } ///----- Aircraft identification decode end
 
+
+if(int_ret_errorfix<0)continue;  //--After CALL-SIGN decoding. If can't fix CRC error, then drop the codes and continue a new loop.
+//---any error in codes will affect later position decoding  ---------
 
 //===========================     AIRBOREN POSITION  CALCUALTION    =======================
 if(int_CODE_DF==17 && ((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && int_CODE_TC<23)))//$$$$$$$-- Airborne position --$$$$$$$$$
@@ -292,8 +299,8 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 
         if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
 
-       printf("Received ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
-       printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14f Long: %.14f ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
+       printf("TC=%d  Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
+       printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14fN Long: %.14fE ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
 
  }//-----end of  if(int_ODD_ICAO24==int_EVEN_ICAO24)
 	
