@@ -165,7 +165,7 @@ for(i=0;i<4;i++) //---convert CODE to bin type
 
 //------- try to fix 1bit error in original code ---------
 int_ret_errorfix=adsb_fixerror_slow(bin32_code);
-//if(int_ret_errorfix<0)continue;  // !!!!!!!! WARNING !!!!!!!! temporarily suspending until CALLSIGN printed --if can't fix the error then drop it.
+if(int_ret_errorfix<0)continue;  // !!!!!!!! WARNING !!!!!!!! temporarily suspending until CALLSIGN printed --if can't fix the error then drop it.
 
 //------- get checksum at last 24bits of codes -----------
 bin32_checksum=((bin32_code[2]&0xff)<<16) | (bin32_code[3]>>16); 
@@ -215,7 +215,7 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
      {
 	 //printf("str_hexcode :%s   len=%d\n",str_hexcode,strlen(str_hexcode));
          bin32_CRC24=adsb_crc(bin32_code,88); //calculate CRC 24
-	 printf("Received ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
+	 printf("\nReceived ADS-B CODES: %x%x%x%04x \n",bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
 	 printf("TC=%d    CRC24 =%06x    CHECKSUM =%06x\n",int_CODE_TC,bin32_CRC24,bin32_checksum);
 	 time(&tm_record); 
 	 printf("-----------------------------------------       CALL SIGN: %s       %s \n",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
@@ -223,7 +223,7 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
 } ///----- Aircraft identification decode end
 
 //---- !!!!! WARNING !!!!!    only temporarily use----   --or  any error in int_FRMAE,TC etc.  will pass on and affect later position decoding  ---------
-if(int_ret_errorfix<0)continue;  //--After CALL-SIGN decoding. If can't fix CRC error, then drop the codes and continue a new loop.
+//if(int_ret_errorfix<0)continue;  //--After CALL-SIGN decoding. If can't fix CRC error, then drop the codes and continue a new loop.
 
 
 //===========================     AIRBOREN POSITION  CALCUALTION    =======================
@@ -243,7 +243,7 @@ gettimeofday(&tv_even,0);
 //printf("Time stamp EVEN : %lds %ldus \n",tv_even.tv_sec,tv_even.tv_usec);
 dbl_lat_cpr_even= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit  2^17=131072
 dbl_lon_cpr_even= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
-//printf("LAT_CPR_EVEN=%.16f \n  LON_CPR_EVEN=%.16f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
+if(PRINT_ON)printf("LAT_CPR_EVEN=%.16f \n  LON_CPR_EVEN=%.16f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
 }
 else if(int_FRAME==ODD_FRAME)
 {
@@ -252,7 +252,7 @@ gettimeofday(&tv_odd,0);
 //printf("Time stamp ODD : %lds %ldus \n",tv_odd.tv_sec,tv_odd.tv_usec);
 dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit
 dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
-//printf("LAT_CPR_ODD=%.16f \n  LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
+if(PRINT_ON)printf("LAT_CPR_ODD=%.16f \n  LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
 
 }
 
@@ -311,8 +311,8 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 	}
 
        if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
-
-       printf("TC=%d NL=%d  Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,int_EVEN_NL,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
+       printf("Teven %lds:%ldus          Todd %lds:%ldus \n",tv_even.tv_sec,tv_even.tv_usec,tv_odd.tv_sec,tv_odd.tv_usec);
+       printf("TC=%d     NL=%d     Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,int_EVEN_NL,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
        printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14fN Long: %.14fE ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
 
  }//-----end of  if(int_ODD_ICAO24==int_EVEN_ICAO24)
