@@ -25,6 +25,7 @@ static int PRINT_ON=0;
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112
 #define CODE_HEX_LENGTH 28
+#define CODE_LIVE_TIME 40 //seconds, data's live time great than the value will be deemed as obsolete.
 static char LOOKUP_TABLE[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######";
 #define EVEN_FRAME 0
 #define ODD_FRAME 1
@@ -238,22 +239,35 @@ if(int_CODE_DF==17 && ((int_CODE_TC>8 && int_CODE_TC<19) || (int_CODE_TC>19 && i
 //-----------------   calculate Latitude and Longitude factors ------------------
 if(int_FRAME==EVEN_FRAME)
 {
-int_EVEN_ICAO24=int_ICAO24;
-gettimeofday(&tv_even,0);
-//printf("Time stamp EVEN : %lds %ldus \n",tv_even.tv_sec,tv_even.tv_usec);
-dbl_lat_cpr_even= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit  2^17=131072
-dbl_lon_cpr_even= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
-if(PRINT_ON)printf("LAT_CPR_EVEN=%.16f \n  LON_CPR_EVEN=%.16f \n",dbl_lat_cpr_even,dbl_lon_cpr_even);
+ int_EVEN_ICAO24=int_ICAO24;
+ gettimeofday(&tv_even,0);
+ //printf("Time stamp EVEN : %lds %ldus \n",tv_even.tv_sec,tv_even.tv_usec);
+ dbl_lat_cpr_even= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit  2^17=131072 
+ dbl_lon_cpr_even= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
+ if(PRINT_ON)printf("LAT_CPR_EVEN=%.16f \n  LON_CPR_EVEN=%.16f \n",dbl_lat_cpr_even,dbl_lon_cpr_even); 
+
+ //-----check data live time----------
+  if(abs(tv_even.tv_sec-tv_odd.tv_sec)>=CODE_LIVE_TIME) //--obsolete ODD data 
+  {
+     int_ODD_ICAO24=0; // reset ODD ICAO, mark it as obsolete
+     continue;
+  }
 }
 else if(int_FRAME==ODD_FRAME)
 {
-int_ODD_ICAO24=int_ICAO24;
-gettimeofday(&tv_odd,0);
-//printf("Time stamp ODD : %lds %ldus \n",tv_odd.tv_sec,tv_odd.tv_usec);
-dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit
-dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
-if(PRINT_ON)printf("LAT_CPR_ODD=%.16f \n  LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
+ int_ODD_ICAO24=int_ICAO24;
+ gettimeofday(&tv_odd,0);
+ //printf("Time stamp ODD : %lds %ldus \n",tv_odd.tv_sec,tv_odd.tv_usec);
+ dbl_lat_cpr_odd= (((bin32_code[1] & 0x3ff)<<7) + (bin32_code[2]>>(32-7)))/131072.0; // 55-41 bit
+ dbl_lon_cpr_odd= ((bin32_code[2]>>8) & 0x1ffff)/131072.0; //72-88 bit
+ if(PRINT_ON)printf("LAT_CPR_ODD=%.16f \n  LON_CPR_ODD=%.16f \n",dbl_lat_cpr_odd,dbl_lon_cpr_odd);
 
+ //-----check data live time----------
+ if(abs(tv_odd.tv_sec-tv_even.tv_sec)>=CODE_LIVE_TIME) //--obsolete EVEN data 
+ {
+    int_EVEN_ICAO24=0; // reset EVEN ICAO,mark it as obsolete 
+    continue;
+ }
 }
 
 if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
@@ -311,7 +325,8 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 	}
 
        if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
-       printf("Teven %lds:%ldus          Todd %lds:%ldus \n",tv_even.tv_sec,tv_even.tv_usec,tv_odd.tv_sec,tv_odd.tv_usec);
+       printf("Teven %lds ---  Todd %lds ---  Tgap %d \n",tv_even.tv_sec,tv_odd.tv_sec,abs(tv_even.tv_sec-tv_odd.tv_sec));
+      // printf("Teven %lds:%ldus          Todd %lds:%ldus \n",tv_even.tv_sec,tv_even.tv_usec,tv_odd.tv_sec,tv_odd.tv_usec);
        printf("TC=%d     NL=%d     Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,int_EVEN_NL,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
        printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14fN Long: %.14fE ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);
 
