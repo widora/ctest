@@ -325,7 +325,7 @@ if(int_ODD_ICAO24==int_EVEN_ICAO24) //--ensure thery are from same flight
 	}
 
        if(dbl_lon_val>=180)dbl_lon_val-=360.0;//--convert to [-180 180]
-       printf("Teven %lds ---  Todd %lds ---  Tgap %d \n",tv_even.tv_sec,tv_odd.tv_sec,abs(tv_even.tv_sec-tv_odd.tv_sec));
+       //printf("Teven %lds ---  Todd %lds ---  Tgap %d \n",tv_even.tv_sec,tv_odd.tv_sec,abs(tv_even.tv_sec-tv_odd.tv_sec));
       // printf("Teven %lds:%ldus          Todd %lds:%ldus \n",tv_even.tv_sec,tv_even.tv_usec,tv_odd.tv_sec,tv_odd.tv_usec);
        printf("TC=%d     NL=%d     Received ADS-B CODES: %x%x%x%04x \n",int_CODE_TC,int_EVEN_NL,bin32_code[0],bin32_code[1],bin32_code[2],bin32_code[3]>>16);
        printf("--- ICAO: %6X  Fix_Error:%d  Lat: %.14fN Long: %.14fE ---\n",int_ICAO24,int_ret_errorfix,dbl_lat_val,dbl_lon_val);

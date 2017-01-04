@@ -2,6 +2,8 @@
 #include <string.h>  //memset()
 #include <stdio.h>
 #include <stdbool.h>
+#include <signal.h> //signal()
+
 
 #define HASH_TABLE_SIZE 10
 
@@ -103,6 +105,28 @@ final:
     return true;     
 }
 
+int  count_hash_data(HASH_TABLE* pHashTbl)
+{
+ int i,cnt=0;
+ NODE *pTemp;
+ for(i=0;i<HASH_TABLE_SIZE;i++)
+ {
+   if(pHashTbl->HashTbl_item[i]!=NULL) //
+   { 
+     cnt++;
+     pTemp=pHashTbl->HashTbl_item[i];
+     while(pTemp->next!=NULL)
+       {
+           pTemp=pTemp->next;
+           cnt++;
+       }//-while
+    }//-if
+ }//-for
+ 
+ return cnt;
+} 
+
+
 void release_hash_table(HASH_TABLE* pHashTbl)
 {
  int i;
@@ -128,18 +152,32 @@ void release_hash_table(HASH_TABLE* pHashTbl)
 
 }
 
+//-------- global variables for signal handler --------
+ HASH_TABLE* pHashTbl_CODE;
+
+ void sighandler(int sig)
+{
+  printf("Signal to exit......\n");
+  release_hash_table(pHashTbl_CODE);
+  exit(0); 
+}
+
+
 
 //=========================== main =================================
 void main(void)
 {
   int i;
-  HASH_TABLE* pHashTbl_CODE;
+  //HASH_TABLE* pHashTbl_CODE;
   pHashTbl_CODE=create_hash_table(); //--INIT HASH TABLE
+  //signal handle
+  signal(SIGINT,sighandler);
 
- for(i=0;i<100;i++)
+ for(i=0;i<999;i++)
   insert_data_into_hash(pHashTbl_CODE,i); 
-  insert_data_into_hash(pHashTbl_CODE,23); 
-  insert_data_into_hash(pHashTbl_CODE,3); 
+
+  printf("total hashed data number:%d \n",count_hash_data(pHashTbl_CODE));
+  while(1)sleep(200000);
 
   printf("----- HASH TABLE EXAMPLE -----\n");
 
