@@ -7,6 +7,8 @@
 
 #define HASH_TABLE_SIZE 10
 
+char  str_FILE[]="/tmp/ads.data";
+
 typedef struct _STRUCT_DATA
 {
   uint32_t int_ICAO24; //int data;             //-----------------!!!! int_ICAO24 is a key word  !!!!!!!
@@ -86,7 +88,7 @@ bool insert_data_into_hash(HASH_TABLE* pHashTbl,const STRUCT_DATA* _ads_data)
     memset(pNode->next,0,sizeof(NODE));
     //----push ICAO and CALL-SIGN 
     pNode->next->ads_data.int_ICAO24=_ads_data->int_ICAO24;
-    strcpy(&(pNode->ads_data.str_CALL_SIGN[0]),&(_ads_data->str_CALL_SIGN[0]));
+    strcpy(&(pNode->next->ads_data.str_CALL_SIGN[0]),&(_ads_data->str_CALL_SIGN[0]));
 
     return true;
 }
@@ -139,11 +141,69 @@ int  count_hash_data(HASH_TABLE* pHashTbl)
  return cnt;
 } 
 
+//-----------------save hash data to  file -------------------
+void save_hash_data(HASH_TABLE* pHashTbl)
+{
+ FILE *fp;
+ int i;
+ int ncount=0;
+ NODE* pHead;
 
+ if((fp=fopen(str_FILE,"w+"))==NULL) //--to overwrite original file
+ {
+    printf("fail to open %s\n",str_FILE);
+    return;
+ }
+ ncount=count_hash_data(pHashTbl);
+ fwrite(&ncount,sizeof(int), 1,fp);
+
+  for(i=0;i<HASH_TABLE_SIZE;i++)
+ {
+   if(pHashTbl->HashTbl_item[i]!=NULL) //
+   {
+     pHead=pHashTbl->HashTbl_item[i];
+     while(pHead)
+     {
+       fwrite((char*)&(pHead->ads_data),sizeof(STRUCT_DATA),1,fp); // Is it necessary to convert to char* ??
+       pHead=pHead->next;
+     }//-end of while
+   }//-end of if
+ }//-end of for
+
+ fclose(fp);
+}
+
+//----------------- restore hash data ----------------------
+void restore_hash_data(HASH_TABLE* pHashTbl)
+{
+ FILE *fp;
+ int i;
+ int ncount=0;
+ STRUCT_DATA  sdata;
+
+ if((fp=fopen(str_FILE,"r"))==NULL) //--to overwrite original file
+ {
+    printf("fail to open %s\n",str_FILE);
+    return;
+ }
+ fread(&ncount,sizeof(int), 1,fp);
+ printf("restore ncount=%d\n",ncount);
+ for(i=0;i<ncount;i++)
+ {
+    fread((char*)&sdata,sizeof(STRUCT_DATA),1,fp);
+    printf("restore DATA[%d]: %d   %s  \n",i,sdata.int_ICAO24,sdata.str_CALL_SIGN);
+ }
+
+ fclose(fp);
+}
+
+
+//-------------------release hash and free memory ------------------
 void release_hash_table(HASH_TABLE* pHashTbl)
 {
  int i;
  NODE *pHead,*pTemp;
+ 
  for(i=0;i<HASH_TABLE_SIZE;i++)
  {
    if(pHashTbl->HashTbl_item[i]!=NULL) //
@@ -156,7 +216,7 @@ void release_hash_table(HASH_TABLE* pHashTbl)
        pHead=pHead->next;
        if(pTemp!=NULL)
        {
-         printf("free a node with int_ICAO24=%d! \n",pTemp->ads_data.int_ICAO24);
+         printf("free a node with int_ICAO24=%d  CALLSIGN:%s \n",pTemp->ads_data.int_ICAO24,pTemp->ads_data.str_CALL_SIGN);
          free(pTemp);
        }
      }//-end of while
@@ -171,12 +231,13 @@ void release_hash_table(HASH_TABLE* pHashTbl)
  void sighandler(int sig)
 {
   printf("Signal to exit......\n");
+  save_hash_data(pHashTbl_CODE);
   release_hash_table(pHashTbl_CODE);
   exit(0); 
 }
 
 
-#define  DATA_NUM 2999
+#define  DATA_NUM 99
 //=========================== main =================================
 void main(void)
 {
@@ -189,6 +250,9 @@ void main(void)
 
   STRUCT_DATA  ads_data[DATA_NUM];
   printf("STRUCT_DATA difinition finish.\n");
+
+//-------- restore hash data
+  restore_hash_data(pHashTbl_CODE);
   
 //-------- init STRUCT_DATA
  for(k=0;k<DATA_NUM;k++)
@@ -197,6 +261,10 @@ void main(void)
      strcpy((&ads_data[k])->str_CALL_SIGN,"hello");
  }
 
+   strcpy((&ads_data[95])->str_CALL_SIGN,"thisd");
+   strcpy((&ads_data[89])->str_CALL_SIGN,"hgggo");
+   strcpy((&ads_data[88])->str_CALL_SIGN,"midas zo");
+
   printf("ads_data[] init finish\n");
   printf("ICAO24[1]=%d\n",(ads_data+1)->int_ICAO24);
 
@@ -204,6 +272,7 @@ void main(void)
  for(i=0;i<DATA_NUM;i++)
    insert_data_into_hash(pHashTbl_CODE,ads_data+i); 
   printf("insert data to hash finish.\n");
+
 //-------------------- delete hash data 
    delete_data_from_hash(pHashTbl_CODE,29);
    delete_data_from_hash(pHashTbl_CODE,39);
