@@ -9,6 +9,9 @@
 
 char  str_FILE[]="/tmp/ads.data";
 
+/*=====================================================================
+                     HASH  DATA  STRUCT  DEFINITION
+=====================================================================*/
 typedef struct _STRUCT_DATA
 {
   uint32_t int_ICAO24; //int data;             //-----------------!!!! int_ICAO24 is a key word  !!!!!!!
@@ -26,22 +29,38 @@ typedef struct _HASH_TABLE
   NODE* HashTbl_item[HASH_TABLE_SIZE];   //--------- hash table with total HASH_TABLE_SIZE HashTbl_items (links)
 }HASH_TABLE;
 
+/*=====================================================================
+                     HASH   FUNCTIONS   DEFINITION
+=====================================================================*/
 
-HASH_TABLE* create_hash_table()  //---- create a hash table
+//---------create and initilize a hash table  ---------------
+HASH_TABLE* create_hash_table()  
 {
   HASH_TABLE* pHashTbl=(HASH_TABLE*)malloc(sizeof(HASH_TABLE));
   memset(pHashTbl,0,sizeof(HASH_TABLE));
   return pHashTbl;
 }
 
+
+//------ calculate hash table item number --------
+int get_hashtbl_itemnum(uint32_t int_ICAO24)
+{
+ int tbnum;
+ tbnum=((int_ICAO24&0xf0000000)>>24)+(int_ICAO24&0x0000000f);
+ return tbnum%HASH_TABLE_SIZE;
+}
+
 //---- find data in which link node    -----
-NODE* find_data_in_hash(HASH_TABLE* pHashTbl,int int_ICAO24)
+NODE* find_data_in_hash(HASH_TABLE* pHashTbl,uint32_t int_ICAO24)
 {
   NODE* pNode;
+  int hash_num;
+  hash_num=get_hashtbl_itemnum(int_ICAO24); //--get hash table number
+
   if(NULL == pHashTbl) //--hash table is null
      return NULL;
   
-  if(NULL == (pNode=pHashTbl->HashTbl_item[int_ICAO24 % HASH_TABLE_SIZE])) //--HashTbl_item(link node) is null
+  if(NULL == (pNode=pHashTbl->HashTbl_item[hash_num])) //--HashTbl_item(link node) is null
      return NULL;
 
   while(pNode) //---while pNode is not null, search each link node for the data
@@ -58,20 +77,19 @@ NODE* find_data_in_hash(HASH_TABLE* pHashTbl,int int_ICAO24)
 bool insert_data_into_hash(HASH_TABLE* pHashTbl,const STRUCT_DATA* _ads_data)
 {
    NODE* pNode;
+   int hash_num;
+   hash_num=get_hashtbl_itemnum(_ads_data->int_ICAO24); //--get hash table item number
 
    if(NULL == pHashTbl)  //---hash table is null
      return false;
 
-   if(NULL == pHashTbl->HashTbl_item[(_ads_data->int_ICAO24) % HASH_TABLE_SIZE]) //--corresponding  HashTbl_item (link node) is null
+   if(NULL == pHashTbl->HashTbl_item[hash_num]) //--corresponding  HashTbl_item (link node) is null
     {
       pNode=(NODE*)malloc(sizeof(NODE)); 
       memset(pNode,0,sizeof(NODE));
-//    printf("memset finish\n");
       //------push in ICAO and Call-sign
       memcpy(&(pNode->ads_data),_ads_data,sizeof(STRUCT_DATA));
-//    printf("CALL SIGN push into Node finish.\n");
-      pHashTbl->HashTbl_item[(_ads_data->int_ICAO24) % HASH_TABLE_SIZE]=pNode;
-//     printf("hash data in the head of table item link!\n");
+      pHashTbl->HashTbl_item[hash_num]=pNode;
       return true;
     }
 
@@ -79,7 +97,7 @@ bool insert_data_into_hash(HASH_TABLE* pHashTbl,const STRUCT_DATA* _ads_data)
        return false;
 
     //-----if corresponding hash-table already existes, then put pnode to the end of the link
-    pNode=pHashTbl->HashTbl_item[(_ads_data->int_ICAO24) % HASH_TABLE_SIZE]; //-- get pnode head 
+    pNode=pHashTbl->HashTbl_item[hash_num]; //-- get pnode head 
     while(NULL!=pNode->next)
           pNode=pNode->next;       //---move to end of the link
 
@@ -94,23 +112,26 @@ bool insert_data_into_hash(HASH_TABLE* pHashTbl,const STRUCT_DATA* _ads_data)
 }
 
 //=====================  delete data from hash   ======================
-bool delete_data_from_hash(HASH_TABLE* pHashTbl,int int_ICAO24)
+bool delete_data_from_hash(HASH_TABLE* pHashTbl,uint32_t int_ICAO24)
 {
    NODE* pHead;
    NODE* pNode;
-   if(NULL==pHashTbl || NULL==pHashTbl->HashTbl_item[int_ICAO24%HASH_TABLE_SIZE]) //--hash table or HashTbl_item doesn't exist
+   int hash_num;
+   hash_num=get_hashtbl_itemnum(int_ICAO24); //--get hash table number
+
+   if(NULL==pHashTbl || NULL==pHashTbl->HashTbl_item[hash_num]) //--hash table or HashTbl_item doesn't exist
         return false;
 
    if(NULL==(pNode=find_data_in_hash(pHashTbl,int_ICAO24))) //--the data haven't been hashed in before
         return false;
 
-   if(pNode==pHashTbl->HashTbl_item[int_ICAO24%HASH_TABLE_SIZE])  //--if it's the first node in found hash table HashTbl_item
+   if(pNode==pHashTbl->HashTbl_item[hash_num])  //--if it's the first node in found hash table HashTbl_item
     {
-       pHashTbl->HashTbl_item[int_ICAO24%HASH_TABLE_SIZE]=pNode->next; //--adjust the head node for hash HashTbl_item, prepare for deleting.
+       pHashTbl->HashTbl_item[hash_num]=pNode->next; //--adjust the head node for hash HashTbl_item, prepare for deleting.
        goto final;
     }
 
-    pHead=pHashTbl->HashTbl_item[int_ICAO24%HASH_TABLE_SIZE];
+    pHead=pHashTbl->HashTbl_item[hash_num];
     while(pNode!=pHead->next)
          pHead=pHead->next;
          pHead->next=pNode->next;  //--bridge two pnodes beside the wanted pnode,preapare for deleting .
@@ -141,7 +162,7 @@ int  count_hash_data(HASH_TABLE* pHashTbl)
  return cnt;
 } 
 
-//-----------------save hash data to  file -------------------
+//=========================  save hash data to  file ==================
 void save_hash_data(HASH_TABLE* pHashTbl)
 {
  FILE *fp;
@@ -191,7 +212,7 @@ void restore_hash_data(HASH_TABLE* pHashTbl)
  for(i=0;i<ncount;i++)
  {
     fread((char*)&sdata,sizeof(STRUCT_DATA),1,fp);
-    printf("restore DATA[%d]: %d   %s  \n",i,sdata.int_ICAO24,sdata.str_CALL_SIGN);
+    printf("restore DATA[%d]: %06X   %s  \n",i,sdata.int_ICAO24,sdata.str_CALL_SIGN);
  }
 
  fclose(fp);
@@ -216,18 +237,21 @@ void release_hash_table(HASH_TABLE* pHashTbl)
        pHead=pHead->next;
        if(pTemp!=NULL)
        {
-         printf("free a node with int_ICAO24=%d  CALLSIGN:%s \n",pTemp->ads_data.int_ICAO24,pTemp->ads_data.str_CALL_SIGN);
+         printf("free a node with int_ICAO24=%06X  CALLSIGN:%s \n",pTemp->ads_data.int_ICAO24,pTemp->ads_data.str_CALL_SIGN);
          free(pTemp);
        }
      }//-end of while
    }//-end of if
  }//-end of for
-
 }
 
-//-------- global variables for signal handler --------
- HASH_TABLE* pHashTbl_CODE;
+//======================================  HASH FUNCTION DEFINITION FINISH  ========================
 
+//-------- global variables for signal handler --------
+HASH_TABLE* pHashTbl_CODE;
+//#define DATA_NUM 50  
+
+//------------- INT EXIT SIGNAL HANDLER ---------------
  void sighandler(int sig)
 {
   printf("Signal to exit......\n");
@@ -236,16 +260,20 @@ void release_hash_table(HASH_TABLE* pHashTbl)
   exit(0); 
 }
 
+/*================================================================
+                            MAIN ()
+================================================================*/
 
-#define  DATA_NUM 99
-//=========================== main =================================
 void main(void)
 {
   int i,j,k;
-  //HASH_TABLE* pHashTbl_CODE  is GLOBAL!!!	`
+  int DATA_NUM=50;
+
+  //-------HASH_TABLE* pHashTbl_CODE  is GLOBAL!!!	`
   pHashTbl_CODE=create_hash_table(); //--INIT HASH TABLE
   printf("hash table create finish!\n");
-  //signal handle
+
+  //------signal handle
   signal(SIGINT,sighandler);
 
   STRUCT_DATA  ads_data[DATA_NUM];
@@ -257,34 +285,42 @@ void main(void)
 //-------- init STRUCT_DATA
  for(k=0;k<DATA_NUM;k++)
  {
-     ads_data[k].int_ICAO24=k;
-     strcpy((&ads_data[k])->str_CALL_SIGN,"hello");
+     ads_data[k].int_ICAO24=0;
+     strcpy((&ads_data[k])->str_CALL_SIGN,"--------");
  }
 
-   strcpy((&ads_data[95])->str_CALL_SIGN,"thisd");
-   strcpy((&ads_data[89])->str_CALL_SIGN,"hgggo");
-   strcpy((&ads_data[88])->str_CALL_SIGN,"midas zo");
+ ads_data[1].int_ICAO24=0x780eb2;
+ strcpy((&ads_data[1])->str_CALL_SIGN,"CSH9369");
 
-  printf("ads_data[] init finish\n");
-  printf("ICAO24[1]=%d\n",(ads_data+1)->int_ICAO24);
+ ads_data[2].int_ICAO24=0x7807cd;
+ strcpy((&ads_data[2])->str_CALL_SIGN,"CCA1865");
+
+ ads_data[3].int_ICAO24=0x88517a;
+ strcpy(ads_data[3].str_CALL_SIGN,"THA665");
+
+ ads_data[4].int_ICAO24=0x7804a2;
+ strcpy(ads_data[4].str_CALL_SIGN,"CHH7646");
+
+
+
+ 
+  // strcpy((&ads_data[88])->str_CALL_SIGN,"midas zo");
+  //printf("ads_data[] init finish\n");
+  //printf("ICAO24[1]=%d\n",(ads_data+1)->int_ICAO24);
 
 //------------------- insert data into hash
  for(i=0;i<DATA_NUM;i++)
-   insert_data_into_hash(pHashTbl_CODE,ads_data+i); 
+     insert_data_into_hash(pHashTbl_CODE,ads_data+i); 
   printf("insert data to hash finish.\n");
 
 //-------------------- delete hash data 
    delete_data_from_hash(pHashTbl_CODE,29);
-   delete_data_from_hash(pHashTbl_CODE,39);
-   delete_data_from_hash(pHashTbl_CODE,59);
-   delete_data_from_hash(pHashTbl_CODE,69);
-
 
 //-------------------- count hash data nodes
   printf("total hashed data number:%d \n",count_hash_data(pHashTbl_CODE));
   while(1)sleep(200000);
 
- printf("----- HASH TABLE EXAMPLE -----\n");
+  printf("---------  HASH TABLE EXAMPLE  -------\n");
 
 //------------------- release hash
   release_hash_table(pHashTbl_CODE);
