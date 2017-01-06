@@ -5,13 +5,17 @@
 #include <signal.h> //signal()
 #include <stdint.h> //uint32_t
 
+#include "ads_hash.h"
+
+
+/*
 #define HASH_TABLE_SIZE 10
 
 char  str_FILE[]="/tmp/ads.data";
 
-/*=====================================================================
-                     HASH  DATA  STRUCT  DEFINITION
-=====================================================================*/
+//=====================================================================
+//                     HASH  DATA  STRUCT  DEFINITION
+//=====================================================================
 typedef struct _STRUCT_DATA
 {
   uint32_t int_ICAO24; //int data;             //-----------------!!!! int_ICAO24 is a key word  !!!!!!!
@@ -29,9 +33,9 @@ typedef struct _HASH_TABLE
   NODE* HashTbl_item[HASH_TABLE_SIZE];   //--------- hash table with total HASH_TABLE_SIZE HashTbl_items (links)
 }HASH_TABLE;
 
-/*=====================================================================
-                     HASH   FUNCTIONS   DEFINITION
-=====================================================================*/
+//=====================================================================
+//                     HASH   FUNCTIONS   DEFINITION
+//=====================================================================
 
 //---------create and initilize a hash table  ---------------
 HASH_TABLE* create_hash_table()  
@@ -247,9 +251,11 @@ void release_hash_table(HASH_TABLE* pHashTbl)
 
 //======================================  HASH FUNCTION DEFINITION FINISH  ========================
 
+*/
+
+
 //-------- global variables for signal handler --------
 HASH_TABLE* pHashTbl_CODE;
-//#define DATA_NUM 50  
 
 //------------- INT EXIT SIGNAL HANDLER ---------------
  void sighandler(int sig)
@@ -301,9 +307,6 @@ void main(void)
  ads_data[4].int_ICAO24=0x7804a2;
  strcpy(ads_data[4].str_CALL_SIGN,"CHH7646");
 
-
-
- 
   // strcpy((&ads_data[88])->str_CALL_SIGN,"midas zo");
   //printf("ads_data[] init finish\n");
   //printf("ICAO24[1]=%d\n",(ads_data+1)->int_ICAO24);

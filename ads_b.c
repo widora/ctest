@@ -17,10 +17,13 @@ midaszhou@qq.com
 #include <time.h> // ctime(),time_t,
 #include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
 #include <stdint.h> //uint32_t
+#include <signal.h> //signal()
 #include "cstring.h" //strmid(),trim_strfb(),str_findb()
 #include "adsb_crc.h" //adsb_crc24( )
+#include "ads_hash.h" // hash table and data save
 
 static int PRINT_ON=0;
+HASH_TABLE* pHashTbl_CODE; //---hash for ICAO and CALLSIGN data save
 
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112
@@ -68,6 +71,17 @@ static double mod(double x,double y)
 {
   return x-y*floor(x/y);
 }
+
+
+//------------- INTERRUPT TO EXIT SIGNAL HANDLER ---------------
+static void sighandler(int sig)
+{
+  printf("Signal to exit......\n");
+  save_hash_data(pHashTbl_CODE);
+  release_hash_table(pHashTbl_CODE);
+  exit(0); 
+}
+
 
 
 /*=====================================================================
@@ -118,6 +132,11 @@ double dbl_DLon;// =360/int_NI
 struct timeval tv_even,tv_odd;//---time stamp
 time_t tm_record; //--record time 
 
+STRUCT_DATA ads_data;
+
+//------------- intterupt to exit signal handle --------
+signal(SIGINT,sighandler);
+
 
 //-------------- get option -----------------
 while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
@@ -139,7 +158,13 @@ while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
 }//--end while()
 
 
+//---------------------  hash table prepararton  --------------------
+pHashTbl_CODE=create_hash_table(); //---init hash table
 
+//--------------------- restore hash data from file -------------
+restore_hash_data(pHashTbl_CODE);
+
+//---------------------    set STDOUT buffer   ----------------------
 setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail
 
 //=======================  loop for message receiving and decoding =================
@@ -220,6 +245,14 @@ if(int_CODE_DF==17 && (int_CODE_TC>0 && int_CODE_TC<5))  //-------DF=17, TC=1to4
 	 printf("TC=%d    CRC24 =%06x    CHECKSUM =%06x\n",int_CODE_TC,bin32_CRC24,bin32_checksum);
 	 time(&tm_record); 
 	 printf("-----------------------------------------       CALL SIGN: %s       %s \n",str_CALL_SIGN,ctime(&tm_record));//ctime() will cause a line return 
+
+         //-----------------    hash ICAO code and corresponding CALL-SIGN    ------------------
+         ads_data.int_ICAO24=int_ICAO24;
+         strcpy(ads_data.str_CALL_SIGN,str_CALL_SIGN);
+         if(insert_data_into_hash(pHashTbl_CODE,&ads_data))
+              printf("#########   ICAO CODE and CALL-SIGN push into hash table successfully.  ##########\n");
+         else
+              printf("#########   ICAO CODE and CALL-SIGN already exist in hash table.  ##########\n");
      }
 } ///----- Aircraft identification decode end
 
