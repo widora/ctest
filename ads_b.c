@@ -13,7 +13,7 @@ midaszhou@qq.com
 #include <stdlib.h>
 #include <string.h> //-strlen()
 #include <math.h> //-floor() pow() cos() acos()
-#include <sys/time.h> //-gettimeofday()
+#include <sys/time.h> //-gettimeofday(), setitimer()
 #include <time.h> // ctime(),time_t,
 #include <unistd.h> //-pipe() STDIN_FILENO STDOUT_FILENO
 #include <stdint.h> //uint32_t
@@ -24,6 +24,7 @@ midaszhou@qq.com
 
 static int PRINT_ON=0;
 HASH_TABLE* pHashTbl_CODE; //---hash for ICAO and CALLSIGN data save
+static char  str_FILE[]="/tmp/ads.data"; //--file to save data
 
 #define BUFSIZE 40
 #define CODE_BIN_LENGTH 112
@@ -77,11 +78,28 @@ static double mod(double x,double y)
 static void sighandler(int sig)
 {
   printf("Signal to exit......\n");
-  save_hash_data(pHashTbl_CODE);
+  save_hash_data(str_FILE,pHashTbl_CODE);
   release_hash_table(pHashTbl_CODE);
   exit(0); 
 }
 
+//-----------------  set timer -----------------
+void set_timer(void)
+{
+ struct itimerval itv;
+ itv.it_interval.tv_sec=1800; //--reload value, it will trigger the timer-handler every 0.5 hour
+ itv.it_interval.tv_usec=0;
+ itv.it_value.tv_sec=1800;  //--first set value
+ itv.it_value.tv_usec=0;
+ setitimer(ITIMER_REAL,&itv,NULL);
+}
+
+//------------  timer handler: save hash data ------------
+void timer_save_data(int sig)
+{
+  printf("\n   +++++++++++ timer handler: save hash data ++++++++++\n\n"); 
+  save_hash_data(str_FILE,pHashTbl_CODE);
+}
 
 
 /*=====================================================================
@@ -147,6 +165,8 @@ while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
            printf("usage:  rtl_adsb | ads_b \n");   
            printf("         -h   help \n");   
            printf("         -d   printf debug information \n");   
+           printf("ICAO and corresponding CALL-SIGN will be saved every 30 minutes.");
+           printf("Please check /tmp/ads.data for saved data\");
            return;
        case 'd':
            printf("----- Debug information available now! \n");
@@ -162,7 +182,11 @@ while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
 pHashTbl_CODE=create_hash_table(); //---init hash table
 
 //--------------------- restore hash data from file -------------
-restore_hash_data(pHashTbl_CODE);
+restore_hash_data(str_FILE,pHashTbl_CODE);
+
+//---------------------  set timer alarm signal ----------------
+signal(SIGALRM,timer_save_data);
+set_timer();
 
 //---------------------    set STDOUT buffer   ----------------------
 setvbuf(stdout,NULL,_IONBF,0); //--!!! set stdout no buff,or re-diret will fail

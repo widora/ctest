@@ -7,7 +7,7 @@
 
 #define HASH_TABLE_SIZE 10
 
-static char  str_FILE[]="/tmp/ads.data";
+//static char  str_FILE[]="/tmp/ads.data";
 
 
 /*=====================================================================
@@ -164,7 +164,7 @@ int  count_hash_data(HASH_TABLE* pHashTbl)
 } 
 
 //=========================  save hash data to  file ==================
-void save_hash_data(HASH_TABLE* pHashTbl)
+void save_hash_data(char* str_FILE,HASH_TABLE* pHashTbl)
 {
  FILE *fp;
  int i;
@@ -196,7 +196,7 @@ void save_hash_data(HASH_TABLE* pHashTbl)
 }
 
 //----------------- restore hash data ----------------------
-void restore_hash_data(HASH_TABLE* pHashTbl)
+void restore_hash_data(char* str_FILE,HASH_TABLE* pHashTbl)
 {
  FILE *fp;
  int i;

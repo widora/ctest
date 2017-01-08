@@ -256,12 +256,12 @@ void release_hash_table(HASH_TABLE* pHashTbl)
 
 //-------- global variables for signal handler --------
 HASH_TABLE* pHashTbl_CODE;
-
+char str_FILE[]="/tmp/ads.data";
 //------------- INT EXIT SIGNAL HANDLER ---------------
  void sighandler(int sig)
 {
   printf("Signal to exit......\n");
-  save_hash_data(pHashTbl_CODE);
+  save_hash_data(str_FILE,pHashTbl_CODE);
   release_hash_table(pHashTbl_CODE);
   exit(0); 
 }
@@ -286,7 +286,7 @@ void main(void)
   printf("STRUCT_DATA difinition finish.\n");
 
 //-------- restore hash data
-  restore_hash_data(pHashTbl_CODE);
+  restore_hash_data(str_FILE,pHashTbl_CODE);
   
 //-------- init STRUCT_DATA
  for(k=0;k<DATA_NUM;k++)
