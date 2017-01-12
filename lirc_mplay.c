@@ -1,3 +1,14 @@
+/*-----------------------------------------------------------------
+
+This program expects to control mplayer running in slave mode.
+
+Environment Setup include:
+-- lirc module  
+-- espeak
+-- mplayer 
+-- rtl_sdr
+
+-----------------------------------------------------------------*/
 #include <stdio.h>
 //#include <sys/socket.h>  //connect,send,recv,setsockopt
 //#include <sys/types.h>
@@ -46,6 +57,15 @@ char str_radio_list[]="/mplayer/radio.list";
 char str_xiamen_list[]="/mplayer/xiamen.list";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
 
+void espeak_channel(int n)
+{
+    char strCMD[100];
+    sprintf(strCMD,"speakE Playing-channel-%d",n);
+    printf("%S\n",strCMD);
+    system(strCMD);    
+    usleep(1500000); //--wait till espeak finish
+}
+
 void kill_fm(void)
 {
    system("killall -9 fm");
@@ -73,6 +93,9 @@ void play_mplayer(void)
     kill_fm();
     kill_am();
     kill_mplay();
+    usleep(300000);
+    system("speakE 'Sstart-to-play--Radio-Playlist'");    
+    usleep(1500000); //--wait till espeak finish
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     printf("%s \n",strCMD);
     system(strCMD);
@@ -84,6 +107,9 @@ void play_xiamen(void)
     kill_fm();
     kill_am();
     kill_mplay();
+    usleep(300000);
+    system("speakE Sstart-to-play--Radio-XM");    
+    usleep(1600000);
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -aid 2 -playlist  %s",str_xiamen_list);
     printf("%s \n",strCMD);
     system(strCMD);
@@ -95,6 +121,8 @@ void  play_fm(float freq)
     kill_mplay();
     kill_am();
     kill_fm();
+    usleep(300000);
+    system("speakE 'Sstart-to-play--FM-Radio'");    
     sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
     usleep(250000);
     system(strCMD);
@@ -106,8 +134,10 @@ void  play_am(void)
     char strCMD[50];
     kill_mplay();
     kill_fm();
+    usleep(300000);
+    system("speakE Sstart-to-play--Air-band");    
+    usleep(1500000);
     sprintf(strCMD,"screen -dmS AM /mplayer/am");
-    usleep(250000);
     system(strCMD);
     printf("%s\n",strCMD);
 }
@@ -117,6 +147,9 @@ void shut_down(void)
     kill_am();
     kill_fm();
     kill_mplay();
+    system("speakE Sshut-Down");    
+    usleep(1500000);
+
 }
 
 //====================================    main   =================================
@@ -230,13 +263,16 @@ while(1)
                case CODE_NEXT:
                     if(nList_Item<List_Item_Max_Num)
                        nList_Item+=1; 
+                    espeak_channel(nList_Item);  
  		    system("echo 'pt_step 1'>/mplayer/slave");
  		    printf("echo 'pt_step 1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
+     
                     break;
                case CODE_PREV:
                     if(nList_Item>1)
                        nList_Item-=1; 
+                    espeak_channel(nList_Item);  
  		    system("echo 'pt_step -1'>/mplayer/slave");
  		    printf("echo 'pt_step -1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
@@ -308,6 +344,7 @@ while(1)
                      sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
                      printf("nList_Item=%d\n",nList_Item);
                      printf("%s \n",strCMD);
+                     espeak_channel(nList_Item);  
                      system(strCMD);
                      nList_Gap=0;
                  }
@@ -356,6 +393,7 @@ while(1)
                case CODE_NEXT:
                     if(nList_Item<List_Item_Max_Num)
                        nList_Item+=1; 
+                    espeak_channel(nList_Item);  
  		    system("echo 'pt_step 1'>/mplayer/slave");
  		    printf("echo 'pt_step 1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
@@ -363,6 +401,7 @@ while(1)
                case CODE_PREV:
                     if(nList_Item>1)
                        nList_Item-=1; 
+                    espeak_channel(nList_Item);  
  		    system("echo 'pt_step -1'>/mplayer/slave");
  		    printf("echo 'pt_step -1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
@@ -414,6 +453,7 @@ while(1)
                      sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
                      printf("nList_Item=%d\n",nList_Item);
                      printf("%s \n",strCMD);
+                     espeak_channel(nList_Item);
                      system(strCMD);
                      nList_Gap=0;
                  }

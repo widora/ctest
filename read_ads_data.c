@@ -27,7 +27,7 @@ void main(int argc, char* argv[])
  for(i=0;i<ncount;i++)
  {
     fread((char*)&sdata,sizeof(STRUCT_DATA),1,fp);
-    printf("restore DATA[%d]:   %06X  %s  \n",i,sdata.int_ICAO24,sdata.str_CALL_SIGN);
+    printf("restore DATA[%03d]:   %06X  %s  \n",i,sdata.int_ICAO24,sdata.str_CALL_SIGN);
  }
 
  fclose(fp);
