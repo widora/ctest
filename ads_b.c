@@ -169,6 +169,7 @@ while( (int_ret_opt=getopt(argc,argv,"hd"))!=-1)
            printf("         -d   printf debug information \n");   
            printf("ICAO and corresponding CALL-SIGN will be saved every 30 minutes.");
            printf("Please check /tmp/ads.data for saved data\n");
+           printf("Saved data is reloaded to hash table at start.")
            return;
        case 'd':
            printf("----- Debug information available now! \n");
