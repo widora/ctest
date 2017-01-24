@@ -8,6 +8,10 @@ Environment Setup include:
 -- mplayer 
 -- rtl_sdr
 
+Note: If you put lirc_mplay in rc.local for auto start-up,then you 
+shall copy all required shell scripts into /bin/,otherwise they may 
+not be activated. 
+ 
 -----------------------------------------------------------------*/
 #include <stdio.h>
 //#include <sys/socket.h>  //connect,send,recv,setsockopt
@@ -57,13 +61,18 @@ char str_radio_list[]="/mplayer/radio.list";
 char str_xiamen_list[]="/mplayer/xiamen.list";
 unsigned int PLAY_LIST_NUM=2; //---default playlist
 
-void espeak_channel(int n)
+void espeak_channel(int n) //this func will clog
 {
     char strCMD[100];
     sprintf(strCMD,"speakE Playing-channel-%d",n);
     printf("%S\n",strCMD);
     system(strCMD);    
-    usleep(1500000); //--wait till espeak finish
+    //usleep(1500000); //--wait till espeak finish
+}
+
+void kill_espeak(void)
+{
+system("killall -9 espeak");
 }
 
 void kill_fm(void)
@@ -93,9 +102,11 @@ void play_mplayer(void)
     kill_fm();
     kill_am();
     kill_mplay();
+    kill_espeak();
     usleep(300000);
     system("speakE 'Sstart-to-play--Radio-Playlist'");    
-    usleep(1500000); //--wait till espeak finish
+    usleep(2500000); //--wait till espeak finish
+    //sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     printf("%s \n",strCMD);
     system(strCMD);
@@ -107,6 +118,7 @@ void play_xiamen(void)
     kill_fm();
     kill_am();
     kill_mplay();
+    kill_espeak();
     usleep(300000);
     system("speakE Sstart-to-play--Radio-XM");    
     usleep(1600000);
@@ -118,13 +130,16 @@ void play_xiamen(void)
 void  play_fm(float freq)
 {
     char strCMD[50];
+    char strSPEAK[50];
     kill_mplay();
     kill_am();
     kill_fm();
+    kill_espeak();
     usleep(300000);
-    system("speakE 'Sstart-to-play--FM-Radio'");    
+    sprintf(strSPEAK,"speakE 'fFM-%3.1f-Megahertz'",freq);
+    system(strSPEAK);//--system run in shell as a thread    
     sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
-    usleep(250000);
+    usleep(2500000);//--wait for espeak to release aplay
     system(strCMD);
     printf("%s\n",strCMD);
 }
@@ -134,9 +149,10 @@ void  play_am(void)
     char strCMD[50];
     kill_mplay();
     kill_fm();
+    kill_espeak();
     usleep(300000);
     system("speakE Sstart-to-play--Air-band");    
-    usleep(1500000);
+    usleep(2500000);
     sprintf(strCMD,"screen -dmS AM /mplayer/am");
     system(strCMD);
     printf("%s\n",strCMD);
