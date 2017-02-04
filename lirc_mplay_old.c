@@ -4,18 +4,14 @@ This program expects to control mplayer running in slave mode.
 
 Environment Setup include:
 -- lirc module  
--- espea
+-- espeak
 -- mplayer 
 -- rtl_sdr
 
 Note: If you put lirc_mplay in rc.local for auto start-up,then you 
 shall copy all required shell scripts into /bin/,otherwise they may 
 not be activated. 
-
-Amends to old lirc_mplay:
-1 -- Use loadfile instead of playlist for mplayer.
-2 -- Shut off Espeak, which may casue problem while shifting channel.
-
+ 
 -----------------------------------------------------------------*/
 #include <stdio.h>
 //#include <sys/socket.h>  //connect,send,recv,setsockopt
@@ -54,48 +50,18 @@ Amends to old lirc_mplay:
 
 #define MAXLINE 100
 #define List_Item_Max_Num 15
-#define RADIO_LIST_MAX_NUM 30
-#define RADIO_ADDRS_LEN 50
-
 #define MODE_MPLAYER 0
 #define MODE_RADIO 1
 #define MODE_AIRBAND 2
 #define MODE_XIAMEN 3
 
 
-static char str_dev[]="/dev/LIRC_dev";
-static char str_radio_list[]="/mplayer/radio.list";
-static char str_radio_addrs[RADIO_LIST_MAX_NUM][RADIO_ADDRS_LEN]; //--radio mms address
-static char str_xiamen_list[]="/mplayer/xiamen.list";
+char str_dev[]="/dev/LIRC_dev";
+char str_radio_list[]="/mplayer/radio.list";
+char str_xiamen_list[]="/mplayer/xiamen.list";
+unsigned int PLAY_LIST_NUM=2; //---default playlist
 
-static unsigned int PLAY_LIST_NUM=2; //---default playlist
-static int radio_list_count; //--start from 0; count number of radio addrs read from str_radio_list[] file
-
-static int load_radio_addrs() //--return count number of radio addrs,start from 0
-{
-	FILE *fin;	
-	int num=0;
-	fin = fopen(str_radio_list, "r");
-	if (fin == NULL)
-	{
-		printf("can't open %s\n",str_radio_list);
-		return -1;
-	}
-
-	while(!feof(fin) && num<(RADIO_LIST_MAX_NUM-1))
-	{
-		fgets(str_radio_addrs[num],RADIO_ADDRS_LEN,fin);// fget will get defined length of chars or stop at '\n'(after '\n' is copied), whichever condition gets first, and finally a string end token '\0' will be put.
-		str_radio_addrs[num][strlen(str_radio_addrs[num])-1]='\0'; //replace '\n' with '\0';
-		printf("-----read radio address: %s\n",str_radio_addrs[num]);
-		num++;
-	}
-	printf("------ total %d radio address ------\n",num+1);
-
-	fclose(fin);
-	return num;
-}
-
-static void espeak_channel(int n) //this func will clog
+void espeak_channel(int n) //this func will clog
 {
     char strCMD[100];
     sprintf(strCMD,"speakE Playing-channel-%d",n);
@@ -138,16 +104,10 @@ void play_mplayer(void)
     kill_mplay();
     kill_espeak();
     usleep(300000);
-    system("speakE 'Start-to-play-Radio-Playlist'");    
-    usleep(2500000); //--wait till espeak finish 
-    radio_list_count=load_radio_addrs();
-    if(radio_list_count<0)
-    {
-	printf("Fail to read radio address file!\n");
-	system("speakE 'can-not-read-radio-address-file'");
-	return;
-    }
-    sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay %s",str_radio_addrs[0]); //--load first radio address
+    system("speakE 'Sstart-to-play--Radio-Playlist'");    
+    usleep(2500000); //--wait till espeak finish
+    //sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
+    sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay -playlist  %s",str_radio_list);
     printf("%s \n",strCMD);
     system(strCMD);
 }
@@ -214,10 +174,8 @@ int main(int argc, char** argv)
 
 //----------- LIRC ------------
    int fd;
-   int code_num; // temprarily store  digtal number from LIRC
    int play_mode=0; // 0-mplayer 1-radio
    int nList_Item=1; //--List Item Number
-   int num_radio_addrs; //--str_radio_addrs[num][], radio address index num
    int nList_Gap=0; //--- difference between selected item number and current item number.
    bool flag_3D=false; //----3D effect sound
    unsigned int LIRC_DATA = 0; //---raw data from LIRC module 
@@ -233,7 +191,7 @@ int main(int argc, char** argv)
     fd = open(str_dev, O_RDWR | O_NONBLOCK);
     if (fd < 0)
      {
-        printf("can't open %s\n",str_dev);
+        printf("can't open %sn",str_dev);
         return -1;
       }
 
@@ -260,10 +218,10 @@ while(1)
               {   
                  printf("------- shift to MPLAYER SLAVE mode \n");
                  play_mplayer();
-                 nList_Item=0; //-index of, str_radio_addrs[nList_Item][],start from 0
+                 nList_Item=1;
                }
            else if(play_mode==MODE_XIAMEN)
-              {
+              {   
                  printf("------- shift to XIAMEN-RADIO MPLAYER SLAVE mode \n");
                  play_xiamen();
                  nList_Item=1;
@@ -319,29 +277,42 @@ while(1)
            switch(LIRC_CODE)
            {
                case CODE_NEXT:
-                    if(nList_Item<radio_list_count)
-                       nList_Item+=1;
-                    //espeak_channel(nList_Item);
-		    sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
- 		    system(strCMD);
-		    usleep(500000);
- 		    printf("%s\n",strCMD);
+                    if(nList_Item<List_Item_Max_Num)
+                       nList_Item+=1; 
+                    espeak_channel(nList_Item);  
+ 		    system("echo 'pt_step 1'>/mplayer/slave");
+ 		    printf("echo 'pt_step 1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
+     
                     break;
                case CODE_PREV:
                     if(nList_Item>1)
                        nList_Item-=1; 
-                    //espeak_channel(nList_Item);  
-		    sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
-		    usleep(500000);
- 		    system(strCMD);
- 		    printf("%s\n",strCMD);
+                    espeak_channel(nList_Item);  
+ 		    system("echo 'pt_step -1'>/mplayer/slave");
+ 		    printf("echo 'pt_step -1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
                     break;
                case CODE_PLAY_PAUSE:
                     system("echo 'pause'>/mplayer/slave");
  		    printf("echo 'pause'>/mplayer/slave \n");
                      break;
+/*
+               case CODE_VOLUME_UP: 
+                    if(volume_val<125)
+                        volume_val+=2;
+                    sprintf(strCMD,"amixer set Speaker %d",volume_val);
+                    system(strCMD);
+                    printf("%s \n",strCMD);
+                    break;
+               case CODE_VOLUME_DOWN: 
+                    if(volume_val>20)
+                        volume_val-=2;
+                    sprintf(strCMD,"amixer set Speaker %d",volume_val);
+                    system(strCMD);
+                    printf("%s \n",strCMD);
+                    break; 
+*/
       	       case CODE_EQ:
 		    if(flag_3D)
                     {
@@ -358,9 +329,10 @@ while(1)
                      }
                      break;
                case CODE_RELOAD: 
-                    play_mplayer();
-                    nList_Item=0; //-index of, str_radio_addrs[nList_Item][]
-                    printf("reload radio address file, nList_Item=%d \n",nList_Item);
+                    sprintf(strCMD,"echo 'loadlist %s'>/mplayer/slave",str_radio_list);
+                    printf("%s \n",strCMD);
+                    system(strCMD);
+                    nList_Item=1;
                     break;
                case CODE_MUTE: 
                     system("echo 'mute'>/mplayer/slave");
@@ -370,35 +342,28 @@ while(1)
                {
                  switch(LIRC_CODE)
                  {
-		     case CODE_NUM_0:code_num=0;break;
-		     case CODE_NUM_1:code_num=1;break;
-		     case CODE_NUM_2:code_num=2;break;
-		     case CODE_NUM_3:code_num=3;break;
-		     case CODE_NUM_4:code_num=4;break;
-		     case CODE_NUM_5:code_num=5;break;
-		     case CODE_NUM_6:code_num=6;break;
-		     case CODE_NUM_7:code_num=7;break;
-		     case CODE_NUM_8:code_num=8;break;
-		     case CODE_NUM_9:code_num=9;break;
-
+                     case CODE_NUM_1:nList_Gap=1-nList_Item;nList_Item=1;break;
+                     case CODE_NUM_2:nList_Gap=2-nList_Item;nList_Item=2;break;
+                     case CODE_NUM_3:nList_Gap=3-nList_Item;nList_Item=3;break;
+                     case CODE_NUM_4:nList_Gap=4-nList_Item;nList_Item=4;break;
+                     case CODE_NUM_5:nList_Gap=5-nList_Item;nList_Item=5;break;
+                     case CODE_NUM_6:nList_Gap=6-nList_Item;nList_Item=6;break;
+                     case CODE_NUM_7:nList_Gap=7-nList_Item;nList_Item=7;break;
+                     case CODE_NUM_8:nList_Gap=8-nList_Item;nList_Item=8;break;
+                     case CODE_NUM_9:nList_Gap=9-nList_Item;nList_Item=9;break;
                      default:
                         printf("Unrecognizable code! \n");
                         break;   
                  }
-		if(code_num<=radio_list_count)
-		{
-			nList_Gap=code_num-nList_Item;
-			nList_Item=code_num;
-                	if(nList_Gap!=0 ) //---still in default
-                 	{
-		    	 //espeak_channel(nList_Item);
-		    	 sprintf(strCMD,"echo 'loadfile %s' > /mplayer/slave",str_radio_addrs[nList_Item]);
- 		    	 system(strCMD);
- 		    	 printf("%s\n",strCMD);
-                    	 printf("nList_Item=%d\n",nList_Item);
-		    	 nList_Gap=0;
-                 	}
-		}
+                if(nList_Gap!=0) //---still in default
+                 {
+                     sprintf(strCMD,"echo 'pt_step %d'>/mplayer/slave",nList_Gap);    
+                     printf("nList_Item=%d\n",nList_Item);
+                     printf("%s \n",strCMD);
+                     espeak_channel(nList_Item);  
+                     system(strCMD);
+                     nList_Gap=0;
+                 }
                 // break;
               };break;//--default
         };//---switch (LIRC_CODE) end

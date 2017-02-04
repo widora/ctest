@@ -210,8 +210,8 @@ while(1)
 //--!!!!!!---- STDIN_FILENO  is no buffer I/O ----!!!!!!
 //int_ret=read(STDIN_FILENO,str_hexcode,32); //-32bits including *#/r/n,  read()--readin from stdin with NO BUFFER!, it will stop at '\0'!!!!.  set iobuff=0 by the sender  the size must be 32 bytes.
 //str_hexcode[int_ret]=0; //---add a NULL for string end
-fgets(str_hexcode,33,stdin); // fget will get defined length of chars or stop at '\n', whichever reaches first.
-str_hexcode[32]='\0'; //-- add a string end token,
+fgets(str_hexcode,33,stdin); // fget will get defined length of chars or stop at '\n'(after '\n' is copied), whichever condition gets first, and put a string end '\0' .
+str_hexcode[32]='\0'; //-- add a string end token, NOT necessary??
 int_ret=strlen(str_hexcode); //---and /n from rtl_adsb also included
 ////////// try to fflush stdin; the data will remaind in buffer until new data enter to reflash   ///////////
 //fflush(stdin);
