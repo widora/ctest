@@ -4,9 +4,10 @@ This program expects to control mplayer running in slave mode.
 
 Environment Setup include:
 -- lirc module  
--- espea
+-- espeak
 -- mplayer 
 -- rtl_sdr
+-- ALSA
 
 Note: If you put lirc_mplay in rc.local for auto start-up,then you 
 shall copy all required shell scripts into /bin/,otherwise they may 
@@ -14,8 +15,8 @@ not be activated.
 
 Amends to old lirc_mplay:
 1 -- Use loadfile instead of playlist for mplayer.
-2 -- Shut off Espeak, which may casue problem while shifting channel.
-
+2 -- save current url to /tmp/.mplay_url.
+3 -- Adjust volume of Speaker and Headphone simutaneously.
 -----------------------------------------------------------------*/
 #include <stdio.h>
 //#include <sys/socket.h>  //connect,send,recv,setsockopt
@@ -67,6 +68,8 @@ static char str_dev[]="/dev/LIRC_dev";
 static char str_radio_list[]="/mplayer/radio.list";
 static char str_radio_addrs[RADIO_LIST_MAX_NUM][RADIO_ADDRS_LEN]; //--radio mms address
 static char str_xiamen_list[]="/mplayer/xiamen.list";
+static char str_url_tmpf[]="/tmp/.mplay_url"; //--for temp url save
+
 
 static unsigned int PLAY_LIST_NUM=2; //---default playlist
 static int radio_list_count; //--start from 0; count number of radio addrs read from str_radio_list[] file
@@ -89,6 +92,7 @@ static int load_radio_addrs() //--return count number of radio addrs,start from 
 		printf("-----read radio address: %s\n",str_radio_addrs[num]);
 		num++;
 	}
+
 	printf("------ total %d radio address ------\n",num+1);
 
 	fclose(fin);
@@ -104,33 +108,25 @@ static void espeak_channel(int n) //this func will clog
     //usleep(1500000); //--wait till espeak finish
 }
 
-void kill_espeak(void)
+static void kill_espeak(void)
 {
 system("killall -9 espeak");
 }
-
-void kill_fm(void)
+static void kill_fm(void)
 {
    system("killall -9 fm");
-//   system("killall -9 rtl_fm");
-//   system("killall -9 aplay");
 }
-void kill_mplay(void)
+static void kill_mplay(void)
 {
     system("killall -9 mplay");
-//    system("killall -9 mplayer1");
-//    system("killall -9 reaplay");
-//    system("killall -9 aplay "); 
 }
-void kill_am(void)
+static void kill_am(void)
 {
    system("killall -9 am");
-//   system("killall -9 rtl_fm");
-//   system("killall -9 aplay");
 }
 
 
-void play_mplayer(void)
+static void play_mplayer(void)
 {
     char strCMD[100];
     kill_fm();
@@ -140,7 +136,7 @@ void play_mplayer(void)
     usleep(300000);
     system("speakE 'Start-to-play-Radio-Playlist'");    
     usleep(2500000); //--wait till espeak finish 
-    radio_list_count=load_radio_addrs();
+    radio_list_count=load_radio_addrs();//load radio mms address file to mem. arrays
     if(radio_list_count<0)
     {
 	printf("Fail to read radio address file!\n");
@@ -148,11 +144,27 @@ void play_mplayer(void)
 	return;
     }
     sprintf(strCMD,"screen -dmS MPLAYER /mplayer/mplay %s",str_radio_addrs[0]); //--load first radio address
-    printf("%s \n",strCMD);
     system(strCMD);
+    printf("%s \n",strCMD);
 }
 
-void play_xiamen(void)
+static void tune_ntradio(int nList_Item)  //--tune to str_radio_addrs[nList_Item]
+{
+        char strCMD[150]; //--!! beware of enough size
+
+        printf("nList_Item=%d\n",nList_Item);
+	espeak_channel(nList_Item);
+	//--!!! sprintf char will end until get a '\0' ???
+	sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
+        printf("%s\n",strCMD);
+	system(strCMD);
+        //---------------- save current url to a tmp file  -----
+	sprintf(strCMD,"echo '%s'>%s",str_radio_addrs[nList_Item],str_url_tmpf); //-save current url to a tmp file
+ 	system(strCMD);
+ 	printf("%s\n",strCMD);
+}
+
+static void play_xiamen(void)
 {
     char strCMD[100];
     kill_fm();
@@ -184,7 +196,7 @@ void  play_fm(float freq)
     printf("%s\n",strCMD);
 }
 
-void  play_am(void)
+static void  play_am(void)
 {
     char strCMD[50];
     kill_mplay();
@@ -198,7 +210,9 @@ void  play_am(void)
     printf("%s\n",strCMD);
 }
 
-void shut_down(void)
+
+
+static void shut_down(void)
 {
     kill_am();
     kill_fm();
@@ -225,9 +239,10 @@ int main(int argc, char** argv)
    unsigned int volume_val=100;
    char strCMD[50];
    float FM_FREQ[10];
-   FM_FREQ[0]=87.9;FM_FREQ[1]=89.9;FM_FREQ[2]=91.4;FM_FREQ[3]=93.4;FM_FREQ[4]=97.7;
-   FM_FREQ[5]=99.1;FM_FREQ[6]=101.7;FM_FREQ[7]=103.7;FM_FREQ[8]=105.7;FM_FREQ[9]=107.7;
-   unsigned int num_Freq=9;
+  //----FM_FREQ[0] and [1] crash!!???
+   FM_FREQ[0]=87.9,FM_FREQ[1]=89.9,FM_FREQ[2]=91.4,FM_FREQ[3]=93.4,FM_FREQ[4]=97.7,\
+   FM_FREQ[5]=99.1,FM_FREQ[6]=101.7,FM_FREQ[7]=103.7,FM_FREQ[8]=105.7,FM_FREQ[9]=107.7;
+   unsigned int num_Freq=9;//default
 
 //---------------  OPEN LIRC DEVICE   --------------
     fd = open(str_dev, O_RDWR | O_NONBLOCK);
@@ -236,6 +251,10 @@ int main(int argc, char** argv)
         printf("can't open %s\n",str_dev);
         return -1;
       }
+
+//---------------  play mplayer as default  -------------
+play_mplayer();
+play_mode=MODE_MPLAYER;
 
 //------------------------- loop for input command and receive response ---------------------
 while(1)
@@ -297,6 +316,9 @@ while(1)
              sprintf(strCMD,"amixer set Speaker %d",volume_val);
              system(strCMD);
              printf("%s \n",strCMD);
+             sprintf(strCMD,"amixer set Headphone %d",volume_val);
+             system(strCMD);
+             printf("%s \n",strCMD);
              continue;
          }
       if(LIRC_CODE==CODE_VOLUME_DOWN)
@@ -306,11 +328,14 @@ while(1)
               sprintf(strCMD,"amixer set Speaker %d",volume_val);
               system(strCMD);
               printf("%s \n",strCMD);
+              sprintf(strCMD,"amixer set Headphone %d",volume_val);
+              system(strCMD);
+              printf("%s \n",strCMD);
               continue;
         } 
 
 
-       //-----!! WARNING use {} for every switch,case and default structre, or compilation will fail.    
+       //-----!! WARNING use {} for every switch,case and default structre, or compilation will fail.
       switch(play_mode)
       {
         case MODE_MPLAYER: //-----------------------------------for  MPLAYER ------------------------
@@ -321,22 +346,12 @@ while(1)
                case CODE_NEXT:
                     if(nList_Item<radio_list_count)
                        nList_Item+=1;
-                    //espeak_channel(nList_Item);
-		    sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
- 		    system(strCMD);
-		    usleep(500000);
- 		    printf("%s\n",strCMD);
-                    printf("nList_Item=%d\n",nList_Item);
+		    tune_ntradio(nList_Item);
                     break;
                case CODE_PREV:
                     if(nList_Item>1)
-                       nList_Item-=1; 
-                    //espeak_channel(nList_Item);  
-		    sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
-		    usleep(500000);
- 		    system(strCMD);
- 		    printf("%s\n",strCMD);
-                    printf("nList_Item=%d\n",nList_Item);
+                       nList_Item-=1;
+		    tune_ntradio(nList_Item);
                     break;
                case CODE_PLAY_PAUSE:
                     system("echo 'pause'>/mplayer/slave");
@@ -391,11 +406,14 @@ while(1)
 			nList_Item=code_num;
                 	if(nList_Gap!=0 ) //---still in default
                  	{
-		    	 //espeak_channel(nList_Item);
+/*
+		    	 espeak_channel(nList_Item);
 		    	 sprintf(strCMD,"echo 'loadfile %s' > /mplayer/slave",str_radio_addrs[nList_Item]);
  		    	 system(strCMD);
  		    	 printf("%s\n",strCMD);
                     	 printf("nList_Item=%d\n",nList_Item);
+*/
+             	         tune_ntradio(nList_Item);
 		    	 nList_Gap=0;
                  	}
 		}
@@ -421,7 +439,7 @@ while(1)
               case CODE_NUM_9:num_Freq=9;break;
               default:
                   {
-                   printf("Unrecognizable code! \n");
+                   printf("Unrecognizable code for FM player! \n");
                    continue; //----------
                   }
           }
