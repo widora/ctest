@@ -10,13 +10,14 @@ Environment Setup include:
 -- ALSA
 
 Note: If you put lirc_mplay in rc.local for auto start-up,then you 
-shall copy all required shell scripts into /bin/,otherwise they may 
+shall copy(link) all required shell scripts into /bin/,otherwise they may 
 not be activated. 
 
 Amends to old lirc_mplay:
 1 -- Use loadfile instead of playlist for mplayer.
 2 -- save current url to /tmp/.mplay_url.
 3 -- Adjust volume of Speaker and Headphone simutaneously.
+4 -- killall -STOP and -CONT to pause mplayer
 -----------------------------------------------------------------*/
 #include <stdio.h>
 //#include <sys/socket.h>  //connect,send,recv,setsockopt
@@ -236,6 +237,7 @@ int main(int argc, char** argv)
    bool flag_3D=false; //----3D effect sound
    unsigned int LIRC_DATA = 0; //---raw data from LIRC module 
    unsigned int LIRC_CODE =0;
+   unsigned int PAUSE_TOKEN=0;
    unsigned int volume_val=100;
    char strCMD[50];
    float FM_FREQ[10];
@@ -354,8 +356,14 @@ while(1)
 		    tune_ntradio(nList_Item);
                     break;
                case CODE_PLAY_PAUSE:
-                    system("echo 'pause'>/mplayer/slave");
- 		    printf("echo 'pause'>/mplayer/slave \n");
+		    if(PAUSE_TOKEN == 0){
+ 			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
+			   PAUSE_TOKEN=1;}
+		    else{
+			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
+			   PAUSE_TOKEN=0;}
+                    //system("echo 'pause'>/mplayer/slave");
+ 		    //printf("echo 'pause'>/mplayer/slave \n");
                      break;
       	       case CODE_EQ:
 		    if(flag_3D)
