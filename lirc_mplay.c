@@ -360,8 +360,17 @@ while(1)
  			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
 			   PAUSE_TOKEN=1;}
 		    else{
+			   tune_ntradio(nList_Item);printf("tune_ntradi...\n");
 			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
 			   PAUSE_TOKEN=0;}
+/*
+		    if(PAUSE_TOKEN == 0){
+ 			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
+			   PAUSE_TOKEN=1;}
+		    else{
+			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
+			   PAUSE_TOKEN=0;}
+*/
                     //system("echo 'pause'>/mplayer/slave");
  		    //printf("echo 'pause'>/mplayer/slave \n");
                      break;
