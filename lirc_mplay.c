@@ -360,8 +360,11 @@ while(1)
  			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
 			   PAUSE_TOKEN=1;}
 		    else{
-			   tune_ntradio(nList_Item);printf("tune_ntradi...\n");
-			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
+			   //system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
+			   //--  -CONT doesn't work, It will casue alsa buf crash and make big noise. so use -QUIT 
+			   system("killall -QUIT mplayer"); printf("killall -QUIT mplayer\n");//-quit current session of mplayer to avoid,as ALSA buf data maybe contaminated.
+			   tune_ntradio(nList_Item);
+			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n"); //--you have to use -CONT to resume mplayer however
 			   PAUSE_TOKEN=0;}
 /*
 		    if(PAUSE_TOKEN == 0){
