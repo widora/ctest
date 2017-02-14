@@ -1,0 +1,1 @@
+/home/midas/openwrt_widora/package/kernel/kdraw/src/kdraw.c

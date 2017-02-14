@@ -713,6 +713,7 @@ deps_/home/midas/ctest/kmods/soopwm/sooall_pwm.o := \
   include/uapi/linux/poll.h \
   arch/mips/include/uapi/asm/poll.h \
   include/uapi/asm-generic/poll.h \
+  /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib/gcc/mipsel-openwrt-linux-uclibc/4.8.3/include/stdbool.h \
   /home/midas/ctest/kmods/soopwm/sooall_pwm.h \
 
 /home/midas/ctest/kmods/soopwm/sooall_pwm.o: $(deps_/home/midas/ctest/kmods/soopwm/sooall_pwm.o)

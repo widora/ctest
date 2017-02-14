@@ -12,6 +12,27 @@
 #define PWM_IOCTL_SET_FREQ 1
 #define PWM_IOCTL_STOP 0
 
+/*------------------    PWM hw registers      --------------------*/
+volatile unsigned long *PWM_ENABLE; // bit[0]-PWM0  bit[1]-PWM1 bit[2]-PWM2 bit[3]-PWM3 
+volatile unsigned long *PWM0_CON; //pwm0 control register
+volatile unsigned long *PWM0_HDURATION; //pwm0 high duration register
+volatile unsigned long *PWM0_LDURATION; //pwm0 low duration register
+volatile unsigned long *PWM0_GDURATION; //pwm0 guard duration register
+volatile unsigned long *PWM0_WAVE_NUM; //pwm0 wave number register
+
+
+/*------------------    map GPIO register      --------------------*/
+void remap_pwm_register(void)
+{
+	PWM_ENABLE=(volatile unsigned long *)ioremap(0x10005000,4);
+	PWM0_CON=(volatile unsigned long *)ioremap(0x10005010,4);
+	PWM0_HDURATION=(volatile unsigned long *)ioremap(0x10005014,4);
+	PWM0_LDURATION=(volatile unsigned long *)ioremap(0x10005018,4);
+	PWM0_GDURATION=(volatile unsigned long *)ioremap(0x1000501C,4); 
+	PWM0_WAVE_NUM=(volatile unsigned long *)ioremap(0x10005038,4); 
+
+}
+
 static struct semaphore lock;
 
 static void PWM_Set_Freq(unsigned long freq)
