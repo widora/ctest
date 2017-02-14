@@ -1,3 +1,7 @@
+/*-----------------------------------------
+
+--------------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,28 +30,41 @@ int main(int argc, char *argv)
 	}
 
 	cfg.no        =   0;    /* pwm0 */
-	cfg.clksrc    =   PWM_CLK_100KHZ; //PWM_CLK_40MHZ;
-	cfg.clkdiv    =   PWM_CLK_DIV128; //DIV2 40/2=20MHZ
+	cfg.clksrc    =   PWM_CLK_40MHZ; //40MHZ or 100KHZ;
+	cfg.clkdiv    =   PWM_CLK_DIV32; //DIV2 40/2=20MHZ
 	cfg.old_pwm_mode =true;    /* old mode  */
 	cfg.idelval   =   0;
 	cfg.guardval  =   0;
 	cfg.guarddur  =   0;
 	cfg.wavenum   =   0;  /* forever loop */
-	cfg.datawidth =   781;//--limit 2^13-1=8191  //1000; period=40*1000/(40/2) ns
-	cfg.threshold =   390; //500;
-	//---period=1000/100(KHZ)*(DIV)*datawidth   (us)
+	cfg.datawidth =   5000;//781;//--limit 2^13-1=8191 
+	cfg.threshold =   5000; //500;
+	//---period=1000/100(KHZ)*(DIV(1-128))*datawidth   (us)
+	//---period=1000/40(MHz)*(DIV)*datawidth       (ns)
         if(cfg.clksrc == PWM_CLK_100KHZ)
 		{
 			tmp=pow(2.0,(float)(cfg.clkdiv));
-			//printf("cfg.clkdiv=%d\n",cfg.clkdiv);
 			printf("tmp=%d,set PWM period=%d us\n",tmp,(int)(1000.0/100.0*tmp*(int)(cfg.datawidth))); // div by integer is dangerous!!!
 		}
         else if(cfg.clksrc == PWM_CLK_40MHZ)
 		{
+			tmp=pow(2.0,(float)(cfg.clkdiv));
+			printf("tmp=%d,set PWM period=%d ns\n",tmp,(int)(1000.0/40.0*tmp*(int)(cfg.datawidth))); // div by integer is dangerous!!!
 		}
 
 	ioctl(pwm_fd, PWM_CONFIGURE, &cfg);
 	ioctl(pwm_fd, PWM_ENABLE, &cfg);
+
+        while(1){
+		for(tmp=0;tmp<5000;tmp++){
+			cfg.threshold=tmp;
+			usleep(200);
+			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
+		for(tmp=5000;tmp>5;tmp--){
+			cfg.threshold=tmp;
+			usleep(200);
+			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
+		}
 /*
 	while (1) {
 		static int cnt = 0;
