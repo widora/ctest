@@ -27,7 +27,8 @@ refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 
 MODULE_LICENSE("GPL");
 
-#define RALINK_CLK_CFG    0xB0000030
+//---- KSEG1  direct fixed map  from 0xA0000000 to 0XC0000000
+#define RALINK_CLK_CFG    0xB0000030 //0xA00000000 + 10000000
 #define RALINK_AGPIO_CFG  0xB000003C
 #define RALINK_GPIOMODE   0xB0000060
 
@@ -88,6 +89,15 @@ static void sooall_pwm_cfg(struct pwm_cfg *cfg)
 		value |= (BIT(PWM_MODE_BIT)); //--OLD MODE   value |= (1 << PWM_MODE_BIT);
 	else
 		value &= ~(BIT(PWM_MODE_BIT));//---NEW MODE
+
+        /* set STOP_BITOPS for new mode */
+	if(cfg->stop_bitpos > 63)
+		printk("----!!!  STOP_BITPOS value error  !!!----\n");
+	else{
+		value &= ~(63<<9);//clear PWM_CON:stop_bitpos
+		value |= ((cfg->stop_bitpos)<<9);
+	}
+
 	/* set the idel val and guard val */
 	value &= ~((1 << PWM_IVAL_BIT) | (1 << PWM_GVAL_BIT));
 	value |= ((cfg->idelval & 0x1) << PWM_IVAL_BIT);
@@ -109,6 +119,33 @@ static void sooall_pwm_cfg(struct pwm_cfg *cfg)
 	value |= (cfg->guarddur & 0xffff);
 	*(volatile u32 *)(basereg + PWM_REG_GDUR) = cpu_to_le32(value);
 
+	/* ----- set the HDURATION val -----*/
+	value  = le32_to_cpu(*(volatile u32 *)(basereg + PWM_REG_HDURATION));
+	value &= ~(0xffff);
+	value |= (cfg->hduration & 0xffff);
+	*(volatile u32 *)(basereg + PWM_REG_HDURATION) = cpu_to_le32(value);
+
+	/* ----- set the LDURATION val -----*/
+	value  = le32_to_cpu(*(volatile u32 *)(basereg + PWM_REG_LDURATION));
+	value &= ~(0xffff);
+	value |= (cfg->lduration & 0xffff);
+	*(volatile u32 *)(basereg + PWM_REG_LDURATION) = cpu_to_le32(value);
+
+	/* ----- set the SEND_DATA0 val -----*/
+	//value  = le32_to_cpu(*(volatile u32 *)(basereg + PWM_REG_SEND_DATA0));
+	//value &= ~(0xffffffff);
+	value = 0;
+	value |= (cfg->senddata0);
+	*(volatile u32 *)(basereg + PWM_REG_SEND_DATA0) = cpu_to_le32(value);
+
+	/* ----- set the SEND_DATA1 val -----*/
+	//value  = le32_to_cpu(*(volatile u32 *)(basereg + PWM_REG_SEND_DATA1));
+	//value &= ~(0xffffffff);
+	value = 0;
+	value |= (cfg->senddata1);
+	*(volatile u32 *)(basereg + PWM_REG_SEND_DATA1) = cpu_to_le32(value);
+
+       
 
 	/* 3. set the wave num val */
 	value  = le32_to_cpu(*(volatile u32 *)(basereg + PWM_REG_WNUM));
@@ -326,6 +363,7 @@ dev_clean:
 
 static void sooall_pwm_exit(void)
 {
+
 	device_destroy(pwm_class, MKDEV(pwm_major, pwm_minor));
 	class_destroy(pwm_class);
 	clean_chrdev();

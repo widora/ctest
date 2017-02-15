@@ -2,6 +2,7 @@
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 ------------------------------------------------------------------*/
+#include <stdint.h> //this is for uint32_t in user space only, shall make it comment when compile for kernel module.
 
 #ifndef _SOOALL_PWM_H_
 #define _SOOALL_PWM_H_
@@ -14,7 +15,7 @@ typedef enum {
 
 /* clock div */
 typedef enum {
-	PWM_CLI_DIV0 = 0,
+	PWM_CLK_DIV0 = 0,
 	PWM_CLK_DIV2,
 	PWM_CLK_DIV4,
 	PWM_CLK_DIV8,
@@ -32,6 +33,11 @@ struct pwm_cfg {
 	unsigned char  idelval;
 	unsigned char  guardval;
 	unsigned short guarddur;
+	unsigned short hduration;
+	unsigned short lduration;
+	unsigned short stop_bitpos; //<=63
+	uint32_t	senddata0; // u32 for kernel
+	uint32_t	senddata1;
 	unsigned short wavenum;
 	unsigned short datawidth; //biggest 2^13-1 
 	unsigned short threshold;
