@@ -1,3 +1,8 @@
+/*------------------------------------------------------------------
+Author: qianrushizaixian
+refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
+------------------------------------------------------------------*/
+
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/fs.h>

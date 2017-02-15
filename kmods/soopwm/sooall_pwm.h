@@ -1,3 +1,8 @@
+/*------------------------------------------------------------------
+Author: qianrushizaixian
+refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
+------------------------------------------------------------------*/
+
 #ifndef _SOOALL_PWM_H_
 #define _SOOALL_PWM_H_
 
