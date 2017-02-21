@@ -57,7 +57,7 @@ Amends to old lirc_mplay:
 #define MAXLINE 100
 #define List_Item_Max_Num 15
 #define RADIO_LIST_MAX_NUM 30
-#define RADIO_ADDRS_LEN 50
+#define RADIO_ADDRS_LEN 60
 
 #define MODE_MPLAYER 0
 #define MODE_RADIO 1
