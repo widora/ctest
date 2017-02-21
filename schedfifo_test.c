@@ -1,5 +1,5 @@
 //--refer to:  www.169it.com/tech-qa-linux/article-9475173645702120038.html
-
+//--
 
 
 #include <stdio.h> // perror()
@@ -20,16 +20,18 @@ struct sched_param my_param;
 		:"unknown"))),
 		my_param.sched_priority);
 	sleep(1); //--sleep so main() has time to create thd2
-	//while(1)
-		printf("this is thd1!\n");
+	while(1)
+		printf("----------------------------------------this is thd1!\n");
 }
 
 //void thd2(void* lpparam)
 static void thd2(void)
 {
 	sleep(3);//--to occupy CUP after thd1 running for 2 seconds
-	//while(1)
-		printf("----------thd2 preempt!\n"); //--print wanted result
+	while(1){
+		  //sleep(1); //---sleep here will let thd1 gain the preemption
+		  printf("----------thd2 preempt!\n"); //--print wanted result
+		}
 }
 
 
@@ -50,8 +52,8 @@ int create_fifo_thd(void *routine,int dwPriority)
 	pthread_create(&pid,&Attr,routine,0);
 	
         //-----it's not necessary
-	if(pthread_setschedparam(pid,SCHED_FIFO,&sch_param)!=0)
-	printf("pthread_setschedparam failed\n");
+	//if(pthread_setschedparam(pid,SCHED_FIFO,&sch_param)!=0)
+	//printf("pthread_setschedparam failed\n");
 
 	pthread_attr_destroy(&Attr);
 	
