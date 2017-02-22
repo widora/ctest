@@ -113,6 +113,7 @@ static void kill_espeak(void)
 {
 system("killall -9 espeak");
 }
+
 static void kill_fm(void)
 {
    system("killall -9 fm");
@@ -156,7 +157,7 @@ static void tune_ntradio(int nList_Item)  //--tune to str_radio_addrs[nList_Item
         printf("nList_Item=%d\n",nList_Item);
 	espeak_channel(nList_Item);
 	//--!!! sprintf char will end until get a '\0' ???
-	sprintf(strCMD,"echo 'loadfile %s'>/mplayer/slave",str_radio_addrs[nList_Item]);
+	sprintf(strCMD,"echo loadfile '%s' > /mplayer/slave",str_radio_addrs[nList_Item]);
         printf("%s\n",strCMD);
 	system(strCMD);
         //---------------- save current url to a tmp file  -----
@@ -182,6 +183,7 @@ static void play_xiamen(void)
 
 void  play_fm(float freq)
 {
+
     char strCMD[50];
     char strSPEAK[50];
     kill_mplay();
@@ -189,12 +191,21 @@ void  play_fm(float freq)
     kill_fm();
     kill_espeak();
     usleep(300000);
+/*
     sprintf(strSPEAK,"speakE 'fFM-%3.1f-Megahertz'",freq);
     system(strSPEAK);//--system run in shell as a thread    
     sprintf(strCMD,"screen -dmS FM /mplayer/fm %6.2f",freq);
     usleep(2500000);//--wait for espeak to release aplay
     system(strCMD);
     printf("%s\n",strCMD);
+*/
+   system("killall -9 playF.sh");
+   system("speakE 'Play-B-radio'");
+   usleep(2500000);
+   sprintf(strCMD,"screen -dmS PLAY_B /mplayer/playB.sh");
+   system(strCMD);
+   printf("%s\n",strCMD);
+
 }
 
 static void  play_am(void)
@@ -204,13 +215,20 @@ static void  play_am(void)
     kill_fm();
     kill_espeak();
     usleep(300000);
+/*
     system("speakE Sstart-to-play--Air-band");    
     usleep(2500000);
     sprintf(strCMD,"screen -dmS AM /mplayer/am");
     system(strCMD);
     printf("%s\n",strCMD);
+*/
+   system("killall -9 playB.sh");
+   system("speakE 'Play-F-radio'");
+   usleep(2500000);
+   sprintf(strCMD,"screen -dmS PLAY_F /mplayer/playF.sh");
+   system(strCMD);
+   printf("%s\n",strCMD);
 }
-
 
 
 static void shut_down(void)

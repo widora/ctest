@@ -1,5 +1,6 @@
 /*-------------------------------------------------
   RM68140 controlled LCD display  and  pin-control functions
+
 ------------------------------------------------*/
 #ifndef _RM68140_H
 #define _RM68140_H

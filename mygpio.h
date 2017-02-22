@@ -1,5 +1,7 @@
-
-/* --- forgotfun.org forgotfun --- */
+/*-----------------------------------------
+Author: ForgotFun
+Refer to: http://forgotfun.org
+-----------------------------------------*/
 
 #ifndef _MYGPIO_H
 #define _MYGPIO_H
