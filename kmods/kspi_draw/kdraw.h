@@ -19,6 +19,9 @@ Based on Liuchen_csdn's ftf driver.
 With reference to  m.blog.csdn.net/article/details?id=51316854
 Midas-Zhou
 ----------------------------------------------------------------------*/
+#ifndef __HDRAW_H__
+#define __HDRAW_H__
+
   #include <linux/init.h>
   #include <linux/module.h>
   #include <linux/device.h>
@@ -35,17 +38,10 @@ Midas-Zhou
   #include <linux/spi/flash.h>
   #include <linux/version.h>
   #include <linux/time.h>
-  #include "kgpio.h"  //-- GPIO config. and mode set
-  #include "kdraw.h" //-- functions for SPI and GPIO cooperations
-  #include "RM68140.h"
+  #include "kgpio.h"
 
   MODULE_LICENSE("GPL");
-
-//  struct base_spi spi_LCD;
-
-
-#define _SHUT_FUNCTIONS_
-#ifndef _SHUT_FUNCTIONS_
+  struct base_spi spi_LCD; // this is a global var.
 
   #if defined (CONFIG_RALINK_RT6855A) || defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
   #else
@@ -346,9 +342,8 @@ static int base_spi_busy_wait(void)
          return status;
  }
 
-#endif  // _SHUT_FUNCTIONS_ 
 
-
+/*
 static int __init spi_LCD_init(void)
  {
 	int k;
@@ -360,19 +355,10 @@ static int __init spi_LCD_init(void)
          gpiomode = le32_to_cpu(*(volatile u32 *)(RALINK_REG_GPIOMODE));
          printk("--------current RALINK_REG_GPIOMODE value: %08x !\n",gpiomode);
 
-/*
-         base_gpio_set(11,1);
-         mdelay(100);
-         base_gpio_set(11,0);
-         mdelay(100);
-         base_gpio_set(11,1);
-         mdelay(100);
-
-*/
-         //struct base_spi spi_LCD;
+         struct base_spi spi_LCD;
          spi_LCD.chip_select = 1;
          spi_LCD.mode = SPI_MODE_3 ;
-         spi_LCD.speed = 30000000;
+         spi_LCD.speed = 2000000;
          spi_LCD.sys_freq = 575000000; //system clk 580M
 
          spi_LCD.tx_buf[0] = 0xff;
@@ -382,16 +368,7 @@ static int __init spi_LCD_init(void)
          //while(1)
 	       result=base_spi_transfer_half_duplex(&spi_LCD);
          printk("-----base_spi_transfer_half() result=%d\n",result);
-//========================= init LCD ==============================
-	LCD_HD_reset();
-	mdelay(100);
-	printk("-----LCD_HD_reset finish---\n");
-	LCD_INIT_RM68140();
-	printk("----- Start drawing --------\n");
-	LCD_ColorBox(0,0,319,479,2500);
-	printk("----- Finish drawing --------\n");
-
-	return result;
+         return result;
  }
 
 
@@ -405,4 +382,6 @@ static void __exit spi_LCD_exit(void)
 
  module_init(spi_LCD_init);
  module_exit(spi_LCD_exit);
+*/
 
+#endif

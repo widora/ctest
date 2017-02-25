@@ -762,7 +762,8 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
     $(wildcard include/config/need/sg/dma/length.h) \
   include/linux/spi/flash.h \
   include/generated/uapi/linux/version.h \
-  /home/midas/ctest/kmods/kspi_draw/kspi_draw.h \
+  /home/midas/ctest/kmods/kspi_draw/kgpio.h \
+  /home/midas/ctest/kmods/kspi_draw/kdraw.h \
   include/linux/fcntl.h \
   include/uapi/linux/fcntl.h \
   arch/mips/include/uapi/asm/fcntl.h \
@@ -806,6 +807,7 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
   include/linux/projid.h \
   include/uapi/linux/quota.h \
   include/linux/nfs_fs_i.h \
+  /home/midas/ctest/kmods/kspi_draw/RM68140.h \
 
 /home/midas/ctest/kmods/kspi_draw/kspi_draw.o: $(deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o)
 
