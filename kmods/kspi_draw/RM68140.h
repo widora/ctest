@@ -17,7 +17,7 @@
  #define HD_RESET base_gpio_set(16,0)
 
 
-void delayms(int s)
+static void delayms(int s)
 {
  int k;
  for(k=0;k<s;k++)
@@ -56,20 +56,20 @@ inline void SPI_Write(uint8_t *data,uint8_t len)
 }
 
 /*------ write command to LCD -------------*/
-void WriteComm(uint8_t cmd)
+static void WriteComm(uint8_t cmd)
 {
  DCXcmd;
  SPI_Write(&cmd,1);
 }
 
 /*------ write 1 Byte data to LCD -------------*/
-void WriteData(uint8_t data)
+static void WriteData(uint8_t data)
 {
  DCXdata;
  SPI_Write(&data,1);
 }
 /*-------- write 2 Byte date to LCD ---------*/
-void WriteDData(uint16_t data)
+static void WriteDData(uint16_t data)
 {
   uint8_t tmp[2];
   tmp[0]=data>>8;
@@ -80,7 +80,7 @@ void WriteDData(uint16_t data)
 }
 
 /*------ write N Bytes data to LCD -------------*/
-void WriteNData(uint8_t* data,int N)
+static void WriteNData(uint8_t* data,int N)
 {
  DCXdata;
  SPI_Write(data,N);
@@ -88,7 +88,7 @@ void WriteNData(uint8_t* data,int N)
 
 
 /*--------------- prepare for RAM direct write --------*/
-void LCD_ramWR_Start(void)
+static void LCD_ramWR_Start(void)
 {
   WriteComm(0x2c);  
 } 
@@ -96,7 +96,7 @@ void LCD_ramWR_Start(void)
 
 
 /* ------------------ LCD Initialize Function ---------------*/
-void LCD_INIT_RM68140(void)
+static void LCD_INIT_RM68140(void)
 {
  delayms(20);
  LCD_HD_reset();
@@ -159,7 +159,7 @@ void LCD_INIT_RM68140(void)
 }
 
 /* ------------- GRAM block address set ---------------- */
-void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
+static void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 {
 	WriteComm(0x2a);   
 	WriteData(Xstart>>8);
@@ -176,13 +176,12 @@ void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 
 
 /* ------------  draw a color box --------------*/
-void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint16_t Color)
+static void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint16_t Color)
 {
 	uint32_t temp;
 	u8 data[36];
 	u8 hcolor,lcolor;
 	int k;
-
 
 	hcolor=Color>>8;
 	lcolor=Color&0x00ff; 
@@ -217,7 +216,7 @@ void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,
 
 /* ------------------- show a picture stored in a char* array ------------*/
 
-void LCD_Fill_Pic(uint16_t x, uint16_t y, uint16_t pic_H, uint16_t pic_V, const unsigned char* pic)
+static void LCD_Fill_Pic(uint16_t x, uint16_t y, uint16_t pic_H, uint16_t pic_V, const unsigned char* pic)
 {
         uint32_t i;
 //	uint16_t j;

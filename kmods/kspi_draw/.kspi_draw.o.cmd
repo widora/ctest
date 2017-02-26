@@ -3,9 +3,6 @@ cmd_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := /home/midas/openwrt_widora/
 source_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := /home/midas/ctest/kmods/kspi_draw/kspi_draw.c
 
 deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
-    $(wildcard include/config/ralink/rt6855a.h) \
-    $(wildcard include/config/ralink/mt7621.h) \
-    $(wildcard include/config/ralink/mt7628.h) \
   include/linux/init.h \
     $(wildcard include/config/broken/rodata.h) \
     $(wildcard include/config/lto.h) \
@@ -764,6 +761,9 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
   include/generated/uapi/linux/version.h \
   /home/midas/ctest/kmods/kspi_draw/kgpio.h \
   /home/midas/ctest/kmods/kspi_draw/kdraw.h \
+    $(wildcard include/config/ralink/rt6855a.h) \
+    $(wildcard include/config/ralink/mt7621.h) \
+    $(wildcard include/config/ralink/mt7628.h) \
   include/linux/fcntl.h \
   include/uapi/linux/fcntl.h \
   arch/mips/include/uapi/asm/fcntl.h \
