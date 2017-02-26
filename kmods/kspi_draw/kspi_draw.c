@@ -372,7 +372,7 @@ static int __init spi_LCD_init(void)
          //struct base_spi spi_LCD;
          spi_LCD.chip_select = 1;
          spi_LCD.mode = SPI_MODE_3 ;
-         spi_LCD.speed = 30000000;
+         spi_LCD.speed = 35000000;
          spi_LCD.sys_freq = 575000000; //system clk 580M
 
          spi_LCD.tx_buf[0] = 0xff;
@@ -384,11 +384,13 @@ static int __init spi_LCD_init(void)
          printk("-----base_spi_transfer_half() result=%d\n",result);
 //========================= init LCD ==============================
 	LCD_HD_reset();
-	mdelay(100);
+	//mdelay(100);
 	printk("-----LCD_HD_reset finish---\n");
 	LCD_INIT_RM68140();
 	printk("----- Start drawing --------\n");
-	LCD_ColorBox(0,0,319,479,2500);
+	LCD_ColorBox(0,0,320,480,1080);//0x8010;
+	//mdelay(1000);
+	LCD_ColorBox(0,0,320,480,4000);//0x8400);
 	printk("----- Finish drawing --------\n");
 
 	return result;

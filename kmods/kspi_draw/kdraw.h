@@ -110,6 +110,7 @@ Midas-Zhou
  static int base_gpio_set(int gpio,int value)
  {
          unsigned int tmp;
+	int ret=0;
          if (gpio <= 31) {
                  tmp = le32_to_cpu(*(volatile u32 *)(RALINK_REG_PIODIR));
                  tmp |= 1 << gpio;
@@ -139,7 +140,7 @@ Midas-Zhou
                  tmp |= value << (gpio - 64);
                  *(volatile u32 *)(RALINK_REG_PIODATA + 0x08) = tmp;
          }
-
+	return ret;
  //      *(volatile u32 *)(RALINK_REG_PIOSET) = cpu_to_le32(arg);
  }
 

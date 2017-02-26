@@ -9,15 +9,11 @@
 #include "kgpio.h"
 
 /* ---------  DCX pin:  0 as  command, 1 as data --------- */
-// #define DCXdata mt76x8_gpio_set_pin_value(14,1)
  #define DCXdata base_gpio_set(14,1)
-// #define DCXcmd mt76x8_gpio_set_pin_value(14,0)
  #define DCXcmd base_gpio_set(14,0)
 
 /* --------- Hardware set and reset pin-------------- */
-// #define HD_SET mt76x8_gpio_set_pin_value(16,1)
  #define HD_SET base_gpio_set(16,1)
-// #define HD_RESET mt76x8_gpio_set_pin_value(16,0)
  #define HD_RESET base_gpio_set(16,0)
 
 
@@ -42,23 +38,22 @@ void LCD_HD_reset(void)
 
 
 /*---------- SPI_Write() -----------------*/
-void SPI_Write(uint8_t *data,uint8_t len)
+inline void SPI_Write(uint8_t *data,uint8_t len)
 {
 	int k,tx_len;
-	if(len > 37) //MAX 32x9 (36bytes)data registers in SPI controller
-		tx_len=37;
-	else 
+	if(len > 36) //MAX 32x9 (36bytes)data registers in SPI controller
+		tx_len=36;
+	else
 		tx_len=len;
 
 	for(k=0;k<tx_len;k++)
 	{
-		spi_LCD.tx_buf[k]=*(data+k); //spi_LCD defined in kdraw.h and init in kspi_draw.c
-		spi_LCD.tx_len = tx_len; 
+ 		spi_LCD.tx_buf[k]=*(data+k); //spi_LCD defined in kdraw.h and init in kspi_draw.c
 	}
+	spi_LCD.tx_len=tx_len;
 
 	base_spi_transfer_half_duplex(&spi_LCD);
 }
-
 
 /*------ write command to LCD -------------*/
 void WriteComm(uint8_t cmd)
@@ -96,7 +91,7 @@ void WriteNData(uint8_t* data,int N)
 void LCD_ramWR_Start(void)
 {
   WriteComm(0x2c);  
- } 
+} 
 
 
 
@@ -184,7 +179,30 @@ void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint16_t Color)
 {
 	uint32_t temp;
+	u8 data[36];
+	u8 hcolor,lcolor;
+	int k;
 
+
+	hcolor=Color>>8;
+	lcolor=Color&0x00ff; 
+
+        for(k=0;k<18;k++)
+	{
+		data[2*k]=hcolor;
+		data[2*k+1]=lcolor;
+	}
+
+	GRAM_Block_Set(xStart,xStart+xLong-1,yStart,yStart+yLong-1);
+        WriteComm(0x2c);  // ----for continous GRAM write
+
+	temp=(xLong*yLong)/18;
+        for(k=0;k<temp;k++)
+		WriteNData(data,36);//36*u8 = 18*u16
+	temp=(xLong*yLong)%18;
+	WriteNData(data,temp*2);
+
+/*
 	GRAM_Block_Set(xStart,xStart+xLong-1,yStart,yStart+yLong-1);
         WriteComm(0x2c);  // ----for continous GRAM write
 
@@ -194,6 +212,7 @@ void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,
   	 //WriteData(Color>>8);
 	 //WriteData(Color&0xff);
 	}
+*/
 }
 
 /* ------------------- show a picture stored in a char* array ------------*/
