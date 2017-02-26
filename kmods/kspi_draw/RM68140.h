@@ -195,7 +195,7 @@ static void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t
 	GRAM_Block_Set(xStart,xStart+xLong-1,yStart,yStart+yLong-1);
         WriteComm(0x2c);  // ----for continous GRAM write
 
-	temp=(xLong*yLong)/18;
+	temp=(xLong*yLong*2/36);
         for(k=0;k<temp;k++)
 		WriteNData(data,36);//36*u8 = 18*u16
 	temp=(xLong*yLong)%18;

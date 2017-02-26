@@ -36,19 +36,27 @@ Midas-Zhou
   #include <linux/version.h>
   #include <linux/time.h>
   #include <linux/preempt.h>
+  #include <linux/sched.h>
   #include "kgpio.h"  //-- GPIO config. and mode set
   #include "kdraw.h" //-- functions for SPI and GPIO cooperations
   #include "RM68140.h"
-
+	
   MODULE_LICENSE("GPL");
 
-
+static  struct sched_param sch_param;//scheduler parameter
 
 static int __init spi_LCD_init(void)
  {
-	int k;
+  	 int k;
          int result=0;
          u32 gpiomode;
+
+/* --------------- set_scheduler will cause segment fault!!!!!!! -------------------
+	//--------------------- set scheduler policy --------------
+	sch_param.sched_priority=99;//sched_get_priority_max(SCHED_FIFO);
+	if(sched_setscheduler(getpid(),SCHED_FIFO,&sch_param) == -1)
+		printk(" ----- !!! sched_setscheduler() fail! -------\n");
+------*/
 
          //---------------  to shown and confirm expected gpio mode  --------------------------------
 
@@ -60,7 +68,7 @@ static int __init spi_LCD_init(void)
          spi_LCD.mode = SPI_MODE_3 ;
          spi_LCD.speed =180000000;
          spi_LCD.sys_freq = 575000000; //system clk 580M
-
+//---- HCLK = 200MHz?? MAX66? 
          spi_LCD.tx_buf[0] = 0xff;
          spi_LCD.tx_buf[1] = 0x00;
          spi_LCD.tx_len = 2;
@@ -70,16 +78,15 @@ static int __init spi_LCD_init(void)
          printk("-----base_spi_transfer_half() result=%d\n",result);
 //========================= init LCD ==============================
 	LCD_HD_reset();
-	//mdelay(100);
 	printk("-----LCD_HD_reset finish---\n");
 	LCD_INIT_RM68140();
+	//preempt_disable();
 	printk("----- Start drawing --------\n");
 	LCD_ColorBox(0,0,320,480,0b1111100000011111);//0x8010;
-	//mdelay(1000);
 	LCD_ColorBox(0,0,320,480,0b0000011111100000);//0x8400);
 	printk("----- Finish drawing --------\n");
-	//-------- turn preempt on ----------
-	preempt_enable();
+	//-------- enable preempt  ----------
+	//preempt_enable();
 	PREEMPT_ON=1;
 
 	return result;

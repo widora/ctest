@@ -74,14 +74,14 @@ Midas-Zhou
   #define _ra_outl(addr, value)  (*(volatile unsigned int *)(addr) = (value))
 
   //---when SPI_DEBUG defined ,then ra_inl() should print out func and values
-  u32 ra_inl(u32 addr)
+inline  u32 ra_inl(u32 addr)
   {
           u32 retval = _ra_inl(addr);
           printk("%s(%x) => %x \n", __func__, addr, retval);
            return retval;
    }
 
-  u32 ra_outl(u32 addr, u32 val)
+inline  u32 ra_outl(u32 addr, u32 val)
   {
           _ra_outl(addr, val);
            printk("%s(%x, %x) \n", __func__, addr, val);
@@ -184,23 +184,26 @@ Midas-Zhou
                  timeout = schedule_timeout_interruptible(timeout);
  }
 */
+
 void usleep(unsigned int usecs)
 {
 	udelay(usecs);
 }
 
 
-static int base_spi_busy_wait(void)
+inline static int base_spi_busy_wait(void)
  {
          int n = 100000;
          do {
                  if ((ra_inl(SPI_REG_CTL) & SPI_CTL_BUSY) == 0)
 		 {
+/*
 			if(PREEMPT_ON)
 				{
-			 	  preempt_disable(); //---disable kernel scheduler and CUP focus on current process.
+			 	  preempt_disable(); //---disable kernel scheduler and CPU focus on current process.
 			  	  PREEMPT_ON=0;
 			        }
+*/
                          return 0;
 		 }
                  udelay(1);
@@ -210,7 +213,7 @@ static int base_spi_busy_wait(void)
          return -1;
 }
 
- static inline u32 base_spi_read( u32 reg) // --- spi register read
+inline  static inline u32 base_spi_read( u32 reg) // --- spi register read
  {
          u32 val;
          val = ra_inl(reg);
@@ -218,7 +221,7 @@ static int base_spi_busy_wait(void)
          return val;
  }
 
- static inline void base_spi_write( u32 reg, u32 val)  //--- spi register write
+inline static inline void base_spi_write( u32 reg, u32 val)  //--- spi register write
  {
  //      printk("mt7621_spi_write reg %08x val %08x \n",reg,val);
          ra_outl(reg,val);
@@ -237,7 +240,7 @@ static int base_spi_busy_wait(void)
          base_spi_write(SPI_REG_MASTER, master);
  }
 
- static void base_spi_set_cs(struct base_spi *spi, int enable) //------ set Chip-Selection
+inline static void base_spi_set_cs(struct base_spi *spi, int enable) //------ set Chip-Selection
  {
          int cs = spi->chip_select;
          u32 polar = 0;
@@ -273,6 +276,15 @@ static int base_spi_busy_wait(void)
          reg &= ~(0xfff << 16);
          reg |= (rate - 2) << 16;
 
+/*--------------- SPI MASTER  [27:16] rs_clk_sel ----------------
+0: SPI clock freq is hclk/2 (50%duty cycle)
+1: SPI clock freq is hclk/3 (33.33% or 66.67 duty cycle)
+2: SPI clock freq is hclk/4 (50% duty cycle)
+3: SPI clock freq is hclk/5 (40% or 60% duty cycle)
+...
+4095: SPI clock freq is hclk/4097
+
+---------------------------------------------------*/
          reg &= ~SPI_REG_LSB_FIRST; //-------------------------------  MSB FIRST !!!!!!!!!!!!!!!!!!
          if (spi->mode & SPI_LSB_FIRST)
                  reg |= SPI_REG_LSB_FIRST;
@@ -297,7 +309,7 @@ static int base_spi_busy_wait(void)
  }
 
 
- static int base_spi_transfer_half_duplex(struct base_spi *m)
+inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
  {
          unsigned long flags;
          int status = 0;
