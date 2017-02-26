@@ -38,9 +38,13 @@ Midas-Zhou
   #include <linux/spi/flash.h>
   #include <linux/version.h>
   #include <linux/time.h>
+  #include <linux/preempt.h>
+  #include <linux/delay.h> //udelay
   #include "kgpio.h"
 
   MODULE_LICENSE("GPL");
+//--------------------------------  global variables ---------------
+  int PREEMPT_ON=1; //-- 1. Sheduler will adopt preempt policy  2. not.
   struct base_spi spi_LCD; // this is a global var.
 
   #if defined (CONFIG_RALINK_RT6855A) || defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
@@ -148,7 +152,7 @@ Midas-Zhou
  static int  base_gpio_init(void)
  {
          unsigned int i;
-         u32 gpiomode;
+ 	 u32 gpiomode;
 
          //config these pins to gpio mode
          gpiomode = le32_to_cpu(*(volatile u32 *)(RALINK_REG_GPIOMODE));
@@ -171,6 +175,7 @@ Midas-Zhou
  }
 
 /*-------------------------SPI base ----------------------------------------------------------------------*/
+/*
  void usleep(unsigned int usecs)
  {
          unsigned long timeout = usecs_to_jiffies(usecs);
@@ -178,6 +183,11 @@ Midas-Zhou
          while (timeout)
                  timeout = schedule_timeout_interruptible(timeout);
  }
+*/
+void usleep(unsigned int usecs)
+{
+	udelay(usecs);
+}
 
 
 static int base_spi_busy_wait(void)
@@ -185,7 +195,14 @@ static int base_spi_busy_wait(void)
          int n = 100000;
          do {
                  if ((ra_inl(SPI_REG_CTL) & SPI_CTL_BUSY) == 0)
+		 {
+			if(PREEMPT_ON)
+				{
+			 	  preempt_disable(); //---disable kernel scheduler and CUP focus on current process.
+			  	  PREEMPT_ON=0;
+			        }
                          return 0;
+		 }
                  udelay(1);
          } while (--n > 0);
 
@@ -289,7 +306,8 @@ static int base_spi_busy_wait(void)
          u32 data[9] = { 0 };
          u32 val;
          spin_lock_irqsave(&m->lock, flags); //---lock data
-         base_spi_busy_wait();
+         if(base_spi_busy_wait()<0)
+		printk("-------base_spi_busy_wait() timeout! --------\n");
 
          u8 *buf = m->tx_buf;
          for (i = 0; i < m->tx_len; i++, len++)
@@ -343,46 +361,5 @@ static int base_spi_busy_wait(void)
          return status;
  }
 
-
-/*
-static int __init spi_LCD_init(void)
- {
-	int k;
-         int result=0;
-         u32 gpiomode;
-
-         //---------------  to shown and confirm expected gpio mode  --------------------------------
-
-         gpiomode = le32_to_cpu(*(volatile u32 *)(RALINK_REG_GPIOMODE));
-         printk("--------current RALINK_REG_GPIOMODE value: %08x !\n",gpiomode);
-
-         struct base_spi spi_LCD;
-         spi_LCD.chip_select = 1;
-         spi_LCD.mode = SPI_MODE_3 ;
-         spi_LCD.speed = 2000000;
-         spi_LCD.sys_freq = 575000000; //system clk 580M
-
-         spi_LCD.tx_buf[0] = 0xff;
-         spi_LCD.tx_buf[1] = 0x00;
-         spi_LCD.tx_len = 2;
- 
-         //while(1)
-	       result=base_spi_transfer_half_duplex(&spi_LCD);
-         printk("-----base_spi_transfer_half() result=%d\n",result);
-         return result;
- }
-
-
-static void __exit spi_LCD_exit(void)
- {
- //              dev_t devno = MKDEV (hello_major, hello_minor);
-         printk("------rmmod spi_LCD driver!--------\n");
-
- }
-
-
- module_init(spi_LCD_init);
- module_exit(spi_LCD_exit);
-*/
 
 #endif
