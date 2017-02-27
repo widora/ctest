@@ -160,9 +160,9 @@ static int __init spi_LCD_init(void)
          //struct base_spi spi_LCD;
          spi_LCD.chip_select = 1;
          spi_LCD.mode = SPI_MODE_3 ;
-         spi_LCD.speed =100000000;
-         spi_LCD.sys_freq = 575000000; //system clk 580M
-//---- HCLK = 200MHz?? MAX66? 
+         spi_LCD.speed = 35000000;//100000000;
+         spi_LCD.sys_freq = 200000000;//575000000; //system clk 580M
+//---- HCLK = 200MHz?? MAX40? 
          spi_LCD.tx_buf[0] = 0xff;
          spi_LCD.tx_buf[1] = 0x00;
          spi_LCD.tx_len = 2;
