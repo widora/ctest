@@ -145,19 +145,17 @@ static int __init spi_LCD_init(void)
          int result=0;
          u32 gpiomode;
 
-/* --------------- set_scheduler will cause segment fault!!!!!!! -------------------
 	//--------------------- set scheduler policy --------------
+//-----Under SCHED_FIFO scheduler policy,you will see kspi_draw interrupted by other spi application in very rare case.
 	sch_param.sched_priority=99;//sched_get_priority_max(SCHED_FIFO);
-	if(sched_setscheduler(getpid(),SCHED_FIFO,&sch_param) == -1)
+	if(sched_setscheduler(current,SCHED_FIFO,&sch_param) == -1) //--- MUST use current !!! getpid() is not allowed in kernel space, and will casue segment fault!!!
 		printk(" ----- !!! sched_setscheduler() fail! -------\n");
-------*/
 
-         //---------------  to shown and confirm expected gpio mode  --------------------------------
-
+         //---------------  to show and confirm expected gpio mode  --------------------------------
          gpiomode = le32_to_cpu(*(volatile u32 *)(RALINK_REG_GPIOMODE));
          printk("--------current RALINK_REG_GPIOMODE value: %08x !\n",gpiomode);
 
-         //struct base_spi spi_LCD;
+         //---------------  set  SPI base device  spi_LCD  -------------
          spi_LCD.chip_select = 1;
          spi_LCD.mode = SPI_MODE_3 ;
          spi_LCD.speed = 35000000;//100000000;
@@ -185,11 +183,12 @@ static int __init spi_LCD_init(void)
 	PREEMPT_ON=1;
 */
 	LCD_prepare();
+//preempt_disable(); //----seems no use
 	result=read_user_bmpf("/tmp/P30.bmp");
 	mdelay(1000);
 	result=read_user_bmpf("/tmp/P33.bmp");
 	result=read_user_bmpf("/tmp/P35.bmp");
-
+//preempt_enable();
 	return result;
  }
 
