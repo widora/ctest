@@ -51,7 +51,6 @@ inline void SPI_Write(uint8_t *data,uint8_t len)
  		spi_LCD.tx_buf[k]=*(data+k); //spi_LCD defined in kdraw.h and init in kspi_draw.c
 	}
 	spi_LCD.tx_len=tx_len;
-
 	base_spi_transfer_half_duplex(&spi_LCD);
 }
 
