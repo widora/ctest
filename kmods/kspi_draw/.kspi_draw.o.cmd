@@ -759,8 +759,9 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
     $(wildcard include/config/need/sg/dma/length.h) \
   include/linux/spi/flash.h \
   include/generated/uapi/linux/version.h \
+  include/linux/vmalloc.h \
   /home/midas/ctest/kmods/kspi_draw/kgpio.h \
-  /home/midas/ctest/kmods/kspi_draw/kdraw.h \
+  /home/midas/ctest/kmods/kspi_draw/kspi.h \
     $(wildcard include/config/ralink/rt6855a.h) \
     $(wildcard include/config/ralink/mt7621.h) \
     $(wildcard include/config/ralink/mt7628.h) \

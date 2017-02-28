@@ -46,6 +46,7 @@ Midas-Zhou
 //--------------------------------  global variables ---------------
   int PREEMPT_ON=1; //-- 1. Sheduler will adopt preempt policy  2. not.
   struct base_spi spi_LCD; // this is a global var.
+  #define SPIBUFF_SIZE 36
 
   #if defined (CONFIG_RALINK_RT6855A) || defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
   #else
@@ -358,6 +359,7 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
 
          base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs
 
+
          for (i = 0; i < rx_len; i += 4)
                  data[i / 4] = base_spi_read(SPI_REG_DATA0 + i);
 
@@ -365,6 +367,7 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
          buf = m->rx_buf;
          for (i = 0; i < m->rx_len; i++, len++)
                  buf[i] = data[len / 4] >> (8 * (len & 3));
+
 
  msg_done:
          spin_unlock_irqrestore(&m->lock, flags);
@@ -374,4 +377,87 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
  }
 
 
+/*
+//------------- load BMP file from user space and transmit to spi to display on LCD ----------------
+int show_user_bmpf(char* str_f)
+{
+        int i;
+//      uint8_t SPIBUFF_SIZE=36;//-- buffsize for one-time SPI transmital. MAX. 32*9=36bytes
+        uint8_t buff[8];//---for temp. data buffering
+        uint8_t data_buff[SPIBUFF_SIZE];//--temp. data buff for SPI transmit
+        loff_t offp; //-- pfile offset position, use long type will case vfs_read() fail
+        u32 picWidth,picHeight; //---BMP file width and height
+        u32 total; //--total bytes of bmp file
+        u16 residual; //--residual after total/
+        u16 nbuff; //=total/SPIBUFF_SIZE
+        u16 Hs,He,Vs,Ve; //--GRAM area definition parameters
+        u16 Hb,Vb; //--GRAM area corner gap distance from coordinate origin
+        ssize_t nret;//vfs_read() return value
+
+//      char str_f[]="/tmp/P35.bmp";
+        struct file *fp;
+        mm_segment_t fs; //virtual address space parameter
+
+
+        fp=filp_open(str_f,O_RDONLY,0);
+        if(IS_ERR(fp))
+        {
+                printk("Fail to open %s!\n",str_f);
+                return -1;
+        }
+        fs=get_fs(); //retrieve and store virtual address space boundary limit of current process
+        set_fs(KERNEL_DS); // set address space limit to that of the kernel (whole of 4GB)
+        offp=18; //where bmp width-height data starts
+        vfs_read(fp,buff,sizeof(buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp define$
+        picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
+        picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
+        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
+        if(picWidth > 320 | picHeight > 480)
+        {
+                printk("----- picture size too large -----\n");
+                return -1;
+        }
+
+        //----------------- calculate GRAM area ---------------------
+        Hb=(320-picWidth+1)/2;
+        Vb=(480-picHeight+1)/2;
+        Hs=Hb;He=Hb+picWidth-1;
+        Vs=Vb;Ve=Vb+picHeight-1;
+        printk("Hs=%d  He=%d \n",Hs,He);
+        printk("Vs=%d  Ve=%d \n",Vs,Ve);
+
+        GRAM_Block_Set(Hs,He,Vs,Ve); //--set GRAM area
+        WriteComm(0x2c); //--prepare for continous GRAM write
+
+        total=picWidth*picHeight*3; //--total bytes of BGR data,for 24bits BMP file
+        printk("total=%d\n",total);
+        nbuff=total/SPIBUFF_SIZE; //-- how many times of SPI transmits needed,with SPIBUFF_SIZE each time.
+        printk("nbuff=%d\n",nbuff);
+        residual=total%SPIBUFF_SIZE; //--residual data 
+
+        printk("--------------------- Start drawing the picture --------------------\n");
+        offp=54; //--offset where BGR data begins
+        //-------------------------- SPI transmit data to LCD  ---------------------
+        for(i=0;i<nbuff;i++)
+        {
+                nret=vfs_read(fp,data_buff,sizeof(data_buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for fir$
+                //printk("nret=%d\n",nret);
+                WriteNData(data_buff,SPIBUFF_SIZE);
+                //offp+=SPIBUFF_SIZE;
+        }
+        //for(i=0;i<36;i++)printk("data_buff[%d]: 0x%0x\n",i,data_buff[i]);
+        if(residual!=0)
+        {
+                vfs_read(fp,data_buff,residual,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if of$
+                WriteNData(data_buff,residual);
+        }
+        printk("--------------------- Finish drawing the picture --------------------\n");
+
+        filp_close(fp,NULL);
+        set_fs(fs);//reset address space limit to the original one
+        return 0;
+}
+*/
+
 #endif
+

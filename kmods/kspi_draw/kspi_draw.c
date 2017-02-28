@@ -37,29 +37,34 @@ Midas-Zhou
   #include <linux/time.h>
   #include <linux/preempt.h>
   #include <linux/sched.h>
+  #include <linux/vmalloc.h>
   #include "kgpio.h"  //-- GPIO config. and mode set
-  #include "kdraw.h" //-- functions for SPI and GPIO cooperations
-  #include "RM68140.h"
- 
   #define SPIBUFF_SIZE 36
+  #define COLOR_DATA_SIZE  (480*320*3) // max. bmp file byte size for 24bits color
+  #include "kspi.h" //-- functions for SPI and GPIO cooperations
+  #include "RM68140.h"
 
   MODULE_LICENSE("GPL");
-
-
   static  struct sched_param sch_param;//scheduler parameter
+  static  unsigned char *pmem_color_data=NULL; //pointer to color data mem
 
-static void LCD_prepare(void)
+
+//-------allocate mem for color data buff -----------
+static int mem_vmalloc(void)
 {
-	LCD_HD_reset();
-	LCD_INIT_RM68140();
-        WriteComm(0x3a);WriteData(0x66); //set pixel format 18bits pixel
-        WriteComm(0x36);WriteData(0x00); //R-G-B set color data order same as BMP file
-// SET ENTRY MODE, FLIP MODE HERE IF NECESSARY
-//BRIGHTNESS CONTROL HERE IF NECESSARY
+	pmem_color_data=(unsigned char*)vmalloc(COLOR_DATA_SIZE);
+	if(pmem_color_data <0)
+	{
+		printk("------- fail to vmalloc mem for color data! ------\n");
+		return -1;
+	}
+	else
+		printk("------- vmalloc mem for color data successfully! ------\n"); 
+		return 0;
+
 }
 
-
-static int read_user_bmpf(char* str_f)
+static int load_user_bmpf(char* str_f)
 {
 	int i;
 //	uint8_t SPIBUFF_SIZE=36;//-- buffsize for one-time SPI transmital. MAX. 32*9=36bytes
@@ -107,43 +112,57 @@ static int read_user_bmpf(char* str_f)
 	printk("Hs=%d  He=%d \n",Hs,He);
 	printk("Vs=%d  Ve=%d \n",Vs,Ve);
 
-	GRAM_Block_Set(Hs,He,Vs,Ve); //--set GRAM area
-	WriteComm(0x2c); //--prepare for continous GRAM write
-
 	total=picWidth*picHeight*3; //--total bytes of BGR data,for 24bits BMP file
 	printk("total=%d\n",total);
-	nbuff=total/SPIBUFF_SIZE; //-- how many times of SPI transmits needed,with SPIBUFF_SIZE each time.
-	printk("nbuff=%d\n",nbuff);
-	residual=total%SPIBUFF_SIZE; //--residual data 
 
-	printk("--------------------- Start drawing the picture --------------------\n");
 	offp=54; //--offset where BGR data begins
-	//-------------------------- SPI transmit data to LCD  ---------------------
-	for(i=0;i<nbuff;i++)
-	{
-		nret=vfs_read(fp,data_buff,sizeof(data_buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp defined as long int. type.
-		//printk("nret=%d\n",nret);
-		WriteNData(data_buff,SPIBUFF_SIZE);
-		//offp+=SPIBUFF_SIZE;
-	}
-	//for(i=0;i<36;i++)printk("data_buff[%d]: 0x%0x\n",i,data_buff[i]);
-	if(residual!=0)
-	{
-		vfs_read(fp,data_buff,residual,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp defined as long int. type.
-		WriteNData(data_buff,residual);
-	}
-	printk("--------------------- Finish drawing the picture --------------------\n");
+	//----------------  copy data to buff ----------------
+	if(pmem_color_data == NULL) return -1;
+	nret=vfs_read(fp,pmem_color_data,total,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp defined as long int. type.
+	printk("--------- vfs_read() %d bytes data, while actual total is %d bytes -----------\n",nret,total);
 
 	filp_close(fp,NULL);
 	set_fs(fs);//reset address space limit to the original one
 	return 0;
 }
 
+//------------------------------- spi transmit data in mem buff ---------------
+//mem_data:pointer to data         total : total bytes to be transmitted
+static int display_full(unsigned const char* data_buff)
+{
+	u16 i;
+	u32 total=480*320*3; //total bytes for a full size image
+	u16 residual; //--residual after total/
+	u16 nbuff; //=total/SPIBUFF_SIZE
+
+	nbuff=total/SPIBUFF_SIZE;
+	residual=total%SPIBUFF_SIZE;
+
+        GRAM_Block_Set(0,319,0,479); //--set GRAM area,full size
+        WriteComm(0x2c); //--prepare for continous GRAM write
+
+	printk("--------------------- Start displaying mem data --------------------\n");
+	//-------------------------- SPI transmit data to LCD  ---------------------
+	for(i=0;i<nbuff;i++)
+	{
+		WriteNData(data_buff,SPIBUFF_SIZE);
+		data_buff+=SPIBUFF_SIZE;
+	}
+	if(residual!=0)
+	{
+		WriteNData(data_buff,residual);
+	}
+	printk("--------------------- Finish displaying mem data --------------------\n");
+}
+
+
+
 static int __init spi_LCD_init(void)
  {
   	 int k;
          int result=0;
          u32 gpiomode;
+	 unsigned long flags;
 
 	//--------------------- set scheduler policy --------------
 //-----Under SCHED_FIFO scheduler policy,you will see kspi_draw interrupted by other spi application in very rare case.
@@ -164,6 +183,7 @@ static int __init spi_LCD_init(void)
          spi_LCD.tx_buf[0] = 0xff;
          spi_LCD.tx_buf[1] = 0x00;
          spi_LCD.tx_len = 2;
+	 spi_LCD.rx_len =0;
 
          //while(1)
 	       result=base_spi_transfer_half_duplex(&spi_LCD);
@@ -182,12 +202,20 @@ static int __init spi_LCD_init(void)
 	//preempt_enable();
 	PREEMPT_ON=1;
 */
+
+	mem_vmalloc();
+	load_user_bmpf("/tmp/hello.bmp");
+
 	LCD_prepare();
 //preempt_disable(); //----seems no use
-	result=read_user_bmpf("/tmp/P30.bmp");
+//local_irq_save(flags);//--this will stop timestamps
+	result=show_user_bmpf("/tmp/P30.bmp");
 	mdelay(1000);
-	result=read_user_bmpf("/tmp/P33.bmp");
-	result=read_user_bmpf("/tmp/P35.bmp");
+	display_full(pmem_color_data);
+	result=show_user_bmpf("/tmp/P33.bmp");
+	display_full(pmem_color_data);
+	result=show_user_bmpf("/tmp/P35.bmp");
+//local_irq_restore(flags);
 //preempt_enable();
 	return result;
  }
@@ -195,11 +223,13 @@ static int __init spi_LCD_init(void)
 
 static void __exit spi_LCD_exit(void)
  {
- //              dev_t devno = MKDEV (hello_major, hello_minor);
-         printk("------rmmod spi_LCD driver!--------\n");
+ 	vfree(pmem_color_data);
+        printk("------rmmod spi_LCD driver!--------\n");
 
  }
 
  module_init(spi_LCD_init);
  module_exit(spi_LCD_exit);
+
+
 
