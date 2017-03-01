@@ -52,6 +52,7 @@ inline void SPI_Write(uint8_t *data,uint8_t len)
  		spi_LCD.tx_buf[k]=*(data+k); //spi_LCD defined in kdraw.h and init in kspi_draw.c
 	}
 	spi_LCD.tx_len=tx_len;
+	spi_LCD.rx_len=0;
 	base_spi_transfer_half_duplex(&spi_LCD);
 }
 
@@ -280,10 +281,10 @@ int show_user_bmpf(char* str_f)
         vfs_read(fp,buff,sizeof(buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp define$
         picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
         picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
+//        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
         if(picWidth > 320 | picHeight > 480)
         {
-                printk("----- picture size too large -----\n");
+//                printk("----- picture size too large -----\n");
                 return -1;
         }
 
@@ -292,19 +293,19 @@ int show_user_bmpf(char* str_f)
         Vb=(480-picHeight+1)/2;
         Hs=Hb;He=Hb+picWidth-1;
         Vs=Vb;Ve=Vb+picHeight-1;
-        printk("Hs=%d  He=%d \n",Hs,He);
-        printk("Vs=%d  Ve=%d \n",Vs,Ve);
+//        printk("Hs=%d  He=%d \n",Hs,He);
+//        printk("Vs=%d  Ve=%d \n",Vs,Ve);
 
         GRAM_Block_Set(Hs,He,Vs,Ve); //--set GRAM area
         WriteComm(0x2c); //--prepare for continous GRAM write
 
         total=picWidth*picHeight*3; //--total bytes of BGR data,for 24bits BMP file
-        printk("total=%d\n",total);
+//        printk("total=%d\n",total);
         nbuff=total/SPIBUFF_SIZE; //-- how many times of SPI transmits needed,with SPIBUFF_SIZE each time.
-        printk("nbuff=%d\n",nbuff);
+//        printk("nbuff=%d\n",nbuff);
         residual=total%SPIBUFF_SIZE; //--residual data 
 
-        printk("--------------------- Start drawing the picture --------------------\n");
+//        printk("--------------------- Start drawing the picture --------------------\n");
         offp=54; //--offset where BGR data begins
         //-------------------------- SPI transmit data to LCD  ---------------------
         for(i=0;i<nbuff;i++)
@@ -315,12 +316,13 @@ int show_user_bmpf(char* str_f)
                 //offp+=SPIBUFF_SIZE;
         }
         //for(i=0;i<36;i++)printk("data_buff[%d]: 0x%0x\n",i,data_buff[i]);
+//        printk("----------- Start transmit residual data %d bytes ------------\n",residual);
         if(residual!=0)
         {
                 vfs_read(fp,data_buff,residual,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if of$
                 WriteNData(data_buff,residual);
         }
-        printk("--------------------- Finish drawing the picture --------------------\n");
+ //       printk("--------------------- Finish drawing the picture --------------------\n");
 
         filp_close(fp,NULL);
         set_fs(fs);//reset address space limit to the original one

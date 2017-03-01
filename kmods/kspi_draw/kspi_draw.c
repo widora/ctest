@@ -183,11 +183,12 @@ static int __init spi_LCD_init(void)
          spi_LCD.tx_buf[0] = 0xff;
          spi_LCD.tx_buf[1] = 0x00;
          spi_LCD.tx_len = 2;
-	 spi_LCD.rx_len =0;
+	 spi_LCD.rx_len =2;
 
          //while(1)
-	       result=base_spi_transfer_half_duplex(&spi_LCD);
-         printk("-----base_spi_transfer_half() result=%d\n",result);
+//	       result=base_spi_transfer_half_duplex(&spi_LCD);
+//         printk("-----base_spi_transfer_half() result=%d\n",result);
+
 /*
 //========================= init LCD ==============================
 	LCD_HD_reset();
@@ -207,16 +208,17 @@ static int __init spi_LCD_init(void)
 	load_user_bmpf("/tmp/hello.bmp");
 
 	LCD_prepare();
-//preempt_disable(); //----seems no use
+preempt_disable(); //----seems no use
 //local_irq_save(flags);//--this will stop timestamps
 	result=show_user_bmpf("/tmp/P30.bmp");
 	mdelay(1000);
 	display_full(pmem_color_data);
-	result=show_user_bmpf("/tmp/P33.bmp");
-	display_full(pmem_color_data);
+//	result=show_user_bmpf("/tmp/P33.bmp");
+	mdelay(1000);
+//	display_full(pmem_color_data);
 	result=show_user_bmpf("/tmp/P35.bmp");
 //local_irq_restore(flags);
-//preempt_enable();
+preempt_enable();
 	return result;
  }
 

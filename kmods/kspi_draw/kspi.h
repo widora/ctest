@@ -245,16 +245,16 @@ inline static void base_spi_set_cs(struct base_spi *spi, int enable) //------ se
  {
          int cs = spi->chip_select;
          u32 polar = 0;
-         base_spi_reset(0);//--set half duplex
+         base_spi_reset(0);//--- 0 set half duplex --------------------------------------------
          if(cs > 1)
                  base_gpio_set(cs,GPIO_OUT_H);
          if (enable){
-                 if(cs > 1)  //-------------------------------- default chip 0,1
+                 if(cs > 1)  //-------------------------------- default chip 0,1, set other chip as for expanded devices
                          base_gpio_set(cs,GPIO_OUT_L);
                  else
                          polar = BIT(cs); //-----------------------
                  }
-         base_spi_write(SPI_REG_CS_POLAR, polar);
+         base_spi_write(SPI_REG_CS_POLAR, polar);// polarity 0
  }
 
  static int base_spi_prepare(struct base_spi* spi) //----prepare spi, set RATE and MODE
@@ -310,12 +310,12 @@ inline static void base_spi_set_cs(struct base_spi *spi, int enable) //------ se
  }
 
 
-inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
+static inline int base_spi_transfer_half_duplex(struct base_spi *m)
  {
          unsigned long flags;
          int status = 0;
          int i, len = 0;
-         int rx_len = 0;
+         int rx_len = m->rx_len;
          u32 data[9] = { 0 };
          u32 val;
          spin_lock_irqsave(&m->lock, flags); //---lock data
@@ -324,42 +324,47 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
 
          u8 *buf = m->tx_buf;
          for (i = 0; i < m->tx_len; i++, len++)
-                 data[len / 4] |= buf[i] << (8 * (len & 3));  //---------- load data
+                 data[len / 4] |= buf[i] << (8 * (len & 3)); 
+	 //-----Beware of Littel Endia type of register store,buf[0] will be stored at hight bytes of a register, and will be transmitted first eventually.
+ 	//-------so FIFO sequence is ensured for data transaction.
 
          if (WARN_ON(rx_len > 32)) {
                  status = -EIO;
                  goto msg_done;
          }
 
-         if (base_spi_prepare(m)) {
+         if (base_spi_prepare(m)) { //----prepare SPI, set speed,polrality,mode,MSB or LSB sequence ...etc 
                  status = -EIO;
                  goto msg_done;
          }
 
-         data[0] = swab32(data[0]);
+	 //-----SPI_REG_OPCODE will be 
+         data[0] = swab32(data[0]); //----must swab for data[0],as transaction of SPI_OP_ADDR will start from [7:0]!!!!
+	//----other data register will start from [31:24] for MSB transmitting. 
          if (len < 4)
+
                  data[0] >>= (4 - len) * 8;
 
          for (i = 0; i < len; i += 4)
                  base_spi_write(SPI_REG_OPCODE + i, data[i / 4]);
 
-         val = (min_t(int, len, 4) * 8) << 24;
+         val = (min_t(int, len, 4) * 8) << 24; //-----set command length 4bytes, full
          if (len > 4)
-                 val |= (len - 4) * 8;
-         val |= (rx_len * 8) << 12;
-         base_spi_write(SPI_REG_MOREBUF, val);
+                 val |= (len - 4) * 8; //----------set transmit data length
+         val |= (rx_len * 8) << 12;  //------------set receipt data length
+         base_spi_write(SPI_REG_MOREBUF, val); 
 
-         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs
+         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs enbale
 
          val = base_spi_read(SPI_REG_CTL);
-         val |= SPI_CTL_START;
+         val |= SPI_CTL_START;  //--------------start spi transmission
          base_spi_write(SPI_REG_CTL, val);
 
          base_spi_busy_wait();
 
-         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs
+         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs disable
 
-
+/*// ------NO NEED TO RECEIVE DATA
          for (i = 0; i < rx_len; i += 4)
                  data[i / 4] = base_spi_read(SPI_REG_DATA0 + i);
 
@@ -367,7 +372,7 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
          buf = m->rx_buf;
          for (i = 0; i < m->rx_len; i++, len++)
                  buf[i] = data[len / 4] >> (8 * (len & 3));
-
+//---------- */
 
  msg_done:
          spin_unlock_irqrestore(&m->lock, flags);
@@ -377,87 +382,6 @@ inline  static int base_spi_transfer_half_duplex(struct base_spi *m)
  }
 
 
-/*
-//------------- load BMP file from user space and transmit to spi to display on LCD ----------------
-int show_user_bmpf(char* str_f)
-{
-        int i;
-//      uint8_t SPIBUFF_SIZE=36;//-- buffsize for one-time SPI transmital. MAX. 32*9=36bytes
-        uint8_t buff[8];//---for temp. data buffering
-        uint8_t data_buff[SPIBUFF_SIZE];//--temp. data buff for SPI transmit
-        loff_t offp; //-- pfile offset position, use long type will case vfs_read() fail
-        u32 picWidth,picHeight; //---BMP file width and height
-        u32 total; //--total bytes of bmp file
-        u16 residual; //--residual after total/
-        u16 nbuff; //=total/SPIBUFF_SIZE
-        u16 Hs,He,Vs,Ve; //--GRAM area definition parameters
-        u16 Hb,Vb; //--GRAM area corner gap distance from coordinate origin
-        ssize_t nret;//vfs_read() return value
-
-//      char str_f[]="/tmp/P35.bmp";
-        struct file *fp;
-        mm_segment_t fs; //virtual address space parameter
-
-
-        fp=filp_open(str_f,O_RDONLY,0);
-        if(IS_ERR(fp))
-        {
-                printk("Fail to open %s!\n",str_f);
-                return -1;
-        }
-        fs=get_fs(); //retrieve and store virtual address space boundary limit of current process
-        set_fs(KERNEL_DS); // set address space limit to that of the kernel (whole of 4GB)
-        offp=18; //where bmp width-height data starts
-        vfs_read(fp,buff,sizeof(buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp define$
-        picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
-        picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
-        if(picWidth > 320 | picHeight > 480)
-        {
-                printk("----- picture size too large -----\n");
-                return -1;
-        }
-
-        //----------------- calculate GRAM area ---------------------
-        Hb=(320-picWidth+1)/2;
-        Vb=(480-picHeight+1)/2;
-        Hs=Hb;He=Hb+picWidth-1;
-        Vs=Vb;Ve=Vb+picHeight-1;
-        printk("Hs=%d  He=%d \n",Hs,He);
-        printk("Vs=%d  Ve=%d \n",Vs,Ve);
-
-        GRAM_Block_Set(Hs,He,Vs,Ve); //--set GRAM area
-        WriteComm(0x2c); //--prepare for continous GRAM write
-
-        total=picWidth*picHeight*3; //--total bytes of BGR data,for 24bits BMP file
-        printk("total=%d\n",total);
-        nbuff=total/SPIBUFF_SIZE; //-- how many times of SPI transmits needed,with SPIBUFF_SIZE each time.
-        printk("nbuff=%d\n",nbuff);
-        residual=total%SPIBUFF_SIZE; //--residual data 
-
-        printk("--------------------- Start drawing the picture --------------------\n");
-        offp=54; //--offset where BGR data begins
-        //-------------------------- SPI transmit data to LCD  ---------------------
-        for(i=0;i<nbuff;i++)
-        {
-                nret=vfs_read(fp,data_buff,sizeof(data_buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for fir$
-                //printk("nret=%d\n",nret);
-                WriteNData(data_buff,SPIBUFF_SIZE);
-                //offp+=SPIBUFF_SIZE;
-        }
-        //for(i=0;i<36;i++)printk("data_buff[%d]: 0x%0x\n",i,data_buff[i]);
-        if(residual!=0)
-        {
-                vfs_read(fp,data_buff,residual,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if of$
-                WriteNData(data_buff,residual);
-        }
-        printk("--------------------- Finish drawing the picture --------------------\n");
-
-        filp_close(fp,NULL);
-        set_fs(fs);//reset address space limit to the original one
-        return 0;
-}
-*/
 
 #endif
 
