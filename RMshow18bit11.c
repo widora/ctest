@@ -71,8 +71,6 @@ pthread_mutex_t *pmutex;
 pthread_mutexattr_t mutexattr;
 int ret_mutex,ret_mutexattr;
 
-
-
 ///////////////////////////////////////// ----  main  ---- //////////////////////////////////////////
 int main(int argc,char* argv[])
 {
@@ -89,14 +87,16 @@ int main(int argc,char* argv[])
  pthread_attr_setschedpolicy(&pattr,SCHED_FIFO); // adopt FIFO real time scheduler
  pthread_attr_setscope(&pattr,PTHREAD_SCOPE_SYSTEM); // compete with all threads in system
  pthread_attr_setdetachstate(&pattr,PTHREAD_CREATE_DETACHED); // detach with other threads and can't pthread_join()
- sch_param.sched_priority=sched_get_priority_max(SCHED_FIFO); // get max priority of FIFO policy
+ sch_param.sched_priority=99;//sched_get_priority_max(SCHED_FIFO); // get max priority of FIFO policy
  pthread_attr_setschedparam(&pattr,&sch_param);
+
+
 
 /*
 //---------- use sched_setscheduler() function ----------------
  if(sched_setscheduler(0,SCHED_FIFO,&sch_param) == -1)
 //-------- 0 and getpid() both OK, if the process contains sub_processes, they will all be infected.
-//--- since current parent process and its sub_proesses are all at the highest FIFO level, only ONE process will be active actually!!!!!!!
+//--- since current parent process and its sub_proesses are all at the highest FIFO level, only ONE parent process will be active actually!!!!!!!
  {
 	printf("-----------sched_setscheduler() fail!\n");
  }

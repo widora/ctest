@@ -1,16 +1,24 @@
+/*--------------------------------------
+
+lib -lpthread
+by midaszhou
+*--------------------------------------*/
+
 #include <stdio.h>
 #include <stdint.h> // data type
 #include <signal.h>
 #include "./RM68140.h"
 #include <sys/time.h>
 #include <dirent.h>
-
+#include <sched.h> // scheduler set
+#include <pthread.h>
 
 #define BUFFSIZE 1024 // --- to be times of SPIBUFF
 #define SPIBUFF 32   //-- spi write buff-size for SPI_Write()
 #define STRBUFF 256   // --- size of file name
 #define MAX_WIDTH 320
 #define MAX_HEIGHT 480
+#define SHOW_DELAY 4  //--sleep() delay seconds for showing a pic
 
 uint8_t tmp;
 uint8_t *pmap,*oftemp;
@@ -23,15 +31,77 @@ int BMP_file_num=0;//----BMP file name index
 int BMP_file_total=0; //--total number of BMP files
 
 /*------------- time struct -------------*/
-struct timeval t_start,t_end;
-long cost_timeus=0;
-long cost_times=0;
+static struct timeval t_start,t_end;
+static long cost_timeus=0;
+static long cost_times=0;
 
-void ExitClean();
-int Find_BMP_files(char* path);
+static void ExitClean();
+static int Find_BMP_files(char* path);
+static int showpic(char* str_bmpf_path);
 
 
+//================================  <<   MAIN  >>  ====================================
 int main(int argc, char* argv[])
+{
+ pthread_attr_t pattr; //thread attribute object
+ struct sched_param sch_param; //sheduler parameter
+ pthread_t pid;
+ int ret;
+
+ //--------set SCHED_FIFO policy -----------
+ pthread_attr_init(&pattr);
+ pthread_attr_setinheritsched(&pattr,PTHREAD_EXPLICIT_SCHED); //must set before setschedpolicy()
+ pthread_attr_setschedpolicy(&pattr,SCHED_FIFO); // adopt FIFO real time scheduler
+ pthread_attr_setscope(&pattr,PTHREAD_SCOPE_SYSTEM); // compete with all threads in system
+ pthread_attr_setdetachstate(&pattr,PTHREAD_CREATE_DETACHED); // detach with other threads and can't pthread_join()
+
+ sch_param.sched_priority=99;//sched_get_priority_max(SCHED_FIFO); // get max priority of FIFO policy
+ pthread_attr_setschedparam(&pattr,&sch_param);
+
+/*
+//---------- use sched_setscheduler() function ----------------
+ if(sched_setscheduler(0,SCHED_FIFO,&sch_param) == -1)
+//-------- 0 and getpid() both OK, if the process contains sub_processes, they will all be infected.
+//--- since current parent process and its sub_proesses are all at the highest FIFO level, only ONE parent process will be active ac$
+ {
+        printf("-----------sched_setscheduler() fail!\n");
+ }
+ else 
+        printf("-----------sched_setscheduler() successfully!\n");
+*/
+
+
+//------------- create thread running under abv. defined scheduler policy ------------
+ret=pthread_create(&pid,&pattr,showpic,(void *)(argv[1]));
+ if(ret!=0){
+        printf("Create showpic pthread error!\n");
+        return -1;
+        }
+ else
+        printf("------- create showpic() pthread successfully!\n -------");
+
+
+//-------------------   check current sheduler type  --------------
+int my_policy;
+//struct sched_param my_param;
+pthread_getschedparam(pid,&my_policy,&sch_param);
+printf("-------   main() thread_routine running at %s  %d\n  -------", \
+        (my_policy == SCHED_FIFO ? "FIFO" \
+        :(my_policy == SCHED_RR ? "RR" \
+        :(my_policy == SCHED_OTHER ? "OTHER" \
+        : "unknown"))),
+        sch_param.sched_priority);
+
+
+
+//showpic(argv[1]);
+while(1)sleep(1); // hold on for sub_processes.
+
+}
+
+
+//------------------------------------ showpic() function  --------------------------------
+static int showpic(char* str_bmpf_path) //(int argc, char* argv[])
 {
  int i,j,k,nn;
  int Ncount=-1; //--index number of picture displayed
@@ -40,9 +110,7 @@ int main(int argc, char* argv[])
  uint16_t nbuff;
  uint16_t Hs,He,Vs,Ve; //--GRAM area difinition parameters
  uint16_t Hb,Vb; //--GRAM area corner gap distance from origin
-
-char strf[STRBUFF]; //--for file name
-
+ char strf[STRBUFF]; //--for file name
  uint8_t buff[8]; //--for buffering  data temporarily
  long offp; //offset position
  uint16_t picWidth, picHeight;
@@ -55,7 +123,7 @@ char strf[STRBUFF]; //--for file name
  /* -------------------    SPI  and PIN control initiation ------------------*/
  //------ !!! Warning SPI mode shoul be set in spi.h properly ---------
    SPI_Open();
-   printf("\nstart mmap for pin...");
+   printf("\nstart mmap for pin...\n");
    setPinMmap();
 
 /* --------------------   Init LCD   ---------------------------- */
@@ -70,12 +138,13 @@ char strf[STRBUFF]; //--for file name
 
 while(1)
 {
+//      preempt_disable();
      //-------------- reload total_numbe after one round show ---------
       printf("    Ncount =%d  \n",Ncount);
       if( Ncount < 0)
       {
           /* find out all BMP files in specified path  */
-          Find_BMP_files(argv[1]);
+          Find_BMP_files(str_bmpf_path);
           printf("\n\n===============  reload BMP file, totally  %d BMP-files found.   =================\n",BMP_file_total);
           if(BMP_file_total == 0){
              printf("\n No BMP file found! \n");
@@ -85,7 +154,7 @@ while(1)
 
 
      //----- load BMP file path -------------
-        sprintf(strf,"%s%s",argv[1],BMP_file_name[Ncount]);
+        sprintf(strf,"%s%s",str_bmpf_path,BMP_file_name[Ncount]);
         printf("str = %s\n",strf);
         Ncount--;
 
@@ -175,7 +244,8 @@ while(1)
        cost_timeus=t_end.tv_usec-t_start.tv_usec;
        printf("Cost time: %ld s + %ld us\n\n\n",cost_times,cost_timeus);
 
-       sleep(10);
+//        preempt_enable();
+        sleep(SHOW_DELAY);
 
 //WriteComm(0x29);WriteData(0x00); //--display on
 //delayms(5000); //---put delay in python show prograam
@@ -197,7 +267,7 @@ close(fp); //--fp will not set to NULL however close
 
 
 /*--------------- clean work when forced to exit -----------*/
-void ExitClean()
+static void ExitClean()
 {
  printf("\n ----Exit signal received!  start clean work.....\n");
  close(fp);
@@ -210,7 +280,7 @@ void ExitClean()
 }
 
 /* --------- find out all BMP files in specified directroy ----------*/
-int Find_BMP_files(char* path)
+static int Find_BMP_files(char* path)
 {
 DIR *d;
 struct dirent *file;

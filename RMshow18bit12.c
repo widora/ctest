@@ -1,16 +1,24 @@
+/*--------------------------------------
+
+lib -lpthread
+by midaszhou
+*--------------------------------------*/
+
 #include <stdio.h>
 #include <stdint.h> // data type
 #include <signal.h>
 #include "./RM68140.h"
 #include <sys/time.h>
 #include <dirent.h>
-
+#include <sched.h> // scheduler set
+#include <pthread.h>
 
 #define BUFFSIZE 1024 // --- to be times of SPIBUFF
 #define SPIBUFF 32   //-- spi write buff-size for SPI_Write()
 #define STRBUFF 256   // --- size of file name
 #define MAX_WIDTH 320
 #define MAX_HEIGHT 480
+#define SHOW_DELAY 3  //--sleep() delay seconds for showing a pic
 
 uint8_t tmp;
 uint8_t *pmap,*oftemp;
@@ -41,12 +49,51 @@ int main(int argc, char* argv[])
  uint16_t Hs,He,Vs,Ve; //--GRAM area difinition parameters
  uint16_t Hb,Vb; //--GRAM area corner gap distance from origin
 
-char strf[STRBUFF]; //--for file name
+ char strf[STRBUFF]; //--for file name
 
  uint8_t buff[8]; //--for buffering  data temporarily
  long offp; //offset position
  uint16_t picWidth, picHeight;
  offp=18; // file offset  position for picture Width and Height data
+
+
+/*------------------------ SET SCHEDULER FIFO  ----------------------*/
+ pthread_attr_t pattr; //thread attribute object
+ struct sched_param sch_param; //sheduler parameter
+
+ pthread_attr_init(&pattr);
+ pthread_attr_setinheritsched(&pattr,PTHREAD_EXPLICIT_SCHED); //must set before setschedpolicy()
+ pthread_attr_setschedpolicy(&pattr,SCHED_FIFO); // adopt FIFO real time scheduler
+ pthread_attr_setscope(&pattr,PTHREAD_SCOPE_SYSTEM); // compete with all threads in system
+ pthread_attr_setdetachstate(&pattr,PTHREAD_CREATE_DETACHED); // detach with other threads and can't pthread_join()
+
+ sch_param.sched_priority=99;//sched_get_priority_max(SCHED_FIFO); // get max priority of FIFO policy
+ pthread_attr_setschedparam(&pattr,&sch_param);
+
+//---------- use sched_setscheduler() function ----------------
+ if(sched_setscheduler(0,SCHED_FIFO,&sch_param) == -1)
+//-------- 0 and getpid() both OK, if the process contains sub_processes, they will all be infected.
+//--- since current parent process and its sub_proesses are all at the highest FIFO level, only ONE parent process will be active ac$
+ {
+        printf("-----------sched_setscheduler() fail!\n");
+ }
+ else 
+        printf("-----------sched_setscheduler() successfully!\n");
+
+//-------------------   check current sheduler type  --------------
+int my_policy;
+//struct sched_param my_param;
+//--------- check SCHEDULER type -----
+pthread_getschedparam(pthread_self(),&my_policy,&sch_param);
+printf("----------- thread_routine running at %s  %d\n -------------", \
+        (my_policy == SCHED_FIFO ? "FIFO" \
+        :(my_policy == SCHED_RR ? "RR" \
+        :(my_policy == SCHED_OTHER ? "OTHER" \
+        : "unknown"))),
+        sch_param.sched_priority);
+
+
+
 
 
  /*---------------- Exit Signal Process ----------------*/
@@ -175,7 +222,7 @@ while(1)
        cost_timeus=t_end.tv_usec-t_start.tv_usec;
        printf("Cost time: %ld s + %ld us\n\n\n",cost_times,cost_timeus);
 
-       sleep(10);
+       //sleep(SHOW_DELAY);
 
 //WriteComm(0x29);WriteData(0x00); //--display on
 //delayms(5000); //---put delay in python show prograam

@@ -19,9 +19,13 @@
 
 void delayms(int s)
 {
- int k;
+ int k,m;
  for(k=0;k<s;k++)
-      usleep(1000);
+ {
+    usleep(1000);
+   //for(m=0;m<10000;m++);
+
+ }
 }
 
 void setPinMmap()
