@@ -66,15 +66,15 @@ static int mem_vmalloc(void)
 
 static int load_user_bmpf(char* str_f)
 {
-	int i;
+//	int i;
 //	uint8_t SPIBUFF_SIZE=36;//-- buffsize for one-time SPI transmital. MAX. 32*9=36bytes
 	uint8_t buff[8];//---for temp. data buffering
-	uint8_t data_buff[SPIBUFF_SIZE];//--temp. data buff for SPI transmit
+//	uint8_t data_buff[SPIBUFF_SIZE];//--temp. data buff for SPI transmit
 	loff_t offp; //-- pfile offset position, use long type will case vfs_read() fail
 	u32 picWidth,picHeight; //---BMP file width and height
 	u32 total; //--total bytes of bmp file
-	u16 residual; //--residual after total/
-	u16 nbuff; //=total/SPIBUFF_SIZE
+	//u16 residual; //--residual after total/
+	//u16 nbuff; //=total/SPIBUFF_SIZE
 	u16 Hs,He,Vs,Ve; //--GRAM area definition parameters
 	u16 Hb,Vb; //--GRAM area corner gap distance from coordinate origin
 	ssize_t nret;//vfs_read() return value
@@ -98,7 +98,7 @@ static int load_user_bmpf(char* str_f)
 	picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
 	picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
 	printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
-	if(picWidth > 320 | picHeight > 480)
+	if((picWidth > 320) | (picHeight > 480))
 	{
 		printk("----- picture size too large -----\n");
 	 	return -1;
@@ -130,7 +130,8 @@ static int load_user_bmpf(char* str_f)
 //mem_data:pointer to data         total : total bytes to be transmitted
 static int display_full(unsigned const char* data_buff)
 {
-	u16 i;
+	int ret=0;
+	int i;
 	u32 total=480*320*3; //total bytes for a full size image
 	u16 residual; //--residual after total/
 	u16 nbuff; //=total/SPIBUFF_SIZE
@@ -153,13 +154,31 @@ static int display_full(unsigned const char* data_buff)
 		WriteNData(data_buff,residual);
 	}
 	printk("--------------------- Finish displaying mem data --------------------\n");
+	return ret;
 }
 
+
+//------------ spi transmit data in mem buff by spi_trans_block_halfduplex() ---------------
+//static int spi_trans_block_halfduplex(struct base_spi *m, const char *pdata,long ndat)
+static int display_block_full(unsigned const char* data_buff)
+{
+	int ret=0;
+	u32 total=480*320*3; //total bytes for a full size image
+
+        GRAM_Block_Set(0,319,0,479); //--set GRAM area,full size
+        WriteComm(0x2c); //--prepare for continous GRAM write
+
+	printk("--------------------- Start trans by block_halfduplex()  --------------------\n");
+	//-------------------------- SPI transmit data to LCD  ---------------------
+	DCXdata;
+	spi_trans_block_halfduplex(&spi_LCD,data_buff,total);
+	printk("--------------------- Finish trans by block_halfduplex() --------------------\n");
+	return ret;
+}
 
 
 static int __init spi_LCD_init(void)
  {
-  	 int k;
          int result=0;
          u32 gpiomode;
 	 unsigned long flags;
@@ -177,7 +196,7 @@ static int __init spi_LCD_init(void)
          //---------------  set  SPI base device  spi_LCD  -------------
          spi_LCD.chip_select = 1;
          spi_LCD.mode = SPI_MODE_3 ;
-         spi_LCD.speed = 35000000;//100000000;
+         spi_LCD.speed = 38000000;//100000000;
          spi_LCD.sys_freq = 200000000;//575000000; //system clk 580M
 //---- HCLK = 200MHz?? MAX40? 
          spi_LCD.tx_buf[0] = 0xff;
@@ -212,11 +231,12 @@ preempt_disable(); //----seems no use
 //local_irq_save(flags);//--this will stop timestamps
 	result=show_user_bmpf("/tmp/P30.bmp");
 	mdelay(1000);
-	display_full(pmem_color_data);
+	display_block_full(pmem_color_data);
 //	result=show_user_bmpf("/tmp/P33.bmp");
 	mdelay(1000);
 //	display_full(pmem_color_data);
 	result=show_user_bmpf("/tmp/P35.bmp");
+	display_block_full(pmem_color_data);
 //local_irq_restore(flags);
 preempt_enable();
 	return result;

@@ -152,7 +152,7 @@ inline  u32 ra_outl(u32 addr, u32 val)
  /*------------------------------- set GPIO mode and init value ------------------------*/
  static int  base_gpio_init(void)
  {
-         unsigned int i;
+//         unsigned int i;
  	 u32 gpiomode;
 
          //config these pins to gpio mode
@@ -214,7 +214,7 @@ inline static int base_spi_busy_wait(void)
          return -1;
 }
 
-inline  static inline u32 base_spi_read( u32 reg) // --- spi register read
+static inline u32 base_spi_read( u32 reg) // --- spi register read
  {
          u32 val;
          val = ra_inl(reg);
@@ -222,7 +222,7 @@ inline  static inline u32 base_spi_read( u32 reg) // --- spi register read
          return val;
  }
 
-inline static inline void base_spi_write( u32 reg, u32 val)  //--- spi register write
+static inline void base_spi_write( u32 reg, u32 val)  //--- spi register write
  {
  //      printk("mt7621_spi_write reg %08x val %08x \n",reg,val);
          ra_outl(reg,val);
@@ -241,7 +241,7 @@ inline static inline void base_spi_write( u32 reg, u32 val)  //--- spi register 
          base_spi_write(SPI_REG_MASTER, master);
  }
 
-inline static void base_spi_set_cs(struct base_spi *spi, int enable) //------ set Chip-Selection
+ static void base_spi_set_cs(struct base_spi *spi, int enable) //------ set Chip-Selection
  {
          int cs = spi->chip_select;
          u32 polar = 0;
@@ -318,11 +318,13 @@ static inline int base_spi_transfer_half_duplex(struct base_spi *m)
          int rx_len = m->rx_len;
          u32 data[9] = { 0 };
          u32 val;
+	 u8 *buf;
+
          spin_lock_irqsave(&m->lock, flags); //---lock data
          if(base_spi_busy_wait()<0)
 		printk("-------base_spi_busy_wait() timeout! --------\n");
 
-         u8 *buf = m->tx_buf;
+          buf = &(m->tx_buf);
          for (i = 0; i < m->tx_len; i++, len++)
                  data[len / 4] |= buf[i] << (8 * (len & 3)); 
 	 //-----Beware of Littel Endia type of register store,buf[0] will be stored at hight bytes of a register, and will be transmitted first eventually.
@@ -381,6 +383,102 @@ static inline int base_spi_transfer_half_duplex(struct base_spi *m)
          return status;
  }
 
+
+/*-----------  SPI transmit data block  --------------------
+m- base_spi struct
+pdata- pointer to data
+ndat- data total number (bytes)
+--------------------------------------------------------------*/
+static int spi_trans_block_halfduplex(struct base_spi *m, const char *pdata,long ndat)
+ {
+         unsigned long flags;
+         int status = 0;
+         int i,k;
+	 int n36bys=ndat/36; //=how many 36bytes in the data, Max. SPI trans capacity is 36bytes each time. 
+	 int residual=ndat%36; 
+	 int len; // for residual byte count.
+	 u32 tmp;
+         u32 data[9] = { 0 };
+         u32 val;
+         spin_lock_irqsave(&m->lock, flags); //---lock data
+         if(base_spi_busy_wait()<0)
+		printk("-------base_spi_busy_wait() timeout! --------\n");
+
+	//--- Must prepare spi hardware for each uninterruptable transmit, considering that other application may change the configuration.
+         if (base_spi_prepare(m)) { //----prepare SPI, set speed,polrality,mode,MSB or LSB sequence ...etc 
+                 status = -EIO;
+                 goto msg_done;
+         }
+
+	//--------------- transmit data 36bytes each time ---------------
+	if(n36bys>0)
+	{
+		for(k=0;k<n36bys;k++)
+		{
+		         val = 32 << 24; //-----set command length 4bytes full ,SPI_MORE_BUF[31:24] cmd_bit_cnt
+                	 val |=8*4*8; //----------set transmit data length,SPI_MORE_BUF[8:0] mosi_bit_cnt
+         	 	 base_spi_write(SPI_REG_MOREBUF, val); //--write to register
+
+	         	for (i = 0; i < 36; i += 4) //--load data to SPI regiser for transaction
+        	        	 base_spi_write(SPI_REG_OPCODE + i, *(u32 *)(pdata+36*k+i));
+			//---read out and swab it for SPI_OP_ADDR
+			tmp=base_spi_read(SPI_REG_OPCODE); 
+			tmp=swab32(tmp);
+			base_spi_write(SPI_REG_OPCODE,tmp);
+			//-------SPI transmit --
+		         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs enbale
+		         val = base_spi_read(SPI_REG_CTL);
+		         val |= SPI_CTL_START;  //--------------start spi transmission
+		         base_spi_write(SPI_REG_CTL, val);
+		         base_spi_busy_wait();
+		         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs disable
+		}
+	printk("--------- n36bys transmission finish!  -----------\n");
+	}//end n36bys
+
+	
+	if(residual>0)
+	{
+		//--------------- transmit residual data  ---------------
+	         u8 *buf = (u8 *)(pdata+36*n36bys);
+        	 for (i = 0; i < residual; i++, len++)
+                	 data[len / 4] |= buf[i] << (8 * (len & 3)); 
+		 //-----Beware of Littel Endia type of register store,buf[0] will be stored at hight bytes of a register, and will be transmitted first eventually.
+ 		//-------so FIFO sequence is ensured for data transaction.
+
+
+		 //-----SPI_REG_OPCODE will be 
+        	 data[0] = swab32(data[0]); //----must swab for data[0],as transaction of SPI_OP_ADDR will start from [7:0]!!!!
+		//----other data register will start from [31:24] for MSB(left most bit) transmitting. 
+        	 if (len < 4)
+                	 data[0] >>= (4 - len) * 8; //--align data to right, as for SPI_OP_ADDR will start transmitting from LSB(right) bit. 
+
+	         for (i = 0; i < len; i += 4)
+        	         base_spi_write(SPI_REG_OPCODE + i, data[i / 4]);
+
+	         val = (min_t(int, len, 4) * 8) << 24; //-----set command length 4bytes, full
+        	 if (len > 4)
+                	 val |= (len - 4) * 8; //----------set transmit data length
+         	//val |= (rx_len * 8) << 12;  //------------set receipt data length
+
+        	 base_spi_write(SPI_REG_MOREBUF, val); 
+	         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs enbale
+	         val = base_spi_read(SPI_REG_CTL);
+        	 val |= SPI_CTL_START;  //--------------start spi transmission
+	         base_spi_write(SPI_REG_CTL, val);
+        	 base_spi_busy_wait();
+	         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs disable
+
+	}// end residual
+
+// ------NO NEED TO RECEIVE DATA
+
+ msg_done:
+         spin_unlock_irqrestore(&m->lock, flags);
+ //      m->status = status;
+ //      spi_finalize_current_message(master);
+         return status;
+ }
 
 
 #endif

@@ -282,7 +282,7 @@ int show_user_bmpf(char* str_f)
         picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
         picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
 //        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
-        if(picWidth > 320 | picHeight > 480)
+        if((picWidth > 320) | (picHeight > 480))
         {
 //                printk("----- picture size too large -----\n");
                 return -1;
