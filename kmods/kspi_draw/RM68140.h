@@ -14,8 +14,8 @@
  #define DCXcmd base_gpio_set(14,0)
 
 /* --------- Hardware set and reset pin-------------- */
- #define HD_SET base_gpio_set(16,1)
- #define HD_RESET base_gpio_set(16,0)
+ #define HD_SET base_gpio_set(15,1) //--pin 16 conflict with lirc module !!!!!!!
+ #define HD_RESET base_gpio_set(15,0)
 
 
 static void delayms(int s)
@@ -249,6 +249,7 @@ void LCD_prepare(void)
 }
 
 //------------- load BMP file from user space and transmit to spi to display on LCD ----------------
+//  !!! this function is interruptable !!!
 int show_user_bmpf(char* str_f)
 {
         int i;
@@ -305,8 +306,9 @@ int show_user_bmpf(char* str_f)
 //        printk("nbuff=%d\n",nbuff);
         residual=total%SPIBUFF_SIZE; //--residual data 
 
-//        printk("--------------------- Start drawing the picture --------------------\n");
+        printk("--------------------- Start show_user_bmpf() SPI transmission --------------------\n");
         offp=54; //--offset where BGR data begins
+
         //-------------------------- SPI transmit data to LCD  ---------------------
         for(i=0;i<nbuff;i++)
         {
@@ -322,7 +324,7 @@ int show_user_bmpf(char* str_f)
                 vfs_read(fp,data_buff,residual,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if of$
                 WriteNData(data_buff,residual);
         }
- //       printk("--------------------- Finish drawing the picture --------------------\n");
+       printk("------------------  Finish show_user_bmpf() SPI transmission  -----------------\n");
 
         filp_close(fp,NULL);
         set_fs(fs);//reset address space limit to the original one

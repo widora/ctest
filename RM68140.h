@@ -13,8 +13,8 @@
  #define DCXdata mt76x8_gpio_set_pin_value(14,1)
  #define DCXcmd mt76x8_gpio_set_pin_value(14,0)
 /* --------- Hardware set and reset pin-------------- */
- #define HD_SET mt76x8_gpio_set_pin_value(16,1)
- #define HD_RESET mt76x8_gpio_set_pin_value(16,0)
+ #define HD_SET mt76x8_gpio_set_pin_value(15,1)//--16
+ #define HD_RESET mt76x8_gpio_set_pin_value(15,0)//--16
 
 
 void delayms(int s)

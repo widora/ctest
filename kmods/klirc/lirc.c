@@ -388,11 +388,13 @@ static ssize_t LIRC_read(struct file *file, char __user *buffer,
 			size_t len, loff_t *pos)
 {
 	int ret_v = 0;
-	printk("LIRC driver read...\n");
-
-        copy_to_user(buffer,&LIRC_DATA,4);
-        LIRC_DATA=0; //--clear data after read
-        ret_v=4;
+//	printk("LIRC driver read...\n");
+	if(LIRC_DATA != 0)
+	{
+	        copy_to_user(buffer,&LIRC_DATA,4);
+	        LIRC_DATA=0; //--clear data after read
+        	ret_v=4;
+	}
 
 	return ret_v;
 }

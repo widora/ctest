@@ -280,6 +280,7 @@ play_mode=MODE_MPLAYER;
 while(1)
   {
     //--------------- receive LIRC data ---------
+    LIRC_DATA=0;
     read(fd, &LIRC_DATA, sizeof(LIRC_DATA));
     if(LIRC_DATA!=0)
     {
@@ -574,8 +575,9 @@ while(1)
           usleep(250000);continue;
 
       } //--switch play_mode end
- 
+
      }  //---if end
+
      else //---  LIRC_DATA==0
      {
         usleep(250000);

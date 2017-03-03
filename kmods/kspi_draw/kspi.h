@@ -356,7 +356,7 @@ static inline int base_spi_transfer_half_duplex(struct base_spi *m)
          val |= (rx_len * 8) << 12;  //------------set receipt data length
          base_spi_write(SPI_REG_MOREBUF, val); 
 
-         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs enbale
+         base_spi_set_cs(m, 1); //-------------------------------------- chip select 1
 
          val = base_spi_read(SPI_REG_CTL);
          val |= SPI_CTL_START;  //--------------start spi transmission
@@ -364,7 +364,7 @@ static inline int base_spi_transfer_half_duplex(struct base_spi *m)
 
          base_spi_busy_wait();
 
-         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs disable
+         base_spi_set_cs(m, 0); //-------------------------------------- chip select 0
 
 /*// ------NO NEED TO RECEIVE DATA
          for (i = 0; i < rx_len; i += 4)
@@ -421,17 +421,17 @@ static int spi_trans_block_halfduplex(struct base_spi *m, const char *pdata,long
 
 	         	for (i = 0; i < 36; i += 4) //--load data to SPI regiser for transaction
         	        	 base_spi_write(SPI_REG_OPCODE + i, *(u32 *)(pdata+36*k+i));
-			//---read out and swab it for SPI_OP_ADDR
+			//---read out and swab it for SPI_OP_ADDR, which transmits LSB first other than MSB first as of DATA I/O 0-8 register.
 			tmp=base_spi_read(SPI_REG_OPCODE); 
 			tmp=swab32(tmp);
 			base_spi_write(SPI_REG_OPCODE,tmp);
 			//-------SPI transmit --
-		         base_spi_set_cs(m, 1); //-------------------------------------- base_spi_set_cs enbale
+		         base_spi_set_cs(m, 1); //-------------------------------------- chip select 1
 		         val = base_spi_read(SPI_REG_CTL);
 		         val |= SPI_CTL_START;  //--------------start spi transmission
 		         base_spi_write(SPI_REG_CTL, val);
 		         base_spi_busy_wait();
-		         base_spi_set_cs(m, 0); //-------------------------------------- base_spi_set_cs disable
+		         base_spi_set_cs(m, 0); //-------------------------------------- chip select 0 FLASH
 		}
 	printk("--------- n36bys transmission finish!  -----------\n");
 	}//end n36bys

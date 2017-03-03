@@ -194,7 +194,7 @@ static int __init spi_LCD_init(void)
          printk("--------current RALINK_REG_GPIOMODE value: %08x !\n",gpiomode);
 
          //---------------  set  SPI base device  spi_LCD  -------------
-         spi_LCD.chip_select = 1;
+         spi_LCD.chip_select = 1; //---- useless, since spi_trans function() already set cs_1 inside for safety consideration.
          spi_LCD.mode = SPI_MODE_3 ;
          spi_LCD.speed = 38000000;//100000000;
          spi_LCD.sys_freq = 200000000;//575000000; //system clk 580M
@@ -229,13 +229,15 @@ static int __init spi_LCD_init(void)
 	LCD_prepare();
 preempt_disable(); //----seems no use
 //local_irq_save(flags);//--this will stop timestamps
-	result=show_user_bmpf("/tmp/P30.bmp");
+local_irq_disable();//--!!!! However show_user_bmpf() is still interruptable, as there is file read()????? !!!!!---
+	result=show_user_bmpf("/tmp/P30.bmp"); //--interruptable !!
+local_irq_enable();
 	mdelay(1000);
 	display_block_full(pmem_color_data);
 //	result=show_user_bmpf("/tmp/P33.bmp");
 	mdelay(1000);
 //	display_full(pmem_color_data);
-	result=show_user_bmpf("/tmp/P35.bmp");
+	result=show_user_bmpf("/tmp/P35.bmp"); //--interruptable !!
 	display_block_full(pmem_color_data);
 //local_irq_restore(flags);
 preempt_enable();
