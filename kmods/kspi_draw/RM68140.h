@@ -333,6 +333,126 @@ int show_user_bmpf(char* str_f)
 
 
 
+//--------- load bmp file color data to mem buff  -------------- 
+//--------- and return pointer to the buff       ---------------
+unsigned char* load_user_bmpf(const char* str_f)
+{
+        uint8_t buff[8];//---for temp. data buffering
+        loff_t offp; //-- pfile offset position, use long type will case vfs_read() fail
+        u32 picWidth,picHeight; //---BMP file width and height
+        u32 total; //--total bytes of bmp file
+        u16 Hs,He,Vs,Ve; //--GRAM area definition parameters
+        u16 Hb,Vb; //--GRAM area corner gap distance from coordinate origin
+        ssize_t nret;//vfs_read() return value
+        struct file *fp;
+        unsigned char* pmem_color_data=NULL;
+        mm_segment_t fs; //virtual address space parameter
+
+//-------- allocate mem for color data ----------
+        pmem_color_data=(unsigned char*)vmalloc(COLOR_DATA_SIZE);
+        if(pmem_color_data <0)
+        {
+                printk("------- fail to vmalloc mem for color data! ------\n");
+                return NULL;
+        }
+        else
+                printk("------- vmalloc mem for color data successfully! ------\n"); 
+
+//--------- open file and load data to mem ------------
+        fp=filp_open(str_f,O_RDONLY,0);
+        if(IS_ERR(fp))
+        {
+                printk("Fail to open %s!\n",str_f);
+                return -1;
+        }
+        fs=get_fs(); //retrieve and store virtual address space boundary limit of current process
+        set_fs(KERNEL_DS); // set address space limit to that of the kernel (whole of 4GB)
+
+        offp=18; //where bmp width-height data starts
+        vfs_read(fp,buff,sizeof(buff),&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if offp defined$
+        picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
+        picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
+        printk("----%s:  picWidth=%d   picHeight=%d -----\n",str_f,picWidth,picHeight);
+        if((picWidth > 320) | (picHeight > 480))
+        {
+                printk("----- picture size too large -----\n");
+                return -1;
+        }
+
+        //----------------- calculate GRAM area ---------------------
+        //---picWidth and picHeight shall be multiples of 4
+        Hb=(320-picWidth+1)/2;
+        Vb=(480-picHeight+1)/2;
+        Hs=Hb;He=Hb+picWidth-1;
+        Vs=Vb;Ve=Vb+picHeight-1;
+        printk("Hs=%d  He=%d \n",Hs,He);
+        printk("Vs=%d  Ve=%d \n",Vs,Ve);
+
+        total=picWidth*picHeight*3; //--total bytes of BGR data,for 24bits BMP file
+        printk("total=%d\n",total);
+
+        offp=54; //--offset where BGR data begins
+        //----------------  copy data to buff ----------------
+        nret=vfs_read(fp,pmem_color_data,total,&offp);// offp must be loff_t type!!!  vfs_read() will return 0 for first bytes if off$
+        printk("--------- vfs_read() %d bytes data, while actual total is %d bytes -----------\n",nret,total);
+
+        filp_close(fp,NULL);
+        set_fs(fs);//reset address space limit to the original one
+
+        return pmem_color_data;
+}
+
+
+//------------------------------- spi transmit data in mem buff ---------------
+//mem_data:pointer to data         total : total bytes to be transmitted
+static int display_full(unsigned const char* data_buff)
+{
+        int ret=0;
+        int i;
+        u32 total=480*320*3; //total bytes for a full size image
+        u16 residual; //--residual after total/
+        u16 nbuff; //=total/SPIBUFF_SIZE
+
+        nbuff=total/SPIBUFF_SIZE;
+        residual=total%SPIBUFF_SIZE;
+
+        GRAM_Block_Set(0,319,0,479); //--set GRAM area,full size
+        WriteComm(0x2c); //--prepare for continous GRAM write
+
+        printk("--------------------- Start displaying mem data --------------------\n");
+        //-------------------------- SPI transmit data to LCD  ---------------------
+        for(i=0;i<nbuff;i++)
+        {
+                WriteNData(data_buff,SPIBUFF_SIZE);
+                data_buff+=SPIBUFF_SIZE;
+        }
+        if(residual!=0)
+        {
+                WriteNData(data_buff,residual);
+        }
+        printk("--------------------- Finish displaying mem data --------------------\n");
+        return ret;
+}
+
+
+//------------ spi transmit data in mem buff by spi_trans_block_halfduplex() ---------------
+//static int spi_trans_block_halfduplex(struct base_spi *m, const char *pdata,long ndat)
+static int display_block_full(unsigned const char* data_buff)
+{
+        int ret=0;
+        u32 total=480*320*3; //total bytes for a full size image
+
+        GRAM_Block_Set(0,319,0,479); //--set GRAM area,full size
+        WriteComm(0x2c); //--prepare for continous GRAM write
+
+        printk("--------------------- Start trans by block_halfduplex()  --------------------\n");
+        //-------------------------- SPI transmit data to LCD  ---------------------
+        DCXdata;
+        spi_trans_block_halfduplex(&spi_LCD,data_buff,total);
+        printk("--------------------- Finish trans by block_halfduplex() --------------------\n");
+        return ret;
+}
+
 
 #endif
 

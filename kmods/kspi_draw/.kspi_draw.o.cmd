@@ -488,6 +488,9 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
   include/linux/ratelimit.h \
   arch/mips/include/asm/device.h \
   include/linux/pm_wakeup.h \
+  include/linux/cdev.h \
+  include/linux/kdev_t.h \
+  include/uapi/linux/kdev_t.h \
   include/linux/interrupt.h \
     $(wildcard include/config/irq/forced/threading.h) \
     $(wildcard include/config/generic/irq/probe.h) \
@@ -778,8 +781,6 @@ deps_/home/midas/ctest/kmods/kspi_draw/kspi_draw.o := \
     $(wildcard include/config/file/locking.h) \
     $(wildcard include/config/fs/xip.h) \
     $(wildcard include/config/direct/io.h) \
-  include/linux/kdev_t.h \
-  include/uapi/linux/kdev_t.h \
   include/linux/dcache.h \
   include/linux/rculist_bl.h \
   include/linux/list_bl.h \

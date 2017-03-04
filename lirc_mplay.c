@@ -120,6 +120,7 @@ static void kill_fm(void)
 }
 static void kill_mplay(void)
 {
+    system("killall -9 mplayer");
     system("killall -9 mplay");
 }
 static void kill_am(void)
