@@ -250,6 +250,7 @@ void LCD_prepare(void)
 
 //------------- load BMP file from user space and transmit to spi to display on LCD ----------------
 //  !!! this function is interruptable !!!
+//  usage: show_user_bmpf("/tmp/world.bmp")
 int show_user_bmpf(char* str_f)
 {
         int i;
@@ -334,6 +335,7 @@ int show_user_bmpf(char* str_f)
 
 
 //--------- load bmp file color data to mem buff  -------------- 
+//  COPY 24bits COLOR DATA OF A BMP FILE TO MEM, AND RETURN THE POINTER
 //--------- and return pointer to the buff       ---------------
 unsigned char* load_user_bmpf(const char* str_f)
 {
@@ -403,7 +405,8 @@ unsigned char* load_user_bmpf(const char* str_f)
 }
 
 
-//------------------------------- spi transmit data in mem buff ---------------
+//-------------- spi transmit data in mem buff by WriteData() ---------------
+//       SEND PIXEL DATA TO LCD FOR A FULL 480X320 SIZE DISPLAY
 //mem_data:pointer to data         total : total bytes to be transmitted
 static int display_full(unsigned const char* data_buff)
 {
@@ -436,6 +439,7 @@ static int display_full(unsigned const char* data_buff)
 
 
 //------------ spi transmit data in mem buff by spi_trans_block_halfduplex() ---------------
+//             SEND PIXELS DATA TO LCD FOR A FULL 480X320 SIZE DISPLAY
 //static int spi_trans_block_halfduplex(struct base_spi *m, const char *pdata,long ndat)
 static int display_block_full(unsigned const char* data_buff)
 {

@@ -77,6 +77,36 @@ Midas-Zhou
 };
 
 
+//--------alllocate mem for color data and memcpy with specified color ---------
+static int init_mem_color(u8 colorB,u8 colorG,u8 colorR)
+{
+int i;
+unsigned char *ptemp;
+unsigned char colorBGR[3];
+	colorBGR[0]=colorB;
+	colorBGR[1]=colorG;
+	colorBGR[2]=colorR;
+//-------- allocate mem for color data ----------
+        pmem_color_data=(unsigned char*)vmalloc(COLOR_DATA_SIZE);
+        if(pmem_color_data < 0)
+        {
+                printk("------- fail to vmalloc mem for 480x320x24bits color data! ------\n");
+                return -1;
+        }
+        else
+                printk("------- vmalloc mem for 480x320x24bits color data successfully! ------\n"); 
+
+	ptemp=pmem_color_data;
+	for(i=0;i<COLOR_DATA_SIZE/3;i++)
+	{
+		memcpy(ptemp,colorBGR,3);
+		ptemp+=3;
+
+	}
+
+	return 0;
+}
+
 static int __init spi_LCD_init(void)
  {
          int result=0;
@@ -145,10 +175,12 @@ static int __init spi_LCD_init(void)
 */
 
 //----------------------------- load BMP data and prepare LCD  ----------------------
+/*
 	pmem_color_data=load_user_bmpf("/tmp/hello.bmp"); //load image to mem
 	if(pmem_color_data==NULL)goto mem_vmalloc_error;
 	else add_code_flag=1;
-
+*/
+	init_mem_color(0xff,0,0); //--init mem and color
 	LCD_prepare();
 
 //-----------------------------      draw picture        -----------------------
@@ -163,7 +195,9 @@ preempt_disable(); //----seems no use
 	mdelay(1000);
 //	display_full(pmem_color_data);
 	result=show_user_bmpf("/tmp/P35.bmp"); //--interruptable !!
-	display_block_full(pmem_color_data);
+//	display_block_full(pmem_color_data);
+
+
 //local_irq_restore(flags);
 preempt_enable();
 
