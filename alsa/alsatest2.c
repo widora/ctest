@@ -1,16 +1,18 @@
 /*--------------------------------------------------
 ALSA record and play test
-
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
-sample: usually 8bits or 16bits, one sample data width.
-channel: 1-Mono. 2-Stereo
-frame: sizeof(one sample)*channels
-rate: frames per second
-period: frame number handled by hard_ware each time.
-buffer: N*periods
-interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
-uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
+1. use alsamixer to adjust Capture and ADC PCM value
+2. some explanation:
+	sample: usually 8bits or 16bits, one sample data width.
+	channel: 1-Mono. 2-Stereo
+	frame: sizeof(one sample)*channels
+	rate: frames per second
+	period: Max. frame numbers hard ware can be handled each time.
+	chunk: frames receive from/send to hard ware each time.
+	buffer: N*periods
+	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
+	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
 --------------------------------------------------*/
 
 #include <asoundlib.h>
