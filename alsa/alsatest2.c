@@ -13,7 +13,7 @@ interleaved mode:record period data frame by frame, such as  frame1(Left sample,
 uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
 --------------------------------------------------*/
 
-#include "asoundlib.h"
+#include <asoundlib.h>
 #include <stdbool.h>
 
 snd_pcm_t *pcm_handle;
@@ -30,7 +30,7 @@ int bit_per_sample;
 snd_pcm_uframes_t frames;
 snd_pcm_uframes_t period_size; //length of period (frames)
 int chunk_byte; //length of period (bytes)
-snd_pcm_uframes_t chunk_size=32;//frames
+snd_pcm_uframes_t chunk_size=32;//numbers of frames read/write to hard ware each time
 unsigned int chanl_val,rate_val;
 int dir;
 snd_pcm_format_t format_val;
@@ -45,7 +45,7 @@ printf("-----------start------------\n");
 //录音
 if (!device_open(SND_PCM_STREAM_CAPTURE )) printf("---device_open()------\n");//return 1;
 if (!device_setparams(1,8000)) printf("-----device_setparams()-----\n");//return 2;
-if (!device_capture( 3 )) printf("-----device_capture()-----\n");//return 3; //录制3秒
+if (!device_capture( 5 )) printf("-----device_capture()-----\n");//return 3; //录制3秒
 snd_pcm_close( pcm_handle ); printf("=========== record finish!! snd_pcm_close() =====\n\n\n");
 
 fd=open("/tmp/record.raw",O_WRONLY|O_CREAT|O_TRUNC);
@@ -55,7 +55,7 @@ printf("------write to record.raw  %d bytes --------\n",rc);
 //播放
 if (!device_open(SND_PCM_STREAM_PLAYBACK)) return 4;
 printf("-----PLAY: device_open() finish ----\n");
-if (!device_setparams(2,48000)) return 5;
+if (!device_setparams(1,8000)) return 5;
 printf("-----PLAY: device_setarams() finish ----\n");
 if (!device_play()) return 6; //-------------------------------------------------
 printf("-----PLAY: device_play() finish ----\n");
@@ -155,7 +155,7 @@ printf(" wave_buf_len=%d \n",wave_buf_len);
    //计算音频数据长度（秒数 * 采样率 * 桢长度）
  char *data=wave_buf=(char*)malloc(wave_buf_len);
   int r = 0;
-  chunk_size=32; 
+  chunk_size=32;
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
   printf("chunk_byte=%d\n",chunk_byte);
   while ( (data-wave_buf) <= (wave_buf_len-chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
@@ -182,17 +182,17 @@ bool device_play(){
 
   char *data = wave_buf;
   int r = 0;
-  chunk_size=0;
-//  while ( (data-wave_buf) <= (wave_buf_len-chunk_size)){
-  while ( (data-wave_buf) <= (wave_buf_len-chunk_size*bit_per_sample*chanl_val)){
+  chunk_size=32;
+  chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
+  while ( (data-wave_buf) <= (wave_buf_len-chunk_byte)){
   r = snd_pcm_writei( pcm_handle, data , chunk_size); //chunk_size = frames
   if(r == -EAGAIN)continue;
-  if(r < 0){	
+  if(r < 0){
 	printf("wirte error: %s\n",snd_strerror(r));
 	exit(EXIT_FAILURE);
    }
-  printf("----- writei()  r=%d -----\n ",r);
-  if ( r>0 ) data += r * chunk_byte;
+  //printf("----- writei()  r=%d -----\n ",r);
+  if ( r>0 ) data += chunk_byte;
   else
   return false;
   }
