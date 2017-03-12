@@ -13,10 +13,12 @@ Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 	buffer: N*periods
 	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
+3. lib: lasound 
 --------------------------------------------------*/
 
 #include <asoundlib.h>
 #include <stdbool.h>
+#define CHECK_AVERG 2500
 
 snd_pcm_t *pcm_handle;
 char *wave_buf;
@@ -26,6 +28,9 @@ bool device_open( int mode);
 bool device_setparams();
 bool device_capture( int dtime );
 bool device_play();
+bool device_check_voice();
+
+
 char *wave_buf;
 int wave_buf_len; //--buf length for storing n-second sound data
 int bit_per_sample;
@@ -44,27 +49,35 @@ int fd;
 int rc;
 printf("-----------start------------\n");
 
+while(1)
+{
 //录音
-if (!device_open(SND_PCM_STREAM_CAPTURE )) printf("---device_open()------\n");//return 1;
-if (!device_setparams(1,8000)) printf("-----device_setparams()-----\n");//return 2;
-if (!device_capture( 5 )) printf("-----device_capture()-----\n");//return 3; //录制3秒
-snd_pcm_close( pcm_handle ); printf("=========== record finish!! snd_pcm_close() =====\n\n\n");
+if (!device_open(SND_PCM_STREAM_CAPTURE )) printf("---device_open()\n");//return 1;
+if (!device_setparams(1,8000)) printf("-----device_setparams()\n");//return 2;
 
+if(!device_check_voice()) //--check voice value 
+	continue;
+
+if (!device_capture( 10 )) printf("-----device_capture()\n");//return 3; //录制3秒
+snd_pcm_close( pcm_handle ); printf("=========== record finish!! snd_pcm_close() =====\n\n\n");
 fd=open("/tmp/record.raw",O_WRONLY|O_CREAT|O_TRUNC);
 rc=write(fd,wave_buf,wave_buf_len);
-printf("------write to record.raw  %d bytes --------\n",rc);
+printf("------write to record.raw  %d bytes\n",rc);
+close(fd); //though kernel will close it when exit
 
 //播放
 if (!device_open(SND_PCM_STREAM_PLAYBACK)) return 4;
-printf("-----PLAY: device_open() finish ----\n");
+printf("-----PLAY: device_open() finish\n");
 if (!device_setparams(1,8000)) return 5;
-printf("-----PLAY: device_setarams() finish ----\n");
-if (!device_play()) return 6; //-------------------------------------------------
-printf("-----PLAY: device_play() finish ----\n");
+printf("-----PLAY: device_setarams() finish\n");
+if (!device_play()) return 6;
+printf("-----PLAY: device_play() finish\n");
+
+
 snd_pcm_close( pcm_handle );
 printf("-----PLAY: snd_pcm_close() finish ----\n");
-
 free(wave_buf);
+}
 
 return 0;
 
@@ -86,7 +99,6 @@ if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
 
 
 int bit_per_sample; //样本长度(bit)
-//snd_pcm_uframes_t period_size; //周期长度(桢数)
 int chunk_byte; //周期长度(字节数)
 snd_pcm_hw_params_t *params; //定义参数变量
 
@@ -108,11 +120,10 @@ if(snd_pcm_hw_params_set_access (pcm_handle, hw_params,SND_PCM_ACCESS_RW_INTERLE
 	printf("----snd_pcm_hw_params_set_access()----\n");
 if(snd_pcm_hw_params_set_format( pcm_handle, hw_params, SND_PCM_FORMAT_S16_LE) >= 0) //使用用16位样本
 	printf("----snd_pmc_hw_params_set_format()-----\n");
-//snd_pcm_hw_params_set_rate_near( pcm_handle, hw_params,48000, 0); //设置采样率为44.1KHz
 val=rate;//8000;
-if(snd_pcm_hw_params_set_rate_near( pcm_handle, hw_params,&val,0) >= 0) //设置采样率为44.1KHz
+if(snd_pcm_hw_params_set_rate_near( pcm_handle, hw_params,&val,0) >= 0) //设置采样率
 	printf("----snd_pcm_hw_params_set_rate_near() val=%d----\n",val);
-if(snd_pcm_hw_params_set_channels( pcm_handle, hw_params, nchanl)>=0) //设置为立体声
+if(snd_pcm_hw_params_set_channels( pcm_handle, hw_params, nchanl)>=0) //设置为立体声or Mono.
 	printf("----snd_pcm_hw_params_set_channels()-----\n");
 frames=32;
 if(snd_pcm_hw_params_set_period_size_near(pcm_handle,hw_params,&chunk_size,&dir)>=0)
@@ -141,16 +152,14 @@ printf("----snd_pcm_hw_params_free()----\n");
 return true;
 
 }
-
 //这里先使用了Alsa提供的一系列snd_pcm_hw_params_set_函数为参数变量赋值。
 //最后才通过snd_pcm_hw_params将参数传递给设备。
 //需要说明的是正式的开发中需要处理参数设置失败的情况，这里仅做为示例程序而未作考虑。
 //设置好参数后便可以开始录音了。录音过程实际上就是从音频设备中读取数据信息并保存。
 
-// char *wave_buf;
-// int wave_buf_len;
+
+
  bool device_capture( int dtime ){
-//　wave_buf_len = dtime*params.rate*bit_per_sample*params.channels/8;
 snd_pcm_hw_params_get_rate(params,&rate_val,&dir); //params=hw_params
 wave_buf_len=dtime*rate_val*bit_per_sample*chanl_val/8;
 printf(" wave_buf_len=%d \n",wave_buf_len);
@@ -165,8 +174,8 @@ printf(" wave_buf_len=%d \n",wave_buf_len);
 // snd_pcm_sframes_t snd_pcm_readi(snd_pcm_t *pcm,void* buffer, snd_pcm_uframes_t size)
 // pcm -PCM handle    buffer-frames containing buffer  size - frames to be read
 	if ( r>0 ) {
-		printf(" r= %d\n",r);
-		printf("data=%d  wave_buf=%d\n",data,wave_buf);
+//		printf(" r= %d\n",r);
+//		printf("data=%d  wave_buf=%d\n",data,wave_buf);
 		data += chunk_byte;//--move buffer current position pointer
 	}
 	else
@@ -181,7 +190,6 @@ return true;
 //同样的原理，我们再添加一个播放函数，向音频设备写入数据：
 
 bool device_play(){
-
   char *data = wave_buf;
   int r = 0;
   chunk_size=32;
@@ -199,5 +207,62 @@ bool device_play(){
   return false;
   }
   return true;
+
+}
+
+
+bool device_check_voice(void )
+{
+int i;
+int r = 0;
+int count=0;
+int total=0;
+int averg=0;//average of sample values in one chunk.
+chunk_size=32; //--frames each time
+ chunk_byte=chunk_size*bit_per_sample*chanl_val/8; //---bytes
+ printf("chunk_byte=%d\n",chunk_byte);
+ int16_t *buf=(int16_t *)malloc(chunk_byte); //32bits
+ printf("size of int16_t = %d\n",sizeof(int16_t));
+// char *buf=(char*)malloc(chunk_byte); 
+ int16_t *data=buf;
+ char* tmp;
+ printf("buf=0x%x\n",buf);
+ printf("data=0x%x\n",data);
+
+
+ while(1)
+  {
+	r = snd_pcm_readi( pcm_handle,(char *)buf,chunk_size);  //chunk_size*bit_per_sample*read interleaved rames from a PCM
+        if(r == -EAGAIN)continue;
+	if ( r>=0 ) {
+		    //printf(" r= %d \n ",r);
+		    data=buf;
+		    averg=0;total=0;
+		    for(i=0;i<r;i++){
+			total+=abs((*data)); // !!!!!!
+			data+=1;
+		       }
+		    //printf("total=%d\n",total);
+		    averg=(total>>5);
+		    //printf("averg=%d\n",averg);
+		    if(averg >= CHECK_AVERG){
+			    free(buf);
+			    return true;
+			}
+
+//		usleep(20000); //
+//		snd_pcm_prepare(pcm_handle);
+		//usleep(10000); //---you cann't sleep here,
+	}//if
+	else
+	{
+	        printf(" r= %d \n ",r);
+		free(buf);
+		return false;
+	}
+   } //while(1)
+
+free(buf);
+return true;
 
 }
