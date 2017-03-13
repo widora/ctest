@@ -1,8 +1,10 @@
 /*--------------------------------------------------
-ALSA record and play test
+ALSA auto. record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
-Usage: 
+Usage: ./autorecord
+It will monitor surrounding sound wave and trigger 10s recording if loud voice is sensed,
+then it will playback. The sound will also be saved to a raw file.
 
 1. use alsamixer to adjust Capture and ADC PCM value
 2. some explanation:
