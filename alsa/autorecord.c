@@ -7,6 +7,8 @@ It will monitor surrounding sound wave and trigger 10s recording if loud voice i
 then it will playback. The sound will also be saved to a raw file.
 
 1. use alsamixer to adjust Capture and ADC PCM value
+	ADC PCM 0-255 (240)
+	Capture 0-63  (53)
 2. some explanation:
 	sample: usually 8bits or 16bits, one sample data width.
 	channel: 1-Mono. 2-Stereo
@@ -54,6 +56,8 @@ while(1)
 {
 
 //--------录音   beware of if...if...if...if...expressions
+system("amixer set Capture 53");
+system("amixer set 'ADC PCM' 240");
 
 if (!device_open(SND_PCM_STREAM_CAPTURE ))return 1;
 	 //printf("---device_open()\n");
@@ -85,9 +89,10 @@ printf("finish playback.\n\n\n");
 snd_pcm_close( pcm_handle );
 //printf("-----PLAY: snd_pcm_close()  ----\n");
 
+free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+
 }//while()
 
-free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
 return 0;
 
 }

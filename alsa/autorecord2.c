@@ -1,10 +1,15 @@
+
 /*--------------------------------------------------
-ALSA record and play test
+ALSA auto. record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
-Usage: 
+Usage: ./autorecord
+It will monitor surrounding sound wave and trigger 10s recording if loud voice is sensed,
+then it will playback. The sound will also be saved to a raw file.
 
 1. use alsamixer to adjust Capture and ADC PCM value
+	ADC PCM 0-255 (240)
+	Capture 0-63  (53)
 2. some explanation:
 	sample: usually 8bits or 16bits, one sample data width.
 	channel: 1-Mono. 2-Stereo
@@ -20,56 +25,91 @@ Usage:
 
 #include <asoundlib.h>
 #include <stdbool.h>
-#define CHECK_AVERG 2500 //--threshold value of wave amplitude
+#define CHECK_AVERG 2000 //--threshold value of wave amplitude to trigger record
+#define KEEP_AVERG 1500 //--threshold value of wave amplitude for keeping recording
+#define DELAY_TIME 5 //seconds -- recording time after one trigger
+#define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
+#define MIN_SAVE_TIME 20 //seconds --min. recording time for saving 
 
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
 char *wave_buf; //---pointer to wave buffer
 int wave_buf_len; //---wave buffer length in bytes
+int wave_buf_used=0; //---used wave buf length in bytes
 int bit_per_sample;
 snd_pcm_uframes_t frames;
-snd_pcm_uframes_t period_size; //length of period (in frames)
+snd_pcm_uframes_t period_size; //length of period (max. numbers of frames that hw can handle each time)
 snd_pcm_uframes_t chunk_size=32;//numbers of frames read/write to hard ware each time
 int chunk_byte; //length of chunk (period)  (in bytes)
 unsigned int chanl_val,rate_val;
 int dir;
 
+//------------ time struct ---------------
+struct timeval t_start,t_end;
+long cost_timeus=0;
+long cost_times=0;
+char str_time[20]={0};
+time_t timep;
+struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
-bool device_open( int mode);
+bool device_open(int mode);
 bool device_setparams();
-bool device_capture( int dtime );
+bool device_capture();
 bool device_play();
 bool device_check_voice();
 
 /*========================= MAIN ====================================*/
-int main(int argc,char* argv[]){
+int main(int argc,char* argv[])
+{
 int fd;
 int rc;
+char str_file[50]={0}; //---directory of save_file 
+
+
+//-------- set recording volume -------
+system("amixer set Capture 53");
+system("amixer set 'ADC PCM' 240");
+
 
 while(1)
 {
-
 //--------录音   beware of if...if...if...if...expressions
-
 if (!device_open(SND_PCM_STREAM_CAPTURE ))return 1;
 	 //printf("---device_open()\n");
 if (!device_setparams(1,8000)) return 2;
 	//printf("---device_setparams()\n");
-if(!device_check_voice()) //--checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
+//---------- allocate mem. for buffering raw data
+//---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
+ printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
+ wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
+ wave_buf=(char *)malloc(wave_buf_len);
+
+ //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
+ if(!device_check_voice())
 	continue;
 
 printf("start recording...\n");
-if (!device_capture( 10 ))return 3;
+if (!device_capture())return 3;
 	//printf("-----device_capture()\n");
 snd_pcm_close( pcm_handle ); 
 	printf("record finish!\n");
 
-fd=open("/tmp/record.raw",O_WRONLY|O_CREAT|O_TRUNC);
-rc=write(fd,wave_buf,wave_buf_len);
-printf("write to record.raw  %d bytes\n",rc);
-close(fd); //though kernel will close it automatically
+//------------save to file
+timep=time(NULL);// get CUT time,seconds from Epoch, long type indeed
+p_tm=localtime(&timep);// convert to local time in struct tm
+strftime(str_time,sizeof(str_time),"%Y-%m-%d-%H:%M:%S",p_tm);
+printf("record at: %s\n",str_time);
+
+if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
+{
+	sprintf(str_file,"/tmp/%s.raw",str_time);
+	fd=open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
+	rc=write(fd,wave_buf,wave_buf_used);
+	printf("write to record.raw  %d bytes\n",rc);
+	close(fd); //though kernel will close it automatically
+}
 
 //--------播放
 printf("start playback...\n");
@@ -83,9 +123,11 @@ printf("finish playback.\n\n\n");
 snd_pcm_close( pcm_handle );
 //printf("-----PLAY: snd_pcm_close()  ----\n");
 
+wave_buf_used=0;
+free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+
 }//while()
 
-free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
 return 0;
 
 }
@@ -104,7 +146,7 @@ if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
 	return true;
 }
 
-
+/*-------------------- set and prepare parameters  ------------------*/
 bool device_setparams(int nchanl,int rate)
  {
 unsigned int val;
@@ -140,9 +182,11 @@ bit_per_sample = snd_pcm_format_width((snd_pcm_format_t)format_val);
 //获取样本长度
 snd_pcm_hw_params_get_channels(hw_params,&chanl_val);
 //printf("----snd_pcm_hw_params_get_channels %d---\n",chanl_val);
-chunk_byte = period_size*bit_per_sample*chanl_val/8;
+chunk_byte = period_size*bit_per_sample*chanl_val/8; // this is the Max chunk byte size
 //chunk_size = frames;//period_size; //frames
 //计算周期长度（字节数(bytes) = 每周期的桢数 * 样本长度(bit) * 通道数 / 8 ）
+snd_pcm_hw_params_get_rate(hw_params,&rate_val,&dir); 
+snd_pcm_hw_params_get_channels(hw_params,&chanl_val);
 
 rc=snd_pcm_hw_params( pcm_handle, hw_params); //设置参数
 if(rc<0){
@@ -162,32 +206,58 @@ return true;
 //设置好参数后便可以开始录音了。录音过程实际上就是从音频设备中读取数据信息并保存。
 
 
-
- bool device_capture( int dtime ){
-  snd_pcm_hw_params_get_rate(params,&rate_val,&dir); //params=hw_params
-  wave_buf_len=dtime*rate_val*bit_per_sample*chanl_val/8;
-  //printf(" wave_buf_len=%d \n",wave_buf_len);
-   //计算音频数据长度（秒数 * 采样率 * 桢长度）
-  char *data=wave_buf=(char*)malloc(wave_buf_len);
+//------------------- record sound ------------------------------------//
+ bool device_capture( ){
+  int i;
   int r = 0;
-  chunk_size=32;
+  int total=0;
+  int averg=0;
+  char *data=wave_buf; // pointer to wave_buf position
+  int16_t *pv; //pointer to current data 
+  chunk_size=64; //=frames
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
   //printf("chunk_byte=%d\n",chunk_byte);
+
+  //------------------  get start time ------------------
+  gettimeofday(&t_start,NULL);
+  printf("Start Time: %lds + %ldus \n",t_start.tv_sec,t_start.tv_usec);
+
   while ( (data-wave_buf) <= (wave_buf_len-chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
 	r = snd_pcm_readi( pcm_handle,data,chunk_size);  //chunk_size*bit_per_sample*read interleaved rames from a PCM
-//--- snd_pcm_sframes_t snd_pcm_readi(snd_pcm_t *pcm,void* buffer, snd_pcm_uframes_t size)
-//--- pcm -PCM handle    buffer-frames containing buffer  size - frames to be read
 	if ( r>0 ) {
-//		printf(" r= %d\n",r);
-//		printf("data=%d  wave_buf=%d\n",data,wave_buf);
+		pv=(int16_t *)data; //--get pointer for chunk data
 		data += chunk_byte;//--move current buffer position pointer
+		//------------ checker timer ----------------
+		gettimeofday(&t_end,NULL);
+		cost_times=t_end.tv_sec-t_start.tv_sec;
+		if(cost_times >= DELAY_TIME){
+			wave_buf_used=data-wave_buf;
+			return true;
+		 }
+      		//----------- check sound wave amplitude  -----------------
+		averg=0;total=0;
+		for(i=0;i<r;i++){  //r -- chunk_size,16bits each frame. 
+			total+=abs(*pv); // !!!!!!
+			pv+=1;
+		 }
+		//printf("total=%d\n",total);
+		averg=(total>>6);
+		printf("averg=%d\n",averg);
+		if(averg >= KEEP_AVERG){
+			  gettimeofday(&t_start,NULL); // reset timer
+		   	  printf("loud noise sensed!\n");
+		 }
+
 	}
-	else
+	else  //if(r>0)
+	{
+		wave_buf_used=data-wave_buf;
 		return false;
+	}
 }
 
+wave_buf_used=data-wave_buf;
 return true;
-
 }
 
 //形参dtime用来确定录音时间，根据录音时间分配数据空间，再调用snd_pcm_readi从音频设备读取音频数据，存放到wave_buf中。
@@ -198,7 +268,7 @@ bool device_play(){
   int r = 0;
   chunk_size=32;
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
-  while ( (data-wave_buf) <= (wave_buf_len-chunk_byte)){
+  while ( (data-wave_buf) <= (wave_buf_used-chunk_byte)){
   r = snd_pcm_writei( pcm_handle, data , chunk_size); //chunk_size = frames
   if(r == -EAGAIN)continue;
   if(r < 0){
@@ -224,11 +294,8 @@ bool device_check_voice(void )
  int averg=0;//average of sample values in one chunk.
  chunk_size=32; //--frames each time
  chunk_byte=chunk_size*bit_per_sample*chanl_val/8; //---bytes
- //printf("chunk_byte=%d\n",chunk_byte);
- int16_t *buf=(int16_t *)malloc(chunk_byte); //32bits
- //printf("size of int16_t = %d\n",sizeof(int16_t));
+ int16_t *buf=(int16_t *)malloc(chunk_byte); //64bytes
  int16_t *data=buf;
- //char* tmp;
 
  printf("listening and checking any voice......\n");
  while(1)
