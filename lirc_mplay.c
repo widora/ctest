@@ -120,8 +120,9 @@ static void kill_fm(void)
 }
 static void kill_mplay(void)
 {
-    system("killall -9 mplayer");
     system("killall -9 mplay");
+    usleep(200000);
+    system("killall -9 mplayer");
 }
 static void kill_am(void)
 {
@@ -158,6 +159,7 @@ static void tune_ntradio(int nList_Item)  //--tune to str_radio_addrs[nList_Item
         printf("nList_Item=%d\n",nList_Item);
 	espeak_channel(nList_Item);
 	//--!!! sprintf char will end until get a '\0' ???
+	//system("killall -9 sh");usleep(200000);
 	sprintf(strCMD,"echo loadfile '%s' > /mplayer/slave",str_radio_addrs[nList_Item]);
         printf("%s\n",strCMD);
 	system(strCMD);
@@ -400,13 +402,15 @@ while(1)
       	       case CODE_EQ:
 		    if(flag_3D)
                     {
+		        //system("killall -9 sh");usleep(200000);
          		system("amixer set 3D off");
                         printf("amixer set 3D off \n");
                         flag_3D=false;
                     }
                     else
                     {   
-                        system("amixer set 3D 12");
+                        //system("killall -9 sh");usleep(200000);
+		         system("amixer set 3D 12");
                         system("amixer set 3D on");
                         printf("amixer set 3D 12 & on \n");
                         flag_3D=true;	
@@ -418,6 +422,7 @@ while(1)
                     printf("reload radio address file, nList_Item=%d \n",nList_Item);
                     break;
                case CODE_MUTE: 
+		    //system("killall -9 sh");usleep(200000);
                     system("echo 'mute'>/mplayer/slave");
                     printf("echo 'mute'>/mplayer/slave \n");
                     break;
@@ -503,6 +508,7 @@ while(1)
                     if(nList_Item<List_Item_Max_Num)
                        nList_Item+=1; 
                     espeak_channel(nList_Item);  
+		    //system("killall -9 sh");usleep(200000);
  		    system("echo 'pt_step 1'>/mplayer/slave");
  		    printf("echo 'pt_step 1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
@@ -511,6 +517,7 @@ while(1)
                     if(nList_Item>1)
                        nList_Item-=1; 
                     espeak_channel(nList_Item);  
+		    //system("killall -9 sh");usleep(200000);
  		    system("echo 'pt_step -1'>/mplayer/slave");
  		    printf("echo 'pt_step -1'>/mplayer/slave \n");
                     printf("nList_Item=%d\n",nList_Item);
@@ -537,10 +544,12 @@ while(1)
                case CODE_RELOAD: 
                     sprintf(strCMD,"echo 'loadlist %s'>/mplayer/slave",str_radio_list);
                     printf("%s \n",strCMD);
+		    //system("killall -9 sh");usleep(200000);
                     system(strCMD);
                     nList_Item=1;
                     break;
                case CODE_MUTE: 
+		    //system("killall -9 sh");usleep(200000);
                     system("echo 'mute'>/mplayer/slave");
                     printf("echo 'mute'>/mplayer/slave \n");
                     break;
@@ -563,6 +572,7 @@ while(1)
                      printf("nList_Item=%d\n",nList_Item);
                      printf("%s \n",strCMD);
                      espeak_channel(nList_Item);
+		     //system("killall -9 sh");usleep(200000);
                      system(strCMD);
                      nList_Gap=0;
                  }

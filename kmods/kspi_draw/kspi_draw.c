@@ -78,14 +78,8 @@ Midas-Zhou
 
 
 //--------alllocate mem for color data and memcpy with specified color ---------
-static int init_mem_color(u8 colorB,u8 colorG,u8 colorR)
+static int alloc_color_mem(void)
 {
-int i;
-unsigned char *ptemp;
-unsigned char colorBGR[3];
-	colorBGR[0]=colorB;
-	colorBGR[1]=colorG;
-	colorBGR[2]=colorR;
 //-------- allocate mem for color data ----------
         pmem_color_data=(unsigned char*)vmalloc(COLOR_DATA_SIZE);
         if(pmem_color_data < 0)
@@ -95,17 +89,35 @@ unsigned char colorBGR[3];
         }
         else
                 printk("------- vmalloc mem for 480x320x24bits color data successfully! ------\n"); 
+	return 0;
+}
 
+
+
+//--------alllocate mem for color data and memcpy with specified color ---------
+static int mem_fill_color(u8 colorB,u8 colorG,u8 colorR)
+{
+int i;
+unsigned char *ptemp;
+unsigned char colorBGR[3];
+	colorBGR[0]=colorB;
+	colorBGR[1]=colorG;
+	colorBGR[2]=colorR;
+if(pmem_color_data != NULL)
+ {
 	ptemp=pmem_color_data;
 	for(i=0;i<COLOR_DATA_SIZE/3;i++)
 	{
 		memcpy(ptemp,colorBGR,3);
 		ptemp+=3;
-
 	}
-
 	return 0;
+ }
+else return -1;
+
 }
+
+
 
 static int __init spi_LCD_init(void)
  {
@@ -180,8 +192,15 @@ static int __init spi_LCD_init(void)
 	if(pmem_color_data==NULL)goto mem_vmalloc_error;
 	else add_code_flag=1;
 */
-	init_mem_color(0xff,0,0); //--init mem and color
+	if(alloc_color_mem()<0)return -1;
+	add_code_flag=1;
 	LCD_prepare();
+	mem_fill_color(0xff,0,0); //--init mem and color
+	display_block_full(pmem_color_data);
+	mem_fill_color(0,0xff,0); //--init mem and color
+	display_block_full(pmem_color_data);
+	mem_fill_color(0,0,0xff); //--init mem and color
+	display_block_full(pmem_color_data);
 
 //-----------------------------      draw picture        -----------------------
 preempt_disable(); //----seems no use
@@ -190,7 +209,7 @@ preempt_disable(); //----seems no use
 	result=show_user_bmpf("/tmp/P30.bmp"); //--interruptable !!
 	local_irq_enable();
 	mdelay(1000);
-	display_block_full(pmem_color_data);
+//	display_block_full(pmem_color_data);
 //	result=show_user_bmpf("/tmp/P33.bmp");
 	mdelay(1000);
 //	display_full(pmem_color_data);

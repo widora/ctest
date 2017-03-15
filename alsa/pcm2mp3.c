@@ -6,6 +6,9 @@ gcc pcm2mp3.c -lmp3lame
 #include <stdio.h>
 #include "lame.h"
 
+#define IN_SAMPLE_RATE 4000 // 4k also OK
+#define OUT_SAMPLE_RATE 8000 // MPEG only allows: 88,11.025k,12k,16k,22.05k,24k,32k,44.1k,48k
+
 int main(void)
 {
     int nread, nwrite;
@@ -14,27 +17,42 @@ int main(void)
     FILE *mp3 = fopen("test.mp3", "wb");
 
     const int PCM_SIZE = 8192;
-    const int MP3_SIZE = 8192;
-
-    short int pcm_buffer[PCM_SIZE*2]; //S16_LE
+    const int MP3_SIZE = 8192; //bytes
+    int Nchannel=1; //number of channels
+    short int pcm_buffer[PCM_SIZE*Nchannel]; //S16_LE
     unsigned char mp3_buffer[MP3_SIZE];
+
+    if(pcm ==NULL){ printf("Fail to open input file!\n");
+	return -1;
+     }
+
 
     lame_t lame=lame_init();
 	printf("lame_init() finish\n");
-    lame_set_in_samplerate(lame, 8000);
+    lame_set_in_samplerate(lame,IN_SAMPLE_RATE); //--sample rate to be same as raw/pcm file
 	printf("lame_set_in_samplerate() finish\n");
-    lame_set_VBR(lame, vbr_default);
+    lame_set_out_samplerate(lame,OUT_SAMPLE_RATE); //must not less than input samplerate.
+    lame_set_num_channels(lame,1);
+    lame_set_brate(lame,11);//set brate compression ratio,default 11
+    lame_set_mode(lame,MONO);//0=stereo,1=jstereo,2=dual channel(not supported) 3=mono
+    lame_set_quality(lame,5);//0~9   recommended: 2=high 5=medium 7=low
+    //lame_set_VBR(lame, vbr_default); //Variable Bit Rate,  default is CBR
+     //--!!!! VBR file is bigger than CBR at 8K sample rate .
 	printf("lame_set_VBR() finish\n");
     lame_init_params(lame);
 	printf("lame_init_params() finish\n");
 
     do {
-        nread = fread(pcm_buffer, 2*sizeof(short int), PCM_SIZE, pcm);
+        nread = fread(pcm_buffer, Nchannel*sizeof(short int), PCM_SIZE, pcm);// read one frame, 16bits sample
 	printf("nread=%d\n",nread);
         if (nread == 0)
-            nwrite = lame_encode_flush(lame, mp3_buffer, MP3_SIZE);
+            nwrite = lame_encode_flush(lame, mp3_buffer, MP3_SIZE); //--end of mp3
         else
-            nwrite = lame_encode_buffer_interleaved(lame, pcm_buffer, nread, mp3_buffer, MP3_SIZE);
+	    if(Nchannel == 1)
+	            nwrite = lame_encode_buffer(lame, pcm_buffer,NULL,nread, mp3_buffer, MP3_SIZE);
+            else if(Nchannel == 2)
+                    nwrite = lame_encode_buffer_interleaved(lame, pcm_buffer, nread, mp3_buffer, MP3_SIZE);
+	printf("nwrite=%d\n",nread);
         fwrite(mp3_buffer, nwrite, 1, mp3);
     } while (nread != 0);
 
