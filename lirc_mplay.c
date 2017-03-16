@@ -324,6 +324,7 @@ while(1)
            continue;
         }
 
+//---------------------- COMMON CONTROL FUNCTIONS ----------------------------
       if(LIRC_CODE==CODE_SHUTDOWN) //----------  SHUT DOWN ---------
         {
            shut_down();
@@ -358,8 +359,28 @@ while(1)
               continue;
         } 
 
+       if(LIRC_CODE==CODE_PLAY_PAUSE) //-- !!-ensure there is only one master mplayer application running.
+	{
+		    if(PAUSE_TOKEN == 0){
+ 			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
+			   PAUSE_TOKEN=1;}
+		    else{
+			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n");
+			   PAUSE_TOKEN=0;}
+		   continue;
+	}
 
-       //-----!! WARNING use {} for every switch,case and default structre, or compilation will fail.
+	if(LIRC_CODE==CODE_MUTE)
+	 {
+                    system("echo 'mute'>/mplayer/slave");
+                    printf("echo 'mute'>/mplayer/slave \n");
+                    continue;
+	 }
+
+
+
+
+//-----!! WARNING use {} for every switch,case and default structre, or compilation will fail.
       switch(play_mode)
       {
         case MODE_MPLAYER: //-----------------------------------for  MPLAYER ------------------------
@@ -377,6 +398,7 @@ while(1)
                        nList_Item-=1;
 		    tune_ntradio(nList_Item);
                     break;
+/*
                case CODE_PLAY_PAUSE:
 		    if(PAUSE_TOKEN == 0){
  			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
@@ -388,6 +410,7 @@ while(1)
 			   tune_ntradio(nList_Item);
 			   system("killall -CONT mplayer"); printf("killall -CONT mplayer\n"); //--you have to use -CONT to resume mplayer however
 			   PAUSE_TOKEN=0;}
+*/
 /*
 		    if(PAUSE_TOKEN == 0){
  			   system("killall -STOP mplayer"); printf("killall -STOP mplayer\n");
@@ -398,7 +421,8 @@ while(1)
 */
                     //system("echo 'pause'>/mplayer/slave");
  		    //printf("echo 'pause'>/mplayer/slave \n");
-                     break;
+//                     break;
+
       	       case CODE_EQ:
 		    if(flag_3D)
                     {
@@ -421,11 +445,13 @@ while(1)
                     nList_Item=0; //-index of, str_radio_addrs[nList_Item][]
                     printf("reload radio address file, nList_Item=%d \n",nList_Item);
                     break;
+/*
                case CODE_MUTE: 
 		    //system("killall -9 sh");usleep(200000);
                     system("echo 'mute'>/mplayer/slave");
                     printf("echo 'mute'>/mplayer/slave \n");
                     break;
+*/
                default: 
                {
                  switch(LIRC_CODE)
@@ -548,11 +574,13 @@ while(1)
                     system(strCMD);
                     nList_Item=1;
                     break;
+/*
                case CODE_MUTE: 
 		    //system("killall -9 sh");usleep(200000);
                     system("echo 'mute'>/mplayer/slave");
                     printf("echo 'mute'>/mplayer/slave \n");
                     break;
+*/
                default: 
                {
                  switch(LIRC_CODE)

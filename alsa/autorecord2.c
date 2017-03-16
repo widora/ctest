@@ -6,14 +6,13 @@ Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 !!! Sample rate=8k is OK, while sample rate=48k will make it too sensitive !!!
 
 Usage: ./autorecord
-It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
-then it will playback. The sound will also be saved to a raw file.
-
-
-1. use alsamixer to adjust Capture and ADC PCM value
+1.It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
+  then it will playback. The sound will also be saved to a raw file.
+2. Ensure there are no other active applications which may use ALSA simutaneously when you run the program.
+3. use alsamixer to adjust Capture and ADC PCM value
 	ADC PCM 0-255 
 	Capture 0-63  
-2. some explanation:
+4. some explanation:
 	sample: usually 8bits or 16bits, one sample data width.
 	channel: 1-Mono. 2-Stereo
 	frame: sizeof(one sample)*channels
@@ -25,17 +24,20 @@ then it will playback. The sound will also be saved to a raw file.
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
 3. lib: lasound 
 
+Make for Widora-neo
+midas-zhou
 --------------------------------------------------*/
 
 #include <asoundlib.h>
 #include <stdbool.h>
 
-#define SAMPLE_RATE 4000 //--4k also OK
+#define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
+#define SAMPLE_RATE 8000 //--4k also OK
 #define CHECK_AVERG 2000 //--threshold value of wave amplitude to trigger record
 #define KEEP_AVERG 1800 //--threshold value of wave amplitude for keeping recording
 #define DELAY_TIME 5 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
-#define MIN_SAVE_TIME 10 //seconds --min. recording time for saving, short time recording will be discarded.
+#define MIN_SAVE_TIME 20 //seconds --min. recording time for saving, short time recording will be discarded.
 
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
@@ -76,7 +78,7 @@ char str_file[50]={0}; //---directory of save_file
 
 //-------- set recording volume -------
 system("amixer set Capture 54");
-system("amixer set 'ADC PCM' 242");
+system("amixer set 'ADC PCM' 248"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
 
 while(1)
@@ -90,17 +92,20 @@ if (!device_setparams(1,SAMPLE_RATE)) return 2;
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
  printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
  wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
- wave_buf=(char *)malloc(wave_buf_len);
 
  //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
- if(!device_check_voice())
-	continue;
+ if(!device_check_voice()){
+	goto LOOPEND;
+ }
+
+wave_buf=(char *)malloc(wave_buf_len); //----allocate mem...
 
 printf("start recording...\n");
 if (!device_capture())return 3;
 	//printf("-----device_capture()\n");
 snd_pcm_close( pcm_handle ); 
 	printf("record finish!\n");
+
 
 //------------save to file
 timep=time(NULL);// get CUT time,seconds from Epoch, long type indeed
@@ -123,15 +128,18 @@ if (!device_open(SND_PCM_STREAM_PLAYBACK)) return 4;
 if (!device_setparams(1,SAMPLE_RATE)) return 5;
 //printf("-----PLAY: device_setarams() finish\n");
 printf("start playback...\n");
-if (!device_play()) return 6;
+//if (!device_play()) return 6;
+if (!device_play()) goto LOOPEND;
+
 printf("finish playback.\n\n\n");
+//snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
 
-snd_pcm_drain( pcm_handle );// to allow any pending sound samples to be transferred.
-snd_pcm_close( pcm_handle );
-//printf("-----PLAY: snd_pcm_close()  ----\n");
 
-wave_buf_used=0;
-free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+LOOPEND:
+	snd_pcm_close( pcm_handle );//CAPTURE or PLAYBACK pcm_handle!!
+	//printf("-----PLAY: snd_pcm_close()  ----\n");
+	wave_buf_used=0;
+	free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
 
 }//while()
 
@@ -221,8 +229,9 @@ return true;
   int averg=0;
   char *data=wave_buf; // pointer to wave_buf position
   int16_t *pv; //pointer to current data 
-  int CN=7; //chunk_size=2^CN
-  chunk_size=(2<<CN); //=frames
+ // int CN=7; //chunk_size=2^CN
+ // chunk_size=(2<<CN); //=frames
+  chunk_size= SAMPLE_RATE/CHECK_FREQ; //--how many frames to be checked for specified CHECK_FREQ,one channel
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
   //printf("chunk_byte=%d\n",chunk_byte);
 
@@ -260,7 +269,8 @@ return true;
 			pv+=1;
 		 }
 		//printf("total=%d\n",total);
-		averg=(total>>CN);
+		//averg=(total>>CN);
+		 averg=(total/chunk_size);
 		//printf("averg=%d\n",averg);
 		if(averg >= KEEP_AVERG){
 			  gettimeofday(&t_start,NULL); // reset timer, extned more time for recording.
@@ -295,8 +305,9 @@ bool device_play(){
   r = snd_pcm_writei( pcm_handle, data , chunk_size); //chunk_size = frames
   if(r == -EAGAIN)continue;
   if(r < 0){
-	printf("wirte error: %s\n",snd_strerror(r));
-	exit(EXIT_FAILURE);
+	printf("write error: %s\n",snd_strerror(r));
+	//exit(EXIT_FAILURE); //ocassionally, it will exit here!
+	return false;
    }
   //printf("----- writei()  r=%d -----\n ",r);
   if ( r>0 ) data += chunk_byte;
@@ -315,9 +326,11 @@ bool device_check_voice(void )
  int count=0;
  int total=0;
  int averg=0;//average of sample values in one chunk.
- chunk_size=32; //--frames each time
+ int CN=5;
+ chunk_size= SAMPLE_RATE/CHECK_FREQ; //--how many frames to be checked for specified CHECK_FREQ,one channel
+ //chunk_size=(2<<CN); //--frames each time
  chunk_byte=chunk_size*bit_per_sample*chanl_val/8; //---bytes
- int16_t *buf=(int16_t *)malloc(chunk_byte); //64bytes
+ int16_t *buf=(int16_t *)malloc(chunk_byte); //--sample width 16bits
  int16_t *data=buf;
 
  printf("listening and checking any voice......\n");
@@ -334,10 +347,11 @@ bool device_check_voice(void )
 			data+=1;
 		       }
 		    //printf("total=%d\n",total);
-		    averg=(total>>5);
+		    //averg=(total>>CN);
+		    averg=(total/chunk_size);
 		    //printf("averg=%d\n",averg);
 		    if(averg >= CHECK_AVERG){
-			    printf("loud noise sensed!\n");
+			    printf("loud noise sensed!  averg =%d  chunk_size=%d\n",averg,chunk_size);
 			    free(buf);
 			    return true;
 			}
