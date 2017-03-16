@@ -1,4 +1,3 @@
-
 /*--------------------------------------------------
 ALSA auto. record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
@@ -73,35 +72,46 @@ int main(int argc,char* argv[])
 {
 int fd;
 int rc;
+int ret=0;
 char str_file[50]={0}; //---directory of save_file 
 
 
 //-------- set recording volume -------
-system("amixer set Capture 54");
-system("amixer set 'ADC PCM' 248"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
+system("amixer set Capture 56");
+system("amixer set 'ADC PCM' 244"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
 
 while(1)
 {
 //--------录音   beware of if...if...if...if...expressions
-if (!device_open(SND_PCM_STREAM_CAPTURE ))return 1;
-	 //printf("---device_open()\n");
-if (!device_setparams(1,SAMPLE_RATE)) return 2;
-	//printf("---device_setparams()\n");
+if (!device_open(SND_PCM_STREAM_CAPTURE )){
+	ret=1;
+	goto OPEN_STREAM_CAPTURE_ERR;
+   }
+//printf("---device_open()\n");
+if (!device_setparams(1,SAMPLE_RATE)){
+	ret=2;
+	goto SET_CAPTURE_PARAMS_ERR;
+  }
+//printf("---device_setparams()\n");
+
 //---------- allocate mem. for buffering raw data
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
  printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
  wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
 
  //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
- if(!device_check_voice()){
+ if(!device_check_voice()){  //--device_check_voice() has a loop inside, it will jump out and return -1 only if there is an error.
 	goto LOOPEND;
  }
 
 wave_buf=(char *)malloc(wave_buf_len); //----allocate mem...
 
 printf("start recording...\n");
-if (!device_capture())return 3;
+if (!device_capture()){
+	ret=3;
+	goto DEVICE_CAPTURE_ERR;
+}
 	//printf("-----device_capture()\n");
 snd_pcm_close( pcm_handle ); 
 	printf("record finish!\n");
@@ -123,13 +133,22 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 }
 
 //--------播放
-if (!device_open(SND_PCM_STREAM_PLAYBACK)) return 4;
+if (!device_open(SND_PCM_STREAM_PLAYBACK)){
+	ret=4;
+	goto OPEN_STREAM_PLAYBACK_ERR;
+    }
 //printf("-----PLAY: device_open() finish\n");
-if (!device_setparams(1,SAMPLE_RATE)) return 5;
+if (!device_setparams(1,SAMPLE_RATE)){
+	ret=5;
+	goto SET_PLAYBACK_PARAMS_ERR;
+    } 
 //printf("-----PLAY: device_setarams() finish\n");
 printf("start playback...\n");
-//if (!device_play()) return 6;
-if (!device_play()) goto LOOPEND;
+if (!device_play()){
+	ret=6;
+	goto DEVICE_PLAYBACK_ERR; //... contiue to loop
+}
+//if (!device_play()) goto LOOPEND;
 
 printf("finish playback.\n\n\n");
 //snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
@@ -140,10 +159,32 @@ LOOPEND:
 	//printf("-----PLAY: snd_pcm_close()  ----\n");
 	wave_buf_used=0;
 	free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+	continue;
+
+OPEN_STREAM_CAPTURE_ERR:
+	printf("Open PCM stream CAPTURE error!\n");
+	return ret;
+SET_CAPTURE_PARAMS_ERR:
+	printf("Set CAPTURE parameters error!\n");
+	return ret;
+DEVICE_CAPTURE_ERR:
+	printf("Set CAPTURE parameters error!\n");
+	return ret;
+OPEN_STREAM_PLAYBACK_ERR:
+	printf("Open PCM stream PLAYBACK error!\n");
+	return ret;
+SET_PLAYBACK_PARAMS_ERR:
+	printf("Set PLAYBACK parameters error!\n");
+	return ret;
+DEVICE_PLAYBACK_ERR:
+	printf("device_play() error! start a new loop...\n");
+	goto LOOPEND;
 
 }//while()
 
-return 0;
+return ret;
+
+
 
 }
 
@@ -255,7 +296,7 @@ return true;
 	if ( r>0 ) {
 		pv=(int16_t *)data; //--get pointer for chunk data
 		data += chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
-		//------------ checker timer ----------------
+		//------------ checker timer, return when DELAY_TIME used up ----------------
 		gettimeofday(&t_end,NULL);
 		cost_times=t_end.tv_sec-t_start.tv_sec;
 		if(cost_times >= DELAY_TIME){
@@ -273,7 +314,7 @@ return true;
 		 averg=(total/chunk_size);
 		//printf("averg=%d\n",averg);
 		if(averg >= KEEP_AVERG){
-			  gettimeofday(&t_start,NULL); // reset timer, extned more time for recording.
+			  gettimeofday(&t_start,NULL); // reset timer, add one more DELAY_TIME for recording.
 	 		  printf("averg=%d\n",averg);
 		   	  printf("loud noise sensed!\n");
 		 }
