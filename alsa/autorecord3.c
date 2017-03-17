@@ -6,14 +6,17 @@ Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
 Usage: ./autorecord
 1.It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
-  then it will playback. The sound will also be saved to a raw file.
+  then it will playback. The sound will also be saved to a raw file and a mp3 file.
+
 2. Ensure there are no other active/pausing applications which may use ALSA simutaneously when you run the program,
    sometimes it will make noise to the CAPUTRUE.
    If PLAYBACK starts while Mplayer is playing, then sounds from Mplayer will totally disappear. 
    However if Mplayer starts later than PLAYBACK, two streams of sounds will be mixed.
+
 3. use alsamixer to adjust Capture and ADC PCM value
 	ADC PCM 0-255 
 	Capture 0-63  
+
 4. some explanation:
 	sample: usually 8bits or 16bits, one sample data width.
 	channel: 1-Mono. 2-Stereo
@@ -24,7 +27,7 @@ Usage: ./autorecord
 	buffer: N*periods
 	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
-3. lib: lasound 
+3. lib: lasound lmp3lame
 
 Make for Widora-neo
 midas-zhou
@@ -32,7 +35,10 @@ midas-zhou
 
 #include <asoundlib.h>
 #include <stdbool.h>
+#include "lame.h"
 
+
+//----- for PCM record 
 #define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
 #define SAMPLE_RATE 8000 //--4k also OK
 #define CHECK_AVERG 2000 //--threshold value of wave amplitude to trigger record
@@ -40,6 +46,18 @@ midas-zhou
 #define DELAY_TIME 5 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 30 //seconds --min. recording time for saving, short time recording will be discarded.
+
+//------ for MP3
+#define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
+#define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file
+lame_t lame;
+FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
+unsigned char mp3_chunk[MP3_CHUNK_SIZE]; // for chunk mp3 encode buffer
+unsigned char *mp3_buf; //---- pointer to final mp3 data,
+unsigned char *p_mp3_buf; //-- pointer to mp3_buf position,start from mp3_buffer
+int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half of wave_buf_len
+
+
 
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
@@ -64,8 +82,10 @@ time_t timep;
 struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
+bool init_lame_mono(int Nchannel,int in_rate,int out_rate);
+
 bool device_open(int mode);
-bool device_setparams();
+bool device_setparams(int nchanl,int rate);
 bool device_capture();
 bool device_play();
 bool device_check_voice();
@@ -75,24 +95,30 @@ int main(int argc,char* argv[])
 {
 int fd;
 int rc;
+int nb;
 int ret=0;
 char str_file[50]={0}; //---directory of save_file 
 
+chanl_val=1; // 1 channel
 
 //-------- set recording volume -------
 system("amixer set Capture 55");
 system("amixer set 'ADC PCM' 241"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
-
 while(1)
 {
+
+//-------- INIT LAME ----------
+ init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
+
+
 //--------录音   beware of if...if...if...if...expressions
 if (!device_open(SND_PCM_STREAM_CAPTURE )){
 	ret=1;
 	goto OPEN_STREAM_CAPTURE_ERR;
    }
 //printf("---device_open()\n");
-if (!device_setparams(1,SAMPLE_RATE)){
+if (!device_setparams(chanl_val,SAMPLE_RATE)){
 	ret=2;
 	goto SET_CAPTURE_PARAMS_ERR;
   }
@@ -102,13 +128,17 @@ if (!device_setparams(1,SAMPLE_RATE)){
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
  printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
  wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
+ mp3_buf_len=(wave_buf_len>>1);
 
  //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
  if(!device_check_voice()){  //--device_check_voice() has a loop inside, it will jump out and return -1 only if there is an error.
 	goto LOOPEND;
  }
 
-wave_buf=(char *)malloc(wave_buf_len); //----allocate mem...
+//-------- allocate mem for wave_buf and mp3_buf -------------
+wave_buf=(char *)malloc(wave_buf_len); 
+mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
+
 
 printf("start recording...\n");
 if (!device_capture()){
@@ -126,14 +156,31 @@ p_tm=localtime(&timep);// convert to local time in struct tm
 strftime(str_time,sizeof(str_time),"%Y-%m-%d-%H:%M:%S",p_tm);
 printf("record at: %s\n",str_time);
 
+//----- save to raw file
 if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
 {
+
+	//----- save to raw file ------------
 	sprintf(str_file,"/tmp/%s.raw",str_time);
 	fd=open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
 	rc=write(fd,wave_buf,wave_buf_used);
-	printf("write to record.raw  %d bytes\n",rc);
+	printf("write to %s  %d bytes\n",str_file,rc);
 	close(fd); //though kernel will close it automatically
+
+	//------- save to mp3 file   ---------
+	sprintf(str_file,"/tmp/%s.mp3",str_time);
+	fmp3=fopen(str_file,"wb");
+	if(fmp3 != NULL){
+		printf("Succeed to open file for saving mp3!\n");
+		nb=p_mp3_buf-mp3_buf; //how many bytes to write
+		rc=fwrite(mp3_buf,nb,1,fmp3);
+		printf("write to %s  %d bytes\n",str_file,rc);
+	 }
+	else
+		printf("file to open file for saving mp3!\n");
+	fclose(fmp3);
 }
+
 
 //--------播放
 if (!device_open(SND_PCM_STREAM_PLAYBACK)){
@@ -158,10 +205,12 @@ printf("finish playback.\n\n\n");
 
 
 LOOPEND:
+	lame_close(lame);
 	snd_pcm_close( pcm_handle );//CAPTURE or PLAYBACK pcm_handle!!
 	//printf("-----PLAY: snd_pcm_close()  ----\n");
 	wave_buf_used=0;
 	free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+	free(mp3_buf);
 	continue;
 
 OPEN_STREAM_CAPTURE_ERR:
@@ -186,7 +235,6 @@ DEVICE_PLAYBACK_ERR:
 }//while()
 
 return ret;
-
 
 
 }
@@ -269,16 +317,20 @@ return true;
  bool device_capture( ){
   int i;
   int r = 0;
+  int rc_mp3=0;
   int total=0;
   int averg=0;
-  char *data=wave_buf; // pointer to wave_buf position
+  char *data; // pointer to wave_buf position
   int16_t *pv; //pointer to current data 
- // int CN=7; //chunk_size=2^CN
- // chunk_size=(2<<CN); //=frames
+
   chunk_size= SAMPLE_RATE/CHECK_FREQ; //--how many frames to be checked for specified CHECK_FREQ,one channel
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
   //printf("chunk_byte=%d\n",chunk_byte);
 
+  //-------------- init pointer -----------
+  data=wave_buf;
+  p_mp3_buf=mp3_buf;   
+  
   //------------------  get start time ------------------
   gettimeofday(&t_start,NULL);
   printf("Start Time: %lds + %ldus \n",t_start.tv_sec,t_start.tv_usec);
@@ -297,13 +349,28 @@ return true;
 		fprintf(stderr,"short read, read %d frames\n",r);
 	 }
 	if ( r>0 ) {
+		//------------  encode raw sound to mp3_buffer  ---------------
+		rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
+		//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
+		//--   p_mp2_buf: current position pointer in mp3_buf
+ 		//---  mp3_chunk is for encode buffer only, if data is insufficient for encoding,it will remain in mp3_chunk, thus rc_mp3 will be zero 
+		//printf("rc_mp3=%d\n",rc_mp3);
+		memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+		p_mp3_buf+=rc_mp3; //--shift pointer in mp3_buffer accordingly
+
+		//------------ adjust indicating pointer --------------------------
 		pv=(int16_t *)data; //--get pointer for chunk data
 		data += chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
+
 		//------------ checker timer, return when DELAY_TIME used up ----------------
 		gettimeofday(&t_end,NULL);
 		cost_times=t_end.tv_sec-t_start.tv_sec;
 		if(cost_times >= DELAY_TIME){
 			wave_buf_used=data-wave_buf;
+			//------------ flush and encode remaind PCM buffer to mp3 ---------
+			rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
+			memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+
 			return true;
 		 }
       		//----------- check sound wave amplitude  -----------------
@@ -331,10 +398,15 @@ return true;
 		return false;
 	}
 */
-     } // end of while()
+     } // end of while() ------------- all wave_buf used up, end recording    --------------------
 
-wave_buf_used=data-wave_buf; //--short run is not considered!!!
-return true;
+	wave_buf_used=data-wave_buf; //--short run is not considered!!!
+	//------------ flush and encode remaind PCM buffer to mp3 ---------
+	rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
+	memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+
+ return true;
+
 }
 
 //形参dtime用来确定录音时间，根据录音时间分配数据空间，再调用snd_pcm_readi从音频设备读取音频数据，存放到wave_buf中。
@@ -415,4 +487,32 @@ bool device_check_voice(void )
 free(buf);
 return true;
 
+}
+
+/* ------- init lame and set parameters ------------- */
+//   Nchannle: number of channels  
+//   srate: sample rate of input or output file
+bool init_lame_mono(int Nchannel,int in_rate,int out_rate)
+{
+ int tmp;
+ if(!(lame=lame_init()))return false; //return NULL if fail
+	printf("lame_init finish!\n");
+ lame_set_in_samplerate(lame,in_rate); //--sample rate to be same as raw file
+//	printf("lame_set_in_samplerate()=%d\n");
+ lame_set_out_samplerate(lame,out_rate);
+	printf("lame_set_out_samplerate() finish\n");
+ lame_set_num_channels(lame,Nchannel);
+	printf("lame_set_num_channels() finish\n");
+ lame_set_brate(lame,11);//set brate compression ration,default 11
+	printf("lame_set_brate() finish\n");
+ lame_set_mode(lame,MONO); // 0-stereo 1=jstereo,2=dual channel(not supported),3=mono
+	printf("lame_set_mode() finish\n");
+ lame_set_quality(lame,5);//0~9 recommended 2=high 5=medium 7=low
+	printf("lame_set_quality() finish\n");
+ //lame_set_VBR(lame,vbr_default);//set Variable Bit Rate,  defualt use CBR
+ //------!!! VBR file is bigger than CBR ......
+ if(lame_init_params(lame) != 0)return false;
+	printf("lame_init_params() finish\n");
+
+ return true;
 }

@@ -6,7 +6,7 @@ gcc pcm2mp3.c -lmp3lame
 #include <stdio.h>
 #include "lame.h"
 
-#define IN_SAMPLE_RATE 4000 // 4k also OK
+#define IN_SAMPLE_RATE 8000 // 4k also OK
 #define OUT_SAMPLE_RATE 8000 // MPEG only allows: 88,11.025k,12k,16k,22.05k,24k,32k,44.1k,48k
 
 int main(void)
@@ -16,10 +16,12 @@ int main(void)
     FILE *pcm = fopen("test.raw", "rb");
     FILE *mp3 = fopen("test.mp3", "wb");
 
-    const int PCM_SIZE = 8192;
-    const int MP3_SIZE = 8192; //bytes
+    //-------buffer size for each read/write --------
+    const int PCM_SIZE = 64;//128;//8192; //frames, of 16bits sample
+    const int MP3_SIZE = 8192;//at leat 128 at 8k rate 1 channel ;//8192; //bytes
+
     int Nchannel=1; //number of channels
-    short int pcm_buffer[PCM_SIZE*Nchannel]; //S16_LE
+    short int pcm_buffer[PCM_SIZE*Nchannel]; //for 16bits sample
     unsigned char mp3_buffer[MP3_SIZE];
 
     if(pcm ==NULL){ printf("Fail to open input file!\n");
