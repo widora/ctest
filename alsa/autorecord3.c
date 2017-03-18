@@ -53,7 +53,7 @@ midas-zhou
 lame_t lame;
 FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
 unsigned char mp3_chunk[MP3_CHUNK_SIZE]; // for chunk mp3 encode buffer
-unsigned char *mp3_buf; //---- pointer to final mp3 data,
+unsigned char *mp3_buf=NULL; //---- pointer to final mp3 data,
 unsigned char *p_mp3_buf; //-- pointer to mp3_buf position,start from mp3_buffer
 int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half of wave_buf_len
 
@@ -62,7 +62,7 @@ int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half o
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
-char *wave_buf; //---pointer to wave buffer
+char *wave_buf=NULL; //---pointer to wave buffer
 int wave_buf_len; //---wave buffer length in bytes
 int wave_buf_used=0; //---used wave buf length in bytes
 int bit_per_sample;
@@ -105,6 +105,7 @@ chanl_val=1; // 1 channel
 system("amixer set Capture 55");
 system("amixer set 'ADC PCM' 241"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
+
 while(1)
 {
 
@@ -129,6 +130,12 @@ if (!device_setparams(chanl_val,SAMPLE_RATE)){
  printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
  wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
  mp3_buf_len=(wave_buf_len>>1);
+
+
+//----- test only -----
+if(wave_buf == NULL)printf("wave_buf=NULL\n");
+if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
+
 
  //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
  if(!device_check_voice()){  //--device_check_voice() has a loop inside, it will jump out and return -1 only if there is an error.
@@ -160,12 +167,14 @@ printf("record at: %s\n",str_time);
 if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
 {
 
+/*
 	//----- save to raw file ------------
 	sprintf(str_file,"/tmp/%s.raw",str_time);
 	fd=open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
 	rc=write(fd,wave_buf,wave_buf_used);
 	printf("write to %s  %d bytes\n",str_file,rc);
 	close(fd); //though kernel will close it automatically
+*/
 
 	//------- save to mp3 file   ---------
 	sprintf(str_file,"/tmp/%s.mp3",str_time);
@@ -174,7 +183,7 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 		printf("Succeed to open file for saving mp3!\n");
 		nb=p_mp3_buf-mp3_buf; //how many bytes to write
 		rc=fwrite(mp3_buf,nb,1,fmp3);
-		printf("write to %s  %d bytes\n",str_file,rc);
+		printf("write to %s  %d bytes\n",str_file,rc*nb);
 	 }
 	else
 		printf("file to open file for saving mp3!\n");
@@ -209,8 +218,12 @@ LOOPEND:
 	snd_pcm_close( pcm_handle );//CAPTURE or PLAYBACK pcm_handle!!
 	//printf("-----PLAY: snd_pcm_close()  ----\n");
 	wave_buf_used=0;
-	free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
-	free(mp3_buf);
+	if(wave_buf != NULL){
+		free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
+		wave_buf=NULL; }
+	if(mp3_buf != NULL){
+		free(mp3_buf);
+		mp3_buf=NULL; }
 	continue;
 
 OPEN_STREAM_CAPTURE_ERR:
@@ -339,7 +352,7 @@ return true;
 	r = snd_pcm_readi( pcm_handle,data,chunk_size);  //chunk_size*bit_per_sample*read interleaved frames from a PCM
 	if(r == -EPIPE){
 		/* EPIPE means overrun */
-		fprintf(stderr,"overrun occurred!\n");
+		fprintf(stderr,"overrun occurred! try to recover...\n");
 		snd_pcm_prepare(pcm_handle);//try to recover.  to put the stream in PREPARED state so it can start again next time.
 	 }
 	else if (r <0){
@@ -478,7 +491,7 @@ bool device_check_voice(void )
 	}//if
 	else
 	{
-	        printf(" r= %d \n ",r);
+	        printf(" check voice readi() erro!  r= %d \n ",r);
 		free(buf);
 		return false;
 	}
