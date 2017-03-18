@@ -7,6 +7,7 @@ Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 Usage: ./autorecord
 1.It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
   then it will playback. The sound will also be saved to a raw file and a mp3 file.
+  !!! mp3lame encoding will cost most of CPU processing time !!!
 
 2. Ensure there are no other active/pausing applications which may use ALSA simutaneously when you run the program,
    sometimes it will make noise to the CAPUTRUE.
@@ -39,17 +40,18 @@ midas-zhou
 
 
 //----- for PCM record 
+#define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
 #define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
 #define SAMPLE_RATE 8000 //--4k also OK
-#define CHECK_AVERG 2000 //--threshold value of wave amplitude to trigger record
-#define KEEP_AVERG 1800 //--threshold value of wave amplitude for keeping recording
-#define DELAY_TIME 5 //seconds -- recording time after one trigger
+#define CHECK_AVERG 1800 //--threshold value of wave amplitude to trigger record
+#define KEEP_AVERG 1500 //--threshold value of wave amplitude for keeping recording
+#define DELAY_TIME 3 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 30 //seconds --min. recording time for saving, short time recording will be discarded.
-
 //------ for MP3
 #define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
-#define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file
+#define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file,  MIN.8K for lame
+
 lame_t lame;
 FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
 unsigned char mp3_chunk[MP3_CHUNK_SIZE]; // for chunk mp3 encode buffer
@@ -102,12 +104,15 @@ char str_file[50]={0}; //---directory of save_file
 chanl_val=1; // 1 channel
 
 //-------- set recording volume -------
-system("amixer set Capture 55");
-system("amixer set 'ADC PCM' 241"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
+system("amixer set Capture 57");
+system("amixer set 'ADC PCM' 246"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
 
 while(1)
 {
+//------- for test -----------
+printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,MP3_SAMPLE_RATE);
+
 
 //-------- INIT LAME ----------
  init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
@@ -220,7 +225,7 @@ LOOPEND:
 	wave_buf_used=0;
 	if(wave_buf != NULL){
 		free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
-		wave_buf=NULL; }
+		wave_buf=NULL; } //-- remeber to the pointer to NULL after free
 	if(mp3_buf != NULL){
 		free(mp3_buf);
 		mp3_buf=NULL; }
@@ -262,8 +267,15 @@ if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
 	printf("snd_pcm_open() fail!\n");
 	return false; 
  }
- 	printf("snd_pcm_open() succeed!\n");
-	return true;
+ else printf("snd_pcm_open() succeed!\n");
+//------ set as non_block mode -------
+if(snd_pcm_nonblock(pcm_handle,NON_BLOCK)<0){
+	printf("snd_pcm_nonblock_mode() fail!\n");
+	return false;
+  }
+else
+	printf("snd pcm set nonblock mode successfully!\n");
+return true;
 }
 
 /*-------------------- set and prepare parameters  ------------------*/
@@ -350,18 +362,23 @@ return true;
 
   while ( (data-wave_buf) <= (wave_buf_len-chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
 	r = snd_pcm_readi( pcm_handle,data,chunk_size);  //chunk_size*bit_per_sample*read interleaved frames from a PCM
+	//-- in nonblock mode,it will return a negativer.
 	if(r == -EPIPE){
 		/* EPIPE means overrun */
 		fprintf(stderr,"overrun occurred! try to recover...\n");
 		snd_pcm_prepare(pcm_handle);//try to recover.  to put the stream in PREPARED state so it can start again next time.
-	 }
-	else if (r <0){
+		continue;
+	   }
+	if (r <0){
 		fprintf(stderr,"error from read:%s\n",snd_strerror(r));
+		continue;
+ 	  }
+
+ 	 //---------------- to proceed data  ------------------
+	 if (r!=chunk_size){
+		fprintf(stderr,"short read ocurrs, read %d of %d frames \n",r,chunk_size);
 	 }
-	else if (r!=chunk_size){
-		fprintf(stderr,"short read, read %d frames\n",r);
-	 }
-	if ( r>0 ) {
+	 if ( r>0 ) {
 		//------------  encode raw sound to mp3_buffer  ---------------
 		rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
 		//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
@@ -412,7 +429,7 @@ return true;
 	}
 */
      } // end of while() ------------- all wave_buf used up, end recording    --------------------
-
+	printf("MAX_RECORD_TIME %d is run out,end recording.\n",MAX_RECORD_TIME);
 	wave_buf_used=data-wave_buf; //--short run is not considered!!!
 	//------------ flush and encode remaind PCM buffer to mp3 ---------
 	rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
