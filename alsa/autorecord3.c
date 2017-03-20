@@ -2,12 +2,12 @@
 ALSA auto. record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
-!!! Sample rate=8k is OK, while sample rate=48k will make it too sensitive !!!
+ !!!---- Since mt7688 has no FPU,mp3lame encoding will cost most of CPU processing time ---!!!
+ !!! Sample rate=8k is OK, while sample rate=48k will make it too sensitive !!!
 
 Usage: ./autorecord
 1.It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
   then it will playback. The sound will also be saved to a raw file and a mp3 file.
-  !!! mp3lame encoding will cost most of CPU processing time !!!
 
 2. Ensure there are no other active/pausing applications which may use ALSA simutaneously when you run the program,
    sometimes it will make noise to the CAPUTRUE.
@@ -24,6 +24,7 @@ Usage: ./autorecord
 	frame: sizeof(one sample)*channels
 	rate: frames per second
 	period: Max. frame numbers hard ware can be handled each time. (different value for PLAYBACK and CAPTURE!!)
+		running show: 1536 frames for CAPTURE; 278 frames for PLAYBACK
 	chunk: frames receive from/send to hard ware each time.
 	buffer: N*periods
 	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
@@ -33,7 +34,7 @@ Usage: ./autorecord
 Make for Widora-neo
 midas-zhou
 --------------------------------------------------*/
-
+#include <getopt.h>
 #include <asoundlib.h>
 #include <stdbool.h>
 #include "lame.h"
@@ -48,9 +49,11 @@ midas-zhou
 #define DELAY_TIME 3 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 30 //seconds --min. recording time for saving, short time recording will be discarded.
+bool SAVE_RAW_FILE=false; // save raw file or not(default)
 //------ for MP3
 #define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
 #define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file,  MIN.8K for lame
+bool SAVE_MP3_FILE=false; //save mp3 file or not(default)
 
 lame_t lame;
 FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
@@ -92,20 +95,49 @@ bool device_capture();
 bool device_play();
 bool device_check_voice();
 
+/*-----------------  output file option --------------*/
+static struct option longopts[]={
+{"raw",no_argument,NULL,'r'},
+{"mp3",no_argument,NULL,'m'}
+};
+
+
 /*========================= MAIN ====================================*/
 int main(int argc,char* argv[])
 {
 int fd;
 int rc;
 int nb;
+int opt;
 int ret=0;
 char str_file[50]={0}; //---directory of save_file 
-
 chanl_val=1; // 1 channel
+
+
+//--------- parse options --------
+while((opt=getopt_long(argc,argv,"rm",longopts,NULL)) !=-1){
+	switch(opt){
+		case 'r':
+			SAVE_RAW_FILE = true;
+			break;
+		case 'm':
+			SAVE_MP3_FILE = true;
+			break;
+		case '?':
+			printf("Unkown option!\n");
+			return -1;
+			break;
+	}
+}
+
+
 
 //-------- set recording volume -------
 system("amixer set Capture 57");
 system("amixer set 'ADC PCM' 246"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
+
+//-------- INIT LAME ----------
+init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
 
 
 while(1)
@@ -115,7 +147,7 @@ printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,MP3_SAMPLE_RAT
 
 
 //-------- INIT LAME ----------
- init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
+// init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
 
 
 //--------录音   beware of if...if...if...if...expressions
@@ -130,13 +162,17 @@ if (!device_setparams(chanl_val,SAMPLE_RATE)){
   }
 //printf("---device_setparams()\n");
 
-//---------- allocate mem. for buffering raw data
+//---------- calcuate mem. buffer size for RAW and MP3 ----------------------
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
- printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
- wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
- mp3_buf_len=(wave_buf_len>>1);
-
-
+//---- rate_val=CAPTURE_RATE and chanl_val are predetermined, bit_per_sample derived from snd_pcm_hw_params_set_format( pcm_handle, hw_params, SND_PCM_FORMAT_S16_LE)
+// if wave_buf and mp3_buf both empty,then re-calculate mem. length, otherwise skip.
+if(wave_buf == NULL){
+	 printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
+	 wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
+  }
+if(mp3_buf == NULL){
+	mp3_buf_len=(wave_buf_len>>1);
+  }
 //----- test only -----
 if(wave_buf == NULL)printf("wave_buf=NULL\n");
 if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
@@ -148,8 +184,11 @@ if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
  }
 
 //-------- allocate mem for wave_buf and mp3_buf -------------
-wave_buf=(char *)malloc(wave_buf_len); 
-mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
+// ------- if mem. have already been allocated, then skip ----
+if(wave_buf == NULL)
+	wave_buf=(char *)malloc(wave_buf_len); 
+if(mp3_buf == NULL)
+	mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
 
 
 printf("start recording...\n");
@@ -168,31 +207,33 @@ p_tm=localtime(&timep);// convert to local time in struct tm
 strftime(str_time,sizeof(str_time),"%Y-%m-%d-%H:%M:%S",p_tm);
 printf("record at: %s\n",str_time);
 
-//----- save to raw file
+//----------------- save to RAW and MP3 files ------------------
 if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
 {
 
-/*
 	//----- save to raw file ------------
-	sprintf(str_file,"/tmp/%s.raw",str_time);
-	fd=open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
-	rc=write(fd,wave_buf,wave_buf_used);
-	printf("write to %s  %d bytes\n",str_file,rc);
-	close(fd); //though kernel will close it automatically
-*/
+	if(SAVE_RAW_FILE){
+		sprintf(str_file,"/tmp/%s.raw",str_time);
+		fd=open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
+		rc=write(fd,wave_buf,wave_buf_used);
+		printf("write to %s  %d bytes\n",str_file,rc);
+		close(fd); //though kernel will close it automatically
+	 }
 
 	//------- save to mp3 file   ---------
-	sprintf(str_file,"/tmp/%s.mp3",str_time);
-	fmp3=fopen(str_file,"wb");
-	if(fmp3 != NULL){
-		printf("Succeed to open file for saving mp3!\n");
-		nb=p_mp3_buf-mp3_buf; //how many bytes to write
-		rc=fwrite(mp3_buf,nb,1,fmp3);
-		printf("write to %s  %d bytes\n",str_file,rc*nb);
+	if(SAVE_MP3_FILE){
+		sprintf(str_file,"/tmp/%s.mp3",str_time);
+		fmp3=fopen(str_file,"wb");
+		if(fmp3 != NULL){
+			printf("Succeed to open file for saving mp3!\n");
+			nb=p_mp3_buf-mp3_buf; //how many bytes to write
+			rc=fwrite(mp3_buf,nb,1,fmp3);
+			printf("write to %s  %d bytes\n",str_file,rc*nb);
+		 }
+		else
+			printf("fail to open file for saving mp3!\n");
+		fclose(fmp3);
 	 }
-	else
-		printf("file to open file for saving mp3!\n");
-	fclose(fmp3);
 }
 
 
@@ -219,16 +260,20 @@ printf("finish playback.\n\n\n");
 
 
 LOOPEND:
-	lame_close(lame);
+	//------------------------- pcm hanle  ------------------------
 	snd_pcm_close( pcm_handle );//CAPTURE or PLAYBACK pcm_handle!!
 	//printf("-----PLAY: snd_pcm_close()  ----\n");
 	wave_buf_used=0;
-	if(wave_buf != NULL){
+/*-----------  no need to free and re-allocate mem. every loop -------------
+	if(wave_buf != NULL){   //--dynamically allocated every loop, need to free and re_allocate at new loop.
 		free(wave_buf); //--wave_buf mem. to be allocated in device_capture() and played in device_play();
 		wave_buf=NULL; } //-- remeber to the pointer to NULL after free
-	if(mp3_buf != NULL){
+	//------------------------- clear lame  ------------------------
+	//lame_close(lame); Need not to exit every loop.
+	if(mp3_buf != NULL){   //--dynam
 		free(mp3_buf);
 		mp3_buf=NULL; }
+*/
 	continue;
 
 OPEN_STREAM_CAPTURE_ERR:
@@ -252,6 +297,8 @@ DEVICE_PLAYBACK_ERR:
 
 }//while()
 
+lame_close(lame); //--close lame
+
 return ret;
 
 
@@ -268,7 +315,9 @@ if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
 	return false; 
  }
  else printf("snd_pcm_open() succeed!\n");
+
 //------ set as non_block mode -------
+//---In nonblock mode, readi() writei() will return a negative if device unavailable.
 if(snd_pcm_nonblock(pcm_handle,NON_BLOCK)<0){
 	printf("snd_pcm_nonblock_mode() fail!\n");
 	return false;
@@ -362,7 +411,7 @@ return true;
 
   while ( (data-wave_buf) <= (wave_buf_len-chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
 	r = snd_pcm_readi( pcm_handle,data,chunk_size);  //chunk_size*bit_per_sample*read interleaved frames from a PCM
-	//-- in nonblock mode,it will return a negativer.
+	//---------- In nonblock mode,it will return a negativer. -----------
 	if(r == -EPIPE){
 		/* EPIPE means overrun */
 		fprintf(stderr,"overrun occurred! try to recover...\n");
