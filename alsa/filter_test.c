@@ -7,8 +7,9 @@
 p_in_data:   pointer to start of input data
 p_out_data:  pointer to start of output data
 count:       count of data number in unit of int16_t
+p_ind_data and p_out_data maybe the same!!
 ----------------------------------------------------------------------*/
-static int IIR_filter(const int16_t *p_in_data, int16_t *p_out_data, int count)
+static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
 {
 int ret=0;
   //----factors for 4 order IIR filter Fl=300Hz,Fh=3400Hz,Fs=8kHz
@@ -59,10 +60,10 @@ if(fout == NULL){
 do{
 	count=fread(data_in,sizeof(data_in),1,fin); //count = 1, chunks of data, not bytes of data!
 	//printf("Read data count=%d\n",count);
-	IIR_filter(data_in,data_out,32); //apply IIR_filter
+	IIR_filter(data_in,data_in,32); //apply IIR_filter
 
 	if(count>0)
-		count=fwrite(data_out,sizeof(data_out),1,fout);
+		count=fwrite(data_in,sizeof(data_in),1,fout);
 	//printf("Write data count=%d\n",count);
 }while(count > 0);
 

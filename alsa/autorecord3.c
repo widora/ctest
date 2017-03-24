@@ -17,6 +17,7 @@ Usage: ./autorecord
 3. use alsamixer to adjust Capture and ADC PCM value
 	ADC PCM 0-255 
 	Capture 0-63  
+	Low down headphone voice will reduce noise.
 
 4. some explanation:
 	sample: usually 8bits or 16bits, one sample data width.
@@ -50,6 +51,7 @@ midas-zhou
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 30 //seconds --min. recording time for saving, short time recording will be discarded.
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
+bool IIR_FILTER_ON=false; // enable IIR filter or not
 //------ for MP3
 #define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
 #define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file,  MIN.8K for lame
@@ -88,6 +90,7 @@ struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
 bool init_lame_mono(int Nchannel,int in_rate,int out_rate);
+static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count);
 
 bool device_open(int mode);
 bool device_setparams(int nchanl,int rate);
@@ -115,7 +118,7 @@ chanl_val=1; // 1 channel
 
 
 //--------- parse options --------
-while((opt=getopt_long(argc,argv,"rm",longopts,NULL)) !=-1){
+while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
 	switch(opt){
 		case 'r':
 			SAVE_RAW_FILE = true;
@@ -123,10 +126,24 @@ while((opt=getopt_long(argc,argv,"rm",longopts,NULL)) !=-1){
 		case 'm':
 			SAVE_MP3_FILE = true;
 			break;
+		case 'f':
+			IIR_FILTER_ON = true;
+			break;
+		case 'h':
+			printf("Run the program with no options:\n");
+			printf("   It will start recording if lound sound is detected.\n");
+			printf("   It will continue recording if there is voice within every 3 seconds.\n");
+			printf("   Max. recording time is 60s, it will stop automatically then.\n");
+			printf("   The data may be saved to a file only if recoding time exceeds 30s in one session.\n");
+			printf("   It will play recoding data in memory after each session.\n");
+			printf("Use -r to save a RAW file in /tmp, with time stamp as its name.\n");
+			printf("Use -m to save a mp3 file in /tmp, with time stamp as its name.\n");
+			printf("Use -f to enable IIR filter.\n");
+			return -1;
 		case '?':
 			printf("Unkown option!\n");
 			return -1;
-			break;
+			
 	}
 }
 
@@ -137,7 +154,8 @@ system("amixer set Capture 57");
 system("amixer set 'ADC PCM' 246"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
 //-------- INIT LAME ----------
-init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
+if(SAVE_MP3_FILE)
+	init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
 
 
 while(1)
@@ -394,7 +412,7 @@ return true;
   int rc_mp3=0;
   int total=0;
   int averg=0;
-  char *data; // pointer to wave_buf position
+  char *data; // pointer to wave_buf position, of which all raw sound data will be stored.
   int16_t *pv; //pointer to current data 
 
   chunk_size= SAMPLE_RATE/CHECK_FREQ; //--how many frames to be checked for specified CHECK_FREQ,one channel
@@ -420,31 +438,39 @@ return true;
 	   }
 	if (r <0){
 		fprintf(stderr,"error from read:%s\n",snd_strerror(r));
-		continue;
+		continue; //--whatever, let's continue.
  	  }
 
  	 //---------------- to proceed data  ------------------
-	 if (r!=chunk_size){
+	 if (r!=chunk_size){  // short read may cause trouble!!! Give a caution only and let's keep on !!!
 		fprintf(stderr,"short read ocurrs, read %d of %d frames \n",r,chunk_size);
 	 }
 	 if ( r>0 ) {
+		//------------ filter the raw sound -----------------
+		// !!!! WARNING !!!! FOR ONE CHANNEL ONLY, interleaved frame data not valid for filter operation !!!!!!!!!!
+		if(IIR_FILTER_ON)
+			IIR_filter((int16_t *)data,(int16_t *)data,r); // r=frames(one channel,mono),1 frame =16bits,
+			//----- IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
+
 		//------------  encode raw sound to mp3_buffer  ---------------
-		rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
-		//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
-		//--   p_mp2_buf: current position pointer in mp3_buf
- 		//---  mp3_chunk is for encode buffer only, if data is insufficient for encoding,it will remain in mp3_chunk, thus rc_mp3 will be zero 
-		//printf("rc_mp3=%d\n",rc_mp3);
-		memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
-		p_mp3_buf+=rc_mp3; //--shift pointer in mp3_buffer accordingly
+		if(SAVE_MP3_FILE){
+			rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
+			//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
+			//--   p_mp2_buf: current position pointer in mp3_buf
+ 			//---  mp3_chunk is for encode buffer only, if data is insufficient for encoding,it will remain in mp3_chunk, thus rc_mp3 will be zero 
+			//printf("rc_mp3=%d\n",rc_mp3);
+			memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+			p_mp3_buf+=rc_mp3; //--shift pointer in mp3_buffer accordingly
+		}
 
 		//------------ adjust indicating pointer --------------------------
-		pv=(int16_t *)data; //--get pointer for chunk data
+		pv=(int16_t *)data; //--get pointer for chunk data, will be used to calculate average value .
 		data += chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
 
 		//------------ checker timer, return when DELAY_TIME used up ----------------
 		gettimeofday(&t_end,NULL);
 		cost_times=t_end.tv_sec-t_start.tv_sec;
-		if(cost_times >= DELAY_TIME){
+		if(cost_times >= DELAY_TIME){ //------end roecording
 			wave_buf_used=data-wave_buf;
 			//------------ flush and encode remaind PCM buffer to mp3 ---------
 			rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
@@ -454,7 +480,7 @@ return true;
 		 }
       		//----------- check sound wave amplitude  -----------------
 		averg=0;total=0;
-		for(i=0;i<r;i++){  //r -- chunk_size,16bits each frame. 
+		for(i=0;i<r;i++){  //r -- equals to chunk_size,16bits each frame, only if no shor-run occurs!
 			total+=abs(*pv); // !!!!!!
 			pv+=1;
 		 }
@@ -595,3 +621,39 @@ bool init_lame_mono(int Nchannel,int in_rate,int out_rate)
 
  return true;
 }
+
+
+
+/*---------------------- IIR_FILTER -----------------------------------
+4 order IIR filter Fl=300Hz,Fh=3400Hz,Fs=8kHz
+p_in_data:   pointer to start of input data
+p_out_data:  pointer to start of output data
+count:       count of data number in unit of int16_t
+!!!! p_ind_data and p_out_data maybe the same address !!!!!
+----------------------------------------------------------------------*/
+static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
+{
+int ret=0;
+  //----factors for 4 order IIR filter Fl=300Hz,Fh=3400Hz,Fs=8kHz
+static  double IIR_B[5]={ 0.6031972438993, 0, -1.206394487799, 0, 0.6031972438993 };
+static  double IIR_A[5]={ 1,-0.325257157029, -1.004332872001, 0.1022259821442, 0.3705866844043 };
+static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
+int k;
+
+for(k=0;k<count;k++)
+ {
+        w[0]=(*p_in_data)-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];
+        (*p_out_data)=IIR_B[0]*w[0]+IIR_B[1]*w[1]+IIR_B[2]*w[2]+IIR_B[3]*w[3]+IIR_B[4]*w[4];
+
+        w[4]=w[3];
+        w[3]=w[2];
+        w[2]=w[1];
+        w[1]=w[0];
+
+        p_in_data++;
+        p_out_data++;
+ }
+
+return ret;
+}
+
