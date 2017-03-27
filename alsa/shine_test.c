@@ -41,18 +41,18 @@ int nchanl=1; //MONO
 int nread=0;
 int nwrite=0;
 
-char str_fin[]="/tmp/16k.raw";
-char str_fout[]="/tmp/16k.mp3";
+char str_fin[]="/tmp/8k.raw";
+char str_fout[]="/tmp/8k.mp3";
 
 //--!!!!! sample depth supposed to be 16bits !!!!!!!!------
 shine_set_config_mpeg_defaults(&(sh_config.mpeg)); //--init sh_config struct
 
 sh_config.wave.channels=PCM_MONO; //PCM_STEREO;//PCM_MONO;
-sh_config.wave.samplerate=16000;//32000;//44100;//8000; // valid samplerates: 44100,48000,32000,22050,24000,16000,11025,12000,8000
+sh_config.wave.samplerate=8000;//32000;//44100;//8000; // valid samplerates: 44100,48000,32000,22050,24000,16000,11025,12000,8000
 sh_config.mpeg.copyright=1;
 sh_config.mpeg.original=1;
 sh_config.mpeg.mode=MONO;//STEREO;//MONO;
-sh_config.mpeg.bitr=64; //64kbps for 16k //32kbps for 8k samplerate
+sh_config.mpeg.bitr=8; //64kbps for 16k //32kbps for 8k samplerate
 
 if(shine_check_config(sh_config.wave.samplerate,sh_config.mpeg.bitr)<0)
 	printf("Unsupported samplerate/bitrate configuration.\n");
@@ -91,7 +91,8 @@ while(nread=fread(pcm_buff,sizeof(int16_t),samples_per_pass,fin)) //-- binary re
 {
 	if(nread < samples_per_pass){
 		printf("nread < samples_per_pass! nread = %d\n",nread);
-		break;
+		//break;
+		memset(pcm_buff+nread,0,(samples_per_pass-nread)*sizeof(int16_t)); //pad remaining buff space with zero
 	 }
 	//------ unsigned char *shine_encode_buffer(shine_t s,int16_t **data, int *written);
 	//------ unsigned cahr *shine_encode_buffer_interleaved(shinet_t s, int16_t *data, int *written);

@@ -2,10 +2,11 @@
 ALSA auto. record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
- !!!---- Since mt7688 has no FPU,mp3lame encoding will cost most of CPU processing time ---!!!
+ !!!---- Since mt7688 has no FPU, using Shine fixed_point mp3 encoder is a better choice! while mp3lame encoding will cost most of CPU processing time ---!!!
  !!! Sample rate=8k is OK, while sample rate=48k will make it too sensitive !!!
 
-Usage: ./autorecord
+Usage: autorecord [options]
+
 1.It will monitor surrounding sound wave and trigger 60s recording if loud voice is sensed,
   then it will playback. The sound will also be saved to a raw file and a mp3 file.
 
@@ -30,8 +31,8 @@ Usage: ./autorecord
 	buffer: N*periods
 	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
-3. lib: lasound lmp3lame
-4. IIR filter will produce a sharp noise when input sound is too lound!
+5. lib: lasound  -lshine //--lmp3lame
+6. IIR filter will produce a sharp noise when input sound is too lound!
 
 
 Make for Widora-neo
@@ -41,14 +42,14 @@ midas-zhou
 #include <getopt.h>
 #include <asoundlib.h>
 #include <stdbool.h>
-#include "lame.h"
-
+//#include "lame.h"
+#include "layer3.h" //for shine encoder
 
 //----- for PCM record 
 #define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
 #define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
-#define SAMPLE_RATE 8000 //--4k also OK
-#define CHECK_AVERG 2000 //--threshold value of wave amplitude to trigger record
+#define SAMPLE_RATE 8000 //--PCM sample rate, 4k also OK
+#define CHECK_AVERG 1800 //--threshold value of wave amplitude to trigger record
 #define KEEP_AVERG 1500 //--threshold value of wave amplitude for keeping recording
 #define DELAY_TIME 3 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
@@ -60,15 +61,30 @@ bool IIR_FILTER_ON=false; // enable IIR filter or not
 #define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file,  MIN.8K for lame
 bool SAVE_MP3_FILE=false; //save mp3 file or not(default)
 
-lame_t lame;
 FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
+
+//-------- for lame mp3 encoder ---------------
+//lame_t lame;
 unsigned char mp3_chunk[MP3_CHUNK_SIZE]; // for chunk mp3 encode buffer
 unsigned char *mp3_buf=NULL; //---- pointer to final mp3 data,
 unsigned char *p_mp3_buf; //-- pointer to mp3_buf position,start from mp3_buffer
 int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half of wave_buf_len
 
 
+//-------- for shine mp3 encoder --------------
+int16_t sh_pcm_buff[2*SHINE_MAX_SAMPLES]; // for shine_encoder PCM buffer
+//int16_t *ppbuff=sh_pcm_buff; //is this necessary ?
+unsigned char* sh_data_out=NULL; // pointer to encoded mp3 data from shine
+int sh_count=0;
+int chanl_samples_per_pass; //samples per channle to feed to the shine encoder each session
+int samples_per_pass; //=chanl_samples_per_pass*nchanl
+shine_t sh_shine; //handle to shine encoder
+shine_config_t sh_config;//config structure for shine
+int nread,nwrite;//counter for read and write 
 
+
+
+//------------------- for sound device ----------- 
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
@@ -77,7 +93,8 @@ int wave_buf_len; //---wave buffer length in bytes
 int wave_buf_used=0; //---used wave buf length in bytes
 int bit_per_sample;
 snd_pcm_uframes_t frames;
-snd_pcm_uframes_t period_size; //length of period (max. numbers of frames that hw can handle each time)
+snd_pcm_uframes_t period_size;//length of period (max. numbers of frames that hw can handle each time)
+//for CAPTURE period_size=1536 frame, and for PLAYBACK period_size=278 frames
 snd_pcm_uframes_t chunk_size=32;//numbers of frames read/write to hard ware each time
 int chunk_byte; //length of chunk (period)  (in bytes)
 unsigned int chanl_val,rate_val;
@@ -93,6 +110,8 @@ struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
 bool init_lame_mono(int Nchannel,int in_rate,int out_rate);
+int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
+
 static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count);
 
 bool device_open(int mode);
@@ -100,6 +119,8 @@ bool device_setparams(int nchanl,int rate);
 bool device_capture();
 bool device_play();
 bool device_check_voice();
+
+
 
 /*-----------------  output file option --------------*/
 static struct option longopts[]={    //---long opts seems not applicable !!!!!!!
@@ -159,19 +180,21 @@ while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
 system("amixer set Capture 57");
 system("amixer set 'ADC PCM' 246"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
+/*
 //-------- INIT LAME ----------
 if(SAVE_MP3_FILE)
 	init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
+*/
 
+//-------- INIT SHINE ---------
+if(SAVE_MP3_FILE)
+	init_shine_mono(SAMPLE_RATE,16);//--input and  output sample rate is the same.
 
 while(1)
 {
 //------- for test -----------
 printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,MP3_SAMPLE_RATE);
 
-
-//-------- INIT LAME ----------
-// init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
 
 
 //--------录音   beware of if...if...if...if...expressions
@@ -321,7 +344,7 @@ DEVICE_PLAYBACK_ERR:
 
 }//while()
 
-lame_close(lame); //--close lame
+//lame_close(lame); //--close lame
 
 return ret;
 
@@ -379,7 +402,7 @@ frames=32;
 if(snd_pcm_hw_params_set_period_size_near(pcm_handle,hw_params,&chunk_size,&dir) < 0 )return false;
 //	printf("----snd_pcm_hw_params_set_period_size_near() chunk_size=%d----\n",chunk_size);
 if(snd_pcm_hw_params_get_period_size( hw_params, &period_size,0) < 0)return false; //获取周期长度
-	printf("----snd_pcm_hw_get_period_size(): %d frames----\n",(int)period_size);
+	printf("----snd_pcm_hw_get_period_size(): %d frames----\n",(int)period_size); //--differen for CAPTURE and PLAYBACK
 if(snd_pcm_hw_params_get_format(hw_params,&format_val) < 0)return false;
 //	printf("----snd_pcm_hw_params_get_format()----\n");
 bit_per_sample = snd_pcm_format_width((snd_pcm_format_t)format_val);
@@ -459,7 +482,9 @@ return true;
 			//----- IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
 
 		//------------  encode raw sound to mp3_buffer  ---------------
+
 		if(SAVE_MP3_FILE){
+/*
 			rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
 			//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
 			//--   p_mp2_buf: current position pointer in mp3_buf
@@ -467,6 +492,7 @@ return true;
 			//printf("rc_mp3=%d\n",rc_mp3);
 			memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
 			p_mp3_buf+=rc_mp3; //--shift pointer in mp3_buffer accordingly
+*/
 		}
 
 		//------------ adjust indicating pointer --------------------------
@@ -479,11 +505,12 @@ return true;
 		if(cost_times >= DELAY_TIME){ //------end roecording
 			wave_buf_used=data-wave_buf;
 			if(SAVE_MP3_FILE){
-				//------------ flush and encode remaind PCM buffer to mp3 ---------
+/*
+		                //------------ flush and encode remaind PCM buffer to mp3 ---------
 				rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
 				memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+*/
 			 }
-
 			return true;
 		 }
       		//----------- check sound wave amplitude  -----------------
@@ -515,11 +542,12 @@ return true;
 	printf("MAX_RECORD_TIME %d is run out,end recording.\n",MAX_RECORD_TIME);
 	wave_buf_used=data-wave_buf; //--short run is not considered!!!
 	if(SAVE_MP3_FILE){
+/*
 		//------------ flush and encode remaind PCM buffer to mp3 ---------
 		rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
 		memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
+*/
 	 }
-
  return true;
 
 }
@@ -607,6 +635,7 @@ return true;
 /* ------- init lame and set parameters ------------- */
 //   Nchannle: number of channels  
 //   srate: sample rate of input or output file
+/*
 bool init_lame_mono(int Nchannel,int in_rate,int out_rate)
 {
  int tmp;
@@ -631,7 +660,7 @@ bool init_lame_mono(int Nchannel,int in_rate,int out_rate)
 
  return true;
 }
-
+*/
 
 
 /*---------------------- IIR_FILTER -----------------------------------
@@ -667,3 +696,29 @@ for(k=0;k<count;k++)
 return ret;
 }
 
+
+int init_shine_mono(int samplerate,int bitrate)//--input and  output sample rate is the same.
+{
+
+shine_set_config_mpeg_defaults(&(sh_config.mpeg));//--init sh_config struct
+sh_config.wave.channels=1;// PCM_STEREO=2,PCM_MONO=1
+sh_config.wave.samplerate=samplerate;
+sh_config.mpeg.copyright=1;
+sh_config.mpeg.original=1;
+sh_config.mpeg.mode=3;//STEREO=0,MONO=3
+sh_config.mpeg.bitr=bitrate;
+
+if(shine_check_config(sh_config.wave.samplerate,sh_config.mpeg.bitr)<0)
+	printf("Unsupported sample rate and bit rate configuration.\n");
+sh_shine=shine_initialise(&sh_config);
+if(sh_shine == NULL){
+	printf("Fail to initialize Shine!\n");
+	return -1;
+ }
+
+chanl_samples_per_pass=shine_samples_per_pass(sh_shine); //numbers of samples per channel, to feed to the encoder
+samples_per_pass=chanl_samples_per_pass*1; //---for MONO, 1 channel
+printf("MONO samples_per_pass=%d\n",samples_per_pass);
+
+return 0;
+}
