@@ -31,10 +31,13 @@ Usage: ./autorecord
 	interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
 3. lib: lasound lmp3lame
+4. IIR filter will produce a sharp noise when input sound is too lound!
+
 
 Make for Widora-neo
 midas-zhou
 --------------------------------------------------*/
+#include <stdio.h>
 #include <getopt.h>
 #include <asoundlib.h>
 #include <stdbool.h>
@@ -49,7 +52,7 @@ midas-zhou
 #define KEEP_AVERG 1500 //--threshold value of wave amplitude for keeping recording
 #define DELAY_TIME 3 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
-#define MIN_SAVE_TIME 30 //seconds --min. recording time for saving, short time recording will be discarded.
+#define MIN_SAVE_TIME 15 //seconds --min. recording time for saving, short time recording will be discarded.
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
 bool IIR_FILTER_ON=false; // enable IIR filter or not
 //------ for MP3
@@ -99,9 +102,10 @@ bool device_play();
 bool device_check_voice();
 
 /*-----------------  output file option --------------*/
-static struct option longopts[]={
+static struct option longopts[]={    //---long opts seems not applicable !!!!!!!
 {"raw",no_argument,NULL,'r'},
-{"mp3",no_argument,NULL,'m'}
+{"mp3",no_argument,NULL,'m'},
+{ NULL,0,NULL,0}
 };
 
 
@@ -130,15 +134,17 @@ while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
 			IIR_FILTER_ON = true;
 			break;
 		case 'h':
-			printf("Run the program with no options:\n");
-			printf("   It will start recording if lound sound is detected.\n");
-			printf("   It will continue recording if there is voice within every 3 seconds.\n");
+			printf("Program usage:\n");
+			printf("   The programe will automatically start recording if lound sound is detected.\n");
+			printf("   It will continue recording if there is voice detected within every 3 seconds.\n");
 			printf("   Max. recording time is 60s, it will stop automatically then.\n");
-			printf("   The data may be saved to a file only if recoding time exceeds 30s in one session.\n");
-			printf("   It will play recoding data in memory after each session.\n");
-			printf("Use -r to save a RAW file in /tmp, with time stamp as its name.\n");
-			printf("Use -m to save a mp3 file in /tmp, with time stamp as its name.\n");
-			printf("Use -f to enable IIR filter.\n");
+			printf("   The data may be saved only if recoding time exceeds 30s in one session.\n");
+			printf("   It will playback recoding data in memory after each session.\n\n");
+			printf("Use -r (raw) to save a RAW file in /tmp, with time stamp as its name.\n");
+			printf("Use -m (mp3) to save a mp3 file in /tmp, with time stamp as its name.\n");
+			printf("Use -f (filter) to enable IIR filter.\n");
+			printf("Use combined options such as: autorecord -rmf \n\n");
+
 			return -1;
 		case '?':
 			printf("Unkown option!\n");
