@@ -57,32 +57,23 @@ midas-zhou
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
 bool IIR_FILTER_ON=false; // enable IIR filter or not
 //------ for MP3
-#define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
+//#define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
 #define MP3_SAMPLE_RATE 8000 // sample rate for output mp3 file,  MIN.8K for lame
 bool SAVE_MP3_FILE=false; //save mp3 file or not(default)
 
 FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
 
 //-------- for lame mp3 encoder ---------------
-//lame_t lame;
-//unsigned char mp3_chunk[MP3_CHUNK_SIZE]; // for chunk mp3 encode buffer
 unsigned char *mp3_buf=NULL; //---- pointer to final mp3 data,
-//unsigned char *p_mp3_buf; //-- pointer to mp3_buf position,start from mp3_buffer
 int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half of wave_buf_len
-
 
 //-------- for shine mp3 encoder --------------
 int16_t sh_pcm_buff[2*SHINE_MAX_SAMPLES]; // for shine_encoder PCM buffer
-//int16_t *ppbuff=sh_pcm_buff; //is this necessary ?
-//unsigned char* sh_data_out=NULL; // pointer to encoded mp3 data from shine
-//int sh_count=0;
 int chanl_samples_per_pass; //samples per channle to feed to the shine encoder each session
 int samples_per_pass; //=chanl_samples_per_pass*nchanl
 shine_t sh_shine; //handle to shine encoder
 shine_config_t sh_config;//config structure for shine
 int mp3_buf_used=0;
-//int nread,nwrite;//counter for read and write 
-
 
 
 //------------------- for sound device ----------- 
@@ -110,7 +101,6 @@ time_t timep;
 struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
-//bool init_lame_mono(int Nchannel,int in_rate,int out_rate);
 int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
 
 static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count);
@@ -171,31 +161,23 @@ while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
 		case '?':
 			printf("Unkown option!\n");
 			return -1;
-			
 	}
 }
-
 
 
 //-------- set recording volume -------
 system("amixer set Capture 57");
 system("amixer set 'ADC PCM' 246"); // adjust sensitivity, or your can use alsamxier to adjust in realtime.
 
-/*
-//-------- INIT LAME ----------
-if(SAVE_MP3_FILE)
-	init_lame_mono(chanl_val,SAMPLE_RATE,MP3_SAMPLE_RATE);
-*/
 
 //-------- INIT SHINE ---------
 if(SAVE_MP3_FILE)
-	init_shine_mono(SAMPLE_RATE,16);//--input and  output sample rate is the same.
+	init_shine_mono(SAMPLE_RATE,8);//16,32--input and  output sample rate is the same.
 
 while(1)
 {
 //------- for test -----------
-printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,MP3_SAMPLE_RATE);
-
+printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,SAMPLE_RATE); //shine  input and output samplerate is the same
 
 
 //--------录音   beware of if...if...if...if...expressions
@@ -216,9 +198,9 @@ if (!device_setparams(chanl_val,SAMPLE_RATE)){
 // if wave_buf and mp3_buf both empty,then re-calculate mem. length, otherwise skip.
 if(wave_buf == NULL){
 	 printf("rate_val=%d, chanl_val=%d, bit_per_sample=%d\n",rate_val,chanl_val,bit_per_sample);
-	 wave_buf_len=MAX_RECORD_TIME*rate_val*bit_per_sample*chanl_val/8;
+	 wave_buf_len=MAX_RECORD_TIME*SAMPLE_RATE*bit_per_sample*chanl_val/8;
   }
-if(mp3_buf == NULL){
+if(mp3_buf == NULL){  //--assume half length of wave_buf 
 	mp3_buf_len=(wave_buf_len>>1);
   }
 //----- test only -----
@@ -235,8 +217,10 @@ if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
 // ------- if mem. have already been allocated, then skip ----
 if(wave_buf == NULL)
 	wave_buf=(unsigned char *)malloc(wave_buf_len); 
-if(mp3_buf == NULL)
-	mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
+if(SAVE_MP3_FILE){
+	if(mp3_buf == NULL)
+		mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
+   }
 
 
 printf("start recording...\n");
@@ -274,7 +258,6 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 		fmp3=fopen(str_file,"wb");
 		if(fmp3 != NULL){
 			printf("Succeed to open file for saving mp3!\n");
-			//nb=p_mp3_buf-mp3_buf; //how many bytes to write
 			rc=fwrite(mp3_buf,mp3_buf_used,1,fmp3);
 			printf("write to %s  %d bytes\n",str_file,rc*nb);
 		 }
@@ -345,8 +328,6 @@ DEVICE_PLAYBACK_ERR:
 
 }//while()
 
-//lame_close(lame); //--close lame
-
 return ret;
 
 
@@ -366,12 +347,15 @@ if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
 
 //------ set as non_block mode -------
 //---In nonblock mode, readi() writei() will return a negative if device unavailable.
+/*
 if(snd_pcm_nonblock(pcm_handle,NON_BLOCK)<0){
 	printf("snd_pcm_nonblock_mode() fail!\n");
 	return false;
   }
 else
 	printf("snd pcm set nonblock mode successfully!\n");
+*/
+
 return true;
 }
 
@@ -449,23 +433,42 @@ return true;
   int16_t *ppbuff=sh_pcm_buff; //pass ** to shine encoder 
   unsigned char* sh_data_out=NULL; // pointer to encoded mp3 data from shine
   int  sh_count=0;
+  int sh_chunk_size;//---frames,data chunk for each session of MP3 encoding.
+  int sh_chunk_byte; //---bytes of sh_chunk_size
 
-  //--!!! privatilize chunk_size and chunk_byte to avoid name confliction with other functions, see device_play()
-  int chunk_size= chanl_samples_per_pass*chanl_val; // data chunk needed by shine_encoder each encoding session
-  int chunk_byte=chunk_size*bit_per_sample/8;
-  //printf("chunk_byte=%d\n",chunk_byte);
+  if(!SAVE_MP3_FILE) //--While shine is not initialized, chanl_samples_per_pass=0 !!!!! 
+	chanl_samples_per_pass=128; // or SAMPLE_RATE/CHECK_FREQ
+
+  sh_chunk_size= chanl_samples_per_pass*chanl_val; // data chunk needed by shine_encoder each encoding session
+  sh_chunk_byte= sh_chunk_size*bit_per_sample/8;
 
   //-------------- init pointer -----------
-  //--assert wave_buf and mp3_buf have mem. allocated
-  data=wave_buf;
-  p_mp3_buf=mp3_buf;   
+  //------ASSERT wave_buf -------
+  if(wave_buf != NULL){
+	  data=wave_buf;
+    }
+  else{
+	 printf("wave_buf is NULL!\n");
+	 return false;
+   }
+ //-------- ASSERT mp3_buf --------
+ if(SAVE_MP3_FILE){
+	 if(mp3_buf != NULL){
+  		  p_mp3_buf=mp3_buf;  
+	    }
+	  else{
+		 printf("mp3_buf is NULL!\n");
+		 return false;
+	   }
+  }
   
   //------------------  get start time ------------------
   gettimeofday(&t_start,NULL);
   printf("Start Time: %lds + %ldus \n",t_start.tv_sec,t_start.tv_usec);
 
-  while ((data-wave_buf) <= (wave_buf_len-chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
-	r = snd_pcm_readi(pcm_handle,data,chunk_size);  //chunk_size: frames to be read
+  //printf("data=%d; wave_buf=%d; wave_buf_len=%d; sh_chunk_byte=%d\n",data,wave_buf,wave_buf_len,sh_chunk_byte);
+  while ((data-wave_buf) <= (wave_buf_len-sh_chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
+	r = snd_pcm_readi(pcm_handle,data,sh_chunk_size);  //chunk_size: frames to be read
 	//---------- In nonblock mode,it will return a negativer. -----------
 	if(r == -EPIPE){
 		/* EPIPE means overrun */
@@ -479,8 +482,8 @@ return true;
  	  }
 
  	 //---------------- to proceed data  ------------------
-	 if (r!=chunk_size){  // !!!!!WARNING!!!!! short read may cause trouble!!! Give a caution only and let's keep on !!!
-		fprintf(stderr,"short read ocurrs, read %d of %d frames \n",r,chunk_size);
+	 if (r!=sh_chunk_size){  // !!!!!WARNING!!!!! short read may cause trouble!!! Give a caution only and let's keep on !!!
+		fprintf(stderr,"short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
 		continue;//discard it anyway,let's continue.
 	 }
 	 if ( r>0 ) {
@@ -499,20 +502,11 @@ return true;
 			sh_data_out=shine_encode_buffer(sh_shine,(int16_t **)(&data),&sh_count);//--chanl_samples_per_pass*chanl_val samples encoded
 			memcpy(p_mp3_buf,sh_data_out,sh_count); //--copy to mp3_buf for final MP3 file
 			p_mp3_buf+=sh_count; //--shift pointer to current position in mp3_buffer accordingly
-/*
-			rc_mp3=lame_encode_buffer(lame,(short int*)data,NULL,r,mp3_chunk,MP3_CHUNK_SIZE);
-			//---  data: PCM data for left channel, r---number of samples per channel, all for one channel 
-			//--   p_mp2_buf: current position pointer in mp3_buf
- 			//---  mp3_chunk is for encode buffer only, if data is insufficient for encoding,it will remain in mp3_chunk, thus rc_mp3 will be zero 
-			//printf("rc_mp3=%d\n",rc_mp3);
-			memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
-			p_mp3_buf+=rc_mp3; //--shift pointer in mp3_buffer accordingly
-*/
 		}
 
 		//------------ adjust indicating pointer --------------------------
 		pv=(int16_t *)data; //--get pointer to current chunk data, will be used to calculate average value .
-		data += chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
+		data += sh_chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
 
 		//------------ checker timer, return when DELAY_TIME used up ----------------
 		gettimeofday(&t_end,NULL);
@@ -523,11 +517,6 @@ return true;
 			if(SAVE_MP3_FILE){
 				mp3_buf_used=p_mp3_buf-mp3_buf; //--cal meaningful mp3_buf length
 
-/*
-		                //------------ flush and encode remaind PCM buffer to mp3 ---------
-				rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
-				memcpy(p_mp3_buf,mp3_chunk,rc_mp3); //--copy to mp3_buf for final file
-*/
 			 }
 			return true;
 		 }
@@ -536,7 +525,7 @@ return true;
 		for(i=0;i<SAMPLE_RATE/CHECK_FREQ;i++){  //r -- equals to chunk_size,16bits each frame, only if no shor-run occurs!
 			total+=abs(*pv); // !!!!!!
 			pv+=1;
-		 }
+		  }
 		//printf("total=%d\n",total);
 		//averg=(total>>CN);
 		 averg=(total/(SAMPLE_RATE/CHECK_FREQ));
@@ -547,21 +536,13 @@ return true;
 		   	  printf("loud noise sensed!\n");
 		 }
 
-	}
-/*
-	else  //if(r<0)
-	{
+	} // if(r>0) finish
 
- 		wave_buf_used=data-wave_buf;
-		return false;
-	}
-*/
      } // end of while() ------------- all wave_buf used up, end recording    --------------------
 	printf("MAX_RECORD_TIME %d is run out,end recording.\n",MAX_RECORD_TIME);
 	wave_buf_used=data-wave_buf; //--short run is not considered!!!
 	if(SAVE_MP3_FILE){
 		mp3_buf_used=p_mp3_buf-mp3_buf; //--cal meaningful mp3_buf length
-
 /*
 		//------------ flush and encode remaind PCM buffer to mp3 ---------
 		rc_mp3=lame_encode_flush(lame,mp3_chunk,MP3_CHUNK_SIZE);
@@ -578,7 +559,7 @@ return true;
 bool device_play(){
   unsigned char *data = wave_buf;
   int r = 0;
-  chunk_size=32;
+  chunk_size=32; //beware of the type
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
   while ( (data-wave_buf) <= (wave_buf_used-chunk_byte)){
   r = snd_pcm_writei( pcm_handle, data , chunk_size); //chunk_size = frames
@@ -651,36 +632,6 @@ free(buf);
 return true;
 
 }
-
-/* ------- init lame and set parameters ------------- */
-//   Nchannle: number of channels  
-//   srate: sample rate of input or output file
-/*
-bool init_lame_mono(int Nchannel,int in_rate,int out_rate)
-{
- int tmp;
- if(!(lame=lame_init()))return false; //return NULL if fail
-	printf("lame_init finish!\n");
- lame_set_in_samplerate(lame,in_rate); //--sample rate to be same as raw file
-//	printf("lame_set_in_samplerate()=%d\n");
- lame_set_out_samplerate(lame,out_rate);
-	printf("lame_set_out_samplerate() finish\n");
- lame_set_num_channels(lame,Nchannel);
-	printf("lame_set_num_channels() finish\n");
- lame_set_brate(lame,11);//set brate compression ration,default 11
-	printf("lame_set_brate() finish\n");
- lame_set_mode(lame,MONO); // 0-stereo 1=jstereo,2=dual channel(not supported),3=mono
-	printf("lame_set_mode() finish\n");
- lame_set_quality(lame,5);//0~9 recommended 2=high 5=medium 7=low
-	printf("lame_set_quality() finish\n");
- //lame_set_VBR(lame,vbr_default);//set Variable Bit Rate,  defualt use CBR
- //------!!! VBR file is bigger than CBR ......
- if(lame_init_params(lame) != 0)return false;
-	printf("lame_init_params() finish\n");
-
- return true;
-}
-*/
 
 
 /*---------------------- IIR_FILTER -----------------------------------
