@@ -42,8 +42,9 @@ midas-zhou
 #include <getopt.h>
 #include <asoundlib.h>
 #include <stdbool.h>
-//#include "lame.h"
 #include "layer3.h" //for shine encoder
+#include "filter.h" // for digital filter
+
 
 //----- for PCM record 
 #define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
@@ -102,8 +103,6 @@ struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
 int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
-
-static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count);
 
 bool device_open(int mode);
 bool device_setparams(int nchanl,int rate);
@@ -483,14 +482,20 @@ return true;
 
  	 //---------------- to proceed data  ------------------
 	 if (r!=sh_chunk_size){  // !!!!!WARNING!!!!! short read may cause trouble!!! Give a caution only and let's keep on !!!
-		fprintf(stderr,"short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
-		continue;//discard it anyway,let's continue.
+		fprintf(stderr,"Read-end or short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
+		//continue;//discard it anyway,let's continue.
+		memset(data+r,0,(sh_chunk_size-r)*sizeof(int16_t)); //pad remaining chunk space with 0.
+		r=sh_chunk_size;
+
 	 }
 	 if ( r>0 ) {
 		//------------ filter the raw sound -----------------
 		// !!!! WARNING !!!! FOR ONE CHANNEL ONLY, interleaved frame data not valid for filter operation !!!!!!!!!!
+
 		if(IIR_FILTER_ON)
-			IIR_filter((int16_t *)data,(int16_t *)data,r); // r=frames(one channel,mono),1 frame =16bits,
+			//IIR_freq_trapper((int16_t *)data, (int16_t *)data, r, 10, SAMPLE_RATE);//10Hz trapper 
+			IIR_freq_trapper((int16_t *)data, (int16_t *)data, r, 50, SAMPLE_RATE);//50Hz trapper 
+			IIR_bandpass_filter((int16_t *)data,(int16_t *)data,r); // r=frames(one channel,mono),1 frame =16bits,
 			//----- IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
 
 		//------------  encode raw sound to mp3_buffer  ---------------
@@ -631,40 +636,6 @@ bool device_check_voice(void )
 free(buf);
 return true;
 
-}
-
-
-/*---------------------- IIR_FILTER -----------------------------------
-4 order IIR filter Fl=300Hz,Fh=3400Hz,Fs=8kHz
-p_in_data:   pointer to start of input data
-p_out_data:  pointer to start of output data
-count:       count of data number in unit of int16_t
-!!!! p_ind_data and p_out_data maybe the same address !!!!!
-----------------------------------------------------------------------*/
-static int IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
-{
-int ret=0;
-  //----factors for 4 order IIR filter Fl=300Hz,Fh=3400Hz,Fs=8kHz
-static  double IIR_B[5]={ 0.6031972438993, 0, -1.206394487799, 0, 0.6031972438993 };
-static  double IIR_A[5]={ 1,-0.325257157029, -1.004332872001, 0.1022259821442, 0.3705866844043 };
-static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
-int k;
-
-for(k=0;k<count;k++)
- {
-        w[0]=(*p_in_data)-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];
-        (*p_out_data)=IIR_B[0]*w[0]+IIR_B[1]*w[1]+IIR_B[2]*w[2]+IIR_B[3]*w[3]+IIR_B[4]*w[4];
-
-        w[4]=w[3];
-        w[3]=w[2];
-        w[2]=w[1];
-        w[1]=w[0];
-
-        p_in_data++;
-        p_out_data++;
- }
-
-return ret;
 }
 
 
