@@ -44,7 +44,7 @@ midas-zhou
 #include <stdbool.h>
 #include "layer3.h" //for shine encoder
 #include "filter.h" // for digital filter
-
+#include "pcm2wav.h"//save as .wav
 
 //----- for PCM record 
 #define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
@@ -56,6 +56,7 @@ midas-zhou
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 15 //seconds --min. recording time for saving, short time recording will be discarded.
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
+bool SAVE_WAVE_FILE=false; // save to .wav file
 bool IIR_FILTER_ON=false; // enable IIR filter or not
 //------ for MP3
 //#define MP3_CHUNK_SIZE 1024 //bytes, chunk buffer size for lame_encode_buffer(), to be big enough!! at least 128?
@@ -133,7 +134,7 @@ chanl_val=1; // 1 channel
 
 
 //--------- parse options --------
-while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
+while((opt=getopt_long(argc,argv,"rmwfh",longopts,NULL)) !=-1){
 	switch(opt){
 		case 'r':
 			SAVE_RAW_FILE = true;
@@ -141,20 +142,24 @@ while((opt=getopt_long(argc,argv,"rmfh",longopts,NULL)) !=-1){
 		case 'm':
 			SAVE_MP3_FILE = true;
 			break;
+		case 'w':
+			SAVE_WAVE_FILE = true;
+			break;
 		case 'f':
 			IIR_FILTER_ON = true;
 			break;
 		case 'h':
-			printf("Program usage:\n");
-			printf("   The programe will automatically start recording if lound sound is detected.\n");
-			printf("   It will continue recording if there is voice detected within every 3 seconds.\n");
-			printf("   Max. recording time is 60s, it will stop automatically then.\n");
-			printf("   The data may be saved only if recoding time exceeds 30s in one session.\n");
-			printf("   It will playback recoding data in memory after each session.\n\n");
-			printf("Use -r (raw) to save a RAW file in /tmp, with time stamp as its name.\n");
-			printf("Use -m (mp3) to save a mp3 file in /tmp, with time stamp as its name.\n");
-			printf("Use -f (filter) to enable IIR filter.\n");
-			printf("Use combined options such as: autorecord -rmf \n\n");
+			printf("Program usage:   autorecord [options] \n");
+			printf("-r (raw)   save to a RAW file in /tmp, with time stamp as its name.\n");
+			printf("-m (mp3)   save to a mp3 file in /tmp, with time stamp as its name.\n");
+			printf("-w (wav)   save to a wav file in /tmp, with time stamp as its name.\n");
+			printf("-f (filter)  enable IIR filter.\n");
+			printf("use combined options such as: autorecord -rmf \n\n");
+			printf("The programe will automatically start recording if lound sound is detected.\n");
+			printf("It will continue recording if there is voice detected within every 3 seconds.\n");
+			printf("Max. recording time is 60s, it will stop automatically then.\n");
+			printf("The data may be saved only if recoding time exceeds 30s in one session.\n");
+			printf("It will playback recoding data in memory after each session.\n\n");
 
 			return -1;
 		case '?':
@@ -249,6 +254,14 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 		rc=write(fd,wave_buf,wave_buf_used);
 		printf("write to %s  %d bytes\n",str_file,rc);
 		close(fd); //though kernel will close it automatically
+	 }
+	
+
+	// ----------  save to wav file ------------
+	if(SAVE_WAVE_FILE){
+		sprintf(str_file,"/tmp/%s.wav",str_time);
+		simplest_pcm16le_to_wave(wave_buf,str_file,chanl_val,SAMPLE_RATE, wave_buf_used);
+		printf("save to %s \n",str_file);
 	 }
 
 	//------- save to mp3 file   ---------
