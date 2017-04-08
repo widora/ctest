@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 #=========================   NOTE  ====================================
-# This script will convert a jpg image file to a 24bit-BMP file,
+# 1. This script will convert a jpg image file to a 24bit-BMP file,
 # The image will be resized and rotated to fit for a 480x320 LCD 
 # The max. original side-size of a jpg image is limited to abt. 3500-pixels,   
 # otherwise it may crash and quit.  
-#
-# Example:   RMjpg2bmp.py  /tmp/ P   (convert jpg files in /tmp/ to a 
-# 24bit BMP filev, storing in name of Pxxx, such as P1.bmp, P2.bmp.....etc.
+# 2. In order to use python image processing, you must install python-imglib first.
+# 3. Usage:   RMjpg2bmp.py  /tmp/ P   (convert jpg files in /tmp/ to a 
+# 24bit BMP filev, storing with names of Pxxx, such as P1.bmp, P2.bmp.....etc.
 #----------------------------- ----------------------------------------
 
 import Image

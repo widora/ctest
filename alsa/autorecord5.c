@@ -49,10 +49,10 @@ midas-zhou
 //----- for PCM record 
 #define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
 #define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
-#define SAMPLE_RATE 48000 //--PCM sample rate, 4k also OK
-#define CHECK_AVERG 1800 //--threshold value of wave amplitude to trigger record
-#define KEEP_AVERG 1500 //--threshold value of wave amplitude for keeping recording
-#define DELAY_TIME 3 //seconds -- recording time after one trigger
+#define SAMPLE_RATE 8000 //--PCM sample rate, 4k also OK
+#define CHECK_AVERG 500 //--threshold value of wave amplitude to trigger record
+#define KEEP_AVERG 500 //--threshold value of wave amplitude for keeping recording
+#define DELAY_TIME 5 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 15 //seconds --min. recording time for saving, short time recording will be discarded.
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
@@ -69,7 +69,6 @@ FILE *fmp3; // file for mp3 output =fopen("record.mp","wb");
 unsigned char *mp3_buf=NULL; //---- pointer to final mp3 data,
 int mp3_buf_len; //=0.5*wave_buf_len ---mp3 buffer length in bytes, to be half of wave_buf_len
 
-//-------- for shine mp3 encoder --------------
 int16_t sh_pcm_buff[2*SHINE_MAX_SAMPLES]; // for shine_encoder PCM buffer
 int chanl_samples_per_pass; //samples per channle to feed to the shine encoder each session
 int samples_per_pass; //=chanl_samples_per_pass*nchanl
@@ -79,6 +78,7 @@ int mp3_buf_used=0;
 
 
 //------------------- for sound device ----------- 
+char str_device[]="loopback";
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
@@ -104,14 +104,11 @@ struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
 int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
-
-bool device_open(int mode);
+bool device_open(char* device,int mode);
 bool device_setparams(int nchanl,int rate);
 bool device_capture();
 bool device_play();
 bool device_check_voice();
-
-
 
 /*-----------------  output file option --------------*/
 static struct option longopts[]={    //---long opts seems not applicable !!!!!!!
@@ -130,7 +127,7 @@ int nb;
 int opt;
 int ret=0;
 char str_file[50]={0}; //---directory of save_file 
-chanl_val=2; // 1 channel
+chanl_val=1; // 1 channel
 
 
 //--------- parse options --------
@@ -185,7 +182,7 @@ printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,SAMPLE_RATE); 
 
 
 //--------录音   beware of if...if...if...if...expressions
-if (!device_open(SND_PCM_STREAM_CAPTURE)){
+if (!device_open(str_device,SND_PCM_STREAM_CAPTURE)){
 	ret=1;
 	goto OPEN_STREAM_CAPTURE_ERR;
    }
@@ -218,6 +215,7 @@ if (!device_setparams(chanl_val,SAMPLE_RATE)){
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
 //---- rate_val=CAPTURE_RATE and chanl_val are predetermined, bit_per_sample derived from snd_pcm_hw_params_set_format( pcm_handle, hw_params, SND_PCM_FORMAT_S16_LE)
 // if wave_buf and mp3_buf both empty,then re-calculate mem. length, otherwise skip.
+
 bit_per_sample=16;
 
 if(wave_buf == NULL){
@@ -372,9 +370,9 @@ return ret;
 //首先让我们封装一个打开音频设备的函数：
 //snd_pcm_t *pcm_handle;
 
-bool device_open(int mode){
+bool device_open(char* device,int mode){
 //if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
-if(snd_pcm_open (&pcm_handle,"loopback",mode,0) < 0)
+if(snd_pcm_open (&pcm_handle,device,mode,0) < 0)
  {
 	printf("snd_pcm_open() fail!\n");
 	return false; 
@@ -648,7 +646,7 @@ bool device_check_voice(void )
 			total+=abs(*data); // !!!!!!
 			data+=1;
 		       }
-		    printf("total=%d\n",total);
+		    //printf("total=%d\n",total);
 		    //averg=(total>>CN);
 		    averg=(total/chunk_size);
 		    //printf("averg=%d\n",averg);
