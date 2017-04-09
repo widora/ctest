@@ -1,5 +1,5 @@
 /*--------------------------------------------------
-ALSA auto. record and play test
+ALSA auto. loopback record and play test
 Quote from: http://blog.csdn.net/ljclx1748/article/details/8606831
 
  !!!---- Since mt7688 has no FPU, using Shine fixed_point mp3 encoder is a better choice! while mp3lame encoding will cost most of CPU processing time ---!!!
@@ -33,7 +33,7 @@ Usage: autorecord [options]
 	uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right...),period()...
 5. lib: lasound  -lshine //--lmp3lame
 6. IIR filter will produce a sharp noise when input sound is too lound!
-
+7. For loopback record/playback, you may adjust volume in asound.conf.
 
 Make for Widora-neo
 midas-zhou
@@ -79,8 +79,9 @@ int mp3_buf_used=0;
 
 //------------------- for sound device ----------- 
 char str_record_device[]="loopback";
-char str_play_device[]="in1out2";
-snd_pcm_t *pcm_handle;
+char str_play_device[]="in1out2";//This is a mixer
+snd_pcm_t *pcm_handle;// for BOTH record AND play
+snd_pcm_t *pcm_handle_loopback; // for loopback record ONLY
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
 unsigned char *wave_buf=NULL; //---pointer to wave buffer
@@ -105,11 +106,11 @@ struct tm *p_tm;
 
 //------------------- functions declaration ----------------------
 int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
-bool device_open(char* device,int mode);
-bool device_setparams(int nchanl,int rate);
-bool device_capture();
-bool device_play();
-bool device_check_voice();
+bool device_open(snd_pcm_t** pcm_handle,char* device,int mode);
+bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate);
+bool device_capture(snd_pcm_t* pcm_handle);
+bool device_play(snd_pcm_t* pcm_handle);
+bool device_check_voice(snd_pcm_t* pcm_hanle);
 
 /*-----------------  output file option --------------*/
 static struct option longopts[]={    //---long opts seems not applicable !!!!!!!
@@ -183,12 +184,21 @@ printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,SAMPLE_RATE); 
 
 
 //--------录音   beware of if...if...if...if...expressions
-if (!device_open(str_record_device,SND_PCM_STREAM_CAPTURE)){
+if (!device_open(&pcm_handle_loopback,str_record_device,SND_PCM_STREAM_CAPTURE)){
 	ret=1;
 	goto OPEN_STREAM_CAPTURE_ERR;
    }
+
 //printf("---device_open()\n");
-//---- set param by snd_pcm_set_params()-----
+//---- set param for -----
+ if(!device_setparams(pcm_handle_loopback,chanl_val,SAMPLE_RATE)){
+	printf(" set params for LOOP-BACK record error!\n");
+	continue;
+	}
+ printf("Finish setting params for LOOP-BACK record!\n");
+ 
+
+/*
 if(snd_pcm_set_params(pcm_handle,
 			SND_PCM_FORMAT_S16_LE, //formate
 			SND_PCM_ACCESS_RW_INTERLEAVED,//SND_PCM_ACCESS_RW_INTERLEAVED, //access
@@ -199,7 +209,7 @@ if(snd_pcm_set_params(pcm_handle,
 	printf("snd_pcm_set_params() for LOOP-BACK record error!\n");
 	exit(-1);
 }
-
+=========================*/
 
 /*
 if (!device_setparams(chanl_val,SAMPLE_RATE)){
@@ -229,7 +239,7 @@ if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
 
 
  //-----checking voice wave amplitude, and start to record if it exceeds preset threshold value,or it will loop checking ...
- if(!device_check_voice()){  //--device_check_voice() has a loop inside, it will jump out and return -1 only if there is an error.
+ if(!device_check_voice(pcm_handle_loopback)){  //--device_check_voice() has a loop inside, it will jump out and return -1 only if there is an error.
 	goto LOOPEND;
  }
 
@@ -244,12 +254,12 @@ if(SAVE_MP3_FILE){
 
 
 printf("start recording...\n");
-if (!device_capture()){
+if (!device_capture(pcm_handle_loopback)){
 	ret=3;
 	goto DEVICE_CAPTURE_ERR;
 }
 	//printf("-----device_capture()\n");
-snd_pcm_close( pcm_handle ); 
+snd_pcm_close( pcm_handle_loopback ); 
 	printf("record finish!\n");
 
 
@@ -296,7 +306,7 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 }
 
 //-------播放-PLAY_BACK   beware of if...if...if...if...expressions
-if (!device_open(str_play_device,SND_PCM_STREAM_PLAYBACK)){
+if (!device_open(&pcm_handle,str_play_device,SND_PCM_STREAM_PLAYBACK)){
 	ret=1;
 	goto OPEN_STREAM_PLAYBACK_ERR;
    }
@@ -314,7 +324,7 @@ if(snd_pcm_set_params(pcm_handle,
 }
 
 printf("start playback...\n");
-if (!device_play()){
+if (!device_play(pcm_handle)){
 	ret=6;
 	goto DEVICE_PLAYBACK_ERR; //... contiue to loop
 }
@@ -372,9 +382,8 @@ return ret;
 //首先让我们封装一个打开音频设备的函数：
 //snd_pcm_t *pcm_handle;
 
-bool device_open(char* device,int mode){
-//if(snd_pcm_open (&pcm_handle,"default",mode,0) < 0)
-if(snd_pcm_open (&pcm_handle,device,mode,0) < 0)
+bool device_open(snd_pcm_t** pcm_handle,char* device,int mode){
+if(snd_pcm_open (pcm_handle,device,mode,0) < 0)
  {
 	printf("snd_pcm_open() fail!\n");
 	return false; 
@@ -395,69 +404,28 @@ else
 return true;
 }
 
-/*
+
 //-------------------- set and prepare parameters  ------------------
-bool device_setparams(int nchanl,int rate)
- {
-unsigned int val;
-int dir;
-int rc;
-snd_pcm_hw_params_t *hw_params;
+bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
+{
+	if(snd_pcm_set_params(pcm_handle,
+			SND_PCM_FORMAT_S16_LE, //formate
+			SND_PCM_ACCESS_RW_INTERLEAVED,//SND_PCM_ACCESS_RW_INTERLEAVED, //access
+			nchanl, //channels !!! if chanl_val=1, You must also set 'salve.channles 1' for Loopback in asound.conf
+			rate,//rate
+			1,//0 -disallow, 1 -allow resampling
+			500000)<0){  //0.5s  required overall latency in us
+	printf("fail to set params for pcm handle!\n");
+	return false;
+	}
 
-//------ beware of following if..if...if..if...if...expressions ----------
-if(snd_pcm_hw_params_malloc (&hw_params) < 0)return false; //为参数变量分配空间
-//	printf("---- snd_pcm_hw_params_malloc(&hw_params) ----\n");
-if(snd_pcm_hw_params_malloc (&params) < 0)return false;
-//	printf("----snd_pcm_hw_params_malloc(&params) ----\n");
-if(snd_pcm_hw_params_any (pcm_handle, hw_params) < 0)return false; //参数初始化
-//	printf("----snd_pcm_hw_params_any(pcm_handle,hw_params)----\n");
-if(snd_pcm_hw_params_set_access (pcm_handle, hw_params,SND_PCM_ACCESS_RW_INTERLEAVED) < 0)return false; //设置为交错模式
-//	printf("----snd_pcm_hw_params_set_access()----\n");
-if(snd_pcm_hw_params_set_format( pcm_handle, hw_params, SND_PCM_FORMAT_S16_LE) < 0)return false; //使用用16位样本
-//	printf("----snd_pmc_hw_params_set_format()-----\n");
-val=rate;//8000;
-if(snd_pcm_hw_params_set_rate_near( pcm_handle, hw_params,&val,0) < 0)return false; //设置采样率
-//	printf("----snd_pcm_hw_params_set_rate_near() val=%d----\n",val);
-if(snd_pcm_hw_params_set_channels( pcm_handle, hw_params, nchanl) < 0)return false; //设置为立体声or Mono.
-//	printf("----snd_pcm_hw_params_set_channels()-----\n");
-frames=32;
-if(snd_pcm_hw_params_set_period_size_near(pcm_handle,hw_params,&chunk_size,&dir) < 0 )return false;
-//	printf("----snd_pcm_hw_params_set_period_size_near() chunk_size=%d----\n",chunk_size);
-if(snd_pcm_hw_params_get_period_size( hw_params, &period_size,0) < 0)return false; //获取周期长度
-	printf("----snd_pcm_hw_get_period_size(): %d frames----\n",(int)period_size); //--differen for CAPTURE and PLAYBACK
-if(snd_pcm_hw_params_get_format(hw_params,&format_val) < 0)return false;
-//	printf("----snd_pcm_hw_params_get_format()----\n");
-bit_per_sample = snd_pcm_format_width((snd_pcm_format_t)format_val);
-//printf("---bit_per_sample=%d  snd_pcm_format_width()----\n",bit_per_sample);
-//获取样本长度
-snd_pcm_hw_params_get_channels(hw_params,&chanl_val);
-//printf("----snd_pcm_hw_params_get_channels %d---\n",chanl_val);
-chunk_byte = period_size*bit_per_sample*chanl_val/8; // this is the Max chunk byte size
-//chunk_size = frames;//period_size; //frames
-//计算周期长度（字节数(bytes) = 每周期的桢数 * 样本长度(bit) * 通道数 / 8 ）
-snd_pcm_hw_params_get_rate(hw_params,&rate_val,&dir); 
-snd_pcm_hw_params_get_channels(hw_params,&chanl_val);
-
-rc=snd_pcm_hw_params( pcm_handle, hw_params); //设置参数
-if(rc<0){
-printf("unable to set hw parameters:%s\n",snd_strerror(rc));
-exit(1);
+	return true;
 }
-printf("finish setting sound hw parameters\n");
-params = hw_params; //保存参数，方便以后使用
-snd_pcm_hw_params_free( hw_params); //释放参数变量空间
-//printf("----snd_pcm_hw_params_free()----\n");
-return true;
 
-}
-//这里先使用了Alsa提供的一系列snd_pcm_hw_params_set_函数为参数变量赋值。
-//最后才通过snd_pcm_hw_params将参数传递给设备。
-//需要说明的是正式的开发中需要处理参数设置失败的情况，这里仅做为示例程序而未作考虑。
-//设置好参数后便可以开始录音了。录音过程实际上就是从音频设备中读取数据信息并保存。
-*/
 
 //------------------- record sound ------------------------------------//
- bool device_capture( ){
+ bool device_capture(snd_pcm_t* pcm_handle )
+{
   int i;
   int r = 0;
   int rc_mp3=0;
@@ -599,7 +567,8 @@ return true;
 //形参dtime用来确定录音时间，根据录音时间分配数据空间，再调用snd_pcm_readi从音频设备读取音频数据，存放到wave_buf中。
 //同样的原理，我们再添加一个播放函数，向音频设备写入数据：
 
-bool device_play(){
+bool device_play(snd_pcm_t* pcm_handle)
+{
   unsigned char *data = wave_buf;
   int r = 0;
   chunk_size=32; //beware of the type
@@ -622,7 +591,7 @@ bool device_play(){
 }
 
 
-bool device_check_voice(void )
+bool device_check_voice(snd_pcm_t* pcm_handle)
 {
  int i;
  int r = 0;
