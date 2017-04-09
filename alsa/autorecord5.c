@@ -50,9 +50,9 @@ midas-zhou
 #define NON_BLOCK 0 // 1 - ture ,0 -false  !!! non_block mode not good !!!
 #define CHECK_FREQ 125 //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
 #define SAMPLE_RATE 8000 //--PCM sample rate, 4k also OK
-#define CHECK_AVERG 500 //--threshold value of wave amplitude to trigger record
-#define KEEP_AVERG 500 //--threshold value of wave amplitude for keeping recording
-#define DELAY_TIME 5 //seconds -- recording time after one trigger
+#define CHECK_AVERG 200 //--threshold value of wave amplitude to trigger record
+#define KEEP_AVERG 200 //--threshold value of wave amplitude for keeping recording
+#define DELAY_TIME 3 //seconds -- recording time after one trigger
 #define MAX_RECORD_TIME 60 //seconds --max. record time in seconds
 #define MIN_SAVE_TIME 15 //seconds --min. recording time for saving, short time recording will be discarded.
 bool SAVE_RAW_FILE=false; // save raw file or not(default)
@@ -78,7 +78,8 @@ int mp3_buf_used=0;
 
 
 //------------------- for sound device ----------- 
-char str_device[]="loopback";
+char str_record_device[]="loopback";
+char str_play_device[]="in1out2";
 snd_pcm_t *pcm_handle;
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
@@ -182,25 +183,22 @@ printf("capture sample rate:%d, MP3 sample rate:%d\n",SAMPLE_RATE,SAMPLE_RATE); 
 
 
 //--------录音   beware of if...if...if...if...expressions
-if (!device_open(str_device,SND_PCM_STREAM_CAPTURE)){
+if (!device_open(str_record_device,SND_PCM_STREAM_CAPTURE)){
 	ret=1;
 	goto OPEN_STREAM_CAPTURE_ERR;
    }
 //printf("---device_open()\n");
-
-
 //---- set param by snd_pcm_set_params()-----
 if(snd_pcm_set_params(pcm_handle,
 			SND_PCM_FORMAT_S16_LE, //formate
-			SND_PCM_ACCESS_RW_INTERLEAVED, //access
-			chanl_val, //channels
+			SND_PCM_ACCESS_RW_INTERLEAVED,//SND_PCM_ACCESS_RW_INTERLEAVED, //access
+			chanl_val, //channels !!! if chanl_val=1, You must also set 'salve.channles 1' for Loopback in asound.conf
 			SAMPLE_RATE,//rate
-			1,//0 -disallow, 1 -allow resampling
+			0,//0 -disallow, 1 -allow resampling
 			500000)<0){  //0.5s  required overall latency in us
-	printf("snd_pcm_set_params() and Playback open error!\n");
+	printf("snd_pcm_set_params() for LOOP-BACK record error!\n");
 	exit(-1);
 }
-
 
 
 /*
@@ -297,31 +295,35 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 	 }
 }
 
-/*
-//--------播放
-if (!device_open(SND_PCM_STREAM_PLAYBACK)){
-	ret=4;
+//-------播放-PLAY_BACK   beware of if...if...if...if...expressions
+if (!device_open(str_play_device,SND_PCM_STREAM_PLAYBACK)){
+	ret=1;
 	goto OPEN_STREAM_PLAYBACK_ERR;
-    }
-//printf("-----PLAY: device_open() finish\n");
-if (!device_setparams(1,SAMPLE_RATE)){
-	ret=5;
-	goto SET_PLAYBACK_PARAMS_ERR;
-    } 
-//printf("-----PLAY: device_setarams() finish\n");
+   }
+//printf("---device_open()\n");
+//---- set param for PLAYBACK -----
+if(snd_pcm_set_params(pcm_handle,
+			SND_PCM_FORMAT_S16_LE, //formate
+			SND_PCM_ACCESS_RW_INTERLEAVED,//SND_PCM_ACCESS_RW_INTERLEAVED, //access
+			1,// PLAYBACK channels !!! You must set channel number just same as in the dedicated plug set in the  asound.conf 
+			SAMPLE_RATE,//!!!!!! to be same sample rate as the playback mixer plug set in the asound.conf
+			1,//0 -disallow, 1 -allow resampling
+			500000)<0){  //0.5s  required overall latency in us
+	printf("snd_pcm_set_params() for PLAYBACK error!\n");
+	exit(-1);
+}
+
 printf("start playback...\n");
 if (!device_play()){
 	ret=6;
 	goto DEVICE_PLAYBACK_ERR; //... contiue to loop
 }
 //if (!device_play()) goto LOOPEND;
-
 printf("finish playback.\n\n\n");
+/*
 //snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
-
 */
 
-exit(1);
 
 LOOPEND:
 	//------------------------- pcm hanle  ------------------------
@@ -393,7 +395,8 @@ else
 return true;
 }
 
-/*-------------------- set and prepare parameters  ------------------*/
+/*
+//-------------------- set and prepare parameters  ------------------
 bool device_setparams(int nchanl,int rate)
  {
 unsigned int val;
@@ -451,7 +454,7 @@ return true;
 //最后才通过snd_pcm_hw_params将参数传递给设备。
 //需要说明的是正式的开发中需要处理参数设置失败的情况，这里仅做为示例程序而未作考虑。
 //设置好参数后便可以开始录音了。录音过程实际上就是从音频设备中读取数据信息并保存。
-
+*/
 
 //------------------- record sound ------------------------------------//
  bool device_capture( ){
