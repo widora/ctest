@@ -84,9 +84,10 @@ snd_pcm_t *pcm_handle;// for BOTH record AND play
 snd_pcm_t *pcm_handle_loopback; // for loopback record ONLY
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
-unsigned char *wave_buf=NULL; //---pointer to wave buffer
-int wave_buf_len; //---wave buffer length in bytes
-int wave_buf_used=0; //---used wave buf length in bytes
+unsigned char *wave_buf=NULL; //---pointer to loopback  wave buffer
+unsigned char *wave_buf2=NULL; //--- capture wave buffer
+int wave_buf_len; //---wave buffer length in bytes, for wave_buf and wave_buf2
+int wave_buf_used=0; //---used wave buf length in bytes, for wave_buf and wave_buf2
 int bit_per_sample;
 snd_pcm_uframes_t frames;
 snd_pcm_uframes_t period_size;//length of period (max. numbers of frames that hw can handle each time)
@@ -107,8 +108,8 @@ struct tm *p_tm;
 //------------------- functions declaration ----------------------
 int init_shine_mono(int samplerate,int bitrate);//--input and  output sample rate is the same.
 bool device_open(snd_pcm_t** pcm_handle,char* device,int mode);
-bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate);
-bool device_capture(snd_pcm_t* pcm_handle);
+bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate,int token_resample);
+bool device_capture(snd_pcm_t* pcm_handle_loopback,snd_pcm_t* pcm_handle_mic);
 bool device_play(snd_pcm_t* pcm_handle);
 bool device_check_voice(snd_pcm_t* pcm_hanle);
 
@@ -127,6 +128,7 @@ int fd;
 int rc;
 int nb;
 int opt;
+int token_resample;//1 or 0
 int ret=0;
 char str_file[50]={0}; //---directory of save_file 
 chanl_val=1; // 1 channel
@@ -190,7 +192,7 @@ if (!device_open(&pcm_handle_loopback,str_record_device,SND_PCM_STREAM_CAPTURE))
    }
 
 //---- set param for LOOPBACK device-----
- if(!device_setparams(pcm_handle_loopback,chanl_val,SAMPLE_RATE)){
+ if(!device_setparams(pcm_handle_loopback,chanl_val,SAMPLE_RATE,0)){
 	printf(" set params for LOOP-BACK record error!\n");
 	ret=2;
 	goto SET_LOOPBACK_DEVICE_PARAMS_ERR;
@@ -204,6 +206,20 @@ if (!device_setparams(chanl_val,SAMPLE_RATE)){
   }
 //printf("---device_setparams()\n");
 */
+
+
+//------ Opend device for MIC_CAPTURE  beware of if...if...if...if...expressions
+if (!device_open(&pcm_handle,"default",SND_PCM_STREAM_CAPTURE)){
+	ret=4;
+	goto OPEN_PLAY_RECORD_DEVICE_ERR;
+   }
+//---- set param for MIC_CAPTURE device-----
+if(!device_setparams(pcm_handle,chanl_val,SAMPLE_RATE,1)){
+	ret=5;
+	goto SET_PLAYBACK_PARAMS_ERR;
+	}
+ printf("Finish setting params for MIC_CAPTURE !\n");
+
 
 //---------- calcuate mem. buffer size for RAW and MP3 ----------------------
 //---------- The values of rate_val,chanl_val and bit_per_sample are set in device_setparams() function 
@@ -221,6 +237,7 @@ if(mp3_buf == NULL){  //--assume half length of wave_buf
   }
 //----- test only -----
 if(wave_buf == NULL)printf("wave_buf=NULL\n");
+if(wave_buf2 == NULL)printf("wave_buf2=NULL\n");
 if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
 
 
@@ -233,6 +250,8 @@ if(mp3_buf == NULL)printf("mp3_buf=NULL\n");
 // ------- if mem. have already been allocated, then skip ----
 if(wave_buf == NULL)
 	wave_buf=(unsigned char *)malloc(wave_buf_len); 
+if(wave_buf2 == NULL)
+	wave_buf2=(unsigned char *)malloc(wave_buf_len); 
 if(SAVE_MP3_FILE){
 	if(mp3_buf == NULL)
 		mp3_buf=(unsigned char *)malloc(mp3_buf_len); 
@@ -240,14 +259,15 @@ if(SAVE_MP3_FILE){
 
 
 printf("start recording...\n");
-if (!device_capture(pcm_handle_loopback)){
+if (!device_capture(pcm_handle_loopback,pcm_handle)){
 	ret=3;
 	goto DEVICE_CAPTURE_ERR;
 }
 
 snd_pcm_close( pcm_handle_loopback ); 
-	printf("record finish!\n");
-
+printf("LOOPBACK record finish!\n");
+snd_pcm_close( pcm_handle);
+printf("MICPHONE record finish!\n");
 
 //------------save to file
 timep=time(NULL);// get CUT time,seconds from Epoch, long type indeed
@@ -290,20 +310,18 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 	 }
 }
 
-//-------播放-PLAY_BACK   beware of if...if...if...if...expressions
+
+//------ Opend device for PLAYBACK  beware of if...if...if...if...expressions
 if (!device_open(&pcm_handle,str_play_device,SND_PCM_STREAM_PLAYBACK)){
 	ret=4;
 	goto OPEN_PLAY_RECORD_DEVICE_ERR;
    }
-//printf("---device_open()\n");
-
-
-//---- set param for LOOPBACK device-----
- if(!device_setparams(pcm_handle,chanl_val,SAMPLE_RATE)){
+//---- set param for PLAYBACK device-----
+if(!device_setparams(pcm_handle,chanl_val,SAMPLE_RATE,0)){
 	ret=5;
 	goto SET_PLAYBACK_PARAMS_ERR;
 	}
- printf("Finish setting params for PLAYBACK !\n");
+ printf("Finish setting params for MIC_CAPTURE !\n");
 
 
 printf("start playback...\n");
@@ -313,10 +331,10 @@ if (!device_play(pcm_handle)){
 }
 
 //if (!device_play()) goto LOOPEND;
-	printf("Finish playback!\n");
-/*
-//snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
-*/
+printf("Finish playback!\n");
+
+snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
+
 
 
 LOOPEND:
@@ -390,14 +408,14 @@ return true;
 
 
 //-------------------- set and prepare parameters  ------------------
-bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
+bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate,int token_resample)
 {
 	if(snd_pcm_set_params(pcm_handle,
 			SND_PCM_FORMAT_S16_LE, //formate
 			SND_PCM_ACCESS_RW_INTERLEAVED,//SND_PCM_ACCESS_RW_INTERLEAVED, //access
 			nchanl, //channels !!! if chanl_val=1, You must also set 'salve.channles 1' for Loopback in asound.conf
 			rate,//rate
-			0,//0 -disallow, 1 -allow resampling !!!! Here you must disallow resampling, value of 'rate' will be passed to asound.conf as the input rate for rate-plugin, where final resample will be implemented.
+			token_resample,//0 -disallow, 1 -allow resampling !!!! Here you must disallow resampling, value of 'rate' will be passed to asound.conf as the input rate for rate-plugin, where final resample will be implemented.
 			200000)<0){  //0.5s  required overall latency in us
 	printf("fail to set params for pcm handle!\n");
 	return false;
@@ -408,14 +426,18 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
 
 
 //------------------- record sound ------------------------------------//
- bool device_capture(snd_pcm_t* pcm_handle )
+//  pcm_handle_loopback:  pcm device handle to loopback
+//  pcm_handle_mic: pcm device handle to micphone 
+ bool device_capture(snd_pcm_t* pcm_handle_loopback, snd_pcm_t* pcm_handle_mic )
 {
   int i;
   int r = 0;
+  int r_mic=0;
   int rc_mp3=0;
   int total=0;
   int averg=0;
   unsigned char *data; //init. data=wave_buf, pointer to wave_buf position, of which all raw sound data will be stored.
+  unsigned char *mic_data;// init. mic_data=wave_buf2..
   unsigned char *p_mp3_buf; //init. p_mp3_buf=mp3_buf, pointer to mp3_buf current write/read position
   int16_t *pv; //pointer to current data 
 
@@ -425,7 +447,7 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
   int sh_chunk_size;//---frames,data chunk for each session of MP3 encoding.
   int sh_chunk_byte; //---bytes of sh_chunk_size
 
-  if(!SAVE_MP3_FILE) //--While shine is not initialized, chanl_samples_per_pass=0 !!!!! 
+  if(!SAVE_MP3_FILE) //--While shine is not initialized, chanl_samples_per_pass=0, so init with a value here. !!!!! 
 	chanl_samples_per_pass=128; // or SAMPLE_RATE/CHECK_FREQ
 
   sh_chunk_size= chanl_samples_per_pass*chanl_val; // data chunk needed by shine_encoder each encoding session
@@ -433,11 +455,13 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
 
   //-------------- init pointer -----------
   //------ASSERT wave_buf -------
-  if(wave_buf != NULL){
+  if((wave_buf != NULL) && (wave_buf2 != NULL))
+  {
 	  data=wave_buf;
+	  mic_data=wave_buf2;
     }
   else{
-	 printf("wave_buf is NULL!\n");
+	 printf("wave_buf or wave_buf2 is NULL!\n");
 	 return false;
    }
  //-------- ASSERT mp3_buf --------
@@ -457,40 +481,50 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
 
   //printf("data=%d; wave_buf=%d; wave_buf_len=%d; sh_chunk_byte=%d\n",data,wave_buf,wave_buf_len,sh_chunk_byte);
   while ((data-wave_buf) <= (wave_buf_len-sh_chunk_byte) ){ //chunk_size*bit_per_sample*chanl_val)){
-	r = snd_pcm_readi(pcm_handle,data,sh_chunk_size);  //chunk_size: frames to be read
+	r = snd_pcm_readi(pcm_handle_loopback,data,sh_chunk_size);  //chunk_size: frames to be read
+	r_mic=snd_pcm_readi(pcm_handle_mic,mic_data,sh_chunk_size);
 	//---------- In nonblock mode,it will return a negativer. -----------
-	if(r == -EPIPE){
+	if(r == -EPIPE || r_mic == -EPIPE){
 		/* EPIPE means overrun */
 		fprintf(stderr,"overrun occurred! try to recover...\n");
-		snd_pcm_prepare(pcm_handle);//try to recover.  to put the stream in PREPARED state so it can start again next time.
+		snd_pcm_prepare(pcm_handle_loopback);//try to recover.  to put the stream in PREPARED state so it can start again next time.
+		snd_pcm_prepare(pcm_handle_mic);
 		continue;
 	   }
-	if (r <0){
+
+	if (r <0 || r_mic <0){
 		fprintf(stderr,"error from read:%s\n",snd_strerror(r));
 		continue; //--whatever, let's continue.
  	  }
 
  	 //---------------- to proceed data  ------------------
 	 if (r!=sh_chunk_size){  // !!!!!WARNING!!!!! short read may cause trouble!!! Give a caution only and let's keep on !!!
-		fprintf(stderr,"Read-end or short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
+		fprintf(stderr,"LOOPBACK:Read-end or short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
 		//continue;//discard it anyway,let's continue.
 		memset(data+r,0,(sh_chunk_size-r)*sizeof(int16_t)); //pad remaining chunk space with 0.
 		r=sh_chunk_size;
-
 	 }
-	 if ( r>0 ) {
+	 if (r_mic!=sh_chunk_size){  // !!!!!WARNING!!!!! short read may cause trouble!!! Give a caution only and let's keep on !!!
+		fprintf(stderr,"Micphone:Read-end or short read ocurrs, read %d of %d frames \n",r,sh_chunk_size);
+		//continue;//discard it anyway,let's continue.
+		memset(mic_data+r_mic,0,(sh_chunk_size-r_mic)*sizeof(int16_t)); //pad remaining chunk space with 0.
+		r_mic=sh_chunk_size;
+	 }
+
+
+	 if ( r==sh_chunk_size && r_mic==sh_chunk_size ) {
 		//------------ filter the raw sound -----------------
 		// !!!! WARNING !!!! FOR ONE CHANNEL ONLY, interleaved frame data not valid for filter operation !!!!!!!!!!
 
-		if(IIR_FILTER_ON)
+		if(IIR_FILTER_ON) //--for MICPHONE record only
 			//IIR_freq_trapper((int16_t *)data, (int16_t *)data, r, 10, SAMPLE_RATE);//10Hz trapper 
-			IIR_freq_trapper((int16_t *)data, (int16_t *)data, r, 50, SAMPLE_RATE);//50Hz trapper 
-			IIR_bandpass_filter((int16_t *)data,(int16_t *)data,r); // r=frames(one channel,mono),1 frame =16bits,
+			IIR_freq_trapper((int16_t *)data, (int16_t *)data, r_mic, 50, SAMPLE_RATE);//50Hz trapper 
+			IIR_bandpass_filter((int16_t *)data,(int16_t *)data,r_mic); // r=frames(one channel,mono),1 frame =16bits,
 			//----- IIR_filter(int16_t *p_in_data, int16_t *p_out_data, int count)
 
 		//------------  encode raw sound to mp3_buffer  ---------------
 
-		if(SAVE_MP3_FILE){
+		if(SAVE_MP3_FILE){ //for LOOPBACK only
 			//---unsigned char* shine_encode_buffer(shine_t s, int16_t **data, int *written);
 			//---unsigned char* shine_encode_buffer_interleaved(shinet_t s, int16_t *data, int *written);
 			//---- ONLY 16bit depth sample is accepted by shine_encoder
@@ -502,6 +536,7 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
 		//------------ adjust indicating pointer --------------------------
 		pv=(int16_t *)data; //--get pointer to current chunk data, will be used to calculate average value .
 		data += sh_chunk_byte;//--move current buffer position pointer, short run is NOT considered!!!
+		mic_data += sh_chunk_byte;
 
 		//------------ checker timer, return when DELAY_TIME used up ----------------
 		gettimeofday(&t_end,NULL);
@@ -553,11 +588,11 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate)
 
 bool device_play(snd_pcm_t* pcm_handle)
 {
-  unsigned char *data = wave_buf;
+  unsigned char *data = wave_buf2;
   int r = 0;
   chunk_size=32; //beware of the type
   chunk_byte=chunk_size*bit_per_sample*chanl_val/8;
-  while ( (data-wave_buf) <= (wave_buf_used-chunk_byte)){
+  while ( (data-wave_buf2) <= (wave_buf_used-chunk_byte)){
   r = snd_pcm_writei( pcm_handle, data , chunk_size); //chunk_size = frames
   if(r == -EAGAIN)continue;
   if(r < 0){
