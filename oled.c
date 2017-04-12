@@ -16,7 +16,15 @@ mraa_i2c_context i2c0;
 //Initialise i2c context, i2c bus to use
 void init_i2c0()
 {
-    i2c0 = mraa_i2c_init(I2C_0);
+    mraa_init();
+    printf("Begin oled...\n");  
+    i2c0 = mraa_i2c_init(0x00);
+    //i2c0 = mraa_i2c_init_raw(I2C_0);
+    mraa_i2c_address(i2c0, 0x01);
+    //printf(".....%s\n", i2c0);
+    usleep(1000);
+    res = mraa_i2c_write_byte(i2c0, 0);
+    //printf(".....%s\n", i2c0);
     //mraa_i2c_stop(i2c0);
 }
 
@@ -298,10 +306,10 @@ int main(int argc, char* argv[])
     // }
     init_i2c0();
 
-    OLED_Init();
-    OLED_Clear(); 
+    //OLED_Init();
+    //OLED_Clear(); 
 
-    OLED_ShowString(6,3,"0.96' OLED TEST",16);
+    //OLED_ShowString(6,3,"0.96' OLED TEST",16);
 
 
     return 0;

@@ -45,13 +45,21 @@ int main(int argc,char* argv[])
   if(tmp_duty>=0 && tmp_duty<=1)
     duty=tmp_duty;
 
+  printf("1...\n");
   mraa_result_t res;
   mraa_pwm_context pwm;
   
-  pwm=mraa_pwm_init(pin);  
-  mraa_pwm_owner(pwm,1);
-  mraa_pwm_enable(pwm,1);
+  pwm=mraa_pwm_init(19);  
+  if (pwm == NULL) 
+  {
+        printf("2...init failed!\n");
+  }
+  res = mraa_pwm_owner(pwm,1);
+  printf("3...%d\n",res);
+  res = mraa_pwm_enable(pwm,1);
+  printf("4....%d\n",res);
   mraa_pwm_write(pwm,0); //---set duty to  0 first
+  printf("5...\n");
   
    if(perus<=1000)
     res=mraa_pwm_period_us(pwm,perus); //-- us MAX 26214us
