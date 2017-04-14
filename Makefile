@@ -4,7 +4,7 @@
 #source file
 #auto find all *.c and *.cpp files, and compile to *.o file
 SOURCE  := $(wildcard *.c) $(wildcard *.cpp)
-OBJS      := $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCE)))
+OBJS      := $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCE))) $(CXXFLAGS) 
   
 #target change name to what you want
 TARGET  := main

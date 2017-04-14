@@ -1,43 +1,25 @@
-######################################
-#
-######################################
-#source file
-#auto find all *.c and *.cpp files, and compile to *.o file
-SOURCE  := $(wildcard *.c) $(wildcard *.cpp)
-OBJS      := $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCE)))
-  
-#target change name to what you want
-TARGET  := main
-  
-#compile and lib parameter
-#编译参数
-CC              := mipsel-openwrt-linux-gcc
-LIBS          := /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/ipkg-install/usr/lib  -L. -lasound -lm -lmp3lame -lshine
-LDFLAGS   := -L
-DEFINES   := -I 
-INCLUDE   := /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include
-CFLAGS     := -g -Wall -O3 $(DEFINES) $(INCLUDE)
-CXXFLAGS := $(CFLAGS) -DHAVE_CONFIG_H
+BIN_FILE = main
+OBJECTS = main.o record.o key.o oled_iic.o mem_gpio.o
+CC = mipsel-openwrt-linux-gcc
 
+$(BIN_FILE) : $(OBJECTS)
+	$(CC) -o $(BIN_FILE) $(OBJECTS) -L /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/ipkg-install/usr/lib -L. -lasound -lm -lmp3lame -lshine
 
-#i think you should do anything here
-#下面的基本上不需要做任何改动了
-.PHONY : everything objs clean veryclean rebuild
+main.o : main.c
+	$(CC) -c main.c
 
-everything : $(TARGET)
+mem_gpio.o : mem_gpio.c
+	$(CC) -c mem_gpio.c
 
-all : $(TARGET)
-  
-objs : $(OBJS)
-  
-rebuild: veryclean everything
-                
-clean :
-	rm -fr *.o
-    
-veryclean : clean
-	rm -fr $(TARGET)
-  
-$(TARGET) : $(OBJS)
-	$(CC) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LIBS)
+key.o : key.c
+	$(CC) -c key.c
 
+oled_iic.o : oled_iic.c
+	$(CC) -c oled_iic.c
+
+record.o : record.c
+	$(CC) -c record.o record.c  -I /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include \
+-L /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/ipkg-install/usr/lib -lasound -lm -lmp3lame -lshine
+
+clean : 
+	rm main *.o
