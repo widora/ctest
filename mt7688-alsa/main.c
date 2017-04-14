@@ -9,6 +9,7 @@
 #include "key.h"
 #include "oled_iic.h"
 #include "record.h"
+#include "cJSON.h"
 
 
 //extern oled_iic.c variable
@@ -87,11 +88,59 @@ void test_oled()
     close_gpio();
 }
 
+void display_oled()
+{
+    
+    unsigned char i;
+
+    init_gpio();
+    OLED_Init(); //OLED init
+
+    OLED_CLS();//
+
+    while (1)
+    {
+        printf("Begin! \n");    
+
+        OLED_P8x16Str(0,0,"HelTec");//delay
+        OLED_P8x16Str(0,2,"OLED Display");
+        OLED_P8x16Str(0,4,"www.heltec.cn");
+        OLED_P6x8Str(0,6,"cn.heltec@gmail.com");
+        OLED_P6x8Str(0,7,"heltec.taobao.com");
+        sleep(4);
+        OLED_CLS();
+    }
+
+    close_gpio();
+}
+
+void test_cjson()
+{
+    char *product_id = "mt7687_a";
+    char *dev_id = "zhuyunchun-1a";
+    char *dev_key = "b23c34bacedd3548435d92d405a88afb";
+    char *out;
+
+    cJSON *root_reg;
+    cJSON *signup_req;
+    root_reg = cJSON_CreateObject();
+    cJSON_AddItemToObject(root_reg, "signin_req", signup_req = cJSON_CreateObject());
+    cJSON_AddStringToObject(signup_req, "product_id", product_id);
+    cJSON_AddStringToObject(signup_req, "dev_id", dev_id);
+    cJSON_AddStringToObject(signup_req, "dev_key", dev_key);
+    out = cJSON_Print(root_reg); /* Print to text */
+    cJSON_Delete(root_reg);      /* Delete the cJSON object */
+    printf("The json date out = %s\n", out);
+}
+
 /*========================= MAIN ====================================*/
 int main(int argc, char* argv[])
 {
 
-    record_main();
+    //test_cjson();
+    //display_oled();
+    test_oled();
+    //record_main();
 
     return 0;
 }

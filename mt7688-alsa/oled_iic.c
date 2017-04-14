@@ -106,7 +106,7 @@ void OLED_Set_Pos(unsigned char x, unsigned char y)
 { 
     OLED_WrCmd(0xb0+y);
     OLED_WrCmd(((x&0xf0)>>4)|0x10);
-    OLED_WrCmd((x&0x0f)|0x01);
+    OLED_WrCmd((x&0x0f)|0x02); //!!! Note Here 01 cannot dispaly perfact !!!
 } 
 
 /*********************OLED fill screen************************************/
@@ -116,8 +116,8 @@ void OLED_Fill(unsigned char bmp_dat)
     for(y=0;y<8;y++)
     {
         OLED_WrCmd(0xb0+y);
-        OLED_WrCmd(0x01);
-        OLED_WrCmd(0x10);
+        OLED_WrCmd(0x02);//low column start address //!!! Note Here 01 cannot dispaly perfact !!!
+        OLED_WrCmd(0x10);//high column start address
         for(x=0;x<X_WIDTH;x++)
         {
             OLED_WrDat(bmp_dat);
@@ -132,7 +132,7 @@ void OLED_CLS(void)
     for(y=0;y<8;y++)
     {
         OLED_WrCmd(0xb0+y);
-        OLED_WrCmd(0x01);
+        OLED_WrCmd(0x02); //!!! Note Here 01 cannot dispaly perfact !!!
         OLED_WrCmd(0x10);
         for(x=0;x<X_WIDTH;x++)
         {
