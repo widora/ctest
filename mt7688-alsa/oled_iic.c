@@ -4,179 +4,10 @@
 * Date    : 2017-04-11
 */
 #include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
+#include "oled_iic.h"
+#include "mem_gpio.h"
 #include "codetab.h"
 
-#define MMAP_PATH    "/dev/mem"
-
-
-#define RALINK_GPIO_DIR_IN        0
-#define RALINK_GPIO_DIR_OUT        1
-
-#define RALINK_REG_PIOINT        0x690
-#define RALINK_REG_PIOEDGE        0x6A0
-#define RALINK_REG_PIORENA        0x650
-#define RALINK_REG_PIOFENA        0x660
-#define RALINK_REG_PIODATA        0x620
-#define RALINK_REG_PIODIR        0x600
-#define RALINK_REG_PIOSET        0x630
-#define RALINK_REG_PIORESET        0x640
-
-#define RALINK_REG_PIO6332INT        0x694
-#define RALINK_REG_PIO6332EDGE        0x6A4
-#define RALINK_REG_PIO6332RENA        0x654
-#define RALINK_REG_PIO6332FENA        0x664
-#define RALINK_REG_PIO6332DATA        0x624
-#define RALINK_REG_PIO6332DIR        0x604
-#define RALINK_REG_PIO6332SET        0x634
-#define RALINK_REG_PIO6332RESET        0x644
-
-#define RALINK_REG_PIO9564INT        0x698
-#define RALINK_REG_PIO9564EDGE        0x6A8
-#define RALINK_REG_PIO9564RENA        0x658
-#define RALINK_REG_PIO9564FENA        0x668
-#define RALINK_REG_PIO9564DATA        0x628
-#define RALINK_REG_PIO9564DIR        0x608
-#define RALINK_REG_PIO9564SET        0x638
-#define RALINK_REG_PIO9564RESET        0x648
-
-
-static uint8_t* gpio_mmap_reg = NULL;
-static int gpio_mmap_fd = 0;
-
-static int gpio_mmap(void)
-{
-    if ((gpio_mmap_fd = open(MMAP_PATH, O_RDWR)) < 0) 
-    {
-        fprintf(stderr, "unable to open mmap file");
-        return -1;
-    }
-
-    gpio_mmap_reg = (uint8_t*) mmap(NULL, 1024, PROT_READ | PROT_WRITE,
-        MAP_FILE | MAP_SHARED, gpio_mmap_fd, 0x10000000);
-    if (gpio_mmap_reg == MAP_FAILED) 
-    {
-        perror("foo");
-        fprintf(stderr, "failed to mmap");
-        gpio_mmap_reg = NULL;
-        close(gpio_mmap_fd);
-        return -1;
-    }
-
-    return 0;
-}
-
-int mt76x8_gpio_get_pin(int pin)
-{
-    uint32_t tmp = 0;
-
-    /* MT7621, MT7628 */
-    if (pin <= 31) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIODATA);
-        tmp = (tmp >> pin) & 1u;
-    } 
-    else if (pin <= 63) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO6332DATA);
-        tmp = (tmp >> (pin-32)) & 1u;
-    } 
-    else if (pin <= 95) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO9564DATA);
-        tmp = (tmp >> (pin-64)) & 1u;
-        tmp = (tmp >> (pin-24)) & 1u;
-    }
-    return tmp;
-
-}
-
-void mt76x8_gpio_set_pin_direction(int pin, int is_output)
-{
-    uint32_t tmp;
-
-    /* MT7621, MT7628 */
-    if (pin <= 31) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIODIR);
-        if (is_output)
-            tmp |=  (1u << pin);
-        else
-            tmp &= ~(1u << pin);
-        *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIODIR) = tmp;
-    } 
-    else if (pin <= 63) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO6332DIR);
-        if (is_output)
-            tmp |=  (1u << (pin-32));
-        else
-            tmp &= ~(1u << (pin-32));
-        *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO6332DIR) = tmp;
-    } 
-    else if (pin <= 95) 
-    {
-        tmp = *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO9564DIR);
-        if (is_output)
-            tmp |=  (1u << (pin-64));
-        else
-            tmp &= ~(1u << (pin-64));
-        *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO9564DIR) = tmp;
-    }
-}
-
-void mt76x8_gpio_set_pin_value(int pin, int value)
-{
-    uint32_t tmp;
-
-    /* MT7621, MT7628 */
-    if (pin <= 31) 
-    {
-        tmp = (1u << pin);
-        if (value)
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIOSET) = tmp;
-        else
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIORESET) = tmp;
-    } 
-    else if (pin <= 63) 
-    {
-        tmp = (1u << (pin-32));
-        if (value)
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO6332SET) = tmp;
-        else
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO6332RESET) = tmp;
-    } 
-    else if (pin <= 95) 
-    {
-        tmp = (1u << (pin-64));
-        if (value)
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO9564SET) = tmp;
-        else
-            *(volatile uint32_t *)(gpio_mmap_reg + RALINK_REG_PIO9564RESET) = tmp;
-    }
-}
-
-
-
-/*********************************************
-*GPIO simulation IIC
-**********************************************/
-#define SCL 41
-#define SDA 42
-#define high 1
-#define low 0
-
-#define  Brightness 0xCF
-#define  X_WIDTH   128
-#define  Y_WIDTH   64
 
 //init GPIO port
 void init_gpio()
@@ -194,6 +25,7 @@ void init_gpio()
     mt76x8_gpio_set_pin_direction(SDA, 1);
     mt76x8_gpio_set_pin_value(SDA, 0);
 }
+
 
 /**********************************************
 //IIC Start
@@ -238,7 +70,7 @@ void Write_IIC_Byte(unsigned char IIC_Byte)
         mt76x8_gpio_set_pin_value(SDA, (IIC_Byte&0x80)>>7);
         IIC_Byte<<=1;
         mt76x8_gpio_set_pin_value(SCL, 1);
-        mt76x8_gpio_set_pin_value(SCL, 1);
+        mt76x8_gpio_set_pin_value(SCL, 1);//!!! Import Here
         //usleep(1);
         mt76x8_gpio_set_pin_value(SCL, 0);
     }
@@ -427,91 +259,3 @@ void Draw_BMP(unsigned char x0, unsigned char y0, unsigned char x1, unsigned cha
 }
 
 
-// int main(int argc, char **argv)
-// {
-    // int ret = -1;
-    // unsigned char i;
-
-    // init_gpio();
-    // OLED_Init(); //OLED init
-
-    // // OLED_Fill(0xff); //
-    // // sleep(5);
-    // // OLED_Fill(0x00); //
-    // // sleep(5);
-
-    // while (1)
-    // {
-        // printf("Begin! \n");    
-        // OLED_P16x16Ch(24,0,1);
-        // OLED_P16x16Ch(40,0,2);
-        // OLED_P16x16Ch(57,0,3);
-        // OLED_P16x16Ch(74,0,4);
-        // OLED_P16x16Ch(91,0,5);
-        // for(i=0; i<8; i++)//
-        // {
-// //            OLED_P16x16Ch(i*16,0,i);
-             // OLED_P16x16Ch(i*16,2,i+8);
-             // OLED_P16x16Ch(i*16,4,i+16);
-             // OLED_P16x16Ch(i*16,6,i+24);
-        // }
-        // sleep(4);
-        // OLED_CLS();//
-
-        // OLED_P8x16Str(0,0,"HelTec");//delay
-        // OLED_P8x16Str(0,2,"OLED Display");
-        // OLED_P8x16Str(0,4,"www.heltec.cn");
-        // OLED_P6x8Str(0,6,"cn.heltec@gmail.com");
-        // OLED_P6x8Str(0,7,"heltec.taobao.com");
-        // sleep(4);
-        // OLED_CLS();
-
-        // Draw_BMP(0,0,128,8,BMP1);  //
-        // sleep(8);
-        // Draw_BMP(0,0,128,8,BMP2);
-        // sleep(8);
-        // OLED_CLS();
-    // }
-    // close(gpio_mmap_fd);
-
-    // return ret;
-// }
-
-
-#define BUTTON 40
-
-//init GPIO port
-void init_button_gpio()
-{
-    if (gpio_mmap())
-        printf("gpio_mmap() error!\n");
-
-    printf("set pin BUTTON input 0\n");
-    mt76x8_gpio_set_pin_direction(BUTTON, 0);
-
-    printf("get pin BUTTON input %d\n", mt76x8_gpio_get_pin(BUTTON));
-}
-
-int main(int argc, char **argv)
-{
-    int ret = -1;
-    unsigned char i;
-
-    init_button_gpio();
-
-    while (1)
-    {
-        if (0 == mt76x8_gpio_get_pin(BUTTON))
-        {
-            printf("Button not push ! \n");    
-        }
-        if (1 == mt76x8_gpio_get_pin(BUTTON))
-        {
-            printf("Button push! \n");    
-        }
-        sleep(2);
-    }
-    close(gpio_mmap_fd);
-
-    return ret;
-}
