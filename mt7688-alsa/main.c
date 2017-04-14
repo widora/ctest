@@ -101,14 +101,12 @@ void display_oled()
     while (1)
     {
         printf("Begin! \n");    
-
-        OLED_P8x16Str(0,0,"HelTec");//delay
-        OLED_P8x16Str(0,2,"OLED Display");
-        OLED_P8x16Str(0,4,"www.heltec.cn");
-        OLED_P6x8Str(0,6,"cn.heltec@gmail.com");
-        OLED_P6x8Str(0,7,"heltec.taobao.com");
-        sleep(4);
-        OLED_CLS();
+        for (i = 0; i < 128; i+=2)
+        {
+            Draw_BMP(i, 0, 128 + i, 8, BMP1);  //
+            usleep(50000);
+            //OLED_CLS();
+        }
     }
 
     close_gpio();
@@ -138,8 +136,8 @@ int main(int argc, char* argv[])
 {
 
     //test_cjson();
-    //display_oled();
-    test_oled();
+    //test_oled();
+    display_oled();
     //record_main();
 
     return 0;
