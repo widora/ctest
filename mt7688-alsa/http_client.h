@@ -8,7 +8,7 @@
 
 
 
-
+void httpclient_register_keepalive(void);
 
 
 #endif

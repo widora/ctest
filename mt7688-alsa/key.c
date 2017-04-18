@@ -14,9 +14,11 @@ void init_button_gpio()
     if (gpio_mmap())
         printf("gpio_mmap() error!\n");
 
-    printf("set pin BUTTON input 0\n");
-    mt76x8_gpio_set_pin_direction(BUTTON, 0);
+    //printf("set pin BUTTON input 0\n");
+    //mt76x8_gpio_set_pin_direction(BUTTON, 1);
+    //mt76x8_gpio_set_pin_value(BUTTON, 0);
 
+    mt76x8_gpio_set_pin_direction(BUTTON, 0);
     printf("get pin BUTTON input %d\n", mt76x8_gpio_get_pin(BUTTON));
 }
 
@@ -26,7 +28,7 @@ int read_button()
     {
         return 0;   
     }
-    if (1 == mt76x8_gpio_get_pin(BUTTON))
+    else if (1 == mt76x8_gpio_get_pin(BUTTON))
     {
         return 1; 
     }

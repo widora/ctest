@@ -5,17 +5,24 @@
 */
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
 #include "mem_gpio.h"
 #include "key.h"
 #include "oled_iic.h"
 #include "record.h"
 #include "cJSON.h"
+#include "http_client.h"
 
 
 //extern oled_iic.c variable
 extern unsigned char BMP1[];
 extern unsigned char BMP2[];
+extern unsigned char BMP3[];
+extern unsigned char BMP4[];
 
+int scan_button = 1;
+int key_num = 1;
 
 /***************************************************************
 * test c 
@@ -88,30 +95,6 @@ void test_oled()
     close_gpio();
 }
 
-void display_oled()
-{
-    
-    unsigned char i;
-
-    init_gpio();
-    OLED_Init(); //OLED init
-
-    OLED_CLS();//
-
-    while (1)
-    {
-        printf("Begin! \n");    
-        for (i = 0; i < 128; i+=2)
-        {
-            Draw_BMP(i, 0, 128 + i, 8, BMP1);  //
-            usleep(50000);
-            //OLED_CLS();
-        }
-    }
-
-    close_gpio();
-}
-
 void test_cjson()
 {
     char *product_id = "mt7687_a";
@@ -131,14 +114,108 @@ void test_cjson()
     printf("The json date out = %s\n", out);
 }
 
+void display_oled()
+{ 
+    unsigned char i;
+
+    OLED_P8x16Str(0,0,"Processing...");//delay
+
+    while (key_num)
+    {
+        //printf("Begin! \n");    
+        for (i = 0; i < 102; i += 2) //26 128
+        {
+            Draw_BMP(i, 4, 128 + i, 5, BMP3);  //64 8*8
+            usleep(20000);//20ms
+            //OLED_CLS();
+        }
+        for (i = 102; i > 0; i -= 2) //26 128
+        {
+            Draw_BMP(i, 4, 128 + i, 5, BMP3);  //64 8*8
+            usleep(20000);//20ms
+            //OLED_CLS();
+        }
+        //key_num--;
+    }
+    
+    OLED_CLS();
+    key_num = 1;
+    scan_button = 1;
+    pthread_exit(0);
+    //close_gpio();
+}
+
+void thread_rec()
+{
+    //record_main();
+    sleep(4);
+    key_num = 0;
+    pthread_exit(0);
+}
+
+void thread_key()
+{
+    pthread_t id_dis, id_rec;
+    int ret_dis, ret_rec;
+    
+    while (1)
+    {
+        if(scan_button)
+        {
+            if (0 == read_button())
+            {
+                printf("Button not push ! \n");    
+                OLED_CLS();
+                //sleep(2);
+            }
+            else if (1 == read_button())
+            {
+                printf("Button push ! \n");    
+                scan_button = 0;
+                ret_dis = pthread_create(&id_dis, NULL, (void *)display_oled, NULL);
+                if (ret_dis != 0)
+                {
+                    printf("Create the pthread error!\n");
+                }
+                ret_rec = pthread_create(&id_rec, NULL, (void *)thread_rec, NULL);
+                if (ret_rec != 0)
+                {
+                    printf("Create the pthread error!\n");
+                }
+            }
+        }
+        //printf("thread_key()\n");
+        usleep(20000);//sleep 20ms
+    }
+    
+    pthread_exit(0);
+}
+
 /*========================= MAIN ====================================*/
 int main(int argc, char* argv[])
 {
+    pthread_t id;
+    int ret;
 
-    //test_cjson();
-    //test_oled();
-    display_oled();
-    //record_main();
+    //init func
+    init_gpio();
+    init_button_gpio();
+    OLED_Init(); //OLED init
+    OLED_CLS();//
+    
+    ret = pthread_create(&id, NULL, (void *)thread_key, NULL);
+    if (ret != 0)
+    {
+        printf("Create the pthread error!\n");
+    }
+        
+   while(1)
+   {
+        sleep(1);
+        printf("I am main thread!\n");
+   }
+
+    
 
     return 0;
 }

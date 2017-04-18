@@ -18,7 +18,6 @@
 #define  MIN_SAVE_TIME        10   //seconds --min. recording time for saving, short time recording will be discarded.
 
 
-
 //------------------- functions declaration ----------------------
 bool device_open(int mode);
 bool device_setparams();
