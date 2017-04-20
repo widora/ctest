@@ -1,6 +1,7 @@
 /*---------------------------------------------------------------
- use MRAA c lib to set and control PWM
+ use ctest/include/libmraa.so.0.9.0  MRAA c lib to set and control PWM
  compile with lib: openwrt_gcc -L include -lmraa pwmtest_32M.c 
+  
 ------------------------------------------------------------------*/
 #include "include/mraa.h"
 #include  <stdio.h>
