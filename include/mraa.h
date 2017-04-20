@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-#include <pthread.h>
 #include "mraa/pwm.h"
 #include "mraa/aio.h"
 #include "mraa/gpio.h"
@@ -38,5 +37,3 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-

@@ -36,6 +36,13 @@
 #define MRAA_MAIN_PLATFORM_OFFSET 0
 #define MRAA_SUB_PLATFORM_OFFSET 1
 
+/** Executes function func and returns its result in case of error
+ */
+#define MRAA_RETURN_FOR_ERROR(func) do { \
+                                      mraa_result_t res; \
+                                      res = func; \
+                                      if (res != MRAA_SUCCESS) \
+                                      return res;} while(0)
 
 /** @file
  *
@@ -133,7 +140,17 @@ mraa_result_t mraa_set_log_level(int level);
  *
  * @return platform name
  */
-char* mraa_get_platform_name();
+const char* mraa_get_platform_name();
+
+/**
+ * Return the platform's versioning info, the information given depends per
+ * platform and can be NULL. platform_offset has to be given. Do not modify
+ * this pointer
+ *
+ * @param specified platform offset; 0 for main platform, 1 for sub platform
+ * @return platform's versioning string
+ */
+const char* mraa_get_platform_version(int platform_offset);
 
 /**
  * This function attempts to set the mraa process to a given priority and the

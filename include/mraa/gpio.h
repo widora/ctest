@@ -28,11 +28,10 @@
  * @file
  * @brief General Purpose IO
  *
- * Gpio is the General Purpose IO interface to libmraa. It's features depends on
+ * Gpio is the General Purpose IO interface to libmraa. Its features depend on
  * the board type used, it can use gpiolibs (exported via a kernel module
  * through sysfs), or memory mapped IO via a /dev/uio device or /dev/mem
- * depending again on the board configuratio, or memory mapped IO via a
- * /dev/uio device or /dev/mem depending again on the board configuration
+ * depending again on the board configuration.
  *
  * @snippet gpio_read6.c Interesting
  */
@@ -43,6 +42,12 @@ extern "C" {
 
 #ifdef SWIGPYTHON
 #include <Python.h>
+#endif
+
+#if defined(SWIGJAVA) || defined(JAVACALLBACK)
+#include <jni.h>
+extern JavaVM *globVM;
+extern void mraa_java_isr_callback(void *);
 #endif
 
 #include <stdio.h>
@@ -148,6 +153,15 @@ mraa_result_t mraa_gpio_mode(mraa_gpio_context dev, mraa_gpio_mode_t mode);
  * @return Result of operation
  */
 mraa_result_t mraa_gpio_dir(mraa_gpio_context dev, mraa_gpio_dir_t dir);
+
+/**
+ * Read Gpio direction
+ *
+ * @param dev The Gpio context
+ * @param dir The address where to store the Gpio direction
+ * @return Result of operation
+ */
+mraa_result_t mraa_gpio_read_dir(mraa_gpio_context dev, mraa_gpio_dir_t *dir);
 
 /**
  * Close the Gpio context

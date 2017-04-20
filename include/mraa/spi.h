@@ -25,7 +25,7 @@
 #pragma once
 
 /**
-* @file
+ * @file
  * @brief Serial Peripheral Interface
  *
  * This file defines the spi interface for libmraa. A Spi object in libmraa

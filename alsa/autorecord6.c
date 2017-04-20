@@ -80,7 +80,8 @@ int mp3_buf_used=0;
 //------------------- for sound device ----------- 
 char str_record_device[]="loopback";
 char str_play_device[]="in1out2";//This is a mixer
-snd_pcm_t *pcm_handle;// for BOTH record AND play
+snd_pcm_t *pcm_handle;// for record 
+snd_pcm_t *pcm_handle_play; // for play
 snd_pcm_t *pcm_handle_loopback; // for loopback record ONLY
 snd_pcm_hw_params_t *params;
 snd_pcm_format_t format_val;
@@ -190,9 +191,8 @@ if (!device_open(&pcm_handle_loopback,str_record_device,SND_PCM_STREAM_CAPTURE))
 	ret=1;
 	goto OPEN_STREAM_CAPTURE_ERR;
    }
-
 //---- set param for LOOPBACK device-----
- if(!device_setparams(pcm_handle_loopback,chanl_val,SAMPLE_RATE,0)){
+ if(!device_setparams(pcm_handle_loopback,chanl_val,SAMPLE_RATE,0)){ // resample not allowed!!!
 	printf(" set params for LOOP-BACK record error!\n");
 	ret=2;
 	goto SET_LOOPBACK_DEVICE_PARAMS_ERR;
@@ -278,7 +278,6 @@ printf("record at: %s\n",str_time);
 //----------------- save to RAW and MP3 files ------------------
 if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
 {
-
 	//----- save to raw file ------------
 	if(SAVE_RAW_FILE){
 		sprintf(str_file,"/tmp/%s.raw",str_time);
@@ -312,20 +311,20 @@ if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save
 
 
 //------ Opend device for PLAYBACK  beware of if...if...if...if...expressions
-if (!device_open(&pcm_handle,str_play_device,SND_PCM_STREAM_PLAYBACK)){
+if (!device_open(&pcm_handle_play,str_play_device,SND_PCM_STREAM_PLAYBACK)){
 	ret=4;
 	goto OPEN_PLAY_RECORD_DEVICE_ERR;
    }
 //---- set param for PLAYBACK device-----
-if(!device_setparams(pcm_handle,chanl_val,SAMPLE_RATE,0)){
+if(!device_setparams(pcm_handle_play,chanl_val,SAMPLE_RATE,1)){
 	ret=5;
 	goto SET_PLAYBACK_PARAMS_ERR;
 	}
- printf("Finish setting params for MIC_CAPTURE !\n");
+ printf("Finish setting params for PLAYBACK !\n");
 
 
 printf("start playback...\n");
-if (!device_play(pcm_handle)){
+if (!device_play(pcm_handle_play)){
 	ret=6;
 	goto DEVICE_PLAYBACK_ERR; //... contiue to loop
 }
@@ -333,13 +332,13 @@ if (!device_play(pcm_handle)){
 //if (!device_play()) goto LOOPEND;
 printf("Finish playback!\n");
 
-snd_pcm_drain( pcm_handle );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
+//snd_pcm_drain( pcm_handle_play );//PALYBACK pcm_handle!!  to allow any pending sound samples to be transferred.
 
 
 
 LOOPEND:
 	//------------------------- pcm hanle  ------------------------
-	snd_pcm_close( pcm_handle );//CAPTURE or PLAYBACK pcm_handle!!
+	snd_pcm_close( pcm_handle_play );//CAPTURE or PLAYBACK pcm_handle!!
 	//printf("-----PLAY: snd_pcm_close()  ----\n");
 	wave_buf_used=0;
 /*-----------  no need to free and re-allocate mem. every loop -------------
@@ -416,7 +415,7 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate,int token_resamp
 			nchanl, //channels !!! if chanl_val=1, You must also set 'salve.channles 1' for Loopback in asound.conf
 			rate,//rate
 			token_resample,//0 -disallow, 1 -allow resampling !!!! Here you must disallow resampling, value of 'rate' will be passed to asound.conf as the input rate for rate-plugin, where final resample will be implemented.
-			200000)<0){  //0.5s  required overall latency in us
+			500000)<0){  //0.5s  required overall latency in us
 	printf("fail to set params for pcm handle!\n");
 	return false;
 	}
@@ -562,8 +561,8 @@ bool device_setparams(snd_pcm_t* pcm_handle,int nchanl,int rate,int token_resamp
 		//printf("averg=%d\n",averg);
 		if(averg >= KEEP_AVERG){
 			  gettimeofday(&t_start,NULL); // reset timer, add one more DELAY_TIME for recording.
-	 		  printf("averg=%d\n",averg);
-		   	  printf("loud noise sensed!\n");
+	 		//  printf("averg=%d\n",averg);
+		   	// printf("loud noise sensed!\n");
 		 }
 
 	} // if(r>0) finish
