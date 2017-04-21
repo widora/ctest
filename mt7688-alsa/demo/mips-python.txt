@@ -1,0 +1,30 @@
+CC=mipsel-openwrt-linux-gcc CXX=mipsel-openwrt-linux-g++ AR=mipsel-openwrt-linux-ar RANLIB=mipsel-openwrt-linux-ranlib ./configure --host=mips-mt7688-linux-gnueabi --build=x86_64 --disable-ipv6 ac_cv_file__dev_ptmx=yes ac_cv_file__dev_ptc=yes --enable-shared --prefix=/home/zyc/Documents/Python-2.7.12/python-mips/
+CC=mipsel-openwrt-linux-gcc CXX=mipsel-openwrt-linux-g++ AR=mipsel-openwrt-linux-ar RANLIB=mipsel-openwrt-linux-ranlib ./configure --host=mipsel-linux --target=mipsel-linux --prefix=/python make HOSTPYTHON=./hostpython HOSTPGEN=./Parser/hostpgen BLDSHARED="mipsel-openwrt-linux-gcc -shared" CROSS_COMPILE=mipsel-openwrt-linux- CROSS_COMPILE_TARGET=yes
+
+make HOSTPYTHON=./python_for_build HOSTPGEN=./Parser/pgen_for_build BLDSHARED="mipsel-openwrt-linux-gcc -shared" CROSS_COMPILE=mipsel-openwrt-linux- CROSS_COMPILE_TARGET=yes HOSTARCH=mips-mt7688-linux-gnueabi BUILDARCH=x86_64
+
+PYTHON_CONFIGURE_OPTS="--enable-shared"
+
+make install HOSTPYTHON=./python_for_build BLDSHARED="mipsel-openwrt-linux-gcc -shared" CROSS_COMPILE=mipsel-openwrt-linux- CROSS_COMPILE_TARGET=yes prefix=/home/zyc/Documents/Python-2.7.12/python-mips/
+make install HOSTPYTHON=./hostpython BLDSHARED="mipsel-openwrt-linux-gcc -shared" CROSS_COMPILE=mipsel-openwrt-linux- CROSS_COMPILE_TARGET=yes prefix=/home/zyc/Documents/Python-2.7.3/install
+
+
+mipsel-openwrt-linux-gcc -o test-mips test.c -L /home/zyc/Documents/Python-2.7.3/python-mips/lib -lpython2.7 -I /home/zyc/Documents/Python-2.7.3/python-mips/include/python2.7
+
+
+./configure --prefix=/home/zyc/Documents/Python-2.7.3/python-mips --host=mips-Linux-gnu "CC=mipsel-openwrt-linux-gcc -EL" "CFLAGS=-EL" "LDFLAGS=-EL" --enable-shared --disable-ipv6 --with-libc="-L/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib -lc" "LIBS=-L/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib"
+
+
+
+./configure --prefix=/home/zyc/Documents/Python-2.7.12/python_install --host=mipsel-openwrt-linux "CC=mipsel-openwrt-linux-gcc -EL" "CFLAGS=-EL" "LDFLAGS=-EL" --enable-shared --disable-readline --disable-dynamic-extensions
+./configure --prefix=/home/zyc/Documents/Python-2.7.12/python_install --host=mipsel-openwrt-linux --build=x86_64 --disable-ipv6 ac_cv_file__dev_ptmx=yes ac_cv_file__dev_ptc=yes
+
+./configure \
+CC=/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc \
+CXX=/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-g++ \
+STRIP=/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-strip \
+AR=/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ar \
+RANLIB=/home/zyc/Documents/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ranlib \
+ac_cv_file__dev_ptmx=yes \
+ac_cv_file__dev_ptc=no \
+./configure --build=x86_64 --host=mips --prefix=/home/zyc/Documents/Python-2.7.12/python_install

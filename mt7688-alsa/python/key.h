@@ -3,12 +3,14 @@
 * Author : zyc
 * Date    : 2017-04-11
 */
-#ifndef __HTTPCLIENT_H__
-#define __HTTPCLIENT_H__
+#ifndef _KEY_H_
+#define _KEY_H_
 
 
+#define BUTTON 40
 
-void httpclient_register_keepalive(void);
 
+void init_button_gpio();
+int read_button();
 
 #endif

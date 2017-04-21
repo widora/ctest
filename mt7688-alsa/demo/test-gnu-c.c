@@ -42,7 +42,7 @@ int main() {
     printDict(pDict);
     //演示函数调用
     PyObject* pFunHi = PyDict_GetItemString(pDict, "sayhi");
-    PyObject_CallFunction(pFunHi, "s", "lhb");
+    PyObject_CallFunction(pFunHi, "lhb");
     Py_DECREF(pFunHi);
     //演示构造一个Python对象，并调用Class的方法
     //获取Second类

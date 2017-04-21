@@ -3,8 +3,10 @@ import requests
 import json
 import urllib
 
-def getSentences(name, language):
+
+def getSentence(name,language):
     print ("Python to connect imio.ai ")
+    print (name + language) 
 
     if language:
         reg_str = "http://www.imio.ai/ai-bot/stt?lang=zh-CN" #port
@@ -20,9 +22,8 @@ def getSentences(name, language):
     print (add_res.text)
 
     res_str = json.loads(add_res.text)['data']['msg'][0]
-    print(res_str)
-    #print(res_str.encode('utf-8'))
-    #return res_str.encode('utf-8')
+    print (res_str.encode('utf-8'))
+    #return str(res_str)
 
 '''
 import requests

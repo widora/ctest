@@ -35,7 +35,19 @@
 #include <stdlib.h>
 #include <asoundlib.h>
 #include <stdbool.h>
+//#include "main.h"
 
+
+#define  CHECK_FREQ              125    //-- use average energy in 1/CHECK_FREQ (s) to indicate noise level
+#define  SAMPLE_RATE            44100 //--4k also OK
+#define  CHECK_AVERG             2000 //--threshold value of wave amplitude to trigger record
+#define  KEEP_AVERG                1800 //--threshold value of wave amplitude for keeping recording
+#define  DELAY_TIME               3      //seconds -- recording time after one trigger
+#define  MAX_RECORD_TIME   20   //seconds --max. record time in seconds
+#define  MIN_SAVE_TIME        5   //seconds --min. recording time for saving, short time recording will be discarded.
+
+
+//extern int display_time;
 
 //------------ gobal variable --------------------------------
 snd_pcm_t *pcm_handle;
@@ -383,16 +395,17 @@ int record_main()
         strftime(str_time,sizeof(str_time),"%Y-%m-%d-%H:%M:%S",p_tm);
         printf("record at: %s\n",str_time);
 
-        if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
-        {
-            sprintf(str_file,"/tmp/%s.raw",str_time);
-            //sprintf(str_file,"./%s.raw","test");
+        //if(wave_buf_used >= (MIN_SAVE_TIME*rate_val*bit_per_sample*chanl_val/8)) // save to file only if recording time is great than 20s.
+        //{
+            //sprintf(str_file,"/tmp/%s.raw",str_time);
+            sprintf(str_file,"./%s.wav","test");
             fd = open(str_file,O_WRONLY|O_CREAT|O_TRUNC);
             rc = write(fd,wave_buf,wave_buf_used);
             printf("write to record.raw  %d bytes\n",rc);
             close(fd); //though kernel will close it automatically
-        }
-
+        //}
+        
+        //display_time = 1;
         //finish here
         return 0;
 
