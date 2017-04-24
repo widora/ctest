@@ -8,12 +8,14 @@
 
 
 //extern int display_time;
-
+//./config --prefix=/home/zyc/Documents/openssl-1.1.0e/build --cross-compile-prefix=mipsel-openwrt-linux-uclibc- shared no-asm
 //------------------- functions declaration ---------------------- 
 int get_button();
+void clear_display();
+int test_display_oled();
 int display_oled();
 int thread_rec();
-
-
+void clear_display();
+void display_oled_string();
 
 #endif

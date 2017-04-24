@@ -7,4 +7,4 @@ $(BIN_FILE) : $(OBJECTS)
 -I /home/zyc/Documents/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include 
 
 clean : 
-	rm libmain.so 
+	rm libmain.so *.o

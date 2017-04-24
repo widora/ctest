@@ -3,6 +3,7 @@ import json
 import wave
 import uuid
 import os
+import time
 from time import time
 from os import environ as env
 from xml.etree import ElementTree
@@ -44,7 +45,7 @@ class SpeechHelper(object):
         AccessTokenHost = "api.cognitive.microsoft.com"
         path = "/sts/v1.0/issueToken"
         # Connect to server to get the Access Token
-        conn = httpclient.HTTPConnection(AccessTokenHost)
+        conn = httpclient.HTTPSConnection(AccessTokenHost)
         conn.request("POST", path, params, get_token_headers)
         response = conn.getresponse()
         # print(response.status, response.reason)
@@ -87,7 +88,6 @@ class SpeechHelper(object):
         """
         if text_in is None:
             return None
-        print(text_in)
         if sys.version.startswith('2'):
             if not isinstance(text_in, unicode):
                 self.__voice.text = unicode(text_in, 'utf-8')
@@ -102,15 +102,16 @@ class SpeechHelper(object):
                    "X-Search-ClientID": "1ECFAE91408841A480F00935DC390960",
                    "User-Agent": "TTSForPython"}
         # Connect to server to synthesize the wave
-        conn = httpclient.HTTPConnection("speech.platform.bing.com")
+        conn = httpclient.HTTPSConnection("speech.platform.bing.com")
         conn.request("POST", "/synthesize", ElementTree.tostring(self.__req_body), headers)
         response = conn.getresponse()
         data = response.read()
         conn.close()
         #print('stream is:')
-        print(data)
+        #print(data)
 
         if play:
+            '''
             import pyaudio
             #print('Playing speech')
             p = pyaudio.PyAudio()
@@ -119,18 +120,21 @@ class SpeechHelper(object):
                         rate=16000,
                         output=True,
                         frames_per_buffer=1024)
-            print (p.get_sample_size(pyaudio.paInt16))
-        stream.write(data)
-        wfname = "test.wav"
-        wf = wave.open(wfname, 'wb')
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(16000)
-        wf.writeframes(data)
-        wf.close()
-        stream.close()
-        #os.system('aplay /root/test.wav')
-        #os.system('ls')
+            stream.write(data)
+            stream.close()
+            '''
+            wfname = "test.wav"
+            wf = wave.open(wfname, 'wb')
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframesraw(data)
+            wf.close()
+            os.system('chmod +x *.wav')
+            os.system('aplay ./test.wav')
+            #os.system('aplay ./what.wav')
+            #os.system('ls')
+            
 
         return data
 
@@ -166,7 +170,7 @@ class SpeechHelper(object):
             body = wf
         else:
             return ''.join(texts)
-        conn = httpclient.HTTPConnection('speech.platform.bing.com')
+        conn = httpclient.HTTPSConnection('speech.platform.bing.com')
         conn.request('POST', '/recognize?%s' % params, body, headers)
         response = conn.getresponse()
         print(response)
@@ -185,22 +189,14 @@ class SpeechHelper(object):
 
 def main():
     wf_name = 'temp.wav'
-    '''
+    
     spch = SpeechHelper(lang='en-US', gender='male')
 
-    #res_text = spch.speech_to_text(wf_name)
+    res_text = spch.text_to_speech('Hello world',True)
     #print(res_text)
     #os.remove(wf_name)
-    '''
 
-    '''
-    stream.start_stream()
-    while stream.is_active():
-        sleep(0.1)
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-    '''
+
 
 
 if __name__ == '__main__':

@@ -3,6 +3,9 @@ import json
 import traceback
 import paho.mqtt.client as mqtt
 from time import sleep
+from ctypes import *
+import os
+import time
 
 try:
     import http.client as httplib
@@ -115,9 +118,6 @@ class FrontDoorScene(object):
             raw_msg = payload.decode('utf-8')
             print(type(raw_msg))
             print(raw_msg)
-            #if sys.version.startswith('2'):
-            #    profile = json.loads(raw_msg).encode('utf-8')
-            #else:
             profile = json.loads(raw_msg)
             print(profile)
             if not self.__session_start:
@@ -133,7 +133,7 @@ class FrontDoorScene(object):
         self.__session_start = False
 
     def start(self, blocking=False, profile=None):
-        
+        '''
         self.__cli.connect(host='mq.imio.io', port=1883)
         if blocking:
             self.__cli.loop_forever()
@@ -143,7 +143,7 @@ class FrontDoorScene(object):
         self.__trio_ai = TrioAIAgent(profile, lang=self.__lang, rob_gender=self.__gender)
         self.__trio_ai.welcome()
         self.__session_start = True
-        '''
+        
         
 
     def stt(self, wf):
@@ -165,18 +165,33 @@ class FrontDoorScene(object):
 
 
 def main():
+    #libsc = cdll.LoadLibrary(os.getcwd() + '/libmain.so')
+
+    print ("Start!")
     my_profile = {"UserId":"10003","VisitorId":"Jim","VisitorType":"host"}
     visit = FrontDoorScene(lang='en-GB', rob_gender='male')
-    visit.start()
+    #visit.start()
+    visit.start(profile=my_profile)
     sleep(0.5)
     while True:
         if visit.is_session_started():
+            #waiting for push the ring button
+            print ("Waiting the button push!")
+            # while (0 == libsc.get_button()):
+                # sleep(0.1)
+            print ("The button push!")
             ring_bell = {'BellRingFlag': True}
             visit.tts(visit.ask_and_answer(ring_bell), True)
             sleep(0.5)
-            #wf = open('temp.wav', 'rb')
-            #spt = visit.stt('temp.wav')
-            #open_door = {'Text': spt}
+            # os.system('chmod +x *.wav')
+            # wf = open('temp.wav', 'rb')
+            # spt = visit.stt('temp.wav')
+            # open_door = {'Text': spt}
+            print (spt)
+            # libsc.thread_rec()
+            # wf = open('test.wav', 'rb')
+            # spt = visit.stt('test.wav')
+            # open_door = {'Text': spt}
             open_door = {'Text': 'Yes, I forgot my password'}
             visit.tts(visit.ask_and_answer(open_door), True)
             sleep(0.5)

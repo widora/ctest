@@ -44,6 +44,52 @@ int get_button()
     return ret;
 }
 
+void clear_display()
+{
+    init_gpio();
+    OLED_Init();
+    OLED_CLS();
+    OLED_CLS();
+}
+
+void display_oled_string()
+{
+     init_gpio();
+    OLED_Init();
+    OLED_CLS();
+    OLED_P8x16Str(0,0,"Processing...");//delay
+}
+
+int test_display_oled()
+{ 
+    int num = 3;
+    unsigned char i;
+
+    init_gpio();
+    OLED_Init();
+    OLED_P8x16Str(0,0,"Listening...");//delay
+
+    while (num--)
+    {  
+        for (i = 0; i < 102; i += 2) //26 128
+        {
+            Draw_BMP(i, 4, 128 + i, 5, BMP3);  //64 8*8
+            usleep(20000);//20ms
+        }
+        for (i = 102; i > 0; i -= 2) //26 128
+        {
+            Draw_BMP(i, 4, 128 + i, 5, BMP3);  //64 8*8
+            usleep(20000);//20ms
+        }
+        //sleep(1);
+    }
+    
+    OLED_CLS();
+    //close_gpio();
+
+    return 1;
+}
+
 int display_oled()
 { 
     unsigned char i;
@@ -51,7 +97,7 @@ int display_oled()
 
     init_gpio();
     OLED_Init();
-    OLED_P8x16Str(0,0,"Processing...");//delay
+    OLED_P8x16Str(0,0,"Listening...");//delay
 
     while (display_time)
     {  
@@ -66,7 +112,6 @@ int display_oled()
             usleep(20000);//20ms
         }
         //sleep(1);
-        OLED_CLS();
     }
     
     OLED_CLS();
@@ -97,10 +142,7 @@ int thread_rec()
         return 0;
     }
     display_time = 0;
-    sleep(1); 
-    init_gpio();
-    OLED_Init();
-    OLED_CLS();
+    //sleep(1); 
     printf("thread_rec() finish ! \n");
 
     return 1;
@@ -110,7 +152,8 @@ int thread_rec()
 int main(int argc, char* argv[])
 {
 
-        
+    test_display_oled();
+
    while(1)
    {
         sleep(2);
