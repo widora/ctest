@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 #---------------------------------------------------
-# Author: ----- www.BIGIOT.net ------
-#
+# ----- www.BIGIOT.net ------
+# turing robot by @feng
+# Referring to: https://github.com/bigiot/bigiotRaspberryPi/tree/master/python/turing
 # An example of logging on to www.bigiot.net and 
 # chatting with www.tuling123.com AI.
 # You also need chitchat.py to run this script.	
@@ -17,14 +17,19 @@ import json
 import time
 from datetime import datetime
 import chitchat as cc
+import sys
 
-#定义地址及端口 --- BIGIOT.net
+#----- set char. encoding -------
+reload (sys)
+sys.setdefaultencoding("utf-8")
+
+#定义地址及端口
 host = '121.42.180.30'
 port = 8181
 
-#设备ID及key -- use your own ID and APIKEY
-DEVICEID='xxx'
-APIKEY='xxxxxxxxx'
+#设备ID及key
+DEVICEID='421'
+APIKEY='f80ea043e'
 
 data = b''
 
@@ -45,6 +50,7 @@ count_try_keeponline = 0 #--- record how many times of trying keeponlien()
 #-------- init parameters -----
 CHECKIN_TIMEOUT=20
 KEEP_ONLINE_TIMEOUT=40
+MAX_TRY_KEEPOL_NUMBER=2  #--MAX try-keep-online times
 
 checkin = {"M":"checkin","ID":DEVICEID, "K":APIKEY}
 checkout = {"M":"checkout","ID":DEVICEID,"K":APIKEY}
@@ -87,7 +93,6 @@ def Checkout(json_checkout):
 	except Exception,error:
 		print error
 
-
 def keepOnline():
 	global KEEP_ONLINE_TIMEOUT
 	global t_start_keeponline,t_start_keepcheckin
@@ -108,7 +113,7 @@ def keepOnline():
 		
 		#------------ try to sustain conncetion with BIGIOT server --------
 		count_try_keeponline+=1
-		if count_try_keeponline > 2:
+		if count_try_keeponline > MAX_TRY_KEEPOL_NUMBER:
 			count_try_keeponline = 0
 			flag_status_checkin = False
 			t_start_keepcheckin=t_start_keeponline  #--- pass start time to keepcheckin() to trigger checkin
@@ -141,7 +146,7 @@ def keepCheckin():
                 print "------------Start checking in to BIGIOT..."
                 Checkin(json_checkin) 
                 t_start_keepcheckin=time.time()
-
+		
 	
 def say(s, id, coutent):
 	saydata = {"M":"say", "ID":id, "C":coutent }
@@ -167,10 +172,16 @@ def process(msg, s, json_checkin):
 		flag_during_checkout = False
 		print("Checkout succeed! msg=",json_data)
 	if json_data['M'] == 'say':
-		print("接收到的数据：", json_data)
-		print("平台指令：",json_data['C'])
-		#test.chitchat(json_data['C'])
-		say(s, json_data['ID'], cc.chitchat(json_data['C']))
+		print("--------------------------------")
+
+		print "接收到的数据：", json_data
+		print "平台指令：:  ",json_data['C'].encode()
+		#say(s, json_data['ID'], cc.chitchat(json_data['C']))
+		chat=cc.chitchat(json_data['C'])
+		chat=chat.replace(" ","")
+		print "收到的回复:  ",chat.encode()
+		#say(s, json_data['ID'], cc.chitchat(json_data['C']))
+		say(s, json_data['ID'], chat)
 	if json_data['M'] == 'connected':
 		s.send(json_checkin.encode('utf-8'))
 		s.send(b'\n')
@@ -199,12 +210,12 @@ while True:
 		keepCheckin() #---- try to re-checkin if disconnected 		
 
 	if flag_data_received:
-		if d!=b'\n': #---  when s.settimeout(0), d!=b'' will raise an exception
+		if d!=b'\n': 
 			data+=d
 		elif d=='\n':
 			#do something here...
 			msg=str(data) #,encoding='utf-8')
 			print "Receive msg=%s"%msg
                         process(msg,s,json_checkin)
-			print "Process msg finish."
+			print "Finish processing msg."
 			data=b''
