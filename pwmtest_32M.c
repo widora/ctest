@@ -16,8 +16,8 @@ typedef enum {   // pin number 18,19,20,21
 int main(int argc,char* argv[])
 {
 
-  int perus=1000;// period us
-  float pers; // period  s
+  double perus=1000;// period us
+  double pers; // period  s
   float tmp_duty=0;
   float duty=0.5; // duty percentage
   GPIO_pin pin=20;
@@ -48,11 +48,12 @@ int main(int argc,char* argv[])
 
   mraa_result_t res;
   mraa_pwm_context pwm;
-
+ 
+ printf("Max period is %dus \n",mraa_pwm_get_max_period());
  
   pwm=mraa_pwm_init(pin); 
   if(pwm == NULL) printf("mraa_pwm_init fail!\n");
-  res=mraa_pwm_owner(pwm,0);
+  res=mraa_pwm_owner(pwm,1);
   if(res ==MRAA_SUCCESS)printf("mraa_pwm_owner() succeed!\n");
   mraa_pwm_enable(pwm,1);
   mraa_pwm_write(pwm,0); //---set duty to  0 first
