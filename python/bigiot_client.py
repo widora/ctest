@@ -28,9 +28,9 @@ sys.setdefaultencoding("utf-8")
 host = '121.42.180.30'
 port = 8181
 
-#设备ID及key 
-DEVICEID='XXX'
-APIKEY='XXXXXXXXX'
+#设备ID及key==================
+DEVICEID='xxx'
+APIKEY='xxxxxxxxx'
 
 data = b''
 
@@ -61,6 +61,7 @@ json_checkout = json.dumps(checkout)
 #--------  init socket ---------
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.settimeout(0)  #--!!!!!!!! This will let s.recv(1) raise exception when receive nothing !!!!!
+s.setblocking(0) #--equivalent to settimeout(0)
 
 def LogErr(error):
         os.environ['error']=str(error) 
@@ -69,16 +70,29 @@ def LogErr(error):
 
 def ConnectSocket(host,port):
 	global s
-
+	ntry=0
  	while True:
 		try:
 			#print "try s.connect(host,port)..."
+			LogErr("start s.close()...")
+			s.close()
+			LogErr("start s=socket.socket()...")
+			s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+			LogErr("s.settimeout(10)")
+			s.settimeout(10)
+			LogErr("Start s.connect((host,port))")
 			s.connect((host,port)) #--one argument only!
+			LogErr("start s.settimeout(0)...")
+			s.settimeout(0)#--equivalent to setblocking(0)???
+			s.setblocking(0)
+			LogErr("starting break...")
 			break
 		except Exception, error:
+			ntry+=1
+			LogErr('ntry='+str(ntry))
 			LogErr(error)
 			LogErr("Err: ConnectSocket(host,port)")
-			#print('s.connect(host,port) fails,wait for 2 seconds!')
+			print 's.connect(host,port) ntry=',ntry
 			time.sleep(2)
 
 def Checkin(json_checkin):
@@ -156,13 +170,14 @@ def keepCheckin():
 	try:
 	   if  flag_status_checkin == False and time.time()-t_start_keepcheckin > CHECKIN_TIMEOUT:
                 print "------------Start s.close()"
-                s.close()
-                s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                s.settimeout(0) #--!!!!!!!! This will let s.recv(1) raise exception when receive nothing !!!!!
+                #s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+                #s.settimeout(0) #--!!!!!!!! This will let s.recv(1) raise exception when receive nothing !!!!!
                 print "------------Start connecting to  socket(host,port)..."
                 ConnectSocket(host,port)
                 print "------------Start checking in to BIGIOT..."
-                Checkin(json_checkin) 
+		LogErr("------------Start checking in to BIGIOT...")
+                Checkin(json_checkin)
+		LogErr("-----finish Checkin()") 
                 t_start_keepcheckin=time.time()
 	except Exception,error:
 	   print error
@@ -248,23 +263,32 @@ Checkin(json_checkin)
 while True:
 	try:
 		#------ try to receive msg ------------
-                print
+                #print 'start d=s.rec()'
 		d=s.recv(1)
 		flag_data_received=True
 	except Exception,error:
 		print error
 		#---- recv nothing will trigger an exectpion
 		#LogErr(error)
+		if d==0:
+			print "-----Network broken during s.recv()..."
+			LogErr("----Network broken during s.recv()...")
 		flag_data_received=False
 		time.sleep(2)
+		print "start keepOnline()..."
 		keepOnline() #--- try to sustain login if connected
+		print "start keepcheckin()..."
 		keepCheckin() #---- try to re-checkin if disconnected 		
 
 	if flag_data_received:
+		if d==0:
+			print "***** Network broken during s.recv()..."
+			LogErr("****Network broken during s.recv()...")
 		if d!=b'\n': 
 			data+=d
 		elif d=='\n':
 			#do something here...
+			print "start str(data)..."
 			msg=str(data) #,encoding='utf-8')
 			print "Receive msg=%s"%msg
                         process(msg,s,json_checkin)
