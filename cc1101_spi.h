@@ -120,17 +120,17 @@ return ret;
 
 /*---------------------------------------------------------
 	SPI_Write_then_Read( )
- Write then Read SPI device withou chang of chip_selection
+ Write then Read SPI device with no interruption
 ---------------------------------------------------------*/
 int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx)
 {
  int ret;
  int fd = g_SPI_Fd;
- uint8_t buf[32]; //--MAX 32bytes for one time transfer 
+// uint8_t buf[32]; //--MAX 32bytes for one time transfer 
 
  struct spi_ioc_transfer xfer[2];
  memset(xfer,0,sizeof(xfer));
- memset(buf,0,sizeof(buf));
+// memset(buf,0,sizeof(buf));
 
  xfer[0].tx_buf = (unsigned long) TxBuf;
 // xfer[0].rx_buf = NULL;
@@ -139,6 +139,33 @@ int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx
 //xfer[1].tx_buf = NULL;
  xfer[1].rx_buf = (unsigned long) RxBuf;
  xfer[1].len = n_rx;
+ xfer[1].delay_usecs = delay;
+
+ ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
+ if (ret < 1)
+	pr_err("can't send spi message");
+
+ return ret;
+}
+
+
+/*---------------------------------------------------------
+	SPI_Write_then_Write( )
+ Write 2 times to SPI device with no interruption
+---------------------------------------------------------*/
+int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2)
+{
+ int ret;
+ int fd = g_SPI_Fd;
+
+ struct spi_ioc_transfer xfer[2];
+ memset(xfer,0,sizeof(xfer));
+
+ xfer[0].tx_buf = (unsigned long) TxBuf1;
+ xfer[0].len = n_tx1;
+ xfer[0].delay_usecs = delay;
+ xfer[1].tx_buf = (unsigned long) TxBuf2;
+ xfer[1].len = n_tx2;
  xfer[1].delay_usecs = delay;
 
  ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);

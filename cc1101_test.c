@@ -12,7 +12,7 @@
 #define READ_SINGLE 0x80
 #define READ_BURST  0xC0
 #define BYTES_IN_RXFIFO 0x7F
-#define CRC_OK        0x80
+#define CRC_OK      0x80
 
 //------------------ PA settingup ------------
 //uint8_t PaTabel[8] = {0x12 ,0x12 ,0x12 ,0x12 ,0x12,0x12 ,0x12 ,0x12};     //-30dBm   ������С
@@ -224,6 +224,7 @@ void RESET_CC1100(void)
 	halSpiStrobe(CCxxx0_SRES);
 }
 
+/* Write to a register */
 void halSpiWriteReg(uint8_t addr, uint8_t value)
 {
 	uint8_t data[2];
@@ -231,36 +232,61 @@ void halSpiWriteReg(uint8_t addr, uint8_t value)
 	SPI_Write(data,2);
 }
 
+/*  burst write to registers */
+void halSpiWriteBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count)
+{
+	uint8_t tmp;
+	tmp=addr|WRITE_BURST;
+	SPI_Write_then_Write(&tmp,1,buffer,count);
+}
+
+/* read a register */
+uint8_t halSpiReadReg(uint8_t addr)
+{
+	uint8_t tmp,value;
+	tmp=addr|READ_SINGLE;
+	SPI_Write_then_Read(&tmp,1,&value,1);
+	return value;
+}
+
+/* burst read registers */
+void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count)
+{
+	uint8_t tmp,value;
+        tmp=addr|READ_BURST;
+        SPI_Write_then_Read(&tmp,1,buffer,count);
+}
+
+/* read a status register */
+uint8_t halSpiReadStatus(uint8_t addr)
+{
+	uint8_t tmp,value;
+	tmp=addr|READ_BURST; //-- To read a status-register with command header 11
+	SPI_Write_then_Read(&tmp,1,&value,1);
+	return value;
+}
 
 
 
+//======================= MAIN =============================
 int main(void)
 {
 	int len,i;
 	int ret;
-	uint8_t Txtmp,TxBuf[2];
-	uint8_t RxBuf[5];
+	uint8_t Txtmp,data[5];
+	uint8_t TxBuf[5],RxBuf[5];
 
 	len=2;
-	TxBuf[0]=0xac;
-	TxBuf[1]=0xab;
  
+	memset(TxBuf,0,sizeof(TxBuf));
 	memset(RxBuf,0,sizeof(RxBuf));
 
+	TxBuf[0]=0xac;
+	TxBuf[1]=0xab;
+
+
+
 	SPI_Open();
-
-/*
-	ret=SPI_Write(TxBuf,1);
-	printf("SPI_Write: ret=%d TxBuf=x%02x\n",ret,TxBuf[0]);
-	ret=SPI_Read(RxBuf,1);
-	printf("SPI_Read: ret=%d, RxBuf=x%02x\n",ret,RxBuf[0]);
-
-        ret=SPI_Transfer(TxBuf,RxBuf,2,1);
-	printf("SPI_Transfer: ret=%d, RxBuf=x%02x x%02x\n",ret,RxBuf[0],RxBuf[1]);
-*/
-
-	ret=SPI_Write_then_Read(TxBuf,1,RxBuf,1); // cc1101 receive one command each time of CS change ??
-	printf("SPI_Write_then_Read: ret=%d, RxBuf=x%02x x%02x\n",ret,RxBuf[0],RxBuf[1]);
 
         Txtmp=0x3b;
         SPI_Write(&Txtmp,1); //clear RxBuf in cc1101
@@ -272,14 +298,21 @@ int main(void)
 	ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,2); //RXBYTES
 	printf("RXBYTES: ret=%d, =x%02x %02x\n",ret,RxBuf[0],RxBuf[1]);
 
-        halSpiWriteReg(0x25,0x7f);        
-	Txtmp=0x25|READ_BURST;
-	ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,5); //TXBYTES
-	printf("SPI_Transfer REGs: ret=%d, REGS:0x25-0x29: ",ret);
+        //halSpiWriteReg(0x25,0x7f);
+	data[0]=data[1]=data[2]=data[3]=data[4]=0xff;
+	halSpiWriteBurstReg(0x25,data,5);
+	//Txtmp=0x25|READ_BURST;
+	//ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,5); //TXBYTES
+	halSpiReadBurstReg(0x25,RxBuf,5);
+	printf("halSpiReadBurstReg(0x25,RxBuf,5) : ");
 	for(i=0;i<5;i++)
 	    printf("%02x",RxBuf[i]);
 	printf("\n");
 
+	printf("halSpiReadReg(0x25)=x%02x\n",halSpiReadReg(0x25));
+
+	printf("halSpiReadReg(0x31)=x%02x\n",halSpiReadReg(0x31));
+	printf("halSpiReadStatus(0x31) Chip ID: x%02x\n",halSpiReadStatus(0x31));
 
 	SPI_Close();
 }
