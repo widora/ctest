@@ -267,17 +267,92 @@ uint8_t halSpiReadStatus(uint8_t addr)
 }
 
 
+// --------- configure registers ------------
+void halRfWriteRfSettings(void) 
+{
+//-- registers configuration
+    halSpiWriteReg(CCxxx0_FSCTRL0,  rfSettings.FSCTRL2); //additionl;
+    halSpiWriteReg(CCxxx0_FSCTRL1,  rfSettings.FSCTRL1);
+    halSpiWriteReg(CCxxx0_FSCTRL0,  rfSettings.FSCTRL0);
+    halSpiWriteReg(CCxxx0_FREQ2,    rfSettings.FREQ2);
+    halSpiWriteReg(CCxxx0_FREQ1,    rfSettings.FREQ1);
+    halSpiWriteReg(CCxxx0_FREQ0,    rfSettings.FREQ0);
+    halSpiWriteReg(CCxxx0_MDMCFG4,  rfSettings.MDMCFG4);
+    halSpiWriteReg(CCxxx0_MDMCFG3,  rfSettings.MDMCFG3);
+    halSpiWriteReg(CCxxx0_MDMCFG2,  rfSettings.MDMCFG2);
+    halSpiWriteReg(CCxxx0_MDMCFG1,  rfSettings.MDMCFG1);
+    halSpiWriteReg(CCxxx0_MDMCFG0,  rfSettings.MDMCFG0);
+    halSpiWriteReg(CCxxx0_CHANNR,   rfSettings.CHANNR);
+    halSpiWriteReg(CCxxx0_DEVIATN,  rfSettings.DEVIATN);
+    halSpiWriteReg(CCxxx0_FREND1,   rfSettings.FREND1);
+    halSpiWriteReg(CCxxx0_FREND0,   rfSettings.FREND0);
+    halSpiWriteReg(CCxxx0_MCSM0 ,   rfSettings.MCSM0 );
+    halSpiWriteReg(CCxxx0_FOCCFG,   rfSettings.FOCCFG);
+    halSpiWriteReg(CCxxx0_BSCFG,    rfSettings.BSCFG);
+    halSpiWriteReg(CCxxx0_AGCCTRL2, rfSettings.AGCCTRL2);
+    halSpiWriteReg(CCxxx0_AGCCTRL1, rfSettings.AGCCTRL1);
+    halSpiWriteReg(CCxxx0_AGCCTRL0, rfSettings.AGCCTRL0);
+    halSpiWriteReg(CCxxx0_FSCAL3,   rfSettings.FSCAL3);
+    halSpiWriteReg(CCxxx0_FSCAL2,   rfSettings.FSCAL2);
+    halSpiWriteReg(CCxxx0_FSCAL1,   rfSettings.FSCAL1);
+    halSpiWriteReg(CCxxx0_FSCAL0,   rfSettings.FSCAL0);
+    halSpiWriteReg(CCxxx0_FSTEST,   rfSettings.FSTEST);
+    halSpiWriteReg(CCxxx0_TEST2,    rfSettings.TEST2);
+    halSpiWriteReg(CCxxx0_TEST1,    rfSettings.TEST1);
+    halSpiWriteReg(CCxxx0_TEST0,    rfSettings.TEST0);
+    halSpiWriteReg(CCxxx0_IOCFG2,   rfSettings.IOCFG2);
+    halSpiWriteReg(CCxxx0_IOCFG0,   rfSettings.IOCFG0);
+    halSpiWriteReg(CCxxx0_PKTCTRL1, rfSettings.PKTCTRL1);
+    halSpiWriteReg(CCxxx0_PKTCTRL0, rfSettings.PKTCTRL0);
+    halSpiWriteReg(CCxxx0_ADDR,     rfSettings.ADDR);
+    halSpiWriteReg(CCxxx0_PKTLEN,   rfSettings.PKTLEN);
+}
+
+//----------- transmit  data packet ---------------------
+void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
+{
+    int i;
+    uint8_t buf;
+
+    halSpiWriteReg(CCxxx0_TXFIFO, size);
+    halSpiWriteBurstReg(CCxxx0_TXFIFO, txBuffer, size);
+    //halSpiStrobe(CCxxx0_SIDLE);
+    halSpiStrobe(CCxxx0_STX); //enter transmit mode and send out data
+    // Wait for GDO0 to be set -> sync transmitted
+    //while (!GDO0);
+    // Wait for GDO0 to be cleared -> end of packet 
+    //while (GDO0);
+    usleep(10000); 
+    SPI_Read(&buf,1);
+    while((buf & 0xf0)!=0)
+    {
+	usleep(10000);
+	SPI_Read(&buf,1);
+	printf("0X%02x\n",buf); 
+    }
+    halSpiStrobe(CCxxx0_SFTX);  //flush TXFIFO
+}
+//*****************************************************************************************
+void setRxMode(void)
+{
+    halSpiStrobe(CCxxx0_SRX);           //��ȱ뱫�ӱʱձ״̬
+}
+
+
+
+
+
 
 //======================= MAIN =============================
 int main(void)
 {
 	int len,i;
 	int ret;
-	uint8_t Txtmp,data[5];
+	uint8_t Txtmp,data[32];
 	uint8_t TxBuf[5],RxBuf[5];
 
 	len=2;
- 
+ 	memset(data,0,sizeof(data));
 	memset(TxBuf,0,sizeof(TxBuf));
 	memset(RxBuf,0,sizeof(RxBuf));
 
@@ -313,6 +388,12 @@ int main(void)
 
 	printf("halSpiReadReg(0x31)=x%02x\n",halSpiReadReg(0x31));
 	printf("halSpiReadStatus(0x31) Chip ID: x%02x\n",halSpiReadStatus(0x31));
+
+	//-----init CC1101-----
+	halRfWriteRfSettings();
+	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
+
+        halRfSendPacket(data,32);
 
 	SPI_Close();
 }
