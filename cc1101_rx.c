@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include "cc1101.h"
 
 //======================= MAIN =============================
@@ -10,7 +11,6 @@ int main(void)
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
 
-	len=2;
  	memset(data,0,sizeof(data));
 	//memset(TxBuf,0,sizeof(TxBuf));
 	memset(RxBuf,0,sizeof(RxBuf));
@@ -67,11 +67,24 @@ int main(void)
 	   j++; 
   	   if(halRfReceivePacket(RxBuf,DATA_LENGTH))
 	   {
- 		printf("%dth received data:",j);
-		for(i=0;i<len;i++)
-			printf("%d, ",RxBuf[i]);
-		printf("\n");
-	   }
+		//---print once for every 20 packet.
+		//printf("data received! ------\n");
+		if(j%10 == 0)
+		{
+ 			printf("%dth received data:",j);
+			for(i=0;i<len;i++)
+				printf("%d, ",RxBuf[i]);
+			printf("\n");
+		}
+		//---pick error data
+		if(RxBuf[0]!=0)
+		{
+ 			printf("%dth received data ERROR! :",j);
+			for(i=0;i<len;i++)
+				printf("%d, ",RxBuf[i]);
+			printf("\n");
+		}
+	  }
         }
 
 /*

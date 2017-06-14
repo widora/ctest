@@ -10,7 +10,6 @@ int main(void)
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
 
-	len=2;
  	memset(data,0,sizeof(data));
 	memset(TxBuf,0,sizeof(TxBuf));
 	memset(RxBuf,0,sizeof(RxBuf));

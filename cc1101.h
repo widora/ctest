@@ -8,7 +8,7 @@
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spidev.c
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spi.c
 
-#define DATA_LENGTH 30 //define payload data length
+#define DATA_LENGTH 30 //define max payload data length, +other data MUST be less than SPI shot data
 
 #define WRITE_SINGLE 0x00
 #define WRITE_BURST 0x40
@@ -34,10 +34,10 @@
 uint8_t PaTabel[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
 
 //--------------------------------
-char    flag,m;
-#define TxRxBuf_Len 32
-char    TxBuf[TxRxBuf_Len];  
-char    RxBuf[TxRxBuf_Len];
+//char    flag,m;
+//#define TxRxBuf_Len 32
+//char    TxBuf[TxRxBuf_Len];  
+//char    RxBuf[TxRxBuf_Len];
 
 uint8_t  decRSSI; // RSSI valueֵ
 signed char dbmRSSI; // RSSI(dbm) after calculation
@@ -334,7 +334,7 @@ void halRfWriteRfSettings(void)
 //----------- transmit  data packet ---------------------
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
 {
-    int i;
+    int i,k;
     uint8_t status;
 
     halSpiWriteReg(CCxxx0_TXFIFO, size);
@@ -343,20 +343,24 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
     halSpiStrobe(CCxxx0_STX); //enter transmit mode and send out data
 
     //------ wait for cc1101 to finish transmittance -----
+    //-- you may use GDO0 pin get a finish-transmitting signal ----
       // Wait for GDO0 to be set -> sync transmitted
       //while (!GDO0);
       // Wait for GDO0 to be cleared -> end of packet 
       //while (GDO0);
-    usleep(100000); 
+    usleep(20000);//----- critical!!!  
     printf("During transmitting...\n");
     status=halSpiGetStatus();
     printf("STATUS Byte: 0x%02x\n",status);
+    k=0;
     while((status>>4)!=STATUS_IDLE)
     {
-	usleep(5000);  //sleep 1ms
+	usleep(1000);  //sleep 
+	k++;
 	status=halSpiGetStatus();
-	//printf("STATUS Byte: 0x%02x\n",status);
+	//printf("wait 1000us,STATUS Byte: 0x%02x\n",status);
     }
+    printf("It takes %dms to send out data packet!\n",k);
     //usleep(5000);
 //    printf("Before CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
 //    halSpiStrobe(CCxxx0_SFTX);  //flush TXFIFO
@@ -374,13 +378,15 @@ void setRxMode(void)
 //----------------- Receive Data Packet ---------------
 uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) 
 {
+    int k;
     uint8_t status;
     uint8_t app_status[2]; //appended status data in received packet
     uint8_t packetLength;
-    uint8_t i=length*4;  // to be decided by datarate and length
+   // uint8_t i=length*4;  // to be decided by datarate and length
     //halSpiStrobe(CCxxx0_SIDLE);
     halSpiStrobe(CCxxx0_SRX);           //enter to RX Mode
-   
+    
+    //-------!!! you may use GDO0 pin to get a finish-receiving signal -----
 /*
         delay(2);
         while (GDO0)  //wait for RX to finish 
@@ -392,19 +398,24 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
            }
 */
    //----- wait for RX to be finished -----
-    printf("During receiving ...\n");
-    usleep(2000); 
-    status=halSpiGetStatus();
-    printf("STATUS Byte: 0x%02x\n",status);
-/*
-    while((status>>4)!=STATUS_IDLE)
+//  printf("During receiving ...\n");
+    usleep(500000); //---critical !!!!
+//    status=halSpiGetStatus();
+//    printf("Finished STATUS Byte: 0x%02x\n",status);
+
+/* ---------CANT NOT GET RECEIVING STATE FROM STATUS BYTE -----
+    k=0;
+    usleep(1000);
+    while((status>>4)==STATUS_RX)  // 0x1f ---RX Mode
     {
-        usleep(5000);  //sleep 1ms
+        usleep(1000);  //sleep 1ms
+	k++;
         status=halSpiGetStatus();
         //printf("STATUS Byte: 0x%02x\n",status);
     }
+    printf("It takes %dms to receive data packet!\n",k+10);
 */
-    sleep(2);// finish receiving. 
+
   //----- check and analyze receive data --------
     if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // if received bytes is valid and not 0
          {
@@ -419,7 +430,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
             halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);    //
             decRSSI=app_status[0];
             halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
-		
+
             if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
                return 1;
             else
