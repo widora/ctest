@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -7,17 +8,30 @@
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spidev.c
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spi.c
 
+#define DATA_LENGTH 30 //define payload data length
+
 #define WRITE_SINGLE 0x00
 #define WRITE_BURST 0x40
 #define READ_SINGLE 0x80
 #define READ_BURST  0xC0
-#define BYTES_IN_RXFIFO 0x7F
+#define BYTES_IN_RXFIFO 0x7F // effective bits for RXFIFO: 0b0111 1111
 #define CRC_OK      0x80
 
+//----first 4bits of Chip Status
+#define STATUS_IDLE 0
+#define STATUS_RX 1
+#define STATUS_TX 2
+#define STATUS_FSTXON 3
+#define CALIBRATE 4
+#define SETTLING 5
+#define RXFIFO_OVERFLOW 6
+#define TXFIFO_UNDERFLOW 7
+
+
 //------------------ PA settingup ------------
-//uint8_t PaTabel[8] = {0x12 ,0x12 ,0x12 ,0x12 ,0x12,0x12 ,0x12 ,0x12};     //-30dBm   ������С
+//uint8_t PaTabel[8] = {0x12 ,0x12 ,0x12 ,0x12 ,0x12,0x12 ,0x12 ,0x12};     //-30dBm
 //uint8_t PaTabel[8] = {0x60 ,0x60 ,0x60 ,0x60 ,0x60 ,0x60 ,0x60 ,0x60};      //0dBm
- uint8_t PaTabel[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm     ��������
+uint8_t PaTabel[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
 
 //--------------------------------
 char    flag,m;
@@ -33,15 +47,16 @@ signed char dbmRSSI; // RSSI(dbm) after calculation
 //void CpuInit(void);
 void RESET_CC1100(void);
 //void POWER_UP_RESET_CC1100(void);
+uint8_t halSpiGetStatus(void);
 void halSpiWriteReg(uint8_t addr, uint8_t value);
-//void halSpiWriteBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
+void halSpiWriteBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 void halSpiStrobe(uint8_t strobe);
-//uint8_t halSpiReadReg(uint8_t addr);
-//void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
-//uint8_t halSpiReadStatus(uint8_t addr);
-//void halRfWriteRfSettings(void);
-//void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
-//uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t *length);  
+uint8_t halSpiReadReg(uint8_t addr);
+void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
+uint8_t halSpiReadStatus(uint8_t addr);
+void halRfWriteRfSettings(void);
+void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
+uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length);  
 //void UART_init();
 //void R_S_Byte(char R_Byte);
 
@@ -224,6 +239,14 @@ void RESET_CC1100(void)
 	halSpiStrobe(CCxxx0_SRES);
 }
 
+/* read Status byte from MISO */
+uint8_t halSpiGetStatus(void)
+{
+	uint8_t status;
+        SPI_Read(&status,1);
+	return status;
+}
+
 /* Write to a register */
 void halSpiWriteReg(uint8_t addr, uint8_t value)
 {
@@ -312,88 +335,105 @@ void halRfWriteRfSettings(void)
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
 {
     int i;
-    uint8_t buf;
+    uint8_t status;
 
     halSpiWriteReg(CCxxx0_TXFIFO, size);
     halSpiWriteBurstReg(CCxxx0_TXFIFO, txBuffer, size);
     //halSpiStrobe(CCxxx0_SIDLE);
     halSpiStrobe(CCxxx0_STX); //enter transmit mode and send out data
-    // Wait for GDO0 to be set -> sync transmitted
-    //while (!GDO0);
-    // Wait for GDO0 to be cleared -> end of packet 
-    //while (GDO0);
-    usleep(10000); 
-    SPI_Read(&buf,1);
-    while((buf & 0xf0)!=0)
+
+    //------ wait for cc1101 to finish transmittance -----
+      // Wait for GDO0 to be set -> sync transmitted
+      //while (!GDO0);
+      // Wait for GDO0 to be cleared -> end of packet 
+      //while (GDO0);
+    usleep(100000); 
+    printf("During transmitting...\n");
+    status=halSpiGetStatus();
+    printf("STATUS Byte: 0x%02x\n",status);
+    while((status>>4)!=STATUS_IDLE)
     {
-	usleep(10000);
-	SPI_Read(&buf,1);
-	printf("0X%02x\n",buf); 
+	usleep(5000);  //sleep 1ms
+	status=halSpiGetStatus();
+	//printf("STATUS Byte: 0x%02x\n",status);
     }
-    halSpiStrobe(CCxxx0_SFTX);  //flush TXFIFO
+    //usleep(5000);
+//    printf("Before CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
+//    halSpiStrobe(CCxxx0_SFTX);  //flush TXFIFO
+//    printf("After CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
+//    usleep(100);
+//    printf("100us After CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
 }
-//*****************************************************************************************
+
+//-------  set RX Mode -----------------
 void setRxMode(void)
 {
-    halSpiStrobe(CCxxx0_SRX);           //��ȱ뱫�ӱʱձ״̬
+    halSpiStrobe(CCxxx0_SRX); // set as receiver mode
 }
 
-
-
-
-
-
-//======================= MAIN =============================
-int main(void)
+//----------------- Receive Data Packet ---------------
+uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) 
 {
-	int len,i;
-	int ret;
-	uint8_t Txtmp,data[32];
-	uint8_t TxBuf[5],RxBuf[5];
+    uint8_t status;
+    uint8_t app_status[2]; //appended status data in received packet
+    uint8_t packetLength;
+    uint8_t i=length*4;  // to be decided by datarate and length
+    //halSpiStrobe(CCxxx0_SIDLE);
+    halSpiStrobe(CCxxx0_SRX);           //enter to RX Mode
+   
+/*
+        delay(2);
+        while (GDO0)  //wait for RX to finish 
+        {
+                        delay(2);
+                        --i;
+                        if(i<1)
+                    return 0;
+           }
+*/
+   //----- wait for RX to be finished -----
+    printf("During receiving ...\n");
+    usleep(2000); 
+    status=halSpiGetStatus();
+    printf("STATUS Byte: 0x%02x\n",status);
+/*
+    while((status>>4)!=STATUS_IDLE)
+    {
+        usleep(5000);  //sleep 1ms
+        status=halSpiGetStatus();
+        //printf("STATUS Byte: 0x%02x\n",status);
+    }
+*/
+    sleep(2);// finish receiving. 
+  //----- check and analyze receive data --------
+    if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // if received bytes is valid and not 0
+         {
+        packetLength = halSpiReadReg(CCxxx0_RXFIFO);// read out packet-length first
+	printf("received data packetLenght=%d\n",packetLength);
+        if (packetLength <= length)            //if packet-length less than effective data_length
+        {
+            halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out remaining data
+            //length = packetLength;              // adjust effective data-length
+            //--- Read 2 appended status bytes (status[0] = RSSI, status[1] = LQI)
+	    //--- if you enable APPEND_STATUS, (RRSI+LQI)+CRC
+            halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);    //
+            decRSSI=app_status[0];
+            halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
+		
+            if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
+               return 1;
+            else
+		printf("Received data CRC error!\n");
+         }
+         else 
+         {
+            //length = packetLength;
+            halSpiStrobe(CCxxx0_SFRX);      //flush RXFIFO
+	    return 0;
+	 }
 
-	len=2;
- 	memset(data,0,sizeof(data));
-	memset(TxBuf,0,sizeof(TxBuf));
-	memset(RxBuf,0,sizeof(RxBuf));
-
-	TxBuf[0]=0xac;
-	TxBuf[1]=0xab;
-
-
-
-	SPI_Open();
-
-        Txtmp=0x3b;
-        SPI_Write(&Txtmp,1); //clear RxBuf in cc1101
-	Txtmp=0x3b|READ_SINGLE;
-        ret=SPI_Transfer(&Txtmp,RxBuf,1,1);
-	printf("RXBYTES: ret=%d, =x%02x\n",ret,RxBuf[0]);
-
-	Txtmp=0x3b|READ_BURST;
-	ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,2); //RXBYTES
-	printf("RXBYTES: ret=%d, =x%02x %02x\n",ret,RxBuf[0],RxBuf[1]);
-
-        //halSpiWriteReg(0x25,0x7f);
-	data[0]=data[1]=data[2]=data[3]=data[4]=0xff;
-	halSpiWriteBurstReg(0x25,data,5);
-	//Txtmp=0x25|READ_BURST;
-	//ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,5); //TXBYTES
-	halSpiReadBurstReg(0x25,RxBuf,5);
-	printf("halSpiReadBurstReg(0x25,RxBuf,5) : ");
-	for(i=0;i<5;i++)
-	    printf("%02x",RxBuf[i]);
-	printf("\n");
-
-	printf("halSpiReadReg(0x25)=x%02x\n",halSpiReadReg(0x25));
-
-	printf("halSpiReadReg(0x31)=x%02x\n",halSpiReadReg(0x31));
-	printf("halSpiReadStatus(0x31) Chip ID: x%02x\n",halSpiReadStatus(0x31));
-
-	//-----init CC1101-----
-	halRfWriteRfSettings();
-	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
-
-        halRfSendPacket(data,32);
-
-	SPI_Close();
+    }
+    else
+	return 0;
 }
+

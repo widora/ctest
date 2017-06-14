@@ -34,7 +34,7 @@
 static const char *device = "/dev/spidev32766.1";
 static uint8_t mode = 0 ; /* SPI通信使用全双工，设置CPOL＝0，CPHA＝0。 */
 static uint8_t bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
-static uint32_t speed =10*1000*1000;/* min.1M 设置传输速度 */
+static uint32_t speed =5*1000*1000;/* min.1M 设置传输速度 */
 static uint16_t delay = 0;
 static int g_SPI_Fd = 0;
 
