@@ -57,7 +57,8 @@ int main(void)
 
         //----- get symbol Kbit rate --
         printf("Set symbol rate to %8.1f Kbit/s\n",getKbitRate());
-
+	//------ get carrier frequency ---
+	printf("Set carrier frequency to %8.3f MHz\n",getCarFreqMHz());
         //----- transmit data -----
 	len=15;
 	j=0;

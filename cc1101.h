@@ -348,7 +348,27 @@ float getKbitRate(void)
   return brate;
 }
 
+//----------- get carrier frequency (MHz) -------
+float getCarFreqMHz(void)
+{
+   float carfreq;
+   uint8_t freq0,freq1,freq2;
+   int freq;
+   uint8_t chanspc_e,chanspc_m;
+   uint8_t channel;
 
+    freq0=halSpiReadReg(CCxxx0_FREQ0);
+    freq1=halSpiReadReg(CCxxx0_FREQ1);
+    freq2=halSpiReadReg(CCxxx0_FREQ2);
+    freq=(freq2<<16)+(freq1<<8)+freq0;
+    chanspc_e=halSpiReadReg(CCxxx0_MDMCFG1)&0x03;
+    chanspc_m=halSpiReadReg(CCxxx0_MDMCFG0);
+    channel=halSpiReadReg(CCxxx0_CHANNR);
+
+    carfreq=CC1101_FXOSC/pow(2,16)*(freq+channel*(256+chanspc_m*pow(2,chanspc_e-2)));
+
+   return carfreq;
+}
 
 
 //----------- transmit  data packet ---------------------
