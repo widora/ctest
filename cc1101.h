@@ -1,4 +1,4 @@
-
+////--------------- With referecne to    WWW.RFinCHINA.COM    ----------------
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,7 +8,7 @@
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spidev.c
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spi.c
 
-#define DATA_LENGTH 30 //define max payload data length, +other data MUST be less than SPI shot data
+#define DATA_LENGTH 64 //define max payload data length, +other data MUST be less than SPI shot data
 
 #define WRITE_SINGLE 0x00
 #define WRITE_BURST 0x40
