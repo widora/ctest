@@ -55,11 +55,22 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings();
 	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
-	
-	//----- get symbol Kbit rate --
-        printf("Set symbol rate to %8.1f Kbit/s\n",getKbitRate());
+
+	printf("----------  CC1101 Configuration --------\n");
+	//---- get Modulation Format  ---
+	printf("Set modulation format to    %s\n",getModFmtStr());
+	//----- get symbol Kbit rate ----
+        printf("Set symbol rate to       %8.1f Kbit/s\n",getKbitRate());
         //------ get carrier frequency ---
-        printf("Set carrier frequency to %8.3f MHz\n",getCarFreqMHz());
+        printf("Set carrier frequency to   %8.3f MHz\n",getCarFreqMHz());
+	//------ get  IF frequency ----
+	printf("Set IF to                  %8.3f KHz\n",getIfFreqKHz());
+	//------ get channel Bandwith ----
+	printf("Set channel BW to          %8.3f KHz\n", getChanBWKHz());
+	//------ get channel spacing  ----
+	printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
+
+	printf("----------------------------------------\n");
 
         //----- transmit data -----
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);

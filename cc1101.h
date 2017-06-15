@@ -59,6 +59,12 @@ uint8_t halSpiReadReg(uint8_t addr);
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
 void halRfWriteRfSettings(void);
+char* getModFmtStr(void);
+float getKbitRateMHz(void);
+float getCarFreqMHz(void);
+float getIfFreqKHz(void);
+float getChanBWKHz(void);
+float getChanSpcKHz(void);
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
 uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length);  
 //void UART_init();
@@ -201,8 +207,8 @@ const RF_SETTINGS rfSettings =
     0x10,   //- FREQ2     Frequency control word, high byte.
     0xA7,   //- FREQ1     Frequency control word, middle byte.
     0x62,   //- FREQ0     Frequency control word, low byte.
-    0xF8,   //- MDMCFG4   Modem configuration.2.4k:0xF6 5k:0xF7 10k:0xF8 100k:0xFB  [3:0]-DRATE_E 6 
-    0x93,   //- MDMCFG3   Modem configuration.2.4k:0x83 5k:0x93 10k:0x93 100k:0xF8  [7:0]-DRATE_M=131
+    0xFA,   //- MDMCFG4   Modem configuration.2.4k:0xF6 5k:0xF7 10k:0xF8 50k:FA 100k:0xFB  [3:0]-DRATE_E 6 
+    0xF8,   //- MDMCFG3   Modem configuration.2.4k:0x83 5k:0x93 10k:0x93 50k:F8 100k:0xF8  [7:0]-DRATE_M=131
     0x13,   //- MDMCFG2   Modem configuration.//[6:4] 000--2FSK  001---GFSK 011---ASK/OOK 111---MSK
     0x22,   //- MDMCFG1   Modem configuration.  --[1:0]CHANSPC_E ---[7]=1 FEC_EN enable forward correcting
     0xF8,   //- MDMCFG0   Modem configuration.  --CHANSPC_M
@@ -370,6 +376,67 @@ float getCarFreqMHz(void)
    return carfreq;
 }
 
+//------ get Mode Format -----------
+char* getModFmtStr(void)
+{
+	char* str;
+	char *str_2FSK="2-FSK";  // Do not use str_2FSK[]="...".
+	char *str_GFSK="GFSK";
+	char *str_ASKOOK="ASK/OOK";
+	char *str_4FSK="4-FSK";
+	char *str_MSK="MSK";
+	char *str_UNKNOWN="UNKNOWN";
+
+	uint8_t mod;
+	mod=(halSpiReadReg(CCxxx0_MDMCFG2)&0x60)>>4;
+
+	switch(mod){
+		case 0: str=str_2FSK;break;
+		case 1: str=str_GFSK;break;
+		case 3: str=str_ASKOOK;break;
+		case 4: str=str_4FSK;break;
+		case 7: str=str_MSK;break;
+		default: str=str_UNKNOWN; 
+	}
+	return str;
+}
+
+//------ get intermediate frequency ------
+float getIfFreqKHz(void)
+{
+	float iffreq;
+	uint8_t fsctrl1_freq;
+	fsctrl1_freq=halSpiReadReg(CCxxx0_FSCTRL1)&0x1f;
+	iffreq=CC1101_FXOSC/pow(2,10)*fsctrl1_freq*1000;
+
+	return iffreq;
+}
+
+//----------- get channel bandwith KHz -----
+float getChanBWKHz(void)
+{
+	float chanBW;
+	uint8_t chanBW_E,chanBW_M;
+	chanBW_E=halSpiReadReg(CCxxx0_MDMCFG4)>>6;
+	chanBW_M=(halSpiReadReg(CCxxx0_MDMCFG4)&0x30)>>4;
+	chanBW=CC1101_FXOSC/(8*(4+chanBW_M)*pow(2,chanBW_E))*1000;
+
+	return chanBW;
+}
+
+//--------- get channel spacing ---------
+float getChanSpcKHz(void)
+{
+   float chanspc;
+   uint8_t chanspc_e,chanspc_m;
+
+    chanspc_e=halSpiReadReg(CCxxx0_MDMCFG1)&0x03;
+    chanspc_m=halSpiReadReg(CCxxx0_MDMCFG0);
+
+   chanspc=CC1101_FXOSC/pow(2,18)*(256+chanspc_m)*pow(2,chanspc_e)*1000;
+   return chanspc;
+}
+
 
 //----------- transmit  data packet ---------------------
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
@@ -438,7 +505,8 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
 */
    //----- wait for RX to be finished -----
 //  printf("During receiving ...\n");
-    usleep(500000); //---critical !!!!
+  //  usleep(500000); //---critical !!!! 500ms for <10kbits rate
+      usleep(100000); //---critical !!!! 100ms for 50kbits rate
 //    status=halSpiGetStatus();
 //    printf("Finished STATUS Byte: 0x%02x\n",status);
 
