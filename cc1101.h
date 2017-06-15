@@ -26,8 +26,8 @@
 #define STATUS_RX 1
 #define STATUS_TX 2
 #define STATUS_FSTXON 3
-#define CALIBRATE 4
-#define SETTLING 5
+#define STATUS_CALIBRATE 4
+#define STATUS_SETTLING 5
 #define RXFIFO_OVERFLOW 6
 #define TXFIFO_UNDERFLOW 7
 
@@ -491,7 +491,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
    // uint8_t i=length*4;  // to be decided by datarate and length
     //halSpiStrobe(CCxxx0_SIDLE);
     halSpiStrobe(CCxxx0_SRX);           //enter to RX Mode
-    
+ 
     //-------!!! you may use GDO0 pin to get a finish-receiving signal -----
 /*
         delay(2);
@@ -505,23 +505,32 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
 */
    //----- wait for RX to be finished -----
 //  printf("During receiving ...\n");
-  //  usleep(500000); //---critical !!!! 500ms for <10kbits rate
-      usleep(100000); //---critical !!!! 100ms for 50kbits rate
-//    status=halSpiGetStatus();
-//    printf("Finished STATUS Byte: 0x%02x\n",status);
+//      usleep(100000); //---critical !!!! 100ms for 50kbits rate 
 
-/* ---------CANT NOT GET RECEIVING STATE FROM STATUS BYTE -----
-    k=0;
-    usleep(1000);
-    while((status>>4)==STATUS_RX)  // 0x1f ---RX Mode
+//   status=halSpiGetStatus();
+//  printf("before usleep STATUS Byte: 0x%02x\n",status);
+//    usleep(200); //1ms,wait for frequency calibration  
+//    status=halSpiGetStatus();
+//    printf("after usleep STATUS Byte: 0x%02x\n",status);
+    status=halSpiGetStatus();// init the value
+    while((status>>4)!=STATUS_CALIBRATE)// wait frequency calibrating
     {
-        usleep(1000);  //sleep 1ms
+	 //usleep(20);
+	 status=halSpiGetStatus();
+         printf("STATUS Byte: 0x%02x\n",status);
+ 	 if((status>>4)==STATUS_IDLE)break;
+    }
+
+    k=0;
+    while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
+    {
+        usleep(100);  
 	k++;
         status=halSpiGetStatus();
-        //printf("STATUS Byte: 0x%02x\n",status);
+       // printf("STATUS Byte: 0x%02x\n",status);
     }
-    printf("It takes %dms to receive data packet!\n",k+10);
-*/
+    printf("It takes %d*100us to receive data packet!\n",k);
+
 
   //----- check and analyze receive data --------
     if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // if received bytes is valid and not 0

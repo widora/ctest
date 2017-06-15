@@ -80,7 +80,7 @@ int main(void)
 	j=0;
   	while(1)
 	{
-	   j++; 
+	   j++;
   	   if(halRfReceivePacket(RxBuf,DATA_LENGTH))
 	   {
 		//---print once for every 20 packet.

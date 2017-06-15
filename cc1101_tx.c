@@ -84,7 +84,7 @@ int main(void)
 		}
 		printf("\n");
 	        halRfSendPacket(TxBuf,len); //DATA_LENGTH);
-		usleep(500000);
+		usleep(50000); //--to slow down 
 	}
 	//----- receive data -----
 //	halRfReceivePacket(RxBuf,DATA_LENGTH);
