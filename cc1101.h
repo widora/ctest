@@ -1,6 +1,9 @@
 ////--------------- With referecne to    WWW.RFinCHINA.COM    ----------------
+// lib: -lm
+
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "cc1101_spi.h"
@@ -9,6 +12,7 @@
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spi.c
 
 #define DATA_LENGTH 64 //define max payload data length, +other data MUST be less than SPI shot data
+#define CC1101_FXOSC 26  //MHz
 
 #define WRITE_SINGLE 0x00
 #define WRITE_BURST 0x40
@@ -197,8 +201,8 @@ const RF_SETTINGS rfSettings =
     0x10,   //- FREQ2     Frequency control word, high byte.
     0xA7,   //- FREQ1     Frequency control word, middle byte.
     0x62,   //- FREQ0     Frequency control word, low byte.
-    0xF6,   //- MDMCFG4   Modem configuration. [3:0]------- DRATE_E 6 
-    0x83,   //- MDMCFG3   Modem configuration. [7:0]--------DRATE_M=131
+    0xF8,   //- MDMCFG4   Modem configuration.2.4k:0xF6 5k:0xF7 10k:0xF8 100k:0xFB  [3:0]-DRATE_E 6 
+    0x93,   //- MDMCFG3   Modem configuration.2.4k:0x83 5k:0x93 10k:0x93 100k:0xF8  [7:0]-DRATE_M=131
     0x13,   //- MDMCFG2   Modem configuration.//[6:4] 000--2FSK  001---GFSK 011---ASK/OOK 111---MSK
     0x22,   //- MDMCFG1   Modem configuration.  --[1:0]CHANSPC_E ---[7]=1 FEC_EN enable forward correcting
     0xF8,   //- MDMCFG0   Modem configuration.  --CHANSPC_M
@@ -331,6 +335,22 @@ void halRfWriteRfSettings(void)
     halSpiWriteReg(CCxxx0_PKTLEN,   rfSettings.PKTLEN);
 }
 
+//------ get symbol bit rate -------
+float getKbitRate(void)
+{
+  float brate; // symbol kbit rate 
+  uint8_t drate_m,drate_e;
+
+  drate_m=halSpiReadReg(CCxxx0_MDMCFG3);
+  drate_e=halSpiReadReg(CCxxx0_MDMCFG4)&0x0f;
+  brate=(256+drate_m)*pow(2,drate_e-28)*CC1101_FXOSC*1000; //Kbits/s
+  
+  return brate;
+}
+
+
+
+
 //----------- transmit  data packet ---------------------
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
 {
@@ -348,19 +368,18 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
       //while (!GDO0);
       // Wait for GDO0 to be cleared -> end of packet 
       //while (GDO0);
-    usleep(20000);//----- critical!!!  
-    printf("During transmitting...\n");
+//    printf("During transmitting...\n");
     status=halSpiGetStatus();
-    printf("STATUS Byte: 0x%02x\n",status);
+//    printf("STATUS Byte: 0x%02x\n",status);
     k=0;
     while((status>>4)!=STATUS_IDLE)
     {
-	usleep(1000);  //sleep 
+	usleep(100);  //sleep 
 	k++;
 	status=halSpiGetStatus();
 	//printf("wait 1000us,STATUS Byte: 0x%02x\n",status);
     }
-    printf("It takes %dms to send out data packet!\n",k);
+    printf("It takes %dx100us to send out data packet!\n",k);
     //usleep(5000);
 //    printf("Before CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
 //    halSpiStrobe(CCxxx0_SFTX);  //flush TXFIFO

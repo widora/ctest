@@ -55,6 +55,9 @@ int main(void)
 	halRfWriteRfSettings();
 	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
 
+        //----- get symbol Kbit rate --
+        printf("Set symbol rate to %8.1f Kbit/s\n",getKbitRate());
+
         //----- transmit data -----
 	len=15;
 	j=0;
