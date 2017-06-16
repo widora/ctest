@@ -71,19 +71,23 @@ int main(void)
         printf("----------------------------------------\n");
 
         //----- transmit data -----
-	len=15;
+	len=12;
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;
         while(1)
 	{
 		j++;
+		//--renew TxBuf
+		for(i=0;i<len;i++)
+			TxBuf[i]=j+1;
+		//--print TxBuf
 		printf("%dth transmit:",j);
 		for(i=0;i<len;i++){
 			printf("%d, ",TxBuf[i]);
 		}
 		printf("\n");
-	        halRfSendPacket(TxBuf,len); //DATA_LENGTH);
+	        halRfSendPacket(TxBuf,len); //---transmit data
 		usleep(50000); //--to slow down 
 	}
 	//----- receive data -----

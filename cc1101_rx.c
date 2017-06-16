@@ -1,12 +1,32 @@
 #include <stdio.h>
 #include <math.h>
+#include <signal.h>
 #include "cc1101.h"
+
+//------global variables -----
+int nTotal=0;
+int nDATA_rec=0; // all data number received include nDATA_err, excetp CRC error.
+int nDATA_err=0;
+int nCRC_err=0;
+int nFAIL=0;
+
+void ExitProcess()
+{
+	printf("-------Exit Process------\n");
+	printf("nTotal=%d\n",nTotal);
+	printf("nDATA_rec=%d\n",nDATA_rec);
+	printf("nDATA_err=%d\n",nDATA_err);
+	printf("nCRC_err=%d\n",nCRC_err);
+	printf("nFAIL=%d\n",nFAIL);
+//	exit(0);
+}
 
 //======================= MAIN =============================
 int main(void)
 {
 	int len,i,j;
-	int ret;
+	int ret,ccret;
+
 	uint8_t Txtmp,data[32];
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
@@ -18,6 +38,8 @@ int main(void)
 	//TxBuf[0]=0xac;
 	//TxBuf[1]=0xab;
 
+        //-------- Exit Signal Process ---------
+        signal(SIGINT,ExitProcess);
 
 
 	SPI_Open();
@@ -76,16 +98,17 @@ int main(void)
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
 	//----- receive data -----
-	len=15;
+	len=12;
 	j=0;
-  	while(1)
+  	while(1) //--- !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
 	   j++;
-  	   if(halRfReceivePacket(RxBuf,DATA_LENGTH))
+  	   ccret=halRfReceivePacket(RxBuf,DATA_LENGTH);
+  	   if(ccret==1) //receive success
 	   {
-		//---print once for every 20 packet.
-		//printf("data received! ------\n");
-		if(j%10 == 0)
+		nDATA_rec++;
+		printf("------ nDATA_rec=%d ------\n",nDATA_rec);
+		if(1)//j%10 == 0)
 		{
  			printf("%dth received data:",j);
 			for(i=0;i<len;i++)
@@ -93,16 +116,30 @@ int main(void)
 			printf("\n");
 		}
 		//---pick error data
-		if(RxBuf[0]!=0)
+		if(RxBuf[0]!=RxBuf[1])
 		{
+ 			nDATA_err++;
+			printf("------ nDATA_rec=%d ------\n",nDATA_err);
  			printf("%dth received data ERROR! :",j);
 			for(i=0;i<len;i++)
 				printf("%d, ",RxBuf[i]);
 			printf("\n");
 		}
-	  }
-        }
+	    }
 
+  	   else if(ccret==2) // receive CRC error
+	   {
+ 		nCRC_err++;
+		printf("------ nCRC_err=%d ------\n",nCRC_err);
+	   }
+	   else if(ccret==0)//fail
+	   {
+		nFAIL++;
+		printf("------ nFAIL=%d ------\n",nFAIL);
+	   }
+
+	   nTotal++;
+        }//while
 /*
 	//---- check status ---- 
 	for(i=0;i<10;i++)
@@ -111,6 +148,5 @@ int main(void)
 		printf("Status Byte:0x%02x\n",halSpiGetStatus());
 	}
 */
-
 	SPI_Close();
 }
