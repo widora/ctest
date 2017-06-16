@@ -1,8 +1,10 @@
 ---------------- README ------------------------------
 
-RMshow18bit*.c  :  Send 24bit_color BMP pictures to a LCD drived by RM68140 through SPI.
-lirc_mplay.c    :  Infrared remote control for mplayer
-pwmtest.c       :  C program for PWM test
+RMshow18bit*.c      :  Send 24bit_color BMP pictures to a RM68140 drived LCD through SPI.
+CC1101_rx.c,tx.c    :  Receive and transmit example for CC1101 connected to Widora-NEO by SPI.
+ads_b.c 	    :  Decode ADS-B data received by a RTL-SDR USB Dongle connected to Widora-NEO.
+lirc_mplay.c    :  Infrared remote control for mplayer.
+pwmtest.c       :  C program for PWM test.
 
 
 
