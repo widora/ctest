@@ -12,12 +12,15 @@ int nFAIL=0;
 
 void ExitProcess()
 {
+	float CRC_err_rate;
 	printf("-------Exit Process------\n");
 	printf("nTotal=%d\n",nTotal);
 	printf("nDATA_rec=%d\n",nDATA_rec);
 	printf("nDATA_err=%d\n",nDATA_err);
 	printf("nCRC_err=%d\n",nCRC_err);
 	printf("nFAIL=%d\n",nFAIL);
+	CRC_err_rate=(float)nCRC_err/nTotal*100.0;
+	printf("CRC error rate: %5.2f %%\n",CRC_err_rate);
 //	exit(0);
 }
 
@@ -26,7 +29,7 @@ int main(void)
 {
 	int len,i,j;
 	int ret,ccret;
-
+	int dbmRSSI;
 	uint8_t Txtmp,data[32];
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
@@ -93,7 +96,7 @@ int main(void)
 	printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
 
 	printf("----------------------------------------\n");
-
+	sleep(3);
         //----- transmit data -----
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
@@ -114,6 +117,7 @@ int main(void)
 			for(i=0;i<len;i++)
 				printf("%d, ",RxBuf[i]);
 			printf("\n");
+			printf("--------- RSSI: %ddBm --------\n",getRSSIdbm());
 		}
 		//---pick error data
 		if(RxBuf[0]!=RxBuf[1])

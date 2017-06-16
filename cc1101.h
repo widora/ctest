@@ -44,7 +44,6 @@ uint8_t PaTabel[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
 //char    RxBuf[TxRxBuf_Len];
 
 uint8_t  decRSSI; // RSSI valueֵ
-signed char dbmRSSI; // RSSI(dbm) after calculation
 
 //----------------- function declaration -----------------
 //void SpiInit(void);
@@ -65,6 +64,7 @@ float getCarFreqMHz(void);
 float getIfFreqKHz(void);
 float getChanBWKHz(void);
 float getChanSpcKHz(void);
+int   getRSSIdbm(void);
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
 uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length);  
 //void UART_init();
@@ -232,7 +232,7 @@ const RF_SETTINGS rfSettings =
     0x09,   //- TEST0     Various test settings.
     0x0B,   // IOCFG2    GDO2 output pin configuration.
     0x06,   // IOCFG0   GDO0 output pin configuration. Refer to SmartRF?Studio User Manual for detailed pseudo register explanation.
-    0x04,   // PKTCTRL1  Packet automation control. --[2]=1 enable APPEND_STATUS(RRSI+LQI) and CRC
+    0x04,   // PKTCTRL1  Packet automation control. --[2]=1 enable APPEND_STATUS(RSSI+LQI) and CRC
     0x45,   //- PKTCTRL0  Packet automation control. --[6]=1 turn data whitening on.
     0x00,   //- ADDR      Device address.
     0x40    //- PKTLEN    Packet length.variable packet lenth mode, Max packet len = 60
@@ -435,6 +435,18 @@ float getChanSpcKHz(void)
 
    chanspc=CC1101_FXOSC/pow(2,18)*(256+chanspc_m)*pow(2,chanspc_e)*1000;
    return chanspc;
+}
+
+//---- get RSSI (dbm) -----
+int getRSSIdbm()
+{
+   int dbmRSSI;
+   if(decRSSI >= 128)
+	dbmRSSI=(decRSSI-256)/2-74;
+   else
+    	dbmRSSI=decRSSI/2-74;
+
+   return dbmRSSI;
 }
 
 

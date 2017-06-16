@@ -69,6 +69,7 @@ int main(void)
         //------ get channel spacing  ----
         printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
         printf("----------------------------------------\n");
+	sleep(3);
 
         //----- transmit data -----
 	len=12;
