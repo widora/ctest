@@ -1,9 +1,8 @@
 ---------------- README ------------------------------
-This repo. include all C test program for widora-neo.
 
-RMshow18bit*.c    :   C program for LCD display through ISP interface
-lirc_mplay.c      :   C program for infrared remote control to mplayer
-pwmtest.c         :   C program for PWM test
+RMshow18bit*.c  :  Send 24bit_color BMP pictures to a LCD drived by RM68140 through SPI.
+lirc_mplay.c    :  Infrared remote control for mplayer
+pwmtest.c       :  C program for PWM test
 
 
 
