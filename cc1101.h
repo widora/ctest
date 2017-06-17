@@ -59,6 +59,7 @@ void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
 void halRfWriteRfSettings(void);
 char* getModFmtStr(void);
+void setKbitRateME(uint8_t rate_m, uint8_t rate_e);
 float getKbitRateMHz(void);
 float getCarFreqMHz(void);
 void setFreqDeviatME(uint8_t m, uint8_t e);
@@ -343,6 +344,24 @@ void halRfWriteRfSettings(void)
     halSpiWriteReg(CCxxx0_PKTLEN,   rfSettings.PKTLEN);
 }
 
+//----- set symbol bit rate ------
+void setKbitRateME(uint8_t m, uint8_t e)
+{
+  if(e>15)
+  {
+	printf(" E value is NOT valid!\n");
+	return;
+  }
+  rfSettings.MDMCFG4&=0xf0;
+  rfSettings.MDMCFG4|=e;
+  rfSettings.MDMCFG3=m;
+
+  halSpiWriteReg(CCxxx0_MDMCFG4,rfSettings.MDMCFG4);
+  halSpiWriteReg(CCxxx0_MDMCFG3,rfSettings.MDMCFG3);
+
+}
+
+
 //------ get symbol bit rate -------
 float getKbitRate(void)
 {
@@ -538,6 +557,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
    // uint8_t i=length*4;  // to be decided by datarate and length
    //--- !!! Wait a little time just before setting up for next  TX_MODE when you loop funciton halRfReceivePacket().....
     //halSpiStrobe(CCxxx0_SIDLE);
+    printf("try halSpiStrobe(CCxxx0_SRX)...\n");
     halSpiStrobe(CCxxx0_SRX);           //enter to RX Mode
    //----after CCxxx0_SRX STATUS changes: CALIBRATE->PPL SETTLING->RX_MODE->IDEL ---------//
  
@@ -552,13 +572,15 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
                     return 0;
            }
 */
+    printf("try halSpiGetStatus() before while ...\n"); 
     status=halSpiGetStatus();// init the value
     k=0;
     while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
-        //usleep(100);
+        usleep(100);// try to relief CPU
 //	k++;
-      status=halSpiGetStatus();
+       printf("try halSpiGetStatus() in while() ...\n"); 
+       status=halSpiGetStatus();
 //      printf("STATUS Byte: 0x%02x\n",status);
     }
 //    printf("It takes %d*100us to receive data packet!\n",k);
@@ -570,12 +592,15 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
 	//printf("received data packetLenght=%d\n",packetLength);
         if (packetLength <= length)            //if packet-length less than effective data_length
         {
+	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
             halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out remaining data
             //length = packetLength;              // adjust effective data-length
             //--- Read 2 appended status bytes (status[0] = RSSI, status[1] = LQI)
 	    //--- if you enable APPEND_STATUS, (RRSI+LQI)+CRC
+	    printf("try halSpiReadBurstReg(..app_status..)...\n");
             halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);    //
             decRSSI=app_status[0];
+	    printf("try halSpiStrobe(..SFRX..)...\n");
             halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
 
             if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
@@ -587,6 +612,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
          else
          {
             //length = packetLength;
+	    printf("try halSpiStrobe(..SFRX..) in else...\n");
             halSpiStrobe(CCxxx0_SFRX);      //flush RXFIFO
 	    return 0; //--0 fail
 	 }

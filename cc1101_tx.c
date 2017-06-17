@@ -48,13 +48,16 @@ int main(void)
 */
 
 	//-----init CC1101-----
-	//set SPI CLOCK = 5MHZ
+	//set SPI CLOCK = 5MHZ;MAX. SPI CLOCK=6.5MHz for burst access.
 	usleep(200000);//Good for init ?
 	RESET_CC1100();
 	usleep(200000);
         halRfWriteRfSettings(); //--default register set
+
         //----set symbol rate,deviatn,filter BW properly -------
         setFreqDeviatME(0,4);
+	setKbitRateME(248,10); //50kbps
+
         halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
 
 	printf("----------  CC1101 Configuration --------\n");
