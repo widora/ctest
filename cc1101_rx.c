@@ -80,11 +80,11 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings(); //--default register set
         //----set symbol rate,deviatn,filter BW properly -------
-	setFreqDeviatME(0,4);//25.4KHz
-        setKbitRateME(248,10); //50kbps
+	setFreqDeviatME(0,4); //rate: 25.4KHz
+        setKbitRateME(248,10); //deviation: 50kbps
+	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz
 
 	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
-
 
 	printf("----------  CC1101 Configuration --------\n");
 	//---- get Modulation Format  ---

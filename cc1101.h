@@ -65,6 +65,7 @@ float getCarFreqMHz(void);
 void setFreqDeviatME(uint8_t m, uint8_t e);
 float getFreqDeviatKHz(void);
 float getIfFreqKHz(void);
+void setChanBWME(uint8_t m, uint8_t e);
 float getChanBWKHz(void);
 float getChanSpcKHz(void);
 int   getRSSIdbm(void);
@@ -465,7 +466,26 @@ float getIfFreqKHz(void)
 	return iffreq;
 }
 
-//----------- get channel bandwith KHz -----
+//---------- set filter bandwith ------
+void setChanBWME(uint8_t m, uint8_t e)
+{
+  if(m>3 || e>3)
+  {
+	printf("M or E value is NOT valid!\n");
+	return;
+  }
+  rfSettings.MDMCFG4&=0xCF;
+  rfSettings.MDMCFG4|=(m<<4);
+  rfSettings.MDMCFG4&=0x3F;
+  rfSettings.MDMCFG4|=(e<<6);
+
+  halSpiWriteReg(CCxxx0_MDMCFG4,rfSettings.MDMCFG4);
+
+
+}
+
+
+//----------- get channel filter bandwith KHz -----
 float getChanBWKHz(void)
 {
 	float chanBW;
@@ -577,11 +597,11 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
     k=0;
     while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
-        usleep(100);// try to relief CPU
+       usleep(100);// try to relief CPU
 //	k++;
        printf("try halSpiGetStatus() in while() ...\n"); 
        status=halSpiGetStatus();
-//      printf("STATUS Byte: 0x%02x\n",status);
+       printf("in while() STATUS: 0x%02x\n",status);
     }
 //    printf("It takes %d*100us to receive data packet!\n",k);
 
