@@ -21,7 +21,7 @@ void ExitProcess()
 	printf("nFAIL=%d\n",nFAIL);
 	CRC_err_rate=(float)nCRC_err/nTotal*100.0;
 	printf("CRC error rate: %5.2f %%\n",CRC_err_rate);
-//	exit(0);
+	exit(0);
 }
 
 //======================= MAIN =============================
@@ -78,8 +78,10 @@ int main(void)
         usleep(200000);//Good for init?
         RESET_CC1100();
         usleep(200000);
-	halRfWriteRfSettings();
-	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
+	halRfWriteRfSettings(); //--default register set
+        //----set symbol rate,deviatn,filter BW properly -------
+	setFreqDeviatME(0,4);
+	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
 
 	printf("----------  CC1101 Configuration --------\n");
 	//---- get Modulation Format  ---
@@ -88,6 +90,8 @@ int main(void)
         printf("Set symbol rate to       %8.1f Kbit/s\n",getKbitRate());
         //------ get carrier frequency ---
         printf("Set carrier frequency to   %8.3f MHz\n",getCarFreqMHz());
+	//------ get freq deviation -----
+	printf("Set freq deviation to    %8.1f  KHz\n",getFreqDeviatKHz());
 	//------ get  IF frequency ----
 	printf("Set IF to                  %8.3f KHz\n",getIfFreqKHz());
 	//------ get channel Bandwith ----

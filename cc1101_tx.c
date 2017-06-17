@@ -52,8 +52,10 @@ int main(void)
 	usleep(200000);//Good for init ?
 	RESET_CC1100();
 	usleep(200000);
-	halRfWriteRfSettings();
-	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);
+        halRfWriteRfSettings(); //--default register set
+        //----set symbol rate,deviatn,filter BW properly -------
+        setFreqDeviatME(0,4);
+        halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
 
 	printf("----------  CC1101 Configuration --------\n");
         //---- get Modulation Format  ---

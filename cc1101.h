@@ -61,6 +61,8 @@ void halRfWriteRfSettings(void);
 char* getModFmtStr(void);
 float getKbitRateMHz(void);
 float getCarFreqMHz(void);
+void setFreqDeviatME(uint8_t m, uint8_t e);
+float getFreqDeviatKHz(void);
 float getIfFreqKHz(void);
 float getChanBWKHz(void);
 float getChanSpcKHz(void);
@@ -199,7 +201,7 @@ typedef struct S_RF_SETTINGS
 } RF_SETTINGS;
 
 //--------------- Assignment for RF_SETTINGS --------------
-const RF_SETTINGS rfSettings =
+ RF_SETTINGS rfSettings =
 {
     0x00,
     0x06,   //- FSCTRL1   Frequency synthesizer control.
@@ -375,6 +377,38 @@ float getCarFreqMHz(void)
 
    return carfreq;
 }
+
+
+//------- st frequency deviation(KHz) --------
+void setFreqDeviatME(uint8_t m, uint8_t e)
+{
+  //---  apply to 2-FST/GFS/4-FSK ref. to manual for detail
+  if(m>7 || e>7)
+  {
+	printf("M or E value is NOT valid!\n");
+	return;
+  }
+  rfSettings.DEVIATN&=0x8f;
+  rfSettings.DEVIATN|=(e<<4);
+  rfSettings.DEVIATN&=0xf8;
+  rfSettings.DEVIATN|=m;
+
+  halSpiWriteReg(CCxxx0_DEVIATN,rfSettings.DEVIATN);
+} 
+
+//------- get frequency deviation(KHz) --------
+float getFreqDeviatKHz(void)
+{
+   uint8_t deviat_e,deviat_m;
+   float dev;
+
+   deviat_e=(halSpiReadReg(CCxxx0_DEVIATN)&0x70)>>4;
+   deviat_m=halSpiReadReg(CCxxx0_DEVIATN)&0x07;
+   dev=CC1101_FXOSC/pow(2,17)*(8+deviat_m)*pow(2,deviat_e)*1000;
+
+   return dev;
+}
+
 
 //------ get Mode Format -----------
 char* getModFmtStr(void)
