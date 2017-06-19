@@ -55,6 +55,7 @@ int main(void)
         halRfWriteRfSettings(); //--default register set
 
         //----set symbol rate,deviatn,filter BW properly -------
+	// ----refer to cc1101_rx.c  also ....
         setFreqDeviatME(0,4);
 	setKbitRateME(248,10); //50kbps
 
@@ -77,7 +78,7 @@ int main(void)
 	sleep(3);
 
         //----- transmit data -----
-	len=12;
+	len=12; // if APPEND, then RXBYTES shall be 1(length)+12(data)+2(append)=15 
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;

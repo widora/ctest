@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+//#include <stddef.h> //NULL
 #include <getopt.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -133,17 +134,17 @@ int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx
 // memset(buf,0,sizeof(buf));
 
  xfer[0].tx_buf = (unsigned long) TxBuf;
-// xfer[0].rx_buf = NULL;
+// xfer[0].rx_buf = 0;//NULL;
  xfer[0].len = n_tx;
  xfer[0].delay_usecs = delay;
-//xfer[1].tx_buf = NULL;
+// xfer[1].tx_buf = 0;//NULL;
  xfer[1].rx_buf = (unsigned long) RxBuf;
  xfer[1].len = n_rx;
  xfer[1].delay_usecs = delay;
 
  ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
  if (ret < 1)
-	pr_err("can't send spi message");
+	pr_err("********** SPI_Write_then_Read(): Can't send message **********\n");
 
  return ret;
 }
@@ -170,7 +171,7 @@ int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int 
 
  ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
  if (ret < 1)
-	pr_err("can't send spi message");
+	pr_err("********** SPI_Write_then_Write(): Can't send message **********\n");
 
  return ret;
 }

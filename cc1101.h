@@ -68,7 +68,8 @@ float getIfFreqKHz(void);
 void setChanBWME(uint8_t m, uint8_t e);
 float getChanBWKHz(void);
 float getChanSpcKHz(void);
-int   getRSSIdbm(void);
+int readRSSIdbm(void);
+int  getRSSIdbm(void);
 void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
 uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length);  
 //void UART_init();
@@ -510,7 +511,21 @@ float getChanSpcKHz(void)
    return chanspc;
 }
 
-//---- get RSSI (dbm) -----
+//---- get RSSI(dbm) from RSSI register ---
+int readRSSIdbm(void)
+{
+   int dbmRSSI,ret=0;
+
+   dbmRSSI=halSpiReadStatus(CCxxx0_RSSI);
+   if(dbmRSSI >= 128)
+	ret=(dbmRSSI-256)/2-74;
+   else
+    	ret=dbmRSSI/2-74;
+
+   return ret;
+}
+
+//---- get RSSI (dbm) from RXFIFO append -----
 int getRSSIdbm()
 {
    int dbmRSSI;
@@ -521,6 +536,8 @@ int getRSSIdbm()
 
    return dbmRSSI;
 }
+
+
 
 
 //----------- transmit  data packet ---------------------
@@ -567,7 +584,7 @@ void setRxMode(void)
 }
 
 //----------------- Receive Data Packet ---------------
-uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) 
+uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length 
 {
     uint8_t ret=0; // 0--fail, 1--sucess, 2--CRC error
     int k;
@@ -592,35 +609,67 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
                     return 0;
            }
 */
-    printf("try halSpiGetStatus() before while ...\n"); 
+
+//  !!!!!!! High rate SPI polling reduces the RX sensitivity.and a small probality that
+//  a single read from registers PKTSTATUS,RXBYTES and TXBYTES is being corrupt !!!!!!!
+
+//------------ METHOD1:  poll STATUS value to know the completion of receiving a packet-------
+//------  It works well!! ---------------------
+    printf("try halSpiGetStatus() before while ...\n");
     status=halSpiGetStatus();// init the value
     k=0;
     while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
-       usleep(100);// try to relief CPU
-//	k++;
-       printf("try halSpiGetStatus() in while() ...\n"); 
-       status=halSpiGetStatus();
-       printf("in while() STATUS: 0x%02x\n",status);
+         usleep(10000);// try to relief CPU
+//	 k++;
+//        printf("try halSpiGetStatus() in while() ...\n"); 
+        status=halSpiGetStatus();
+//	printf("in while() STATUS: 0x%02x\n",status);
+//	if(status>0x10) //--test RXFIFO counting during receiving
+//		printf("during while() receiving ...STATUS:0x%02x\n",status);
     }
 //    printf("It takes %d*100us to receive data packet!\n",k);
 
-  //----- check and analyze receive data --------
-    if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // if received bytes is valid and not 0
-         {
+
+//------------ METHOD2:  poll PKTSTATUS[0] GDOx value to know the completion of receiving a packet -------
+// !!!!!!!! WARNING:  It's easy to corrupt register value during halSpiReadStatus(CCxxx0_PKTSTATUS)  !!!!!!!!!!!!!
+/*
+    printf("try halSpiReadStatus(..PKTSTATUS) before while ...\n");
+    // setting IOCFGx.GDOx_CFG=0x06 to give an interrupt when a complete packet has been received.
+    status=halSpiReadStatus(CCxxx0_PKTSTATUS);
+    k=0;
+    while((status&0x01)!=1)  // GDO0 non-inverted value, 1-- receive completed
+    { 
+	usleep(500);
+        // setting IOCFGx.GDOx_CFG=0x06 to give an interrupt when a complete packet has been received.
+        status=halSpiReadStatus(CCxxx0_PKTSTATUS); 
+	if(status!=0xa0)
+		printf("PKTSTATUS=0x%02x\n",status);
+    }
+*/
+
+//---------------  METHOD3: GDOx Interrupt  ---------------
+
+
+
+  //----------- check and read receive data --------
+    if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // RXBYTES[7]=1 overflow, if received bytes is valid and not 0
+    {
+	//---If 2 status bytes(RSSI+(CRC_OK&LQI) append in packet, then RXBYTES=1(data_length)+data_bytes+2(appends);
+//        printf("Received RXBYTES=%d\n",halSpiReadStatus(CCxxx0_RXBYTES));
         packetLength = halSpiReadReg(CCxxx0_RXFIFO);// read out packet-length first
-	//printf("received data packetLenght=%d\n",packetLength);
+//	printf("received data packetLenght=%d\n",packetLength);
         if (packetLength <= length)            //if packet-length less than effective data_length
         {
-	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
-            halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out remaining data
+//	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
+            halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out payload-data
             //length = packetLength;              // adjust effective data-length
             //--- Read 2 appended status bytes (status[0] = RSSI, status[1] = LQI)
 	    //--- if you enable APPEND_STATUS, (RRSI+LQI)+CRC
-	    printf("try halSpiReadBurstReg(..app_status..)...\n");
+//	    printf("try halSpiReadBurstReg(..app_status..)...\n");
             halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);    //
             decRSSI=app_status[0];
-	    printf("try halSpiStrobe(..SFRX..)...\n");
+//	    printf("try halSpiStrobe(..SFRX..)...\n");
             halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
 
             if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
@@ -639,6 +688,6 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length)
 
     }
     else
-	return 0; //--0 fail
+	return 0; //--0 receive nothing / fail
 }
 

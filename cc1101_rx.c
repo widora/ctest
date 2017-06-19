@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>
+#include <sys/time.h>
 #include "cc1101.h"
 
 //------global variables -----
+struct timeval t_start,t_end;
+long cost_time=0;
+
 int nTotal=0;
 int nDATA_rec=0; // all data number received include nDATA_err, excetp CRC error.
 int nDATA_err=0;
@@ -80,8 +84,8 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings(); //--default register set
         //----set symbol rate,deviatn,filter BW properly -------
-	setFreqDeviatME(0,4); //rate: 25.4KHz
-        setKbitRateME(248,10); //deviation: 50kbps
+	setFreqDeviatME(0,4); //deviation: 25.4KHz
+        setKbitRateME(248,10); //rate: 50kbps
 	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz
 
 	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
@@ -103,7 +107,7 @@ int main(void)
 	printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
 
 	printf("----------------------------------------\n");
-	sleep(3);
+	sleep(2);
         //----- transmit data -----
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
@@ -113,7 +117,12 @@ int main(void)
   	while(1) //--- !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
 	   j++;
+	   gettimeofday(&t_start,NULL);
   	   ccret=halRfReceivePacket(RxBuf,DATA_LENGTH);
+	   gettimeofday(&t_end,NULL);
+	   //printf("Receive Start at:%lds %ldus\n",t_start.tv_sec,t_start.tv_usec);
+	   //printf("Receive End at:%lds %ldus\n",t_end.tv_sec,t_end.tv_usec);
+	   printf("Receive Cost Time:%d\n",t_end.tv_usec-t_start.tv_usec);
   	   if(ccret==1) //receive success
 	   {
 		nDATA_rec++;
@@ -124,7 +133,9 @@ int main(void)
 			for(i=0;i<len;i++)
 				printf("%d, ",RxBuf[i]);
 			printf("\n");
-			printf("--------- RSSI: %ddBm --------\n",getRSSIdbm());
+			printf("--------- getRSSI from RX_FIFO : %ddBm --------\n",getRSSIdbm());
+			printf("--------- readRSSI from RSSI register: %ddBm --------\n",readRSSIdbm());
+
 		}
 		//---pick error data
 		if(RxBuf[0]!=RxBuf[1])
