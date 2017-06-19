@@ -61,12 +61,14 @@ void halRfWriteRfSettings(void);
 char* getModFmtStr(void);
 void setKbitRateME(uint8_t rate_m, uint8_t rate_e);
 float getKbitRateMHz(void);
+void setCarFreqMHz(float fMHz, uint8_t chan);
 float getCarFreqMHz(void);
 void setFreqDeviatME(uint8_t m, uint8_t e);
 float getFreqDeviatKHz(void);
 float getIfFreqKHz(void);
 void setChanBWME(uint8_t m, uint8_t e);
 float getChanBWKHz(void);
+void setChanSpcME(uint8_t m, uint8_t e);
 float getChanSpcKHz(void);
 int readRSSIdbm(void);
 int  getRSSIdbm(void);
@@ -377,6 +379,29 @@ float getKbitRate(void)
   return brate;
 }
 
+
+//----------- set carrier frequency (MHZ) -----
+// fMHz -- base frequency
+// channr -- channel number
+void setCarFreqMHz(float fMHz, uint8_t channr)  
+{
+	uint8_t fr0,fr1,fr2;
+	int FREQ=fMHz*pow(2,16)/CC1101_FXOSC;
+	fr2=FREQ>>16;
+	fr1=(FREQ&0xff00)>>8;
+	fr0=FREQ&0xff;
+
+	rfSettings.FREQ2=fr2;
+	rfSettings.FREQ1=fr1;
+	rfSettings.FREQ0=fr0;
+	rfSettings.CHANNR=channr;
+
+	halSpiWriteReg(CCxxx0_FREQ2,rfSettings.FREQ2);
+	halSpiWriteReg(CCxxx0_FREQ1,rfSettings.FREQ1);
+	halSpiWriteReg(CCxxx0_FREQ0,rfSettings.FREQ0);
+	halSpiWriteReg(CCxxx0_CHANNR,rfSettings.CHANNR);
+}
+
 //----------- get carrier frequency (MHz) -------
 float getCarFreqMHz(void)
 {
@@ -498,6 +523,22 @@ float getChanBWKHz(void)
 	return chanBW;
 }
 
+//--------- set channel spacing ---------
+void setChanSpcME(uint8_t m, uint8_t e)
+{
+  if(e>3)
+  {
+	printf("Value CHANSPC_E is not valid!\n");
+	return;
+  }
+  rfSettings.MDMCFG1&=0xfc;
+  rfSettings.MDMCFG1|=e;
+  rfSettings.MDMCFG0=m;
+
+  halSpiWriteReg(CCxxx0_MDMCFG0,rfSettings.MDMCFG0);
+  halSpiWriteReg(CCxxx0_MDMCFG1,rfSettings.MDMCFG1);
+}
+
 //--------- get channel spacing ---------
 float getChanSpcKHz(void)
 {
@@ -510,6 +551,8 @@ float getChanSpcKHz(void)
    chanspc=CC1101_FXOSC/pow(2,18)*(256+chanspc_m)*pow(2,chanspc_e)*1000;
    return chanspc;
 }
+
+
 
 //---- get RSSI(dbm) from RSSI register ---
 int readRSSIdbm(void)
@@ -620,7 +663,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     k=0;
     while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
-         usleep(10000);// try to relief CPU
+         usleep(200);// try to relief CPU
 //	 k++;
 //        printf("try halSpiGetStatus() in while() ...\n"); 
         status=halSpiGetStatus();

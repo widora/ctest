@@ -2,11 +2,18 @@
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <errno.h>
 #include "cc1101.h"
 
+#define RSSI_SAVE_INTERVAL 120//--seconds
+
 //------global variables -----
-struct timeval t_start,t_end;
+struct timeval t_fstart,t_start,t_end;
 long cost_time=0;
+struct tm *tm_local;
+
+char* str_file="/home/cc1101.dat";
+FILE *fp; //save file 
 
 int nTotal=0;
 int nDATA_rec=0; // all data number received include nDATA_err, excetp CRC error.
@@ -25,8 +32,21 @@ void ExitProcess()
 	printf("nFAIL=%d\n",nFAIL);
 	CRC_err_rate=(float)nCRC_err/nTotal*100.0;
 	printf("CRC error rate: %5.2f %%\n",CRC_err_rate);
-//	exit(0);
+
+	fclose(fp);
+	SPI_Close();
+	exit(0);
 }
+
+void SaveData(char* str)
+{
+	if(fp)
+	{
+		fputs(str,fp);
+	}
+
+}
+
 
 //======================= MAIN =============================
 int main(void)
@@ -47,6 +67,15 @@ int main(void)
 
         //-------- Exit Signal Process ---------
         signal(SIGINT,ExitProcess);
+	//-------- open file for RSSI record ----------------
+	fp=fopen(str_file,"a"); // append data to a file, write only
+	if (fp==(FILE *)NULL)
+	{
+		printf("%s: %s\n",str_file,strerror(errno));
+		exit(-1);
+	}
+	fprintf(fp,"-----RSSI------\n");
+	gettimeofday(&t_fstart,NULL); //timer for data save, every 10 minutes.
 
 
 	SPI_Open();
@@ -87,6 +116,8 @@ int main(void)
 	setFreqDeviatME(0,4); //deviation: 25.4KHz
         setKbitRateME(248,10); //rate: 50kbps
 	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz
+	setChanSpcME(248,2);//channel spacing: (248,2)200KHz 
+	setCarFreqMHz(433,0);//(Base freq,+channel_number)
 
 	halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
 
@@ -114,7 +145,7 @@ int main(void)
 	//----- receive data -----
 	len=12;
 	j=0;
-  	while(1) //--- !!! Wait a little time just before setting up for next  TX_MODE !!!
+  	while(1) //------ !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
 	   j++;
 	   gettimeofday(&t_start,NULL);
@@ -122,6 +153,18 @@ int main(void)
 	   gettimeofday(&t_end,NULL);
 	   //printf("Receive Start at:%lds %ldus\n",t_start.tv_sec,t_start.tv_usec);
 	   //printf("Receive End at:%lds %ldus\n",t_end.tv_sec,t_end.tv_usec);
+
+	   //------ save RSSI every 10 minuts 
+	   if((t_end.tv_sec-t_fstart.tv_sec)>RSSI_SAVE_INTERVAL)
+	   {
+		tm_local=localtime(&(t_end.tv_sec));
+		fprintf(fp,"%d-%d-%d %02d:%02d:%02d  ",tm_local->tm_year,tm_local->tm_mon,tm_local->tm_mday,\
+tm_local->tm_hour,tm_local->tm_min,tm_local->tm_sec);
+		fprintf(fp,"RSSI:%ddBm\n",getRSSIdbm());
+		//SaveData();
+		gettimeofday(&t_fstart,NULL);
+	   }
+
 	   printf("Receive Cost Time:%d\n",t_end.tv_usec-t_start.tv_usec);
   	   if(ccret==1) //receive success
 	   {
