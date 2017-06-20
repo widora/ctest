@@ -56,8 +56,11 @@ int main(void)
 
         //----set symbol rate,deviatn,filter BW properly -------
 	// ----refer to cc1101_rx.c  also ....
-        setFreqDeviatME(0,4);
-	setKbitRateME(248,10); //50kbps
+        setFreqDeviatME(0,4); //deviation: 25.4KHz
+        setKbitRateME(248,10); //rate: 50kbps
+	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz
+        setChanSpcME(248,2);//channel spacing: (248,2)200KHz 
+        setCarFreqMHz(433,0);//(Base freq,+channel_number)
 
         halSpiWriteBurstReg(CCxxx0_PATABLE,PaTabel,8);//---set Power
 
@@ -78,7 +81,7 @@ int main(void)
 	sleep(3);
 
         //----- transmit data -----
-	len=12; // if APPEND, then RXBYTES shall be 1(length)+12(data)+2(append)=15 
+	len=33; // if APPEND, then RXBYTES shall be 1(length)+12(data)+2(append)=15 
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;

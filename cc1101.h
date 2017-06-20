@@ -290,6 +290,7 @@ uint8_t halSpiReadReg(uint8_t addr)
 }
 
 /* burst read registers */
+//--- Max. count=31 ---//
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count)
 {
 	uint8_t tmp,value;
@@ -701,11 +702,18 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 	//---If 2 status bytes(RSSI+(CRC_OK&LQI) append in packet, then RXBYTES=1(data_length)+data_bytes+2(appends);
 //        printf("Received RXBYTES=%d\n",halSpiReadStatus(CCxxx0_RXBYTES));
         packetLength = halSpiReadReg(CCxxx0_RXFIFO);// read out packet-length first
-//	printf("received data packetLenght=%d\n",packetLength);
+	printf("received data packetLenght=%d\n",packetLength);
         if (packetLength <= length)            //if packet-length less than effective data_length
         {
 //	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
-            halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out payload-data
+	    if(packetLength>31)//--spi 32BYTE one time only??? 1+packetLengt<=32 ??
+	    {
+             	halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, 31); //read out payload-data, note: 1+packetLength<=32
+                halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer+31,(packetLength-31)); //read last 2 bytes of 31+2
+       	    }
+	    else
+             	halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, packetLength); //read out payload-data, note: 1+packetLength<=32
+
             //length = packetLength;              // adjust effective data-length
             //--- Read 2 appended status bytes (status[0] = RSSI, status[1] = LQI)
 	    //--- if you enable APPEND_STATUS, (RRSI+LQI)+CRC

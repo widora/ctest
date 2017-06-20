@@ -122,12 +122,13 @@ return ret;
 /*---------------------------------------------------------
 	SPI_Write_then_Read( )
  Write then Read SPI device with no interruption
+  n_tx+n_rx = MAX.32 ????
 ---------------------------------------------------------*/
 int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx)
 {
  int ret;
  int fd = g_SPI_Fd;
-// uint8_t buf[32]; //--MAX 32bytes for one time transfer 
+// uint8_t buf[32]; //--MAX 32bytes for one time transfer ?????
 
  struct spi_ioc_transfer xfer[2];
  memset(xfer,0,sizeof(xfer));
@@ -145,6 +146,8 @@ int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx
  ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
  if (ret < 1)
 	pr_err("********** SPI_Write_then_Read(): Can't send message **********\n");
+ else
+	pr_err("------SPI_Write_then_Read():  spi IOCTL ret =%d ------\n",ret);
 
  return ret;
 }
@@ -172,6 +175,8 @@ int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int 
  ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
  if (ret < 1)
 	pr_err("********** SPI_Write_then_Write(): Can't send message **********\n");
+ else
+	pr_err("------SPI_Write_then_Write():  spi IOCTL ret =%d ------\n",ret);
 
  return ret;
 }

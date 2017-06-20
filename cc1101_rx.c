@@ -143,7 +143,7 @@ int main(void)
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
 	//----- receive data -----
-	len=12;
+	len=33; //max.29
 	j=0;
   	while(1) //------ !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
