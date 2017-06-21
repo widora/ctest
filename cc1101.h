@@ -651,6 +651,13 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     uint8_t status;
     uint8_t app_status[2]; //appended status data in received packet
     uint8_t packetLength,tmp_len;
+    //------timer -----
+    struct timeval t_start,t_end;
+    long cost_time=0;
+
+
+    //------start timer-----
+    gettimeofday(&t_start,NULL);
 
     if( length > (DATA_LENGTH-3))//1byte--payload length, 2bytes-appends
      {
@@ -688,14 +695,14 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
          usleep(200);// try to relief CPU
-//	 k++;
+	 k++;
 //        printf("try halSpiGetStatus() in while() ...\n"); 
         status=halSpiGetStatus();
 //	printf("in while() STATUS: 0x%02x\n",status);
 //	if(status>0x10) //--test RXFIFO counting during receiving
 //		printf("during while() receiving ...STATUS:0x%02x\n",status);
     }
-//    printf("It takes %d*100us to receive data packet!\n",k);
+    printf("RX_MODE: %d*200us idle waiting for wave signal!\n",k);
 
 
 //------------ METHOD2:  poll PKTSTATUS[0] GDOx value to know the completion of receiving a packet -------
@@ -749,6 +756,13 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 //	    printf("try halSpiStrobe(..SFRX..)...\n");
             halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
 
+	    //--------end timer ------
+	    gettimeofday(&t_end,NULL);
+	    cost_time=t_end.tv_usec-t_start.tv_usec;
+	    if(cost_time<=0)
+	    	cost_time=cost_time+(t_end.tv_sec-t_start.tv_sec)*1000000;
+	    printf("Function halRfReceivePacket() cost time: %dus\n",cost_time);
+
             if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
                return 1; //--1 success
             else
@@ -767,5 +781,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     }
     else
 	return 0; //--0 receive nothing / fail
+
+
 }
 

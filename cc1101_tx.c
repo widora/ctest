@@ -105,11 +105,16 @@ int main(void)
 		}
 		printf("\n");
 
-	        gettimeofday(&t_start,NULL);
+		//------ cal. interval time for packets receiving ---------
+                gettimeofday(&t_end,NULL);
+                cost_time=t_end.tv_usec-t_start.tv_usec;
+                if(cost_time < 0)
+                	cost_time=cost_time+1000000*(t_end.tv_sec-t_start.tv_sec);
+                printf("Transmitting interval time:%dus\n",cost_time);
+                gettimeofday(&t_start,NULL);
+		//---send packet
 	        halRfSendPacket(TxBuf,len); //---transmit data
-		usleep(50000); //---!!!!!CRITICAL: enough window period for receiving.
-        	gettimeofday(&t_end,NULL);
-		printf("Transmit interval time:%d\n",t_end.tv_usec-t_start.tv_usec);
+		usleep(100000); //---!!!!!CRITICAL: enough window period for receiving.
 
 	}
 	//----- receive data -----

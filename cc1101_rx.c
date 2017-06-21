@@ -2,6 +2,7 @@
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <stdbool.h>
 #include <errno.h>
 #include "cc1101.h"
 
@@ -20,18 +21,31 @@ int nDATA_rec=0; // all data number received include nDATA_err, excetp CRC error
 int nDATA_err=0;
 int nCRC_err=0;
 int nFAIL=0;
+int nMiss=0; //missing data number,counter for unconsecutive receival
 
 void ExitProcess()
 {
-	float CRC_err_rate;
+	float CRC_err_rate,Miss_rate;
 	printf("-------Exit Process------\n");
+	fprintf(fp,"-------Exit Process------\n");
 	printf("nTotal=%d\n",nTotal);
+	fprintf(fp,"nTotal=%d\n",nTotal);
 	printf("nDATA_rec=%d\n",nDATA_rec);
+	fprintf(fp,"nDATA_rec=%d\n",nDATA_rec);
 	printf("nDATA_err=%d\n",nDATA_err);
+	fprintf(fp,"nDATA_err=%d\n",nDATA_err);
 	printf("nCRC_err=%d\n",nCRC_err);
+	fprintf(fp,"nCRC_err=%d\n",nCRC_err);
 	printf("nFAIL=%d\n",nFAIL);
+	fprintf(fp,"nFAIL=%d\n",nFAIL);
+	printf("nMiss=%d\n",nMiss);
+	fprintf(fp,"nMiss=%d\n",nMiss);
 	CRC_err_rate=(float)nCRC_err/nTotal*100.0;
+	Miss_rate=(float)nMiss/(nTotal+nMiss)*100;
 	printf("CRC error rate: %5.2f %%\n",CRC_err_rate);
+	fprintf(fp,"CRC error rate: %5.2f %%\n",CRC_err_rate);
+	printf("Missing rate: %5.2f %%\n",Miss_rate);
+	fprintf(fp,"Missing rate: %5.2f %%\n",Miss_rate);
 
 	fclose(fp);
 	SPI_Close();
@@ -55,6 +69,8 @@ int main(void)
 	int len_rec;
 	int ret,ccret;
 	int dbmRSSI;
+	bool tok_dtmp_Init=true;
+	uint8_t dtmp;
 	uint8_t Txtmp,data[32];
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
@@ -150,11 +166,19 @@ int main(void)
   	while(1) //------ !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
 	   j++;
-	   gettimeofday(&t_start,NULL);
-  	   ccret=halRfReceivePacket(RxBuf,len_rec);
+	   //------ cal. interval time for packets receiving ---------
 	   gettimeofday(&t_end,NULL);
+	   cost_time=t_end.tv_usec-t_start.tv_usec;
+	   if(cost_time < 0)
+	   	cost_time=cost_time+1000000*(t_end.tv_sec-t_start.tv_sec);
+           printf("Out of halRfReceivePacket() preparing time:%dus\n",cost_time);
+
+  	   ccret=halRfReceivePacket(RxBuf,len_rec);
 	   //printf("Receive Start at:%lds %ldus\n",t_start.tv_sec,t_start.tv_usec);
 	   //printf("Receive End at:%lds %ldus\n",t_end.tv_sec,t_end.tv_usec);
+
+	   //-----start timer------
+	   gettimeofday(&t_start,NULL);
 
 	   //------ save RSSI every 10 minuts 
 	   if((t_end.tv_sec-t_fstart.tv_sec)>RSSI_SAVE_INTERVAL)
@@ -167,10 +191,23 @@ tm_local->tm_hour,tm_local->tm_min,tm_local->tm_sec);
 		gettimeofday(&t_fstart,NULL);
 	   }
 
-	   printf("Receive Cost Time:%d\n",t_end.tv_usec-t_start.tv_usec);
   	   if(ccret==1) //receive success
 	   {
 		nDATA_rec++;
+
+		//-----check if data packets are consecutive 
+		if(tok_dtmp_Init) //--first init 
+		{
+			dtmp=RxBuf[0]; //reset dtmp with lastest received data
+			tok_dtmp_Init=false;
+		}
+		else if((dtmp+1)!=RxBuf[0])
+		{
+
+			nMiss+=1;
+		}
+		dtmp=RxBuf[0]; //reset dtmp with lastest received data
+
 		printf("------ nDATA_rec=%d ------\n",nDATA_rec);
 		if(1)//j%10 == 0)
 		{
