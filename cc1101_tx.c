@@ -88,7 +88,7 @@ int main(void)
 	sleep(3);
 
         //----- transmit data -----
-	len=50; // if APPEND, then RXBYTES shall be 1(length)+len(data)+2(append)
+	len=61; // max.DATA_LENGTH-3, if APPEND, then RXBYTES shall be 1(length)+len(data)+2(append)
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;
