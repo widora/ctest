@@ -52,6 +52,7 @@ void SaveData(char* str)
 int main(void)
 {
 	int len,i,j;
+	int len_rec;
 	int ret,ccret;
 	int dbmRSSI;
 	uint8_t Txtmp,data[32];
@@ -143,13 +144,14 @@ int main(void)
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
 	//----- receive data -----
-	len=33; //max.29
+	len=50; //max.DATA_LENGTH-3
+	len_rec=len;//actually received data length
 	j=0;
   	while(1) //------ !!! Wait a little time just before setting up for next  TX_MODE !!!
 	{
 	   j++;
 	   gettimeofday(&t_start,NULL);
-  	   ccret=halRfReceivePacket(RxBuf,DATA_LENGTH);
+  	   ccret=halRfReceivePacket(RxBuf,len_rec);
 	   gettimeofday(&t_end,NULL);
 	   //printf("Receive Start at:%lds %ldus\n",t_start.tv_sec,t_start.tv_usec);
 	   //printf("Receive End at:%lds %ldus\n",t_end.tv_sec,t_end.tv_usec);

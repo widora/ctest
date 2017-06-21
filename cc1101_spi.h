@@ -156,6 +156,7 @@ int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx
 /*---------------------------------------------------------
 	SPI_Write_then_Write( )
  Write 2 times to SPI device with no interruption
+ n_tx1+n_tx2 = MAX. 36 ???????
 ---------------------------------------------------------*/
 int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2)
 {

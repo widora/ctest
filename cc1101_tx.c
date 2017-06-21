@@ -1,6 +1,13 @@
 #include <stdio.h>
 #include "cc1101.h"
 
+//------global variables -----
+struct timeval t_fstart,t_start,t_end;
+long cost_time=0;
+struct tm *tm_local;
+
+
+
 //======================= MAIN =============================
 int main(void)
 {
@@ -81,7 +88,7 @@ int main(void)
 	sleep(3);
 
         //----- transmit data -----
-	len=33; // if APPEND, then RXBYTES shall be 1(length)+12(data)+2(append)=15 
+	len=50; // if APPEND, then RXBYTES shall be 1(length)+len(data)+2(append)
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;
@@ -97,8 +104,13 @@ int main(void)
 			printf("%d, ",TxBuf[i]);
 		}
 		printf("\n");
+
+	        gettimeofday(&t_start,NULL);
 	        halRfSendPacket(TxBuf,len); //---transmit data
-		usleep(50000); //--to slow down 
+		usleep(50000); //---!!!!!CRITICAL: enough window period for receiving.
+        	gettimeofday(&t_end,NULL);
+		printf("Transmit interval time:%d\n",t_end.tv_usec-t_start.tv_usec);
+
 	}
 	//----- receive data -----
 //	halRfReceivePacket(RxBuf,DATA_LENGTH);
