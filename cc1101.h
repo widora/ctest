@@ -619,7 +619,13 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 {
     int i,k;
     uint8_t tmp_len;
-    uint8_t status;
+    uint8_t status,status_state;
+    //---timer---
+    struct timeval t_start,t_end;
+    long cost_time;
+
+    //---- start timer------
+    gettimeofday(&t_start,NULL);
 
     if( size > (DATA_LENGTH-3))//1byte--payload length, 2bytes-appends
      {
@@ -650,13 +656,21 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 //    printf("During transmitting...\n");
     status=halSpiGetStatus();
 //    printf("STATUS Byte: 0x%02x\n",status);
+    status_state=status>>4;
     k=0;
-    while((status>>4)!=STATUS_IDLE)
+    while(status_state!=STATUS_IDLE)
     {
+	//printf("STATUS: 0x%02x\n",status);
+	//---if cc1101 corrupt  --
+	if((status_state!=STATUS_TX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
+	{
+		printf("STUTAS corrupts in TX mode.\n");
+		return;
+	}
 	usleep(100);  //sleep 
 	k++;
 	status=halSpiGetStatus();
-	//printf("wait 1000us,STATUS Byte: 0x%02x\n",status);
+	status_state=status>>4;
     }
     printf("It takes %dx100us to send out data packet!\n",k);
     //usleep(5000);
@@ -665,6 +679,13 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 //    printf("After CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
 //    usleep(100);
 //    printf("100us After CCxxx0_SFTX RESET, STATUS Byte: 0x%02x\n",halSpiGetStatus());
+
+    //--------end timer ------
+    gettimeofday(&t_end,NULL);
+    cost_time=t_end.tv_usec-t_start.tv_usec;
+    if(cost_time<=0)
+	    	cost_time=cost_time+(t_end.tv_sec-t_start.tv_sec)*1000000;
+    printf("Calling function halRfSendPacket() cost time: %dus\n",cost_time);
 }
 
 //-------  set RX Mode -----------------
@@ -728,7 +749,10 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 	//--too fast reading status may cause cc1101 to corrupt
 	 //---if cc1101 corrupt  --
 	if((status_state!=STATUS_RX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
+	{
+		printf("STATUS corrupts in RX mode.\n");
 		return 0;
+	}
 
          usleep(200);// try to relief CPU
 	 k++;
