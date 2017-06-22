@@ -62,7 +62,8 @@ int main(void)
         halRfWriteRfSettings(); //--default register set
 
         //----set symbol rate,deviatn,filter BW properly -------
-	// ----refer to cc1101_rx.c  also ....
+	// ----to be consisten with cc1101_rx.c ....
+	setModFmt(MODFMT_MSK); //MODFMT_ASK_OOK //set modulation format
         setFreqDeviatME(0,4); //deviation: 25.4KHz
         setKbitRateME(248,10); //rate: 50kbps
 	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz

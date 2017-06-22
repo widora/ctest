@@ -130,6 +130,7 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings(); //--default register set
         //----set symbol rate,deviatn,filter BW properly -------
+	setModFmt(MODFMT_MSK); //MODFMT_ASK_OOK //set modulation format
 	setFreqDeviatME(0,4); //deviation: 25.4KHz
         setKbitRateME(248,10); //rate: 50kbps
 	setChanBWME(0,3); //filterBW: (3,3)58KHz (0,3)102KHz
@@ -203,8 +204,10 @@ tm_local->tm_hour,tm_local->tm_min,tm_local->tm_sec);
 		}
 		else if((dtmp+1)!=RxBuf[0])
 		{
-
-			nMiss+=1;
+			if(dtmp>RxBuf[0])//
+				nMiss+=(255+RxBuf[0]-dtmp);
+			else
+				nMiss+=RxBuf[0]-dtmp-1;
 		}
 		dtmp=RxBuf[0]; //reset dtmp with lastest received data
 

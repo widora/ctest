@@ -30,7 +30,24 @@
 #define STATUS_SETTLING 5
 #define RXFIFO_OVERFLOW 6
 #define TXFIFO_UNDERFLOW 7
+//---Modulation Format---
+//-MDMCFG2[6:4]
+/*
+#define MODFMT_2_FSK 0
+#define MODFMT_GFSK 1
+#define MODFMT_ASK_OOK 3
+#define MODFMT_4_FSK 4
+#define MODFMT_MSK 7
+*/
 
+enum mod_fmt \
+{
+MODFMT_2_FSK=0,
+MODFMT_GFSK=1,
+MODFMT_ASK_OOK=3,
+MODFMT_4_FSK=4,
+MODFMT_MSK=7
+};
 
 //------------------ PA settingup ------------
 //uint8_t PaTabel[8] = {0x12 ,0x12 ,0x12 ,0x12 ,0x12,0x12 ,0x12 ,0x12};     //-30dBm
@@ -59,6 +76,7 @@ void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
 void halRfWriteRfSettings(void);
 char* getModFmtStr(void);
+void setModFmt(enum mod_fmt mod);
 void setKbitRateME(uint8_t rate_m, uint8_t rate_e);
 float getKbitRateMHz(void);
 void setCarFreqMHz(float fMHz, uint8_t chan);
@@ -469,18 +487,30 @@ char* getModFmtStr(void)
 	char *str_UNKNOWN="UNKNOWN";
 
 	uint8_t mod;
-	mod=(halSpiReadReg(CCxxx0_MDMCFG2)&0x60)>>4;
+	mod=(halSpiReadReg(CCxxx0_MDMCFG2)&0x70)>>4;
 
 	switch(mod){
-		case 0: str=str_2FSK;break;
-		case 1: str=str_GFSK;break;
-		case 3: str=str_ASKOOK;break;
-		case 4: str=str_4FSK;break;
-		case 7: str=str_MSK;break;
+		case MODFMT_2_FSK: str=str_2FSK;break;
+		case MODFMT_GFSK: str=str_GFSK;break;
+		case MODFMT_ASK_OOK: str=str_ASKOOK;break;
+		case MODFMT_4_FSK: str=str_4FSK;break;
+		case MODFMT_MSK: str=str_MSK;break;
 		default: str=str_UNKNOWN; 
 	}
 	return str;
 }
+
+//------ st Modulation format -------
+void setModFmt(enum mod_fmt mod)
+{
+  rfSettings.MDMCFG2&=0x8F;
+  rfSettings.MDMCFG2|=(mod<<4);
+
+  halSpiWriteReg(CCxxx0_MDMCFG2,rfSettings.MDMCFG2);
+}
+
+
+
 
 //------ get intermediate frequency ------
 float getIfFreqKHz(void)
@@ -648,7 +678,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 {
     uint8_t ret=0; // 0--fail, 1--sucess, 2--CRC error
     int k;
-    uint8_t status;
+    uint8_t status,status_state;
     uint8_t app_status[2]; //appended status data in received packet
     uint8_t packetLength,tmp_len;
     //------timer -----
@@ -692,17 +722,24 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     printf("try halSpiGetStatus() before while ...\n");
     status=halSpiGetStatus();// init the value
     k=0;
-    while((status>>4)!=STATUS_IDLE)  // 0x1f ---RX Mode
+    status_state=status>>4;
+    while(status_state!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
+	//--too fast reading status may cause cc1101 to corrupt
+	 //---if cc1101 corrupt  --
+	if((status_state!=STATUS_RX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
+		return 0;
+
          usleep(200);// try to relief CPU
 	 k++;
 //        printf("try halSpiGetStatus() in while() ...\n"); 
         status=halSpiGetStatus();
+	status_state=status>>4;
 //	printf("in while() STATUS: 0x%02x\n",status);
 //	if(status>0x10) //--test RXFIFO counting during receiving
 //		printf("during while() receiving ...STATUS:0x%02x\n",status);
     }
-    printf("RX_MODE: %d*200us idle waiting for wave signal!\n",k);
+    printf("RX_MODE: %d*200us idle waiting for RF signal!\n",k);
 
 
 //------------ METHOD2:  poll PKTSTATUS[0] GDOx value to know the completion of receiving a packet -------
@@ -761,7 +798,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 	    cost_time=t_end.tv_usec-t_start.tv_usec;
 	    if(cost_time<=0)
 	    	cost_time=cost_time+(t_end.tv_sec-t_start.tv_sec)*1000000;
-	    printf("Function halRfReceivePacket() cost time: %dus\n",cost_time);
+	    printf("Calling function halRfReceivePacket() cost time: %dus\n",cost_time);
 
             if(app_status[1] & CRC_OK)       //check CRC, CRC_OK=0x80
                return 1; //--1 success
