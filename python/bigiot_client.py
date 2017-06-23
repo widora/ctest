@@ -29,8 +29,8 @@ host = '121.42.180.30'
 port = 8181
 
 #设备ID及key==================
-DEVICEID='xxx'
-APIKEY='xxxxxxxxx'
+DEVICEID='551'
+APIKEY='ec7472145'
 
 data = b''
 
@@ -281,11 +281,15 @@ while True:
 		keepCheckin() #---- try to re-checkin if disconnected 		
 
 	if flag_data_received:
-		if d==0:
+		if d==0 or d==None:
 			print "***** Network broken during s.recv()..."
 			LogErr("****Network broken during s.recv()...")
 		if d!=b'\n': 
 			data+=d
+			if len(data)>1000: #--in case recv() trapped in dead loop
+			    print "-----Data length=%d bytes!"%len(data)
+			    keepOnline()
+			    keepCheckin()
 		elif d=='\n':
 			#do something here...
 			print "start str(data)..."
