@@ -632,7 +632,7 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 	printf("Max. Payload for TXFIFO is %d Bytes!\n",DATA_LENGTH-3);
 	return;
      }
-   
+
     halSpiWriteReg(CCxxx0_TXFIFO, size);//--write payload-length to TXFIFO first!
     tmp_len=size;
     while(tmp_len > 35) //-- spi-send MAX. 1+35 =36bytes each time.
@@ -664,11 +664,16 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 	//---if cc1101 corrupt  --
 	if((status_state!=STATUS_TX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
 	{
-		printf("STUTAS corrupts in TX mode.\n");
+		printf("STATUS corrupts in TX mode. STATUS=0x%02x\n",status);
 		return;
 	}
 	usleep(100);  //sleep 
 	k++;
+	if(k>5000)
+	{
+		printf("halRfSendPacket(): STATUS may corrupts! K exceeds limit while poll status, k=%dn  STATUS=0x%02\n",k,status);
+//		return 0; //fail
+	}
 	status=halSpiGetStatus();
 	status_state=status>>4;
     }
@@ -747,15 +752,20 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     while(status_state!=STATUS_IDLE)  // 0x1f ---RX Mode
     {
 	//--too fast reading status may cause cc1101 to corrupt
-	 //---if cc1101 corrupt  --
+	//---if cc1101 corrupt  --
 	if((status_state!=STATUS_RX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
 	{
-		printf("STATUS corrupts in RX mode.\n");
+		printf("STATUS corrupts in RX mode. STATUS=0x%02x\n",status);
 		return 0;
 	}
 
          usleep(200);// try to relief CPU
 	 k++;
+	 if(k>5000)
+	 {
+		printf("halRfReceivePacket(): STATUS may corrupts! K exceeds limit while poll status, k=%dn  STATUS=0x%02\n",k,status);
+//		return 0; //fail
+	 }
 //        printf("try halSpiGetStatus() in while() ...\n"); 
         status=halSpiGetStatus();
 	status_state=status>>4;

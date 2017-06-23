@@ -115,7 +115,7 @@ int main(void)
                 gettimeofday(&t_start,NULL);
 		//---send packet
 	        halRfSendPacket(TxBuf,len); //---transmit data
-		usleep(80000); //---!!!! !CRITICAL: enough time window for receiving.
+		usleep(50000); //---!!!! !CRITICAL: enough time window for receiving.
 
 	}
 	//----- receive data -----
