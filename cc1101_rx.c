@@ -131,7 +131,8 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings(); //--default register set
         //----set symbol rate,deviatn,filter BW properly -------
-	setAddress(0x55); //set chip address.check PKTCTRL1[1:0]
+	//setAddress(0x55); //set chip address,default 0x00. also check PKTCTRL1[1:0]
+	disAddrFilt();// default addr check is enabled
 	setModFmt(MODFMT_MSK); //MODFMT_ASK_OOK //set modulation format
 	setFreqDeviatME(0,4); //deviation: 25.4KHz
         setKbitRateME(248,10); //rate: 50kbps

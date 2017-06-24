@@ -114,7 +114,7 @@ int main(void)
                 printf("Transmitting interval time:%dus\n",cost_time);
                 gettimeofday(&t_start,NULL);
 		//---send packet
-	        halRfSendPacket(TxBuf,len,0x55); //---transmit data, 0x55 is addr.
+	        halRfSendPacket(TxBuf,len,TxBuf[0]); //---transmit data, TxBuf[]=0~255 is addr.
 		usleep(50000); //---!!!! !CRITICAL: enough time window for receiving.
 
 	}

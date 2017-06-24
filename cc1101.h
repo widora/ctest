@@ -76,6 +76,8 @@ void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
 void halRfWriteRfSettings(void);
 void setAddress(uint8_t desAddr);// set chip addr.
+void disAddrFilt(void);//disable address filter
+void enAddrFilt(void);//enable address filter
 char* getModFmtStr(void);
 void setModFmt(enum mod_fmt mod);
 void setKbitRateME(uint8_t rate_m, uint8_t rate_e);
@@ -481,6 +483,21 @@ void setAddress(uint8_t desAddr)
   rfSettings.ADDR=desAddr;
   halSpiWriteReg(CCxxx0_ADDR,rfSettings.ADDR);
 }
+//--------  disable auto. address filter -----
+void disAddrFilt(void)
+{
+  rfSettings.PKTCTRL1&=0xFC; //PKTCTRL1[1:0]=0X00 --No address check
+  halSpiWriteReg(CCxxx0_PKTCTRL1,rfSettings.PKTCTRL1);  
+}
+
+//---------  enable auto. address filter  -----
+// enable address check and treat 0x00 and 0xFF as broadcast
+// it will discard data with invalid dest-address and restart RX_MODE
+void enAddrFilt(void)
+{
+  rfSettings.PKTCTRL1|=0x03; //PKTCTRL1[1:0]=0X11  enable address check and treat 0x00 and 0xFF as broadcast
+  halSpiWriteReg(CCxxx0_PKTCTRL1,rfSettings.PKTCTRL1);  
+}
 
 
 //------ get Mode Format -----------
@@ -773,7 +790,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 
         usleep(10);//!!!CRITICAL!!!!  200~500  try to relief CPU
 	 k++;
-	 if(k>200000)
+	 if(k>200000) //---test only!!!!
 	 {
 		printf("halRfReceivePacket(): STATUS may corrupts! K exceeds limit while polling status, k=%d  STATUS=0x%02x\n",k,status);
 //		return 0; //fail
