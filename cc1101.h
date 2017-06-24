@@ -11,7 +11,7 @@
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spidev.c
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spi.c
 
-#define DATA_LENGTH 64 //define max payload data length, +other data MUST be less than SPI shot data
+#define DATA_LENGTH 64 //define max data length,including 1byte data-length, 1byte dest-addr,2bytes appends,if applied. +other data MUST be less than SPI shot data
 #define CC1101_FXOSC 26  //MHz
 
 #define WRITE_SINGLE 0x00
@@ -75,6 +75,7 @@ uint8_t halSpiReadReg(uint8_t addr);
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
 void halRfWriteRfSettings(void);
+void setAddress(uint8_t desAddr);// set chip addr.
 char* getModFmtStr(void);
 void setModFmt(enum mod_fmt mod);
 void setKbitRateME(uint8_t rate_m, uint8_t rate_e);
@@ -90,7 +91,7 @@ void setChanSpcME(uint8_t m, uint8_t e);
 float getChanSpcKHz(void);
 int readRSSIdbm(void);
 int  getRSSIdbm(void);
-void halRfSendPacket(uint8_t *txBuffer, uint8_t size); 
+void halRfSendPacket(uint8_t *txBuffer, uint8_t size, uint8_t desAddr); 
 uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length);  
 //void UART_init();
 //void R_S_Byte(char R_Byte);
@@ -257,9 +258,9 @@ typedef struct S_RF_SETTINGS
     0x09,   //- TEST0     Various test settings.
     0x0B,   // IOCFG2    GDO2 output pin configuration.
     0x06,   // IOCFG0   GDO0 output pin configuration. Refer to SmartRF?Studio User Manual for detailed pseudo register explanation.
-    0x04,   // PKTCTRL1  Packet automation control. --[2]=1 enable APPEND_STATUS(RSSI+LQI) and CRC
+    0x07,   // PKTCTRL1  Packet automation control. --[2]=1 enable APPEND_STATUS(RSSI+LQI) and CRC [1:0]=3,address check and 0/255 broadcast
     0x45,   //- PKTCTRL0  Packet automation control. --[6]=1 turn data whitening on.
-    0x00,   //- ADDR      Device address.
+    0x00,   //- ADDR      Device address. 
     0x40    //- PKTLEN    Packet length.variable packet lenth mode, Max packet len = 60
 };
 
@@ -474,6 +475,13 @@ float getFreqDeviatKHz(void)
    return dev;
 }
 
+//--------  set chip address -------
+void setAddress(uint8_t desAddr)
+{
+  rfSettings.ADDR=desAddr;
+  halSpiWriteReg(CCxxx0_ADDR,rfSettings.ADDR);
+}
+
 
 //------ get Mode Format -----------
 char* getModFmtStr(void)
@@ -615,7 +623,9 @@ int getRSSIdbm()
 
 
 //----------- transmit  data packet ---------------------
-void halRfSendPacket(uint8_t *txBuffer, uint8_t size) 
+// desAddr -- destination cc1101 address,default =0 broadcast
+// size --- payload data length, excluding data-length and dest.-Addr
+void halRfSendPacket(uint8_t *txBuffer, uint8_t size, uint8_t desAddr) 
 {
     int i,k;
     uint8_t tmp_len;
@@ -633,7 +643,8 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 	return;
      }
 
-    halSpiWriteReg(CCxxx0_TXFIFO, size);//--write payload-length to TXFIFO first!
+    halSpiWriteReg(CCxxx0_TXFIFO, size+1);//!!! size+1(desAddr) --write payload-length(include desAddr) to TXFIFO first!
+    halSpiWriteReg(CCxxx0_TXFIFO, desAddr);// --write dest. address to TXFIFO
     tmp_len=size;
     while(tmp_len > 35) //-- spi-send MAX. 1+35 =36bytes each time.
     {
@@ -671,7 +682,7 @@ void halRfSendPacket(uint8_t *txBuffer, uint8_t size)
 	k++;
 	if(k>5000)
 	{
-		printf("halRfSendPacket(): STATUS may corrupts! K exceeds limit while poll status, k=%dn  STATUS=0x%02\n",k,status);
+		printf("halRfSendPacket(): STATUS may corrupts! K exceeds limit while polling status, k=%dn  STATUS=0x%02x\n",k,status);
 //		return 0; //fail
 	}
 	status=halSpiGetStatus();
@@ -705,6 +716,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     uint8_t ret=0; // 0--fail, 1--sucess, 2--CRC error
     int k;
     uint8_t status,status_state;
+    uint8_t desAddr; //dest-address in received packet-data
     uint8_t app_status[2]; //appended status data in received packet
     uint8_t packetLength,tmp_len;
     //------timer -----
@@ -759,11 +771,11 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 		return 0;
 	}
 
-         usleep(200);// try to relief CPU
+        usleep(10);//!!!CRITICAL!!!!  200~500  try to relief CPU
 	 k++;
-	 if(k>5000)
+	 if(k>200000)
 	 {
-		printf("halRfReceivePacket(): STATUS may corrupts! K exceeds limit while poll status, k=%dn  STATUS=0x%02\n",k,status);
+		printf("halRfReceivePacket(): STATUS may corrupts! K exceeds limit while polling status, k=%d  STATUS=0x%02x\n",k,status);
 //		return 0; //fail
 	 }
 //        printf("try halSpiGetStatus() in while() ...\n"); 
@@ -793,20 +805,21 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     }
 */
 
-//---------------  METHOD3: GDOx Interrupt  ---------------
+//---------------  METHOD3: GDOx Pin Interrupt  ---------------
 
 
 
 //----------- check and read receive data --------
     if ((halSpiReadStatus(CCxxx0_RXBYTES) & BYTES_IN_RXFIFO)) // RXBYTES[7]=1 overflow, if received bytes is valid and not 0
     {
-	//---If 2 status bytes(RSSI+(CRC_OK&LQI) append in packet, then RXBYTES=1(data_length)+data_bytes+2(appends);
+	//---If 2 status bytes(RSSI+(CRC_OK&LQI) appended in packet, then RXBYTES=1(data_length)+data_bytes+2(appends);
 //        printf("Received RXBYTES=%d\n",halSpiReadStatus(CCxxx0_RXBYTES));
         packetLength = halSpiReadReg(CCxxx0_RXFIFO);// read out packet-length first
-        //length = packetLength; // adjust effective data-length,use 
-
 	printf("received data packetLenght=%d\n",packetLength);
-        if (packetLength <= length)            //if packet-length less than effective data_length
+        //length = packetLength; // adjust effective data-length,use 
+        desAddr = halSpiReadReg(CCxxx0_RXFIFO);// read out desAddr then. The chip will filter it automatically before pushing into RXFIFO.
+	printf("desAddr in received packet:0x%02x\n",desAddr);
+        if ((packetLength-1) <= length)            //if packet-length-1(desAddr) less than effective data_length
         {
 //	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
 		tmp_len=packetLength;
@@ -852,7 +865,6 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     }
     else
 	return 0; //--0 receive nothing / fail
-
 
 }
 

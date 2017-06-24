@@ -9,9 +9,10 @@
 #define RSSI_SAVE_INTERVAL 120//--seconds
 
 //------global variables -----
-struct timeval t_fstart,t_start,t_end;
+struct timeval t_fstart,t_start,t_end; //us from 1970
 long cost_time=0;
-struct tm *tm_local;
+struct tm *tm_local; //struct of local time with tm_sec,tm_min,tm_hour,..etc. 
+time_t timep; // seconds from 1970 
 
 char* str_file="/home/cc1101.dat";
 FILE *fp; //save file 
@@ -130,6 +131,7 @@ int main(void)
         usleep(200000);
 	halRfWriteRfSettings(); //--default register set
         //----set symbol rate,deviatn,filter BW properly -------
+	setAddress(0x55); //set chip address.check PKTCTRL1[1:0]
 	setModFmt(MODFMT_MSK); //MODFMT_ASK_OOK //set modulation format
 	setFreqDeviatME(0,4); //deviation: 25.4KHz
         setKbitRateME(248,10); //rate: 50kbps
@@ -161,7 +163,7 @@ int main(void)
 //        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
 
 	//----- receive data -----
-	len=61; //max.DATA_LENGTH-3
+	len=60; //max.DATA_LENGTH-4, packet-bytes format is 1(length)+1(addr)+len(data)+2(append)
 	len_rec=len;//actually received data length
 	j=0;
   	while(1) //------ !!! Wait a little time just before setting up for next  TX_MODE !!!
@@ -184,9 +186,9 @@ int main(void)
 	   //------ save RSSI every 10 minuts 
 	   if((t_end.tv_sec-t_fstart.tv_sec)>RSSI_SAVE_INTERVAL)
 	   {
-		tm_local=localtime(&(t_end.tv_sec));
-		fprintf(fp,"%d-%d-%d %02d:%02d:%02d  ",tm_local->tm_year,tm_local->tm_mon,tm_local->tm_mday,\
-tm_local->tm_hour,tm_local->tm_min,tm_local->tm_sec);
+
+		tm_local=localtime(&(t_start.tv_sec));
+	 	fprintf(fp,"%s",asctime(tm_local));//--convert to local time string 
 		fprintf(fp,"RSSI:%ddBm\n",getRSSIdbm());
 		//SaveData();
 		gettimeofday(&t_fstart,NULL);

@@ -86,10 +86,10 @@ int main(void)
         //------ get channel spacing  ----
         printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
         printf("----------------------------------------\n");
-	sleep(3);
+	sleep(2);
 
         //----- transmit data -----
-	len=61; // max.DATA_LENGTH-3, if APPEND, then RXBYTES shall be 1(length)+len(data)+2(append)
+	len=60; // max.DATA_LENGTH-4, packet-bytes format is 1(length)+1(addr)+len(data)+2(append)
 	j=0;
 	for(i=0;i<len;i++)
 		TxBuf[i]=i;
@@ -114,7 +114,7 @@ int main(void)
                 printf("Transmitting interval time:%dus\n",cost_time);
                 gettimeofday(&t_start,NULL);
 		//---send packet
-	        halRfSendPacket(TxBuf,len); //---transmit data
+	        halRfSendPacket(TxBuf,len,0x55); //---transmit data, 0x55 is addr.
 		usleep(50000); //---!!!! !CRITICAL: enough time window for receiving.
 
 	}
