@@ -815,14 +815,14 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 	//---If 2 status bytes(RSSI+(CRC_OK&LQI) appended in packet, then RXBYTES=1(data_length)+data_bytes+2(appends);
 //        printf("Received RXBYTES=%d\n",halSpiReadStatus(CCxxx0_RXBYTES));
         packetLength = halSpiReadReg(CCxxx0_RXFIFO);// read out packet-length first
-	printf("received data packetLenght=%d\n",packetLength);
+	printf("received packetLenght(include destAddr) =%d bytes\n",packetLength);
         //length = packetLength; // adjust effective data-length,use 
         desAddr = halSpiReadReg(CCxxx0_RXFIFO);// read out desAddr then. The chip will filter it automatically before pushing into RXFIFO.
 	printf("desAddr in received packet:0x%02x\n",desAddr);
         if ((packetLength-1) <= length)            //if packet-length-1(desAddr) less than effective data_length
         {
 //	    printf("try halSpiReadBurstReg(..rxBuffer..)...\n");
-		tmp_len=packetLength;
+		tmp_len=packetLength-1;//--payload length, 1 byte desAddr deducted
 		while(tmp_len>31)//--spi 32BYTE one time only??? 1+packetLengt<=32 ??
 		{
              		halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer, 31); //read out payload-data, note: 1+packetLength<=32
@@ -830,12 +830,11 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 			tmp_len-=31;
 		}
 		if(tmp_len>0)
-	                halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer,tmp_len); //read last 2 bytes of 31+2
+	                halSpiReadBurstReg(CCxxx0_RXFIFO, rxBuffer,tmp_len);
 
             //--- Read 2 appended status bytes (status[0] = RSSI, status[1] = LQI)
 	    //--- if you enable APPEND_STATUS, (RRSI+LQI)+CRC
-//	    printf("try halSpiReadBurstReg(..app_status..)...\n");
-            halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);    //
+            halSpiReadBurstReg(CCxxx0_RXFIFO, app_status, 2);
             decRSSI=app_status[0];
 //	    printf("try halSpiStrobe(..SFRX..)...\n");
             halSpiStrobe(CCxxx0_SFRX);           //flush RXFIFO
