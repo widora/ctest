@@ -1,4 +1,5 @@
 ////--------------- With referecne to    WWW.RFinCHINA.COM    ----------------
+//  
 // lib: -lm
 
 #include <stdio.h>
@@ -6,6 +7,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "cc1101_spi.h"
 
 //DRIVER:   ./build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7688/linux-3.18.29/drivers/spi/spidev.c
@@ -30,16 +32,16 @@
 #define STATUS_SETTLING 5
 #define RXFIFO_OVERFLOW 6
 #define TXFIFO_UNDERFLOW 7
-//---Modulation Format---
-//-MDMCFG2[6:4]
-/*
-#define MODFMT_2_FSK 0
-#define MODFMT_GFSK 1
-#define MODFMT_ASK_OOK 3
-#define MODFMT_4_FSK 4
-#define MODFMT_MSK 7
-*/
 
+//---Message String --
+int num_FuncMessg=0;// 0---STATUS=0x1F trap
+char str_FuncMessg[20][300];
+char str_TmpMessg[300];
+time_t tnow;
+struct tm *tm_local;
+
+
+//---Modulation Format---
 enum mod_fmt \
 {
 MODFMT_2_FSK=0,
@@ -737,7 +739,7 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
     uint8_t app_status[2]; //appended status data in received packet
     uint8_t packetLength,tmp_len;
     //------timer -----
-    struct timeval t_start,t_end;
+    struct timeval t_start,t_end,t_msg;
     long cost_time=0;
 
 
@@ -785,15 +787,25 @@ uint8_t halRfReceivePacket(uint8_t *rxBuffer, uint8_t length) // length
 	if((status_state!=STATUS_RX) && (status_state!=STATUS_CALIBRATE) && (status_state!=STATUS_SETTLING))
 	{
 		printf("STATUS corrupts in RX mode. STATUS=0x%02x\n",status);
+                halSpiStrobe(CCxxx0_SFRX);      //flush RXFIFO
 		return 0;
 	}
 
-        usleep(10);//!!!CRITICAL!!!!  200~500  try to relief CPU
-	 k++;
-	 if(k>200000) //---test only!!!!
-	 {
+        usleep(500);//!!!CRITICAL!!!!  200~500  try to relief CPU
+	k++;
+	if(k>5000 && status==0x1F) //  STAUS corrupts in 0x1F  ---test only!!!!
+	{
 		printf("halRfReceivePacket(): STATUS may corrupts! K exceeds limit while polling status, k=%d  STATUS=0x%02x\n",k,status);
-//		return 0; //fail
+		//------ push up messg to str_FuncMessg[] -------
+		if(num_FuncMessg < 20)
+		{
+                	num_FuncMessg+=1;// 1---STATUS=0x1F trap
+			time(&tnow);
+			sprintf(str_TmpMessg,"%s",asctime(localtime(&tnow))); //--get formatted time stamp
+			sprintf(str_FuncMessg[num_FuncMessg],"%s  --- halRfReceivePacket(): STATUS may corrupts! K exceeds limit while polling status, k=%d  STATUS=0x%02x\n",str_TmpMessg,k,status);
+		}
+                halSpiStrobe(CCxxx0_SFRX);  //flush RXFIFO
+		return 0; //fail
 	 }
 //        printf("try halSpiGetStatus() in while() ...\n"); 
         status=halSpiGetStatus();

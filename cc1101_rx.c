@@ -26,6 +26,7 @@ int nMiss=0; //missing data number,counter for unconsecutive receival
 
 void ExitProcess()
 {
+	int i;
 	float CRC_err_rate,Miss_rate;
 	printf("-------Exit Process------\n");
 	fprintf(fp,"-------Exit Process------\n");
@@ -47,6 +48,10 @@ void ExitProcess()
 	fprintf(fp,"CRC error rate: %5.2f %%\n",CRC_err_rate);
 	printf("Missing rate: %5.2f %%\n",Miss_rate);
 	fprintf(fp,"Missing rate: %5.2f %%\n",Miss_rate);
+        //-----message from functions-----
+	fprintf(fp,"--------Message from Functions-------\n");
+	for(i=1;i<num_FuncMessg;i++) //skip i=0
+		fprintf(fp,"Function Messg[%d]:%s\n",i,str_FuncMessg[i]);
 
 	fclose(fp);
 	SPI_Close();
