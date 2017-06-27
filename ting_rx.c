@@ -1,14 +1,33 @@
 #include     <string.h>
 #include      "ting.h"
 
+//----global var.------
+int fd;
+char buff[512];
+
+void sendCMD(char* strCMD)
+{
+	int nread,len;
+	char *strtmp;
+	len=strlen(strCMD);
+	write(fd,strCMD,len);
+	usleep(2000);
+	nread=read(fd,buff,50); //read out ting reply
+	buff[nread]='\0';
+	strncpy(strtmp,strCMD,len-3);
+//	*(strtmp+len-3)='\0';
+	printf("%s: %s",strtmp,buff);
+}
+
+
+
+
 int main(int argc, char **argv)
 {
-	int fd;
 	int nb,nread,nwrite;
 	char tmp;
-	char buff[512];
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=433000000,20,6,10,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,20,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
 	char *dev ="/dev/ttyS1";
 	int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
@@ -73,6 +92,8 @@ int main(int argc, char **argv)
 				
       				printf("Message Received: %s",buff);
 				nb=0;
+				//----
+				sendCMD("AT+RSSI?\r\n");
 				//---reset RX mode
 				write(fd,"AT+RX?\r\n",15);
 				usleep(ndelay);

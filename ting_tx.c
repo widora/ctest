@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 	char sendBuf[65];
 	uint8_t k;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=433000000,20,6,10,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,20,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
 	char *dev ="/dev/ttyS1";
 	int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
   k='0';
   while(1)
   {
-	  if(k=='9')
+	  if(k=='~')
 	      k='0';
 	  else
 	      k++; 
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 	  write(fd,"AT+SEND=64\r\n",20);
 	  usleep(20000);
           write(fd,sendBuf,64);
-	  sleep(3); //!!! critial !!!!
+	  usleep(500000); //sf=7// Spreading fact=6 sleep(3); //!!! critial !!!!
     }
     //close(fd);
     //exit(0);
