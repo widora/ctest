@@ -1,3 +1,9 @@
+/*-------------------------------------------------
+
+Common header for Widora Ting LoRA UART test program
+
+--------------------------------------------------*/
+
 #include     <stdio.h>      /*标准输入输出定义*/
 #include     <stdlib.h>     /*标准函数库定义*/
 #include     <unistd.h>     /*Unix标准函数定义*/
@@ -125,7 +131,7 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
 */
 int OpenDev(char *Dev)
 {
-int	fd = open( Dev, O_RDWR );         //| O_NOCTTY | O_NDELAY
+int	fd = open( Dev, O_RDWR | O_NOCTTY );         //| O_NOCTTY | O_NDELAY
 	if (-1 == fd)
 		{ /*设置数据位数*/
 			perror("Can't Open Serial Port");
@@ -134,53 +140,4 @@ int	fd = open( Dev, O_RDWR );         //| O_NOCTTY | O_NDELAY
 	else
 	return fd;
 
-}
-/**
-*@breif 	main()
-*/
-int main(int argc, char **argv)
-{
-	int fd;
-	int nread,nwrite;
-	char buff[512];
-	char  STR_CFG[]="AT+CFG=433000000,10,6,10,1,1,0,0,0,0,3000,8,4\r\n\0";
-	char *dev ="/dev/ttyS1";
-	fd = OpenDev(dev);
-	if (fd>0)
-    set_speed(fd,115200);
-	else
-		{
-		printf("Can't Open Serial Port!\n");
-		exit(0);
-		}
-  if (set_Parity(fd,8,1,'N')== false) //set_Prity(fd,databits,stopbits,parity)
-  {
-    printf("Set Parity Error\n");
-    exit(1);
-  }
-
-  memset(buff,'\0',sizeof(buff));
- 
-  nwrite=write(fd,STR_CFG,strlen(STR_CFG)); 
-//  printf("nwrite=%d\n",nwrite);
-  usleep(200000);
-  read(fd,buff,20);
-  printf("Ting: %s",buff);
-  write(fd,"AT+VER?\r\n",10);
-  usleep(200000);
-  read(fd,buff,20);
-  printf("Ting: %s",buff);
-  usleep(200000);
-  write(fd,"AT+ADDR?\r\n",10);
-  while(1)
-  	{
-   		while((nread = read(fd,buff,512))>0)
-   		{
-      		//printf("\nLen %d\n",nread);
-      		buff[nread+1]='\0';
-      		printf("Ting: %s",buff);
-   	 	}
-  	}
-    //close(fd);
-    //exit(0);
 }
