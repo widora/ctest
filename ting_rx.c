@@ -4,8 +4,9 @@
 //----global var.------
 int fd;
 char buff[512];
+int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
-void sendCMD(char* strCMD)
+void sendCMD(const char* strCMD)
 {
 	int nread,len;
 	char *strtmp;
@@ -27,9 +28,8 @@ int main(int argc, char **argv)
 	int nb,nread,nwrite;
 	char tmp;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=434000000,20,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
 	char *dev ="/dev/ttyS1";
-	int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
 	fd = OpenDev(dev);
 	if (fd>0)
@@ -62,21 +62,28 @@ int main(int argc, char **argv)
   read(fd,buff,50);
   printf("AT+CFG: %s",buff);
 
+  sendCMD("AT_VER?\r\n");
+/*
   write(fd,"AT+VER?\r\n",12);
   usleep(ndelay);
   read(fd,buff,20);
   printf("AT+VER: %s",buff);
-
+*/
+  sendCMD("AT+ADDR?\r\n");
+/*
   write(fd,"AT+ADDR?\r\n",13);
   usleep(ndelay);
   read(fd,buff,30);
   printf("AT+ADDR?: %s",buff);
-
+*/
+  sendCMD("AT+RX?\r\n");
+/*
   write(fd,"AT+RX?\r\n",20);
   usleep(ndelay);
   nread=read(fd,buff,30);
   buff[nread]='\0';
   printf("AT+RX?: %s",buff);
+*/
 
   nb=0;
   tcflush(fd,TCIOFLUSH);
@@ -89,7 +96,7 @@ int main(int argc, char **argv)
 			nb++;
 			if( tmp=='\n' || nb>511) // '\n' is the end of a string,common end \r\n
 			{
-				
+				buff[nb]='\0';
       				printf("Message Received: %s",buff);
 				nb=0;
 				//----

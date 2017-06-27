@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 	char sendBuf[65];
 	uint8_t k;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=434000000,20,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
 	char *dev ="/dev/ttyS1";
 	int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
