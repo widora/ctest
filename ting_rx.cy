@@ -17,6 +17,7 @@ void sendCMD(const char* strCMD, int ndelay)
         len=strlen(strCMD);
         write(fd,strCMD,len);
         usleep(ndelay);
+//	tcflush(fd,TCIOFLUSH);
         nread=read(fd,buff,50); //read out ting reply
         buff[nread]='\0';
         strncpy(strtmp,strCMD,len);
@@ -54,20 +55,18 @@ int main(int argc, char **argv)
    //----- configure ----
   sendCMD(STR_CFG,50000);
   //------ get version ------
-  sendCMD("AT+VER?\r\n",ndelay);
-
+  sendCMD("AT+VER\r\n",ndelay);
   //------- set ADDR -------
-  sendCMD("AT+ADDR=5555?\r\n",ndelay);
+  sendCMD("AT+ADDR=5555\r\n",ndelay);
   sendCMD("AT+ADDR?\r\n",ndelay);
   //----set DEST address -----
   sendCMD("AT+DEST=6666\r\n",ndelay);
 
+
   nb=0;
   tcflush(fd,TCIOFLUSH);
-
-  sendCMD("AT+RX?\r\n",ndelay);
   while(1)
-  {
+  	{
    		while((nread = read(fd,&tmp,1))>0)
    		{
 			//sprintf(pbuff,"%s",tmp);
