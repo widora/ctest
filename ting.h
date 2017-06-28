@@ -141,3 +141,26 @@ int	fd = open( Dev, O_RDWR | O_NOCTTY );         //| O_NOCTTY | O_NDELAY
 	return fd;
 
 }
+
+/*-----------------------------------------------------
+  send command string to LORA and get feedback string
+
+  buff[],fd ---global var, see in ting_*x.c
+-----------------------------------------------------*/
+extern char buff[];
+extern int fd;
+void sendCMD(const char* strCMD,int ndelay)
+{
+
+        int nread,len;
+        char strtmp[50];
+        len=strlen(strCMD);
+        write(fd,strCMD,len);
+        usleep(ndelay);
+        nread=read(fd,buff,50); //read out ting reply
+        buff[nread]='\0';
+        strncpy(strtmp,strCMD,len);
+        strtmp[len-2]='\0'; //--to  skip \r\n
+        printf("%s: %s",strtmp,buff);
+}
+

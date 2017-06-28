@@ -1,4 +1,5 @@
 #include     <stdint.h>
+#include     <string.h>
 #include      "ting.h"
 
 //----global var.------
@@ -6,26 +7,14 @@ int fd;
 char buff[512];
 int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
-void sendCMD(const char* strCMD, int ndelay)
-{
-        int nread,len;
-        char strtmp[50];
-        len=strlen(strCMD);
-        write(fd,strCMD,len);
-        usleep(ndelay);
-        nread=read(fd,buff,50); //read out ting reply
-        buff[nread]='\0';
-        strncpy(strtmp,strCMD,len);
-	strtmp[len-2]='\0'; //--to  skip \r\n
-        printf("%s: %s",strtmp,buff);
-}
-
 
 int main(int argc, char **argv)
 {
 	int nb,nread,nwrite;
 	char tmp;
-	char sendBuf[128+1];
+	char strcmd[64];
+	char sendBuf[512];
+	int nload;//payload length,bytes.
 	uint8_t k;
 	char *pbuff;
 	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n";
@@ -65,8 +54,9 @@ int main(int argc, char **argv)
 
   nb=0;
   tcflush(fd,TCIOFLUSH);
- 
-  sendBuf[128]='\0';//end of string
+   
+  nload=128;//payload length
+  sendBuf[nload]='\0';//give and end for the string
   k='0';
   while(1)
   {
@@ -74,12 +64,17 @@ int main(int argc, char **argv)
 	      k='0';
 	  else
 	      k++; 
-	  memset(sendBuf,k,128);//sizeof(sendBuf));
+	  memset(sendBuf,k,nload);//sizeof(sendBuf));
 	  printf("Ting-01M Sending %s\n",sendBuf);
-	  write(fd,"AT+SEND=128\r\n",20);
-	  usleep(20000);
-          write(fd,sendBuf,128);
-	  sleep(1);//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  sprintf(strcmd,"AT+SEND=%d\r\n",nload);
+
+	  sendCMD(strcmd,ndelay);
+	  //write(fd,strcmd,strlen(strcmd));
+	  //usleep(20000);
+	  printf("writing payload data to Ting-01M...\n");
+          write(fd,sendBuf,nload);
+	  usleep(800000);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  sendCMD("AT?\r\n",ndelay); //readout send result
     }
     //close(fd);
     //exit(0);

@@ -6,26 +6,6 @@ int fd;
 char buff[512];
 int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
-//void recUART(
-
-
-
-void sendCMD(const char* strCMD, int ndelay)
-{
-        int nread,len;
-        char strtmp[50];
-        len=strlen(strCMD);
-        write(fd,strCMD,len);
-        usleep(ndelay);
-        nread=read(fd,buff,50); //read out ting reply
-        buff[nread]='\0';
-        strncpy(strtmp,strCMD,len);
-        strtmp[len-2]='\0'; //--to  skip \r\n
-        printf("%s: %s",strtmp,buff);
-}
-
-
-
 int main(int argc, char **argv)
 {
 	int nb,nread,nwrite;
