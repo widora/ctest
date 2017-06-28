@@ -4,7 +4,7 @@
 //----global var.------
 int fd;
 char buff[512];
-int  ndelay=10000; // us delay,!!!!!--1000us delay cause Messg receive error!!
+int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
 //void recUART(
 
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 	int nb,nread,nwrite;
 	char tmp;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
 	char *dev ="/dev/ttyS1";
 
 	fd = OpenDev(dev);
@@ -51,11 +51,15 @@ int main(int argc, char **argv)
 
   memset(buff,'\0',sizeof(buff));
 
-   //----- configure ----
+  //----- reset -----
+  sendCMD("AT+RST\r\n",50000);
+  sleep(1);//wait long enough
+  tcflush(fd,TCIOFLUSH);
+
+  //----- configure ----
   sendCMD(STR_CFG,50000);
   //------ get version ------
   sendCMD("AT+VER?\r\n",ndelay);
-
   //------- set ADDR -------
   sendCMD("AT+ADDR=5555?\r\n",ndelay);
   sendCMD("AT+ADDR?\r\n",ndelay);

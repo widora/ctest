@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 	char sendBuf[128+1];
 	uint8_t k;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n\0";
+	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n";
 	char *dev ="/dev/ttyS1";
 
 	fd = OpenDev(dev);
@@ -47,6 +47,11 @@ int main(int argc, char **argv)
   }
 
   memset(buff,'\0',sizeof(buff));
+
+ //----- reset -----
+  sendCMD("AT+RST\r\n",50000);
+  sleep(1);//wait long enough
+  tcflush(fd,TCIOFLUSH);
 
   //----- configure ----
   sendCMD(STR_CFG,50000);
@@ -70,11 +75,11 @@ int main(int argc, char **argv)
 	  else
 	      k++; 
 	  memset(sendBuf,k,128);//sizeof(sendBuf));
-	  printf("Sending %s\n",sendBuf);
-	  write(fd,"AT+SEND=64\r\n",20);
+	  printf("Ting-01M Sending %s\n",sendBuf);
+	  write(fd,"AT+SEND=128\r\n",20);
 	  usleep(20000);
           write(fd,sendBuf,128);
-	  usleep(500000); //sf=7// Spreading fact=6 sleep(3); //!!! critial !!!!
+	  sleep(1);//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
     }
     //close(fd);
     //exit(0);
