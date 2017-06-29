@@ -164,3 +164,31 @@ void sendCMD(const char* strCMD,int ndelay)
         printf("%s: %s",strtmp,buff);
 }
 
+//------------------------- TING DATA PARSE -------------------
+
+/*-----------------------------------------------------
+   split received string data by ','
+  1. char* strRecv MUST be modifiable.
+  2. all ','s in strRecv will be replaced by '\0'
+  3. char* pstrItems[]   
+
+--------------------------------------------------*/
+int parseRecvData(char* pstrRecv, char* pstrItems[])
+{
+	int nstr=0;
+	char* const delim=",";
+	char* pStrData;
+	char** ppStrCur=&pstrRecv;// p p to remaining chars.
+	while(pStrData=strsep(ppStrCur,delim)) //--get a point to a new string
+	{
+		pstrItems[nstr]=pStrData;
+		nstr++;
+//		printf("%s\n",pStrData);
+	}
+
+	return nstr;
+}
+
+
+
+

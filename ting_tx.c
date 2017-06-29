@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 	  //usleep(20000);
 	  printf("writing payload data to Ting-01M...\n");
           write(fd,sendBuf,nload);
-	  usleep(800000);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  sleep(1.5);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
 	  sendCMD("AT?\r\n",ndelay); //readout send result
     }
     //close(fd);
