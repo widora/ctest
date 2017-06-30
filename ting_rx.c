@@ -1,3 +1,12 @@
+/*-----------------------------------------------------
+TODOs and BUGs
+1. Ting-01M always response as busy after Widora rebooting.
+however, just run uarttest once then you can activate Ting again.
+uart configuration error??
+
+
+--------------------------------------------------------*/
+
 #include     <string.h>
 #include      "ting.h"
 
@@ -60,7 +69,7 @@ int main(int argc, char **argv)
   sendCMD("AT+RX?\r\n",ndelay);
   while(1)
   {
-   		while((nread = read(fd,&tmp,1))>0)
+   		if(read(fd,&tmp,1)>0)
    		{
 			//sprintf(pbuff,"%s",tmp);
 	      		buff[nb]=tmp;
@@ -76,15 +85,18 @@ int main(int argc, char **argv)
 				parseTingLoraWordsArray(pstrTingLoraItems);
 
 				nb=0;
-				//----
+				//----get RSSI
 				sendCMD("AT+RSSI?\r\n",ndelay);
 				//---reset RX mode
+				sendCMD("AT+RX?\r\n",ndelay);
+/*
 				write(fd,"AT+RX?\r\n",15);
 				usleep(ndelay);
 				nread=read(fd,buff,50); //read out ting reply
 				buff[nread]='\0';
 				//usleep(ndelay);
 				printf("reset to RX Mode: %s",buff);
+*/
 			}
 		}
 //		usleep(ndelay);

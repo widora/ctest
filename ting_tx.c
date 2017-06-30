@@ -55,7 +55,7 @@ int main(int argc, char **argv)
   nb=0;
   tcflush(fd,TCIOFLUSH);
    
-  nload=128;//payload length
+  nload=64; //128;//payload length
   sendBuf[nload]='\0';//give and end for the string
   k='0';
   while(1)

@@ -142,29 +142,67 @@ int	fd = open( Dev, O_RDWR | O_NOCTTY );         //| O_NOCTTY | O_NDELAY
 
 }
 
-/*-----------------------------------------------------
+/*----------------------------------------------------------------------------------------
   send command string to LORA and get feedback string
 
   buff[],fd ---global var, see in ting_*x.c
------------------------------------------------------*/
+  Window: '\r'-- move cursor to the head of current line  '\n' --- start a new line
+  Linux: '\r'--same above  '\n'-- start a new line and get cursor to the head of the new line.
+------------------------------------------------------------------------------------------------*/
 extern char buff[];
 extern int fd;
 void sendCMD(const char* strCMD,int ndelay)
 {
 
-        int nread,len;
-        char strtmp[50];
-        len=strlen(strCMD);
-        write(fd,strCMD,len);
-        usleep(ndelay);
-        nread=read(fd,buff,50); //read out ting reply
-        buff[nread]='\0';
-        strncpy(strtmp,strCMD,len);
-        strtmp[len-2]='\0'; //--to  skip \r\n
-        printf("%s: %s",strtmp,buff);
+    int nb,len;
+    char ctmp;
+    char strtmp[50];
+    len=strlen(strCMD);
+    write(fd,strCMD,len);
+    usleep(ndelay);
+    nb=0;
+    while(1) // !!!! todo: avoid deadloop !!!!
+   {
+	if(read(fd,&ctmp,1)>0)
+	{
+		buff[nb]=ctmp;
+		if( ctmp=='\n' && nb>1)// end of return string
+		{
+			buff[nb]='\0'; //--get rid of '\n'
+			break;
+		}
+		else if(ctmp=='\r')
+		{
+			buff[nb]='\0'; // get rid of '\r'
+		}
+		else if(ctmp=='\n' && nb<2)
+		{
+		 	nb=0;//only '\r\n',no data in buff; reset buff pointer
+		}
+		nb++;
+	}
+    }
+
+    //nread=read(fd,buff,50); //read out ting reply
+    //buff[nread]='\0';
+    strncpy(strtmp,strCMD,len);
+    strtmp[len-2]='\0'; //--to  skip \r\n
+    printf("%s: %s\n",strtmp,buff);
 }
 
 //========================== TING DATA PARSE ===========================
+
+/*------------------------------------------------
+Compare two string to ascertain they are identical 
+
+-------------------------------------------------*/
+bool blMatchStrWords(char* pstr, const char* pkeyword)
+{
+	if(strcmp(pstr,pkeyword)==0)return true;
+	else
+		return false;
+}
+
 
 /*-----------------------------------------------------------------------------
    get point array to key word(value) items separated by ',' in origin Ting xstring.
@@ -172,6 +210,7 @@ after operation, all ',' will be replaced by '\0' as the end an string item.
   1. char* strRecv MUST be modifiable.
   2. char* pstrTingLoraItems[]  will return points to each itmes.
   3. Number of items will be returned.
+  4. '\r\n' is remained in the last itme!!!!
 ------------------------------------------------------------------------------*/
 int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 {
@@ -202,9 +241,14 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	
 	while(pstrTingLoraItems[k]!=NULL)
 	{
-		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
+//		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
 		k++;
 	}
+
+	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
+		printf("------- LoRa data received! ------\n");
+	printf("Lora Palyload Data:%s\n",pstrTingLoraItems[3]);
+
 
 }
 
