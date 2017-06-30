@@ -170,20 +170,20 @@ void sendCMD(const char* strCMD,int ndelay)
    get point array to key word(value) items separated by ',' in origin Ting xstring.
 after operation, all ',' will be replaced by '\0' as the end an string item.
   1. char* strRecv MUST be modifiable.
-  2. char* pstrItems[]  will return points to each itmes.
+  2. char* pstrTingLoraItems[]  will return points to each itmes.
   3. Number of items will be returned.
 ------------------------------------------------------------------------------*/
-int sepWordsInTingStr(char* pstrRecv, char* pstrItems[])
+int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 {
 	int nstr=0;
 	char* const delim=",";
 	char* pStrData;
 	char** ppStrCur=&pstrRecv;// pp to remaining chars.
 
-	memset(pstrItems,0,sizeof(pstrItems));// clear arrays first
+	memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));// clear arrays first
 	while(pStrData=strsep(ppStrCur,delim)) //--get a point to a new string
 	{
-		pstrItems[nstr]=pStrData;
+		pstrTingLoraItems[nstr]=pStrData;
 		nstr++;
 //		printf("%s\n",pStrData);
 	}
@@ -192,17 +192,17 @@ int sepWordsInTingStr(char* pstrRecv, char* pstrItems[])
 }
 
 
-/*-------------------------------------------------------
-parse Ting key word/value items stored in a string array.
+/*------------------------------------------------------------------------
+parse RX received Ting Lora key word/value items stored in a string array.
 
--------------------------------------------------------*/
-void parseTingWordsArray(char* pstrItems[])
+------------------------------------------------------------------------*/
+void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 {
 	int k=0;
-
-	while(pstrItems[k]!=NULL)
+	
+	while(pstrTingLoraItems[k]!=NULL)
 	{
-		printf("pstrItems[%d]=%s\n",k,pstrItems[k]);
+		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
 		k++;
 	}
 

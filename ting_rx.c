@@ -2,7 +2,7 @@
 #include      "ting.h"
 
 
-#define MAX_TING_DATA_ITEM 24 //max received key word(value) items seperated by ',' from Ting-01M.
+#define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 
 //----global var.------
 int fd;
@@ -15,13 +15,13 @@ int main(int argc, char **argv)
   int nb,nread,nwrite;
   char tmp;
   char *pbuff;
-  char *pstrRecvItems[MAX_TING_DATA_ITEM]; //point array to received Ting itmes 
+  char *pstrTingLoraItems[MAX_TING_LORA_ITEM]; //point array to received Ting LORA itmes 
   char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
   char *dev ="/dev/ttyS1";
 
   //----- init buff and arrays ------
   memset(buff,'\0',sizeof(buff));
-  memset(pstrRecvItems,0,sizeof(pstrRecvItems));
+  memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
   //------ open UART interface-------
   fd = OpenDev(dev);
@@ -70,10 +70,10 @@ int main(int argc, char **argv)
 				buff[nb]='\0';
 //     				printf("Message Received: %s",buff);
 				//--------parse recieved data -----
-//				printf("Recived %d items from Ting.\n",sepWordsInTingStr(buff,pstrRecvItems));
-//				printf("%s\n",pstrRecvItems[4-1]);
-				sepWordsInTingStr(buff,pstrRecvItems);
-				parseTingWordsArray(pstrRecvItems);
+//				printf("Recived %d items from Ting.\n",sepWordsInTingStr(buff,pstrTingLoraItems));
+//				printf("%s\n",pstrTingLoraItems[4-1]);
+				sepWordsInTingLoraStr(buff,pstrTingLoraItems);
+				parseTingLoraWordsArray(pstrTingLoraItems);
 
 				nb=0;
 				//----
