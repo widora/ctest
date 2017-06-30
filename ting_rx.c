@@ -8,14 +8,14 @@ uart configuration error??
 --------------------------------------------------------*/
 
 #include     <string.h>
-#include      "ting.h"
+#include     "ting_uart.h"
+#include     "ting.h"
 
 
 #define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 
 //----global var.------
 int fd;
-char buff[512];
 int  ndelay=5000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
   char *dev ="/dev/ttyS1";
 
   //----- init buff and arrays ------
-  memset(buff,'\0',sizeof(buff));
+  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
   memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
   //------ open UART interface-------
@@ -72,18 +72,21 @@ int main(int argc, char **argv)
    		if(read(fd,&tmp,1)>0)
    		{
 			//sprintf(pbuff,"%s",tmp);
-	      		buff[nb]=tmp;
+	      		g_strUserRxBuff[nb]=tmp;
 			nb++;
 			if( tmp=='\n' || nb>511) // '\n' is the end of a string,common end \r\n
 			{
-				buff[nb]='\0';
-//     				printf("Message Received: %s",buff);
+				g_strUserRxBuff[nb]='\0';
+     				printf("Message Received: %s",g_strUserRxBuff);
 				//--------parse recieved data -----
 //				printf("Recived %d items from Ting.\n",sepWordsInTingStr(buff,pstrTingLoraItems));
 //				printf("%s\n",pstrTingLoraItems[4-1]);
-				sepWordsInTingLoraStr(buff,pstrTingLoraItems);
+				sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);
 				parseTingLoraWordsArray(pstrTingLoraItems);
+				pstrGetTimeStamp(g_pstr_time);
+				printf("Time stamp: %s\n",g_pstr_time);
 
+				//----reset buff pointer
 				nb=0;
 				//----get RSSI
 				sendCMD("AT+RSSI?\r\n",ndelay);
