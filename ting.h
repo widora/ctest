@@ -164,21 +164,23 @@ void sendCMD(const char* strCMD,int ndelay)
         printf("%s: %s",strtmp,buff);
 }
 
-//------------------------- TING DATA PARSE -------------------
+//========================== TING DATA PARSE ===========================
 
-/*-----------------------------------------------------
-   split received string data by ','
+/*-----------------------------------------------------------------------------
+   get point array to key word(value) items separated by ',' in origin Ting xstring.
+after operation, all ',' will be replaced by '\0' as the end an string item.
   1. char* strRecv MUST be modifiable.
-  2. all ','s in strRecv will be replaced by '\0'
-  3. char* pstrItems[]   
-
---------------------------------------------------*/
-int parseRecvData(char* pstrRecv, char* pstrItems[])
+  2. char* pstrItems[]  will return points to each itmes.
+  3. Number of items will be returned.
+------------------------------------------------------------------------------*/
+int sepWordsInTingStr(char* pstrRecv, char* pstrItems[])
 {
 	int nstr=0;
 	char* const delim=",";
 	char* pStrData;
-	char** ppStrCur=&pstrRecv;// p p to remaining chars.
+	char** ppStrCur=&pstrRecv;// pp to remaining chars.
+
+	memset(pstrItems,0,sizeof(pstrItems));// clear arrays first
 	while(pStrData=strsep(ppStrCur,delim)) //--get a point to a new string
 	{
 		pstrItems[nstr]=pStrData;
@@ -190,5 +192,19 @@ int parseRecvData(char* pstrRecv, char* pstrItems[])
 }
 
 
+/*-------------------------------------------------------
+parse Ting key word/value items stored in a string array.
 
+-------------------------------------------------------*/
+void parseTingWordsArray(char* pstrItems[])
+{
+	int k=0;
+
+	while(pstrItems[k]!=NULL)
+	{
+		printf("pstrItems[%d]=%s\n",k,pstrItems[k]);
+		k++;
+	}
+
+}
 
