@@ -29,7 +29,8 @@ int main(int argc, char **argv)
   char *dev ="/dev/ttyS1";
 
   //----- init buff and arrays ------
-  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
+//  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
+   ClearUserRxBuff(); // clear g_strUserRxBuff
   memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
   //------ open UART interface-------
@@ -83,7 +84,7 @@ int main(int argc, char **argv)
 //				printf("%s\n",pstrTingLoraItems[4-1]);
 				sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);
 				parseTingLoraWordsArray(pstrTingLoraItems);
-				pstrGetTimeStamp(g_pstr_time);
+				RenewStrTime(g_pstr_time);
 				printf("Time stamp: %s\n",g_pstr_time);
 
 				//----reset buff pointer

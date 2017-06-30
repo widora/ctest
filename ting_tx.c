@@ -1,6 +1,7 @@
 #include     <stdint.h>
 #include     <string.h>
-#include      "ting.h"
+#include     "ting_uart.h"
+#include     "ting.h"
 
 //----global var.------
 int fd;
@@ -65,14 +66,22 @@ int main(int argc, char **argv)
 	  else
 	      k++; 
 	  memset(sendBuf,k,nload);//sizeof(sendBuf));
-	  printf("Ting-01M Sending %s\n",sendBuf);
-	  sprintf(strcmd,"AT+SEND=%d\r\n",nload);
+
+	  //----- push data to g_strUserTxBuff[] for Lora TX
+	  RenewStrTime(g_pstr_time);
+	  ClearUserTxBuff();//clear g_strUserTxBuff[]
+	  intPush2UserTxBuff("TS,");
+	  intPush2UserTxBuff(g_pstr_time);
+	  intPush2UserTxBuff(",");//sep. token
+	  intPush2UserTxBuff(sendBuf);
+	  intPush2UserTxBuff(",");// sep. token
+
+	  printf("Ting-01M Sending %s\n",g_strUserTxBuff);//sendBuf);
+	  sprintf(strcmd,"AT+SEND=%d\r\n",strlen(g_strUserTxBuff));
 
 	  sendCMD(strcmd,ndelay);
-	  //write(fd,strcmd,strlen(strcmd));
-	  //usleep(20000);
-	  printf("writing payload data to Ting-01M...\n");
-          write(fd,sendBuf,nload);
+	  printf("writing g_strUserTxBuff to Ting-01M...\n");
+          write(fd,g_strUserTxBuff,strlen(g_strUserTxBuff));
 	  sleep(1.5);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
 	  sendCMD("AT?\r\n",ndelay); //readout send result
     }

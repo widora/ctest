@@ -20,13 +20,62 @@ TS --  Time stamp
 #include     <string.h>
 
 
+#define USER_RX_BUFF_SIZE 512
+#define USER_TX_BUFF_SIZE 512
+
 struct timeval g_tm;
 char g_pstr_time[30]; //time stamp string
 
 //---buffers
-char g_strUserRxBuff[512]; //--string from Ting LoRa RX, like "LR,6666,40,xxxx,xx......"  xxxx--payload
-char g_strUserTxBuff[512]; //--string ready to send for Ting LoRa Tx, like "xxxxxx,xxxxx,xx,,...."  xxxx- payload
+char g_strUserRxBuff[USER_RX_BUFF_SIZE]; //--string from Ting LoRa RX, like "LR,6666,40,xxxx,xx......"  xxxx--payload
+char g_strUserTxBuff[USER_TX_BUFF_SIZE]; //--string ready to send for Ting LoRa Tx, like "xxxxxx,xxxxx,xx,,...."  xxxx- payload
 char g_strAtBuff[64]; //--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
+
+
+/*------ clear g_strUsrRxBuff[] and fill with '\0' ------*/
+void ClearUserRxBuff(void)
+{
+   memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
+}
+
+/*------ clear g_strUsrTxBuff[] and fill with '\0' ------*/
+void ClearUserTxBuff(void)
+{
+   memset(g_strUserTxBuff,'\0',sizeof(g_strUserTxBuff));
+}
+
+
+/*-----------------------------------------
+ push string to g_strUserTxBuff 
+-----------------------------------------*/
+int intPush2UserTxBuff(char* pstr)
+{
+  int len=strlen(pstr);
+  if( (USER_TX_BUFF_SIZE-strlen(g_strUserTxBuff)-1) >= len )
+  {
+  	strcat(g_strUserTxBuff,pstr);
+	return len;
+   }
+   else
+	return 0;
+}
+
+/*-----------------------------------------
+ push string to g_strUserRxBuff 
+-----------------------------------------*/
+int intPush2UserRxBuff(char* pstr)
+{
+  int len=strlen(pstr);
+  if( (USER_RX_BUFF_SIZE-strlen(g_strUserRxBuff)-1) >= len )
+  {
+  	strcat(g_strUserRxBuff,pstr);
+	return len;
+   }
+   else
+	return 0;
+}
+
+
 
 /*----------------------------------------------------------------------------------------
   send command string to LORA and get feedback string
@@ -137,11 +186,9 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 
 }
 
-/*----- return time stamp as char*----------*/
-void pstrGetTimeStamp(char *g_pstr_time)
+/*----- renew time for char *g_pstr_time----------*/
+void RenewStrTime(char *g_pstr_time)
 {
      gettimeofday(&g_tm,NULL);
      sprintf(g_pstr_time,"%ld.%ld", g_tm.tv_sec,g_tm.tv_usec);
-//     printf("Time Stamp:%s\n",pstr_time);
-//     return str_tm;
 }
