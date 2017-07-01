@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	  sendCMD(strcmd,ndelay);
 	  printf("writing g_strUserTxBuff to Ting-01M...\n");
           write(fd,g_strUserTxBuff,strlen(g_strUserTxBuff));
-	  sleep(1.0);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  usleep(600000);// send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
 	  sendCMD("AT?\r\n",ndelay); //readout send result
     }
     //close(fd);

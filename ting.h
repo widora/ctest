@@ -39,7 +39,7 @@ int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##
 void RenewTimeStr(char *g_pstr_time)
 {
      gettimeofday(&g_tm,NULL);
-     sprintf(g_pstr_time,"%ld.%ld", g_tm.tv_sec,g_tm.tv_usec);
+     sprintf(g_pstr_time,"%11.3f", g_tm.tv_sec+g_tm.tv_usec/1000000.0);
 }
 
 
