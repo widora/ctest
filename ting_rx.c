@@ -1,8 +1,8 @@
 /*-----------------------------------------------------
 TODOs and BUGs
 1. Ting-01M always response as busy after Widora rebooting.
-however, just run uarttest once then you can activate Ting again.
-uart configuration error??
+   Uart configuration error!!!!
+2. ttyS1: 1 input overrun(s)!!
 
 
 --------------------------------------------------------*/
@@ -65,43 +65,47 @@ int main(int argc, char **argv)
   sendCMD("AT+DEST=6666\r\n",ndelay);
 
   nb=0;
+  pbuff=g_strUserRxBuff;
+  //----clear tty FIFO hardware buff
   tcflush(fd,TCIOFLUSH);
   //---set RX mode
   sendCMD("AT+RX?\r\n",ndelay);
   while(1)
   {
-   		if(read(fd,&tmp,1)>0)
-   		{
-			//sprintf(pbuff,"%s",tmp);
-	      		g_strUserRxBuff[nb]=tmp;
-			nb++;
-			if( tmp=='\n' || nb>511) // '\n' is the end of a string,common end \r\n
-			{
-				g_strUserRxBuff[nb]='\0';
-     				printf("Message Received: %s",g_strUserRxBuff);
-				//--------parse recieved data -----
-//				printf("Recived %d items from Ting.\n",sepWordsInTingStr(buff,pstrTingLoraItems));
-//				printf("%s\n",pstrTingLoraItems[4-1]);
-				sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);
-				parseTingLoraWordsArray(pstrTingLoraItems);
-				RenewStrTime(g_pstr_time);
-				printf("Time stamp: %s\n",g_pstr_time);
+		nread=read(fd,pbuff,50); //--50?????
+		if(nread<0)
+		{
+			printf("read tty error\n");
+			pbuff=g_strUserRxBuff; // reset pbuff
+			nread=0;
+		}
+		pbuff+=nread;
+		nb+=nread;
+   		//if(read(fd,&tmp,50)>0)
+   		//{
+	      	//	g_strUserRxBuff[nb]=tmp;
+		//	nb++;
+		if( (nread>0) && ( *(pbuff-1)=='\n' || nb>511) ) // '\n' is the end of a string,common end \r\n
+		{
+			//g_strUserRxBuff[nb]='\0';
+			*pbuff='\0'; // add string end
+ 			printf("Message Received: %s",g_strUserRxBuff);
 
-				//----reset buff pointer
-				nb=0;
-				//----get RSSI
-				sendCMD("AT+RSSI?\r\n",ndelay);
-				//---reset RX mode
-				sendCMD("AT+RX?\r\n",ndelay);
-/*
-				write(fd,"AT+RX?\r\n",15);
-				usleep(ndelay);
-				nread=read(fd,buff,50); //read out ting reply
-				buff[nread]='\0';
-				//usleep(ndelay);
-				printf("reset to RX Mode: %s",buff);
-*/
-			}
+			//----reset count and buff pointer
+			nb=0;
+			pbuff=g_strUserRxBuff; //reset pbuff
+
+			//--------parse recieved data -----
+			sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
+			parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
+
+			//----get RSSI
+			sendCMD("AT+RSSI?\r\n",ndelay);
+			//---reset RX mode
+			sendCMD("AT+RX?\r\n",ndelay);
+
+			//----clear tty FIFO hardware buff
+			tcflush(fd,TCIOFLUSH);
 		}
 //		usleep(ndelay);
 

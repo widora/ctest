@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 	  memset(sendBuf,k,nload);//sizeof(sendBuf));
 
 	  //----- push data to g_strUserTxBuff[] for Lora TX
-	  RenewStrTime(g_pstr_time);
+	  RenewTimeStr(g_pstr_time);
 	  ClearUserTxBuff();//clear g_strUserTxBuff[]
 	  intPush2UserTxBuff("TS,");
 	  intPush2UserTxBuff(g_pstr_time);
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	  sendCMD(strcmd,ndelay);
 	  printf("writing g_strUserTxBuff to Ting-01M...\n");
           write(fd,g_strUserTxBuff,strlen(g_strUserTxBuff));
-	  sleep(1.5);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  sleep(1.0);//send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
 	  sendCMD("AT?\r\n",ndelay); //readout send result
     }
     //close(fd);

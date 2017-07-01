@@ -30,6 +30,17 @@ char g_pstr_time[30]; //time stamp string
 char g_strUserRxBuff[USER_RX_BUFF_SIZE]; //--string from Ting LoRa RX, like "LR,6666,40,xxxx,xx......"  xxxx--payload
 char g_strUserTxBuff[USER_TX_BUFF_SIZE]; //--string ready to send for Ting LoRa Tx, like "xxxxxx,xxxxx,xx,,...."  xxxx- payload
 char g_strAtBuff[64]; //--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
+int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##,XXX,XXX,XXXX...."
+//--g_intLoraRxLen to be renewed in sepWordsInTingLoraStr() only
+
+
+
+/*----- renew time for char *g_pstr_time----------*/
+void RenewTimeStr(char *g_pstr_time)
+{
+     gettimeofday(&g_tm,NULL);
+     sprintf(g_pstr_time,"%ld.%ld", g_tm.tv_sec,g_tm.tv_usec);
+}
 
 
 /*------ clear g_strUsrRxBuff[] and fill with '\0' ------*/
@@ -89,16 +100,23 @@ extern int fd;
 void sendCMD(const char* strCMD,int ndelay)
 {
 
-    int nb,len;
+    int nb,len,nread;
     char ctmp;
     char strtmp[50];
     len=strlen(strCMD);
-    write(fd,strCMD,len);
+
+    if(write(fd,strCMD,len)<0)
+    {
+	perror("sendCMD():write to serial port");
+	return;
+    }
     usleep(ndelay);
     nb=0;
     while(1) // !!!! todo: avoid deadloop !!!!
    {
-	if(read(fd,&ctmp,1)>0)
+	nread=read(fd,&ctmp,1);
+	//if(read(fd,&ctmp,1)>0)
+	if(nread==1)
 	{
 		g_strAtBuff[nb]=ctmp;
 		if( ctmp=='\n' && nb>1)// end of return string
@@ -116,6 +134,12 @@ void sendCMD(const char* strCMD,int ndelay)
 		}
 		nb++;
 	}
+	else if(nread < 0)
+	{
+		perror("sendCMD():read serial port");
+		return;
+	}
+
     }
 
     //nread=read(fd,buff,50); //read out ting reply
@@ -144,7 +168,7 @@ after operation, all ',' will be replaced by '\0' as the end an string item.
   1. char* strRecv MUST be modifiable.
   2. char* pstrTingLoraItems[]  will return points to each itmes.
   3. Number of items will be returned.
-  4. '\r\n' is remained in the last itme!!!!
+  4. '\r\n' is remained !!!! check tty read function,
 ------------------------------------------------------------------------------*/
 int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 {
@@ -154,6 +178,9 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 	char** ppStrCur=&pstrRecv;// pp to remaining chars.
 
 	memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));// clear arrays first
+
+	g_intLoraRxLen=strlen(pstrRecv);
+
 	while(pStrData=strsep(ppStrCur,delim)) //--get a point to a new string
 	{
 		pstrTingLoraItems[nstr]=pStrData;
@@ -165,14 +192,15 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 }
 
 
-/*------------------------------------------------------------------------
-parse RX received Ting Lora key word/value items stored in a string array.
-
-------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------------------
+parse RX received Ting Lora key word/value items stored in a string array separated by ','
+in form of "LR,****,##,XXX,XXX,XXXX...."  ****--source addr.    ## --payload length in hex.
+-------------------------------------------------------------------------------------------*/
 void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 {
 	int k=0;
-	
+	int len_payload; 
+
 	while(pstrTingLoraItems[k]!=NULL)
 	{
 //		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
@@ -180,15 +208,15 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	}
 
 	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
-		printf("------- LoRa data received! ------\n");
-	printf("Lora Palyload Data:%s\n",pstrTingLoraItems[3]);
-
+		printf("------- Parse Received LoRa data ------\n");
+	printf("Lora source address:%s\n",pstrTingLoraItems[1]);
+        //-----get payload length
+	len_payload=strtoul(pstrTingLoraItems[2],NULL,16);
+	printf("Total length:%d\n",g_intLoraRxLen); 
+	printf("Lora palyload length:%d\n",len_payload);
+	printf("Source time stamp:%s\n",pstrTingLoraItems[4]);
+ 	RenewTimeStr(g_pstr_time);
+        printf("Host current time: %s\n",g_pstr_time);
 
 }
 
-/*----- renew time for char *g_pstr_time----------*/
-void RenewStrTime(char *g_pstr_time)
-{
-     gettimeofday(&g_tm,NULL);
-     sprintf(g_pstr_time,"%ld.%ld", g_tm.tv_sec,g_tm.tv_usec);
-}
