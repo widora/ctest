@@ -112,18 +112,28 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
 		fprintf(stderr,"Unsupported stop bits\n");
 		return (false);
 	}
+
   /* Set input parity option */
   if (parity != 'n')
   		options.c_iflag |= INPCK;
-    options.c_cc[VTIME] = 150; // 15 seconds
-    options.c_cc[VMIN] = 0;
 
-  tcflush(fd,TCIFLUSH); /* Update the options and do it NOW */
+
+  tcflush(fd,TCIFLUSH); 
+
+  options.c_cc[VTIME] = 150; // 15 seconds Timeout
+  options.c_cc[VMIN] = 0;// Update the options and do it NOW 
+
+   //-------!!!!! to set as RAW MODE !!!!-------
+   options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* Inut */
+   options.c_oflag &= ~OPOST; /* OutPut */
+
   if (tcsetattr(fd,TCSANOW,&options) != 0)
   	{
   		perror("SetupSerial 3");
 		return (false);
 	}
+
+
   return (true);
  }
 /**

@@ -1,7 +1,7 @@
 /*-----------------------------------------------------
 TODOs and BUGs
 1. Ting-01M always response as busy after Widora rebooting.
-   Uart configuration error!!!!
+   ----Solved! set serial port as RAW MODE.
 2. ttyS1: 1 input overrun(s)!!
 
 
@@ -39,8 +39,8 @@ int main(int argc, char **argv)
          set_speed(fd,115200);
   else
  	{
- 	printf("Can't Open Serial Port!\n");
- 	exit(0);
+	 	printf("Can't Open Serial Port!\n");
+ 		exit(0);
  	}
 
   //----set databits,stopbits,parity for UART -----
