@@ -118,6 +118,8 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
   		options.c_iflag |= INPCK;
 
 
+  
+
   tcflush(fd,TCIFLUSH); 
 
   options.c_cc[VTIME] = 150; // 15 seconds Timeout
@@ -126,6 +128,7 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
    //-------!!!!! to set as RAW MODE !!!!-------
    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* Inut */
    options.c_oflag &= ~OPOST; /* OutPut */
+   options.c_iflag &= ~(ICRNL | IXON);
 
   if (tcsetattr(fd,TCSANOW,&options) != 0)
   	{
