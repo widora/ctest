@@ -39,19 +39,19 @@ int main(int argc, char **argv)
   memset(buff,'\0',sizeof(buff));
 
  //----- reset -----
-  sendCMD("AT+RST\r\n",50000);
+  sendTingCMD("AT+RST\r\n",50000);
   sleep(1);//wait long enough
   tcflush(fd,TCIOFLUSH);
 
   //----- configure ----
-  sendCMD(STR_CFG,50000);
+  sendTingCMD(STR_CFG,50000);
   //------ get version ------
-  sendCMD("AT+VER?\r\n",ndelay);
+  sendTingCMD("AT+VER?\r\n",ndelay);
   //------- set ADDR -------
-  sendCMD("AT+ADDR=6666\r\n",ndelay);
-  sendCMD("AT+ADDR?\r\n",ndelay);
+  sendTingCMD("AT+ADDR=6666\r\n",ndelay);
+  sendTingCMD("AT+ADDR?\r\n",ndelay);
   //----set DEST address -----
-  sendCMD("AT+DEST=5555\r\n",ndelay);
+  sendTingCMD("AT+DEST=5555\r\n",ndelay);
 
   nb=0;
   tcflush(fd,TCIOFLUSH);
@@ -79,11 +79,11 @@ int main(int argc, char **argv)
 	  printf("Ting-01M Sending %s\n",g_strUserTxBuff);//sendBuf);
 	  sprintf(strcmd,"AT+SEND=%d\r\n",strlen(g_strUserTxBuff));
 
-	  sendCMD(strcmd,ndelay);
+	  sendTingCMD(strcmd,ndelay);
 	  printf("writing g_strUserTxBuff to Ting-01M...\n");
           write(fd,g_strUserTxBuff,strlen(g_strUserTxBuff));
 	  usleep(600000);// send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
-	  sendCMD("AT?\r\n",ndelay); //readout send result
+	  sendTingCMD("AT?\r\n",ndelay); //readout send result
     }
     //close(fd);
     //exit(0);

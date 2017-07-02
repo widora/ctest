@@ -97,7 +97,7 @@ int intPush2UserRxBuff(char* pstr)
 ------------------------------------------------------------------------------------------------*/
 //extern char buff[];
 extern int fd;
-void sendCMD(const char* strCMD,int ndelay)
+void sendTingCMD(const char* strCMD,int ndelay)
 {
 
     int nb,len,nread;
@@ -201,11 +201,13 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	int k=0;
 	int len_payload; 
 
+/* //------for test---
 	while(pstrTingLoraItems[k]!=NULL)
 	{
-//		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
+		printf("pstrTingLoraItems[%d]=%s\n",k,pstrTingLoraItems[k]);
 		k++;
 	}
+*/
 
 	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
 		printf("------- Parse Received LoRa data ------\n");

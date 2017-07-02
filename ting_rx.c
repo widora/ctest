@@ -51,25 +51,25 @@ int main(int argc, char **argv)
   }
 
   //----- reset Ting-----
-  sendCMD("AT+RST\r\n",50000);
+  sendTingCMD("AT+RST\r\n",50000);
   sleep(1);//wait long enough
   tcflush(fd,TCIOFLUSH);
   //----- configure ----
-  sendCMD(STR_CFG,50000);
+  sendTingCMD(STR_CFG,50000);
   //------ get version ------
-  sendCMD("AT+VER?\r\n",ndelay);
+  sendTingCMD("AT+VER?\r\n",ndelay);
   //------- set ADDR -------
-  sendCMD("AT+ADDR=5555\r\n",ndelay);
-  sendCMD("AT+ADDR?\r\n",ndelay);
+  sendTingCMD("AT+ADDR=5555\r\n",ndelay);
+  sendTingCMD("AT+ADDR?\r\n",ndelay);
   //----set DEST address -----
-  sendCMD("AT+DEST=6666\r\n",ndelay);
+  sendTingCMD("AT+DEST=6666\r\n",ndelay);
 
   nb=0;
   pbuff=g_strUserRxBuff;
   //----clear tty FIFO hardware buff
   tcflush(fd,TCIOFLUSH);
   //---set RX mode
-  sendCMD("AT+RX?\r\n",ndelay);
+  sendTingCMD("AT+RX?\r\n",ndelay);
   while(1)
   {
 		nread=read(fd,pbuff,50); //--50?????
@@ -100,9 +100,9 @@ int main(int argc, char **argv)
 			parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
 
 			//----get RSSI
-			sendCMD("AT+RSSI?\r\n",ndelay);
+			sendTingCMD("AT+RSSI?\r\n",ndelay);
 			//---reset RX mode
-			sendCMD("AT+RX?\r\n",ndelay);
+			sendTingCMD("AT+RX?\r\n",ndelay);
 
 			//----clear tty FIFO hardware buff
 			tcflush(fd,TCIOFLUSH);
