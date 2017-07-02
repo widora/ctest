@@ -19,10 +19,15 @@ TS --  Time stamp
 #include     <stdbool.h>
 #include     <string.h>
 
-
+#define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
 
+//----- serial port
+int g_fd=-1;
+int  g_ndelay=5000; // us delay,!!!!!--1000us delay cause Messg receive error!!
+
+//----- time
 struct timeval g_tm;
 char g_pstr_time[30]; //time stamp string
 
@@ -96,63 +101,66 @@ int intPush2UserRxBuff(char* pstr)
   Linux: '\r'--same above  '\n'-- start a new line and get cursor to the head of the new line.
 ------------------------------------------------------------------------------------------------*/
 //extern char buff[];
-extern int fd;
+//extern int fd;
 void sendTingCMD(const char* strCMD,int ndelay)
 {
 
     int nb,len,nread;
-    char ctmp;
+    char *pstr; // pointer to g_strAtBuff[];
     char strtmp[50];
+
     len=strlen(strCMD);
 
-    if(write(fd,strCMD,len)<0)
+    if(write(g_fd,strCMD,len)<0)
     {
-	perror("sendCMD():write to serial port");
+	perror("sendTingCMD():write to serial port");
 	return;
     }
-    usleep(ndelay);
+    usleep(g_ndelay);
+
     nb=0;
+    pstr=g_strAtBuff;
+   //------- get feedback string from Ting -----
     while(1) // !!!! todo: avoid deadloop !!!!
    {
-	nread=read(fd,&ctmp,1);
-	//if(read(fd,&ctmp,1)>0)
-	if(nread==1)
+	nread=read(g_fd,pstr,30); //--30 suitable size for aver. length of reply-string
+	if(nread<0)
 	{
-		g_strAtBuff[nb]=ctmp;
-		if( ctmp=='\n' && nb>1)// end of return string
-		{
-			g_strAtBuff[nb]='\0'; //--get rid of '\n'
-			break;
-		}
-		else if(ctmp=='\r')
-		{
-			g_strAtBuff[nb]='\0'; // get rid of '\r'
-		}
-		else if(ctmp=='\n' && nb<2)
-		{
-		 	nb=0;//only '\r\n',no data in buff; reset buff pointer
-		}
-		nb++;
+		printf("sendTingCMD():read Ting CMD feedback from serial port");
+		//---reset count and pstr
+		pstr=g_strAtBuff;
+		nb=0;
+		//perror("sendTingCMD():read serial port for Ting feedback string");
+		//return;
 	}
-	else if(nread < 0)
+	pstr+=nread;
+	nb+=nread;
+
+	//----skip first '\r\n' --
+	if((nread>0) && (g_strAtBuff[0]=='\r' || g_strAtBuff[0]=='\n'))
 	{
-		perror("sendCMD():read serial port");
-		return;
+		//---reset count and pstr
+		pstr=g_strAtBuff;
+		nb=0;
+	}
+
+	if((nread>0) && (*(pstr-1)=='\n')) //----get end of a reply string
+	{
+		*(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+		break; 
 	}
 
     }
 
-    //nread=read(fd,buff,50); //read out ting reply
-    //buff[nread]='\0';
     strncpy(strtmp,strCMD,len);
     strtmp[len-2]='\0'; //--to  skip \r\n
+    //------printf command to Ting and its reply string
     printf("%s: %s\n",strtmp,g_strAtBuff);
 }
 
 
 /*------------------------------------------------
 Compare two string to ascertain they are identical 
-
 -------------------------------------------------*/
 bool blMatchStrWords(char* pstr, const char* pkeyword)
 {
@@ -191,6 +199,57 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 	return nstr;
 }
 
+
+/*-----------------------------------------------------------------------
+1. Clear serial buffer(TCIOFLUSH) and set Ting to Rola RX mode, keep reading
+ serial port until get a complete  Rola string replied from Ting-01M. 
+ Received string will be stored in g_strUserRxBuff[].
+2. Return count number of received chars.
+3. '\r\n' is remained in g_strUserRxBuff[] !!!!
+------------------------------------------------------------------------*/
+int recvTingLoRa(void)
+{
+  int nb=0;
+  int nread;
+  char *pstr; //--pointer to g_strUserRxBuff[]
+
+  //----clear tty FIFO hardware buff
+  tcflush(g_fd,TCIOFLUSH);
+  //---set RX mode
+  sendTingCMD("AT+RX?\r\n",g_ndelay);
+
+  pstr=g_strUserRxBuff;
+
+  while(1)
+  {
+        nread=read(g_fd,pstr,50); //--50? suitable size for Ting Rola string.
+        if(nread<0)
+        {
+                printf("read serial port error\n");
+                pstr=g_strUserRxBuff; // reset pbuff
+                nb=0;
+                nread=0;// !!!!!!
+        }
+        pstr+=nread;
+        nb+=nread;
+
+        //---flowing unnecessary, '\r\n' will be dealt by sendTingCMD()
+        if( (nb==1) && ( *(pstr-1)=='\n' || *(pstr-1)=='\r') )//get rid of '\r\n' first if applicable
+        {
+                pstr=g_strUserRxBuff; // reset pbuff
+                nb=0;
+        }
+
+        if( (nb>2) && ( *(pstr-1)=='\n' || nb>511) ) // '\n' is the end of a string,common end \r\n
+        {
+                *pstr='\0'; // add string end
+                printf("Message Received: %s",g_strUserRxBuff);
+                break;
+        }
+  }
+  return nb;
+
+}
 
 /*------------------------------------------------------------------------------------------
 parse RX received Ting Lora key word/value items stored in a string array separated by ','
