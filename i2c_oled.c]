@@ -52,8 +52,8 @@ void sendDatCmdoled(enum oled_sig datcmd,uint8_t val) {
 	printf("i2c ioctl read error!\n");
     }
 
-    free(i2c_iodata.msgs);
     free(i2c_iodata.msgs[0].buf);
+    free(i2c_iodata.msgs);
 }
 
 /*------ send command to oled ---------*/
