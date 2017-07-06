@@ -58,6 +58,8 @@ int main(int argc, char **argv)
   sendTingCMD("AT+ADDR?\r\n",g_ndelay);
   //----set DEST address -----
   sendTingCMD("AT+DEST=6666\r\n",g_ndelay);
+  //----set PD0 as RX indication -----
+  sendTingCMD("AT+ACK=1\r\n",g_ndelay);
 
   while(1)
   {
