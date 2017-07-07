@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h> // sleep
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -10,6 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <string.h>
+#include <time.h>
 #include <sys/time.h>
 #include "ascii2.h"
 
@@ -141,7 +143,7 @@ void initOledDefault(void)
   sendCmdOled(0xa6); //normal / reverse a6h--noraml, 1 in RAM displays; a7h--inverse, 0 in RAM displays.
   //------------------
   sendCmdOled(0xa8); //multiplex ratio
-  sendCmdOled(0x3F); // 16MUX to 64MUX RESET=111111b
+  sendCmdOled(0x3F); // 16MUX to 64MUX RESET=111111b, 0x1F for 128x32; 0x3F for 128x64
   //----------------
   sendCmdOled(0xa4);// A4h-- resume to RAM content display(RESET), A5h--entire display ON.
   //----------------
@@ -155,7 +157,7 @@ void initOledDefault(void)
   sendCmdOled(0x22);//[3:0] phase 1 period of up to 15 DCLK [7:4] phase 2 period of up to 15 DCLK 
   //----------------
   sendCmdOled(0xda);//--set COM pins hardware configuration
-  sendCmdOled(0x12);//[5:4] 
+  sendCmdOled(0x12);//[5:4]  0x02 for 128x32 0x12 for 128x64
   //----------------
   sendCmdOled(0xdb);//set Vcomh deselect level
   sendCmdOled(0x20);
