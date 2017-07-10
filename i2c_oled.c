@@ -28,19 +28,20 @@ void main()
 */
 
 
- //drawOledAscii16x8(2*k,16*k,'W');
  drawOledStr16x8(0,0,"  Widora-NEO! ");
  drawOledStr16x8(6,0," Test for Ting");
 
   while(1)
   {
+	//---get time string---
 	timep=time(NULL);
 	p_tm=localtime(&timep);
 	strftime(strtime,sizeof(strtime),"%H:%M:%S",p_tm);
 	printf("strtime=%s\n",strtime);
-	drawOledStr16x8(3,0,"    ");
-	drawOledStr16x8(3,31,strtime);
-	drawOledStr16x8(3,95,"    ");
+	drawOledStr16x8(2,0,"    ");
+	drawOledStr16x8(2,31,strtime);
+	drawOledStr16x8(2,95,"    ");
+
 	usleep(500000); //--200k ~1000k same cpu load
   }
 

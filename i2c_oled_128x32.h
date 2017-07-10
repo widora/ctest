@@ -15,7 +15,9 @@
 #include <sys/time.h>
 #include "ascii2.h"
 
-int g_fdoled;
+#define TEMP_PATH "/sys/class/thermal/thermal_zone0/temp"
+
+int g_fdOled,g_fdTemp;
 char *g_pstroledDev="/dev/i2c-0";
 uint8_t g_u8oledAddr=0x78>>1;
 enum oled_sig{   //---command or data
@@ -25,12 +27,45 @@ oled_SIG_DAT
 struct flock g_i2cFdReadLock;
 struct flock g_i2cFdWriteLock;
 
+
 //----timer
 struct itimerval g_tmval,g_otmval;
 
 //-------functions----
 int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len);
 
+
+
+//----- get CPU temperature-------------
+ char* pstrGetCpuTemp(void)
+{
+ static char strTemp[4]={0};
+ char str_tmp[20]={0}; 
+ float temp=0;
+
+ g_fdTemp=open(TEMP_PATH,O_RDONLY);
+ if(g_fdTemp<0)
+ {
+	printf("Fail to read CPU temp.\n");
+        strcpy(strTemp,"****");
+ 	return strTemp;
+  }
+
+  if(read(g_fdTemp,str_tmp,20)<0)
+  {
+	printf("Fail to read CPU temp.\n");
+        strcpy(strTemp,"****");
+ 	return strTemp;
+  }
+
+  printf("str_tmp=%s\n",str_tmp);
+  temp=atoi(str_tmp)/1000.0; 
+  sprintf(strTemp,"%4.1f",temp);
+
+  close(g_fdTemp);
+  return strTemp;
+
+}
 
 
 
@@ -72,10 +107,10 @@ void sendDatCmdoled(enum oled_sig datcmd,uint8_t val) {
     i2c_iodata.msgs[0].buf[0]=sig; // 0x00 for Command, 0x40 for data
     i2c_iodata.msgs[0].buf[1]=val; 
 
-    ioctl(g_fdoled,I2C_TIMEOUT,2);
-    ioctl(g_fdoled,I2C_RETRIES,1);
+    ioctl(g_fdOled,I2C_TIMEOUT,2);
+    ioctl(g_fdOled,I2C_RETRIES,1);
 
-    ret=ioctl(g_fdoled,I2C_RDWR,(unsigned long)&i2c_iodata);
+    ret=ioctl(g_fdOled,I2C_RDWR,(unsigned long)&i2c_iodata);
     if(ret<0)
     {
 	printf("i2c ioctl read error!\n");
@@ -105,7 +140,7 @@ void initOledDefault(void)
   int fret;
   struct flock lock;
 
-  if((g_fdoled=open(g_pstroledDev,O_RDWR))<0)
+  if((g_fdOled=open(g_pstroledDev,O_RDWR))<0)
   {
 	perror("fail to open i2c bus");
         exit(1);
@@ -114,11 +149,19 @@ void initOledDefault(void)
    	printf("Open i2c bus successfully!\n");
 
   //------ try to lock file
-  intFcntlOp(g_fdoled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
-//  intFcntlOp(g_fdoled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
+  intFcntlOp(g_fdOled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
+//  intFcntlOp(g_fdOled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
   printf("I2C fd lock operation finished.\n");
 
+//-------set I2C speed
+/*
+  if(ioctl(g_fdOled,I2C_SPEED,200000)<0)
+	printf("Set I2C speed failed!\n");
+  else
+	printf("Set I2C speed to 200KHz successfully!\n");
+*/
 
+//----------- set default param for OLED-------
   sendCmdOled(0xAE); //display off
   //-----------------------
   sendCmdOled(0x20);  //set memory addressing mode
@@ -179,6 +222,12 @@ void setOledHScroll(uint8_t start_page, uint8_t end_page)
   sendCmdOled(0x00); //dummy byte 00h
   sendCmdOled(0xff); //dummy byte ffh
 }
+
+//----set vertical scrolling -------------
+
+
+
+
 //---- activate scroll -----
 void actOledScroll(void)
 {
@@ -257,7 +306,7 @@ void  drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr)
 {
     int k;
     int len=strlen(pstr);
-  
+
     for(k=0;k<len;k++)
         drawOledAscii16x8(start_row,start_column+8*k,*(pstr+k));
 
@@ -299,7 +348,7 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     struct flock lock;
 
 
-     if((fcret=fcntl(g_fdoled,F_GETFL,0))<0)
+     if((fcret=fcntl(g_fdOled,F_GETFL,0))<0)
      {
  	perror("fcntl to get lock");
  	exit(1);
@@ -327,7 +376,7 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     lock.l_whence=SEEK_SET;
     lock.l_len=0;
      //---- check lock ---
-    if(fcntl(g_fdoled,F_GETLK,&lock)<0) //--lock return as UNLCK if is applicable, or it returns file's current lock.
+    if(fcntl(g_fdOled,F_GETLK,&lock)<0) //--lock return as UNLCK if is applicable, or it returns file's current lock.
     {
  	perror("fcntl to get lock");
  	exit(1);
