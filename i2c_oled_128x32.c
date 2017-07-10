@@ -18,32 +18,24 @@ void main()
  //---init timer----
 // initOledTimer();
 // signal(SIGALRM,sigHndlOledTimer);
- //----clear OLED display----FAIL !!!!!!!
- clearOled();
 
-
-//---- clear OLED display-----
-
- for(k=0;k<8;k++)
-	drawOledStr16x8(k,0,"                ");
+ //----clear OLED display----!!! refresh data firt before clear !!!!!
+ drawOledStr16x8(0,0,"   NanoPi-NEO   ");
+ drawOledStr16x8(2,0,"--------------- ");
+ sleep(1);
+ drawOledDat(0x00);
 
 
  drawOledStr16x8(0,0,"   NanoPi-NEO   ");
 
-//  drawOledDat(0xf0);
-//  sleep(5);
-
-
-//    setOledHScroll(0,1); // set scroll page
+//  setOledHScroll(0,1); // set scroll page
 //  actOledScroll(); // enact scroll
-  sleep(1);
-
+//  sleep(1);
 
  while(1)
   {
       //----- stop scrolling before wrting to GRAM
      // actOledScroll();
-      usleep(200000);
       //deactOledScroll();
 
       //--------IP address--------
@@ -64,7 +56,8 @@ void main()
       strftime(strtime,sizeof(strtime),"%H:%M:%S",p_tm);
       printf("strtime=%s\n",strtime);
       drawOledStr16x8(2,8,strtime);
-//	usleep(200000); //--200k ~1000k same cpu load
+
+      usleep(200000);
   }
 
 

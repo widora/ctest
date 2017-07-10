@@ -17,19 +17,19 @@ void main()
  //---init timer----
  initOledTimer();
  signal(SIGALRM,sigHndlOledTimer);
- //----clear OLED display----FAIL !!!!!!!
- clearOled();
 
-
-//---- clear OLED display-----
+ //----clear OLED display--- !!!!!!!
 /*
- for(k=0;k<8;k++)
-	drawOledStr16x8(k,0,"                ");
+ drawOledStr16x8(0,0,"  Widora-NEO!   ");
+ drawOledStr16x8(2,0,"                ");
+ drawOledStr16x8(4,0,"                ");
+ drawOledStr16x8(6,0," ------------   ");
+ sleep(1);  
+ fillOledDat(0x00);
 */
-
+ clearOledV();
 
  drawOledStr16x8(0,0,"  Widora-NEO! ");
- drawOledStr16x8(6,0," Test for Ting");
 
   while(1)
   {

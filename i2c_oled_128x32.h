@@ -165,7 +165,7 @@ void initOledDefault(void)
   sendCmdOled(0xAE); //display off
   //-----------------------
   sendCmdOled(0x20);  //set memory addressing mode
-  sendCmdOled(0x10); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+  sendCmdOled(0x02); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
   //-----------------------
   sendCmdOled(0xb0);  // 0xb0~b7 set page start address for page addressing mode
   //-----------------------
@@ -173,7 +173,7 @@ void initOledDefault(void)
   //-----------------------
   sendCmdOled(0x0f);//2); //0x00~0F, set lower column start address for page addressing mode
   //-----------------------
-  sendCmdOled(0x10); // 0x10~1F, set higher column start address for page addressing mode
+  sendCmdOled(0x10); // 0x10~1F, set higher column start address for page addressing mode,use 0x10 if no limits
   //-----------------------
   sendCmdOled(0x40); //40~7F set display start line 0x01(5:0)
   //--------------------
@@ -239,40 +239,31 @@ void deactOledScroll(void)
   sendCmdOled(0x2E);
 }
 
+/*-----------------------------------------------------
+     fill oled with dat as 2_bit color map.
+ !!!! if you fill 0x00 to the GRAM  to clear the screen ,
+ make sure you have alread refreshed dat, otherwise it has
+no effects. 
+------------------------------------------------------*/
 void drawOledDat(uint8_t dat)
 {
 	uint8_t i,j;
-	for(i=0;i<8;i++)
+
+        sendCmdOled(0x20);  //set memory addressing mode
+   	sendCmdOled(0x02); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+
+	for(i=0;i<4;i++)
 	{
 		sendCmdOled(0xb0+i); //0xB0~B7, page0-7
-		sendCmdOled(0x08); //00~0f,low column start address  ?? no use !!
-		sendCmdOled(0x1b); //10~1f, ???high column start address
-		for(j=0;j<64;j++) // write to 128 segs, 1 byte each seg.
+		sendCmdOled(0x00); //0x00~0f,low column start address  
+		sendCmdOled(0x10); //0x10~1f high column start address,use 0x10 if no limits
+		for(j=0;j<128;j++) // write to 128 segs, 1 byte each seg.
 		{
 			sendDatOled(dat);
 		}
 	}
 }
 
-
-void clearOled(void)
-{
-    int i,j;
-   
-    //--sed page addressing mode---
-    sendCmdOled(0x20);  //set memory addressing mode
-    sendCmdOled(0x02); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
-
-    for(i=0;i<8;i++)
-    {
-	  sendCmdOled(0xb0+i);  // 0xb0~b7 set page start address for page addressing mode
-	  sendCmdOled(0x00); // low column start address
-	  sendCmdOled(0x10); // high column start address
-	  for(j=0;j<128;j++)
-		sendDatOled(0x00); //--clear  GRAM
-     }
-
-}
 
 /*----------------------------------------------------
   draw Ascii symbol on Oled

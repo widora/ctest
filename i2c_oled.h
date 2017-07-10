@@ -123,7 +123,7 @@ void initOledDefault(void)
   sendCmdOled(0xAE); //display off
   //-----------------------
   sendCmdOled(0x20);  //set memory addressing mode
-  sendCmdOled(0x10); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+  sendCmdOled(0x22); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
   //-----------------------
   sendCmdOled(0xb0);  // 0xb0~b7 set page start address for page addressing mode
   //-----------------------
@@ -161,45 +161,49 @@ void initOledDefault(void)
   //----------------
   sendCmdOled(0xdb);//set Vcomh deselect level
   sendCmdOled(0x20);
-  //=--------------
+  //=-------------- 
   sendCmdOled(0x8d);// charge pump setting 
   sendCmdOled(0x14);// [2]=0 disable charge pump, [2]=1 enbale charge pump
   //---------------
   sendCmdOled(0xaf);// AE, display off(sleep mode), AF, display on in normal mode.
 
-//  usleep(50000);
 }
 
 
-void drawOledDat(uint8_t dat)
+void fillOledDat(uint8_t dat)
 {
-	uint8_t i,j;
+    uint8_t i,j,k;
+    //--sed page addressing mode---
+    sendCmdOled(0x20);  //set memory addressing mode
+    sendCmdOled(0x22); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+
 	for(i=0;i<8;i++)
 	{
 		sendCmdOled(0xb0+i); //0xB0~B7, page0-7
-		sendCmdOled(0x08); //00~0f,low column start address  ?? no use !!
-		sendCmdOled(0x1b); //10~1f, ???high column start address
-		for(j=0;j<64;j++) // write to 128 segs, 1 byte each seg.
+		sendCmdOled(0x00); //00~0f,low column start address  ?? no use !!
+		sendCmdOled(0x10); //10~1f, ???high column start address
+		for(j=0;j<128;j++) // write to 128 segs, 1 byte each seg.
 		{
 			sendDatOled(dat);
 		}
+
 	}
 }
 
-
+//----XXXXX to use clearOledV() instead !!!!
 void clearOled(void)
 {
     int i,j;
-   
+ 
     //--sed page addressing mode---
     sendCmdOled(0x20);  //set memory addressing mode
-    sendCmdOled(0x02); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+    sendCmdOled(0x22); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
 
     for(i=0;i<8;i++)
     {
 	  sendCmdOled(0xb0+i);  // 0xb0~b7 set page start address for page addressing mode
 	  sendCmdOled(0x00); // low column start address
-	  sendCmdOled(0x10); // high column start address
+	  sendCmdOled(0x10); //0x10~1f high column start address,use 0x10 if no limits.
 	  for(j=0;j<128;j++)
 		sendDatOled(0x00); //--clear  GRAM
      }
@@ -338,6 +342,32 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     printf("fcntl ret=%d\n",ret);
     return ret;
 }
+
+/*-------------------------------------
+clear oled with vertical addressing mode
+--------------------------------------*/
+void  clearOledV(void)
+{
+	int i,j;
+
+	//----set mode---
+	//-----set as vertical addressing mode -----
+        sendCmdOled(0x20);  //set memory addressing mode
+        sendCmdOled(0x01); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+	//---set column addr. for horizontal mode
+	sendCmdOled(0x21);
+	sendCmdOled(0);//column start
+	sendCmdOled(127);//column end, !!!! 8x16 for one line only!!!
+	//---set page addr. 
+	sendCmdOled(0x22);
+	sendCmdOled(0);// 0-7 start page
+	sendCmdOled(7);// 2 rows. 2x8=16  !!!! for one line only!!!!
+
+	for(j=0;j<8*128;j++)
+		sendDatOled(0x00);
+}
+
+
 
 
 #endif
