@@ -100,8 +100,6 @@ int intPush2UserRxBuff(char* pstr)
   Window: '\r'-- move cursor to the head of current line  '\n' --- start a new line
   Linux: '\r'--same above  '\n'-- start a new line and get cursor to the head of the new line.
 ------------------------------------------------------------------------------------------------*/
-//extern char buff[];
-//extern int fd;
 void sendTingCMD(const char* strCMD,int ndelay)
 {
 
@@ -153,7 +151,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
     }
 
     strncpy(strtmp,strCMD,len);
-    strtmp[len-2]='\0'; //--to  skip \r\n
+    strtmp[len-2]='\0'; //--to  skip \r\n for command string.
     //------printf command to Ting and its reply string
     printf("%s: %s\n",strtmp,g_strAtBuff);
 }

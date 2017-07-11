@@ -235,17 +235,15 @@ void  drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c)
 	for(j=0;j<16;j++)
 		sendDatOled(ascii_8x16[(c-0x20)*16+j]);
 
-
 }
 
 void  drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr)
 {
     int k;
     int len=strlen(pstr);
-  
+    if(len>16)len=16; 
     for(k=0;k<len;k++)
         drawOledAscii16x8(start_row,start_column+8*k,*(pstr+k));
-
 }
 
 

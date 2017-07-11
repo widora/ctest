@@ -298,6 +298,8 @@ void  drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr)
     int k;
     int len=strlen(pstr);
 
+    if(len>16)len=16;
+
     for(k=0;k<len;k++)
         drawOledAscii16x8(start_row,start_column+8*k,*(pstr+k));
 
@@ -397,6 +399,32 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     printf("fcntl ret=%d\n",ret);
     return ret;
 }
+
+/*---------------------------------------------
+clear oled with vertical addressing mode
+-----------------------------------------------*/
+void  clearOledV(void)
+{
+	int i,j;
+
+	//----set mode---
+	//-----set as vertical addressing mode -----
+        sendCmdOled(0x20);  //set memory addressing mode
+        sendCmdOled(0x01); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
+	//---set column addr. for horizontal mode
+	sendCmdOled(0x21);
+	sendCmdOled(0);//column start
+	sendCmdOled(127);//column end, !!!! 8x16 for one line only!!!
+	//---set page addr. 
+	sendCmdOled(0x22);
+	sendCmdOled(0);// 0-3 start page
+	sendCmdOled(3);// end page
+
+	for(j=0;j<128*4;j++)  //---fill with 0s
+		sendDatOled(0x00);
+
+}
+
 
 
 #endif

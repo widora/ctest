@@ -12,7 +12,6 @@ void main()
  time_t timep;
  struct tm *p_tm;
 
-
  //---init oled ----
  initOledDefault();
  //---init timer----
@@ -20,14 +19,9 @@ void main()
 // signal(SIGALRM,sigHndlOledTimer);
 
  //----clear OLED display----!!! refresh data firt before clear !!!!!
- drawOledStr16x8(0,0,"   NanoPi-NEO   ");
- drawOledStr16x8(2,0,"--------------- ");
- sleep(1);
- drawOledDat(0x00);
+  clearOledV(); 
 
-
- drawOledStr16x8(0,0,"   NanoPi-NEO   ");
-
+ //--------set scroll------------
 //  setOledHScroll(0,1); // set scroll page
 //  actOledScroll(); // enact scroll
 //  sleep(1);

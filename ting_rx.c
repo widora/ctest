@@ -7,9 +7,11 @@ TODOs and BUGs
 
 --------------------------------------------------------*/
 
-#include     <string.h>
-#include     "ting_uart.h"
-#include     "ting.h"
+#include   <string.h>
+#include   <sys/msg.h>
+#include   "msg_common.h"
+#include   "ting_uart.h"
+#include   "ting.h"
 
 
 //=================== MAIN FUNCTIONS ================
@@ -18,15 +20,31 @@ int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
   char tmp;
+  
   char *pbuff;
   char *pstrTingLoraItems[MAX_TING_LORA_ITEM]; //point array to received Ting LORA itmes 
   char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
   char *dev ="/dev/ttyS1";
+  //--- for IPC message------
+  struct st_msg msg_data;
+  int msg_id=-1; 
+
+
+   //---- create IPC message-----
+   msg_id=msgget((key_t)5678,0666 | IPC_CREAT);
+   if(msg_id<0)
+   {
+	printf("IPC msgget failed!\n");
+	exit(-1);
+    }
+   else
+	printf("msgget IPC create successfully!\n");
+
 
   //----- init buff and arrays ------
-//  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
-   ClearUserRxBuff(); // clear g_strUserRxBuff
-  memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
+  //  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
+    ClearUserRxBuff(); // clear g_strUserRxBuff
+    memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
   //------ open UART interface-------
   g_fd = OpenDev(dev);
@@ -45,7 +63,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  //----- reset Ting-----
+  //----- reset ting -----
   sendTingCMD("AT+RST\r\n",50000);
   sleep(1);//wait long enough
   tcflush(g_fd,TCIOFLUSH);
@@ -65,11 +83,20 @@ int main(int argc, char **argv)
   {
 	//---- set RX and get LORA message
 	recvTingLoRa();
-	//----get RSSI
-	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
+
 	//--------parse recieved data -----
 	sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
 	parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
+
+	//----get RSSI
+	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
+	//----- send IPC Message --------
+	msg_data.msg_type = 3;
+	strcpy(msg_data.text,g_strAtBuff);
+        if(msgsnd(msg_id,(void *)&msg_data,MSG_BUFSIZE,0) <0 )
+	{
+		printf("msgsnd failed!\n");
+	}
 
    }
     //close(g_fd);
