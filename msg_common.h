@@ -1,10 +1,8 @@
 /*--------------------------------------
-Common head for message IPV communication
+Common head for message queue IPC
 --------------------------------------*/
 #ifndef __MSG_COMMON_H__
 #define __MSG_COMMON_H__
-
-
 
 #include <stdio.h>
 
@@ -12,20 +10,14 @@ Common head for message IPV communication
 #define MSG_TYPE_TING 1
 #define MSG_TYPE_CC1101 2
 
-
-
 struct g_st_msg
 {
 	long int msg_type;
 	char text[MSG_BUFSIZE];
 };
 
-
-// int msg_id=-1;
 static struct g_st_msg g_msg_data; //message data
 static long int msg_type=0; //message type
-// struct msqid_ds msg_conf;//msg configuration set
-
 
 /*-------------------------------------------------------
  create message queue and return message queue identifier
