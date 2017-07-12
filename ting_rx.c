@@ -8,7 +8,6 @@ TODOs and BUGs
 --------------------------------------------------------*/
 
 #include   <string.h>
-#include   <sys/msg.h>
 #include   "msg_common.h"
 #include   "ting_uart.h"
 #include   "ting.h"

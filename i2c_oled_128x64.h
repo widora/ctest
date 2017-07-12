@@ -269,7 +269,7 @@ void sigHndlOledTimer(int signo)
 {
     drawOledStr16x8(6,0,"               ");
     usleep(500000);
-    drawOledStr16x8(6,0,"    --test--   ");  
+    drawOledStr16x8(6,0,"  Widora-NEO!  ");  
 
 }
 

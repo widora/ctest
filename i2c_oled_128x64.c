@@ -18,7 +18,7 @@ void main()
  //--- for IPC message queque --
  int msg_id=-1;
  key_t msg_key=5678;
- char* msg_text; 
+ int msg_ret;
 
  //----for time string ----
  time_t timep;
@@ -36,7 +36,7 @@ void main()
  usleep(300000);
 
  //---- create message queue ------
- if((msg_id=createMsgQue(msg_key))<0)
+ if((msg_id=createMsgQue(MSG_KEY_OLED_TEST))<0)
  {
 	printf("create message queue fails!\n");
 	exit(-1);
@@ -54,22 +54,33 @@ void main()
 	printf("strtime=%s\n",strtime);
 
 	//---- oled show ----
-	drawOledStr16x8(2,0,"    ");
-	drawOledStr16x8(2,31,strtime);
-	drawOledStr16x8(2,95,"    ");
+	drawOledStr16x8(0,0,"    ");
+	drawOledStr16x8(0,31,strtime);
+	drawOledStr16x8(0,95,"    ");
 
 	//------- receive mssage queue from Ting ------
-        msg_text=recvMsgQue(msg_id,MSG_TYPE_TING);
-	if(msg_text!=NULL)
+        msg_ret=recvMsgQue(msg_id,MSG_TYPE_TING);
+	if(msg_ret >0)
 	{
 		//---get RSSI--
 		strncpy(strRSSI,g_msg_data.text+3,4);
 		//---put to oled ---
-		sprintf(strOledBuf," Ting: %d dbm ",atoi(strRSSI));
+		sprintf(strOledBuf,"Ting: %ddBm   ",atoi(strRSSI));
+		drawOledStr16x8(2,0,strOledBuf);
+	}
+	else if(msg_ret != EAGAIN) //--bypass EAGAIN
+		drawOledStr16x8(2,0," Ting: No data  ");
+
+	//------- receive mssage queue from CC1101 ------
+        msg_ret=recvMsgQue(msg_id,MSG_TYPE_CC1101);
+	if(msg_ret > 0 )
+	{
+		//---put to oled ---
+		sprintf(strOledBuf,"CC1101: %s  ",g_msg_data.text);
 		drawOledStr16x8(4,0,strOledBuf);
 	}
-	else
-		drawOledStr16x8(4,0," Ting: No data! ");
+	else if(msg_ret != EAGAIN)
+		drawOledStr16x8(4,0,"CC1101: No data!");
 
 
 	//----- sleep a while ----

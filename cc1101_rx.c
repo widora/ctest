@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "cc1101.h"
+#include "msg_common.h"
 
 #define RSSI_SAVE_INTERVAL 120//--seconds
 
@@ -81,6 +82,10 @@ int main(void)
 	unsigned char TxBuf[DATA_LENGTH];
 	unsigned char RxBuf[DATA_LENGTH];
 
+	//----for messsage queue----
+	int msg_id=-1;
+	char strRSSI[64]={0};
+
  	memset(data,0,sizeof(data));
 	//memset(TxBuf,0,sizeof(TxBuf));
 	memset(RxBuf,0,sizeof(RxBuf));
@@ -103,16 +108,6 @@ int main(void)
 
 	SPI_Open();
 
-        //Txtmp=0x3b;
-        //SPI_Write(&Txtmp,1); //clear RxBuf in cc1101
-	///Txtmp=0x3b|READ_SINGLE;
-        //ret=SPI_Transfer(&Txtmp,RxBuf,1,1);
-	//printf("RXBYTES: ret=%d, =x%02x\n",ret,RxBuf[0]);
-
-	//Txtmp=0x3b|READ_BURST;
-	//ret=SPI_Write_then_Read(&Txtmp,1,RxBuf,2); //RXBYTES
-	//printf("RXBYTES: ret=%d, =x%02x %02x\n",ret,RxBuf[0],RxBuf[1]);
-
 /*	//--------- register operation fucntion test  -----
         //halSpiWriteReg(0x25,0x7f);
 	data[0]=data[1]=data[2]=data[3]=data[4]=0xff;
@@ -122,9 +117,7 @@ int main(void)
 	for(i=0;i<5;i++)
 	    printf("%02x",RxBuf[i]);
 	printf("\n");
-
 	printf("halSpiReadReg(0x25)=x%02x\n",halSpiReadReg(0x25));
-
 	printf("halSpiReadReg(0x31)=x%02x\n",halSpiReadReg(0x31));
 	printf("halSpiReadStatus(0x31) Chip ID: x%02x\n",halSpiReadStatus(0x31));
 */
@@ -164,9 +157,14 @@ int main(void)
 	printf("Set channel spacing to     %8.3f KHz\n",getChanSpcKHz());
 
 	printf("----------------------------------------\n");
-	sleep(2);
-        //----- transmit data -----
-//        halRfSendPacket(TxBuf,DATA_LENGTH); //DATA_LENGTH);
+	sleep(1);
+
+	//-----  create message queue IPC -----
+	if((msg_id=createMsgQue(MSG_KEY_OLED_TEST))<0)
+	{
+		printf("create massage queue fails!\n");
+		exit(-1);
+	}
 
 	//----- receive data -----
 	len=60; //max.DATA_LENGTH-4, packet-bytes format is 1(length)+1(addr)+len(data)+2(append)
@@ -192,7 +190,6 @@ int main(void)
 	   //------ save RSSI every 10 minuts 
 	   if((t_end.tv_sec-t_fstart.tv_sec)>RSSI_SAVE_INTERVAL)
 	   {
-
 		tm_local=localtime(&(t_start.tv_sec));
 	 	fprintf(fp,"%s",asctime(tm_local));//--convert to local time string 
 		fprintf(fp,"RSSI:%ddBm\n",getRSSIdbm());
@@ -200,6 +197,13 @@ int main(void)
 		gettimeofday(&t_fstart,NULL);
 	   }
 
+	  //--- send RSSI through message queue IPC -----
+	   sprintf(strRSSI,"%ddBm",getRSSIdbm());
+	   printf("strRSSI:%s\n",strRSSI);
+	   if(sendMsgQue(msg_id,MSG_TYPE_CC1101,strRSSI) != 0)
+		printf("Send RSSI through message queue fails!\n");
+
+	   //------ check received data ----------
   	   if(ccret==1) //receive success
 	   {
 		nDATA_rec++;

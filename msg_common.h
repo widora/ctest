@@ -5,10 +5,12 @@ Common head for message queue IPC
 #define __MSG_COMMON_H__
 
 #include <stdio.h>
+#include <sys/msg.h>
 
 #define MSG_BUFSIZE  64
 #define MSG_TYPE_TING 1
 #define MSG_TYPE_CC1101 2
+#define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
 struct g_st_msg
 {
@@ -38,7 +40,7 @@ static int createMsgQue(key_t key)
   //----!!!! Minimize msg queue size to eliminate accumulation of msg -------
   if(msgctl(msg_id,IPC_STAT,&msg_conf)==0)
   {
-        msg_conf.msg_qbytes=65;
+        msg_conf.msg_qbytes=sizeof(g_msg_data)*4;//!!!!-depend on how many clients will open and send data to it simutaneouly !!!!
         if(msgctl(msg_id,IPC_SET,&msg_conf)==0) 
                 printf("msgctl: reset msg_conf to allow only one message in the queue succeed!\n");
   }
@@ -52,23 +54,28 @@ static int createMsgQue(key_t key)
 /*-------------------------------------------------------
  receive data in message queue with specified message type
 -------------------------------------------------------*/
-static char* recvMsgQue(int msg_id,long msg_type)
+static int recvMsgQue(int msg_id,long msg_type)
 {
    int msg_ret=-1;
 
    //?????? need to initialize msg_data ????? 
    //-----get IPC message-----
-   msg_ret=msgrcv(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,msg_type,0);  // return number of bytes copied into msg buf
+   msg_ret=msgrcv(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,msg_type,IPC_NOWAIT);  // return number of bytes copied into msg buf
+   if(msg_ret == EAGAIN)
+   {
+//	printf("No message with specified type now.\n");
+	return msg_ret;
+   }
    if(msg_ret<0) //??? how about =0?
    {
         perror("msgrcv");
-        printf("No IPC message received!\n");
-        return NULL;
+        printf("Receive IPC message fails!\n");
+        return msg_ret;
    }
    else
    {
-        printf("IPC Message:%s\n",g_msg_data.text);
-        return g_msg_data.text;
+        printf("IPC Message received:%s\n",g_msg_data.text);
+        return msg_ret;
    }
 
 }
@@ -80,18 +87,24 @@ static char* recvMsgQue(int msg_id,long msg_type)
 -------------------------------------------------------*/
 static int sendMsgQue(int msg_id,long msg_type, char *data)
 {
-    int ret=-1;
+    int msg_ret=-1;
 
+//    memset(g_msg_data.text,sizeof(g_msg_data.text),0);
     g_msg_data.msg_type=msg_type;
     strncpy(g_msg_data.text,data,sizeof(g_msg_data.text));
-
-    ret=msgsnd(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,0);
-    if(ret != 0) 
+    printf("start msgsnd()...\n");
+    msg_ret=msgsnd(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,IPC_NOWAIT); //non-blocking
+    if(msg_ret == EAGAIN)
+    {
+	printf("Space not available now.\n");
+	return msg_ret;
+    }
+    else if(msg_ret != 0 ) 
     {
          perror("msgsnd failed");
-	 return ret;
+	 return msg_ret;
     }
-    return ret;
+    return msg_ret;
 }
 
 
