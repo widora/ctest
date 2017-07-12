@@ -2,6 +2,8 @@
 
 RMshow18bit*.c      :  Send 24bit_color BMP pictures to a RM68140 drived LCD through SPI.
 CC1101_rx.c,tx.c    :  Receive and transmit example for CC1101 connected to Widora-NEO by SPI.
+ting_rx.c,tx.c      :  Receive and transmit example for Ting-01M LoRa module through UART.
+i2c_oled_128x64,128x32	    :  OLED example with I2C interface.
 ads_b.c 	    :  Decode ADS-B data received by a RTL-SDR USB Dongle connected to Widora-NEO.
 lirc_mplay.c    :  Infrared remote control for mplayer.
 pwmtest.c       :  C program for PWM test.

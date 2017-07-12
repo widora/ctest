@@ -4,9 +4,15 @@ Common head for message IPV communication
 #ifndef __MSG_COMMON_H__
 #define __MSG_COMMON_H__
 
+
+
+#include <stdio.h>
+
 #define MSG_BUFSIZE  64
 #define MSG_TYPE_TING 1
 #define MSG_TYPE_CC1101 2
+
+
 
 struct g_st_msg
 {
@@ -54,7 +60,7 @@ static int createMsgQue(key_t key)
 /*-------------------------------------------------------
  receive data in message queue with specified message type
 -------------------------------------------------------*/
-static char* recvMsgQue(int msg_id,int msg_type)
+static char* recvMsgQue(int msg_id,long msg_type)
 {
    int msg_ret=-1;
 
@@ -74,5 +80,28 @@ static char* recvMsgQue(int msg_id,int msg_type)
    }
 
 }
+
+
+/*-------------------------------------------------------
+ send data to  message queue with specified message type
+ return 0 if succeed.
+-------------------------------------------------------*/
+static int sendMsgQue(int msg_id,long msg_type, char *data)
+{
+    int ret=-1;
+
+    g_msg_data.msg_type=msg_type;
+    strncpy(g_msg_data.text,data,sizeof(g_msg_data.text));
+
+    ret=msgsnd(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,0);
+    if(ret != 0) 
+    {
+         perror("msgsnd failed");
+	 return ret;
+    }
+    return ret;
+}
+
+
 
 #endif

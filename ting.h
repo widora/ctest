@@ -212,7 +212,8 @@ int recvTingLoRa(void)
   char *pstr; //--pointer to g_strUserRxBuff[]
 
   //----clear tty FIFO hardware buff
-  tcflush(g_fd,TCIOFLUSH);
+ // tcflush(g_fd,TCIOFLUSH);
+
   //---set RX mode
   sendTingCMD("AT+RX?\r\n",g_ndelay);
 

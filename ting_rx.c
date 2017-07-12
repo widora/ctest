@@ -26,19 +26,16 @@ int main(int argc, char **argv)
   char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
   char *dev ="/dev/ttyS1";
   //--- for IPC message------
-  struct st_msg msg_data;
+//  struct st_msg msg_data;
   int msg_id=-1; 
+  int msg_key=5678;
 
-
-   //---- create IPC message-----
-   msg_id=msgget((key_t)5678,0666 | IPC_CREAT);
-   if(msg_id<0)
-   {
-	printf("IPC msgget failed!\n");
-	exit(-1);
-    }
-   else
-	printf("msgget IPC create successfully!\n");
+//---- create message queue ------
+ if((msg_id=createMsgQue(msg_key))<0)
+ {
+        printf("create message queue fails!\n");
+        exit(-1);
+ }
 
 
   //----- init buff and arrays ------
@@ -82,23 +79,25 @@ int main(int argc, char **argv)
   while(1)
   {
 	//---- set RX and get LORA message
+	printf("start recvTingLoRa()...\n");
 	recvTingLoRa();
 
 	//--------parse recieved data -----
+	printf("start sepWordsInTingLoraStr()...\n");
 	sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
+	printf("start parseTingLoraWordsArray()...\n");
 	parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
 
 	//----get RSSI
+	printf("start sendTingCMD(AT+RSSI?)...\n");
 	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
-	//----- send IPC Message --------
-	msg_data.msg_type = 3;
-	strcpy(msg_data.text,g_strAtBuff);
-        if(msgsnd(msg_id,(void *)&msg_data,MSG_BUFSIZE,0) <0 )
-	{
-		printf("msgsnd failed!\n");
-	}
+	//----- send data to IPC Message Queue--------
+	printf("start sendMsgQue()...\n");
+        if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
+		printf("Send message queue failed!\n");
 
    }
+    //delete IPC message queue
     //close(g_fd);
     //exit(0);
 }

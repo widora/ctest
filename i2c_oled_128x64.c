@@ -59,7 +59,7 @@ void main()
 	drawOledStr16x8(2,95,"    ");
 
 	//------- receive mssage queue from Ting ------
-        msg_text=recvMsgQue(msg_id,0);
+        msg_text=recvMsgQue(msg_id,MSG_TYPE_TING);
 	if(msg_text!=NULL)
 	{
 		//---get RSSI--
