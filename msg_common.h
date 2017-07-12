@@ -6,10 +6,12 @@ Common head for message queue IPC
 
 #include <stdio.h>
 #include <sys/msg.h>
+#include <errno.h> //-EAGAIN
 
 #define MSG_BUFSIZE  64
-#define MSG_TYPE_TING 1
-#define MSG_TYPE_CC1101 2
+#define MSG_TYPE_TING 1  //---msg from ting
+#define MSG_TYPE_CC1101 2 //---msg from cc1101
+#define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
 struct g_st_msg
@@ -20,6 +22,8 @@ struct g_st_msg
 
 static struct g_st_msg g_msg_data; //message data
 static long int msg_type=0; //message type
+static  struct msqid_ds msg_conf;//msg configuration set
+
 
 /*-------------------------------------------------------
  create message queue and return message queue identifier
@@ -27,7 +31,6 @@ static long int msg_type=0; //message type
 static int createMsgQue(key_t key)
 {
   int msg_id=-1;
-  struct msqid_ds msg_conf;//msg configuration set
 
   //----- create message IPC ------
   msg_id=msgget(key,0666 | IPC_CREAT);
@@ -42,10 +45,10 @@ static int createMsgQue(key_t key)
   {
         msg_conf.msg_qbytes=sizeof(g_msg_data)*4;//!!!!-depend on how many clients will open and send data to it simutaneouly !!!!
         if(msgctl(msg_id,IPC_SET,&msg_conf)==0) 
-                printf("msgctl: reset msg_conf to allow only one message in the queue succeed!\n");
+                printf("msgctl: reset msg_conf to allow 4 messages in the queue succeed!\n");
   }
   else
-        printf("msgctl: reset msg_conf to allow only one message in the queue fails!\n");
+        printf("msgctl: reset msg_conf to allow 4 messages in the queue fails!\n");
 
   return msg_id;
 }

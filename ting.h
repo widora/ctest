@@ -23,6 +23,9 @@ TS --  Time stamp
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
 
+#define LOOP_DEAD_COUNT 256
+
+
 //----- serial port
 int g_fd=-1;
 int  g_ndelay=5000; // us delay,!!!!!--1000us delay cause Messg receive error!!
@@ -134,6 +137,13 @@ void sendTingCMD(const char* strCMD,int ndelay)
 	pstr+=nread;
 	nb+=nread;
 
+	//--- jump out of dead loop ---
+	if(nb > LOOP_DEAD_COUNT)
+	{
+	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+	    break;
+	}
+
 	//----skip first '\r\n' --
 	if((nread>0) && (g_strAtBuff[0]=='\r' || g_strAtBuff[0]=='\n'))
 	{
@@ -215,6 +225,7 @@ int recvTingLoRa(void)
  // tcflush(g_fd,TCIOFLUSH);
 
   //---set RX mode
+  printf("start sendTingCMD(AT+RX?)...\n");
   sendTingCMD("AT+RX?\r\n",g_ndelay);
 
   pstr=g_strUserRxBuff;

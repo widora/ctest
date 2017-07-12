@@ -81,6 +81,8 @@ void main()
 	}
 	else if(msg_ret != EAGAIN)
 		drawOledStr16x8(4,0,"CC1101: No data!");
+	//--- send msg to CC1101 to let it send msg ----
+        sendMsgQue(msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
 
 
 	//----- sleep a while ----

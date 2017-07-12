@@ -197,11 +197,14 @@ int main(void)
 		gettimeofday(&t_fstart,NULL);
 	   }
 
-	  //--- send RSSI through message queue IPC -----
-	   sprintf(strRSSI,"%ddBm",getRSSIdbm());
-	   printf("strRSSI:%s\n",strRSSI);
-	   if(sendMsgQue(msg_id,MSG_TYPE_CC1101,strRSSI) != 0)
-		printf("Send RSSI through message queue fails!\n");
+	   //--- send RSSI through message queue IPC -----
+	   if(recvMsgQue(msg_id,MSG_TYPE_WAIT_CC1101)>0) //-- send RSSI MSG only if there is a WAIT_CC1101 msg.
+	   {
+	       sprintf(strRSSI,"%ddBm",getRSSIdbm());
+	       //printf("strRSSI:%s\n",strRSSI);
+	       if(sendMsgQue(msg_id,MSG_TYPE_CC1101,strRSSI) != 0)
+		     printf("Send RSSI through message queue fails!\n");
+	   }
 
 	   //------ check received data ----------
   	   if(ccret==1) //receive success
