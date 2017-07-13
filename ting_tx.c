@@ -19,9 +19,9 @@ int main(int argc, char **argv)
 	uint8_t k;
 	char *pbuff;
 	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n";
-	char *dev ="/dev/ttyS1";
+	char *uart_dev ="/dev/ttyS1";
 
-	fd = OpenDev(dev);
+	fd = OpenDev(uart_dev);
 	if (fd>0)
     set_speed(fd,115200);
 	else

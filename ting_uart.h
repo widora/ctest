@@ -23,6 +23,7 @@ int speed_arr[] = {B115200, B38400, B19200, B9600, B4800, B2400, B1200, B300,
 	    B38400, B19200, B9600, B4800, B2400, B1200, B300, };
 int name_arr[] = {115200,38400,  19200,  9600,  4800,  2400,  1200,  300,
 	    38400,  19200,  9600, 4800, 2400, 1200,  300, };
+
 void set_speed(int fd, int speed)
 {
   int   i;
@@ -123,7 +124,7 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
   tcflush(fd,TCIFLUSH); 
 
   options.c_cc[VTIME] = 150; // 15 seconds Timeout
-  options.c_cc[VMIN] = 0;// Update the options and do it NOW 
+  options.c_cc[VMIN] = 0;// min. received data len for read(), 0 means nonblocking. 
 
    //-------!!!!! to set as RAW MODE !!!!-------
    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* Inut */

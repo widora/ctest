@@ -19,31 +19,30 @@ int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
   char tmp;
-  
+
   char *pbuff;
   char *pstrTingLoraItems[MAX_TING_LORA_ITEM]; //point array to received Ting LORA itmes 
   char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
-  char *dev ="/dev/ttyS1";
+  char *uart_dev ="/dev/ttyS1";
   //--- for IPC message------
-//  struct st_msg msg_data;
-  int msg_id=-1; 
-  int msg_key=5678;
+  int msg_id=-1;
+  int msg_key=MSG_KEY_OLED_TEST;
 
-//---- create message queue ------
- if((msg_id=createMsgQue(msg_key))<0)
- {
+  //---- create message queue ------
+  if((msg_id=createMsgQue(msg_key))<0)
+  {
         printf("create message queue fails!\n");
         exit(-1);
- }
+  }
 
 
   //----- init buff and arrays ------
   //  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
-    ClearUserRxBuff(); // clear g_strUserRxBuff
-    memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
+   ClearUserRxBuff(); // clear g_strUserRxBuff
+   memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
   //------ open UART interface-------
-  g_fd = OpenDev(dev);
+  g_fd = OpenDev(uart_dev);
   if (g_fd>0)
          set_speed(g_fd,115200);
   else

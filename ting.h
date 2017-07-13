@@ -243,6 +243,13 @@ int recvTingLoRa(void)
         pstr+=nread;
         nb+=nread;
 
+	//--- jump out of dead loop ---
+	if(nb > LOOP_DEAD_COUNT)
+	{
+	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+	    break;
+	}
+
         //---flowing unnecessary, '\r\n' will be dealt by sendTingCMD()
         if( (nb==1) && ( *(pstr-1)=='\n' || *(pstr-1)=='\r') )//get rid of '\r\n' first if applicable
         {
