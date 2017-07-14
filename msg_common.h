@@ -14,6 +14,9 @@ Common head for message queue IPC
 #define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
+#define TIMER_TV_SEC 1; //(s)  timer routine interval
+#define TIMER_TV_USEC 0;//(us)  timer routine interval
+
 struct g_st_msg
 {
 	long int msg_type;
@@ -24,6 +27,14 @@ static struct g_st_msg g_msg_data; //message data
 static long int msg_type=0; //message type
 static  struct msqid_ds msg_conf;//msg configuration set
 
+static int g_msg_id=-1;
+
+//---- timer ----
+struct itimerval g_tmval,g_otmval;
+
+//---- onle page string for CC1101 & Ting
+char g_strCC1101Buf[]="CC1101:---------";//---16 characters for one line of oled
+char g_strTingBuf[]="Ting:-----------"; 
 
 /*-------------------------------------------------------
  create message queue and return message queue identifier
@@ -108,6 +119,57 @@ static int sendMsgQue(int msg_id,long msg_type, char *data)
 	 return msg_ret;
     }
     return msg_ret;
+}
+
+
+
+/*-----------------------------
+set timer for routine operation
+500ms
+-------------------------------*/
+void initOledTimer(void)
+{
+   g_tmval.it_value.tv_sec=TIMER_TV_SEC;
+   g_tmval.it_value.tv_usec=TIMER_TV_USEC; 
+   g_tmval.it_interval.tv_sec=TIMER_TV_SEC;
+   g_tmval.it_interval.tv_usec=TIMER_TV_USEC;
+
+   setitimer(ITIMER_REAL,&g_tmval,&g_otmval);
+}
+
+
+/*-----------------------------------------------------
+    routine process for Timer 
+-------------------------------------------------------*/
+void sigHndlOledTimer(int signo)
+{
+   int msg_ret;
+   char strRSSI[5]={0};
+
+   //------- receive mssage queue from Ting ------
+   msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_TING);
+   if(msg_ret >0)
+   {
+        //---get RSSI--
+        strncpy(strRSSI,g_msg_data.text+3,4);
+        //---put to TING buffer ---
+        sprintf(g_strTingBuf,"Ting: %ddBm    ",atoi(strRSSI));
+    }
+    else if(msg_ret != EAGAIN) //--bypass EAGAIN
+        sprintf(g_strTingBuf,"Ting: --------- ",atoi(strRSSI));
+
+    //------- receive mssage queue from CC1101 ------
+    msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101);
+    if(msg_ret > 0 )
+    {
+         //---put to CC1101 buffer ---
+         sprintf(g_strCC1101Buf,"CC1101: %s  ",g_msg_data.text);
+     }
+    else if(msg_ret != EAGAIN)
+          sprintf(g_strCC1101Buf,"CC1101: ------- ",atoi(strRSSI));
+    //--- send msg to CC1101 to let it send msg ----,for CC1101 sndmsg is much faster than Ting.
+    sendMsgQue(g_msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
+
 }
 
 

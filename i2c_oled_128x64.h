@@ -15,38 +15,73 @@
 #include <sys/time.h>
 #include "ascii2.h"
 
-int g_fdoled;
+int g_fdOled;
 char *g_pstroledDev="/dev/i2c-0";
 uint8_t g_u8oledAddr=0x78>>1;
 enum oled_sig{   //---command or data
 oled_SIG_CMD,
 oled_SIG_DAT
 };
+
+//int g_msg_id=-1;
+//key_t g_msg_key=5678;
+
+
+//---- i2c dev lock ----
 struct flock g_i2cFdReadLock;
 struct flock g_i2cFdWriteLock;
 
-//----timer
-struct itimerval g_tmval,g_otmval;
+//---- onle page string for CC1101 & Ting
+//char g_strCC1101[]="CC1101:---------";//---16 characters for one line of oled
+//char g_strTing[]="Ting:-----------"; 
+//char g_strTime[]="00:00:00";
 
-//-------functions----
+//----timer
+//struct itimerval g_tmval,g_otmval;
+
+//-------functions declaration----
+void initOledTimer(void);
+void sigHndlOledTimer(int signo);
+void sendDatCmdoled(enum oled_sig datcmd,uint8_t val); // send data or command to I2C device
+void sendCmdOled(uint8_t cmd);
+void sendDatOled(uint8_t dat);
+void initOledDefault(void); // open i2c device and set defaul parameters for OLED
+void fillOledDat(uint8_t dat); // fill OLED GRAM with specified ata
+void drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c);
+void drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr);
+void clearOledV(void); //clear OLED GRAM with vertical addressing mode, effective!
+void setStartLine(int k);
+void actOledScroll(void);
+void deactOledScroll(void);
 int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len);
 
-
-
-
-
-//---------------------
-
+/*
+//-----------------------------
+//set timer for routine operation
+//500ms
+//-------------------------------
 void initOledTimer(void)
 {
-   g_tmval.it_value.tv_sec=1;
-   g_tmval.it_value.tv_usec=0;
-   g_tmval.it_interval.tv_sec=1;
-   g_tmval.it_interval.tv_usec=0;
+   g_tmval.it_value.tv_sec=0;
+   g_tmval.it_value.tv_usec=500000; 
+   g_tmval.it_interval.tv_sec=0;
+   g_tmval.it_interval.tv_usec=500000;
 
    setitimer(ITIMER_REAL,&g_tmval,&g_otmval);
-
 }
+*/
+
+/*
+//----- routine for SIGALRM ---
+//  !!!!!! NOT to  send command to OLED, It may rise race hazard with other i2c operation 
+void sigHndlOledTimer(int signo)
+{
+    drawOledStr16x8(6,0,"               ");
+    usleep(500000);
+    drawOledStr16x8(6,0,"  Widora-NEO!  ");  
+}
+*/
+
 
 
 
@@ -73,10 +108,10 @@ void sendDatCmdoled(enum oled_sig datcmd,uint8_t val) {
     i2c_iodata.msgs[0].buf[0]=sig; // 0x00 for Command, 0x40 for data
     i2c_iodata.msgs[0].buf[1]=val; 
 
-    ioctl(g_fdoled,I2C_TIMEOUT,2);
-    ioctl(g_fdoled,I2C_RETRIES,1);
+    ioctl(g_fdOled,I2C_TIMEOUT,2);
+    ioctl(g_fdOled,I2C_RETRIES,1);
 
-    ret=ioctl(g_fdoled,I2C_RDWR,(unsigned long)&i2c_iodata);
+    ret=ioctl(g_fdOled,I2C_RDWR,(unsigned long)&i2c_iodata);
     if(ret<0)
     {
 	printf("i2c ioctl read error!\n");
@@ -106,7 +141,7 @@ void initOledDefault(void)
   int fret;
   struct flock lock;
 
-  if((g_fdoled=open(g_pstroledDev,O_RDWR))<0)
+  if((g_fdOled=open(g_pstroledDev,O_RDWR))<0)
   {
 	perror("fail to open i2c bus");
         exit(1);
@@ -115,10 +150,18 @@ void initOledDefault(void)
    	printf("Open i2c bus successfully!\n");
 
   //------ try to lock file
-  intFcntlOp(g_fdoled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
-//  intFcntlOp(g_fdoled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
+  intFcntlOp(g_fdOled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
+//  intFcntlOp(g_fdOled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
   printf("I2C fd lock operation finished.\n");
 
+
+  //-----  set I2C speed ------
+/*
+  if(ioctl(g_fdOled,I2C_SPEED,200000)<0)
+	printf("Set I2C speed fails!\n");
+  else
+	printf("Set I2C speed to 200KHz successfully!\n");
+*/
 
   sendCmdOled(0xAE); //display off
   //-----------------------
@@ -264,14 +307,6 @@ void  drawOledAsciiHRC(uint8_t start_row, uint8_t start_column,unsigned char c)
 }
 
 
-//----- routine for SIGALRM ---
-void sigHndlOledTimer(int signo)
-{
-    drawOledStr16x8(6,0,"               ");
-    usleep(500000);
-    drawOledStr16x8(6,0,"  Widora-NEO!  ");  
-
-}
 
 //------file lock/unlock operation ----
 
@@ -282,7 +317,7 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     struct flock lock;
 
 
-     if((fcret=fcntl(g_fdoled,F_GETFL,0))<0)
+     if((fcret=fcntl(g_fdOled,F_GETFL,0))<0)
      {
  	perror("fcntl to get lock");
  	exit(1);
@@ -310,7 +345,7 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
     lock.l_whence=SEEK_SET;
     lock.l_len=0;
      //---- check lock ---
-    if(fcntl(g_fdoled,F_GETLK,&lock)<0) //--lock return as UNLCK if is applicable, or it returns file's current lock.
+    if(fcntl(g_fdOled,F_GETLK,&lock)<0) //--lock return as UNLCK if is applicable, or it returns file's current lock.
     {
  	perror("fcntl to get lock");
  	exit(1);
@@ -366,6 +401,42 @@ void  clearOledV(void)
 }
 
 
+/*-----------------------------------
+   set display start line 0-63
+-----------------------------------*/
+void setStartLine(int k)
+{
+  if(k>63)k=0;
+  sendCmdOled(0x40+k);
+}
+
+/*--------------------------------------
+   set vertical scrolling !!!!!---- has no effect of vertical scrolling, only horizontal scrolling.
+---------------------------------------*/
+void setVScroll(int n_top, int n_scroll)
+{
+   sendCmdOled(0xA3); //-set vertical scroll area
+   sendCmdOled(n_top); //A[5:0] set No. of rows in top fixed area.
+   sendCmdOled(n_scroll); // B[6:0] 
+   /*---note for 64d MUX-----
+      A[5:0]=0,B[6:0]=64; whole area scrolls
+      A[5:0]=0,B[6:0]<64; top area scrolls
+      A[5:0]+B[6:0]<64; central area scrolls
+      A[5:0]+B[6:0]=64; bottom area scrolls
+    --------------------------*/
+}
+
+//---- activate scroll -----
+void actOledScroll(void)
+{
+  sendCmdOled(0x2F);
+}
+
+//----- deactivate scroll -----
+void deactOledScroll(void)
+{
+  sendCmdOled(0x2E);
+}
 
 
 #endif

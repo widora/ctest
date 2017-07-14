@@ -10,14 +10,10 @@
 
 void main()
 {
- int k;
+ int i=0,k;
  char strtime[10]={0};
- char strRSSI[5]={0};
- char strOledBuf[16]={0}; //--for oled line show
 
  //--- for IPC message queque --
- int msg_id=-1;
- key_t msg_key=5678;
  int msg_ret;
 
  //----for time string ----
@@ -27,66 +23,56 @@ void main()
 
  //---init oled ----
  initOledDefault();
+
  //---init timer----
  initOledTimer();
- signal(SIGALRM,sigHndlOledTimer);
+ signal(SIGALRM,sigHndlOledTimer); 
 
  //----clear OLED display--- !!!!!!!
  clearOledV();
  usleep(300000);
 
+ 
  //---- create message queue ------
- if((msg_id=createMsgQue(MSG_KEY_OLED_TEST))<0)
+ if((g_msg_id=createMsgQue(MSG_KEY_OLED_TEST))<0)
  {
 	printf("create message queue fails!\n");
 	exit(-1);
- }
+  }
 
 
-  drawOledStr16x8(0,0,"  Widora-NEO! ");
+  drawOledStr16x8(6,0,"-- Widora-NEO --");
 
   while(1)
   {
+
 	//---- get time string ----
 	timep=time(NULL);
 	p_tm=localtime(&timep);
 	strftime(strtime,8,"%H:%M:%S",p_tm);
 	printf("strtime=%s\n",strtime);
-
 	//---- oled show ----
 	drawOledStr16x8(0,0,"    ");
 	drawOledStr16x8(0,31,strtime);
 	drawOledStr16x8(0,95,"    ");
 
-	//------- receive mssage queue from Ting ------
-        msg_ret=recvMsgQue(msg_id,MSG_TYPE_TING);
-	if(msg_ret >0)
-	{
-		//---get RSSI--
-		strncpy(strRSSI,g_msg_data.text+3,4);
-		//---put to oled ---
-		sprintf(strOledBuf,"Ting: %ddBm   ",atoi(strRSSI));
-		drawOledStr16x8(2,0,strOledBuf);
-	}
-	else if(msg_ret != EAGAIN) //--bypass EAGAIN
-		drawOledStr16x8(2,0," Ting: No data  ");
 
-	//------- receive mssage queue from CC1101 ------
-        msg_ret=recvMsgQue(msg_id,MSG_TYPE_CC1101);
-	if(msg_ret > 0 )
+	//------ example of vertical scrolling -----
+	if(i<64)
 	{
-		//---put to oled ---
-		sprintf(strOledBuf,"CC1101: %s  ",g_msg_data.text);
-		drawOledStr16x8(4,0,strOledBuf);
+		setStartLine(i);
+		i++;
+		if(i==64)i=0;
+//		usleep(100000);
 	}
-	else if(msg_ret != EAGAIN)
-		drawOledStr16x8(4,0,"CC1101: No data!");
-	//--- send msg to CC1101 to let it send msg ----
-        sendMsgQue(msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
+  //      exit(0);
+
+	drawOledStr16x8(2,0,g_strTingBuf);
+	drawOledStr16x8(4,0,g_strCC1101Buf);
 
 
 	//----- sleep a while ----
-	usleep(300000); // to short time may blur oled --200k ~1000k same cpu load
+//	usleep(5000); //  --200k ~1000k same cpu load
   }
 
  //--- delete message queue -----
@@ -98,6 +84,6 @@ void main()
 */
 
   //---unlock i2c fd ----
-  intFcntlOp(g_fdoled, F_SETLK, F_UNLCK, 0, SEEK_SET,10);
+  intFcntlOp(g_fdOled, F_SETLK, F_UNLCK, 0, SEEK_SET,10);
 
 }
