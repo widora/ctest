@@ -158,15 +158,25 @@ void sigHndlOledTimer(int signo)
     else if(msg_ret != EAGAIN) //--bypass EAGAIN
         sprintf(g_strTingBuf,"Ting: --------- ",atoi(strRSSI));
 
-    //------- receive mssage queue from CC1101 ------
-    msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101);
-    if(msg_ret > 0 )
+    while(msg_ret > 0 ) //---- read out all remaining msg from Ting 
     {
-         //---put to CC1101 buffer ---
-         sprintf(g_strCC1101Buf,"CC1101: %s  ",g_msg_data.text);
+         msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_TING); 
      }
+
+
+    //------- receive mssage queue from CC1101 ------
+    msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101);  
+    if(msg_ret > 0 )
+       	//---put to CC1101 buffer ---
+        sprintf(g_strCC1101Buf,"CC1101: %s  ",g_msg_data.text);
     else if(msg_ret != EAGAIN)
           sprintf(g_strCC1101Buf,"CC1101: ------- ",atoi(strRSSI));
+
+    while(msg_ret > 0 ) //---- read out all remaining msg from CC1101
+    {
+         msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101); 
+     }
+
     //--- send msg to CC1101 to let it send msg ----,for CC1101 sndmsg is much faster than Ting.
     sendMsgQue(g_msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
 
