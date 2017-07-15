@@ -26,20 +26,18 @@ void main()
 
  //---init timer----
  initOledTimer();
- signal(SIGALRM,sigHndlOledTimer); 
+ signal(SIGALRM,sigHndlOledTimer);//--renew CC1101 and Ting RSSI msg here
 
  //----clear OLED display--- !!!!!!!
  clearOledV();
  usleep(300000);
 
- 
  //---- create message queue ------
  if((g_msg_id=createMsgQue(MSG_KEY_OLED_TEST))<0)
  {
 	printf("create message queue fails!\n");
 	exit(-1);
   }
-
 
   drawOledStr16x8(6,0,"-- Widora-NEO --");
 
@@ -50,29 +48,26 @@ void main()
 	timep=time(NULL);
 	p_tm=localtime(&timep);
 	strftime(strtime,8,"%H:%M:%S",p_tm);
-	printf("strtime=%s\n",strtime);
-	//---- oled show ----
-	drawOledStr16x8(0,0,"    ");
+//	printf("strtime=%s\n",strtime);
+	//---- oled show time ----
+//	drawOledStr16x8(0,0,"    ");
 	drawOledStr16x8(0,31,strtime);
-	drawOledStr16x8(0,95,"    ");
+//	drawOledStr16x8(0,95,"    ");
 
 
 	//------ example of vertical scrolling -----
 	if(i<64)
 	{
 		setStartLine(i);
-		i++;
+		i+=2;
 		if(i==64)i=0;
-//		usleep(100000);
 	}
-  //      exit(0);
 
 	drawOledStr16x8(2,0,g_strTingBuf);
 	drawOledStr16x8(4,0,g_strCC1101Buf);
 
-
 	//----- sleep a while ----
-//	usleep(5000); //  --200k ~1000k same cpu load
+	//usleep(5000); //  --200k ~1000k same cpu load
   }
 
  //--- delete message queue -----

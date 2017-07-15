@@ -6,6 +6,7 @@ Common head for message queue IPC
 
 #include <stdio.h>
 #include <sys/msg.h>
+#include <sys/time.h>
 #include <errno.h> //-EAGAIN
 
 #define MSG_BUFSIZE  64
@@ -14,7 +15,7 @@ Common head for message queue IPC
 #define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
-#define TIMER_TV_SEC 1; //(s)  timer routine interval
+#define TIMER_TV_SEC 2; //(s)  timer routine interval
 #define TIMER_TV_USEC 0;//(us)  timer routine interval
 
 struct g_st_msg
@@ -31,6 +32,7 @@ static int g_msg_id=-1;
 
 //---- timer ----
 struct itimerval g_tmval,g_otmval;
+
 
 //---- onle page string for CC1101 & Ting
 char g_strCC1101Buf[]="CC1101:---------";//---16 characters for one line of oled

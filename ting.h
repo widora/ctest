@@ -7,7 +7,6 @@ TS --  Time stamp
 
 
 --------------------------------------------------*/
-
 #include     <stdio.h>      /*标准输入输出定义*/
 #include     <stdlib.h>     /*标准函数库定义*/
 #include     <unistd.h>     /*Unix标准函数定义*/
@@ -95,7 +94,6 @@ int intPush2UserRxBuff(char* pstr)
 }
 
 
-
 /*----------------------------------------------------------------------------------------
   send command string to LORA and get feedback string
 
@@ -112,9 +110,11 @@ void sendTingCMD(const char* strCMD,int ndelay)
 
     len=strlen(strCMD);
 
+    printf("start write(g_fd,strCMD,len)....\n");
     if(write(g_fd,strCMD,len)<0)
     {
 	perror("sendTingCMD():write to serial port");
+	printf("write(gPfd,strCMD,len<0 \n");
 	return;
     }
     usleep(g_ndelay);
@@ -127,10 +127,11 @@ void sendTingCMD(const char* strCMD,int ndelay)
 	nread=read(g_fd,pstr,30); //--30 suitable size for aver. length of reply-string
 	if(nread<0)
 	{
-		printf("sendTingCMD():read Ting CMD feedback from serial port");
+		printf("sendTingCMD():read Ting CMD feedback from serial port, nread<0!");
 		//---reset count and pstr
 		pstr=g_strAtBuff;
 		nb=0;
+		nread=0;
 		//perror("sendTingCMD():read serial port for Ting feedback string");
 		//return;
 	}
