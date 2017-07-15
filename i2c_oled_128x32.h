@@ -185,7 +185,7 @@ void initOledDefault(void)
   sendCmdOled(0xa6); //normal / reverse a6h--noraml, 1 in RAM displays; a7h--inverse, 0 in RAM displays.
   //------------------
   sendCmdOled(0xa8); //multiplex ratio
-  sendCmdOled(0x1F); // 0x3F for 128x64    0x1F for 128x32 16MUX to 64MUX RESET=111111b
+  sendCmdOled(0x1F); // 0x3F for 128x64    0x1F for 128x32 16MUX to 64MUX RESET=111111b ============================
   //----------------
   sendCmdOled(0xa4);// A4h-- resume to RAM content display(RESET), A5h--entire display ON.
   //----------------
@@ -199,7 +199,7 @@ void initOledDefault(void)
   sendCmdOled(0x22);//[3:0] phase 1 period of up to 15 DCLK [7:4] phase 2 period of up to 15 DCLK 
   //----------------
   sendCmdOled(0xda);//--set COM pins hardware configuration
-  sendCmdOled(0x02);//[5:4]  0x02 for 128x32  0x12 for 128x64
+  sendCmdOled(0x02);//[5:4]  0x02 for 128x32  0x12 for 128x64 =====================================================
   //----------------
   sendCmdOled(0xdb);//set Vcomh deselect level
   sendCmdOled(0x20);
@@ -409,7 +409,7 @@ void  clearOledV(void)
 
 	//----set mode---
 	//-----set as vertical addressing mode -----
-        sendCmdOled(0x20);  //set memory addressing mode
+        sendCmdOled(0x20); //set memory addressing mode
         sendCmdOled(0x01); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)
 	//---set column addr. for horizontal mode
 	sendCmdOled(0x21);
@@ -425,6 +425,31 @@ void  clearOledV(void)
 
 }
 
+void  setOledVeScroll(void)
+{
+/*
+      sendCmdOled(0x29); 
+      sendCmdOled(0x00); 
+      sendCmdOled(0x00);//start page 
+      sendCmdOled(0x02);// 128 frames
+      sendCmdOled(0x03);//edn page 
+      sendCmdOled(0x01);//vertical scrolling offset 
+*/
+/*
+      sendCmdOled(0xA3);
+      sendCmdOled(0x00);//no. of rows in top fixed area
+      sendCmdOled(0x64);//no. of rows in scroll area
+*/
+
+
+}
+
+void setStartLine(int k)
+{
+    if(k>63)k=k%63;
+    sendCmdOled(0x40+k);
+
+}
 
 
 #endif

@@ -67,7 +67,7 @@ void main()
 	drawOledStr16x8(4,0,g_strCC1101Buf);
 
 	//----- sleep a while ----
-	//usleep(5000); //  --200k ~1000k same cpu load
+	usleep(200000); //  --200k ~1000k same cpu load
   }
 
  //--- delete message queue -----
