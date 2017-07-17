@@ -39,8 +39,11 @@ char g_strUserTxBuff[USER_TX_BUFF_SIZE]; //--string ready to send for Ting LoRa 
 char g_strAtBuff[64]; //--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
 int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##,XXX,XXX,XXXX...."
 //--g_intLoraRxLen to be renewed in sepWordsInTingLoraStr() only
-
-
+//--- for error rate analysis ----
+int g_intErrCount=0; //--Error counter
+int g_intMissCount=0; //--LoRa missing occurrence counter
+int g_intRcvCount=0;  //-- LoRa success of receipt counter
+unsigned char g_tmpUchar=0; //--temp store. for lora data test, may be '0'(48) to '~'(126)  
 
 /*----- renew time for char *g_pstr_time----------*/
 void RenewTimeStr(char *g_pstr_time)
@@ -105,6 +108,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
 {
 
     int nb,len,nread;
+    int nloop=0;
     char *pstr; // pointer to g_strAtBuff[];
     char strtmp[50];
 
@@ -124,6 +128,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
    //------- get feedback string from Ting -----
     while(1) // !!!! todo: avoid deadloop !!!!
    {
+	//printf("start: nread=read(g_fd,pstr,30)...\n");
 	nread=read(g_fd,pstr,30); //--30 suitable size for aver. length of reply-string
 	if(nread<0)
 	{
@@ -135,12 +140,14 @@ void sendTingCMD(const char* strCMD,int ndelay)
 		//perror("sendTingCMD():read serial port for Ting feedback string");
 		//return;
 	}
+	printf("nread=%d \n",nread);
 	pstr+=nread;
 	nb+=nread;
-
+	nloop++;
 	//--- jump out of dead loop ---
-	if(nb > LOOP_DEAD_COUNT)
+	if(nloop > LOOP_DEAD_COUNT)
 	{
+	    printf("sendTingCMD: nloop > LOOP_DEAD_COUNT, end reading UART ...\n"); 
 	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
 	    break;
 	}
@@ -220,6 +227,7 @@ int recvTingLoRa(void)
 {
   int nb=0;
   int nread;
+  int nloop=0;
   char *pstr; //--pointer to g_strUserRxBuff[]
 
   //----clear tty FIFO hardware buff
@@ -243,10 +251,12 @@ int recvTingLoRa(void)
         }
         pstr+=nread;
         nb+=nread;
+	nloop++;
 
 	//--- jump out of dead loop ---
-	if(nb > LOOP_DEAD_COUNT)
+	if(nloop > LOOP_DEAD_COUNT)
 	{
+	    printf("recvTingRoLa: nloop > LOOP_DEAD_COUNT, end reading UART ...\n"); 
 	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
 	    break;
 	}
@@ -277,7 +287,7 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 {
 	int k=0;
 	int len_payload; 
-
+	unsigned char new_dat;
 /* //------for test---
 	while(pstrTingLoraItems[k]!=NULL)
 	{
@@ -289,10 +299,38 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
 		printf("------- Parse Received LoRa data ------\n");
 	printf("Lora source address:%s\n",pstrTingLoraItems[1]);
+
         //-----get payload length
 	len_payload=strtoul(pstrTingLoraItems[2],NULL,16);
 	printf("Total length:%d\n",g_intLoraRxLen); 
 	printf("Lora palyload length:%d\n",len_payload);
+
+	//---check length and pick err,simple way !!!!! ---
+	if( g_intLoraRxLen !=96 || (g_intLoraRxLen-len_payload) != 13 )
+	{
+	        g_intErrCount++;
+		return;
+	}
+
+	//------- check if any Lora transmission is missed ------
+	new_dat =*(unsigned char *)(pstrTingLoraItems[5]); //-- char '0'(48)-'~'(126)
+	printf("new_dat=%c\n",new_dat);
+	if(g_tmpUchar == 0)
+		g_tmpUchar = new_dat; 
+	else if(new_dat > g_tmpUchar)
+		g_intMissCount+=new_dat-g_tmpUchar-1; //--cal missing lora data
+	else if(new_dat < g_tmpUchar) // from '~'(126) return to '0'(48)
+		g_intMissCount+=new_dat+78-g_tmpUchar;
+	g_tmpUchar = new_dat; // store new_dat to .. 
+
+	//--- count number of LoRa transmission received ---
+	g_intRcvCount++;
+	//----check data continuity and see if there is a RoLa transmission not recevied -----
+
+
+
+
+	//---- print client and host time stamp -----
 	printf("Source time stamp:%s\n",pstrTingLoraItems[4]);
  	RenewTimeStr(g_pstr_time);
         printf("Host current time: %s\n",g_pstr_time);

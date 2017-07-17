@@ -2,11 +2,12 @@
 TODOs and BUGs
 1. Ting-01M always response as busy after Widora rebooting.
    ----Solved! set serial port as RAW MODE.
-2. ttyS1: 1 input overrun(s)!!
+2. ttyS1: 1 input overrun(s)!!  --solved.
+3. Rules for ting LoRa string.
+4. parse LoRa string,get data and commands, execut commands then. 
 
 
 --------------------------------------------------------*/
-
 #include   <string.h>
 #include   "msg_common.h"
 #include   "ting_uart.h"
@@ -89,6 +90,9 @@ int main(int argc, char **argv)
 	//----get RSSI
 	printf("start sendTingCMD(AT+RSSI?)...\n");
 	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
+
+	//----sum up
+        printf("-----< g_intRcvCount=%d, g_intErrCount=%d  g_intMissCount=%d >-----\n",g_intRcvCount,g_intErrCount,g_intMissCount);
 	//----- send data to IPC Message Queue--------
 	printf("start sendMsgQue()...\n");
         if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
