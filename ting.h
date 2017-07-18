@@ -43,6 +43,7 @@ int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##
 int g_intErrCount=0; //--Error counter
 int g_intMissCount=0; //--LoRa missing occurrence counter
 int g_intRcvCount=0;  //-- LoRa success of receipt counter
+int g_intEscapeReadLoopCount=0; //--- times of escaping from read(UART) dead loop
 unsigned char g_tmpUchar=0; //--temp store. for lora data test, may be '0'(48) to '~'(126)  
 
 /*----- renew time for char *g_pstr_time----------*/
@@ -118,7 +119,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
     if(write(g_fd,strCMD,len)<0)
     {
 	perror("sendTingCMD():write to serial port");
-	printf("write(gPfd,strCMD,len<0 \n");
+	printf("write(g_fd,strCMD,len<0 \n");
 	return;
     }
     usleep(g_ndelay);
@@ -149,6 +150,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
 	{
 	    printf("sendTingCMD: nloop > LOOP_DEAD_COUNT, end reading UART ...\n"); 
 	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+	    g_intEscapeReadLoopCount++; // count number
 	    break;
 	}
 
@@ -258,6 +260,7 @@ int recvTingLoRa(void)
 	{
 	    printf("recvTingRoLa: nloop > LOOP_DEAD_COUNT, end reading UART ...\n"); 
 	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+	    g_intEscapeReadLoopCount++; // count number
 	    break;
 	}
 

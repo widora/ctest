@@ -91,8 +91,10 @@ int main(int argc, char **argv)
 	printf("start sendTingCMD(AT+RSSI?)...\n");
 	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
 
-	//----sum up
-        printf("-----< g_intRcvCount=%d, g_intErrCount=%d  g_intMissCount=%d >-----\n",g_intRcvCount,g_intErrCount,g_intMissCount);
+	//---- summary ---
+        printf("-----< g_intRcvCount=%d, g_intErrCount=%d  g_intMissCount=%d g_intEscapeReadLoopCount=%d >-----\n" \
+	,g_intRcvCount,g_intErrCount,g_intMissCount,g_intEscapeReadLoopCount);
+
 	//----- send data to IPC Message Queue--------
 	printf("start sendMsgQue()...\n");
         if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
