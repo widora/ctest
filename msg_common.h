@@ -158,7 +158,7 @@ void sigHndlOledTimer(int signo)
         sprintf(g_strTingBuf,"Ting: %ddBm    ",atoi(strRSSI));
     }
     else if(msg_ret != EAGAIN) //--bypass EAGAIN
-        sprintf(g_strTingBuf,"Ting: --------- ",atoi(strRSSI));
+        sprintf(g_strTingBuf,"Ting: --------- ");
 
     while(msg_ret > 0 ) //---- read out all remaining msg from Ting 
     {
@@ -172,7 +172,7 @@ void sigHndlOledTimer(int signo)
        	//---put to CC1101 buffer ---
         sprintf(g_strCC1101Buf,"CC1101: %s  ",g_msg_data.text);
     else if(msg_ret != EAGAIN)
-          sprintf(g_strCC1101Buf,"CC1101: ------- ",atoi(strRSSI));
+          sprintf(g_strCC1101Buf,"CC1101: ------- ");
 
     while(msg_ret > 0 ) //---- read out all remaining msg from CC1101
     {

@@ -18,16 +18,24 @@ TS --  Time stamp
 #include     <stdbool.h>
 #include     <string.h>
 
+
 #define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
-
 #define LOOP_DEAD_COUNT 256
+#define MAX_AT_REPLY_SIZE 30 // nread=read(g_fd,pstr,MAX_READ_SIZE) !!!!- suitable size for length of reply-string from  Ting
+//-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
+#define MAX_ROLA_STR_SIZE 100 //--denpend on UART set ??? 50? suitable size for received Rola string length.
 
+//----- AT commend reply notation as returned by sendTingCMD() -----
+#define AT_CMD_EXCUTED_OK 0  //-- AT commends well received and successfuly executed by Ting
+#define AT_LORA_TRANSMIT_OK 1 //--- AT reply: complete to transmit data by LoRa. 
+#define AT_CMD_EXCUTED_FAIL -1  //-- AT commends NOT received OR executed by Ting
+#define AT_LORA_TRANSMIT_FAIL -2 //--- AT reply:  transmit data by LoRa failed. 
 
 //----- serial port
 int g_fd=-1;
-int  g_ndelay=5000; // us delay,!!!!!--1000us delay cause Messg receive error!!
+int  g_ndelay=5000; // us delay,!!!!!--1000us delay cause receiving from Ting error!!
 
 //----- time
 struct timeval g_tm;
@@ -129,8 +137,9 @@ void sendTingCMD(const char* strCMD,int ndelay)
    //------- get feedback string from Ting -----
     while(1) // !!!! todo: avoid deadloop !!!!
    {
-	//printf("start: nread=read(g_fd,pstr,30)...\n");
-	nread=read(g_fd,pstr,30); //--30 suitable size for aver. length of reply-string
+	printf("start: nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE)...\n");
+	nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE); //--30 !!!!- suitable size for length of reply-string from  Ting
+//-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 	if(nread<0)
 	{
 		printf("sendTingCMD():read Ting CMD feedback from serial port, nread<0!");
@@ -243,7 +252,8 @@ int recvTingLoRa(void)
 
   while(1)
   {
-        nread=read(g_fd,pstr,50); //--50? suitable size for Ting Rola string.
+	printf("start: nread=read(g_fd,pstr,MAX_ROLA_STR_SIZE)...\n");
+        nread=read(g_fd,pstr,MAX_ROLA_STR_SIZE); //--50? suitable size for Ting Rola string.
         if(nread<0)
         {
                 printf("read serial port error\n");

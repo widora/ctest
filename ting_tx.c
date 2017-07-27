@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 
 	  //---wait for transmission to finish
 	  sleep(1);//usleep(8000); send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
-	  sendTingCMD("AT?\r\n",ndelay); //readout send result
+	  sendTingCMD("AT?\r\n",ndelay); //readout send result as AT,SENDING\r\n and AT,SENDED\r\n...
 
     }
     //close(g_fd);

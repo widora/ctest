@@ -78,6 +78,8 @@ void main()
 	printf("Old data in IPC deleted!\n");
 */
 
+  //---free i2c ioctl data mem---
+   free_I2C_IOdata();
   //---unlock i2c fd ----
   intFcntlOp(g_fdOled, F_SETLK, F_UNLCK, 0, SEEK_SET,10);
 
