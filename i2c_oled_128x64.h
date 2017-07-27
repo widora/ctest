@@ -29,15 +29,10 @@ struct i2c_rdwr_ioctl_data g_i2c_iodata;
 struct flock g_i2cFdReadLock;
 struct flock g_i2cFdWriteLock;
 
-//---- onle page string for CC1101 & Ting
-//char g_strCC1101[]="CC1101:---------";//---16 characters for one line of oled
-//char g_strTing[]="Ting:-----------"; 
-//char g_strTime[]="00:00:00";
-
-//----timer
-//struct itimerval g_tmval,g_otmval;
-
 //-------functions declaration----
+void init_I2C_IOdata(void);
+void free_I2C_IOdata(void);
+void init_I2C_Slave(void);
 void initOledTimer(void);
 void sigHndlOledTimer(int signo);
 void sendDatCmdoled(enum oled_sig datcmd,uint8_t val); // send data or command to I2C device
@@ -143,10 +138,8 @@ void sendDatOled(uint8_t dat)
    sendDatCmdoled(oled_SIG_DAT,dat);
 }
 
-
-
-/*----- open i2c slave and init oled with default param-----*/
-void initOledDefault(void)
+/*----- open i2c slave and init ioctl -----*/
+void init_I2C_Slave(void)
 {
   int fret;
   struct flock lock;
@@ -159,13 +152,17 @@ void initOledDefault(void)
   else
    	printf("Open i2c bus successfully!\n");
 
+  //----- set g_fdOled 
+  ioctl(g_fdOled,I2C_TIMEOUT,2);
+  ioctl(g_fdOled,I2C_RETRIES,1);
+
   //------ try to lock file
   intFcntlOp(g_fdOled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
   //  intFcntlOp(g_fdOled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
   printf("I2C fd lock operation finished.\n");
-  //----- set g_fdOled 
-  ioctl(g_fdOled,I2C_TIMEOUT,2);
-  ioctl(g_fdOled,I2C_RETRIES,1);
+
+  //---- init i2c ioctl data -----
+  init_I2C_IOdata();
 
   //-----  set I2C speed ------
 /*
@@ -175,9 +172,13 @@ void initOledDefault(void)
 	printf("Set I2C speed to 200KHz successfully!\n");
 */
 
-  /*---------------------------------------------------------------
+}
+
+ /*---------------------------------------------------------------
               init OLED with default parameters
-  ---------------------------------------------------------------*/
+ ---------------------------------------------------------------*/
+void initOledDefault(void)
+{
   sendCmdOled(0xAE); //display off
   //-----------------------
   sendCmdOled(0x20);  //set memory addressing mode
@@ -224,7 +225,6 @@ void initOledDefault(void)
   sendCmdOled(0x14);// [2]=0 disable charge pump, [2]=1 enbale charge pump
   //---------------
   sendCmdOled(0xaf);// AE, display off(sleep mode), AF, display on in normal mode.
-
 }
 
 
@@ -252,7 +252,7 @@ void fillOledDat(uint8_t dat)
 void clearOled(void)
 {
     int i,j;
- 
+
     //--sed page addressing mode---
     sendCmdOled(0x20);  //set memory addressing mode
     sendCmdOled(0x22); //[1:0]=00b-horizontal 01b-veritacal 10b-page addressing mode(RESET)

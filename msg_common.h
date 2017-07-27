@@ -34,7 +34,7 @@ static int g_msg_id=-1;
 struct itimerval g_tmval,g_otmval;
 
 
-//---- onle page string for CC1101 & Ting
+//----  info string for CC1101 & Ting
 char g_strCC1101Buf[]="CC1101:---------";//---16 characters for one line of oled
 char g_strTingBuf[]="Ting:-----------"; 
 
@@ -165,7 +165,6 @@ void sigHndlOledTimer(int signo)
          msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_TING); 
      }
 
-
     //------- receive mssage queue from CC1101 ------
     msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101);  
     if(msg_ret > 0 )
@@ -183,7 +182,5 @@ void sigHndlOledTimer(int signo)
     sendMsgQue(g_msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
 
 }
-
-
 
 #endif

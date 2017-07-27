@@ -6,8 +6,10 @@ A DMA test program from m.blog.csdn.net/u014744063/article/details/53464948
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/fs.h> //struct file_operations
+#include <linux/dma-mapping.h>
 
-#define DEVICE_NAME "my_dam"
+#define DEVICE_NAME "my_dma"
 
 static dma_addr_t src_phy;
 static dma_addr_t dst_phy;
@@ -19,6 +21,10 @@ static unsigned char* dst_vir;
 
 #define MY_DMA_BASE 0x10002800
 #define Channel 0
+
+static int dev_token=0;
+
+int int_num=8; //--see dts,interrupt number
 
 unsigned long *reg_src,*reg_dst;
 unsigned long *reg_ct0,*reg_ct1,*reg_int;
@@ -33,7 +39,7 @@ static int ralink_dma_init(void)
    int i=0;
    *reg_src=src_phy;
    *reg_dst=dst_phy;
-   *reg_ct0 |= (0x01|0x01<<2|0x4<<3|0x100<<16); //---------------- 100??? --!!!!!!!!!!!!!!
+   *reg_ct0 |= (0x01|0x01<<2|0x4<<3|100<<16); //---------------- 100??? --!!!!!!!!!!!!!!
    *reg_ct1 |= (Channel <<3|32<<8|32<<16);
    *reg_int |= (0x01<<Channel);
 
@@ -67,16 +73,21 @@ static long my_dma_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
    return 0;
 }
 
-struct file_operation my_dma=
+struct file_operations my_dma=
 {
    .owner    =THIS_MODULE,
    .unlocked_ioctl =my_dma_ioctl,
 };
 
-static irqretrun_t mydma_handler(int irq, void *dev_id)
+static irqreturn_t mydma_handler(int irq, void *dev_id)
 {
    int i=0;
-   *reg_int |= (0x01 <<Channel);
+   //----to confirm the interrupt
+   if( !((*reg_int) & (0x01<<Channel)) )
+	return IRQ_NONE;
+   else  //---clear INT flag
+	   *reg_int &= ~(0x01 <<Channel);
+
    printk("in irq handler now!\n");
    //---- to print and confirm tranfermed data-----
    for(i=0;i<100;i++)
@@ -88,7 +99,7 @@ static irqretrun_t mydma_handler(int irq, void *dev_id)
    return IRQ_HANDLED;
 }
 
-static int my_dma_init(void)
+static __init int my_dma_init(void)
 {
 
    int result=register_chrdev(888,DEVICE_NAME,&my_dma);
@@ -114,7 +125,7 @@ static int my_dma_init(void)
 	return -1;
    }
 
-   if(request_irq(7,mydma_handler,IRQF_DISABLED,"mydma",NULL)<0)
+   if(request_irq(int_num,mydma_handler,IRQF_SHARED,"mydma",(void *)&dev_token)<0)
    {
 	printk("request_irq failed!\n");
 	dma_free_coherent(NULL,100,dst_vir,src_phy);
@@ -123,25 +134,25 @@ static int my_dma_init(void)
 	return -1;
    }
 
-   reg_src=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x1f,4);
+   reg_src=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x10,4);
    if(reg_src==NULL)
    {
 	printk("reg_src ioremap() failed!\n");
    }
 
-   reg_dst=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x1f+0x04,4);
+   reg_dst=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x10+0x04,4);
    if(reg_dst == NULL)
    {
 	printk("reg_dst ioremap() failed!\n");
    }
 
-   reg_ct0=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x1f+0x08,4);
+   reg_ct0=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x10+0x08,4);
    if(reg_ct0 == NULL)
    {
 	printk("reg_ct0 ioremap() failed!\n");
    }
 
-   reg_ct1=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x1f+0x0c,4);
+   reg_ct1=(unsigned long*)ioremap(MY_DMA_BASE+Channel*0x10+0x0c,4);
    if(reg_ct1 == NULL)
    {
 	printk("reg_ct1 ioremap() failed!\n");
@@ -156,3 +167,29 @@ static int my_dma_init(void)
    printk("----address map successfully!------\n");
    return 0;
 }
+
+
+static __exit  void my_dma_exit(void)
+{
+
+   #if 1
+   dma_free_coherent(NULL,100,src_vir,src_phy);
+   dma_free_coherent(NULL,100,dst_vir,dst_phy);
+   #endif
+ 
+   free_irq(int_num,(void *)&dev_token); //--free shared irq
+   unregister_chrdev(888,DEVICE_NAME);
+   iounmap(reg_ct0);
+   iounmap(reg_ct1);
+   iounmap(reg_dst);
+   iounmap(reg_src);
+
+   printk("----- my_dma eixt -----\n");
+}
+
+module_init(my_dma_init);
+module_exit(my_dma_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Liu Long");
+

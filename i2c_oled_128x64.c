@@ -1,10 +1,16 @@
+/*---------------------------------------------------
+TODOs and BUGs
+1. What if Ting corrupts? and how to reset it?
+2. High CPU usage of the process.
+
+----------------------------------------------------*/
+
+
 #include <string.h>
 #include <signal.h>
 #include "i2c_oled_128x64.h"
 #include <sys/msg.h>
 #include "msg_common.h"
-
-
 
 //===================== MAIN ==================
 
@@ -21,6 +27,8 @@ void main()
  struct tm *p_tm;
 
 
+ //---init i2c interface -----
+ init_I2C_Slave();
  //---init oled ----
  initOledDefault();
 
