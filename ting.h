@@ -132,12 +132,14 @@ void sendTingCMD(const char* strCMD,int ndelay)
     }
     usleep(g_ndelay);
 
+    //---init
     nb=0;
+    memset(g_strAtBuff,0,sizeof(g_strAtBuff));
     pstr=g_strAtBuff;
    //------- get feedback string from Ting -----
     while(1) // !!!! todo: avoid deadloop !!!!
    {
-	printf("start: nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE)...\n");
+	printf("start: nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE)  ---  nloop=%d\n",nloop);
 	nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE); //--30 !!!!- suitable size for length of reply-string from  Ting
 //-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 	if(nread<0)
@@ -158,7 +160,8 @@ void sendTingCMD(const char* strCMD,int ndelay)
 	if(nloop > LOOP_DEAD_COUNT)
 	{
 	    printf("sendTingCMD: nloop > LOOP_DEAD_COUNT, end reading UART ...\n"); 
-	    *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+//	    (pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+	    sprintf(g_strAtBuff,"Error! nread() escapes deadloop!\n");
 	    g_intEscapeReadLoopCount++; // count number
 	    break;
 	}

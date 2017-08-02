@@ -1,7 +1,9 @@
-////--------------- With referecne to    WWW.RFinCHINA.COM    ----------------
-//  
-// lib: -lm
+/*--------------- With referecne to    WWW.RFinCHINA.COM    ----------------
+TODOs and BUGs:
+High cpu usage ~11%
 
+ lib: -lm
+---------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
