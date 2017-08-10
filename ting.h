@@ -22,7 +22,7 @@ TS --  Time stamp
 #define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
-#define LOOP_DEAD_COUNT 256
+#define LOOP_DEAD_COUNT 10
 #define MAX_AT_REPLY_SIZE 30 // nread=read(g_fd,pstr,MAX_READ_SIZE) !!!!- suitable size for length of reply-string from  Ting
 //-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 #define MAX_ROLA_STR_SIZE 100 //--denpend on UART set ??? 50? suitable size for received Rola string length.
@@ -108,14 +108,19 @@ int intPush2UserRxBuff(char* pstr)
 
 /*----------------------------------------------------------------------------------------
   send command string to LORA and get feedback string
-
+  return value:
+	  -1 - Ting responds, but not 'OK'
+           0 - Ting responds with 'OK'.
+           1 - reaches LOOP_DEAD_COUNT; 
+	   2 - fail to write to serial prot
+	   3 - other reasons to cause failure
   buff[],fd ---global var, see in ting_*x.c
   Window: '\r'-- move cursor to the head of current line  '\n' --- start a new line
   Linux: '\r'--same above  '\n'-- start a new line and get cursor to the head of the new line.
 ------------------------------------------------------------------------------------------------*/
-void sendTingCMD(const char* strCMD,int ndelay)
+int sendTingCMD(const char* strCMD,int ndelay)
 {
-
+    int ret = 3;
     int nb,len,nread;
     int nloop=0;
     char *pstr; // pointer to g_strAtBuff[];
@@ -128,7 +133,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
     {
 	perror("sendTingCMD():write to serial port");
 	printf("write(g_fd,strCMD,len<0 \n");
-	return;
+	return 2;
     }
     usleep(g_ndelay);
 
@@ -163,6 +168,7 @@ void sendTingCMD(const char* strCMD,int ndelay)
 //	    (pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
 	    sprintf(g_strAtBuff,"Error! nread() escapes deadloop!\n");
 	    g_intEscapeReadLoopCount++; // count number
+	    ret=1;
 	    break;
 	}
 
@@ -177,15 +183,23 @@ void sendTingCMD(const char* strCMD,int ndelay)
 	if((nread>0) && (*(pstr-1)=='\n')) //----get end of a reply string
 	{
 		*(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+
+		//--- check whether Ting responds with 'OK' ---
+	        if(strstr(g_strAtBuff,"OK"))
+			ret=0;
+		else
+			ret=-1;
 		break; 
 	}
-
     }
 
     strncpy(strtmp,strCMD,len);
     strtmp[len-2]='\0'; //--to  skip \r\n for command string.
+
     //------printf command to Ting and its reply string
-    printf("%s: %s\n",strtmp,g_strAtBuff);
+    printf("sendTingCMD ret=%d %s: %s\n",ret,strtmp,g_strAtBuff);
+
+    return ret;
 }
 
 
@@ -277,7 +291,7 @@ int recvTingLoRa(void)
 	    break;
 	}
 
-        //---flowing unnecessary, '\r\n' will be dealt by sendTingCMD()
+        //---following unnecessary, '\r\n' will be dealt by sendTingCMD()
         if( (nb==1) && ( *(pstr-1)=='\n' || *(pstr-1)=='\r') )//get rid of '\r\n' first if applicable
         {
                 pstr=g_strUserRxBuff; // reset pbuff
