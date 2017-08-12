@@ -13,9 +13,7 @@ TODOs and BUGs
 #include   "ting_uart.h"
 #include   "ting.h"
 
-
 //=================== MAIN FUNCTIONS ================
-
 int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
@@ -35,7 +33,6 @@ int main(int argc, char **argv)
         printf("create message queue fails!\n");
         exit(-1);
   }
-
 
   //----- init buff and arrays ------
   //  memset(g_strUserRxBuff,'\0',sizeof(g_strUserRxBuff));
@@ -59,24 +56,13 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  //----- reset ting -----
-  sendTingCMD("AT+RST\r\n",50000);
-  sleep(1);//wait long enough
-  tcflush(g_fd,TCIOFLUSH);
-  //----- configure ----
-  sendTingCMD(STR_CFG,50000);
-  //------ get version ------
-  sendTingCMD("AT+VER?\r\n",g_ndelay);
-  //------- set ADDR -------
-  sendTingCMD("AT+ADDR=5555\r\n",g_ndelay);
-  sendTingCMD("AT+ADDR?\r\n",g_ndelay);
-  //----set DEST address -----
-  sendTingCMD("AT+DEST=6666\r\n",g_ndelay);
-  //----set PD0 as RX indication -----
-  sendTingCMD("AT+ACK=1\r\n",g_ndelay);
+  resetTing(g_fd, STR_CFG,0x5555, 0x6666);
 
   while(1)
   {
+        //---- to confirm that Ting is active 
+	checkTingActive();
+
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
 	recvTingLoRa();

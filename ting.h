@@ -357,13 +357,74 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	g_intRcvCount++;
 	//----check data continuity and see if there is a RoLa transmission not recevied -----
 
-
-
-
 	//---- print client and host time stamp -----
 	printf("Source time stamp:%s\n",pstrTingLoraItems[4]);
  	RenewTimeStr(g_pstr_time);
         printf("Host current time: %s\n",g_pstr_time);
-
 }
+
+/*-----------------------------------------------
+check whether Ting-01M is active or not
+return:  0 -- active  others -- dead
+------------------------------------------------*/
+int checkTingActive(void)
+{
+  int ret;
+  //reaffirm that g_fd is effective first
+  ret=sendTingCMD("AT+VER?\r\n",g_ndelay);
+  if(ret != 0)
+  {
+	printf("----WARNING: Ting seems not active now!  sendTingCMD(AT+VER) = %d \n", ret);
+	return ret;
+  }
+
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------------
+reset Ting-01M
+g_fd : uart IO file handle
+str_config: configuration for Ting put in a string
+          Example str_config[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+self_add: address of ME.
+dest_addr: destination address of LoRa send/receive operation
+all address in hex. range 0x0000-FFFF
+------------------------------------------------------------------------------------*/
+void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
+{
+  static char strCMD[100]={0};
+
+  if( (self_addr>0xffff) || (self_addr<0)) 
+  {
+        printf("Ting address out of range[0x0000-FFFF]!\n");
+        exit;
+  }
+
+  if( (dest_addr>0xffff) || (dest_addr<0)) 
+  {
+        printf("Ting dest address out of range[0x0000-FFFF]!\n");
+        exit;
+  }
+
+  //----- reset ting -----
+  sendTingCMD("AT+RST\r\n",50000);
+  sleep(1);//wait long enough
+  tcflush(g_fd,TCIOFLUSH);
+  //----- configure ----
+  sendTingCMD(str_config,50000);
+  //------ get version ------
+  sendTingCMD("AT+VER?\r\n",g_ndelay);
+  //------- set ADDR -------
+  sprintf(strCMD,"AT+ADDR=%04X\r\n\0",self_addr);
+  sendTingCMD(strCMD,g_ndelay);
+  sendTingCMD("AT+ADDR?\r\n",g_ndelay);
+  //----set DEST address -----
+  sprintf(strCMD,"AT+DEST=%04X\r\n\0",dest_addr);
+  sendTingCMD(strCMD,g_ndelay);
+  //----set PD0 as RX indication -----
+  sendTingCMD("AT+ACK=1\r\n",g_ndelay);
+}
+
+
 
