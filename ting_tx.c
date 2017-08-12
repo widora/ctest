@@ -7,7 +7,6 @@
 char buff[512];
 int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
-
 int main(int argc, char **argv)
 {
 	int nb,nread,nwrite;
@@ -23,45 +22,12 @@ int main(int argc, char **argv)
 //        char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
 	char *uart_dev ="/dev/ttyS1";
 
-	g_fd = OpenDev(uart_dev);
-	if (g_fd>0)
-	{
-	        set_speed(g_fd,115200);
-		printf("set UART speed to 1152000\n");
-	}
-	else
-	{
-	 	printf("Can't Open Serial Port!\n");
-		exit(0);
-	}
-  //----set databits,stopbits,parity for UART -----
-  if (set_Parity(g_fd,8,1,'N')== false) //set_Prity(fd,databits,stopbits,parity)
-  {
-    printf("Set Parity Error\n");
-    exit(1);
-  }
-
-  memset(buff,'\0',sizeof(buff));
-
-  printf("Start to reset and configure Ting-01M....\n");
- //----- reset -----
-  sendTingCMD("AT+RST\r\n",50000);
-  sleep(1);//wait long enough
-  tcflush(g_fd,TCIOFLUSH);
-
-  //----- configure ----
-  sendTingCMD(STR_CFG,50000);
-  //------ get version ------
-  sendTingCMD("AT+VER?\r\n",ndelay);
-  //------- set ADDR -------
-  sendTingCMD("AT+ADDR=6666\r\n",ndelay);
-  sendTingCMD("AT+ADDR?\r\n",ndelay);
-  //----set DEST address -----
-  sendTingCMD("AT+DEST=5555\r\n",ndelay);
+  openUART(uart_dev); // open uart and set it.
+  resetTing(g_fd, STR_CFG,0x6666, 0x5555); // reset ting with spicific parameters
 
   nb=0;
   tcflush(g_fd,TCIOFLUSH);
-   
+
   nload=64; //128;//payload length
   sendBuf[nload]='\0';//give and end for the string
   k='0';

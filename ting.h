@@ -269,8 +269,9 @@ int recvTingLoRa(void)
 
   while(1)
   {
-	printf("start: nread=read(g_fd,pstr,MAX_ROLA_STR_SIZE)...\n");
+	printf("start: nread=read(g_fd,pstr,MAX_ROLA_STR_SIZE)...");
         nread=read(g_fd,pstr,MAX_ROLA_STR_SIZE); //--50? suitable size for Ting Rola string.
+	printf("  nread=%d \n",nread);
         if(nread<0)
         {
                 printf("read serial port error\n");
@@ -365,7 +366,7 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 
 /*-----------------------------------------------
 check whether Ting-01M is active or not
-return:  0 -- active  others -- dead
+return:  0 -- active  others -- busy or dead
 ------------------------------------------------*/
 int checkTingActive(void)
 {
@@ -416,15 +417,37 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
   //------ get version ------
   sendTingCMD("AT+VER?\r\n",g_ndelay);
   //------- set ADDR -------
-  sprintf(strCMD,"AT+ADDR=%04X\r\n\0",self_addr);
+  sprintf(strCMD,"AT+ADDR=%04X\r\n",self_addr);
   sendTingCMD(strCMD,g_ndelay);
   sendTingCMD("AT+ADDR?\r\n",g_ndelay);
   //----set DEST address -----
-  sprintf(strCMD,"AT+DEST=%04X\r\n\0",dest_addr);
+  sprintf(strCMD,"AT+DEST=%04X\r\n",dest_addr);
   sendTingCMD(strCMD,g_ndelay);
   //----set PD0 as RX indication -----
   sendTingCMD("AT+ACK=1\r\n",g_ndelay);
 }
 
 
+/*--------------------------------------------------
+open serial device file and set interface properly.
+g_fd: global file handle for the UART
+--------------------------------------------------*/
+void openUART(char *uart_dev)
+{
+  //------ open UART interface-------
+  g_fd = OpenDev(uart_dev);
+  if (g_fd>0)
+         set_speed(g_fd,115200);
+  else
+        {
+                printf("Can't Open Serial Port!\n");
+                exit;
+        }
+  //----set databits,stopbits,parity for UART -----
+  if (set_Parity(g_fd,8,1,'N')== false) //set_Prity(fd,databits,stopbits,parity)
+  {
+    printf("Set Parity Error\n");
+    exit;
+  }
 
+}

@@ -118,12 +118,9 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
   if (parity != 'n')
   		options.c_iflag |= INPCK;
 
-
-  
-
   tcflush(fd,TCIFLUSH); 
 
-  options.c_cc[VTIME] = 150; // 15 seconds Timeout
+  options.c_cc[VTIME] = 50; // 5 seconds Timeout
   options.c_cc[VMIN] = 0;// min. received data len for read(), 0 means nonblocking. 
 
    //-------!!!!! to set as RAW MODE !!!!-------
@@ -137,17 +134,17 @@ int set_Parity(int fd,int databits,int stopbits,int parity)
 		return (false);
 	}
 
-
   return (true);
  }
-/**
-*@breif 打开串口
-*/
+
+/*-------------------------------------
+open uart file device
+--------------------------------------*/
 int OpenDev(char *Dev)
 {
 int	fd = open( Dev, O_RDWR | O_NOCTTY );         //| O_NOCTTY | O_NDELAY
 	if (-1 == fd)
-		{ /*设置数据位数*/
+		{ 
 			perror("Can't Open Serial Port");
 			return -1;
 		}

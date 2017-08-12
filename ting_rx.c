@@ -39,30 +39,17 @@ int main(int argc, char **argv)
    ClearUserRxBuff(); // clear g_strUserRxBuff
    memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));
 
-  //------ open UART interface-------
-  g_fd = OpenDev(uart_dev);
-  if (g_fd>0)
-         set_speed(g_fd,115200);
-  else
- 	{
-	 	printf("Can't Open Serial Port!\n");
- 		exit(0);
- 	}
-
-  //----set databits,stopbits,parity for UART -----
-  if (set_Parity(g_fd,8,1,'N')== false) //set_Prity(fd,databits,stopbits,parity)
-  {
-    printf("Set Parity Error\n");
-    exit(1);
-  }
-
-  resetTing(g_fd, STR_CFG,0x5555, 0x6666);
+  openUART(uart_dev); // open uart and set it.
+  resetTing(g_fd, STR_CFG,0x5555, 0x6666); // reset ting with spicific parameters
 
   while(1)
   {
         //---- to confirm that Ting is active 
-	checkTingActive();
-
+	if(checkTingActive() != 0)
+	{
+		 printf("checkTingActive() fails! reset Ting ...\n");
+		 resetTing(g_fd, STR_CFG,0x5555, 0x6666); // reset ting with spicific parameters
+	}
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
 	recvTingLoRa();
