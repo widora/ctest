@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	  txlen=strlen(g_strUserTxBuff);
 	  //----send data to Ting for Lora to transmit
 	  sprintf(strcmd,"AT+SEND=%d\r\n",txlen);
-	  sendTingCMD(strcmd,ndelay);
+	  sendTingCMD(strcmd,"OK",ndelay);
 	  printf("writing g_strUserTxBuff to Ting-01M...\n");
           nwrite=write(g_fd,g_strUserTxBuff,txlen);
 	  if(nwrite != txlen)
@@ -61,8 +61,9 @@ int main(int argc, char **argv)
 	  printf("---< intWriteErrCount=%d >---\n",intWriteErrCount);
 
 	  //---wait for transmission to finish
-	  sleep(1);//usleep(8000); send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
-	  sendTingCMD("AT?\r\n",ndelay); //readout send result as AT,SENDING\r\n and AT,SENDED\r\n...
+	  // sleep(1);//usleep(8000); send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
+	  sendTingCMD("AT?\r\n","SENDED",ndelay); //readout all Ting-01M replies as "AT,SENDING\r\n", "AT,SENDED\r\n" and "AT,OK\r\n"
+          usleep(500000);
 
     }
     //close(g_fd);

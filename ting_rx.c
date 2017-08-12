@@ -3,8 +3,9 @@ TODOs and BUGs
 1. Ting-01M always response as busy after Widora rebooting.
    ----Solved! set serial port as RAW MODE.
 2. ttyS1: 1 input overrun(s)!!  --solved.
-3. Rules for ting LoRa string.
-4. parse LoRa string,get data and commands, execut commands then. 
+3. 'AT+ACK=1\r\n' return with 'ERR:CMD' --ting firmware
+4. Rules for ting LoRa string.
+5. parse LoRa string,get data and commands, execut commands then. 
 
 
 --------------------------------------------------------*/

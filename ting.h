@@ -23,7 +23,7 @@ TS --  Time stamp
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
 #define LOOP_DEAD_COUNT 10
-#define MAX_AT_REPLY_SIZE 30 // nread=read(g_fd,pstr,MAX_READ_SIZE) !!!!- suitable size for length of reply-string from  Ting
+#define MAX_AT_REPLY_SIZE 50 //30 nread=read(g_fd,pstr,MAX_READ_SIZE) !!!!- suitable size for length of reply-string from  Ting
 //-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 #define MAX_ROLA_STR_SIZE 100 //--denpend on UART set ??? 50? suitable size for received Rola string length.
 
@@ -108,6 +108,9 @@ int intPush2UserRxBuff(char* pstr)
 
 /*----------------------------------------------------------------------------------------
   send command string to LORA and get feedback string
+  strCMD: AT command string for Ting-01M
+  strOK: words in Ting reply string indicating that Ting executed the command successfully
+	 usually is 'OK', or 'SENDED' for 'AT+SEND=xx\r\n' LoRa command. 
   return value:
 	  -1 - Ting responds, but not 'OK'
            0 - Ting responds with 'OK'.
@@ -118,10 +121,11 @@ int intPush2UserRxBuff(char* pstr)
   Window: '\r'-- move cursor to the head of current line  '\n' --- start a new line
   Linux: '\r'--same above  '\n'-- start a new line and get cursor to the head of the new line.
 ------------------------------------------------------------------------------------------------*/
-int sendTingCMD(const char* strCMD,int ndelay)
+int sendTingCMD(const char* strCMD, const char* strOK, int ndelay)
 {
     int ret = 3;
-    int nb,len,nread;
+    int nb; //-- total bytes received from Ting.
+    int len,nread;
     int nloop=0;
     char *pstr; // pointer to g_strAtBuff[];
     char strtmp[50];
@@ -141,11 +145,12 @@ int sendTingCMD(const char* strCMD,int ndelay)
     nb=0;
     memset(g_strAtBuff,0,sizeof(g_strAtBuff));
     pstr=g_strAtBuff;
+
    //------- get feedback string from Ting -----
     while(1) // !!!! todo: avoid deadloop !!!!
    {
 	printf("start: nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE)  ---  nloop=%d\n",nloop);
-	nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE); //--30 !!!!- suitable size for length of reply-string from  Ting
+	nread=read(g_fd,pstr,MAX_AT_REPLY_SIZE);//TIMEOUT=5s //--30 !!!!- suitable size for length of reply-string from  Ting
 //-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 	if(nread<0)
 	{
@@ -182,14 +187,20 @@ int sendTingCMD(const char* strCMD,int ndelay)
 
 	if((nread>0) && (*(pstr-1)=='\n')) //----get end of a reply string
 	{
-		*(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
-
-		//--- check whether Ting responds with 'OK' ---
-	        if(strstr(g_strAtBuff,"OK"))
-			ret=0;
+		//--- check whether Ting responds with 'OK' or 'SENDED'  ---
+		printf("g_strAtBuff:%s \n",g_strAtBuff);
+	        if(strstr(g_strAtBuff,strOK)) //if strOK is found in g_strAtBuff
+		{
+		      *(pstr-2)='\0'; // add string end before '\r\n', to get rid of '\r\n' when printf
+		      ret=0;
+		      break;
+		}
 		else
-			ret=-1;
-		break; 
+		{
+		    //ret=-1;
+		    //break; 
+		    continue; //--strOK not received from Ting, continue to read
+		}
 	}
     }
 
@@ -197,7 +208,7 @@ int sendTingCMD(const char* strCMD,int ndelay)
     strtmp[len-2]='\0'; //--to  skip \r\n for command string.
 
     //------printf command to Ting and its reply string
-    printf("sendTingCMD ret=%d %s: %s\n",ret,strtmp,g_strAtBuff);
+    printf("sendTingCMD ret=%d %s:  %s\n",ret,strtmp,g_strAtBuff);
 
     return ret;
 }
@@ -263,7 +274,7 @@ int recvTingLoRa(void)
 
   //---set RX mode
   printf("start sendTingCMD(AT+RX?)...\n");
-  sendTingCMD("AT+RX?\r\n",g_ndelay);
+  sendTingCMD("AT+RX?\r\n","OK",g_ndelay);
 
   pstr=g_strUserRxBuff;
 
@@ -372,7 +383,7 @@ int checkTingActive(void)
 {
   int ret;
   //reaffirm that g_fd is effective first
-  ret=sendTingCMD("AT+VER?\r\n",g_ndelay);
+  ret=sendTingCMD("AT+VER?\r\n","OK",g_ndelay);
   if(ret != 0)
   {
 	printf("----WARNING: Ting seems not active now!  sendTingCMD(AT+VER) = %d \n", ret);
@@ -409,22 +420,23 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
   }
 
   //----- reset ting -----
-  sendTingCMD("AT+RST\r\n",50000);
+  printf("start reset Ting...\n");
+  sendTingCMD("AT+RST\r\n","OK",50000);
   sleep(1);//wait long enough
   tcflush(g_fd,TCIOFLUSH);
   //----- configure ----
-  sendTingCMD(str_config,50000);
+  sendTingCMD(str_config,"OK",50000);
   //------ get version ------
-  sendTingCMD("AT+VER?\r\n",g_ndelay);
+  sendTingCMD("AT+VER?\r\n","OK",g_ndelay);
   //------- set ADDR -------
   sprintf(strCMD,"AT+ADDR=%04X\r\n",self_addr);
-  sendTingCMD(strCMD,g_ndelay);
-  sendTingCMD("AT+ADDR?\r\n",g_ndelay);
+  sendTingCMD(strCMD,"OK",g_ndelay);
+  sendTingCMD("AT+ADDR?\r\n","OK",g_ndelay);
   //----set DEST address -----
   sprintf(strCMD,"AT+DEST=%04X\r\n",dest_addr);
-  sendTingCMD(strCMD,g_ndelay);
+  sendTingCMD(strCMD,"OK",g_ndelay);
   //----set PD0 as RX indication -----
-  sendTingCMD("AT+ACK=1\r\n",g_ndelay);
+  sendTingCMD("AT+ACK=1\r\n","",g_ndelay);//----return ERR !!???
 }
 
 
