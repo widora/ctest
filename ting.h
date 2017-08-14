@@ -7,6 +7,9 @@ TS --  Time stamp
 
 
 --------------------------------------------------*/
+#ifndef __TING_H__
+#define __TING_H__
+
 #include     <stdio.h>      /*标准输入输出定义*/
 #include     <stdlib.h>     /*标准函数库定义*/
 #include     <unistd.h>     /*Unix标准函数定义*/
@@ -17,8 +20,9 @@ TS --  Time stamp
 #include     <errno.h>      /*错误号定义*/
 #include     <stdbool.h>
 #include     <string.h>
+#include     "mygpio.h"
 
-
+#define WPIN_TING_MCU_RST 42 // set widora GPIO for Ting MCU reset 
 #define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
@@ -44,7 +48,7 @@ char g_pstr_time[30]; //time stamp string
 //---buffers
 char g_strUserRxBuff[USER_RX_BUFF_SIZE]; //--string from Ting LoRa RX, like "LR,6666,40,xxxx,xx......"  xxxx--payload
 char g_strUserTxBuff[USER_TX_BUFF_SIZE]; //--string ready to send for Ting LoRa Tx, like "xxxxxx,xxxxx,xx,,...."  xxxx- payload
-char g_strAtBuff[64]; //--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
+char g_strAtBuff[128]; //64--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
 int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##,XXX,XXX,XXXX...."
 //--g_intLoraRxLen to be renewed in sepWordsInTingLoraStr() only
 //--- for error rate analysis ----
@@ -54,13 +58,40 @@ int g_intRcvCount=0;  //-- LoRa success of receipt counter
 int g_intEscapeReadLoopCount=0; //--- times of escaping from read(UART) dead loop
 unsigned char g_tmpUchar=0; //--temp store. for lora data test, may be '0'(48) to '~'(126)  
 
-/*----- renew time for char *g_pstr_time----------*/
+/*----- prepare GPIO operation -------*/
+void setPinMmap(void)
+{
+ if(gpio_mmap()!=0)
+ {
+    printf("--- gpio_mmap failed! ---"); //-------------------- return ----------
+    exit;
+ }
+  mt76x8_gpio_set_pin_direction(WPIN_TING_MCU_RST,1); //1 as for output
+
+}
+
+/*------ release PIN mmap -----------*/
+void resPinMmap(void)
+{
+  close(gpio_mmap_fd); //gpio_mmap_fd in "mygpio.h"
+ }
+
+/*------------- reset Ting MCU ------------*/
+void ResetTingMCU(void)
+{
+     setPinMmap();
+     mt76x8_gpio_set_pin_value(WPIN_TING_MCU_RST,0);
+     usleep(200000); 
+     mt76x8_gpio_set_pin_value(WPIN_TING_MCU_RST,1);
+     resPinMmap();
+}
+
+/*------- renew time for char *g_pstr_time -------*/
 void RenewTimeStr(char *g_pstr_time)
 {
      gettimeofday(&g_tm,NULL);
      sprintf(g_pstr_time,"%11.3f", g_tm.tv_sec+g_tm.tv_usec/1000000.0);
 }
-
 
 /*------ clear g_strUsrRxBuff[] and fill with '\0' ------*/
 void ClearUserRxBuff(void)
@@ -73,7 +104,6 @@ void ClearUserTxBuff(void)
 {
    memset(g_strUserTxBuff,'\0',sizeof(g_strUserTxBuff));
 }
-
 
 /*-----------------------------------------
  push string to g_strUserTxBuff 
@@ -139,7 +169,7 @@ int sendTingCMD(const char* strCMD, const char* strOK, int ndelay)
 	printf("write(g_fd,strCMD,len<0 \n");
 	return 2;
     }
-    usleep(g_ndelay);
+    usleep(ndelay);
 
     //---init
     nb=0;
@@ -419,11 +449,16 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
         exit;
   }
 
-  //----- reset ting -----
-  printf("start reset Ting...\n");
-  sendTingCMD("AT+RST\r\n","OK",50000);
+  //--- reset MCU ---
+  printf("start reset Ting MCU ...\n");
+  ResetTingMCU();
+  sleep(1);//wait ?
+  //----- reset LoRa -----
+  printf("start configuring Ting and LoRa...\n");
+  tcflush(g_fd,TCIOFLUSH);// flush invalid data in uart buffer
+  sendTingCMD("AT+RST\r\n","OK",500000);
   sleep(1);//wait long enough
-  tcflush(g_fd,TCIOFLUSH);
+//  tcflush(g_fd,TCIOFLUSH);
   //----- configure ----
   sendTingCMD(str_config,"OK",50000);
   //------ get version ------
@@ -463,3 +498,6 @@ void openUART(char *uart_dev)
   }
 
 }
+
+
+#endif

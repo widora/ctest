@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
   char tmp;
-
+  int nRecLoRa=0; //bytes of received LoRa data
   char *pbuff;
   char *pstrTingLoraItems[MAX_TING_LORA_ITEM]; //point array to received Ting LORA itmes 
   char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
@@ -53,8 +53,8 @@ int main(int argc, char **argv)
 	}
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
-	recvTingLoRa();
-
+	nRecLoRa=recvTingLoRa();
+	printf("Totally %d bytes of LoRa data received from Ting-01M.\n",nRecLoRa);
 	//--------parse recieved data -----
 	printf("start sepWordsInTingLoraStr()...\n");
 	sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 
 	//----get RSSI
 	printf("start sendTingCMD(AT+RSSI?)...\n");
-	sendTingCMD("AT+RSSI?\r\n",g_ndelay);
+	sendTingCMD("AT+RSSI?\r\n","OK",g_ndelay);
 
 	//---- summary ---
         printf("-----< g_intRcvCount=%d, g_intErrCount=%d  g_intMissCount=%d g_intEscapeReadLoopCount=%d >-----\n" \
