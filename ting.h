@@ -372,22 +372,25 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 		k++;
 	}
 */
+	//--- assert pstrTingLoraItems[] first ---!!!!!
 
-	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
-		printf("------- Parse Received LoRa data ------\n");
-	printf("Lora source address:%s\n",pstrTingLoraItems[1]);
-
-        //-----get payload length
+        //----- get payload length -----
 	len_payload=strtoul(pstrTingLoraItems[2],NULL,16);
 	printf("Total length:%d\n",g_intLoraRxLen); 
 	printf("Lora palyload length:%d\n",len_payload);
-
 	//---check length and pick err,simple way !!!!! ---
 	if( g_intLoraRxLen !=96 || (g_intLoraRxLen-len_payload) != 13 )
 	{
 	        g_intErrCount++;
 		return;
 	}
+
+	//----check pastrTingLoraItems[] first -----
+	//-- if(pstrTingLoraItems[5]==NULL)
+	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
+		printf("------- Parse Received LoRa data ------\n");
+	printf("Lora source address:%s\n",pstrTingLoraItems[1]);
+
 
 	//------- check if any Lora transmission is missed ------
 	new_dat =*(unsigned char *)(pstrTingLoraItems[5]); //-- char '0'(48)-'~'(126)

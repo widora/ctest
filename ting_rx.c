@@ -7,22 +7,42 @@ TODOs and BUGs
 4. Rules for ting LoRa string.
 5. parse LoRa string,get data and commands, execut commands then. 
 
-
 --------------------------------------------------------*/
 #include   <string.h>
 #include   "msg_common.h"
 #include   "ting_uart.h"
 #include   "ting.h"
 
+/*-----------------------      TING LoRa CONFIGURATION STRING EXAMPLE      -------------------------
+Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+434000000          RF_Freq(Hz),
+       10          Power(dBm 10 or 20 )
+        6          BW(0-9 for 0-7.8KHz; 1-10.4KHz, 2-15.6HKz, 3-20.8KHz, 4-31.2KHz,
+                              5-41.6KHz, 6-62.5KHz, 7-125KHz, 8-250KHz,9-500KHz)
+                   (* increase signal BW can shorten Tx time,however at cost of sensitivity performance. )
+        7          Spreading_Factor (6-12 for 2^6-2^12)
+        1          Cyclic_Error_Coding_Rate (1-4 for 1-4/5, 2-4/6, 3-4/7, 4-4/8)
+        1          CRC (0-OFF,1-ON)
+        0          Header Type (0-Explict 1-Implict) !!! Implict_Header MUST be used for SF=6 !!! 
+        0          Rx_Mode ( 0- continous RX, 1- single RX)
+        0          Frequency_Hop ( 0- OFF, 1- ON)
+     3000          RX_Packet_Timeout (1-65535ms)
+      132          4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
+        4          Preamble_Length (4-65535)
+---------------------------------------------------------------------------------------------------*/
+static  char  STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,128\r\n";
+//  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+
+
 //=================== MAIN FUNCTIONS ================
 int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
   char tmp;
-  int nRecLoRa=0; //bytes of received LoRa data
+  int  nRecLoRa=0; //bytes of received LoRa data
+  int nitem; // numbers of separated items in received Ting-LoRa data 
   char *pbuff;
   char *pstrTingLoraItems[MAX_TING_LORA_ITEM]; //point array to received Ting LORA itmes 
-  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
   char *uart_dev ="/dev/ttyS1";
   //--- for IPC message------
   int msg_id=-1;
@@ -53,11 +73,12 @@ int main(int argc, char **argv)
 	}
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
-	nRecLoRa=recvTingLoRa();
+	nRecLoRa=recvTingLoRa(); // total bytes include '/r/n'
 	printf("Totally %d bytes of LoRa data received from Ting-01M.\n",nRecLoRa);
+
 	//--------parse recieved data -----
-	printf("start sepWordsInTingLoraStr()...\n");
-	sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
+	nitem=sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
+	printf("sepWordsInTingLoraStr()...get %d items in LoRa data.\n",nitem);
 	printf("start parseTingLoraWordsArray()...\n");
 	parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
 

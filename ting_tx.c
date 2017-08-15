@@ -3,7 +3,25 @@
 #include     "ting_uart.h"
 #include     "ting.h"
 
-//----global var.------
+/*-----------------------      TING LoRa CONFIGURATION STRING EXAMPLE      -------------------------
+Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+434000000          RF_Freq(Hz),
+       10	   Power(dBm 10 or 20 )
+	6	   BW(0-9 for 0-7.8KHz; 1-10.4KHz, 2-15.6HKz, 3-20.8KHz, 4-31.2KHz,
+		              5-41.6KHz, 6-62.5KHz, 7-125KHz, 8-250KHz,9-500KHz)
+		   (* increase signal BW can shorten Tx time,however at cost of sensitivity performance. )
+        7	   Spreading_Factor (6-12 for 2^6-2^12)
+	1	   Cyclic_Error_Coding_Rate (1-4 for 1-4/5, 2-4/6, 3-4/7, 4-4/8)
+	1	   CRC (0-OFF,1-ON)
+	0	   Header Type (0-Explict 1-Implict) !!! Implict_Header MUST be used for SF=6 !!! 
+	0	   Rx_Mode ( 0- continous RX, 1- single RX)
+	0	   Frequency_Hop ( 0- OFF, 1- ON)
+     3000	   RX_Packet_Timeout (1-65535ms)
+      132	   4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
+	4	   Preamble_Length (4-65535)
+---------------------------------------------------------------------------------------------------*/
+static char STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,128\r\n";
+
 char buff[512];
 int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
 
@@ -18,8 +36,7 @@ int main(int argc, char **argv)
 	int nload;//payload length,bytes.
 	uint8_t k;
 	char *pbuff;
-	char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,8,4\r\n";
-//        char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+
 	char *uart_dev ="/dev/ttyS1";
 
   openUART(uart_dev); // open uart and set it.
