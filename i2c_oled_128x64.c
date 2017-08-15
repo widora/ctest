@@ -1,7 +1,6 @@
 /*---------------------------------------------------
 TODOs and BUGs
-1. What if Ting corrupts? and how to reset it?
-2. High CPU usage of the process.
+1. High CPU usage of the process.
 
 ----------------------------------------------------*/
 

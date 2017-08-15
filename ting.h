@@ -48,7 +48,7 @@ char g_pstr_time[30]; //time stamp string
 //---buffers
 char g_strUserRxBuff[USER_RX_BUFF_SIZE]; //--string from Ting LoRa RX, like "LR,6666,40,xxxx,xx......"  xxxx--payload
 char g_strUserTxBuff[USER_TX_BUFF_SIZE]; //--string ready to send for Ting LoRa Tx, like "xxxxxx,xxxxx,xx,,...."  xxxx- payload
-char g_strAtBuff[128]; //64--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
+char g_strAtBuff[64]; //64--string for AT cmd/replay buff, such as "OK\r\n","-063\r\nOK\r\n" etc.
 int  g_intLoraRxLen;  //-- length of Ting Lora Rx string in form of  "LR,****,##,XXX,XXX,XXXX...."
 //--g_intLoraRxLen to be renewed in sepWordsInTingLoraStr() only
 //--- for error rate analysis ----
@@ -195,6 +195,9 @@ int sendTingCMD(const char* strCMD, const char* strOK, int ndelay)
 	printf("nread=%d \n",nread);
 	pstr+=nread;
 	nb+=nread;
+	//check if g_strAtBuff[] is out of capacity
+	if(nb > (sizeof(g_strAtBuff)-1))
+		printf("Recevied AT reply string is too long, g_strAtBuff[] is out of its capacity!\n");
 	nloop++;
 	//--- jump out of dead loop ---
 	if(nloop > LOOP_DEAD_COUNT)
@@ -300,7 +303,7 @@ int recvTingLoRa(void)
   char *pstr; //--pointer to g_strUserRxBuff[]
 
   //----clear tty FIFO hardware buff
- // tcflush(g_fd,TCIOFLUSH);
+  // tcflush(g_fd,TCIOFLUSH);
 
   //---set RX mode
   printf("start sendTingCMD(AT+RX?)...\n");
@@ -322,7 +325,9 @@ int recvTingLoRa(void)
         }
         pstr+=nread;
         nb+=nread;
-	nloop++;
+	//check if g_strUserRxBuff[] is out of capacity
+	if(nb > (sizeof(g_strUserRxBuff)-1))
+		printf("Recevied Ting LoRa string is too long, g_strUserRxBuff[] is out of its capacity!\n");	nloop++;
 
 	//--- jump out of dead loop ---
 	if(nloop > LOOP_DEAD_COUNT)
@@ -452,7 +457,7 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
   //--- reset MCU ---
   printf("start reset Ting MCU ...\n");
   ResetTingMCU();
-  sleep(1);//wait ?
+  usleep(500000);//wait ?
   //----- reset LoRa -----
   printf("start configuring Ting and LoRa...\n");
   tcflush(g_fd,TCIOFLUSH);// flush invalid data in uart buffer

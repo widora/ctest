@@ -26,10 +26,10 @@ int main(int argc, char **argv)
   resetTing(g_fd, STR_CFG,0x6666, 0x5555); // reset ting with spicific parameters
 
   nb=0;
-  tcflush(g_fd,TCIOFLUSH);
+//  tcflush(g_fd,TCIOFLUSH);
 
   nload=64; //128;//payload length
-  sendBuf[nload]='\0';//give and end for the string
+//  sendBuf[nload]='\0';//give and end for the string
   k='0';
   while(1)
   {
@@ -37,7 +37,8 @@ int main(int argc, char **argv)
 	      k='0';
 	  else
 	      k++; 
-	  memset(sendBuf,k,nload);//sizeof(sendBuf));
+	  // load asiic char to sendBuf[]
+	  memset(sendBuf,k,nload);//sizeof(sendBuf)); 
 
 	  //----- push data to g_strUserTxBuff[] for Lora TX
 	  RenewTimeStr(g_pstr_time);
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 	  //---wait for transmission to finish
 	  // sleep(1);//usleep(8000); send 64bytes //sleep(1) send 128bytes;//send 64bytes sf=7 usleep(500000); //send 64bytes Sf=6 sleep(3); //!!! critial !!!!
 	  sendTingCMD("AT?\r\n","SENDED",ndelay); //readout all Ting-01M replies as "AT,SENDING\r\n", "AT,SENDED\r\n" and "AT,OK\r\n"
-          usleep(500000);
+          usleep(500000); //delay after Ting finish sending data...
 
     }
     //close(g_fd);
