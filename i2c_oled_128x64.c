@@ -50,7 +50,6 @@ void main()
 
   while(1)
   {
-
 	//---- get time string ----
 	timep=time(NULL);
 	p_tm=localtime(&timep);
@@ -61,15 +60,15 @@ void main()
 	drawOledStr16x8(0,31,strtime);
 //	drawOledStr16x8(0,95,"    ");
 
-
 	//------ example of vertical scrolling -----
+/*
 	if(i<64)
 	{
 		setStartLine(i);
 		i+=2;
 		if(i==64)i=0;
 	}
-
+*/
 	drawOledStr16x8(2,0,g_strTingBuf);
 	drawOledStr16x8(4,0,g_strCC1101Buf);
 

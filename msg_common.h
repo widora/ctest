@@ -15,7 +15,7 @@ Common head for message queue IPC
 #define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
-#define TIMER_TV_SEC 2; //(s)  timer routine interval
+#define TIMER_TV_SEC 4; //(s)  timer routine interval
 #define TIMER_TV_USEC 0;//(us)  timer routine interval
 
 struct g_st_msg

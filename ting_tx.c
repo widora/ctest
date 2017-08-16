@@ -18,9 +18,12 @@ Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
 	0	   Frequency_Hop ( 0- OFF, 1- ON)
      3000	   RX_Packet_Timeout (1-65535ms)
       132	   4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
-	4	   Preamble_Length (4-65535)
+	4	   Preamble_Length (4-65535), long enough to span one Idle cycle,then be detectable when circuit wakes 
 ---------------------------------------------------------------------------------------------------*/
-static char STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,128\r\n";
+//static char STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,32\r\n"; // 83bytes playload ~1.7s
+static char STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n"; // 83bytes playload ~2.5s
+//static  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n"; // 83bytes playload ~0.6s
+
 
 char buff[512];
 int  ndelay=2000; // us delay,!!!!!--1000us delay cause Messg receive error!!
@@ -45,7 +48,7 @@ int main(int argc, char **argv)
   nb=0;
 //  tcflush(g_fd,TCIOFLUSH);
 
-  nload=64; //128;//payload length
+  nload=16;//64; //128;//payload length
 //  sendBuf[nload]='\0';//give and end for the string
   k='0';
   while(1)

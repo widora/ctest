@@ -292,12 +292,13 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 1. Clear serial buffer(TCIOFLUSH) and set Ting to Rola RX mode, keep reading
  serial port until get a complete  Rola string replied from Ting-01M. 
  Received string will be stored in g_strUserRxBuff[].
-2. Return count number of received chars.
+2. Return count number of received chars. or minus for failure.
 3. '\r\n' is remained in g_strUserRxBuff[] !!!!
 ------------------------------------------------------------------------*/
 int recvTingLoRa(void)
 {
   int nb=0;
+  int ret_cmd;
   int nread;
   int nloop=0;
   char *pstr; //--pointer to g_strUserRxBuff[]
@@ -305,11 +306,15 @@ int recvTingLoRa(void)
   //----clear tty FIFO hardware buff
   // tcflush(g_fd,TCIOFLUSH);
 
-  //---set RX mode
-  printf("start sendTingCMD(AT+RX?)...\n");
-  sendTingCMD("AT+RX?\r\n","OK",g_ndelay);
-
+  //----- clear g_strUserRxBuff[] -----
+  memset(g_strUserRxBuff,0,sizeof(g_strUserRxBuff));
   pstr=g_strUserRxBuff;
+
+  //--- command Ting to set RX mode ----
+  printf("start sendTingCMD(AT+RX?)...\n");
+  ret_cmd=sendTingCMD("AT+RX?\r\n","OK",g_ndelay);
+  if(ret_cmd != 0)
+	return -1;
 
   while(1)
   {
@@ -378,8 +383,9 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	len_payload=strtoul(pstrTingLoraItems[2],NULL,16);
 	printf("Total length:%d\n",g_intLoraRxLen); 
 	printf("Lora palyload length:%d\n",len_payload);
+
 	//---check length and pick err,simple way !!!!! ---
-	if( g_intLoraRxLen !=96 || (g_intLoraRxLen-len_payload) != 13 )
+	if( (g_intLoraRxLen-len_payload) != 13 )
 	{
 	        g_intErrCount++;
 		return;
@@ -390,7 +396,6 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	if(blMatchStrWords(pstrTingLoraItems[0],"LR"))
 		printf("------- Parse Received LoRa data ------\n");
 	printf("Lora source address:%s\n",pstrTingLoraItems[1]);
-
 
 	//------- check if any Lora transmission is missed ------
 	new_dat =*(unsigned char *)(pstrTingLoraItems[5]); //-- char '0'(48)-'~'(126)
