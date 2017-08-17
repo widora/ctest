@@ -15,9 +15,11 @@ Common head for message queue IPC
 #define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
-#define TIMER_TV_SEC 4; //(s)  timer routine interval
+#define TIMER_TV_SEC 10; //(s)  timer routine interval for CC1101 and TING_RX to send IPC Msg !!!!!!!!!
 #define TIMER_TV_USEC 0;//(us)  timer routine interval
 
+//----msg_conf.msg_qbytes=sizeof(g_msg_data)*MSG_DATA_BUF_NUM;
+#define MSG_DATA_BUF_NUM 64; //
 struct g_st_msg
 {
 	long int msg_type;
@@ -56,7 +58,7 @@ static int createMsgQue(key_t key)
   //----!!!! Minimize msg queue size to eliminate accumulation of msg -------
   if(msgctl(msg_id,IPC_STAT,&msg_conf)==0)
   {
-        msg_conf.msg_qbytes=sizeof(g_msg_data)*4;//!!!!-depend on how many clients will open and send data to it simutaneouly !!!!
+        msg_conf.msg_qbytes=sizeof(g_msg_data)*MSG_DATA_BUF_NUM;//!!!!-depend on how many clients will open and send data to it simutaneouly !!!!
         if(msgctl(msg_id,IPC_SET,&msg_conf)==0) 
                 printf("msgctl: reset msg_conf to allow 4 messages in the queue succeed!\n");
   }

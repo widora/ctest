@@ -200,10 +200,14 @@ int main(void)
 	   //--- send RSSI through message queue IPC -----
 	   if(recvMsgQue(msg_id,MSG_TYPE_WAIT_CC1101)>0) //-- send RSSI MSG only if there is a WAIT_CC1101 msg.
 	   {
-	       sprintf(strRSSI,"%ddBm",getRSSIdbm());
-	       //printf("strRSSI:%s\n",strRSSI);
-	       if(sendMsgQue(msg_id,MSG_TYPE_CC1101,strRSSI) != 0)
-		     printf("Send RSSI through message queue fails!\n");
+		if(decRSSI >0) //only when decRSSI is valid
+		{
+	             sprintf(strRSSI,"%ddBm",getRSSIdbm());
+		     decRSSI=0;//reset
+	             //printf("strRSSI:%s\n",strRSSI);
+	             if(sendMsgQue(msg_id,MSG_TYPE_CC1101,strRSSI) != 0)
+		        printf("Send RSSI through message queue fails!\n");
+		}
 	   }
 
 	   //------ check received data ----------

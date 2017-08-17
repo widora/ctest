@@ -30,7 +30,8 @@ Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
       132          4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
         4          Preamble_Length (4-65535),long enough to span one Idle cycle,then be detectable when circuit wakes
 ---------------------------------------------------------------------------------------------------*/
-static  char  STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n";
+static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n";
+//static  char  STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n";
 //static  char  STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,32\r\n";
 //  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
 
@@ -76,7 +77,7 @@ int main(int argc, char **argv)
 	printf("start recvTingLoRa()...\n");
 	nRecLoRa=recvTingLoRa(); // total bytes include '/r/n'
 	printf("Totally %d bytes of LoRa data received from Ting-01M.\n",nRecLoRa);
-	
+
 	//--------parse recieved data -----
 	nitem=sepWordsInTingLoraStr(g_strUserRxBuff,pstrTingLoraItems);//separate key words and get total length.
 	printf("sepWordsInTingLoraStr()...get %d items in LoRa data.\n",nitem);
