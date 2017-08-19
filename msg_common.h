@@ -15,11 +15,13 @@ Common head for message queue IPC
 #define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
-#define TIMER_TV_SEC 10; //(s)  timer routine interval for CC1101 and TING_RX to send IPC Msg !!!!!!!!!
-#define TIMER_TV_USEC 0;//(us)  timer routine interval
+#define TIMER_TV_SEC 1 //10; //(s)  timer routine interval for CC1101 and TING_RX to send IPC Msg !!!!!!!!!
+#define TIMER_TV_USEC 0 //(us)  timer routine interval
+#define KEEP_RSSI_TIME 10  //(s) keep g_strTingBuf[] and g_strCC1101Buf[] with last received RSSI value if they've not been refreshed within the time limit.
+//and fill g_strTingBuf[] and g_strCC1101Buf[] with '-----' when it exceeds the limit.
 
 //----msg_conf.msg_qbytes=sizeof(g_msg_data)*MSG_DATA_BUF_NUM;
-#define MSG_DATA_BUF_NUM 64; //
+#define MSG_DATA_BUF_NUM 64  //
 struct g_st_msg
 {
 	long int msg_type;
@@ -34,7 +36,13 @@ static int g_msg_id=-1;
 
 //---- timer ----
 struct itimerval g_tmval,g_otmval;
-
+//timeval of when last msg received
+struct timeval tm_last_msg= \
+{
+  .tv_sec=0,
+  .tv_usec=0,
+};
+struct timeval tm_now;
 
 //----  info string for CC1101 & Ting
 char g_strCC1101Buf[]="CC1101:---------";//---16 characters for one line of oled
@@ -143,7 +151,7 @@ void initOledTimer(void)
 
 
 /*-----------------------------------------------------
-    routine process for Timer 
+    routine process for Timer in OLED program
 -------------------------------------------------------*/
 void sigHndlOledTimer(int signo)
 {
@@ -158,10 +166,15 @@ void sigHndlOledTimer(int signo)
         strncpy(strRSSI,g_msg_data.text+3,4);
         //---put to TING buffer ---
         sprintf(g_strTingBuf,"Ting: %ddBm    ",atoi(strRSSI));
+	//--- record time stamp
+	gettimeofday(&tm_last_msg,NULL);
     }
     else if(msg_ret != EAGAIN) //--bypass EAGAIN
-        sprintf(g_strTingBuf,"Ting: --------- ");
-
+    {
+	gettimeofday(&tm_now,NULL);
+	if((tm_now.tv_sec-tm_last_msg.tv_sec)>KEEP_RSSI_TIME)
+	        sprintf(g_strTingBuf,"Ting: --------- ");
+    }
     while(msg_ret > 0 ) //---- read out all remaining msg from Ting 
     {
          msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_TING); 

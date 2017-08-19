@@ -484,7 +484,7 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
   sprintf(strCMD,"AT+DEST=%04X\r\n",dest_addr);
   sendTingCMD(strCMD,"OK",g_ndelay);
   //----set PD0 as RX indication -----
-  sendTingCMD("AT+ACK=1\r\n","",g_ndelay);//----return ERR !!???
+  sendTingCMD("AT+ACK=1\r\n","OK",g_ndelay);//----return ERR !!???
 }
 
 
