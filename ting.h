@@ -26,7 +26,7 @@ TS --  Time stamp
 #define MAX_TING_LORA_ITEM 24 //max number of received key word(value) items seperated by ',' in RX received Ting RoLa string.
 #define USER_RX_BUFF_SIZE 512
 #define USER_TX_BUFF_SIZE 512
-#define LOOP_DEAD_COUNT 10
+#define LOOP_DEAD_COUNT 5 // max. number of trying read() uart dev.
 #define MAX_AT_REPLY_SIZE 50 //30 nread=read(g_fd,pstr,MAX_READ_SIZE) !!!!- suitable size for length of reply-string from  Ting
 //-especially for AT+SEND reply as "AT,SENDING\r\n" and "AT,SENDED\r\n",
 #define MAX_ROLA_STR_SIZE 100 //--denpend on UART set ??? 50? suitable size for received Rola string length.
@@ -260,10 +260,10 @@ bool blMatchStrWords(char* pstr, const char* pkeyword)
 
 /*-----------------------------------------------------------------------------
    get point array to key word(value) items separated by ',' in origin Ting xstring.
-after operation, all ',' will be replaced by '\0' as the end an string item.
+after operation, all ',' will be replaced by '\0' as the end of a string item.
   1. char* strRecv MUST be modifiable.
-  2. char* pstrTingLoraItems[]  will return points to each itmes.
-  3. Number of items will be returned.
+  2. char* pstrTingLoraItems[]  will gets points to each itmes.
+  3. Total Number of items will be returned.
   4. '\r\n' is remained !!!! check tty read function,
 ------------------------------------------------------------------------------*/
 int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
@@ -275,7 +275,10 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 
 	memset(pstrTingLoraItems,0,sizeof(pstrTingLoraItems));// clear arrays first
 
-	g_intLoraRxLen=strlen(pstrRecv);
+	g_intLoraRxLen=0;
+	if(!strstr(pstrRecv,delim))// if no "," is found in received string, then return 0.
+		return 0;
+	g_intLoraRxLen=strlen(pstrRecv);//-- total length
 
 	while(pStrData=strsep(ppStrCur,delim)) //--get a point to a new string
 	{
@@ -288,13 +291,13 @@ int sepWordsInTingLoraStr(char* pstrRecv, char* pstrTingLoraItems[])
 }
 
 
-/*-----------------------------------------------------------------------
+/*-------------------------------------------------------------------------------
 1. Clear serial buffer(TCIOFLUSH) and set Ting to Rola RX mode, keep reading
  serial port until get a complete  Rola string replied from Ting-01M. 
  Received string will be stored in g_strUserRxBuff[].
-2. Return count number of received chars. or minus for failure.
+2. Return count number of received chars including '\r\n', or minus for failure.
 3. '\r\n' is remained in g_strUserRxBuff[] !!!!
-------------------------------------------------------------------------*/
+--------------------------------------------------------------------------------*/
 int recvTingLoRa(void)
 {
   int nb=0;
@@ -378,6 +381,8 @@ void parseTingLoraWordsArray(char* pstrTingLoraItems[])
 	}
 */
 	//--- assert pstrTingLoraItems[] first ---!!!!!
+	if(pstrTingLoraItems[5] == NULL)
+		return;
 
         //----- get payload length -----
 	len_payload=strtoul(pstrTingLoraItems[2],NULL,16);
@@ -484,7 +489,7 @@ void resetTing(int g_fd, const char* str_config, int self_addr, int dest_addr)
   sprintf(strCMD,"AT+DEST=%04X\r\n",dest_addr);
   sendTingCMD(strCMD,"OK",g_ndelay);
   //----set PD0 as RX indication -----
-  sendTingCMD("AT+ACK=1\r\n","OK",g_ndelay);//----return ERR !!???
+  sendTingCMD("AT+ACK=1\r\n","OK",g_ndelay);
 }
 
 

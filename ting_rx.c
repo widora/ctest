@@ -30,7 +30,8 @@ Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
       132          4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
         4          Preamble_Length (4-65535),long enough to span one Idle cycle,then be detectable when circuit wakes
 ---------------------------------------------------------------------------------------------------*/
-static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n";
+static  char  STR_CFG[]="AT+CFG=434000000,10,2,10,1,1,0,0,0,0,3000,8,64\r\n";
+//static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n";
 //static  char  STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n";
 //static  char  STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,32\r\n";
 //  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
@@ -75,7 +76,7 @@ int main(int argc, char **argv)
 	}
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
-	nRecLoRa=recvTingLoRa(); // total bytes include '/r/n'
+	nRecLoRa=recvTingLoRa(); // total bytes include '\r\n'
 	printf("Totally %d bytes of LoRa data received from Ting-01M.\n",nRecLoRa);
 
 	//--------parse recieved data -----
@@ -84,13 +85,16 @@ int main(int argc, char **argv)
 	printf("start parseTingLoraWordsArray()...\n");
 	parseTingLoraWordsArray(pstrTingLoraItems);//parse key words as of commands and data
 
-	//----get RSSI
-	printf("start sendTingCMD(AT+RSSI?)...\n");
-	sendTingCMD("AT+RSSI?\r\n","OK",g_ndelay); // RSSI in returned g_strAtBuff[]
-	//----- send data to IPC Message Queue--------
-	printf("start sendMsgQue()...\n");
-        if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
-		printf("Send message queue failed!\n");
+	//----get RSSI, only if received string is valid and complete.
+	if(nitem == 7)
+	{
+		printf("start sendTingCMD(AT+RSSI?)...\n");
+		sendTingCMD("AT+RSSI?\r\n","OK",g_ndelay); // RSSI in returned g_strAtBuff[]
+		//----- send data to IPC Message Queue--------
+		printf("start sendMsgQue()...\n");
+        	if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
+			printf("Send message queue failed!\n");
+	}
 
 	//---- summary ---
         printf("-----< g_intRcvCount=%d, g_intErrCount=%d  g_intMissCount=%d g_intEscapeReadLoopCount=%d >-----\n" \

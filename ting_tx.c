@@ -20,7 +20,8 @@ Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
       132	   4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
 	4	   Preamble_Length (4-65535), long enough to span one Idle cycle,then be detectable when circuit wakes 
 ---------------------------------------------------------------------------------------------------*/
-static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n"; // 35bytes playload ~8s
+static  char  STR_CFG[]="AT+CFG=434000000,10,2,10,1,1,0,0,0,0,3000,8,64\r\n"; // 0x23=35 bytes playload ~10s 'LR,6666,23,TS,1503203973.725,BBBBBBBBBBBBBBBB,\r\n'
+//static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n"; // 35bytes playload ~8s
 //static char STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n"; // 35bytes playload ~2.5s
 //static char STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,32\r\n"; // 83bytes playload ~1.7s
 //static  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n"; // 83bytes playload ~0.6s
