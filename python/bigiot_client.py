@@ -28,9 +28,9 @@ sys.setdefaultencoding("utf-8")
 host = '121.42.180.30'
 port = 8181
 
-#设备ID及key==================
-DEVICEID='551'
-APIKEY='ec7472145'
+#设备ID及key
+DEVICEID='421'
+APIKEY='xxxxxxxxxxx'
 
 data = b''
 
@@ -130,7 +130,7 @@ def keepOnline():
 		#----------- check whether last keeponline action is finished -----
 		if flag_during_keeponline == True:
 			print "Warning: last keeponline actions have not finished yet!"
-
+			
 		#----------- print time --------
 		tmp=time.time()
 		timeArray = time.localtime(tmp)
@@ -166,19 +166,19 @@ def keepCheckin():
 	global t_start_keepcheckin
 	global flag_status_checkin
 	
-	#print "-----enter keepChechin()"
+	print "-----enter keepChechin(),get time gap..."
 	try:
-	   if  flag_status_checkin == False and time.time()-t_start_keepcheckin > CHECKIN_TIMEOUT:
-                print "------------Start s.close()"
-                #s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                #s.settimeout(0) #--!!!!!!!! This will let s.recv(1) raise exception when receive nothing !!!!!
-                print "------------Start connecting to  socket(host,port)..."
-                ConnectSocket(host,port)
-                print "------------Start checking in to BIGIOT..."
-		LogErr("------------Start checking in to BIGIOT...")
-                Checkin(json_checkin)
-		LogErr("-----finish Checkin()") 
-                t_start_keepcheckin=time.time()
+	   if  (flag_status_checkin == False) and (time.time()-t_start_keepcheckin > CHECKIN_TIMEOUT):
+                 print "------------Start s.close()"
+                 #s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+                 #s.settimeout(0) #--!!!!!!!! This will let s.recv(1) raise exception when receive nothing !!!!!
+                 print "------------Start connecting to  socket(host,port)..."
+                 ConnectSocket(host,port)
+                 print "------------Start checking in to BIGIOT..."
+		 LogErr("------------Start checking in to BIGIOT...")
+                 Checkin(json_checkin)
+		 LogErr("-----finish Checkin()") 
+                 t_start_keepcheckin=time.time()
 	except Exception,error:
 	   print error
 	   LogErr(error)
@@ -231,14 +231,15 @@ def process(msg, s, json_checkin):
 		print("--------------------------------")
 		print "接收到的数据：", json_data
 		print "平台指令：:  ",json_data['C'].encode()
-		#-------- speak input words
-		getvoice(json_data['C'].encode()) 
-		chat=cc.chitchat(json_data['C'])
-		print "收到的回复:  ",chat.encode()
-		#------- speak tuling replying words
-		getvoice(chat)	
+	## TURN OFF ##-------- speak input words
+		#getvoice(json_data['C'].encode()) 
+		#chat=cc.chitchat(json_data['C'])
+		#print "收到的回复:  ",chat.encode()
+	## TURN OFF ##------- speak tuling replying words
+		#getvoice(chat)	
 		#-------  rely to BIGIOT 	
-		say(s, json_data['ID'], chat)
+		#say(s, json_data['ID'], chat)
+		say(s, json_data['ID'], "Welcome!---")
 	if json_data['M'] == 'connected':
 		s.send(json_checkin.encode('utf-8'))
 		s.send(b'\n')
@@ -259,18 +260,19 @@ def process(msg, s, json_checkin):
 
 #--------------------------  MAIN FUNC  -------------------------------
 ConnectSocket(host,port)
-Checkin(json_checkin)		
+Checkin(json_checkin)	
+deadcount=0
 while True:
 	try:
 		#------ try to receive msg ------------
-                #print 'start d=s.rec()'
+                print 'start d=s.rec()'
 		d=s.recv(1)
 		flag_data_received=True
 	except Exception,error:
-		print error
+		print "++++",error
 		#---- recv nothing will trigger an exectpion
 		#LogErr(error)
-		if d==0:
+		if d==0 or d==None:
 			print "-----Network broken during s.recv()..."
 			LogErr("----Network broken during s.recv()...")
 		flag_data_received=False
@@ -281,16 +283,23 @@ while True:
 		keepCheckin() #---- try to re-checkin if disconnected 		
 
 	if flag_data_received:
-		if d==0 or d==None:
+                print "----- start if flag_data_received: -----"
+		if d==0 or d==None or d==u'':
 			print "***** Network broken during s.recv()..."
 			LogErr("****Network broken during s.recv()...")
-		if d!=b'\n': 
+		elif d!=b'\n': 
 			data+=d
-			if len(data)>1000: #--in case recv() trapped in dead loop
-			    print "-----Data length=%d bytes!"%len(data)
-			    keepOnline()
-			    keepCheckin()
-		elif d=='\n':
+			print "data+=d   d=%s len=%d"%(d,len(data))
+			if len(d)==0: #----strange thing happens!!! what's in d!!
+			   deadcount+=1
+                        if len(data)>500 or deadcount>500: #---in case recv() trapped in dead loop
+                           print "-----Data length =%d bytes! deadcount=%d" % (len(data),deadcount)
+			   LogErr("----Data length >500---")
+			   data=b''
+                           keepOnline()
+                           keepCheckin()
+
+		elif d==b'\n':
 			#do something here...
 			print "start str(data)..."
 			msg=str(data) #,encoding='utf-8')
@@ -299,3 +308,5 @@ while True:
 			print "Finish processing msg."
 			data=b''
 
+		else:
+			print " ----- else: recv() d=%s"%d
