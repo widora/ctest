@@ -46,7 +46,7 @@ struct timeval tm_now;
 
 //----  info string for CC1101 & Ting
 char g_strCC1101Buf[]="CC1101:---------";//---16 characters for one line of oled
-char g_strTingBuf[]="Ting:-----------"; 
+char g_strTingBuf[]="T:--------------"; 
 
 /*-------------------------------------------------------
  create message queue and return message queue identifier
@@ -162,10 +162,16 @@ void sigHndlOledTimer(int signo)
    msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_TING);
    if(msg_ret >0)
    {
+/*
         //---get RSSI--
         strncpy(strRSSI,g_msg_data.text+3,4);
         //---put to TING buffer ---
         sprintf(g_strTingBuf,"Ting: %ddBm    ",atoi(strRSSI));
+*/
+	//-- get count
+//        sprintf(g_strTingBuf,"Ting: %d    ",atoi(g_msg_data.text));
+        sprintf(g_strTingBuf,"T:%s    ",g_msg_data.text);
+
 	//--- record time stamp
 	gettimeofday(&tm_last_msg,NULL);
     }

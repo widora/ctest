@@ -30,17 +30,14 @@ Example:  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
       132          4+User_DATA_Length (Valid for Implict_Header mode only, 5-255)
         4          Preamble_Length (4-65535),long enough to span one Idle cycle,then be detectable when circuit wakes
 ---------------------------------------------------------------------------------------------------*/
-static  char  STR_CFG[]="AT+CFG=434000000,10,2,10,1,1,0,0,0,0,3000,8,64\r\n";
-//static  char  STR_CFG[]="AT+CFG=434000000,20,2,9,1,1,0,0,0,0,3000,8,128\r\n";
-//static  char  STR_CFG[]="AT+CFG=434000000,20,3,7,1,1,0,0,0,0,3000,8,128\r\n";
-//static  char  STR_CFG[]="AT+CFG=434000000,10,3,7,1,1,0,0,0,0,3000,8,32\r\n";
-//  char  STR_CFG[]="AT+CFG=434000000,10,6,7,1,1,0,0,0,0,3000,132,4\r\n";
+static  char  STR_CFG[]="AT+CFG=434000000,10,4,10,1,1,0,0,0,0,3000,8,64\r\n";
 
 
 //=================== MAIN FUNCTIONS ================
 int main(int argc, char **argv)
 {
   int nb,nread,nwrite;
+  int intRSSI;
   char tmp;
   int  nRecLoRa=0; //bytes of received LoRa data
   int nitem; // numbers of separated items in received Ting-LoRa data 
@@ -50,6 +47,7 @@ int main(int argc, char **argv)
   //--- for IPC message------
   int msg_id=-1;
   int msg_key=MSG_KEY_OLED_TEST;
+  char strmsg[32]={0};  
 
   //---- create message queue ------
   if((msg_id=createMsgQue(msg_key))<0)
@@ -88,11 +86,32 @@ int main(int argc, char **argv)
 	//----get RSSI, only if received string is valid and complete.
 	if(nitem == 7)
 	{
+/*
 		printf("start sendTingCMD(AT+RSSI?)...\n");
 		sendTingCMD("AT+RSSI?\r\n","OK",g_ndelay); // RSSI in returned g_strAtBuff[]
 		//----- send data to IPC Message Queue--------
 		printf("start sendMsgQue()...\n");
         	if(sendMsgQue(msg_id,MSG_TYPE_TING,g_strAtBuff)!=0)
+			printf("Send message queue failed!\n");
+*/
+		if(sendTingCMD("AT+RSSI?\r\n","OK",g_ndelay)==0) // RSSI in returned g_strAtBuff[]
+		{
+		   intRSSI=atoi(g_strAtBuff+3);
+		   sprintf(strmsg,"%d  %ddBm",g_intRcvCount,intRSSI);
+		   printf("----- %s -----\n",strmsg);
+		}
+		else
+		{
+		   sprintf(strmsg,"%d",g_intRcvCount);
+		}
+
+        	if(sendMsgQue(msg_id,MSG_TYPE_TING,strmsg)!=0)
+			printf("Send message queue failed!\n");
+	}
+        else if(nitem>0)
+	{
+		sprintf(strmsg,"%s","Err");
+        	if(sendMsgQue(msg_id,MSG_TYPE_TING,strmsg)!=0)
 			printf("Send message queue failed!\n");
 	}
 
