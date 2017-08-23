@@ -30,7 +30,7 @@ port = 8181
 
 #设备ID及key
 DEVICEID='421'
-APIKEY='xxxxxxxxxxx'
+APIKEY='xxxxxxxxx'
 
 data = b''
 
@@ -47,6 +47,7 @@ t_start_keepcheckin=time.time()
 
 #-------- init counter ------
 count_try_keeponline = 0 #--- record how many times of trying keeponlien()
+count_dead_loop = 0#--- counter for entering dead_loop occurance
 
 #-------- init parameters -----
 CHECKIN_TIMEOUT=20
@@ -165,7 +166,8 @@ def keepCheckin():
 	global CHECKIN_TIMEOUT
 	global t_start_keepcheckin
 	global flag_status_checkin
-	
+	global count_dead_loop	
+
 	print "-----enter keepChechin(),get time gap..."
 	try:
 	   if  (flag_status_checkin == False) and (time.time()-t_start_keepcheckin > CHECKIN_TIMEOUT):
@@ -179,6 +181,8 @@ def keepCheckin():
                  Checkin(json_checkin)
 		 LogErr("-----finish Checkin()") 
                  t_start_keepcheckin=time.time()
+		 count_dead_loop = 0
+
 	except Exception,error:
 	   print error
 	   LogErr(error)
@@ -261,7 +265,6 @@ def process(msg, s, json_checkin):
 #--------------------------  MAIN FUNC  -------------------------------
 ConnectSocket(host,port)
 Checkin(json_checkin)	
-deadcount=0
 while True:
 	try:
 		#------ try to receive msg ------------
@@ -273,8 +276,7 @@ while True:
 		#---- recv nothing will trigger an exectpion
 		#LogErr(error)
 		if d==0 or d==None:
-			print "-----Network broken during s.recv()..."
-			LogErr("----Network broken during s.recv()...")
+			print "--Exception,error:-Network broken during s.recv()..."
 		flag_data_received=False
 		time.sleep(2)
 		print "start keepOnline()..."
@@ -284,17 +286,33 @@ while True:
 
 	if flag_data_received:
                 print "----- start if flag_data_received: -----"
-		if d==0 or d==None or d==u'':
-			print "***** Network broken during s.recv()..."
-			LogErr("****Network broken during s.recv()...")
+		if d==0 or d==None:
+			count_dead_loop+=1
+			print("*** d==0 or d==None...")
+                        if count_dead_loop > 500: #---in case recv() trapped in dead loop
+			   LogErr("*** d==0 or d==None: count_dead_loop>500 ***")
+			   data=b''
+                           keepOnline()
+                           keepCheckin()
+
+		elif d==u'': #--- non ASCII char ????
+			count_dead_loop+=1
+			print("*** d==u''...")
+                        if count_dead_loop > 500: #---in case recv() trapped in dead loop
+			   LogErr("*** d==u'': count_dead_loop>500 ***")
+			   data=b''
+                           keepOnline()
+                           keepCheckin()
+
+
 		elif d!=b'\n': 
 			data+=d
 			print "data+=d   d=%s len=%d"%(d,len(data))
 			if len(d)==0: #----strange thing happens!!! what's in d!!
-			   deadcount+=1
-                        if len(data)>500 or deadcount>500: #---in case recv() trapped in dead loop
+			   count_dead_loop+=1
+                        if len(data)>500 or count_dead_loop>500: #---in case recv() trapped in dead loop
                            print "-----Data length =%d bytes! deadcount=%d" % (len(data),deadcount)
-			   LogErr("----Data length >500---")
+			   LogErr("*** d!=b'\n': Data length >500 ---")
 			   data=b''
                            keepOnline()
                            keepCheckin()
