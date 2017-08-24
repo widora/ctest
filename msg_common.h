@@ -12,10 +12,10 @@ Common head for message queue IPC
 #define MSG_BUFSIZE  64
 #define MSG_TYPE_TING 1  //---msg from ting
 #define MSG_TYPE_CC1101 2 //---msg from cc1101
-#define MSG_TYPE_WAIT_CC1101 3  //---wait for cc1101 msg
+#define MSG_TYPE_WAIT_CC1101 3  //---msg:wait for cc1101 
 #define MSG_KEY_OLED_TEST 5678 //--- msg queue identical key
 
-#define TIMER_TV_SEC 1 //10; //(s)  timer routine interval for CC1101 and TING_RX to send IPC Msg !!!!!!!!!
+#define TIMER_TV_SEC 1 //10; //(s)  timer routine interval for CC1101 and TING_RX to receive IPC Msg! 
 #define TIMER_TV_USEC 0 //(us)  timer routine interval
 #define KEEP_RSSI_TIME 10  //(s) keep g_strTingBuf[] and g_strCC1101Buf[] with last received RSSI value if they've not been refreshed within the time limit.
 //and fill g_strTingBuf[] and g_strCC1101Buf[] with '-----' when it exceeds the limit.
@@ -67,18 +67,43 @@ static int createMsgQue(key_t key)
   if(msgctl(msg_id,IPC_STAT,&msg_conf)==0)
   {
         msg_conf.msg_qbytes=sizeof(g_msg_data)*MSG_DATA_BUF_NUM;//!!!!-depend on how many clients will open and send data to it simutaneouly !!!!
-        if(msgctl(msg_id,IPC_SET,&msg_conf)==0) 
-                printf("msgctl: reset msg_conf to allow 4 messages in the queue succeed!\n");
+        if(msgctl(msg_id,IPC_SET,&msg_conf)==0)
+                printf("msgctl: reset msg_conf to allocate  %d messages space in the queue succeed!\n",MSG_DATA_BUF_NUM);
   }
   else
-        printf("msgctl: reset msg_conf to allow 4 messages in the queue fails!\n");
+        printf("msgctl: reset msg_conf to allocate %d messages in the queue fails!\n", MSG_DATA_BUF_NUM);
 
   return msg_id;
 }
 
+/*-------------------------------------------------------
+get total number of message type in a Msg Queue
+return
+	>=0   Total numer of message
+	-1    Msgctl()  error
+-------------------------------------------------------*/
+static int getMsgNum(int msg_id)
+{
+   static struct msqid_ds ds_buf;
+
+   if(msgctl(msg_id,IPC_STAT,&ds_buf)==0)
+   {
+	return ds_buf.msg_qnum;
+   }
+
+   else
+   {
+	perror("msgctl() to get total number of messages:");
+	return -1;
+   }
+
+}
 
 /*-------------------------------------------------------
  receive data in message queue with specified message type
+ return:
+	>0   Number of bytes copied into message buffer
+	-1   On error
 -------------------------------------------------------*/
 static int recvMsgQue(int msg_id,long msg_type)
 {
@@ -200,7 +225,9 @@ void sigHndlOledTimer(int signo)
      }
 
     //--- send msg to CC1101 to let it send msg ----,for CC1101 sndmsg is much faster than Ting.
-    sendMsgQue(g_msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
+    //---- Only if there is enought space left for other applications, in case CC1101_rx is down.
+    if(getMsgNum(g_msg_id)<MSG_DATA_BUF_NUM/2)
+    		sendMsgQue(g_msg_id,MSG_TYPE_WAIT_CC1101,"wait cc1101");
 
 }
 
