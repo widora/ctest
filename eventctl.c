@@ -62,6 +62,12 @@ int main(int argc, char **argv)
     int           rc;
     int           i, j;
     char          *tmp;
+//+++++ Mouse key to contrl mplayer----------------------------
+   unsigned int volume_val=100;
+   char strCMD[50];
+//---------------+++end
+
+
 
 #define test_bit(bit) (mask[(bit)/8] & (1 << ((bit)%8)))
 
@@ -150,10 +156,20 @@ int main(int argc, char **argv)
                     case REL_WHEEL:
 			 tmp = "WHEEL";
 //+++++ Mouse key to contrl mplayer----------------------------
-			 if(event.value > 0)
-				system("vup");
-			 else if(event.value < 0)
-				system("vdown");
+			 if(event.value > 0){
+//				system("vup");
+				if(volume_val<125)
+			                  volume_val+=2;
+				          sprintf(strCMD,"amixer -c 1 set Speaker %d",volume_val);
+				          system(strCMD);
+			}
+			 else if(event.value < 0){
+//				system("vdown");
+				if(volume_val>2)
+			                  volume_val-=2;
+				          sprintf(strCMD,"amixer -c 1 set Speaker %d",volume_val);
+				          system(strCMD);
+			}
 //---------------+++end
 			 break;
                     case REL_MISC:   tmp = "MISC";    break;
