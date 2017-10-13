@@ -10,6 +10,7 @@
 
 #include "fl2000_include.h"
 
+//change MERGE_ADJACENT_PAGES  from 1 to 0
 #define	MERGE_ADJACENT_PAGES	1
 
 /*
@@ -29,19 +30,24 @@ void fl2000_bulk_main_completion(
 	spin_lock_irqsave(&dev_ctx->count_lock, flags);
 	pending_count = --render_ctx->pending_count;
 	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+        //+++++ add some printk in fl2000_bulk_main_completion
+	printk("--------------- enter bulk_main_completion ------------\n");
+
 	if (pending_count == 0) {
 		if (in_irq()) {
 			struct tasklet_struct * tasklet = &render_ctx->tasklet;
-
+			printk("bulk_main_completion: in_riq() \n");
 			tasklet_init(
 				tasklet,
 				fl2000_render_completion_tasklet,
 				(unsigned long) render_ctx);
 			tasklet_schedule(tasklet);
 		} else {
+			printk("bulk_main_completion: NOT in_riq() \n");
 			fl2000_render_completion(render_ctx);
 		}
 	}
+
 }
 
 /*
@@ -61,9 +67,15 @@ void fl2000_bulk_zero_length_completion(
 	spin_lock_irqsave(&dev_ctx->count_lock, flags);
 	pending_count = --render_ctx->pending_count;
 	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+
+        //+++++ add some printk in fl2000_bulk_zero_length_completion
+	printk("--------------- enter bulk_zero_length_completion ------------\n");
+
 	if (pending_count == 0) {
 		if (in_irq()) {
 			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+
+			printk("bulk_zero_length_completion: in_riq() \n");
 
 			tasklet_init(
 				tasklet,
@@ -72,8 +84,10 @@ void fl2000_bulk_zero_length_completion(
 			tasklet_schedule(tasklet);
 		} else {
 			fl2000_render_completion(render_ctx);
+			printk("bulk_zero_length_completion: NOT in_riq() \n");
 		}
 	}
+
 }
 
 void fl2000_bulk_prepare_urb(
@@ -88,6 +102,7 @@ void fl2000_bulk_prepare_urb(
 	unsigned int nr_pages = 0;
 	unsigned int num_sgs = 0;
 	unsigned int i;
+	uint32_t lenbuf;
 
 	render_ctx->transfer_buffer = surface->render_buffer;
 	render_ctx->transfer_buffer_length = surface->buffer_length;
@@ -96,6 +111,9 @@ void fl2000_bulk_prepare_urb(
 	if (surface->render_buffer == surface->system_buffer &&
 	    surface->type == SURFACE_TYPE_VIRTUAL_FRAGMENTED_PERSISTENT) {
 		nr_pages = surface->nr_pages;
+
+		//+++++ printk information added
+		printk("-------------fl2000_bulk_prepare_urb with surface type  SURFACE_TYPE_VIRTUAL_FRAGMENTED_PERSISTEN -----\n");
 
 		dbg_msg(TRACE_LEVEL_INFO, DBG_RENDER,
 			"surface->nr_pages(%u), start_offset(0x%x)",
@@ -146,9 +164,15 @@ void fl2000_bulk_prepare_urb(
 			}
 		}
 	}
+//+++++ disable else if() for VIRTUAL_CONTIGUOUS || PHYSICAL_CONTIGUOUS, in fl2000_bulk_prepare_urb()
+/*
 	else if (surface->render_buffer == surface->system_buffer &&
 	         (surface->type == SURFACE_TYPE_VIRTUAL_CONTIGUOUS ||
 		  surface->type == SURFACE_TYPE_PHYSICAL_CONTIGUOUS)) {
+
+		//+++++ printk information added
+		printk("-------------fl2000_bulk_prepare_urb with surface type VIRTURAL or PHYSICAL CONTIGUOUS -----\n");
+
 		sg_init_table(sglist, 1);
 		sg_set_page(
 			list_entry,
@@ -160,11 +184,16 @@ void fl2000_bulk_prepare_urb(
 			"sglist[%u], len = 0x%x",
 			num_sgs - 1, len);
 	}
+*/
 	else {
 		/*
 		 * the buffer is allocated in kernel vmalloc space. the start
 		 * offset should be zero.
 		 */
+
+		//+++++ printk information added
+		printk("-------------fl2000_bulk_prepare_urb with surface type FRAGMENTED_VOLATILE or render_buffer==shadow_buffer-----\n");
+
 		unsigned long start;
 		unsigned long end;
 		unsigned int start_offset;
@@ -231,18 +260,23 @@ void fl2000_bulk_prepare_urb(
 	sg_mark_end(list_entry);
 
 	dbg_msg(TRACE_LEVEL_INFO, DBG_RENDER,
-		"num_sgs(%u)", num_sgs);
+		"------ num_sgs(%u) transfer_buffer_length:(%u)", num_sgs,render_ctx->transfer_buffer_length);
 
 	usb_init_urb(render_ctx->main_urb);
 	render_ctx->main_urb->num_sgs = num_sgs;
 	render_ctx->main_urb->sg = sglist;
-
+//+++++ add lenbuf here
+	lenbuf=render_ctx->transfer_buffer_length;
+	printk("----------- lenbuf=%d -----------\n",lenbuf);
 	usb_fill_bulk_urb(
 		render_ctx->main_urb,
 		dev_ctx->usb_dev,
 		dev_ctx->usb_pipe_bulk_out,
 		render_ctx->transfer_buffer,
-		render_ctx->transfer_buffer_length,
+		//+++++-----change usb_fill_bulk_urb() buffer_length to 640*480*2 as for RGB_16_565 transfer_buffer_length>>1
+		//640*480*2,
+		//render_ctx->transfer_buffer_length,
+		lenbuf,
 		fl2000_bulk_main_completion,
 		render_ctx);
 

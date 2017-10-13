@@ -152,7 +152,7 @@ int fl2000_surface_pin_down(
 			ret_val = pages_pinned;
 			goto release_pages;
 		}
-//+
+
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
 			"%d pages pinned\n", pages_pinned);
 
@@ -164,8 +164,8 @@ int fl2000_surface_pin_down(
 
 	case SURFACE_TYPE_PHYSICAL_CONTIGUOUS:
 		surface->physical_address = surface->user_buffer;
-		//first_page = pfn_to_page(__phys_to_pfn(surface->physical_address));
-		printk("================ virt_to_page ==============\n");
+//+++++  change pfn_to_page() to virt_to_page)....
+//		first_page = pfn_to_page(__phys_to_pfn(surface->physical_address));
 		first_page = virt_to_page(phys_to_virt(surface->physical_address));
 		surface->first_page = first_page;
 		for (i = 0; i < nr_pages; i++)
@@ -181,6 +181,7 @@ int fl2000_surface_pin_down(
 	goto exit;
 
 release_pages:
+	printk("---- page_cache_release(), page_cache_release() .....\n");
 	for (i = 0; i < surface->pages_pinned; i++)
 		//page_cache_release(pages[i]);
 		//try_to_release_page(pages[i],0);
@@ -205,10 +206,11 @@ void fl2000_surface_unpin(
 	if (surface->pages == NULL)
 		return;
 
+	printk("---!!!!!!! try_to_release_age()  for page_cache_release() .....\n");
 	for (i = 0; i < pages_pinned; i++)
 		//page_cache_release(pages[i]);
 		//try_to_release_page(pages[i],0);
-		put_page(pages[i]);
+		  put_page(pages[i]);
 	surface->pages = NULL;
 	surface->nr_pages = 0;
 	surface->pages_pinned = 0;
@@ -221,7 +223,9 @@ int fl2000_surface_map(
 {
 	int ret_val = 0;
 	unsigned long page_offset = surface->user_buffer & ~PAGE_MASK;
-
+	//+++++ print page_offset
+	printk("------------ page_offset:0x%lx  -------------\n",page_offset);
+	
 	switch (surface->type) {
 	case SURFACE_TYPE_VIRTUAL_FRAGMENTED_VOLATILE:
 	case SURFACE_TYPE_VIRTUAL_FRAGMENTED_PERSISTENT:
@@ -244,6 +248,9 @@ int fl2000_surface_map(
 			ret_val = -ENOMEM;
 			goto exit;
 		}
+		// +++++ print surface->mapped_buffer, after vm_map_ram()...
+		printk("------------aft. vm_map_ram*(), surface->user_buffer = 0x%lx,surface->mapped_buffer = 0x%lx  -------------\n",surface->user_buffer,surface->mapped_buffer);
+
 		break;
 
 	default:
@@ -379,8 +386,9 @@ int fl2000_surface_create(
 
 	switch (info->type) {
 	case SURFACE_TYPE_VIRTUAL_FRAGMENTED_PERSISTENT:
-		if (info->color_format == COLOR_FORMAT_RGB_24 &&
-		    info->pitch == info->width * 3) {
+//+++++ delete if..else..: No matter RGB_24 or RGB_16, we MUST pin down and map here OR do it in fl2000_ioctl.c 
+//		if (info->color_format == COLOR_FORMAT_RGB_24 &&
+//		    info->pitch == info->width * 3) {
 			ret = fl2000_surface_pin_down(dev_ctx, surface);
 			if (ret < 0) {
 				dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
@@ -405,9 +413,11 @@ int fl2000_surface_create(
 			 * where the shadow_buffer contains the re-ordered pixels
 			 */
 			surface->render_buffer = surface->shadow_buffer;
+/*
 		} else {
 			surface->render_buffer = surface->shadow_buffer;
 		}
+*/
 		break;
 
 	case SURFACE_TYPE_VIRTUAL_FRAGMENTED_VOLATILE:
@@ -435,7 +445,10 @@ int fl2000_surface_create(
 			goto exit;
 		}
 
-		surface->render_buffer = surface->shadow_buffer;
+		//+++++ change to surface->render_buffer = surface->system_buffer for VIRTUAL_CONTIGUOUS and PHYSICAL_GONTIGUOUS
+		// !!!! but it will cause system corrupt!!!
+		//surface->render_buffer = surface->shadow_buffer;
+		surface->render_buffer = surface->system_buffer;
 		break;
 
 	default:
@@ -490,14 +503,16 @@ void fl2000_surface_destroy(
 		surface->type,
 		surface->render_buffer,
 		dev_ctx->render.surface_list_count);
-
+        printk("fl2000_surface_unmap(dev_ctx, surface)...\n");
 	fl2000_surface_unmap(dev_ctx, surface);
+	printk("fl2000_surface_unpin(dev_ctx, surface)...------!!!!!!-----\n");
 	fl2000_surface_unpin(dev_ctx, surface);
 	if (surface->shadow_buffer) {
+		printk("vfree(surface->shadow_buffer)...\n");
 		vfree(surface->shadow_buffer);
 		surface->shadow_buffer = NULL;
 	}
-
+	printk("kfree(surface)....\n");
 	kfree(surface);
 }
 

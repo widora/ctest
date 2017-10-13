@@ -20,7 +20,8 @@ struct render_ctx;
 /*
  * schedule at least 2 video frames to the bus, to buy driver response time
  */
-#define	NUM_RENDER_ON_BUS	2
+//++++ adjust NUM_RENDER_ON_BUS to 1
+#define	NUM_RENDER_ON_BUS	1
 
 struct resolution_entry
 {
@@ -167,8 +168,8 @@ struct dev_ctx {
 	struct usb_device_descriptor	usb_dev_desc;
 	struct kref			kref;
 
-	//+++++ add ctrl_xfer_buf in struct dev_ctx
-	uint32_t ctrl_xfer_buf;
+//+++++ add ctrl_xfer_buf
+	uint32_t			ctrl_xfer_buf;
 
 	/*
 	 * some compiler (eg. arm-hisiv200-linux-gcc-4.4.1) does not provide

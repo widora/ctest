@@ -32,7 +32,7 @@ bool fl2000_reg_write(
 
 	return true;
 }
-
+ 
 bool fl2000_reg_read(
 	struct dev_ctx * dev_ctx,
 	uint32_t offset,
@@ -44,7 +44,6 @@ bool fl2000_reg_read(
 	status = true;
 	*data = 0;
 
-printk("======= start:fl2000_i2c_xfer) ....\n");
 	ret_val = fl2000_i2c_xfer(
 		dev_ctx,
 		VGA_MMIO_READ,
@@ -89,7 +88,7 @@ void fl2000_reg_bit_set(
 {
 	bool status;
 	uint32_t data;
-printk("======= start:fl2000_reg_read() ....\n");
+
 	status = fl2000_reg_read(dev_ctx, offset, &data);
 	if (!status) {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_HW,

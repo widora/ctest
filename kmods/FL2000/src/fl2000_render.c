@@ -10,6 +10,8 @@
 
 #include "fl2000_include.h"
 
+int  bulk_transf_count=0;
+
 /////////////////////////////////////////////////////////////////////////////////
 // P R I V A T E
 /////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +60,7 @@ fl2000_render_with_busy_list_lock(
 	spin_lock_irqsave(&dev_ctx->count_lock, flags);
 	render_ctx->pending_count++;
 	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+	//change usb_submit_urb() flag form GFP_ATOMIC to GFP_KERNEL 
 	ret_val = usb_submit_urb(render_ctx->main_urb, GFP_ATOMIC);
 	if (ret_val != 0) {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
@@ -98,6 +101,14 @@ fl2000_render_with_busy_list_lock(
 	    goto exit;
 	}
 
+//----- add bulk_transf_count, only when =2 to submit EOF_ZERO_LENGTH  urb, 
+//when bulk_transf_count>2 AMD half bulk data, it will cause great leap on screen 
+bulk_transf_count+=1;
+
+if(bulk_transf_count>0)
+{
+  bulk_transf_count=0;
+
 	if ((dev_ctx->vr_params.end_of_frame_type == EOF_ZERO_LENGTH) &&
 	    (VR_TRANSFER_PIPE_BULK == dev_ctx->vr_params.trasfer_pipe)) {
 		spin_lock_irqsave(&dev_ctx->count_lock, flags);
@@ -110,22 +121,22 @@ fl2000_render_with_busy_list_lock(
 				"[ERR] zero_length_urb submit fails with %d.",
 				ret_val);
 
-			/*
-			 * the main_urb is already schedule, we wait until
-			 * the completion to move the render_ctx to free_list
-			 */
+			 // the main_urb is already schedule, we wait until
+			 // the completion to move the render_ctx to free_list
+
 			spin_lock_irqsave(&dev_ctx->count_lock, flags);
 			render_ctx->pending_count--;
 			spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
 			if (-ENODEV == ret_val || -ENOENT == ret_val) {
-				/*
-				 * mark the fl2000 device gone
-				 */
+
+				 // mark the fl2000 device gone
 				dev_ctx->dev_gone = 1;
 			}
 			goto exit;
 		}
 	}
+
+} // end of  (bulk_transf_count>1)
 
 exit:
     dbg_msg(TRACE_LEVEL_VERBOSE, DBG_RENDER, "<<<<");
@@ -310,7 +321,10 @@ void fl2000_render_completion(struct render_ctx * render_ctx)
 		    }
 		goto exit;
 	}
-	fl2000_schedule_next_render(dev_ctx);
+
+	//+++++ STOP fl2000_schedule_next_render() after URB completion in  fl2000_render_completion()
+	//fl2000_schedule_next_render(dev_ctx);
+
 exit:
 	dbg_msg(TRACE_LEVEL_VERBOSE, DBG_RENDER, "<<<<");
 }

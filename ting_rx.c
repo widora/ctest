@@ -70,8 +70,12 @@ int main(int argc, char **argv)
 	if(checkTingActive() != 0)
 	{
 		 printf("checkTingActive() fails! reset Ting ...\n");
-		 resetTing(g_fd, STR_CFG,0x5555, 0x6666); // reset ting with spicific parameters
+		 resetTing(g_fd, STR_CFG,0x5555, 0x6666); // (selfaddr,destaddr) reset ting with spicific parameters
 	}
+	//------ to confirm self addr.
+	printf("------------------confirme addr.--------------------\n");
+	sendTingCMD("AT+ADDR?\r\n","OK",g_ndelay);
+
 	//---- set RX and get LORA message
 	printf("start recvTingLoRa()...\n");
 	nRecLoRa=recvTingLoRa(); // total bytes include '\r\n'

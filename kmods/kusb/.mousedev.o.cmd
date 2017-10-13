@@ -3,9 +3,9 @@ cmd_/home/midas/ctest/kmods/kusb/mousedev.o := /home/midas/openwrt_widora/stagin
 source_/home/midas/ctest/kmods/kusb/mousedev.o := /home/midas/ctest/kmods/kusb/mousedev.c
 
 deps_/home/midas/ctest/kmods/kusb/mousedev.o := \
+    $(wildcard include/config/input/mousedev/psaux.h) \
     $(wildcard include/config/input/mousedev/screen/x.h) \
     $(wildcard include/config/input/mousedev/screen/y.h) \
-    $(wildcard include/config/input/mousedev/psaux.h) \
   include/linux/sched.h \
     $(wildcard include/config/sched/debug.h) \
     $(wildcard include/config/prove/rcu.h) \
@@ -700,6 +700,7 @@ deps_/home/midas/ctest/kmods/kusb/mousedev.o := \
   include/uapi/linux/irqnr.h \
   include/uapi/linux/major.h \
   include/linux/cdev.h \
+  include/linux/miscdevice.h \
 
 /home/midas/ctest/kmods/kusb/mousedev.o: $(deps_/home/midas/ctest/kmods/kusb/mousedev.o)
 

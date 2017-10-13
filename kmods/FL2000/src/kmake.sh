@@ -9,6 +9,6 @@ PWD=`pwd`
 export STAGING_DIR=$STAGING_DIR
 #export PATH=$TOOLCHAIN_DIR:$PATH
 echo "------clean old files ------"
-#make clean
+make clean
 echo "------ start compiling modules -------"
 make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE -C $KSRC M=$PWD modules

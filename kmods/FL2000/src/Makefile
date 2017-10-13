@@ -10,7 +10,6 @@
 # NOTE: DO NOT SEND THIS FILE OUTSIDE OF FRESCO LOGIC.
 #
 
-
 fl2000-y := fl2000_module.o
 fl2000-y += fl2000_bulk.o
 fl2000-y += fl2000_ioctl.o
@@ -28,17 +27,14 @@ fl2000-y += fl2000_surface.o
 fl2000-y += fl2000_fops.o
 fl2000-y += fl2000_hdmi.o
 
-ifdef CONFIG_USB_FL2000
+#ifdef CONFIG_USB_FL2000
 
-obj-$(CONFIG_USB_FL2000) := fl2000.o
+#obj-$(CONFIG_USB_FL2000) := fl2000.o
 
-else
+#else
 
 obj-m := fl2000.o
 
-clean:
-	rm -f Module.symvers
-	rm *.o
-endif
-
+#clean:
+#        rm -f *.o *.mod.c *.order *.symvers
 

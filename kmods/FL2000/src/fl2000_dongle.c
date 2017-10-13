@@ -41,18 +41,20 @@ void fl2000_dongle_init_fl2000dx(struct dev_ctx * dev_ctx)
 	// BUG: We turn-off hardward reset for now.
 	// But we do need it for resolve accumulate interrupt packet issue.
 	// Got debug with NJ for this problem.
-	//
+
+//=================================================================	//
 	fl2000_reg_bit_clear(dev_ctx, REG_OFFSET_8088, 10);
 
 	// Disable polling for FL2000DX.
 	//
 	dev_ctx->registry.UsePollingMonitorConnection = 0;
 
-	dev_ctx->registry.FilterEdidTableEnable = EDID_FILTER_USB2_800_600_60HZ;
+//+++++ what is this for ????!!!!dev_ctx->registry.FilterEdidTableEnable = EDID_FILTER_USB2_800_600_60HZ;
+        //dev_ctx->registry.FilterEdidTableEnable = EDID_FILTER_USB2_800_600_60HZ;
 
 	// Compression registry and flags.
 	//
-	dev_ctx->registry.CompressionEnable = 0;
+        dev_ctx->registry.CompressionEnable = 0;
 	dev_ctx->registry.Usb2PixelFormatTransformCompressionEnable = 1;
 }
 
@@ -63,21 +65,27 @@ void fl2000_dongle_init_fl2000dx(struct dev_ctx * dev_ctx)
 
 void fl2000_dongle_u1u2_setup(struct dev_ctx * dev_ctx, bool enable)
 {
+//---- enable U1U2 whatever ...
 	if (enable) {
 		// Set 0x0070 bit 20 = 0, accept U1.
 		// Set 0x0070 bit 19 = 0, accept U2.
-		printk("======== dongle_u1u2_setup() start: fl2000_reg_bit_clear()....\n");
-		fl2000_reg_bit_clear(dev_ctx, REG_OFFSET_0070, 20);
+		//
+		printk("----- U1 U2 enabled -----\n");
+         	fl2000_reg_bit_clear(dev_ctx, REG_OFFSET_0070, 20);
 		fl2000_reg_bit_clear(dev_ctx, REG_OFFSET_0070, 19);
+
+
 	}
 	else {
 		// Set 0x0070 bit 20 = 1, reject U1.
 		// Set 0x0070 bit 19 = 1, reject U2.
 		//
-		printk("======== dongle_u1u2_setup() start: fl2000_reg_bit_clear()....\n");
+		printk("======start: U1 U2 disabled -----\n");
+		printk("======start: fl2000_reg_bit_set() -----\n");
 		fl2000_reg_bit_set(dev_ctx, REG_OFFSET_0070, 20);
 		fl2000_reg_bit_set(dev_ctx, REG_OFFSET_0070, 19);
 	}
+
 }
 
 void fl2000_dongle_reset(struct dev_ctx * dev_ctx)
@@ -118,6 +126,9 @@ fl2000_dongle_set_params(struct dev_ctx * dev_ctx, struct vr_params * vr_params)
 
 	dbg_msg(TRACE_LEVEL_VERBOSE, DBG_PNP, ">>>>");
 
+//+++++ printk()
+	printk("fl2000_dongle_set_params: start set params....\n");
+
 	// FileIO thread references to parameters and need to avoid concurrent access.
 	//
 	ret_val = 0;
@@ -131,6 +142,7 @@ fl2000_dongle_set_params(struct dev_ctx * dev_ctx, struct vr_params * vr_params)
 
 	dev_ctx->vr_params.pll_reg = old_pll;
 	dev_ctx->vr_params.end_of_frame_type = EOF_ZERO_LENGTH;
+
 
 	if (dev_ctx->registry.CompressionEnable ||
 	    vr_params->use_compression) {
@@ -164,9 +176,18 @@ fl2000_dongle_set_params(struct dev_ctx * dev_ctx, struct vr_params * vr_params)
 		break;
 	case OUTPUT_IMAGE_TYPE_RGB_24:
 	default:
+//+++++----- change VGA_BIG_TABLE_24BIT_R0 to VGA_BIG_TABLE_16BIT_R1
 		table_num = VGA_BIG_TABLE_24BIT_R0;
+		//table_num = VGA_BIG_TABLE_24BIT_R1;
 		break;
 	}
+
+//+++++ printk vr_params just before  entry = fl2000_table_get_entry() call...
+	printk("---------params for fl2000_table_get_entry(): width=%d, height=%d, freq=%d ----------\n",
+                dev_ctx->vr_params.width,
+                dev_ctx->vr_params.height,
+                dev_ctx->vr_params.freq);
+
 
 	entry = fl2000_table_get_entry(
 		table_num,
@@ -182,15 +203,21 @@ fl2000_dongle_set_params(struct dev_ctx * dev_ctx, struct vr_params * vr_params)
 
 	dev_ctx->vr_params.h_sync_reg_1 = entry->h_sync_reg_1;
 	dev_ctx->vr_params.h_sync_reg_2 = entry->h_sync_reg_2;
+//----- CHANGE dev_ctx->vr_params.v_sync_reg_1 = entry->v_sync_reg_1 to +0x100000
 	dev_ctx->vr_params.v_sync_reg_1 = entry->v_sync_reg_1;
-	dev_ctx->vr_params.v_sync_reg_2 = entry->v_sync_reg_2;
+	dev_ctx->vr_params.v_sync_reg_2 = entry->v_sync_reg_2; //change this will cause No Signal for monitor 
 
 	dev_ctx->vr_params.h_total_time = entry->h_total_time;
 	dev_ctx->vr_params.h_sync_time  = entry->h_sync_time;
 	dev_ctx->vr_params.h_back_porch = entry->h_back_porch;
+//----- change vr_params.v_total_time = entry->v_total_time to (entry->v_total_time>>11);
 	dev_ctx->vr_params.v_total_time = entry->v_total_time;
+//	dev_ctx->vr_params.v_total_time = ((entry->v_total_time)>>1);
 	dev_ctx->vr_params.v_sync_time  = entry->v_sync_time;
+//	dev_ctx->vr_params.v_sync_time  = (entry->v_sync_time)>>1;
+//----- dev_ctx->vr_params.v_back_porch = entry->v_back_porch change to >>1
 	dev_ctx->vr_params.v_back_porch = entry->v_back_porch;
+//	dev_ctx->vr_params.v_back_porch = (entry->v_back_porch)>>1;
 
 	if (dev_ctx->hdmi_chip_found)
 	    fl2000_hdmi_compliance_tweak(dev_ctx);
@@ -201,6 +228,8 @@ fl2000_dongle_set_params(struct dev_ctx * dev_ctx, struct vr_params * vr_params)
 	    pll_changed = true;
 	    dev_ctx->vr_params.pll_reg = new_pll;
 	}
+
+//----- TURN OFF fl2000_monitor_set_resolution(dev_ctx, pll_changed), and use defualt setting...
 
 	ret = fl2000_monitor_set_resolution(dev_ctx, pll_changed);
 	if (!ret) {
@@ -259,7 +288,9 @@ fl2000_set_display_mode(
 
 	vr_params.width = display_mode->width;
 	vr_params.height = display_mode->height;
-	vr_params.freq = 60;
+//+++++ convert  vr_params.freq = 60 to vr_params.freq = display_mode->refresh_rate
+	vr_params.freq = display_mode->refresh_rate;
+
 	switch (display_mode->input_color_format) {
 	case COLOR_FORMAT_RGB_24:
 		vr_params.input_bytes_per_pixel = 3;
@@ -293,20 +324,27 @@ fl2000_set_display_mode(
 		 * Considering physical bw limitation, force frequency to 60Hz
 		 * once user select higher frequency from panel.
 		 */
+
+		//+++++ printk()
+		printk("fl2000_set_display_mode: IS_DEVICE_USB2LINK(dev_ctx) is true\n");
+
+//+++++ turn off if (60 < vr_params.freq) vr_params.freq = 60;
+/*
+
 		if (60 < vr_params.freq)
 			vr_params.freq = 60;
-
-		// If usb2, then force to pixeltransform ( 24->16(555) ) and compression on.
-		//
-//+++++ TURN OFF TO: If usb2, then force to pixeltransform ( 24->16(555) ) and compression on
-/*
-		dbg_msg(TRACE_LEVEL_INFO, DBG_PNP,
-			"Turn on usb2 compression.");
-
-		vr_params.output_image_type = OUTPUT_IMAGE_TYPE_RGB_16;
-		vr_params.color_mode_16bit = VR_16_BIT_COLOR_MODE_555;
-		vr_params.use_compression = 1;
 */
+		// If usb2, then force to pixeltransform ( 24->16(555) ) and compression on.
+		//dbg_msg(TRACE_LEVEL_INFO, DBG_PNP,
+		//	"Turn on usb2 compression.");
+//+++++----- turn off enforcement of COLOR_MODE_ for USB2;for USB2, only VR_16_BIT_COLOR_MODE_555 is valid for compression, but my monitor accept only RGB_24 for VGA
+//already set above // vr_params.output_image_type = OUTPUT_IMAGE_TYPE_RGB_16;
+		//vr_params.color_mode_16bit = VR_16_BIT_COLOR_MODE_555;
+//+++++   set vr_params.color_mode_16bit = VR_16_BIT_COLOR_MODE_565
+//already set above // vr_params.color_mode_16bit = VR_16_BIT_COLOR_MODE_565;
+
+//+++++ vr_params.use_compression=1 turn off, compression is NOT workable currently
+		//vr_params.use_compression = 1;
 	}
 
 	ret_val = fl2000_dongle_set_params(dev_ctx, &vr_params);

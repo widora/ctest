@@ -30,9 +30,7 @@
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Mouse (ExplorerPS/2) device interfaces");
 MODULE_LICENSE("GPL");
-//+++++------------midas
-#define CONFIG_INPUT_MOUSEDEV_PSAUX
-//---------------+++end
+
 #ifndef CONFIG_INPUT_MOUSEDEV_SCREEN_X
 #define CONFIG_INPUT_MOUSEDEV_SCREEN_X	1024
 #endif
@@ -1011,7 +1009,7 @@ static const struct input_device_id mousedev_ids[] = {
 				INPUT_DEVICE_ID_MATCH_RELBIT,
 		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) },
 		.keybit = { [BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) },
-		.relbit = { BIT_MASK(REL_X) | BIT_MASK(REL_Y) | BIT_MASK(REL_Z) },//+++++ add REL_Z
+		.relbit = { BIT_MASK(REL_X) | BIT_MASK(REL_Y) },
 	},	/* A mouse like device, at least one button,
 		   two relative axes */
 	{

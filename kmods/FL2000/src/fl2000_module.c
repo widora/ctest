@@ -9,9 +9,9 @@
 //
 
 #include "fl2000_include.h"
-//+++++ add currentTraceLevel VERBOSE
-uint32_t currentTraceLevel = TRACE_LEVEL_INFO | TRACE_LEVEL_VERBOSE;
-uint32_t currentTraceFlags = DEFAULT_DBG_FLAGS;
+
+uint32_t currentTraceLevel = (TRACE_LEVEL_INFO | TRACE_LEVEL_ERROR);// | TRACE_LEVEL_VERBOSE;
+uint32_t currentTraceFlags = (DEFAULT_DBG_FLAGS | DBG_RENDER | DBG_PNP | DBG_RENDER );//|  DBG_HW);
 
 static int
 fl2000_device_probe(
@@ -89,7 +89,7 @@ fl2000_device_probe(
 	for (index = 0; index < USB_MAXINTERFACES; index ++) {
 		other_ifc = config->interface[index];
 		if (other_ifc && other_ifc != ifc) {
-			dev_ctx = usb_get_intfdata(other_ifc);
+			dev_ctx = usb_get_intfdata(other_ifc); //--get  other_ifc->dev.driver_data, locate the drived interface ????
 			if (dev_ctx)
 				break;
 		}
@@ -110,14 +110,13 @@ fl2000_device_probe(
 	}
 
 	dev_ctx->usb_dev = usb_dev;
-	usb_set_intfdata(ifc, dev_ctx);
+	usb_set_intfdata(ifc,dev_ctx); //!!!!!! put dev_ctx in  ifc->dev.driver_data  (void* driver_data)
 
 	switch (ifc->cur_altsetting->desc.bInterfaceNumber) {
 	case FL2000_IFC_STREAMING:
 		dbg_msg(TRACE_LEVEL_INFO, DBG_PNP,
 			"streaming interface detected");
-		printk("start usb_register_dev().....======================\n");
-		ret_val = usb_register_dev(ifc, &fl2000_class_driver);
+		ret_val = usb_register_dev(ifc, &fl2000_class_driver); //-------------register usb dev
 		if (ret_val < 0) {
 			dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
 				"usb_register_dev failed with %d?.", ret_val);
@@ -130,10 +129,11 @@ fl2000_device_probe(
 			dev_name(ifc->usb_dev));
 
 		dev_ctx->usb_ifc_streaming = ifc;
-		printk("start fl2000_desc_init(dev_ctx).....======================\n");
+		//----  pass usb_dev point to dev_ctx in case of IFC_STREAMING:
+                dev_ctx->usb_dev = usb_dev;
+
 		fl2000_desc_init(dev_ctx);
 
-		printk("start fl2000_dev_init(dev_ctx).....======================\n");
 		ret_val = fl2000_dev_init(dev_ctx);
 		if (ret_val < 0) {
 			dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,

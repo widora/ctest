@@ -181,6 +181,28 @@ pixel_swap(uint8_t * dst, uint8_t * src, uint32_t len)
 	}
 }
 
+
+//+++++ add funciotn void self_pixel_swap()
+void
+self_pixel_swap(uint8_t * src, uint32_t len)
+{
+	uint32_t *src_block;
+	uint32_t tmp;
+	uint32_t length;
+	unsigned int i;
+
+	src_block = (uint32_t *) src;
+
+//	length = (len + 7) & 0xFFFFFFF8; // len round up to multiple of 8 --- ????? data out of range ??????
+	length = len & 0xFFFFFFF8;
+	for (i = 0; i < (length >> 2); i += 2) {
+		tmp = src_block[i];
+		src_block[i] = src_block[i+1];
+		src_block[i+1] = tmp; 
+	}
+}
+
+
 long
 fl2000_ioctl_notify_surface_update(struct dev_ctx * dev_ctx, unsigned long arg)
 {
@@ -201,16 +223,26 @@ fl2000_ioctl_notify_surface_update(struct dev_ctx * dev_ctx, unsigned long arg)
 		(unsigned int) info.buffer_length);
 
 	surface = NULL;
+	printk("============== start spin_lock_bh() ==============\n");
 	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+	printk("============== list_for_each_entry() ==============\n");
+	if(list_empty(&dev_ctx->render.surface_list)){
+		printk("============== &dev_ctx->render.surface_list is EMPTY! ==============\n");
+		goto exit;
+	}
+
 	list_for_each_entry(s, &dev_ctx->render.surface_list, list_entry) {
 		if (s->handle == info.handle) {
 			surface = s;
 			break;
 		}
 	}
+	printk("============== after list_for_each_entry(),begin  spin_unlock_bh()..  ==============\n");
 	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
 
 	if (surface == NULL) {
+
+		printk("============== surface==NULL ==============\n");
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
 			"no surface found for handle(%p)?",
 			(void*) (unsigned long) info.handle);
@@ -218,14 +250,21 @@ fl2000_ioctl_notify_surface_update(struct dev_ctx * dev_ctx, unsigned long arg)
 		goto exit;
 	}
 
+//+++++ Let surface->buffer_length = info.buffer_length   if (info.buffer_length != surface->buffer_length)
+
 	if (info.buffer_length != surface->buffer_length) {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
 			"buffer_length(0x%x) differs from prev created 0x%x?",
 			(unsigned int) info.buffer_length,
 			(unsigned int) surface->buffer_length);
+
+		surface->buffer_length = info.buffer_length;
+/*
 		ret = -EFAULT;
 		goto exit;
+*/
 	}
+
 
 	surface->frame_num++;
 
@@ -250,6 +289,8 @@ fl2000_ioctl_notify_surface_update(struct dev_ctx * dev_ctx, unsigned long arg)
 	 * copy pixels from user mode to kernel mode, if shadow buffer
 	 * is chosen.
 	 */
+
+	printk("============== start if (surface->render_buffer == surface->shadow_buffer)) ==============\n");
 	if (surface->render_buffer == surface->shadow_buffer) {
 		/*
 		 * pin down user buffer if surface_type is
@@ -258,6 +299,7 @@ fl2000_ioctl_notify_surface_update(struct dev_ctx * dev_ctx, unsigned long arg)
 		 */
 		if (!surface->pre_locked &&
 		    surface->type == SURFACE_TYPE_VIRTUAL_FRAGMENTED_VOLATILE) {
+		        printk("fl2000_ioctl: surface type RAGMENTED_VOLATILE is not yet locked down, now it's time to call fl2000_surface_pin_down() .....\n");
 			ret = fl2000_surface_pin_down(dev_ctx, surface);
 			if (ret < 0) {
 				dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
@@ -288,17 +330,23 @@ unlock_surface:
 			 * surface is not SURFACE_TYPE_VIRTUAL_FRAGMENTED_VOLATILE
 			 * we can safely access system_buffer.
 			 */
+			printk("============== begin pixel_swap() ==============\n");
 			pixel_swap(surface->shadow_buffer,
 				surface->system_buffer,
 				surface->buffer_length);
 
+			printk("============== begin fl2000_primary_surface_update() ==============\n");
 			fl2000_primary_surface_update(
 				dev_ctx, surface);
 		}
 	}
+
 	else if (surface->render_buffer == surface->system_buffer) {
+//+++++ add self_pixel_swap() in case of surface->render_buffer == surface->system_buffer
+		self_pixel_swap(surface->system_buffer, surface->buffer_length);
 		fl2000_primary_surface_update(dev_ctx, surface);
 	}
+
 	else {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
 			"software error :render_buffer(%p)/"

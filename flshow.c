@@ -567,8 +567,8 @@ void test_display(int fd, uint32_t width, uint32_t height, uint32_t index)
 
        fprintf(stdout, "IOCTL_FL2000_NOTIFY_SURFACE_UPDATE: display_mode(%u, %u)\n",width,height);
 
-//+++++----- start a for loop to update surface...
-//for(i=0;i<2500;i++)
+//+++++ start a for loop to update surface...
+for(i=0;i<112500;i++)
 {
 	ret_val = ioctl(fd, IOCTL_FL2000_NOTIFY_SURFACE_UPDATE, &update_info);
 	if (ret_val < 0) {

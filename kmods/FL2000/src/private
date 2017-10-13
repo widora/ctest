@@ -1,0 +1,1022 @@
+Binary file fl2000_big_table.o matches
+fl2000_bulk.c:	struct render_ctx * const render_ctx = urb->context;
+fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_bulk.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+fl2000_bulk.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+fl2000_bulk.c:	struct render_ctx * const render_ctx = urb->context;
+fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_bulk.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+fl2000_bulk.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+fl2000_bulk.c:	struct primary_surface* const surface = render_ctx->primary_surface;
+fl2000_bulk.c:	struct scatterlist * const sglist = &surface->sglist[0];
+fl2000_bulk.c:	unsigned int len = surface->buffer_length;
+fl2000_bulk.c:	render_ctx->transfer_buffer = surface->render_buffer;
+fl2000_bulk.c:	render_ctx->transfer_buffer_length = surface->buffer_length;
+fl2000_bulk.c:	if (surface->render_buffer == surface->system_buffer &&
+fl2000_bulk.c:	    surface->type == SURFACE_TYPE_VIRTUAL_FRAGMENTED_PERSISTENT) {
+fl2000_bulk.c:		nr_pages = surface->nr_pages;
+fl2000_bulk.c:			"surface->nr_pages(%u), start_offset(0x%x)",
+fl2000_bulk.c:			nr_pages, surface->start_offset);
+fl2000_bulk.c:			surface->pages[0],
+fl2000_bulk.c:			PAGE_SIZE - surface->start_offset,
+fl2000_bulk.c:			surface->start_offset);
+fl2000_bulk.c:		len -= PAGE_SIZE - surface->start_offset;
+fl2000_bulk.c:			struct page * pg = surface->pages[i];
+fl2000_bulk.c:			struct page * prev_pg = surface->pages[i - 1];
+fl2000_bulk.c:				list_entry->length += PAGE_SIZE;
+fl2000_bulk.c:				len -= PAGE_SIZE;
+fl2000_bulk.c:				list_entry->length += len;
+fl2000_bulk.c:					num_sgs - 1, len);
+fl2000_bulk.c:	else if (surface->render_buffer == surface->system_buffer &&
+fl2000_bulk.c:	         (surface->type == SURFACE_TYPE_VIRTUAL_CONTIGUOUS ||
+fl2000_bulk.c:		  surface->type == SURFACE_TYPE_PHYSICAL_CONTIGUOUS)) {
+fl2000_bulk.c:			surface->first_page,
+fl2000_bulk.c:			len - surface->start_offset,
+fl2000_bulk.c:			surface->start_offset);
+fl2000_bulk.c:			num_sgs - 1, len);
+fl2000_bulk.c:		uint8_t * buf = surface->render_buffer;
+fl2000_bulk.c:		end = (unsigned long) (buf + surface->buffer_length);
+fl2000_bulk.c:		nr_pages = (end - start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_bulk.c:			PAGE_SIZE - start_offset,
+fl2000_bulk.c:		len -= PAGE_SIZE - start_offset;
+fl2000_bulk.c:		buf += PAGE_SIZE - start_offset;
+fl2000_bulk.c:				list_entry->length += PAGE_SIZE;
+fl2000_bulk.c:				len -= PAGE_SIZE;
+fl2000_bulk.c:				list_entry->length += len;
+fl2000_bulk.c:					num_sgs - 1, len);
+fl2000_bulk.c:	usb_init_urb(render_ctx->main_urb);
+fl2000_bulk.c:	render_ctx->main_urb->num_sgs = num_sgs;
+fl2000_bulk.c:	render_ctx->main_urb->sg = sglist;
+fl2000_bulk.c:		render_ctx->main_urb,
+fl2000_bulk.c:		dev_ctx->usb_dev,
+fl2000_bulk.c:		dev_ctx->usb_pipe_bulk_out,
+fl2000_bulk.c:		render_ctx->transfer_buffer,
+fl2000_bulk.c:		render_ctx->transfer_buffer_length,
+fl2000_bulk.c:	if (dev_ctx->vr_params.end_of_frame_type == EOF_ZERO_LENGTH) {
+fl2000_bulk.c:		usb_init_urb(render_ctx->zero_length_urb);
+fl2000_bulk.c:			render_ctx->zero_length_urb,
+fl2000_bulk.c:			dev_ctx->usb_dev,
+fl2000_bulk.c:			dev_ctx->usb_pipe_bulk_out,
+Binary file fl2000_bulk.o matches
+fl2000_compression.c:	switch (dev_ctx->vr_params.compression_mask_index) {
+fl2000_compression.c:	if (dev_ctx->vr_params.compression_mask_index_min <
+fl2000_compression.c:	    dev_ctx->vr_params.compression_mask_index) {
+fl2000_compression.c:		dev_ctx->vr_params.compression_mask_index--;
+fl2000_compression.c:		( int )dev_ctx->vr_params.compression_mask_index );
+fl2000_compression.c:	if (dev_ctx->vr_params.compression_mask_index_max !=
+fl2000_compression.c:	    dev_ctx->vr_params.compression_mask_index)
+fl2000_compression.c:		dev_ctx->vr_params.compression_mask_index++;
+fl2000_compression.c:	ASSERT(dev_ctx->vr_params.compression_mask_index <=
+fl2000_compression.c:		(int)dev_ctx->vr_params.compression_mask_index);
+fl2000_compression.c:	dev_ctx->vr_params.compression_mask_index = COMPRESSION_MASK_INDEX_MAXIMUM;
+fl2000_compression.c:			repeat_count -= repeat_chunk_size;
+fl2000_compression.c:				repeat_count -= 1;
+fl2000_compression.c:			repeat_count -= repeat_chunk_size;
+fl2000_compression.c:				repeat_count -= 1;
+fl2000_compression.c:			repeat_count -= repeat_chunk_size;
+fl2000_compression.c:				repeat_count -= 1;
+fl2000_compression.c:	// Precise-Isoch compress mode.
+fl2000_compression.c:					source - bytes_per_pixel,
+fl2000_compression.c:						// of additional copies - not the
+fl2000_compression.c:						repeatCount--;
+fl2000_compression.c:						repeatCount--;
+fl2000_compression.c:				// And we send device the number of additional copies - not the length
+fl2000_compression.c:				repeatCount--;
+fl2000_compression.c:		// And we send device the number of additional copies - not the length
+fl2000_compression.c:		repeatCount--;
+fl2000_compression.c:				repeatCount - 1 );
+fl2000_compression.c:	if (dev_ctx->vr_params.use_compression)
+fl2000_compression.c:		data_buffer_length = target - targetOriginalPointer;
+fl2000_compression.c:		repeat_count -= repeat_chunk_size;
+fl2000_compression.c:			repeat_count -= 1;
+fl2000_compression.c:					source - SourcePixelBytes, SourcePixelBytes);
+fl2000_compression.c:						// additional copies - not the length
+fl2000_compression.c:						repeatCount--;
+fl2000_compression.c:						repeatCount--;
+fl2000_compression.c:					// copies - not the length
+fl2000_compression.c:					repeatCount--;
+fl2000_compression.c:		// And we send device the number of additional copies - not the length
+fl2000_compression.c:		repeatCount--;
+fl2000_compression.c:				repeatCount - 1);
+fl2000_compression.c:	data_buffer_length = (target - targetOriginalPointer);
+fl2000_compression.c:	decompressed_buf_len = target - savedTargetBeginning;
+fl2000_compression.c:	// 1. MASK - choose the first n bytes of RGB and compare,
+fl2000_compression.c:	// 2. Algorithm - we calculate pixel and how many similar color pixel count.
+fl2000_compression.c:	pixelBytes = GET_BYTES_PER_PIXEL(dev_ctx->vr_params.output_image_type);
+fl2000_compression.c:	ASSERT((dev_ctx->vr_params.input_bytes_per_pixel * num_of_pixels ) >= compressed_length );
+Binary file fl2000_compression.o matches
+fl2000_ctx.h:#define	MAX_NUM_FRAGMENT	((MAX_BUFFER_SIZE + PAGE_SIZE - 1) >> PAGE_SHIFT)
+fl2000_ctx.h:	 * some compiler (eg. arm-hisiv200-linux-gcc-4.4.1) does not provide
+fl2000_def.h:#define IS_DEVICE_USB3LINK(dev_ctx)             (USB3_BCD == dev_ctx->usb_dev_desc.bcdUSB)
+fl2000_desc.c:	memcpy(	&dev_ctx->usb_dev_desc,
+fl2000_desc.c:		&dev_ctx->usb_dev->descriptor,
+fl2000_desc.c:        //dev_ctx->card_name = CARD_NAME_UNDEFINED;
+fl2000_desc.c:	dev_ctx->card_name=CARD_NAME_FL2000;
+fl2000_desc.c:	if (VID_FRESCO_LOGIC == dev_ctx->usb_dev_desc.idVendor &&
+fl2000_desc.c:	    PID_FL2000 == dev_ctx->usb_dev_desc.idProduct &&
+fl2000_desc.c:	    DEVICE_ID_FL2000DX == dev_ctx->usb_dev_desc.bcdDevice)
+fl2000_desc.c:		dev_ctx->card_name = CARD_NAME_FL2000DX;
+Binary file fl2000_desc.o matches
+fl2000_dev.c://	dev_ctx->card_name = CARD_NAME_FL2000DX; //FL2000DX;
+fl2000_dev.c:	dev_ctx->monitor_plugged_in = false;
+fl2000_dev.c:	init_waitqueue_head(&dev_ctx->ioctl_wait_q);
+fl2000_dev.c:	cur_altsetting = dev_ctx->usb_ifc_streaming->cur_altsetting;
+fl2000_dev.c:		dev_ctx->usb_dev,
+fl2000_dev.c:		cur_altsetting->desc.bInterfaceNumber,
+fl2000_dev.c:		cur_altsetting->desc.bAlternateSetting);
+fl2000_dev.c:	spin_lock_init(&dev_ctx->count_lock);
+Binary file fl2000_dev.o matches
+fl2000_dongle.c:// (c)Copyright 2009-2013, Fresco Logic, Incorporated.
+fl2000_dongle.c:	// BUG: We turn-off hardward reset for now.
+fl2000_dongle.c:	dev_ctx->registry.UsePollingMonitorConnection = 0;
+fl2000_dongle.c:	//+++++ what is this for ????!!!!dev_ctx->registry.FilterEdidTableEnable = EDID_FILTER_USB2_800_600_60HZ;
+fl2000_dongle.c:        //dev_ctx->registry.FilterEdidTableEnable = EDID_FILTER_USB2_800_600_60HZ;
+fl2000_dongle.c:        dev_ctx->registry.CompressionEnable = 0;
+fl2000_dongle.c:	dev_ctx->registry.Usb2PixelFormatTransformCompressionEnable = 1;
+fl2000_dongle.c:		printk("----- U1 U2 enabled -----\n");
+fl2000_dongle.c:		printk("----- U1 U2 disabled -----\n");
+fl2000_dongle.c:	if (!dev_ctx->usb_dev) {
+fl2000_dongle.c:	old_pll = dev_ctx->vr_params.pll_reg;
+fl2000_dongle.c:	memcpy(&dev_ctx->vr_params, vr_params, sizeof(struct vr_params));
+fl2000_dongle.c:	dev_ctx->vr_params.pll_reg = old_pll;
+fl2000_dongle.c:	dev_ctx->vr_params.end_of_frame_type = EOF_ZERO_LENGTH;
+fl2000_dongle.c:	if (dev_ctx->registry.CompressionEnable ||
+fl2000_dongle.c:	    vr_params->use_compression) {
+fl2000_dongle.c:		dev_ctx->vr_params.use_compression = 1;
+fl2000_dongle.c:		dev_ctx->vr_params.compression_mask_index_min = COMPRESSION_MASK_INDEX_MINIMUM;
+fl2000_dongle.c:		dev_ctx->vr_params.compression_mask_index_max = COMPRESSION_MASK_INDEX_MAXIMUM;
+fl2000_dongle.c:		if (dev_ctx->registry.Usb2PixelFormatTransformCompressionEnable) {
+fl2000_dongle.c:			dev_ctx->vr_params.compression_mask = COMPRESSION_MASK_13_BIT_VALUE;
+fl2000_dongle.c:			dev_ctx->vr_params.compression_mask_index = COMPRESSION_MASK_13_BIT_INDEX;
+fl2000_dongle.c:			dev_ctx->vr_params.compression_mask_index_min = COMPRESSION_MASK_15_BIT_INDEX;
+fl2000_dongle.c:			dev_ctx->vr_params.compression_mask = COMPRESSION_MASK_23_BIT_VALUE;
+fl2000_dongle.c:			dev_ctx->vr_params.compression_mask_index = COMPRESSION_MASK_23_BIT_INDEX;
+fl2000_dongle.c:	switch (dev_ctx->vr_params.output_image_type) {
+fl2000_dongle.c:		dev_ctx->vr_params.width,
+fl2000_dongle.c:		dev_ctx->vr_params.height,
+fl2000_dongle.c:		dev_ctx->vr_params.freq);
+fl2000_dongle.c:			ret_val = -EINVAL;
+fl2000_dongle.c:	dev_ctx->vr_params.h_sync_reg_1 = entry->h_sync_reg_1;
+fl2000_dongle.c:	dev_ctx->vr_params.h_sync_reg_2 = entry->h_sync_reg_2;
+fl2000_dongle.c:	dev_ctx->vr_params.v_sync_reg_1 = entry->v_sync_reg_1;
+fl2000_dongle.c:	dev_ctx->vr_params.v_sync_reg_2 = entry->v_sync_reg_2;
+fl2000_dongle.c:	dev_ctx->vr_params.h_total_time = entry->h_total_time;
+fl2000_dongle.c:	dev_ctx->vr_params.h_sync_time  = entry->h_sync_time;
+fl2000_dongle.c:	dev_ctx->vr_params.h_back_porch = entry->h_back_porch;
+fl2000_dongle.c:	dev_ctx->vr_params.v_total_time = entry->v_total_time;
+fl2000_dongle.c:	dev_ctx->vr_params.v_sync_time  = entry->v_sync_time;
+fl2000_dongle.c:	dev_ctx->vr_params.v_back_porch = entry->v_back_porch;
+fl2000_dongle.c:	if (dev_ctx->hdmi_chip_found)
+fl2000_dongle.c:	new_pll = entry->bulk_asic_pll;
+fl2000_dongle.c:	if (new_pll != dev_ctx->vr_params.pll_reg) {
+fl2000_dongle.c:	    dev_ctx->vr_params.pll_reg = new_pll;
+fl2000_dongle.c:		ret_val = -EIO;
+fl2000_dongle.c:	dev_ctx->usb_pipe_bulk_out = usb_sndbulkpipe(dev_ctx->usb_dev, 1);
+fl2000_dongle.c:		 display_mode->width,
+fl2000_dongle.c:		 display_mode->height);
+fl2000_dongle.c:	if ((dev_ctx->vr_params.width != display_mode->width) ||
+fl2000_dongle.c:	    (dev_ctx->vr_params.height != display_mode->height))
+fl2000_dongle.c:	if (display_mode->width == 0 && display_mode->height == 0)
+fl2000_dongle.c:	vr_params.width = display_mode->width;
+fl2000_dongle.c:	vr_params.height = display_mode->height;
+fl2000_dongle.c:	switch (display_mode->input_color_format) {
+fl2000_dongle.c:	switch (display_mode->output_color_format) {
+fl2000_dongle.c:		// If usb2, then force to pixeltransform ( 24->16(555) ) and compression on.
+fl2000_dongle.c:	if (dev_ctx->hdmi_chip_found)
+fl2000_dongle.c:	dev_ctx->hdmi_chip_found = hdmi_chip_found;
+fl2000_dongle.c:		if (!dev_ctx->hdmi_powered_up) {
+fl2000_dongle.h:// (c)Copyright 2009-2013, Fresco Logic, Incorporated.
+Binary file fl2000_dongle.o matches
+fl2000_fops.c:		ret_val = -ENODEV;
+fl2000_fops.c:		ret_val = -ENODEV;
+fl2000_fops.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_fops.c:	open_count = ++dev_ctx->open_count;
+fl2000_fops.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_fops.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_fops.c:		dev_ctx->open_count--;
+fl2000_fops.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_fops.c:		ret_val = -EBUSY;
+fl2000_fops.c:	file->private_data = dev_ctx;
+fl2000_fops.c:	kref_get(&dev_ctx->kref);
+fl2000_fops.c:	struct dev_ctx * const dev_ctx = file->private_data;
+fl2000_fops.c:		return -ENODEV;
+fl2000_fops.c:	if (waitqueue_active(&dev_ctx->ioctl_wait_q)) {
+fl2000_fops.c:		wake_up_interruptible(&dev_ctx->ioctl_wait_q);
+fl2000_fops.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_fops.c:	open_count = --dev_ctx->open_count;
+fl2000_fops.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_fops.c:	kref_put(&dev_ctx->kref, fl2000_module_free);
+fl2000_fops.c:	struct vm_area_struct *vma = vmf->vma;
+fl2000_fops.c:	struct dev_ctx * const dev_ctx = vma->vm_private_data;
+fl2000_fops.c:	unsigned long len = vma->vm_end - vma->vm_start;
+fl2000_fops.c:	unsigned long num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_fops.c:		unsigned long usr_addr = vma->vm_start + (i << PAGE_SHIFT);
+fl2000_fops.c:		struct page * page = dev_ctx->start_page + i;
+fl2000_fops.c:	struct dev_ctx * const dev_ctx = file->private_data;
+fl2000_fops.c:	unsigned long len = vma->vm_end - vma->vm_start;
+fl2000_fops.c:	unsigned long num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_fops.c:		vma->vm_start, vma->vm_end, num_pages);
+fl2000_fops.c:	vma->vm_private_data = dev_ctx;
+fl2000_fops.c:	 * with vma->vm_mm->mmap held.
+fl2000_fops.c:	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
+fl2000_fops.c:	vma->vm_ops = &fl2000_vma_ops;
+fl2000_fops.c:	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+fl2000_fops.c:	vma->vm_flags &= ~VM_PFNMAP;
+fl2000_fops.c:		unsigned long usr_addr = vma->vm_start + (i << PAGE_SHIFT);
+fl2000_fops.c:		struct page * page = dev_ctx->start_page + i;
+fl2000_fops.c:	dbg_msg(TRACE_LEVEL_INFO, DBG_PNP, "vm_flags(0x%lx)", vma->vm_flags);
+Binary file fl2000_fops.o matches
+fl2000_hdmi.c:// (c)Copyright 2009-2013, Fresco Logic, Incorporated.
+fl2000_hdmi.c:        aligned_offset = offset - remainder;
+fl2000_hdmi.c:        aligned_offset = offset - remainder;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:                status = -1;
+fl2000_hdmi.c:        ReadCount -= 3;
+fl2000_hdmi.c:        if (dev_ctx->vr_params.width == 640 &&
+fl2000_hdmi.c:            dev_ctx->vr_params.height == 480) {
+fl2000_hdmi.c:        else if (dev_ctx->vr_params.width == 1280 &&
+fl2000_hdmi.c:                 dev_ctx->vr_params.height == 720) {
+fl2000_hdmi.c:        else if (dev_ctx->vr_params.width == 1920 &&
+fl2000_hdmi.c:                 dev_ctx->vr_params.height == 1080) {
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[0];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[1];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[2];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[3];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[4];
+fl2000_hdmi.c:                sumOfAviDb += avi_info_frame->AVI_DB[index];
+fl2000_hdmi.c:        avi_info_frame->CheckSum = (uint8_t) (0x100 - sumOfAviDb -
+fl2000_hdmi.c:        byte_data = avi_info_frame->CheckSum;
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[5];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[6];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[7];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[8];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[9];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[10];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[11];
+fl2000_hdmi.c:        byte_data = avi_info_frame->AVI_DB[12];
+fl2000_hdmi.c:        pixelClock = dev_ctx->vr_params.h_total_time *
+fl2000_hdmi.c:                dev_ctx->vr_params.v_total_time *
+fl2000_hdmi.c:                dev_ctx->vr_params.freq;
+fl2000_hdmi.c:        if (dev_ctx->hdmi_running_in_dvi_mode)
+fl2000_hdmi.c:        dev_ctx->hdmi_powered_up = true;
+fl2000_hdmi.c:        dev_ctx->hdmi_powered_up = false;
+fl2000_hdmi.c:        if (dev_ctx->hdmi_audio_use_spdif) {
+fl2000_hdmi.c:        if (dev_ctx->hdmi_audio_use_spdif)
+fl2000_hdmi.c:        if (dev_ctx->hdmi_audio_use_spdif) {
+fl2000_hdmi.c:        checksum = 0x100 - ( HDMI_ITE_AUDIO_INFOFRAME_VER +
+fl2000_hdmi.c:                AudioInfoFrame->AUD_DB[0],
+fl2000_hdmi.c:        checksum -= tempByte;
+fl2000_hdmi.c:                AudioInfoFrame->AUD_DB[1],
+fl2000_hdmi.c:        checksum -= tempByte;
+fl2000_hdmi.c:                AudioInfoFrame->AUD_DB[3],
+fl2000_hdmi.c:        checksum -= tempByte;
+fl2000_hdmi.c:                AudioInfoFrame->AUD_DB[4],
+fl2000_hdmi.c:        checksum -= tempByte;
+fl2000_hdmi.c:        AudioInfoFrame->CheckSum = checksum;
+fl2000_hdmi.c:                AudioInfoFrame->CheckSum,
+fl2000_hdmi.c:        if (dev_ctx->hdmi_audio_use_spdif) {
+fl2000_hdmi.c:                bankPtr0 += (0x100 - remainder);
+fl2000_hdmi.c:                bankPtr1 += (0x100 - remainder);
+fl2000_hdmi.c:        bankPtr0 -= 0xFF;
+fl2000_hdmi.c:        bankPtr1 -= 0xFF;
+fl2000_hdmi.c:        target_block = dev_ctx->monitor_edid[block_id];
+fl2000_hdmi.c:                                offset_patched = segment_offset + offset - 3;
+fl2000_hdmi.c:                        offset_patched = segment_offset + offset - 3;
+fl2000_hdmi.c:                memcpy(target + 3, tempBuffer, HDMI_ITE_EACH_TIME_READ_EDID_MAX_SIZE - 3);
+fl2000_hdmi.c:        if (dev_ctx->vr_params.width == 640 &&
+fl2000_hdmi.c:            dev_ctx->vr_params.height == 480 &&
+fl2000_hdmi.c:            dev_ctx->vr_params.freq == 60) {
+fl2000_hdmi.c:                dev_ctx->vr_params.h_back_porch = 48;
+fl2000_hdmi.c:                dev_ctx->vr_params.v_back_porch = 33;
+fl2000_hdmi.c:                dev_ctx->vr_params.h_sync_reg_2 = 0x600091;
+fl2000_hdmi.c:                dev_ctx->vr_params.v_sync_reg_2 = 0x2420024;
+fl2000_hdmi.c:        } else if (dev_ctx->vr_params.width == 1280 &&
+fl2000_hdmi.c:                   dev_ctx->vr_params.height == 720 &&
+fl2000_hdmi.c:                   dev_ctx->vr_params.freq == 60) {
+fl2000_hdmi.c:                dev_ctx->vr_params.v_back_porch = 20;
+fl2000_hdmi.c:                dev_ctx->vr_params.v_sync_reg_2 = 0x1A5001A;
+fl2000_hdmi.c:        if (!dev_ctx->hdmi_chip_found)
+fl2000_hdmi.c:        if (!dev_ctx->hdmi_powered_up) {
+fl2000_hdmi.c:        for(timeOut = 200; timeOut > 0; timeOut--) {
+fl2000_hdmi.c:        for (timeOut = 200; timeOut > 0; timeOut--) {
+fl2000_hdmi.c:        for (timeOut = 200; timeOut > 0; timeOut--) {
+fl2000_hdmi.c:        for (timeOut = 200; timeOut > 0; timeOut--) {
+fl2000_hdmi.c:                tmp = dev_ctx->Hdmi.W[ ( t - 3 ) % HDMI_HDCP_WCOUNT ] ^ dev_ctx->Hdmi.W[(t - 8)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[ ( t - 14 ) % HDMI_HDCP_WCOUNT ] ^ dev_ctx->Hdmi.W[ ( t - 16 ) % HDMI_HDCP_WCOUNT ];
+fl2000_hdmi.c:                dev_ctx->Hdmi.W[ ( t ) % HDMI_HDCP_WCOUNT ] = UTILITY_ROLLING_LEFT( tmp, 1 );
+fl2000_hdmi.c:        tmp = UTILITY_ROLLING_LEFT( h[ 0 ], 5 ) + ( ( h[ 1 ] & h[ 2 ] ) | ( h[ 3 ] & ~h[ 1 ] ) )+ h[4] + dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT] + 0x5a827999;
+fl2000_hdmi.c:        tmp=dev_ctx->Hdmi.W[(t - 3)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 8)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 14)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 16)% HDMI_HDCP_WCOUNT];
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT]=UTILITY_ROLLING_LEFT(tmp,1);
+fl2000_hdmi.c:        tmp=UTILITY_ROLLING_LEFT(h[0],5)+ (h[1] ^ h[2] ^ h[3])+ h[4] + dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT] + 0x6ed9eba1;
+fl2000_hdmi.c:        tmp=dev_ctx->Hdmi.W[(t - 3)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 8)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 14)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 16)% HDMI_HDCP_WCOUNT];
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT]=UTILITY_ROLLING_LEFT(tmp,1);
+fl2000_hdmi.c:        tmp=UTILITY_ROLLING_LEFT(h[0],5)+ ((h[1] & h[2])| (h[1] & h[3])| (h[2] & h[3]))+ h[4] + dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT] + 0x8f1bbcdc;
+fl2000_hdmi.c:        tmp=dev_ctx->Hdmi.W[(t - 3)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 8)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 14)% HDMI_HDCP_WCOUNT] ^ dev_ctx->Hdmi.W[(t - 16)% HDMI_HDCP_WCOUNT];
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT]=UTILITY_ROLLING_LEFT(tmp,1);
+fl2000_hdmi.c:        tmp=UTILITY_ROLLING_LEFT(h[0],5)+ (h[1] ^ h[2] ^ h[3])+ h[4] + dev_ctx->Hdmi.W[(t)% HDMI_HDCP_WCOUNT] + 0xca62c1d6;
+fl2000_hdmi.c:            dev_ctx->Hdmi.W[t]=0;
+fl2000_hdmi.c:        c <<=(3-(i%4))*8;
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[t] |=c;
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[t]=0;
+fl2000_hdmi.c:    //c=0x80 << ((3-i%4)*24);
+fl2000_hdmi.c:    c <<=((3-i%4)*8);
+fl2000_hdmi.c:    dev_ctx->Hdmi.W[t]|=c;t++;
+fl2000_hdmi.c:        dev_ctx->Hdmi.W[t]=0;
+fl2000_hdmi.c:    dev_ctx->Hdmi.W[15]=len*8;
+fl2000_hdmi.c:    HDMI_HDCP_SHA_Transform( dev_ctx, dev_ctx->Hdmi.VH );
+fl2000_hdmi.c:        output[i*4+3]=( uint8_t )((dev_ctx->Hdmi.VH[i]>>24)&0xFF);
+fl2000_hdmi.c:        output[i*4+2]=( uint8_t )((dev_ctx->Hdmi.VH[i]>>16)&0xFF);
+fl2000_hdmi.c:        output[i*4+1]=( uint8_t )((dev_ctx->Hdmi.VH[i]>>8)&0xFF);
+fl2000_hdmi.c:        output[i*4+0]=( uint8_t )(dev_ctx->Hdmi.VH[i]&0xFF);
+fl2000_hdmi.c:        dev_ctx->Hdmi.HdcpSHABuffer[i] = ksv_list[i] ;
+fl2000_hdmi.c:    dev_ctx->Hdmi.HdcpSHABuffer[i++] = BStatus & 0xFF;
+fl2000_hdmi.c:    dev_ctx->Hdmi.HdcpSHABuffer[i++] = (BStatus>>8) & 0xFF;
+fl2000_hdmi.c:        dev_ctx->Hdmi.HdcpSHABuffer[i] = m0[n] ;
+fl2000_hdmi.c:        dev_ctx->Hdmi.HdcpSHABuffer[i] = 0 ;
+fl2000_hdmi.c:    HDMI_HDCP_SHA_Simple( dev_ctx, dev_ctx->Hdmi.HdcpSHABuffer, n, dev_ctx->Hdmi.V );
+fl2000_hdmi.c:        if(dev_ctx->Hdmi.V[i] != Vr[i])
+fl2000_hdmi.c:    for( timeOut = 10 ; timeOut > 0 ; timeOut-- )
+fl2000_hdmi.c:    for( timeOut = 500; timeOut > 0; timeOut -- )
+fl2000_hdmi.c:    is_good = fl2000_hdcp_get_ksv_list( dev_ctx, dev_ctx->Hdmi.KSVList, downstream );
+fl2000_hdmi.c:    is_good = fl2000_hdmi_hdcp_get_vr( dev_ctx, dev_ctx->Hdmi.VR );
+fl2000_hdmi.c:    is_good = fl2000_hdmi_hdcp_get_m0( dev_ctx, dev_ctx->Hdmi.M0 );
+fl2000_hdmi.c:                                  dev_ctx->Hdmi.M0,
+fl2000_hdmi.c:                                  dev_ctx->Hdmi.KSVList,
+fl2000_hdmi.c:                                  dev_ctx->Hdmi.VR );
+fl2000_hdmi.c:                for (timeOut = 250; timeOut > 0; timeOut--) {
+Binary file fl2000_hdmi.o matches
+fl2000_i2c.c:		pipe = usb_rcvctrlpipe(dev_ctx->usb_dev, 0);
+fl2000_i2c.c:		pipe = usb_sndctrlpipe(dev_ctx->usb_dev, 0);
+fl2000_i2c.c:		dev_ctx->usb_dev,
+fl2000_i2c.c:		ret_val = -EIO;
+fl2000_i2c.c:		ret_val = -EIO;
+fl2000_i2c.h:// (c)Copyright 2009-2013, Fresco Logic, Incorporated.
+Binary file fl2000_i2c.o matches
+fl2000_interrupt.c:// (c)Copyright 2010-2013, Fresco Logic, Incorporated.
+fl2000_interrupt.c:		dev_ctx->usb_ifc_intr->cur_altsetting;
+fl2000_interrupt.c:	uint8_t const bNumEndpoints = host_ifc->desc.bNumEndpoints;
+fl2000_interrupt.c:	dev_ctx->ep_intr_in = NULL;
+fl2000_interrupt.c:		endpoint = &host_ifc->endpoint[i];
+fl2000_interrupt.c:		desc = &endpoint->desc;
+fl2000_interrupt.c:			dev_ctx->ep_intr_in = endpoint;
+fl2000_interrupt.c:			dev_ctx->ep_num_intr_in = usb_endpoint_num(desc);
+fl2000_interrupt.c:			dev_ctx->ep_desc_intr_in = desc;
+fl2000_interrupt.c:				dev_ctx->ep_num_intr_in
+fl2000_interrupt.c:	if (dev_ctx->ep_intr_in == NULL) {
+fl2000_interrupt.c:		ret_val = -EINVAL;
+fl2000_interrupt.c:	 * dev_ctx->ep_num_intr_in should be 3
+fl2000_interrupt.c:	dev_ctx->usb_pipe_intr_in = usb_rcvintpipe(dev_ctx->usb_dev, 3);
+fl2000_interrupt.c:	if (!dev_ctx->usb_pipe_intr_in) {
+fl2000_interrupt.c:		ret_val = -EINVAL;
+fl2000_interrupt.c:	dev_ctx->intr_urb = usb_alloc_urb(0, GFP_ATOMIC);
+fl2000_interrupt.c:	if (!dev_ctx->intr_urb) {
+fl2000_interrupt.c:		ret_val = -ENOMEM;
+fl2000_interrupt.c:	dev_ctx->intr_pipe_wq = create_workqueue("intr_pipe_wq");
+fl2000_interrupt.c:	if (dev_ctx->intr_pipe_wq == NULL) {
+fl2000_interrupt.c:		usb_free_urb(dev_ctx->intr_urb);
+fl2000_interrupt.c:		dev_ctx->intr_urb = NULL;
+fl2000_interrupt.c:		ret_val = -ENOMEM;
+fl2000_interrupt.c:	if (dev_ctx->intr_pipe_wq) {
+fl2000_interrupt.c:		destroy_workqueue(dev_ctx->intr_pipe_wq);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_wq = NULL;
+fl2000_interrupt.c:	if (dev_ctx->intr_urb){
+fl2000_interrupt.c:		usb_free_urb(dev_ctx->intr_urb);
+fl2000_interrupt.c:		dev_ctx->intr_urb = NULL;
+fl2000_interrupt.c:	dev_ctx->intr_pipe_started = true;
+fl2000_interrupt.c:		dev_ctx->intr_urb,
+fl2000_interrupt.c:		dev_ctx->usb_dev,
+fl2000_interrupt.c:		dev_ctx->usb_pipe_intr_in,
+fl2000_interrupt.c:		&dev_ctx->intr_data,
+fl2000_interrupt.c:		sizeof(dev_ctx->intr_data),
+fl2000_interrupt.c:		dev_ctx->ep_desc_intr_in->bInterval);
+fl2000_interrupt.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	dev_ctx->intr_pipe_pending_count++;
+fl2000_interrupt.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	ret_val = usb_submit_urb(dev_ctx->intr_urb, GFP_KERNEL);
+fl2000_interrupt.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_pending_count--;
+fl2000_interrupt.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_started = false;
+fl2000_interrupt.c:	dev_ctx->intr_pipe_started = false;
+fl2000_interrupt.c:	if (dev_ctx->intr_pipe_pending_count != 0)
+fl2000_interrupt.c:		usb_kill_urb(dev_ctx->intr_urb);
+fl2000_interrupt.c:	drain_workqueue(dev_ctx->intr_pipe_wq);
+fl2000_interrupt.c:	struct dev_ctx * const dev_ctx = urb->context;
+fl2000_interrupt.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	dev_ctx->intr_pipe_pending_count--;
+fl2000_interrupt.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	 * invoke worker-thread for further processing
+fl2000_interrupt.c:	INIT_WORK(&dev_ctx->intr_pipe_work, &fl2000_intr_pipe_work);
+fl2000_interrupt.c:	work_queued = queue_work(dev_ctx->intr_pipe_wq, &dev_ctx->intr_pipe_work);
+fl2000_interrupt.c:	if (!dev_ctx->intr_pipe_started) {
+fl2000_interrupt.c:	 * unable to queue worker-thread, continue to fire interrupt
+fl2000_interrupt.c:		dev_ctx->intr_urb,
+fl2000_interrupt.c:		dev_ctx->usb_dev,
+fl2000_interrupt.c:		dev_ctx->usb_pipe_intr_in,
+fl2000_interrupt.c:		&dev_ctx->intr_data,
+fl2000_interrupt.c:		sizeof(dev_ctx->intr_data),
+fl2000_interrupt.c:		dev_ctx->ep_desc_intr_in->bInterval);
+fl2000_interrupt.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	dev_ctx->intr_pipe_pending_count++;
+fl2000_interrupt.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	ret_val = usb_submit_urb(dev_ctx->intr_urb, GFP_KERNEL);
+fl2000_interrupt.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_pending_count--;
+fl2000_interrupt.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_started = false;
+fl2000_interrupt.c:	if (!dev_ctx->intr_pipe_started) {
+fl2000_interrupt.c:		dev_ctx->intr_urb,
+fl2000_interrupt.c:		dev_ctx->usb_dev,
+fl2000_interrupt.c:		dev_ctx->usb_pipe_intr_in,
+fl2000_interrupt.c:		&dev_ctx->intr_data,
+fl2000_interrupt.c:		sizeof(dev_ctx->intr_data),
+fl2000_interrupt.c:		dev_ctx->ep_desc_intr_in->bInterval);
+fl2000_interrupt.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	dev_ctx->intr_pipe_pending_count++;
+fl2000_interrupt.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:	ret_val = usb_submit_urb(dev_ctx->intr_urb, GFP_KERNEL);
+fl2000_interrupt.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_pending_count--;
+fl2000_interrupt.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_interrupt.c:		dev_ctx->intr_pipe_started = false;
+fl2000_interrupt.c:		if (vga_status->edid_connect_changed ||
+fl2000_interrupt.c:		    vga_status->ext_mon_connect_changed) {
+fl2000_interrupt.c:			if ( vga_status->frame_dropped) {
+Binary file fl2000_interrupt.o matches
+fl2000_ioctl.c:	bool const prev_plug_in = dev_ctx->monitor_plugged_in;
+fl2000_ioctl.c:	 * return when dev_ctx->monitor_plugged_in changed.
+fl2000_ioctl.c:	wait_status = wait_event_interruptible(dev_ctx->ioctl_wait_q,
+fl2000_ioctl.c:		(prev_plug_in != dev_ctx->monitor_plugged_in));
+fl2000_ioctl.c:		dev_ctx->monitor_plugged_in, wait_status);
+fl2000_ioctl.c:	monitor_info.monitor_flags.connected = (dev_ctx->monitor_plugged_in == true);
+fl2000_ioctl.c:	monitor_info.fl2000_flags.connected = (dev_ctx->dev_gone != true);
+fl2000_ioctl.c:	memcpy(monitor_info.edid, dev_ctx->monitor_edid[0], EDID_SIZE);
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:		"current plugged_in(%d)", dev_ctx->monitor_plugged_in);
+fl2000_ioctl.c:	monitor_info.monitor_flags.connected = (dev_ctx->monitor_plugged_in == true);
+fl2000_ioctl.c:	monitor_info.fl2000_flags.connected = (dev_ctx->dev_gone != true);
+fl2000_ioctl.c:	memcpy(monitor_info.edid, dev_ctx->monitor_edid[0], EDID_SIZE);
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:	dev_ctx->render.display_mode = display_mode;
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:	struct list_head * const list_head = &dev_ctx->render.surface_list;
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:			(unsigned int) s->handle);
+fl2000_ioctl.c:		if (s->handle == info.handle) {
+fl2000_ioctl.c:			spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_ioctl.c:			dev_ctx->render.surface_list_count--;
+fl2000_ioctl.c:			spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_ioctl.c:			list_del(&s->list_entry);
+fl2000_ioctl.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:		return -EINVAL;
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:	list_for_each_entry(s, &dev_ctx->render.surface_list, list_entry) {
+fl2000_ioctl.c:		if (s->handle == info.handle) {
+fl2000_ioctl.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (info.buffer_length != surface->buffer_length) {
+fl2000_ioctl.c:			(unsigned int) surface->buffer_length);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	surface->frame_num++;
+fl2000_ioctl.c:	if (info.user_buffer != surface->user_buffer) {
+fl2000_ioctl.c:			(void*) (unsigned long) surface->user_buffer);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (surface->render_buffer == surface->shadow_buffer) {
+fl2000_ioctl.c:		if (!surface->pre_locked &&
+fl2000_ioctl.c:		    surface->type == SURFACE_TYPE_VIRTUAL_FRAGMENTED_VOLATILE) {
+fl2000_ioctl.c:			pixel_swap(surface->shadow_buffer,
+fl2000_ioctl.c:				surface->system_buffer,
+fl2000_ioctl.c:				surface->buffer_length);
+fl2000_ioctl.c:			pixel_swap(surface->shadow_buffer,
+fl2000_ioctl.c:				surface->system_buffer,
+fl2000_ioctl.c:				surface->buffer_length);
+fl2000_ioctl.c:	else if (surface->render_buffer == surface->system_buffer) {
+fl2000_ioctl.c:			surface->render_buffer,
+fl2000_ioctl.c:			surface->mapped_buffer,
+fl2000_ioctl.c:			surface->shadow_buffer,
+fl2000_ioctl.c:			surface->type);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:	list_for_each_entry(s, &dev_ctx->render.surface_list, list_entry) {
+fl2000_ioctl.c:		if (s->handle == info.handle) {
+fl2000_ioctl.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (info.buffer_length != surface->buffer_length) {
+fl2000_ioctl.c:			(unsigned int) surface->buffer_length);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (surface->type == SURFACE_TYPE_VIRTUAL_CONTIGUOUS ||
+fl2000_ioctl.c:	    surface->type == SURFACE_TYPE_PHYSICAL_CONTIGUOUS) {
+fl2000_ioctl.c:	if (!surface->pre_locked) {
+fl2000_ioctl.c:		surface->pre_locked = true;
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:	list_for_each_entry(s, &dev_ctx->render.surface_list, list_entry) {
+fl2000_ioctl.c:		if (s->handle == info.handle) {
+fl2000_ioctl.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (info.buffer_length != surface->buffer_length) {
+fl2000_ioctl.c:			(unsigned int) surface->buffer_length);
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	if (surface->type == SURFACE_TYPE_VIRTUAL_CONTIGUOUS ||
+fl2000_ioctl.c:	    surface->type == SURFACE_TYPE_PHYSICAL_CONTIGUOUS) {
+fl2000_ioctl.c:	if (surface->pre_locked) {
+fl2000_ioctl.c:		surface->pre_locked = false;
+fl2000_ioctl.c:	struct dev_ctx * const dev_ctx = file->private_data;
+fl2000_ioctl.c:		ret = -EFAULT;
+fl2000_ioctl.c:	num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_ioctl.c:		ret = -ENOMEM;
+fl2000_ioctl.c:	dev_ctx->start_page = page;
+fl2000_ioctl.c:		return -EFAULT;
+fl2000_ioctl.c:	num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_ioctl.c:	struct dev_ctx * const dev_ctx = file->private_data;
+fl2000_ioctl.c:	ret_val = -EINVAL;
+fl2000_ioctl.c:		ret_val = -ENODEV;
+fl2000_ioctl.h: *    - Cursor image will be overlaid to the shadow copy if the image, without
+fl2000_ioctl.h: *    - The user mode surface buffer might not always be valid at all time. In
+fl2000_ioctl.h: *    - The source surface format is not identical to 24bpp, and kernel mode driver
+fl2000_ioctl.h: *    app could help to optimize the driver by pre-locking down the user buffer.
+fl2000_ioctl.h: * any opened file to the /dev/fl2000-0(or similar) for the driver to completely
+fl2000_ioctl.h: * releases itself. Failure to do so would cause driver lock-up.
+fl2000_ioctl.h: *    The user app can constantly checking the existence of /dev/fl2000-0.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h:	OUTPUT_TECHNOLOGY_OTHER			= -1,
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  accessing the buffer. Since the physical pages lock-down takes considerable
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  shadow buffer before unlocking the user buffer. Since the page lock-down
+fl2000_ioctl.h: *  The kernel driver pre-lock down the user buffer, and do not copy the pixels
+fl2000_ioctl.h: *  scatter-gather capability and the user pages are directly fed to the underlying
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+fl2000_ioctl.h: *  0 if succeeded. -1 on error.
+Binary file fl2000_ioctl.o matches
+Binary file fl2000.ko matches
+fl2000_linux.h:#define STATUS_UNSUCCESSFUL                     (-EIO)
+fl2000_linux.h:#define STATUS_INVALID_PARAMETER                (-EINVAL)
+fl2000_linux.h:#define STATUS_NO_SUCH_DEVICE                   (-ENODEV)
+Binary file fl2000.mod.o matches
+fl2000_module.c:	.name		= "fl2000-%d",
+fl2000_module.c:		ifc->cur_altsetting->desc.bInterfaceNumber,
+fl2000_module.c:		ifc->cur_altsetting->desc.bAlternateSetting);
+fl2000_module.c:	config = usb_dev->actconfig;
+fl2000_module.c:		other_ifc = config->interface[index];
+fl2000_module.c:			dev_ctx = usb_get_intfdata(other_ifc); //--get  other_ifc->dev.driver_data, locate the drived interface ????
+fl2000_module.c:		kref_init(&dev_ctx->kref);
+fl2000_module.c:		kref_get(&dev_ctx->kref);
+fl2000_module.c:	dev_ctx->usb_dev = usb_dev;
+fl2000_module.c:	usb_set_intfdata(ifc,dev_ctx); //!!!!!! put dev_ctx in  ifc->dev.driver_data  (void* driver_data)
+fl2000_module.c:	switch (ifc->cur_altsetting->desc.bInterfaceNumber) {
+fl2000_module.c:		ret_val = usb_register_dev(ifc, &fl2000_class_driver); //-------------register usb dev
+fl2000_module.c:			ifc->usb_dev,
+fl2000_module.c:			ifc->minor,
+fl2000_module.c:			dev_name(ifc->usb_dev));
+fl2000_module.c:		dev_ctx->usb_ifc_streaming = ifc;
+fl2000_module.c:		//----  pass usb_dev point to dev_ctx in case of IFC_STREAMING:
+fl2000_module.c:                dev_ctx->usb_dev = usb_dev;
+fl2000_module.c:		dev_ctx->usb_ifc_intr = ifc;
+fl2000_module.c:			ifc->cur_altsetting->desc.bInterfaceNumber,
+fl2000_module.c:			ifc->cur_altsetting->desc.bAlternateSetting);
+fl2000_module.c:			fl2000_module_free(&dev_ctx->kref);
+fl2000_module.c:		ifc->cur_altsetting->desc.bInterfaceNumber,
+fl2000_module.c:		ifc->cur_altsetting->desc.bAlternateSetting);
+fl2000_module.c:	dev_ctx->dev_gone = true;
+fl2000_module.c:	if (waitqueue_active(&dev_ctx->ioctl_wait_q)) {
+fl2000_module.c:		wake_up_interruptible(&dev_ctx->ioctl_wait_q);
+fl2000_module.c:	switch (ifc->cur_altsetting->desc.bInterfaceNumber) {
+fl2000_module.c:			dev_ctx->usb_dev,
+fl2000_module.c:			ifc->cur_altsetting->desc.bInterfaceNumber,
+fl2000_module.c:	kref_put(&dev_ctx->kref, fl2000_module_free);
+fl2000_module.c:		dev_ctx->kref.refcount.refs);
+fl2000_module.c:MODULE_DESCRIPTION("USB VGA device driver - Version 0.0.0.1");
+Binary file fl2000_module.o matches
+fl2000_monitor.c:	dev_ctx->monitor_edid[0][35] = 0x21;
+fl2000_monitor.c:	dev_ctx->monitor_edid[0][36] = 0x8;
+fl2000_monitor.c:	dev_ctx->monitor_edid[0][37] = 0;
+fl2000_monitor.c:	 * EDID offset 38 ~ 53. Standard timing information. Upto 8 2-bytes.
+fl2000_monitor.c:		uint8_t	 x = dev_ctx->monitor_edid[0][i];
+fl2000_monitor.c:		uint8_t  ratio = dev_ctx->monitor_edid[0][i + 1] >> 6;
+fl2000_monitor.c:		freq = (dev_ctx->monitor_edid[0][i + 1] & 0x3F) + 60;
+fl2000_monitor.c:		if (dev_ctx->monitor_edid[0][i] == 1 &&
+fl2000_monitor.c:		    dev_ctx->monitor_edid[0][i + 1] == 1)
+fl2000_monitor.c:			dev_ctx->monitor_edid[0][i] = 97;
+fl2000_monitor.c:			dev_ctx->monitor_edid[0][i + 1]= IMAGE_ASPECT_RATIO_4_3 << 6;
+fl2000_monitor.c:		uint8_t *  entry = &dev_ctx->monitor_edid[0][i];
+fl2000_monitor.c:		memcpy(&dev_ctx->monitor_edid[0][index], &data, 4);
+fl2000_monitor.c:		data = dev_ctx->vr_params.pll_reg;
+fl2000_monitor.c:			    dev_ctx->vr_params.trasfer_pipe)
+fl2000_monitor.c:	if (dev_ctx->vr_params.pll_reg != data) {
+fl2000_monitor.c:	// Clear bit 22 - Disable BIA.
+fl2000_monitor.c:	// Clear bit 24 - Disable isoch error interrupt.
+fl2000_monitor.c:	// Clear bit 19,21 - Disable isoch auto recover.
+fl2000_monitor.c:	// Clear bit 13 - Disable isoch feedback interrupt.
+fl2000_monitor.c:	// Clear bit 27:29 - End Of Frame Type
+fl2000_monitor.c:	if (dev_ctx->vr_params.end_of_frame_type == EOF_ZERO_LENGTH) {
+fl2000_monitor.c:	if (dev_ctx->vr_params.use_compression) {
+fl2000_monitor.c:	if (OUTPUT_IMAGE_TYPE_RGB_16 == dev_ctx->vr_params.output_image_type) {
+fl2000_monitor.c:		    dev_ctx->vr_params.color_mode_16bit) {
+fl2000_monitor.c:		 dev_ctx->vr_params.output_image_type) {
+fl2000_monitor.c:	data = dev_ctx->vr_params.h_sync_reg_1;
+fl2000_monitor.c:		if (dev_ctx->vr_params.h_sync_reg_1 != data) {
+fl2000_monitor.c:	data = dev_ctx->vr_params.h_sync_reg_2;
+fl2000_monitor.c:		if (dev_ctx->vr_params.h_sync_reg_2 != data) {
+fl2000_monitor.c:	data = dev_ctx->vr_params.v_sync_reg_1;
+fl2000_monitor.c:		if (dev_ctx->vr_params.v_sync_reg_1 != data) {
+fl2000_monitor.c:	data = dev_ctx->vr_params.v_sync_reg_2;
+fl2000_monitor.c:		if ( dev_ctx->vr_params.v_sync_reg_2 != data ) {
+fl2000_monitor.c:	// Clear bit 29:16 - Iso Register
+fl2000_monitor.c:	if (dev_ctx->hdmi_chip_found) {
+fl2000_monitor.c:		num_ext = dev_ctx->monitor_edid[0][126];
+fl2000_monitor.c:		memset(dev_ctx->monitor_edid[0], 0, EDID_SIZE);
+fl2000_monitor.c:	if (dev_ctx->registry.FilterEdidTableEnable) {
+fl2000_monitor.c:			switch (dev_ctx->registry.FilterEdidTableEnable) {
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][35] = 1;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][36] = 0;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][37] = 0;
+fl2000_monitor.c:					dev_ctx->monitor_edid[0][index] = 0x01;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][54] = 0x40;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][55] = 0x0B;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][56] = 0x20;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][57] = 0x00;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][58] = 0x30;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][59] = 0x58;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][60] = 0x00;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][61] = 0x20;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][35] = 0x20;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][36] = 0;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][37] = 0;
+fl2000_monitor.c:					dev_ctx->monitor_edid[0][index] = 0x01;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][54] = 0x3F;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][55] = 0x07;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][56] = 0x80;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][57] = 0x00;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][58] = 0x20;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][59] = 0xE0;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][60] = 0x0;
+fl2000_monitor.c:				dev_ctx->monitor_edid[0][61] = 0x10;
+fl2000_monitor.c:	for (index = 0; index < (EDID_SIZE - 1); index++)
+fl2000_monitor.c:	    check_sum += dev_ctx->monitor_edid[0][index];
+fl2000_monitor.c:	check_sum = -check_sum;
+fl2000_monitor.c:	dev_ctx->monitor_edid[0][127] = check_sum;
+fl2000_monitor.c:	// Bug #6147 - After hot plug VGA connector, the monitor can't display
+fl2000_monitor.c:	// We need mutex to protect plug-in and plug-out procedure.
+fl2000_monitor.c:	// Just to prevent the U1U2 step is not synchronize for each plug-in and plug-out.
+fl2000_monitor.c:	// Monitor Plug-In flag.
+fl2000_monitor.c:	dev_ctx->monitor_plugged_in = true;
+fl2000_monitor.c:	if (CARD_NAME_FL2000DX == dev_ctx->card_name)
+fl2000_monitor.c:	memset(dev_ctx->monitor_edid, 0, sizeof(dev_ctx->monitor_edid));
+fl2000_monitor.c:	if (waitqueue_active(&dev_ctx->ioctl_wait_q))
+fl2000_monitor.c:		wake_up_interruptible(&dev_ctx->ioctl_wait_q);
+fl2000_monitor.c:	 * Bug #6147 - After hot plug VGA connector, the monitor can't display
+fl2000_monitor.c:	 * We need mutex to protect plug-in and plug-out procedure.
+fl2000_monitor.c:	 * Just to prevent the U1U2 step is not synchronize for each plug-in and plug-out.
+fl2000_monitor.c:	dev_ctx->monitor_plugged_in = false;
+fl2000_monitor.c:	if (waitqueue_active(&dev_ctx->ioctl_wait_q))
+fl2000_monitor.c:		wake_up_interruptible(&dev_ctx->ioctl_wait_q);
+fl2000_monitor.c:	memset(dev_ctx->monitor_edid, 0, sizeof(dev_ctx->monitor_edid));
+fl2000_monitor.c:	// But for S3/S4 non-powered platform, the dongle will be toggled.
+fl2000_monitor.c:	dev_ctx->vr_params.pll_reg = 0;
+fl2000_monitor.c:	if (CARD_NAME_FL2000DX == dev_ctx->card_name)
+fl2000_monitor.c:	if (vga_status->connected) {
+fl2000_monitor.c:		if (!dev_ctx->monitor_plugged_in) {
+fl2000_monitor.c:			if ( vga_status->ext_mon_connected )
+fl2000_monitor.c:			if (vga_status->edid_connected)
+fl2000_monitor.c:		if (dev_ctx->monitor_plugged_in)
+Binary file fl2000_monitor.o matches
+Binary file fl2000.o matches
+Binary file fl2000_register.o matches
+fl2000_render.c: * push render_ctx to the bus, with dev_ctx->render.busy_list_lock held
+fl2000_render.c:	struct list_head* const	free_list_head = &dev_ctx->render.free_list;
+fl2000_render.c:	if (!dev_ctx->monitor_plugged_in) {
+fl2000_render.c:		spin_lock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+fl2000_render.c:		spin_unlock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.free_list_count++;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.busy_list);
+fl2000_render.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:	dev_ctx->render.busy_list_count++;
+fl2000_render.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:	render_ctx->pending_count++;
+fl2000_render.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	ret_val = usb_submit_urb(render_ctx->main_urb, GFP_ATOMIC);
+fl2000_render.c:			"[ERR] usb_submit-urb(%p) failed with %d!",
+fl2000_render.c:			render_ctx->main_urb,
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		render_ctx->pending_count--;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.busy_list_count--;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		spin_lock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+fl2000_render.c:		spin_unlock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.free_list_count++;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		if (-ENODEV == ret_val || -ENOENT == ret_val) {
+fl2000_render.c:			dev_ctx->dev_gone = 1;
+fl2000_render.c:	if ((dev_ctx->vr_params.end_of_frame_type == EOF_ZERO_LENGTH) &&
+fl2000_render.c:	    (VR_TRANSFER_PIPE_BULK == dev_ctx->vr_params.trasfer_pipe)) {
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		render_ctx->pending_count++;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:			render_ctx->zero_length_urb, GFP_ATOMIC);
+fl2000_render.c:			spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:			render_ctx->pending_count--;
+fl2000_render.c:			spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:			if (-ENODEV == ret_val || -ENOENT == ret_val) {
+fl2000_render.c:				dev_ctx->dev_gone = 1;
+fl2000_render.c:		render_ctx = &dev_ctx->render.render_ctx[i];
+fl2000_render.c:		INIT_LIST_HEAD(&render_ctx->list_entry);
+fl2000_render.c:		render_ctx->dev_ctx = dev_ctx;
+fl2000_render.c:		render_ctx->pending_count = 0;
+fl2000_render.c:		render_ctx->main_urb = usb_alloc_urb(0, GFP_ATOMIC);
+fl2000_render.c:		if (!render_ctx->main_urb) {
+fl2000_render.c:			ret_val = -ENOMEM;
+fl2000_render.c:		render_ctx->zero_length_urb = usb_alloc_urb(0, GFP_ATOMIC);
+fl2000_render.c:		if (!render_ctx->zero_length_urb) {
+fl2000_render.c:			ret_val = -ENOMEM;
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry,
+fl2000_render.c:			&dev_ctx->render.free_list);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.free_list_count++;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		render_ctx = &dev_ctx->render.render_ctx[i];
+fl2000_render.c:		if (render_ctx->main_urb) {
+fl2000_render.c:		    usb_free_urb( render_ctx->main_urb);
+fl2000_render.c:		    render_ctx->main_urb = NULL;
+fl2000_render.c:		if (render_ctx->zero_length_urb) {
+fl2000_render.c:			usb_free_urb(render_ctx->zero_length_urb);
+fl2000_render.c:			render_ctx->zero_length_urb = NULL;
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.free_list_count--;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	INIT_LIST_HEAD(&dev_ctx->render.free_list);
+fl2000_render.c:	spin_lock_init(&dev_ctx->render.free_list_lock);
+fl2000_render.c:	dev_ctx->render.free_list_count = 0;
+fl2000_render.c:	INIT_LIST_HEAD(&dev_ctx->render.ready_list);
+fl2000_render.c:	spin_lock_init(&dev_ctx->render.ready_list_lock);
+fl2000_render.c:	dev_ctx->render.ready_list_count = 0;
+fl2000_render.c:	INIT_LIST_HEAD(&dev_ctx->render.busy_list);
+fl2000_render.c:	spin_lock_init(&dev_ctx->render.busy_list_lock);
+fl2000_render.c:	dev_ctx->render.busy_list_count = 0;
+fl2000_render.c:	INIT_LIST_HEAD(&dev_ctx->render.surface_list);
+fl2000_render.c:	spin_lock_init(&dev_ctx->render.surface_list_lock);
+fl2000_render.c:	dev_ctx->render.surface_list_count = 0;
+fl2000_render.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_render.c:	int const urb_status = render_ctx->main_urb->status;
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.busy_list_lock);
+fl2000_render.c:	list_del(&render_ctx->list_entry);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.busy_list_lock);
+fl2000_render.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:	dev_ctx->render.busy_list_count--;
+fl2000_render.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.free_list);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:	dev_ctx->render.free_list_count++;
+fl2000_render.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:			"urb->status(%d) error", urb_status);
+fl2000_render.c:		dev_ctx->render.green_light = 0;
+fl2000_render.c:		if (urb_status == -ESHUTDOWN || urb_status == -ENOENT ||
+fl2000_render.c:		    urb_status == -ENODEV) {
+fl2000_render.c:			dev_ctx->dev_gone = true;
+fl2000_render.c:	struct list_head* const	free_list_head = &dev_ctx->render.free_list;
+fl2000_render.c:	struct list_head* const	ready_list_head = &dev_ctx->render.ready_list;
+fl2000_render.c:	dev_ctx->render.last_updated_surface = surface;
+fl2000_render.c:	dev_ctx->render.last_frame_num = surface->frame_num;
+fl2000_render.c:	if (dev_ctx->render.green_light == 0) {
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		dev_ctx->render.free_list_count--;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:	render_ctx->primary_surface = surface;
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.ready_list_lock);
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, ready_list_head);
+fl2000_render.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:	ready_count = ++dev_ctx->render.ready_list_count;
+fl2000_render.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.ready_list_lock);
+fl2000_render.c:	struct list_head* const	free_list_head = &dev_ctx->render.free_list;
+fl2000_render.c:	struct list_head* const	ready_list_head = &dev_ctx->render.ready_list;
+fl2000_render.c:	if (dev_ctx->render.green_light == 0) {
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.ready_list_lock);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:		ready_count = --dev_ctx->render.ready_list_count;
+fl2000_render.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, &staging_list);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.ready_list_lock);
+fl2000_render.c:	spin_lock_bh(&dev_ctx->render.busy_list_lock);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:			dev_ctx->render.green_light = false;
+fl2000_render.c:	if (dev_ctx->render.busy_list_count < NUM_RENDER_ON_BUS &&
+fl2000_render.c:	    dev_ctx->render.green_light) {
+fl2000_render.c:		spin_lock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:			list_del(&render_ctx->list_entry);
+fl2000_render.c:			spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_render.c:			dev_ctx->render.free_list_count--;
+fl2000_render.c:			spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_render.c:		spin_unlock_bh(&dev_ctx->render.free_list_lock);
+fl2000_render.c:			surface = dev_ctx->render.last_updated_surface;
+fl2000_render.c:			render_ctx->primary_surface = surface;
+fl2000_render.c:			list_add_tail(&render_ctx->list_entry, &staging_list);
+fl2000_render.c:	spin_unlock_bh(&dev_ctx->render.busy_list_lock);
+fl2000_render.c:	dev_ctx->render.green_light = 1;
+fl2000_render.c:	dev_ctx->render.green_light = 0;
+fl2000_render.c:		"busy_list_count(%u)", dev_ctx->render.busy_list_count);
+fl2000_render.c:	while (dev_ctx->render.busy_list_count != 0) {
+Binary file fl2000_render.o matches
+fl2000_surface.c: * work-around get_user_pages API changes
+fl2000_surface.c:		current->mm,
+fl2000_surface.c:	 * make sure start address is page-aligned.
+fl2000_surface.c:	start = surface->user_buffer & PAGE_MASK;
+fl2000_surface.c:	end = surface->user_buffer + surface->buffer_length;
+fl2000_surface.c:	nr_pages = (end - start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+fl2000_surface.c:		ret_val = -ENOMEM;
+fl2000_surface.c:	surface->pages = pages;
+fl2000_surface.c:	surface->nr_pages = nr_pages;
+fl2000_surface.c:	surface->pages_pinned = 0;
+fl2000_surface.c:	 * surface->pages.
+fl2000_surface.c:	switch (surface->type) {
+fl2000_surface.c:		while (surface->pages_pinned != nr_pages) {
+fl2000_surface.c:			down_read(&current->mm->mmap_sem);
+fl2000_surface.c:				surface->user_buffer,
+fl2000_surface.c:			up_read(&current->mm->mmap_sem);
+fl2000_surface.c:			surface->pages_pinned += pages_pinned;
+fl2000_surface.c:		down_read(&current->mm->mmap_sem);
+fl2000_surface.c:		 * work-around the user memory which is mapped from driver,
+fl2000_surface.c:		vma = find_vma(current->mm, surface->user_buffer);
+fl2000_surface.c:		old_flags = vma->vm_flags;
+fl2000_surface.c:		vma->vm_flags &= ~(VM_IO | VM_PFNMAP);
+fl2000_surface.c:			surface->user_buffer,
+fl2000_surface.c:		vma->vm_flags = old_flags;
+fl2000_surface.c:		up_read(&current->mm->mmap_sem);
+fl2000_surface.c:		surface->pages_pinned = pages_pinned;
+fl2000_surface.c:		first_page = surface->pages[0];
+fl2000_surface.c:		surface->physical_address = PFN_PHYS(page_to_pfn(first_page)) +
+fl2000_surface.c:		surface->start_offset;
+fl2000_surface.c:		surface->physical_address = surface->user_buffer;
+fl2000_surface.c:		first_page = pfn_to_page(__phys_to_pfn(surface->physical_address));
+fl2000_surface.c:		surface->first_page = first_page;
+fl2000_surface.c:			(unsigned long) surface->physical_address,
+fl2000_surface.c:			(unsigned long) surface->user_buffer);
+fl2000_surface.c:	printk("---- page_cache_release(), page_cache_release() .....\n");
+fl2000_surface.c:	for (i = 0; i < surface->pages_pinned; i++)
+fl2000_surface.c:	surface->pages = NULL;
+fl2000_surface.c:	surface->nr_pages = 0;
+fl2000_surface.c:	surface->pages_pinned = 0;
+fl2000_surface.c:	struct page ** pages = surface->pages;
+fl2000_surface.c:	unsigned int pages_pinned = surface->pages_pinned;
+fl2000_surface.c:	if (surface->pages == NULL)
+fl2000_surface.c:	printk("---!!!!!!! try_to_release_age()  for page_cache_release() .....\n");
+fl2000_surface.c:	surface->pages = NULL;
+fl2000_surface.c:	surface->nr_pages = 0;
+fl2000_surface.c:	surface->pages_pinned = 0;
+fl2000_surface.c:	unsigned long page_offset = surface->user_buffer & ~PAGE_MASK;
+fl2000_surface.c:	switch (surface->type) {
+fl2000_surface.c:		if (surface->pages == NULL || surface->nr_pages == 0) {
+fl2000_surface.c:				surface->pages, surface->nr_pages);
+fl2000_surface.c:			ret_val = -EINVAL;
+fl2000_surface.c:		surface->mapped_buffer = vm_map_ram(
+fl2000_surface.c:			surface->pages,
+fl2000_surface.c:			surface->nr_pages,
+fl2000_surface.c:			-1,
+fl2000_surface.c:		if (surface->mapped_buffer == NULL) {
+fl2000_surface.c:			ret_val = -ENOMEM;
+fl2000_surface.c:	surface->system_buffer = surface->mapped_buffer + page_offset;
+fl2000_surface.c:		(unsigned long) surface->user_buffer,
+fl2000_surface.c:		(unsigned long) surface->system_buffer);
+fl2000_surface.c:	if (surface->mapped_buffer == NULL)
+fl2000_surface.c:	switch (surface->type) {
+fl2000_surface.c:		vm_unmap_ram(surface->mapped_buffer, surface->nr_pages);
+fl2000_surface.c:	surface->mapped_buffer = NULL;
+fl2000_surface.c:	surface->system_buffer = NULL;
+fl2000_surface.c:	if (info->buffer_length != info->pitch * info->height) {
+fl2000_surface.c:			(unsigned int ) info->buffer_length,
+fl2000_surface.c:			info->pitch * info->height);
+fl2000_surface.c:		ret = -EINVAL;
+fl2000_surface.c:	switch (info->color_format) {
+fl2000_surface.c:		if (info->pitch != info->width * 3) {
+fl2000_surface.c:				info->pitch, info->width * 3);
+fl2000_surface.c:			ret = -EINVAL;
+fl2000_surface.c:		if (info->pitch != info->width * 2) {
+fl2000_surface.c:				info->pitch, info->width * 3);
+fl2000_surface.c:			ret = -EINVAL;
+fl2000_surface.c:			info->color_format);
+fl2000_surface.c:		ret = -EINVAL;
+fl2000_surface.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:	list_for_each_entry(s, &dev_ctx->render.surface_list, list_entry) {
+fl2000_surface.c:		if (s->handle == info->handle) {
+fl2000_surface.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:			(unsigned int) surface->handle);
+fl2000_surface.c:		ret = -EINVAL;
+fl2000_surface.c:		ret = -ENOMEM;
+fl2000_surface.c:	INIT_LIST_HEAD(&surface->list_entry);
+fl2000_surface.c:	surface->handle		= info->handle;
+fl2000_surface.c:	surface->user_buffer	= info->user_buffer;
+fl2000_surface.c:	surface->buffer_length	= (uint32_t) info->buffer_length;
+fl2000_surface.c:	surface->width		= info->width;
+fl2000_surface.c:	surface->height		= info->height;
+fl2000_surface.c:	surface->pitch		= info->pitch;
+fl2000_surface.c:	surface->color_format	= info->color_format;
+fl2000_surface.c:	surface->type		= info->type;
+fl2000_surface.c:	surface->start_offset	= info->user_buffer & ~PAGE_MASK;
+fl2000_surface.c:	surface->shadow_buffer = vmalloc(surface->buffer_length);
+fl2000_surface.c:	if (surface->shadow_buffer == NULL) {
+fl2000_surface.c:	switch (info->type) {
+fl2000_surface.c:		if (info->color_format == COLOR_FORMAT_RGB_24 &&
+fl2000_surface.c:		    info->pitch == info->width * 3) {
+fl2000_surface.c:					(unsigned int) surface->handle);
+fl2000_surface.c:					(unsigned int) surface->handle);
+fl2000_surface.c:			 * where the shadow_buffer contains the re-ordered pixels
+fl2000_surface.c:			surface->render_buffer = surface->shadow_buffer;
+fl2000_surface.c:			surface->render_buffer = surface->shadow_buffer;
+fl2000_surface.c:		surface->render_buffer = surface->shadow_buffer;
+fl2000_surface.c:				(unsigned int) surface->handle);
+fl2000_surface.c:				(unsigned int) surface->handle);
+fl2000_surface.c:		surface->render_buffer = surface->shadow_buffer;
+fl2000_surface.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:	list_add_tail(&surface->list_entry, &dev_ctx->render.surface_list);
+fl2000_surface.c:	spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_surface.c:	dev_ctx->render.surface_list_count++;
+fl2000_surface.c:	spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_surface.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:		(unsigned int) surface->user_buffer,
+fl2000_surface.c:		(unsigned int) surface->buffer_length,
+fl2000_surface.c:		surface->width,
+fl2000_surface.c:		surface->height,
+fl2000_surface.c:		surface->pitch,
+fl2000_surface.c:		surface->type,
+fl2000_surface.c:		surface->render_buffer,
+fl2000_surface.c:		surface->system_buffer,
+fl2000_surface.c:		surface->shadow_buffer,
+fl2000_surface.c:		dev_ctx->render.surface_list_count);
+fl2000_surface.c:		(unsigned int) surface->user_buffer,
+fl2000_surface.c:		(unsigned int) surface->buffer_length,
+fl2000_surface.c:		surface->width,
+fl2000_surface.c:		surface->height,
+fl2000_surface.c:		surface->pitch,
+fl2000_surface.c:		surface->type,
+fl2000_surface.c:		surface->render_buffer,
+fl2000_surface.c:		dev_ctx->render.surface_list_count);
+fl2000_surface.c:	printk("fl2000_surface_unpin(dev_ctx, surface)...------!!!!!!-----\n");
+fl2000_surface.c:	if (surface->shadow_buffer) {
+fl2000_surface.c:		printk("vfree(surface->shadow_buffer)...\n");
+fl2000_surface.c:		vfree(surface->shadow_buffer);
+fl2000_surface.c:		surface->shadow_buffer = NULL;
+fl2000_surface.c:	struct list_head * list_head = &dev_ctx->render.surface_list;
+fl2000_surface.c:	spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:		list_del_init(&surface->list_entry);
+fl2000_surface.c:		spin_lock_irqsave(&dev_ctx->count_lock, flags);
+fl2000_surface.c:		dev_ctx->render.surface_list_count--;
+fl2000_surface.c:		spin_unlock_irqrestore(&dev_ctx->count_lock, flags);
+fl2000_surface.c:		spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:			surface, dev_ctx->render.surface_list_count);
+fl2000_surface.c:		spin_lock_bh(&dev_ctx->render.surface_list_lock);
+fl2000_surface.c:	spin_unlock_bh(&dev_ctx->render.surface_list_lock);
+Binary file fl2000_surface.o matches
+Makefile:fl2000-y := fl2000_module.o
+Makefile:fl2000-y += fl2000_bulk.o
+Makefile:fl2000-y += fl2000_ioctl.o
+Makefile:fl2000-y += fl2000_render.o
+Makefile:fl2000-y += fl2000_dev.o
+Makefile:fl2000-y += fl2000_dongle.o
+Makefile:fl2000-y += fl2000_big_table.o
+Makefile:fl2000-y += fl2000_i2c.o
+Makefile:fl2000-y += fl2000_register.o
+Makefile:fl2000-y += fl2000_monitor.o
+Makefile:fl2000-y += fl2000_desc.o
+Makefile:fl2000-y += fl2000_interrupt.o
+Makefile:fl2000-y += fl2000_compression.o
+Makefile:fl2000-y += fl2000_surface.o
+Makefile:fl2000-y += fl2000_fops.o
+Makefile:fl2000-y += fl2000_hdmi.o
+Makefile:obj-$(CONFIG_USB_FL2000) := fl2000.o
+Makefile:obj-m := fl2000.o
+Makefile:#KERNEL_PATH = ../../../kernel/linux-3.10.0-327.13.1.el7
+Makefile:#KERNEL_PATH = /usr/src/kernels/3.10.0-327.13.1.el7.x86_64
+Makefile:#KERNEL_PATH = /usr/src/kernels/`uname -r`
+Makefile:	make -C $(KERNEL_PATH) M=$(PWD) modules
+Makefile:	make -C $(KERNEL_PATH) M=$(PWD) clean
+Makefile:	rm -f Module.symvers

@@ -35,16 +35,17 @@
 #define DBG_HW                                  (1 << 7)
 #define DBG_COMPRESSION                         (1 << 8)
 
-//+++++ add DBG_FLAGS as DBG_HW and DBG_RENDER
-#define	DEFAULT_DBG_FLAGS	(DBG_INIT | DBG_PNP | DBG_POWER | DBG_IOCTL | DBG_HW | DBG_RENDER)
+#define	DEFAULT_DBG_FLAGS	(DBG_INIT | DBG_PNP | DBG_POWER | DBG_IOCTL)
+
+
 
 #define dbg_msg(level, flags, msg, ...)		\
-	 do{                                            \
+	do {                                            \
 		if ((level <= currentTraceLevel) &&	\
 		    (flags & currentTraceFlags)) {	\
 			printk("%s:" msg "\n", __func__, ##__VA_ARGS__);   \
 		}					\
-	}while(0) 
+	} while (0)
 
 extern uint32_t currentTraceLevel;
 extern uint32_t currentTraceFlags;

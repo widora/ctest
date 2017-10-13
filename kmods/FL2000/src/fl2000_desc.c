@@ -26,12 +26,16 @@ void fl2000_desc_init(struct dev_ctx * dev_ctx)
 		&dev_ctx->usb_dev->descriptor,
 		sizeof(struct usb_device_descriptor));
 
-	dev_ctx->card_name = CARD_NAME_UNDEFINED;
+//+++++	 change card_name = CARD_NAME_UNDEFINED to CARD_NAME_FL2000;
+        //dev_ctx->card_name = CARD_NAME_UNDEFINED;
+	dev_ctx->card_name=CARD_NAME_FL2000;
 
+/*
 	if (VID_FRESCO_LOGIC == dev_ctx->usb_dev_desc.idVendor &&
 	    PID_FL2000 == dev_ctx->usb_dev_desc.idProduct &&
 	    DEVICE_ID_FL2000DX == dev_ctx->usb_dev_desc.bcdDevice)
 		dev_ctx->card_name = CARD_NAME_FL2000DX;
+*/
 }
 
 // eof: f2l000_desc.c

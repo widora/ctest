@@ -1,0 +1,117 @@
+fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+fl2000_bulk.c:	struct primary_surface* const surface = render_ctx->primary_surface;
+fl2000_bulk.c:	render_ctx->transfer_buffer = surface->render_buffer;
+fl2000_bulk.c:	render_ctx->transfer_buffer_length = surface->buffer_length;
+fl2000_bulk.c:	usb_init_urb(render_ctx->main_urb);
+fl2000_bulk.c:	render_ctx->main_urb->num_sgs = num_sgs;
+fl2000_bulk.c:	render_ctx->main_urb->sg = sglist;
+fl2000_bulk.c:		render_ctx->main_urb,
+fl2000_bulk.c:		render_ctx->transfer_buffer,
+fl2000_bulk.c:		render_ctx->transfer_buffer_length,
+fl2000_bulk.c:		usb_init_urb(render_ctx->zero_length_urb);
+fl2000_bulk.c:			render_ctx->zero_length_urb,
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.busy_list);
+fl2000_render.c:	render_ctx->pending_count++;
+fl2000_render.c:	ret_val = usb_submit_urb(render_ctx->main_urb, GFP_KERNEL);
+fl2000_render.c://	ret_val = usb_submit_urb(render_ctx->main_urb, GFP_ATOMIC);
+fl2000_render.c:			render_ctx->main_urb,
+fl2000_render.c:		render_ctx->pending_count--;
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+fl2000_render.c:		render_ctx->pending_count++;
+fl2000_render.c:			render_ctx->zero_length_urb, GFP_ATOMIC);
+fl2000_render.c:			render_ctx->pending_count--;
+fl2000_render.c:		INIT_LIST_HEAD(&render_ctx->list_entry);
+fl2000_render.c:		render_ctx->dev_ctx = dev_ctx;
+fl2000_render.c:		render_ctx->pending_count = 0;
+fl2000_render.c:		render_ctx->main_urb = usb_alloc_urb(0, GFP_ATOMIC);
+fl2000_render.c:		if (!render_ctx->main_urb) {
+fl2000_render.c:		render_ctx->zero_length_urb = usb_alloc_urb(0, GFP_ATOMIC);
+fl2000_render.c:		if (!render_ctx->zero_length_urb) {
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry,
+fl2000_render.c:		if (render_ctx->main_urb) {
+fl2000_render.c:		    usb_free_urb( render_ctx->main_urb);
+fl2000_render.c:		    render_ctx->main_urb = NULL;
+fl2000_render.c:		if (render_ctx->zero_length_urb) {
+fl2000_render.c:			usb_free_urb(render_ctx->zero_length_urb);
+fl2000_render.c:			render_ctx->zero_length_urb = NULL;
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+fl2000_render.c:	int const urb_status = render_ctx->main_urb->status;
+fl2000_render.c:	list_del(&render_ctx->list_entry);
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.free_list);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:	render_ctx->primary_surface = surface;
+fl2000_render.c:	list_add_tail(&render_ctx->list_entry, ready_list_head);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:		list_add_tail(&render_ctx->list_entry, &staging_list);
+fl2000_render.c:		list_del(&render_ctx->list_entry);
+fl2000_render.c:			list_del(&render_ctx->list_entry);
+fl2000_render.c:			render_ctx->primary_surface = surface;
+fl2000_render.c:			list_add_tail(&render_ctx->list_entry, &staging_list);
+private:fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+private:fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+private:fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+private:fl2000_bulk.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+private:fl2000_bulk.c:	pending_count = --render_ctx->pending_count;
+private:fl2000_bulk.c:			struct tasklet_struct * tasklet = &render_ctx->tasklet;
+private:fl2000_bulk.c:	struct primary_surface* const surface = render_ctx->primary_surface;
+private:fl2000_bulk.c:	render_ctx->transfer_buffer = surface->render_buffer;
+private:fl2000_bulk.c:	render_ctx->transfer_buffer_length = surface->buffer_length;
+private:fl2000_bulk.c:	usb_init_urb(render_ctx->main_urb);
+private:fl2000_bulk.c:	render_ctx->main_urb->num_sgs = num_sgs;
+private:fl2000_bulk.c:	render_ctx->main_urb->sg = sglist;
+private:fl2000_bulk.c:		render_ctx->main_urb,
+private:fl2000_bulk.c:		render_ctx->transfer_buffer,
+private:fl2000_bulk.c:		render_ctx->transfer_buffer_length,
+private:fl2000_bulk.c:		usb_init_urb(render_ctx->zero_length_urb);
+private:fl2000_bulk.c:			render_ctx->zero_length_urb,
+private:fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+private:fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.busy_list);
+private:fl2000_render.c:	render_ctx->pending_count++;
+private:fl2000_render.c:	ret_val = usb_submit_urb(render_ctx->main_urb, GFP_ATOMIC);
+private:fl2000_render.c:			render_ctx->main_urb,
+private:fl2000_render.c:		render_ctx->pending_count--;
+private:fl2000_render.c:		list_del(&render_ctx->list_entry);
+private:fl2000_render.c:		list_add_tail(&render_ctx->list_entry, free_list_head);
+private:fl2000_render.c:		render_ctx->pending_count++;
+private:fl2000_render.c:			render_ctx->zero_length_urb, GFP_ATOMIC);
+private:fl2000_render.c:			render_ctx->pending_count--;
+private:fl2000_render.c:		INIT_LIST_HEAD(&render_ctx->list_entry);
+private:fl2000_render.c:		render_ctx->dev_ctx = dev_ctx;
+private:fl2000_render.c:		render_ctx->pending_count = 0;
+private:fl2000_render.c:		render_ctx->main_urb = usb_alloc_urb(0, GFP_ATOMIC);
+private:fl2000_render.c:		if (!render_ctx->main_urb) {
+private:fl2000_render.c:		render_ctx->zero_length_urb = usb_alloc_urb(0, GFP_ATOMIC);
+private:fl2000_render.c:		if (!render_ctx->zero_length_urb) {
+private:fl2000_render.c:		list_add_tail(&render_ctx->list_entry,
+private:fl2000_render.c:		if (render_ctx->main_urb) {
+private:fl2000_render.c:		    usb_free_urb( render_ctx->main_urb);
+private:fl2000_render.c:		    render_ctx->main_urb = NULL;
+private:fl2000_render.c:		if (render_ctx->zero_length_urb) {
+private:fl2000_render.c:			usb_free_urb(render_ctx->zero_length_urb);
+private:fl2000_render.c:			render_ctx->zero_length_urb = NULL;
+private:fl2000_render.c:		list_del(&render_ctx->list_entry);
+private:fl2000_render.c:	struct dev_ctx * const dev_ctx = render_ctx->dev_ctx;
+private:fl2000_render.c:	int const urb_status = render_ctx->main_urb->status;
+private:fl2000_render.c:	list_del(&render_ctx->list_entry);
+private:fl2000_render.c:	list_add_tail(&render_ctx->list_entry, &dev_ctx->render.free_list);
+private:fl2000_render.c:		list_del(&render_ctx->list_entry);
+private:fl2000_render.c:	render_ctx->primary_surface = surface;
+private:fl2000_render.c:	list_add_tail(&render_ctx->list_entry, ready_list_head);
+private:fl2000_render.c:		list_del(&render_ctx->list_entry);
+private:fl2000_render.c:		list_add_tail(&render_ctx->list_entry, &staging_list);
+private:fl2000_render.c:		list_del(&render_ctx->list_entry);
+private:fl2000_render.c:			list_del(&render_ctx->list_entry);
+private:fl2000_render.c:			render_ctx->primary_surface = surface;
+private:fl2000_render.c:			list_add_tail(&render_ctx->list_entry, &staging_list);
+render_buffer:fl2000_bulk.c:	render_ctx->transfer_buffer = surface->render_buffer;
+render_buffer:fl2000_bulk.c:	render_ctx->transfer_buffer_length = surface->buffer_length;
+render_buffer:private:fl2000_bulk.c:	render_ctx->transfer_buffer = surface->render_buffer;
+render_buffer:private:fl2000_bulk.c:	render_ctx->transfer_buffer_length = surface->buffer_length;

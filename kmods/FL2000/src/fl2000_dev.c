@@ -18,7 +18,8 @@
 static void
 fl2000_init_flags(struct dev_ctx * dev_ctx)
 {
-	dev_ctx->card_name = CARD_NAME_FL2000DX;
+	//+++++ change CARD_NAME
+//	dev_ctx->card_name = CARD_NAME_FL2000DX; //FL2000DX;
 	dev_ctx->monitor_plugged_in = false;
 	init_waitqueue_head(&dev_ctx->ioctl_wait_q);
 }
@@ -55,11 +56,11 @@ int fl2000_dev_init(struct dev_ctx * dev_ctx)
 
 	dbg_msg(TRACE_LEVEL_VERBOSE, DBG_PNP, ">>>>");
 
-
 	spin_lock_init(&dev_ctx->count_lock);
-
+	printk("======== start: fl2000_init_flags()\n");
 	fl2000_init_flags(dev_ctx);
 
+	printk("======== start: fl2000_dev_select_interface()\n");
 	ret_val = fl2000_dev_select_interface(dev_ctx);
 	if (ret_val < 0) {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
@@ -67,12 +68,12 @@ int fl2000_dev_init(struct dev_ctx * dev_ctx)
 		goto exit;
 	}
 
-	printk("fl2000_dongle_u1u2_setup()....================\n");
-	fl2000_dongle_u1u2_setup(dev_ctx, false);
-	printk("fl2000_dongle_card_initialize()....===============\n");
+	printk("======== start: fl2000_dongle_u1u2_setup()\n");
+	fl2000_dongle_u1u2_setup(dev_ctx,false);
+	printk("======== start: fl2000_dongle_card_initialized()\n");
 	fl2000_dongle_card_initialize(dev_ctx);
 
-	printk("fl2000_render_create()....===============\n");
+	printk("======== start: fl2000_render_create()\n");
 	ret_val = fl2000_render_create(dev_ctx);
 	if (ret_val < 0) {
 		dbg_msg(TRACE_LEVEL_ERROR, DBG_PNP,
@@ -80,7 +81,7 @@ int fl2000_dev_init(struct dev_ctx * dev_ctx)
 		goto exit;
 	}
 
-	printk("fl2000_monitor_manula_check_connection()....===============\n");
+	printk("======== start: fl2000_monitor_manual_check_connection()\n");
 	fl2000_monitor_manual_check_connection(dev_ctx);
 
 exit:

@@ -28,25 +28,21 @@ fl2000_i2c_xfer(
 
 	dbg_msg(TRACE_LEVEL_VERBOSE, DBG_HW, ">>>>");
 
-	//+++++ add dev_ctx->ctrl_xfer_buf=*data;
+//+++++ add dev_ctx->ctrl_xfer_buf = *data;
 	dev_ctx->ctrl_xfer_buf = *data;
 
 	if (is_read) {
 		bRequest = REQUEST_I2C_COMMAND_READ;
 		req_type = (USB_DIR_IN | USB_TYPE_VENDOR);
-
-		printk("======= in fl2000_i2c_xfer() start:usb_rcvctrlpipe()....\n");
 		pipe = usb_rcvctrlpipe(dev_ctx->usb_dev, 0);
 	}
 	else {
 		bRequest = REQUEST_I2C_COMMAND_WRITE;
 		req_type = (USB_DIR_OUT | USB_TYPE_VENDOR);
-		printk("======= in fl2000_i2c_xfer() start:usb_sndctrlpipe()....\n");
 		pipe = usb_sndctrlpipe(dev_ctx->usb_dev, 0);
 	}
 
 	req_index = (uint16_t) offset;
-	printk("======= in fl2000_i2c_xfer() start:usb_control_msg()....\n");
 	ret_val = usb_control_msg(
 		dev_ctx->usb_dev,
 		pipe,
@@ -54,13 +50,12 @@ fl2000_i2c_xfer(
 		req_type,
 		0,
 		req_index,
-//+++++ replace data with  &dev_ctx->ctrl_xfer_buf
-//		data,
+//+++++ replay data with &dev_ctx->ctrl_xfer_buf,
+		//data,
 		&dev_ctx->ctrl_xfer_buf,
 		REQUEST_I2C_RW_DATA_COMMAND_LENGTH,
 		CTRL_XFER_TIMEOUT);
-
-	//+++++ add if(is_read) *data = dev_ctx->ctrl_xfer_buf;
+//+++++ add if(is_read) then *data = dev_ctx->ctrl_xfer_buf;
 	if(is_read)
 		*data = dev_ctx->ctrl_xfer_buf;
 

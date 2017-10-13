@@ -89,12 +89,12 @@ int fl2000_release(struct inode * inode, struct file * file)
 	return 0;
 }
 
-//+++++ delete fl2000_vm_fault() function
+//+++++ delete static int fl2000_vm_fault(struct vm_fault *vmf) and const struct vm_operations_struct fl2000_vma_ops ...
+//static int fl2000_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 /*
-static int fl2000_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-//static int fl2000_vm_fault(struct vm_fault *vmf)
+static int fl2000_vm_fault(struct vm_fault *vmf)
 {
-//	struct vm_area_struct *vma = vmf->vma;
+	struct vm_area_struct *vma = vmf->vma;
 	struct dev_ctx * const dev_ctx = vma->vm_private_data;
 	unsigned long len = vma->vm_end - vma->vm_start;
 	unsigned long num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -123,7 +123,6 @@ exit:
 const struct vm_operations_struct fl2000_vma_ops = {
 	.fault = fl2000_vm_fault,
 };
-
 */
 
 /*
@@ -137,6 +136,8 @@ int fl2000_mmap(struct file * file, struct vm_area_struct *vma)
 	unsigned long len = vma->vm_end - vma->vm_start;
 	unsigned long num_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned int ret_val = 0;
+
+//+++++ delete #if(!USE_VM_INSERT_PFN)
 /*
 #if (!USE_VM_INSERT_PFN)
 */
@@ -161,6 +162,8 @@ int fl2000_mmap(struct file * file, struct vm_area_struct *vma)
 	 * with vma->vm_mm->mmap held.
 	 */
 
+
+//+++++ delete #if (USE_VM_INSERT_PFN) ...#else
 /*
 #if (USE_VM_INSERT_PFN)
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;

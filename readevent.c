@@ -1,8 +1,4 @@
-/*----------------------------------------------------
-   A simple way to use mouse to control mplayer....
 
-   Midas
---------------------------------------------------*/
 
 /*
  * Copyright 2002 Red Hat Inc., Durham, North Carolina.
@@ -50,13 +46,7 @@
 #include <time.h>
 #include <linux/input.h>
 
-//+++++ Mouse key to contrl mplayer----------------------------
-#define  LEFT_KEY 16
-#define  RIGHT_KEY 17
-#define  MID_KEY 18
 struct input_event event;
-
-
 
 int main(int argc, char **argv)
 {
@@ -68,12 +58,6 @@ int main(int argc, char **argv)
     int           rc;
     int           i, j;
     char          *tmp;
-//+++++ Mouse key to contrl mplayer----------------------------
-   unsigned int volume_val=100;
-   char strCMD[50];
-//---------------+++end
-
-
 
 #define test_bit(bit) (mask[(bit)/8] & (1 << ((bit)%8)))
 
@@ -134,17 +118,6 @@ int main(int argc, char **argv)
                         printf("Button %d %s",
                                event.code & 0xff,
                                event.value ? "press" : "release");
-//+++++ Mouse key to contrl mplayer----------------------------
-			       if( (event.code & 0xff) == LEFT_KEY && event.value==1 )//left key press
-				{
-					printf("--left key--");
-					system("mprev");
-				}
-	       		       else if( (event.code & 0xff) == RIGHT_KEY && event.value==1 )//right key press
-					system("mnext");
-	       		       else if( (event.code & 0xff) == MID_KEY && event.value==1 )//middle key press
-					system("mpause");
-//------------------------------------------------------+++end
                     } else {
                         printf("Key %d (0x%x) %s",
                                event.code & 0xff,
@@ -156,29 +129,9 @@ int main(int argc, char **argv)
                     switch (event.code) {
                     case REL_X:      tmp = "X";       break;
                     case REL_Y:      tmp = "Y";       break;
-                    case REL_HWHEEL:
-			 tmp = "HWHEEL";
-			 break;
+                    case REL_HWHEEL: tmp = "HWHEEL";  break;
                     case REL_DIAL:   tmp = "DIAL";    break;
-                    case REL_WHEEL:
-			 tmp = "WHEEL";
-//+++++ Mouse key to contrl mplayer----------------------------
-			 if(event.value > 0){
-//				system("vup");
-				if(volume_val<125)
-			                  volume_val+=2;
-				          sprintf(strCMD,"amixer -c 1 set Speaker %d",volume_val);
-				          system(strCMD);
-			}
-			 else if(event.value < 0){
-//				system("vdown");
-				if(volume_val>2)
-			                  volume_val-=2;
-				          sprintf(strCMD,"amixer -c 1 set Speaker %d",volume_val);
-				          system(strCMD);
-			}
-//--------------------------------------------------------+++end
-			 break;
+                    case REL_WHEEL:  tmp = "WHEEL";   break;
                     case REL_MISC:   tmp = "MISC";    break;
                     default:         tmp = "UNKNOWN"; break;
                     }
