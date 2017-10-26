@@ -1,0 +1,8 @@
+kernel//home/midas/ctest/kmods/kdht11/industrialio.ko
+kernel//home/midas/ctest/kmods/kdht11/industrialio-core.ko
+kernel//home/midas/ctest/kmods/kdht11/industrialio-event.ko
+kernel//home/midas/ctest/kmods/kdht11/inkern.ko
+kernel//home/midas/ctest/kmods/kdht11/industrialio-buffer.ko
+kernel//home/midas/ctest/kmods/kdht11/industrialio-trigger.ko
+kernel//home/midas/ctest/kmods/kdht11/industrialio-triggered-buffer.ko
+kernel//home/midas/ctest/kmods/kdht11/kfifo_buf.ko

@@ -91,10 +91,11 @@ int main(int argc, char **argv)
    bool FEATURE_REPEAT=false;
    int evnum_kbd; // event number for keyborad input
 //---------------+++end
-
-
-
 #define test_bit(bit) (mask[(bit)/8] & (1 << ((bit)%8)))
+
+//+++++ ------------- set stdIO buf ----
+   setvbuf(stdout,NULL,_IONBF,0);
+//---------------------------+++end
 
     for (i = 0; i < 32; i++) {
         sprintf(name, "/dev/input/event%d", i);
@@ -129,7 +130,7 @@ int main(int argc, char **argv)
 			        break;
                     case EV_FF:  type = "feedback";     break;
                     }
-                    printf(" %s", type);
+                   printf(" %s", type);
                 }
             }
             printf("\n");
@@ -150,7 +151,7 @@ int main(int argc, char **argv)
                 event.time.tv_usec = 0;
                 event.type         = EV_LED;
                 event.code         = i;
-                event.value        = 0;
+                event.value        = 1;
                 write(fd, &event, sizeof(event));
             }
 
@@ -181,7 +182,10 @@ int main(int argc, char **argv)
 //----------------- print key letter ----------
 			if(event.value==1){ //----if key_pressed
 				ckey=my_kbdmap_normal+(event.code & 0xff);
-				printf("%c",*ckey);
+				if(*ckey == '\r') //---return to next line
+					printf("\r\n");
+				else
+					printf("%c",*ckey);
 			}
                     }
                     break;
@@ -231,14 +235,14 @@ int main(int argc, char **argv)
                     }
 //                    printf("Absolute %s %d", tmp, event.value);
                     break;
-                case EV_MSC: printf("Misc"); break;
+//              case EV_MSC: printf("Misc"); break;
                 case EV_LED: printf("Led");  break;
                 case EV_SND: printf("Snd");  break;
                 case EV_REP: printf("Rep");  break;
                 case EV_FF:  printf("FF");   break;
                     break;
                 }
-                printf("\n");
+//                printf("\n");
             }
 //            printf("rc = %d, (%s)\n", rc, strerror(errno));
             close(fd);
