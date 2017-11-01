@@ -29,7 +29,8 @@ host = '121.42.180.30'
 port = 8181
 
 #设备ID及key
-DEVICEID='421'
+#----- put your own ID and KEY here
+DEVICEID='xxx'
 APIKEY='xxxxxxxxx'
 
 data = b''
@@ -65,6 +66,9 @@ s.settimeout(0)  #--!!!!!!!! This will let s.recv(1) raise exception when receiv
 s.setblocking(0) #--equivalent to settimeout(0)
 
 def LogErr(error):
+#---------------------------------------
+# Do not include any '*' symbols in error string
+#---------------------------------------
         os.environ['error']=str(error) 
 	os.system("date >> /home/client_err.txt")
 	os.system("echo $error >> /home/client_err.txt")
@@ -288,22 +292,22 @@ while True:
                 print "----- start if flag_data_received: -----"
 		if d==0 or d==None:
 			count_dead_loop+=1
-			print("*** d==0 or d==None...")
+			print("--- d==0 or d==None...")
                         if count_dead_loop > 500: #---in case recv() trapped in dead loop
-			   LogErr("*** d==0 or d==None: count_dead_loop>500 ***")
+			   LogErr("--- d==0 or d==None: count_dead_loop>500 ---")
 			   data=b''
                            keepOnline()
                            keepCheckin()
 
 		elif d==u'': #--- non ASCII char ????
 			count_dead_loop+=1
-			print("*** d==u''...")
+			print("--- d==u''...")
                         if count_dead_loop > 500: #---in case recv() trapped in dead loop
-			   LogErr("*** d==u'': count_dead_loop>500 ***")
+			   LogErr("--- d==u'': count_dead_loop>500 ---")
 			   data=b''
                            keepOnline()
                            keepCheckin()
-
+			   count_dead_loop = 0
 
 		elif d!=b'\n': 
 			data+=d
@@ -312,7 +316,7 @@ while True:
 			   count_dead_loop+=1
                         if len(data)>500 or count_dead_loop>500: #---in case recv() trapped in dead loop
                            print "-----Data length =%d bytes! deadcount=%d" % (len(data),deadcount)
-			   LogErr("*** d!=b'\n': Data length >500 ---")
+			   LogErr("--- d!=b'\n': Data length >500 ---")
 			   data=b''
                            keepOnline()
                            keepCheckin()
