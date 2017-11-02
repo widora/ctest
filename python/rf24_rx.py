@@ -7,6 +7,7 @@
 import serial
 import sys,time
 import binascii
+import os
 
 sertty=''
 
@@ -64,9 +65,11 @@ try:
      while(1):
 	#----- read msg from UART
 	text=sertty.readline()[: -1]
+	#----- if msg size out of range
 	if len(text)>50:
 		continue	
-	#print text
+	print "raw text: %s" % text
+
 	msg_list = text.split(',')
 
 	#----- get crc in rec. text 
@@ -103,10 +106,9 @@ try:
 		print text
 		print "recal_crc16: %s" % recal_crc16
 
-	#sertty.write("AT?")
-	#time.sleep(1)
-	#sertty.write("AT+RATE?=1")
-	#time.sleep(1)
+	#----- sleep and repeat
+	#-sleep a little will greatly decrease cpu usage
+	time.sleep(0.1)
 
 except Exception,error:
 	LogErr(error)

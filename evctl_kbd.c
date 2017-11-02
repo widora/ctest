@@ -57,7 +57,10 @@
 #define  KEY_F3 61
 #define  KEY_F4 62
 #define  KEY_F5 63
-
+#define  KEY_UP_ARROW 103
+#define  KEY_DOWN_ARROW 108
+#define  KEY_LEFT_ARROW 105
+#define  KEY_RIGHT_ARROW 106
 
 
 struct input_event event;
@@ -73,8 +76,9 @@ int main(int argc, char **argv)
     int           i, j;
     char          *tmp;
 //+++++ Mouse key to contrl mplayer----------------------------
-   unsigned int volume_val=100;
+   unsigned int volume_val=50;
    char strCMD[50];
+
    //feature for USB keyboard
    bool USB_KEYBOARD=false;
    bool FEATURE_REPEAT=false;
@@ -157,7 +161,7 @@ int main(int argc, char **argv)
                                event.value ? "press" : "release");
 
                     } else {   //----- is Key
-//+++++ Mouse key to contrl mplayer----------------------------
+//+++++  key to contrl mplayer----------------------------
 			       if( (event.code & 0xff) == KEY_F1 && event.value==1 )//left key press
 				{
 					printf("--key F1--");
@@ -188,6 +192,32 @@ int main(int argc, char **argv)
 					system("killall mplayer");
 					system("screen -dmS USB_MP3 /mplayer/play_mp3list.sh");
 				}
+				//-------------------- control mplayer --------------------
+		               else if( (event.code & 0xff) == KEY_LEFT_ARROW && event.value==1 )// up arrow press
+				{
+					system("mprev");
+				}
+		               else if( (event.code & 0xff) == KEY_RIGHT_ARROW && event.value==1 )// up arrow press
+				{
+					system("mnext");
+				}
+		               else if( (event.code & 0xff) == KEY_UP_ARROW && event.value==1 )// up arrow press
+				{
+                        		if(volume_val<125){
+                                 		volume_val+=4;
+                                 		sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 		system(strCMD);
+                        		}
+                  		}
+		               else if( (event.code & 0xff) == KEY_DOWN_ARROW && event.value==1 )// down arrow press
+				{
+                        		if(volume_val>5){
+                                 		volume_val-=4;
+                                 		sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 		system(strCMD);
+                        		}
+                  		}
+
 //------------------------------------------------------+++end
                         printf("Key %d (0x%x) %s",
                                event.code & 0xff,
