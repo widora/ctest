@@ -12,7 +12,7 @@ import binascii
 import sys,time
 import os
 
-sertty=''
+sertty=None
 
 
 #-------------------------------
@@ -66,8 +66,8 @@ open_serial(sys.argv[1])
 
 count=0
 
-try:
-   while (1):
+while (1):
+  try:
 	#----  prepare msg -------------	
 	ctime=str(time.time())
 	#--try insert blank for crc16 check
@@ -90,6 +90,13 @@ try:
 	count+=1
 	#sleep is not a good idea
 	
-except Exception,error:
+  except Exception,error:
 	print error
 	LogErr(error)
+	#----try to reopen serial port
+	sertty.close()
+	time.sleep(1)
+	LogErr("ser.close() and retry open_serial()...")
+	open_serial(sys.argv[1])
+	continue	
+	
