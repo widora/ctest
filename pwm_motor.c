@@ -3,7 +3,6 @@ Based on:
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 ------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +13,7 @@ refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 #include <stdbool.h> //bool
 
 #include "/home/midas/ctest/kmods/soopwm/sooall_pwm.h"
+#include "msg_common.h"
 
 #define PWM_DEV "/dev/sooall_pwm"
 
@@ -22,9 +22,22 @@ int main(int argc, char *argv[])
 	int ret = -1;
 	int pwm_fd;
 	int pwmno;
+	int pwm_width;
+	bool bl_stepup = true; //
 	struct pwm_cfg  cfg;
 	int tmp;
+	//---for IPC Msg ---
+	int msg_id=-1;
+	int msg_key=MSG_KEY_SG; //MSG_TYPE_SG_PWM_WIDTH
+	char strmsg[32]={0};
 
+	//---create or get SG message queue -------
+	if(msg_id=createMsgQue(msg_key)<0){
+		printf("create message queue fails!\n");
+		exit(-1);
+	}
+
+	//--- open pwm dev ----
 	pwm_fd = open(PWM_DEV, O_RDWR);
 	if (pwm_fd < 0) {
 		printf("open pwm fd failed\n");
@@ -36,12 +49,14 @@ int main(int argc, char *argv[])
 	cfg.clksrc    =   PWM_CLK_40MHZ; //40MHZ or 100KHZ; 20-30KHZ for NIDEC24H PWM control
 	cfg.clkdiv    =   PWM_CLK_DIV4; //DIV4 for 25KHz,40us  //DIV2 40/2=20MHZ
 	cfg.old_pwm_mode =false;    /* true=old mode --- false=new mode */
+/*
 	//---- NEW MODE conf.-----
 	cfg.lduration =   2-1; //(duration 2)for NEW MODE !!!!!! set N as N-1
 	cfg.hduration =   2-1; //(duration 2)for NEW MODE  !!!!!! set N as N-1
 	cfg.senddata0 =   0xf000f000;//1101110111011101;//0xAAAA; for NEW MODE
 	cfg.senddata1 =	  0xf0f0f0f0;//1101110111011101;//0xAAAA; FOR NEW MODE
  	//----- end NEW MODE conf.
+*/
 	cfg.stop_bitpos = 63; // stop position of send data 0-63
 	cfg.idelval   =   0;
 	cfg.guardval  =   0; //
@@ -82,18 +97,51 @@ int main(int argc, char *argv[])
 
 
 /*------------  test PWM for MOTOR -----------------*/
-
+	pwm_width=0;
         while(1){
+		if(bl_stepup){ //---- step up ------
+			pwm_width++;
+			if(pwm_width > 400-1){
+				bl_stepup=false;
+			}
+		}
+		else{ //--- step down ----
+			pwm_width--;
+			if(pwm_width <  0+1){
+				bl_stepup=true;
+			}
+		}
+		//---- set pwm conf. -------
+		cfg.threshold=pwm_width;
+		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
+
+		//---------- Send IPC MSG ---------
+		//transfer MOTOR pwm_shreshold 0-400 to  SG pwm_shreshold: 60-240 (50+10, 250-10)
+		tmp=pwm_width/400.0*180+60; // 400 -> 200, so every value will get twice.
+		printf("tmp=%d\n",tmp);
+		sprintf(strmsg,"%d",tmp);
+		if(sendMsgQue(msg_id,(long)MSG_TYPE_SG_PWM_WIDTH,strmsg)!=0)
+			printf("Send message queue to SG failed!\n");
+
+
+		usleep(5000);
+	} //while
+
+
+/*
 		for(tmp=0;tmp<400;tmp++){
 			cfg.threshold=tmp;
-			usleep(20000);
+			usleep(5000);
 			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
-		usleep(900000);
+		usleep(500000);
+		//-----reverse-------
 		for(tmp=400;tmp>5;tmp--){
 			cfg.threshold=tmp;
-			usleep(20000);
+			usleep(5000);
 			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
 		}
+		usleep(500000);
+*/
 
 /*
 	while (1) {
