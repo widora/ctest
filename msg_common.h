@@ -21,7 +21,7 @@ Common head for message queue IPC
 #define MSG_TYPE_MOTOR_PWM_WIDTH 1 //--msg type 1
 //----  STEERING GEAR Msg Queue -----
 #define MSG_KEY_SG 5680 //---msg queue id. key for steering gear 
-#define MSG_TYPE_SG_PWM_WIDTH 4 // WARNING !!! msg type also MUST be identical
+#define MSG_TYPE_SG_PWM_WIDTH 4 // WARNING !!! msg type also MUST be globally identical
 
 #define TIMER_TV_SEC 1 //10; //(s)  timer routine interval for CC1101 and TING_RX to receive IPC Msg! 
 #define TIMER_TV_USEC 0 //(us)  timer routine interval

@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 			printf("Send message queue to SG failed!\n");
 
 
-		usleep(5000);
+		usleep(10000);
 	} //while
 
 

@@ -1,7 +1,13 @@
 /*------------------------------------------------------------------
-Based on:
+                     ----- NOTE -----
+PWM driver for MT7688 Based on:
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
+
+                  ----- TODOs and BUGs -----
+1. The SG90 actuator will sometime get stuck mechanically.
+2. Low voltage of motor power supply will casue running noise.
+
 ------------------------------------------------------------------*/
 
 #include <stdio.h>
