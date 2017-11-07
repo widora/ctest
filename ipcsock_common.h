@@ -91,8 +91,11 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 
 		nread = read(clt_fd,pmsg_dat,sizeof(struct struct_msg_dat));
 
-		if( nread>0 && nread != sizeof(struct struct_msg_dat))
+		if( nread>0 && nread != sizeof(struct struct_msg_dat)){
 			printf("Received msg_dat is NOT complete!");
+			pmsg_dat->msg_id = IPCMSG_NONE; // mark invalid msg_dat received.
+		}
+
 		else if (nread == sizeof(struct struct_msg_dat))
 			printf("msg_dat from client msg_id: %d  dat: %d \n",pmsg_dat->msg_id,pmsg_dat->dat);
 
@@ -128,6 +131,8 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
                 perror("Fail to create IPC client socket!");
                 return -1;
         }
+	else
+		printf("IPCSockClient: Succeed to create IPC Sock FD!\n");
 
         //----- 2. specify ipc socket path, which should be created by the server.
         svr_unaddr.sun_family=AF_UNIX; 
@@ -140,6 +145,8 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
                 close(clt_fd);
                 return -2;
         }
+	else
+		printf("IPCSockClient: Succeed to connect to server!\n");
 
 	//---- !!!!! reset msg_dat in application function -------
 
@@ -147,7 +154,15 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 	while(1){
 		if(pmsg_dat->msg_id != IPCMSG_NONE){ //Only if msg_dat is valid.
         		nwrite=write(clt_fd,pmsg_dat,sizeof(struct struct_msg_dat));
-			printf("IPC sock nwrite=%d \n",nwrite);
+			if(nwrite != sizeof(struct struct_msg_dat)){//if invalid msg_dat received
+				printf("IPCSock_Client: nwrite=%d ,while size of strut_msg_dat is %d, NOT complete! \n",nwrite,sizeof(struct struct_msg_dat));
+
+			}
+			else{
+				//-- set msg_id IPCMSG_NONE after finish nwrite
+				pmsg_dat->msg_id = IPCMSG_NONE;
+				printf("IPCSockClient: Succeed to write msg_dat to IPC Socket!\n");
+			}
 		}
 
 		usleep(20000);

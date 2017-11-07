@@ -101,10 +101,10 @@ int main(int argc, char *argv[])
 	cfg1.guardval  =   0; //
 	cfg1.guarddur  =   0; //
 	cfg1.wavenum   =   0;  /* forever loop */
-	cfg1.datawidth =   2000;//period relevant,for20ms;  //--limit 2^13-1=8191 
+	cfg1.datawidth =   2000;//period relevant,for 20ms period;  //--limit 2^13-1=8191 
 	cfg1.threshold =   150; //duty relevant, (0-10000) actuator 0 position threshold: 1.5/20*2000=150
 	//---- Actuator Angle  Limit ------
-	//-90Deg -- 0.5ms -- threshold 25  ;;;;  90Deg - 2.5ms -- threshold 125
+	//-90Deg -- 0.5ms -- threshold 50  ;;;;  90Deg - 2.5ms -- threshold 250
 
 	//---period=1000/100(KHZ)*(DIV(1-128))*datawidth   (us)
 	//---period=1000/40(MHz)*(DIV)*datawidth       (ns)
@@ -161,6 +161,8 @@ int main(int argc, char *argv[])
 	}//while() for IPC msg 
 
 	usleep(500000);
+
+
 	/*------------  test PWM for Actuator -----------------*/
 	//------------  threshold: 50 -250, shall leave some gap for limit 
 /*
@@ -181,20 +183,6 @@ int main(int argc, char *argv[])
 	}
 */
 
-
-/*
-	while (1) {
-		static int cnt = 0;
-		sleep(5);
-		ioctl(pwm_fd, PWM_GETSNDNUM, &cfg);
-		printf("send wave num = %d\n", cfg.wavenum);
-		cnt++;
-		if (cnt == 10) {
-			ioctl(pwm_fd, PWM_DISABLE, &cfg);
-			break;
-		}
-	}
-*/
 
 	return 0;
 }

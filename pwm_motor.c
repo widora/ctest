@@ -138,13 +138,14 @@ int main(int argc, char *argv[])
 		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
 
 		//---------- Send IPC MSG to SG90 actuator ---------
-		//transfer MOTOR pwm_shreshold 0-400 to  SG pwm_shreshold: 60-240 (50+10, 250-10)
-		tmp=pwm_width/400.0*180+60; // 400 -> 200, so every value will get twice.
-		printf("tmp=%d\n",tmp);
+		//transfer MOTOR pwm_shreshold 0-400 (0 high speed - 400 low speed)  to  SG pwm_shreshold: 60-240 (50+10, 250-10)
+		//---input sg_angle: -90 ~ 90, actual SG output is (250-gap_limit) ~ (50+gap_limit)
+		// -- gap_limit = 10
+		tmp=pwm_width/400.0*200+40; // convert range400 -> range200, so every value may get twice.
+		printf("start to sendMsgQue to pwm_actuator with tmp=%d\n",tmp);
 		sprintf(strmsg,"%d",tmp);
 		if(sendMsgQue(msg_id,(long)MSG_TYPE_SG_PWM_WIDTH,strmsg)!=0)
 			printf("Send message queue to SG failed!\n");
-
 
 		usleep(10000);
 	} //while

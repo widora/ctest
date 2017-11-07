@@ -6,6 +6,7 @@
 
 int main(void)
 {
+	int i;
         //-- for IPC Msg Sock ---
         pthread_t thread_IPCSockClient;
 	int pret;
@@ -21,13 +22,25 @@ int main(void)
 	}
 
 	//------ loop sending pwm threshold to IPCSockServer ------
-	msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; // msg_dat for pwm threshold control
 	while(1){
-		//-- pwm threshold range [0 - 400]
-		msg_dat.dat=120;
-		usleep(900000);
-		msg_dat.dat=350;
-		usleep(900000);
+
+		//-- pwm threshold range [0 high_speed - 400 low_speed]
+		//--- pthread_mute_lock here msg_dat here.....
+		msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; // msg_dat for pwm threshold control
+		msg_dat.dat=150;
+		printf("set msg_dat.dat = %d \n",msg_dat.dat);
+		//--- pthread_mute_unlock  msg_dat here .....
+		for(i=0;i<6;i++)
+			usleep(500000);
+
+		//--- pthread_mute_lock here msg_dat here.....
+		msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; //which may be modified by other thread.
+		msg_dat.dat=370;
+		printf("set msg_dat.dat = %d \n",msg_dat.dat);
+		//--- pthread_mute_unlock  msg_dat here .....
+		for(i=0;i<6;i++)
+			usleep(500000);
+
 	}
 
 	//------- end thread -----

@@ -151,7 +151,7 @@ static int sendMsgQue(int msg_id,long msg_type, char *data)
 //    memset(g_msg_data.text,sizeof(g_msg_data.text),0);
     g_msg_data.msg_type=msg_type;
     strncpy(g_msg_data.text,data,sizeof(g_msg_data.text));
-    printf("start msgsnd()...\n");
+//    printf("start msgsnd()...\n");
     msg_ret=msgsnd(msg_id,(void *)&g_msg_data,MSG_BUFSIZE,IPC_NOWAIT); //non-blocking
     if(msg_ret == EAGAIN)
     {
