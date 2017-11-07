@@ -27,7 +27,7 @@ int main(void)
 		//-- pwm threshold range [0 high_speed - 400 low_speed]
 		//--- pthread_mute_lock here msg_dat here.....
 		msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; // msg_dat for pwm threshold control
-		msg_dat.dat=150;
+		msg_dat.dat=180;
 		printf("set msg_dat.dat = %d \n",msg_dat.dat);
 		//--- pthread_mute_unlock  msg_dat here .....
 		for(i=0;i<6;i++)
@@ -35,7 +35,7 @@ int main(void)
 
 		//--- pthread_mute_lock here msg_dat here.....
 		msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; //which may be modified by other thread.
-		msg_dat.dat=370;
+		msg_dat.dat=350;
 		printf("set msg_dat.dat = %d \n",msg_dat.dat);
 		//--- pthread_mute_unlock  msg_dat here .....
 		for(i=0;i<6;i++)
