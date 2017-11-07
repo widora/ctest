@@ -11,9 +11,11 @@ refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 #include <fcntl.h>
 #include <math.h> //-- -lm
 #include <stdbool.h> //bool
+#include <pthread.h>
 
 #include "/home/midas/ctest/kmods/soopwm/sooall_pwm.h"
 #include "msg_common.h"
+#include "ipcsock_common.h"
 
 #define PWM_DEV "/dev/sooall_pwm"
 
@@ -26,16 +28,26 @@ int main(int argc, char *argv[])
 	bool bl_stepup = true; //
 	struct pwm_cfg  cfg;
 	int tmp;
-	//---for IPC Msg ---
+	//---for IPC Msg Queue ---
 	int msg_id=-1;
 	int msg_key=MSG_KEY_SG; //MSG_TYPE_SG_PWM_WIDTH
 	char strmsg[32]={0};
+	//-- for IPC Msg Sock ---
+	pthread_t thread_IPCSockServer;
+	int pret;
 
 	//---create or get SG message queue -------
 	if(msg_id=createMsgQue(msg_key)<0){
 		printf("create message queue fails!\n");
 		exit(-1);
 	}
+
+	//----- create IPC Sock Server thread -----
+	pret=pthread_create(&thread_IPCSockServer,NULL,(void *)&create_IPCSock_Server,&msg_dat);
+        if(pret != 0){
+                printf("Fail to create thread for IPC Sock Server!\n");
+                exit -1;
+        }
 
 	//--- open pwm dev ----
 	pwm_fd = open(PWM_DEV, O_RDWR);
@@ -99,6 +111,8 @@ int main(int argc, char *argv[])
 /*------------  test PWM for MOTOR -----------------*/
 	pwm_width=0;
         while(1){
+
+/*   ---- emulate pwm_width adjusting -----
 		if(bl_stepup){ //---- step up ------
 			pwm_width++;
 			if(pwm_width > 400-1){
@@ -111,11 +125,19 @@ int main(int argc, char *argv[])
 				bl_stepup=true;
 			}
 		}
+*/
+
+		//----- get pwm_width from msg_dat which is constantly updated by thread of IPC communication.
+		if(msg_dat.msg_id == IPCMSG_PWM_THRESHOLD){
+
+			pwm_width = msg_dat.dat;
+		}
+
 		//---- set pwm conf. -------
 		cfg.threshold=pwm_width;
 		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
 
-		//---------- Send IPC MSG ---------
+		//---------- Send IPC MSG to SG90 actuator ---------
 		//transfer MOTOR pwm_shreshold 0-400 to  SG pwm_shreshold: 60-240 (50+10, 250-10)
 		tmp=pwm_width/400.0*180+60; // 400 -> 200, so every value will get twice.
 		printf("tmp=%d\n",tmp);
@@ -128,33 +150,14 @@ int main(int argc, char *argv[])
 	} //while
 
 
-/*
-		for(tmp=0;tmp<400;tmp++){
-			cfg.threshold=tmp;
-			usleep(5000);
-			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
-		usleep(500000);
-		//-----reverse-------
-		for(tmp=400;tmp>5;tmp--){
-			cfg.threshold=tmp;
-			usleep(5000);
-			ioctl(pwm_fd,PWM_CONFIGURE,&cfg);}
-		}
-		usleep(500000);
-*/
+	//----- close pwm dev fd -----
+	close(pwm_fd);
 
-/*
-	while (1) {
-		static int cnt = 0;
-		sleep(5);
-		ioctl(pwm_fd, PWM_GETSNDNUM, &cfg);
-		printf("send wave num = %d\n", cfg.wavenum);
-		cnt++;
-		if (cnt == 10) {
-			ioctl(pwm_fd, PWM_DISABLE, &cfg);
-			break;
-		}
-	}
-*/
+	//----- end pthread -----
+	pthread_join(thread_IPCSockServer,NULL);
+
+	//----- remove MSG Queue -----
+
+
 	return 0;
 }

@@ -40,7 +40,7 @@ int main(void)
 		return -2;
 	}
 
-	//----- 5. send message to ipc socket server
+	//----- 4. send message to ipc socket server
 //	memset(msg_buf,0,sizeof(msg_buf));
 //	strcpy(msg_buf,"Hello message from IPC socket lient!");
 //	write(clt_fd,msg_buf,sizeof(msg_buf));
