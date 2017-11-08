@@ -1,7 +1,9 @@
 /*------------------------------------------------------------------
-Based on:
+PWM driver Based on:
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
+
+Midas
 ------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +36,7 @@ int main(int argc, char *argv[])
 	char strmsg[32]={0};
 	//-- for IPC Msg Sock ---
 	pthread_t thread_IPCSockServer;
+	pthread_t thread_Read_IPCSockClients;
 	int pret;
 
 	//---create or get SG message queue -------
@@ -46,6 +49,12 @@ int main(int argc, char *argv[])
 	pret=pthread_create(&thread_IPCSockServer,NULL,(void *)&create_IPCSock_Server,&msg_dat);
         if(pret != 0){
                 printf("Fail to create thread for IPC Sock Server!\n");
+                exit -1;
+        }
+	//----- create Read IPCSock Clients thread -----
+	pret=pthread_create(&thread_Read_IPCSockClients,NULL,(void *)&read_IPCSock_Clients,&msg_dat);
+        if(pret != 0){
+                printf("Fail to create thread for Read_IPCSockClients!\n");
                 exit -1;
         }
 
@@ -127,7 +136,7 @@ int main(int argc, char *argv[])
 		}
 */
 
-		//----- get pwm_width from msg_dat which is constantly updated by thread of IPC communication.
+		//----- !!!!! get pwm_width from msg_dat which is constantly updated by thread of IPC communication.
 		if(msg_dat.msg_id == IPCMSG_PWM_THRESHOLD){
 
 			pwm_width = msg_dat.dat;
@@ -142,12 +151,12 @@ int main(int argc, char *argv[])
 		//---input sg_angle: -90 ~ 90, actual SG output is (250-gap_limit) ~ (50+gap_limit)
 		// -- gap_limit = 10
 		tmp=pwm_width/400.0*200+40; // convert range400 -> range200, so every value may get twice.
-		printf("start to sendMsgQue to pwm_actuator with tmp=%d\n",tmp);
+//		printf("start to sendMsgQue to pwm_actuator with tmp=%d\n",tmp);
 		sprintf(strmsg,"%d",tmp);
 		if(sendMsgQue(msg_id,(long)MSG_TYPE_SG_PWM_WIDTH,strmsg)!=0)
 			printf("Send message queue to SG failed!\n");
 
-		usleep(10000);
+		usleep(100000);
 	} //while
 
 
@@ -155,7 +164,9 @@ int main(int argc, char *argv[])
 	close(pwm_fd);
 
 	//----- end pthread -----
+	//--- close all sock fds.......
 	pthread_join(thread_IPCSockServer,NULL);
+	pthread_join(thread_Read_IPCSockClients,NULL);
 
 	//----- remove MSG Queue -----
 

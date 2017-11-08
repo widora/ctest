@@ -1,3 +1,8 @@
+/*------------------------------------------------------------
+               --- BUGs and TODOs ---
+1. detect adn delete disconnected IPCSock client from struct_SockClients[]
+
+--------------------------------------------------------------*/
 #ifndef __IPCSOCK_COMMON_H__
 #define __IPCSOCK_COMMON_H__
 
@@ -5,14 +10,38 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h> //unix std socket
+#include <sys/select.h>
+
 
 #define  IPC_SOCK_PATH "/tmp/ipc_socket"
+
+#define MAX_IPCSOCK_CLIENTS 5 //Max. number of IPC socket clients
 
 //----- define IPC MESSAGE CODE -----
 #define IPCMSG_NONE 0 //msg cleared token, ignore this msg dat, no need to send or parse
 #define IPCMSG_PWM_THRESHOLD 1  // 1 for pwm threshold
 #define IPCMSG_MOTOR_DIRECTION 2 // dat=0 run, dat=1 reverse
 #define IPCMSG_MOTOR_STATU 3  // dat=0 stop, dat=1 run
+
+
+//----- Local IPC Sock Server,
+struct sockaddr_un svr_unaddr;//UNIX type socket address
+int svr_fd;//server IPC sock fd
+
+//------Local IPC Sock Client Struct -----
+struct struct_IPCSock_Client{
+int sock_fd;
+struct sockaddr_un sock_unaddr; //UNIX addr.
+//int unaddr_len;//len of sock_unaddr.
+};
+struct struct_IPCSock_Client  struct_SockClients[MAX_IPCSOCK_CLIENTS];
+int count_SockClients=0;
+int max_fd=0; //for select()  =0: not client connected.
+
+//------ FD SELECT -----
+fd_set set_SockClients; //for READ Only 
+
+
 
 //----- IPC Message Data struct -----
 struct struct_msg_dat{
@@ -27,15 +56,15 @@ static struct struct_msg_dat msg_dat;
 1. create IPC server socket,
 2. bind it with UNIX local addr(IPC_SOCK_PATH)
 3. listen to the server sock.
-4. accept client connection.
-5. loop in receiving and update msg_dat.
+4. accept client connections until MAX_IPCSOCK_CLIENTS.
+5. put client fd to set_SockClients for select()
+//5. loop in receiving and update msg_dat.
+Note: Client disconnection case is not considered.
 return <0 if fail.
 -----------------------------------------------------------*/
 static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 {
-	struct sockaddr_un svr_unaddr;//UNIX type socket address
 	struct sockaddr_un clt_unaddr;
-	int svr_fd;//server IPC sock fd
 	int clt_fd;//client IPC sock fd
 	int len;
 	int nread;
@@ -44,11 +73,14 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 	//------ reset msg_data
 	memset(pmsg_dat,0,sizeof(struct struct_msg_dat));
 
+	//------  clear FD SET
+	FD_ZERO(&set_SockClients);
+
 	//----- 1. create ipc socket
 	svr_fd = socket(PF_UNIX,SOCK_STREAM,0);
 	if(svr_fd < 0){
 		perror("Fail to create IPC server socket!");
-//		return -1;
+		return -1;
 	}
 
 	//----- 2. specify ipc socket path name 
@@ -62,7 +94,7 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 		perror("Fail to bind ipc socket with unix address");
 		close(svr_fd);
 		unlink(IPC_SOCK_PATH);
-//		return -2;
+		return -2;
 	}
 
 	//----- 4. listen svr_fd
@@ -71,20 +103,39 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 		perror("Fail to listen to svr_fd");
 		close(svr_fd);
 		unlink(IPC_SOCK_PATH);
-//		return -3;
+		return -3;
 	}
 
-	//----- 5. accept request connection
-	len=sizeof(clt_unaddr);
-	clt_fd=accept(svr_fd,(struct sockaddr*)&clt_unaddr,&len);
-	if(clt_fd <0 ){
-		perror("Fail to accept connecting client requent!");
-		close(svr_fd);
-		unlink(IPC_SOCK_PATH);
-//		return -4;
-	}
+	//----- 5. accept request connection store new clients to struct_SockClients[] ----
+	for(count_SockClients=0; count_SockClients<MAX_IPCSOCK_CLIENTS; count_SockClients++)
+	{
+		len=sizeof(clt_unaddr);
+		//--accept clients in Blocking way
+		clt_fd=accept(svr_fd,(struct sockaddr*)&clt_unaddr,&len);
+		if(clt_fd <0 ){
+			perror("Fail to accept connecting client requent!");
+			close(svr_fd);
+			//if(count_SockClients == 0)
+			unlink(IPC_SOCK_PATH); // ????? unlink when fails accepting FIRST client ?????
+			return -4;
+		}
+		printf("create_IPCSock_Server(): Sock Client fd=%d is accepted and added to struct_SockClients[%d] \n",clt_fd,count_SockClients);
+		//---- store new clients to struct_SockClients[]
+		struct_SockClients[count_SockClients].sock_unaddr = clt_unaddr;
+		struct_SockClients[count_SockClients].sock_fd = clt_fd;
+		count_SockClients+=1;
+		//--- get max_fd for select()
+		if(clt_fd > max_fd)
+			max_fd=clt_fd;
+		//---- add to FD_SET
+		FD_SET(clt_fd,&set_SockClients);
 
-	//----- 6. loop: get client messge
+	}//end of for(;;)
+
+	printf("reate_IPCSock_Server(): End of function \n");
+
+//----- 6. loop: get client messge
+/*
 	while(1){
 
 		//--lock msg_dat before read.....
@@ -104,14 +155,70 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 		usleep(200000);
 
 	}//while
+*/
+
+}
+
+
+/*---------------------------------------------------------
+1. select to readable IPCSock Clients
+2. update msg_dat  with  received data
+-----------------------------------------------------------*/
+static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
+{
+	int i;
+	int nselect;
+	int nread;
+
+	while(1)
+	{
+		//---- if there is no client connected ----
+		if(max_fd == 0){
+			usleep(100000);
+			continue;
+		}
+		//usleep(200000);
+
+		//----- select only readable fd, by Blocking way ----
+		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,NULL);
+
+		if(nselect < 0){
+			perror("read_IPCSock_Clients(): select()");
+		}
+		else if (nselect > 0){
+			//----- get readable Sock client -----
+			for(i=0; i<count_SockClients; i++){
+
+				if(FD_ISSET( struct_SockClients[i].sock_fd, &set_SockClients )){
+					printf("read_IPCSock_Clients(): A sock lient is selected. \n");
+					//---TODO: msg_dat before read.....
+
+					//---- read msg_dat from IPC Sock Client ----
+					nread = read(struct_SockClients[i].sock_fd,pmsg_dat,sizeof(struct struct_msg_dat));
+					if( nread>0 && nread != sizeof(struct struct_msg_dat)){
+						printf("Received msg_dat is NOT complete!");
+						pmsg_dat->msg_id = IPCMSG_NONE; // mark invalid msg_dat received.
+					}
+					else if (nread == sizeof(struct struct_msg_dat))
+						printf("msg_dat from client msg_id: %d  dat: %d \n",pmsg_dat->msg_id,pmsg_dat->dat);
+
+					//---TODO: unlock msg_dat after read.....
+
+					break; //break for()
+
+				}
+			}//end for()
+
+		}
+	}//end while()
 }
 
 
 /*---------------------------------------------------------
 1. create IPC client socket,
 2. connect to the server sock.
-3. accept client connection.
-4. loop in receiving and update msg_dat.
+3. connect to ipc sock server.
+4. loop sending msg to sock server.
 5. close sock fd
 return <0 if fail
 -----------------------------------------------------------*/
@@ -143,6 +250,7 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
         if(ret == -1){
                 perror("Fail to connect to ipc socket server");
                 close(clt_fd);
+
                 return -2;
         }
 	else
