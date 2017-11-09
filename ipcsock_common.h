@@ -73,8 +73,6 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 	//------ reset msg_data
 	memset(pmsg_dat,0,sizeof(struct struct_msg_dat));
 
-	//------  clear FD SET
-	FD_ZERO(&set_SockClients);
 
 	//----- 1. create ipc socket
 	svr_fd = socket(PF_UNIX,SOCK_STREAM,0);
@@ -98,7 +96,7 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 	}
 
 	//----- 4. listen svr_fd
-	ret=listen(svr_fd,1);
+	ret=listen(svr_fd,MAX_IPCSOCK_CLIENTS);
 	if(ret == -1){
 		perror("Fail to listen to svr_fd");
 		close(svr_fd);
@@ -123,12 +121,9 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 		//---- store new clients to struct_SockClients[]
 		struct_SockClients[count_SockClients].sock_unaddr = clt_unaddr;
 		struct_SockClients[count_SockClients].sock_fd = clt_fd;
-		count_SockClients+=1;
 		//--- get max_fd for select()
 		if(clt_fd > max_fd)
 			max_fd=clt_fd;
-		//---- add to FD_SET
-		FD_SET(clt_fd,&set_SockClients);
 
 	}//end of for(;;)
 
@@ -167,6 +162,7 @@ static int create_IPCSock_Server(struct struct_msg_dat *pmsg_dat)
 static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 {
 	int i;
+	int nclients;
 	int nselect;
 	int nread;
 
@@ -179,6 +175,17 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 		}
 		//usleep(200000);
 
+		//---- count_SockClients is commonly shared and may be modified anytime,
+		// so we need to copy it to a private var. to fix the value in each while() circle.
+		//  ???? -- what if other threads deleting client happens in while() circle. 
+		nclients = count_SockClients;
+
+		//------!!!!everytime before select() you must  clear FD SET first
+		FD_ZERO(&set_SockClients);
+		//---- add all accepted clients to FD_SET
+		for(i=0;i<nclients;i++)
+			FD_SET(struct_SockClients[i].sock_fd, &set_SockClients);
+
 		//----- select only readable fd, by Blocking way ----
 		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,NULL);
 
@@ -187,10 +194,10 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 		}
 		else if (nselect > 0){
 			//----- get readable Sock client -----
-			for(i=0; i<count_SockClients; i++){
+			for(i=0; i<nclients; i++){
 
 				if(FD_ISSET( struct_SockClients[i].sock_fd, &set_SockClients )){
-					printf("read_IPCSock_Clients(): A sock lient is selected. \n");
+					printf("read_IPCSock_Clients(): Socket client fd=%d is selected. \n",struct_SockClients[i]);
 					//---TODO: msg_dat before read.....
 
 					//---- read msg_dat from IPC Sock Client ----
