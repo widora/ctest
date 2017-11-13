@@ -24,7 +24,12 @@
 #define IPCMSG_NONE 0 //msg cleared token, ignore this msg dat, no need to send or parse
 #define IPCMSG_PWM_THRESHOLD 1  // 1 for pwm threshold
 #define IPCMSG_MOTOR_DIRECTION 2 // dat=0 run, dat=1 reverse
-#define IPCMSG_MOTOR_STATU 3  // dat=0 stop, dat=1 run
+#define IPCMSG_MOTOR_STATUS 3  // dat=0 stop, dat=1 run
+
+#define IPCDAT_MOTOR_FORWARD 0
+#define IPCDAT_MOTOR_REVERSE 1
+#define IPCDAT_MOTOR_EMERGSTOP 0
+#define IPCDAT_MOTOR_NORMAL 1
 
 //----- IPC SOCKET COMMUNICATION INFO FROM SERVER TO CLIENT -----
 #define SERVER_AVAILABLE 0

@@ -18,6 +18,7 @@ Midas
 #include "/home/midas/ctest/kmods/soopwm/sooall_pwm.h"
 #include "msg_common.h"
 #include "ipcsock_common.h"
+#include "pinctl_motor.h"
 
 #define PWM_DEV "/dev/sooall_pwm"
 
@@ -26,9 +27,10 @@ int main(int argc, char *argv[])
 	int ret = -1;
 	int pwm_fd;
 	int pwmno;
-	int pwm_width;
+	int pwm_width; // +-400fastest ~ 0 standstill 
 	bool bl_stepup = true; //
 	struct pwm_cfg  cfg;
+	int gap_limit;
 	int tmp;
 	//---for IPC Msg Queue ---
 	int msg_id=-1;
@@ -38,6 +40,12 @@ int main(int argc, char *argv[])
 	pthread_t thread_IPCSockServer;
 	pthread_t thread_Read_IPCSockClients;
 	int pret;
+
+
+	//---- prepare pins for MOTOR direction and emergency stop control --------
+	Prepare_CtlPins();
+	SET_RUNDIR_FORWARD;
+	DEACTIVATE_EMERG_STOP;
 
 	//---create or get SG message queue -------
 	if(msg_id=createMsgQue(msg_key)<0){
@@ -118,40 +126,52 @@ int main(int argc, char *argv[])
 
 
 /*------------  test PWM for MOTOR -----------------*/
-	pwm_width=0;
+	pwm_width=50;  //start speed
         while(1){
 
-/*   ---- emulate pwm_width adjusting -----
-		if(bl_stepup){ //---- step up ------
-			pwm_width++;
-			if(pwm_width > 400-1){
-				bl_stepup=false;
-			}
-		}
-		else{ //--- step down ----
-			pwm_width--;
-			if(pwm_width <  0+1){
-				bl_stepup=true;
-			}
-		}
-*/
+		//--------- parse msg_dat to control motor  --------
+		switch(msg_dat.msg_id){
+			case IPCMSG_PWM_THRESHOLD: //--motor speed control
+				pwm_width = msg_dat.dat;
+				break;
+			//--IPCMSG_MOTOR_DIRECTION  seems useless,since pwm_width +/- value indicating running direction
+			case IPCMSG_MOTOR_DIRECTION:  //--motor direction control
+				if(msg_dat.dat==IPCDAT_MOTOR_FORWARD){
+					SET_RUNDIR_FORWARD;
+				}
+				else if(msg_dat.dat==IPCDAT_MOTOR_REVERSE){
+					SET_RUNDIR_REVERSE;
+				}
+				break;
+			case IPCMSG_MOTOR_STATUS: //--motor emerg. stop
+				if(msg_dat.dat==IPCDAT_MOTOR_EMERGSTOP){
+					ACTIVATE_EMERG_STOP; //--normal forward running
+				}
+				else if(msg_dat.dat==IPCDAT_MOTOR_NORMAL){
+					DEACTIVATE_EMERG_STOP;
+				}
+				break;
 
-		//----- !!!!! get pwm_width from msg_dat which is constantly updated by thread of IPC communication.
-		if(msg_dat.msg_id == IPCMSG_PWM_THRESHOLD){
-
-			pwm_width = msg_dat.dat;
-		}
+			default:
+				break;
+		}//end of switch
 
 		//---- set pwm conf. -------
-		cfg.threshold=pwm_width;
+		cfg.threshold=400-abs(pwm_width); //!!!! change direction here !!!!
 		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
+		//---- set running direction ----
+		if(pwm_width<0)
+			SET_RUNDIR_REVERSE;
+		else
+			SET_RUNDIR_FORWARD;
 
 		//---------- Send IPC MSG to SG90 actuator ---------
-		//transfer MOTOR pwm_shreshold 0-400 (0 high speed - 400 low speed)  to  SG pwm_shreshold: 60-240 (50+10, 250-10)
+		//XXXXX transfer MOTOR pwm_shreshold 0-400 (0 high speed - 400 low speed)  to  SG pwm_shreshold: 60-240 (50+10, 250-10)
 		//---input sg_angle: -90 ~ 90, actual SG output is (250-gap_limit) ~ (50+gap_limit)
-		// -- gap_limit = 10
-		tmp=pwm_width/400.0*200+40; // convert range400 -> range200, so every value may get twice.
-//		printf("start to sendMsgQue to pwm_actuator with tmp=%d\n",tmp);
+		//tmp=pwm_width/400.0*200+40; // convert range400 -> range200, so every value may get twice.
+		gap_limit = 18; //gap_limit for SG90
+		// ----transfer value -400(reverse) ~ +400(forward) to 50+gap_limit ~ 250-gap_limit
+		tmp=150+(100-gap_limit)*pwm_width/400;
 		sprintf(strmsg,"%d",tmp);
 		if(sendMsgQue(msg_id,(long)MSG_TYPE_SG_PWM_WIDTH,strmsg)!=0)
 			printf("Send message queue to SG failed!\n");
@@ -167,9 +187,9 @@ int main(int argc, char *argv[])
 	//--- close all sock fds.......
 	pthread_join(thread_IPCSockServer,NULL);
 	pthread_join(thread_Read_IPCSockClients,NULL);
-
 	//----- remove MSG Queue -----
-
+	//----- release pin mmap ----
+	Release_CtlPints();
 
 	return 0;
 }

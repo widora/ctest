@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
 	ioctl(pwm_fd,PWM_CONFIGURE,&cfg1);
 
 	//------ receive IPC msg and set SG angle accordingly -----
+/*
 	while(1){
 		msg_ret=recvMsgQue(msg_id,MSG_TYPE_SG_PWM_WIDTH);
 		if(msg_ret >0){
@@ -161,6 +162,7 @@ int main(int argc, char *argv[])
 	}//while() for IPC msg 
 
 	usleep(500000);
+*/
 
 	/*------------  test PWM for Actuator -----------------*/
 	//------------  threshold: 50 -250, shall leave some gap for limit 

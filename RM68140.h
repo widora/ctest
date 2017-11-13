@@ -34,7 +34,7 @@ void setPinMmap()
  if(gpio_mmap())
     printf("gpio_mmap failed!"); //-------------------- return ----------
   mt76x8_gpio_set_pin_direction(14,1);
-  mt76x8_gpio_set_pin_direction(16,1);
+  mt76x8_gpio_set_pin_direction(15,1); //-----16
 
 }
 
