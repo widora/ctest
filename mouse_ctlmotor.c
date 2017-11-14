@@ -1,6 +1,9 @@
 /*-------------------------------------------------------------------
-with reference to:
+Based on PWM driver from:
 https://item.congci.com/-/content/linux-shubiao-shuju-duqu-caozuo
+
+Use mouse to control motor
+	- Midas
 -------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,13 +19,11 @@ https://item.congci.com/-/content/linux-shubiao-shuju-duqu-caozuo
 #define LIMIT_LOW_GAP 10 //LOW SPEED LIMIT GAP for motor pwm threshold
 #define LIMIT_HIGH_GAP 50 //HIGHT SPEED LIMIT GAP  for motor pwm threshold
 
-
 #define  LEFT_KEY 9
 #define  RIGHT_KEY 10
 #define  MID_KEY 12
 #define  WH_UP 255
 #define  WH_DOWN 1
-
 
 int main(int argc,char **argv)
 {
@@ -122,10 +123,11 @@ int main(int argc,char **argv)
 		  //----- slow down motor ------
 	                //-- pwm threshold range [0 high_speed - 400 low_speed]
         	        //--- pthread_mute_lock here msg_dat here.....
-			if(msg_dat.dat > 0+LIMIT_HIGH_GAP){
+			if(msg_dat.dat > -400 +LIMIT_HIGH_GAP){
 				msg_dat.msg_id=IPCMSG_NONE; //disable msg, thread will NOT handle this msg then. 
 				msg_dat.dat-=20;
-				if(msg_dat.dat<0+LIMIT_HIGH_GAP)msg_dat.dat=0+LIMIT_HIGH_GAP;
+				if(msg_dat.dat < -400+LIMIT_HIGH_GAP)
+					msg_dat.dat=0+LIMIT_HIGH_GAP;
 	                	msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; //enable this msg!
 	        	        printf("mouse_ctlmotor: set msg_dat.dat = %d \n",msg_dat.dat);
 			}

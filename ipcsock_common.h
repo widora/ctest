@@ -1,11 +1,11 @@
-/*------------------------------------------------------------
+/*-------------------------------------------------------------------------------
                --- BUGs and TODOs ---
 
 1. mutex lock for shared dat
 2. if IPC socket server is forced to exit, the client application will exit also.
-   Need a normal exit routine.
+   Need a normal exit routine instead of default SIGPIPE handler
 
---------------------------------------------------------------*/
+-------------------------------------------------------------------------------*/
 #ifndef __IPCSOCK_COMMON_H__
 #define __IPCSOCK_COMMON_H__
 
@@ -55,6 +55,7 @@ fd_set set_SockClients; //for READ Only
 
 //----- IPC Message Data struct -----
 struct struct_msg_dat{
+//pthread_mutex_t *msg_mutex;  // use mutual exclusion lock if necesssary 
 int msg_id; //--type of dat as per IPC MESSAGE CODE
 int dat;
 };
@@ -188,6 +189,10 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 	int nclients;
 	int nselect;
 	int nread;
+	struct timeval wait_tv; //select() wait time
+
+	wait_tv.tv_sec=0;
+	wait_tv.tv_usec=100000;
 
 	while(1)
 	{
@@ -205,10 +210,12 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 			if(struct_SockClients[i].sock_fd != 0) //only if the entry is valid
 				FD_SET(struct_SockClients[i].sock_fd, &set_SockClients);
 		}
-		//----- select only readable fd, by Blocking way ----
-		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,NULL);
 
-		if(nselect < 0){
+		//----- MUST use unblocking,otherwise any new added clients will bot be selected at once. !!!
+		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,&wait_tv);
+		if(nselect == 0)
+			continue;
+		else if(nselect < 0){
 			perror("read_IPCSock_Clients(): select()");
 		}
 		else if (nselect > 0){
