@@ -14,7 +14,11 @@
 #include <sys/socket.h>
 #include <sys/un.h> //unix std socket
 #include <sys/select.h>
-
+#include <netinet/in.h> //IPPROTO_TCP
+#include <linux/tcp.h>//TCP_INFO
+//#include "tcp_states.h" //TCP_ESTABLISHED
+#include <signal.h> //sigaction
+#include <stdbool.h>
 
 #define  IPC_SOCK_PATH "/tmp/ipc_socket"
 
@@ -61,6 +65,19 @@ int dat;
 };
 
 static struct struct_msg_dat msg_dat;
+
+//---- IPC CONNECTION STATUS ----
+static bool bl_SockConnected=false;
+
+/*------------------------------------------------
+ In case IPC sock server is disconnected:
+ handler for SIGPIPE signal
+--------------------------------------------*/
+static void sighdl_sigpipe(int sig)
+{
+  printf("IPC Sock server disconnected! try to reconnect...\n");
+  bl_SockConnected=false;
+}
 
 
 /*---------------------------------------------------------
@@ -211,7 +228,7 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 				FD_SET(struct_SockClients[i].sock_fd, &set_SockClients);
 		}
 
-		//----- MUST use unblocking,otherwise any new added clients will bot be selected at once. !!!
+		//----- MUST use nonblocking select, otherwise any new added clients will NOT put into selection at once. !!!
 		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,&wait_tv);
 		if(nselect == 0)
 			continue;
@@ -267,10 +284,16 @@ return <0 if fail
 static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 {
         struct sockaddr_un svr_unaddr;
-        int clt_fd;//server and connecting client FD
+        int clt_fd;//connecting client FD
         int ret;
         int nwrite,nread;
+//	struct tcp_info tcpInfo;
+//	int len=sizeof(tcpInfo);
+	struct sigaction sigact;//signal action
+	sigact.sa_handler=sighdl_sigpipe;
+	sigaction(SIGPIPE,&sigact,NULL);
 
+CONNECT_TO_SERVER:
         //----- 1. create ipc socket
         clt_fd = socket(PF_UNIX,SOCK_STREAM,0);
         if(clt_fd < 0){
@@ -281,20 +304,24 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 		printf("IPCSockClient: Succeed to create IPC Sock FD!\n");
 
         //----- 2. specify ipc socket path, which should be created by the server.
-        svr_unaddr.sun_family=AF_UNIX; 
+        svr_unaddr.sun_family=AF_LOCAL;//or AF_UNIX; 
         strncpy(svr_unaddr.sun_path,IPC_SOCK_PATH,sizeof(svr_unaddr.sun_path)-1); // ??? why -1? end of cstring ??
 
         //----- 3. connect to ipc socket server
-        ret=connect(clt_fd,(struct sockaddr*)&svr_unaddr,sizeof(svr_unaddr));
-        if(ret == -1){
-                perror("Fail to connect to ipc socket server");
-                close(clt_fd);
-                exit(1); //exit its main()
-        }
+	while(bl_SockConnected==false){
+	        ret=connect(clt_fd,(struct sockaddr*)&svr_unaddr,sizeof(svr_unaddr));
+        	if(ret == -1){
+                	perror("Fail to connect to ipc socket server, wait a second to retry....");
+			sleep(1.0);
+	                //close(clt_fd);
+        	        //exit(1); //exit its main()
+		}
+		bl_SockConnected=true;
+	}
 
 	//----- 4. read code reply from server --------
 	code_svr2clt=0;//presume server is available
-	printf("IPCSockClient: start read server reply...");
+	printf("IPCSockClient: start read server reply...\n");
      	nread=read(clt_fd,&code_svr2clt,sizeof(code_svr2clt));
 	if(code_svr2clt == SERVER_LOAD_FULL){
 		printf("IPCSockClient: Server's clients number reaches the limit, try later. exit now...\n");
@@ -310,11 +337,13 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 
         //----- 5. loop send message to ipc socket server
 	// ----- !!!! if IPC socket server exit, this application will exit also !!!!-------
-	while(1){
+	while(bl_SockConnected){
 		if(pmsg_dat->msg_id != IPCMSG_NONE){ //Only if msg_dat is valid
         		nwrite=write(clt_fd,pmsg_dat,sizeof(struct struct_msg_dat));//write to IPC socket
 			if(nwrite <= 0){
 				printf("IPCSock_Client write error: nwrite=%d! \n",nwrite);
+				//---- it seems sock is disconnected ----
+				bl_SockConnected=false;
 			}
 			else if(nwrite != sizeof(struct struct_msg_dat)){//if write is not complete
 				printf("IPCSock_Client: nwrite=%d ,while size of strut_msg_dat is %d, NOT complete! \n",nwrite,sizeof(struct struct_msg_dat));
@@ -326,7 +355,22 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 			}
 		}
 
-		usleep(20000);
+
+		//-------- check IPC Sock connection status -------
+		if(bl_SockConnected == false){
+			printf("try to connect to the server...\n");
+			close(clt_fd);
+			goto CONNECT_TO_SERVER;
+/*
+		getsockopt(clt_fd,IPPROTO_TCP,TCP_INFO,&tcpInfo, (socklen_t*)&len);
+		if(tcpInfo.tcpi_state == TCP_ESTABLISHED){
+			printf("Link to server is OK\n");
+*/
+		}
+
+
+		//----- !!!! compare this sleep time with your data input frequency !!!! -----
+		usleep(50000);
 
 	}//while
 
