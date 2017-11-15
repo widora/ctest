@@ -278,7 +278,7 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 2. connect to the server sock.
 3. connect to ipc sock server.
 4. loop sending msg to sock server.
-5. close sock fd
+5: auto. reconnect to the server.
 return <0 if fail
 -----------------------------------------------------------*/
 static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
@@ -293,7 +293,9 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 	sigact.sa_handler=sighdl_sigpipe;
 	sigaction(SIGPIPE,&sigact,NULL);
 
-CONNECT_TO_SERVER:
+//CONNECT_TO_SERVER:
+  //---- loop for connection and send msg to servr -----
+  while(bl_SockConnected==false){
         //----- 1. create ipc socket
         clt_fd = socket(PF_UNIX,SOCK_STREAM,0);
         if(clt_fd < 0){
@@ -311,8 +313,9 @@ CONNECT_TO_SERVER:
 	while(bl_SockConnected==false){
 	        ret=connect(clt_fd,(struct sockaddr*)&svr_unaddr,sizeof(svr_unaddr));
         	if(ret == -1){
-                	perror("Fail to connect to ipc socket server, wait a second to retry....");
+                	perror("Fail to connect to ipc socket server, wait a second to retry....\n");
 			sleep(1.0);
+			continue;
 	                //close(clt_fd);
         	        //exit(1); //exit its main()
 		}
@@ -337,13 +340,15 @@ CONNECT_TO_SERVER:
 
         //----- 5. loop send message to ipc socket server
 	// ----- !!!! if IPC socket server exit, this application will exit also !!!!-------
-	while(bl_SockConnected){
+	while(bl_SockConnected==true){
 		if(pmsg_dat->msg_id != IPCMSG_NONE){ //Only if msg_dat is valid
         		nwrite=write(clt_fd,pmsg_dat,sizeof(struct struct_msg_dat));//write to IPC socket
 			if(nwrite <= 0){
 				printf("IPCSock_Client write error: nwrite=%d! \n",nwrite);
 				//---- it seems sock is disconnected ----
 				bl_SockConnected=false;
+				//---- break to while(bl_SockConnected==false)
+				break; 
 			}
 			else if(nwrite != sizeof(struct struct_msg_dat)){//if write is not complete
 				printf("IPCSock_Client: nwrite=%d ,while size of strut_msg_dat is %d, NOT complete! \n",nwrite,sizeof(struct struct_msg_dat));
@@ -355,28 +360,31 @@ CONNECT_TO_SERVER:
 			}
 		}
 
-
+/*
 		//-------- check IPC Sock connection status -------
 		if(bl_SockConnected == false){
 			printf("try to connect to the server...\n");
 			close(clt_fd);
 			goto CONNECT_TO_SERVER;
-/*
-		getsockopt(clt_fd,IPPROTO_TCP,TCP_INFO,&tcpInfo, (socklen_t*)&len);
-		if(tcpInfo.tcpi_state == TCP_ESTABLISHED){
-			printf("Link to server is OK\n");
-*/
-		}
 
+//		getsockopt(clt_fd,IPPROTO_TCP,TCP_INFO,&tcpInfo, (socklen_t*)&len);
+//		if(tcpInfo.tcpi_state == TCP_ESTABLISHED){
+//			printf("Link to server is OK\n");
+
+		}
+*/
 
 		//----- !!!! compare this sleep time with your data input frequency !!!! -----
 		usleep(50000);
 
-	}//while
+	}//while(bl_SockConnected==true)
+
+  //--- close disconnected socket fd then back to while()
+  close(clt_fd);
+  }// while(bl_SockConnected==false)
 
         //----- 6. complete session
         close(clt_fd);
-
 }
 
 #endif

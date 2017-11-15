@@ -133,6 +133,10 @@ int main(int argc, char *argv[])
 /*------------  test PWM for MOTOR -----------------*/
 	pwm_width=50;  //start speed
         while(1){
+		//------ if msg_dat is invalid -----
+		if(msg_dat.msg_id==IPCMSG_NONE){
+			usleep(50000);
+			}
 
 		//--------- parse msg_dat to control motor  --------
 		switch(msg_dat.msg_id){
@@ -160,10 +164,14 @@ int main(int argc, char *argv[])
 			default:
 				break;
 		}//end of switch
+		//---- set msg_id as IPCMSG_NONE to invalidate msg_dat
+		msg_dat.msg_id=IPCMSG_NONE;
 
-		//---- set pwm conf. -------
+		//---- set pwm conf. for motor control -------
 		cfg.threshold=400-abs(pwm_width); //!!!! change direction here !!!!
 		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
+
+
 		//---- set running direction ----
 		if(pwm_width<0)
 			SET_RUNDIR_REVERSE;
@@ -181,7 +189,6 @@ int main(int argc, char *argv[])
 		if(sendMsgQue(msg_id,(long)MSG_TYPE_SG_PWM_WIDTH,strmsg)!=0)
 			printf("Send message queue to SG failed!\n");
 
-		usleep(100000);
 	} //while
 
 

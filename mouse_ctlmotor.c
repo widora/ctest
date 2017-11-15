@@ -17,7 +17,7 @@ Use mouse to control motor
 #include <pthread.h>
 #include "ipcsock_common.h"
 #define LIMIT_LOW_GAP 10 //LOW SPEED LIMIT GAP for motor pwm threshold
-#define LIMIT_HIGH_GAP 50 //HIGHT SPEED LIMIT GAP  for motor pwm threshold
+#define LIMIT_HIGH_GAP 10 //HIGHT SPEED LIMIT GAP  for motor pwm threshold
 
 #define  LEFT_KEY 9
 #define  RIGHT_KEY 10
