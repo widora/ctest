@@ -30,7 +30,7 @@ const char CMD_LIST[5][50]={
 "screen -dmS PLAY_LIST /mplayer/usb_playlist",
 "screen -dmS PLAY_XM /mplayer/usb_playxmlist",
 "screen -dmS PLAY_F /mplayer/playF.sh",
-
+"screen -dmS PLAY_MP3 /mplayer/playMP3.sh"
 };
 
 //------ check for double click -------
@@ -78,7 +78,8 @@ int main(int argc,char **argv)
    printf("%d bytes written to mousedev\n",nwrite);
 
    //------ set volume
-   sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+//   sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+   sprintf(strCMD,"amixer -c 0 set Headphone %d%%",volume_val);
    system(strCMD);
 
    //-----init timeval
@@ -153,7 +154,8 @@ int main(int argc,char **argv)
 //                       system("vup");
                          if(volume_val<125){
                                  volume_val+=4;
-                                 sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 //sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 sprintf(strCMD,"amixer -c 0 set Headphone %d%%",volume_val);
                                  system(strCMD);
 			}
                   }
@@ -161,7 +163,8 @@ int main(int argc,char **argv)
 //                       system("vdown");
                          if(volume_val>5){
                                  volume_val-=4;
-                                 sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 //sprintf(strCMD,"amixer -c 1 set Speaker %d%%",volume_val);
+                                 sprintf(strCMD,"amixer -c 0 set Headphone %d%%",volume_val);
                                  system(strCMD);
 			}
                   }

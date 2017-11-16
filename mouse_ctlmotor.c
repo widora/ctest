@@ -13,7 +13,7 @@ Use mouse to control motor
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
+#include <stdbool.h>
 #include <pthread.h>
 #include "ipcsock_common.h"
 #define LIMIT_LOW_GAP 10 //LOW SPEED LIMIT GAP for motor pwm threshold
@@ -34,6 +34,8 @@ int main(int argc,char **argv)
    unsigned char setbuf[6]={0xf3,200,0xf3,100,0xf3,80};
    fd_set readfds;
    struct timeval tv;
+   bool statusEmergStop=false;
+   int pwm_threshold=0; //--init value!
 
    //-- for IPC Msg Sock ---
    pthread_t thread_IPCSockClient;
@@ -105,15 +107,28 @@ int main(int argc,char **argv)
 		}
                 else if( buf[0] == MID_KEY )//middle key press
 		{
+			//------ change motor run direction ----
+			if(statusEmergStop==true){
+				msg_dat.dat=IPCDAT_MOTOR_NORMAL;
+	                	msg_dat.msg_id=IPCMSG_MOTOR_STATUS; //enable this msg!
+				statusEmergStop=false;
+			}
+			else{
+				msg_dat.dat=IPCDAT_MOTOR_EMERGSTOP;
+	                	msg_dat.msg_id=IPCMSG_MOTOR_STATUS; //enable this msg!
+				statusEmergStop=true;
+			}
 		}
 		else if ( buf[3] == WH_DOWN ){
 		//----- speed up motor -----
 	                //-- pwm threshold range [0 high_speed - 400 low_speed]
         	        //--- pthread_mute_lock here msg_dat here.....
-			if(msg_dat.dat < 400-LIMIT_LOW_GAP){
-				msg_dat.msg_id=IPCMSG_NONE; //disable msg, thread will NOT handle this msg then. 
-				msg_dat.dat+=20;
-				if(msg_dat.dat>400)msg_dat.dat=400-LIMIT_LOW_GAP;
+			//if(msg_dat.dat < 400-LIMIT_LOW_GAP){
+			if(pwm_threshold < 400-LIMIT_LOW_GAP){
+				pwm_threshold+=20;
+				if(pwm_threshold > 400-LIMIT_LOW_GAP)
+					pwm_threshold=400-LIMIT_LOW_GAP;
+				msg_dat.dat=pwm_threshold;
 	                	msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; //enable this msg!
 	        	        printf("mouse_ctlmotor: set msg_dat.dat = %d \n",msg_dat.dat);
 			}
@@ -123,11 +138,12 @@ int main(int argc,char **argv)
 		  //----- slow down motor ------
 	                //-- pwm threshold range [0 high_speed - 400 low_speed]
         	        //--- pthread_mute_lock here msg_dat here.....
-			if(msg_dat.dat > -400 +LIMIT_HIGH_GAP){
-				msg_dat.msg_id=IPCMSG_NONE; //disable msg, thread will NOT handle this msg then. 
-				msg_dat.dat-=20;
-				if(msg_dat.dat < -400+LIMIT_HIGH_GAP)
-					msg_dat.dat=0+LIMIT_HIGH_GAP;
+			//if(msg_dat.dat > -400 +LIMIT_HIGH_GAP){
+			if(pwm_threshold > -400 +LIMIT_HIGH_GAP){
+				pwm_threshold-=20;
+				if(pwm_threshold < -400+LIMIT_HIGH_GAP)
+					pwm_threshold=-400+LIMIT_HIGH_GAP;
+				msg_dat.dat=pwm_threshold;
 	                	msg_dat.msg_id=IPCMSG_PWM_THRESHOLD; //enable this msg!
 	        	        printf("mouse_ctlmotor: set msg_dat.dat = %d \n",msg_dat.dat);
 			}

@@ -75,7 +75,7 @@ static bool bl_SockConnected=false;
 --------------------------------------------*/
 static void sighdl_sigpipe(int sig)
 {
-  printf("IPC Sock server disconnected! try to reconnect...\n");
+  printf("sighdl_sigpipe():IPC Sock server disconnected! try to reconnect...\n");
   bl_SockConnected=false;
 }
 
@@ -291,6 +291,7 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 //	int len=sizeof(tcpInfo);
 	struct sigaction sigact;//signal action
 	sigact.sa_handler=sighdl_sigpipe;
+	sigact.sa_flags=SA_RESTART;
 	sigaction(SIGPIPE,&sigact,NULL);
 
 //CONNECT_TO_SERVER:
