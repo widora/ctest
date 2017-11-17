@@ -19,14 +19,24 @@ from datetime import datetime
 import os 
 import sys
 import ipc_motor
+import threading
 
 #----- set char. encoding -------
 reload (sys)
 sys.setdefaultencoding("utf-8")
 
 #----- create IPC SOCK for local MOTOR control ------ 
-g_ipc_sock=ipc_motor.create_IPCSock()
 g_count=0
+g_msg_dat=[0,0]
+#----- create IPC Sock connection -----
+g_IPC_Sock=ipc_motor.create_IPCSock() #--path_ipc_socket defined in ipc_motor module
+
+#----- create msg-sending threading -----
+thread_sendmsg=threading.Thread(target=ipc_motor.send_IPCMsg,args=(g_IPC_Sock,g_msg_dat))
+thread_sendmsg.setDaemon(True) #--kill thread when main func. exits
+thread_sendmsg.start()
+print "thread_sendmsg starts..."
+
 
 #定义地址及端口
 host = '121.42.180.30'
@@ -224,6 +234,7 @@ def getvoice(words):
 def process(msg, s, json_checkin):
    global t
    global g_count
+   global g_msg_dat
    global flag_during_keeponline
    global count_try_keeponline	
    global flag_status_checkin
@@ -249,14 +260,18 @@ def process(msg, s, json_checkin):
 		#-------------------  send IPC MSG to control MOTOR ---------------
 		#  command: s50 ~ s400 to control my  motor
 		#-------------------------------------------------------------------
+		g_count+=1
 		if (msg[0] == 's' or msg[0] == 'S'):
 			msg_dat=int(msg[1:])
-			if(msg_dat >=50 and msg_dat <=400):
-				ipc_motor.send_IPCMsg(g_ipc_sock,1,msg_dat)
-				g_count+=1
+			if(abs(msg_dat)<=400):
+				#--- update shared data g_msg_dat --
+				g_msg_dat[1]=msg_dat
+				g_msg_dat[0]=1  #--- activate g_msg_dat
 				say(s, json_data['ID'], "speed set to s"+str(msg_dat)+".    Thanks for testing!  test count="+str(g_count))
 			else:
 				say(s, json_data['ID'], "Spead out of range!   please send: s50 ~ s400  to control my motor")
+		else:
+			say(s, json_data['ID'], "Input data format incorrect! please try -s400 ~  +s400.")
 
 	if json_data['M'] == 'connected':
 		s.send(json_checkin.encode('utf-8'))
