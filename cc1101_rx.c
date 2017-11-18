@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------
+TODOs and BUGs
+1. Periodically check CC1101 working status, and reset it if necessary
+
+-----------------------------------------------------------------*/
+
+
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>

@@ -6,8 +6,9 @@ GPIO pinctrl set for motor control
 
 #include "./mygpio.h"
 
-#define  PIN_MOTOR_DIRECTION 14 //GPIO pin for motor direction control
-#define  PIN_MOTOR_EMERGSTOP 15 //GPIO pin for motor emergency stop
+#define  PIN_MOTOR_DIRECTION 40//14 //GPIO pin for motor direction control
+#define  PIN_MOTOR_EMERGSTOP 39//15 //GPIO pin for motor emergency stop
+
 
 /* --------- motor running direction control macro. --------- */
 #define SET_RUNDIR_FORWARD mt76x8_gpio_set_pin_value(PIN_MOTOR_DIRECTION,1)
@@ -24,8 +25,11 @@ GPIO pinctrl set for motor control
 ------------------------------------------------------*/
 void Prepare_CtlPins()
 {
- if(gpio_mmap())
-    printf("gpio_mmap failed!");
+ if(gpio_mmap()){
+    	printf("gpio_mmap failed!");
+	return;
+  }
+
   //------ SET GPIO DIRCTION AS OUTPUT  ---------
   mt76x8_gpio_set_pin_direction(PIN_MOTOR_DIRECTION,1);
   mt76x8_gpio_set_pin_direction(PIN_MOTOR_EMERGSTOP,1);

@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
 	int pwm_fd;
 	int pwmno;
 	int pwm_width; // +-400fastest ~ 0 standstill 
-	bool bl_stepup = true; //
+	bool bl_stepup = true; // during step-up adjusting pwm threshold
+	bool bl_emerg_stop = false; // in emergency stop statu
 	struct pwm_cfg  cfg;
 	int gap_limit;
 	int tmp;
@@ -142,7 +143,17 @@ int main(int argc, char *argv[])
 		switch(msg_dat.msg_id){
 			case IPCMSG_PWM_THRESHOLD: //--motor speed control
 				pwm_width = msg_dat.dat;
+				//---- set pwm conf. for motor control -------
+				//---- first activate stop, just to prevent motor from stagnation when init threshold value is too small.
+				 ACTIVATE_EMERG_STOP;
+				//--- then configure with real value --
+				cfg.threshold=400-abs(pwm_width); //!!!! change direction here !!!!
+				ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
+				//--- if NOT during emergency stop, then deactivate stop now
+				if(!bl_emerg_stop)
+					DEACTIVATE_EMERG_STOP;
 				break;
+
 			//--IPCMSG_MOTOR_DIRECTION  seems useless,since pwm_width +/- value indicating running direction
 			case IPCMSG_MOTOR_DIRECTION:  //--motor direction control
 				if(msg_dat.dat==IPCDAT_MOTOR_FORWARD){
@@ -154,27 +165,21 @@ int main(int argc, char *argv[])
 				break;
 			case IPCMSG_MOTOR_STATUS: //--motor emerg. stop
 				if(msg_dat.dat==IPCDAT_MOTOR_EMERGSTOP){
-					ACTIVATE_EMERG_STOP; //--normal forward running
+					ACTIVATE_EMERG_STOP; //-- emergency stop
+					bl_emerg_stop=true;
 				}
 				else if(msg_dat.dat==IPCDAT_MOTOR_NORMAL){
-					DEACTIVATE_EMERG_STOP;
+					DEACTIVATE_EMERG_STOP; //--normal running
+					bl_emerg_stop=false;
 				}
 				break;
 
 			default:
 				break;
 		}//end of switch
+
 		//---- set msg_id as IPCMSG_NONE to invalidate msg_dat
 		msg_dat.msg_id=IPCMSG_NONE;
-
-		//---- set pwm conf. for motor control -------
-		//---- first activate stop, just to prevent motor from stagnation when init threshold value is too small.
-		 ACTIVATE_EMERG_STOP;
-		//--- then configure with real value --
-		cfg.threshold=400-abs(pwm_width); //!!!! change direction here !!!!
-		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
-		//--- deactivate stop now
-		DEACTIVATE_EMERG_STOP;
 
 		//---- set running direction ----
 		if(pwm_width<0)

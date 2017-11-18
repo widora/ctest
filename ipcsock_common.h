@@ -353,9 +353,9 @@ static int create_IPCSock_Client(struct struct_msg_dat *pmsg_dat)
 				printf("IPCSock_Client: nwrite=%d ,while size of strut_msg_dat is %d, NOT complete! \n",nwrite,sizeof(struct struct_msg_dat));
 			}
 			else{
+				printf("IPCSockClient: Succeed to write msg_id: %d, dat: %d to IPC Socket!\n",msg_dat.msg_id,msg_dat.dat);
 				//-- set current msg_id IPCMSG_NONE after finish nwrite
 				pmsg_dat->msg_id = IPCMSG_NONE;
-				printf("IPCSockClient: Succeed to write msg_dat to IPC Socket!\n");
 			}
 		}
 
