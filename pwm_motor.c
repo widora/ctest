@@ -5,7 +5,7 @@ refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 
 --- TODOs & BUGs ---
 1. the motor will get stuck when starting pwm_threshold is too small. 
-
+  --- use ACTIVATE_EMERG_STOP to prevent it.
 
 
 Midas
@@ -168,9 +168,13 @@ int main(int argc, char *argv[])
 		msg_dat.msg_id=IPCMSG_NONE;
 
 		//---- set pwm conf. for motor control -------
+		//---- first activate stop, just to prevent motor from stagnation when init threshold value is too small.
+		 ACTIVATE_EMERG_STOP;
+		//--- then configure with real value --
 		cfg.threshold=400-abs(pwm_width); //!!!! change direction here !!!!
 		ioctl(pwm_fd,PWM_CONFIGURE,&cfg);
-
+		//--- deactivate stop now
+		DEACTIVATE_EMERG_STOP;
 
 		//---- set running direction ----
 		if(pwm_width<0)

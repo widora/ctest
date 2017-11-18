@@ -67,8 +67,6 @@ def send_IPCMsg(g_IPC_Sock,g_msg_dat):
 
       except KeyboardInterrupt:
 	   print "sendIPCMsg(): user interrupt to exit!"
-	   #sys.exit(-1)
-	   #raise 
 
 #--------------------------------
 #               test
@@ -114,7 +112,6 @@ def test():
 
 	except KeyboardInterrupt:
 		print "test(): user interrupt to exit"
-		#sys.exit(-1)
 		raise		
 
 	g_IPC_Sock.close()

@@ -258,10 +258,10 @@ def process(msg, s, json_checkin):
 		msg=json_data['C'].encode()
 		print "msg=%s" % msg
 		#-------------------  send IPC MSG to control MOTOR ---------------
-		#  command: s50 ~ s400 to control my  motor
+		#  command: s-400 ~ s400 to control my  motor
 		#-------------------------------------------------------------------
-		g_count+=1
 		if (msg[0] == 's' or msg[0] == 'S'):
+			g_count+=1
 			msg_dat=int(msg[1:])
 			if(abs(msg_dat)<=400):
 				#--- update shared data g_msg_dat --

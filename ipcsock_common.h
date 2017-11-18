@@ -2,8 +2,6 @@
                --- BUGs and TODOs ---
 
 1. mutex lock for shared dat
-2. if IPC socket server is forced to exit, the client application will exit also.
-   Need a normal exit routine instead of default SIGPIPE handler
 
 -------------------------------------------------------------------------------*/
 #ifndef __IPCSOCK_COMMON_H__

@@ -21,7 +21,8 @@ https://item.congci.com/-/content/linux-shubiao-shuju-duqu-caozuo
 #define  WH_DOWN 1
 
 //---- double click check -----
-#define DOUBLE_CLICK_INTERVAL 200 //ms
+#define DOUBLE_CLICK_INTERVAL_MAX 250 //ms
+#define DOUBLE_CLICK_INTERVAL_MIN 100 //ms
 struct timeval Lprev_time,Lnow_time; //left button previous click time and current click time
 struct timeval Rprev_time,Rnow_time;//right button previous click time and current click time
 
@@ -39,13 +40,12 @@ bool is_dbclick(struct timeval prev_time, struct timeval now_time)
 	int interval; // time interval
 	interval = (now_time.tv_sec-prev_time.tv_sec)*1000+(now_time.tv_usec-prev_time.tv_usec)/1000;
 	printf("interval=%d\n",interval);
-	return ( interval < DOUBLE_CLICK_INTERVAL ? true : false );
+	return ( (interval>DOUBLE_CLICK_INTERVAL_MIN && interval<DOUBLE_CLICK_INTERVAL_MAX)  ? true : false );
 
 }
 
 
-int main(int argc,char **argv)
-{
+int main(int argc,char **argv) {
    int fd,retval;
    int nread,nwrite;
    int i,k=0;
@@ -54,7 +54,8 @@ int main(int argc,char **argv)
    fd_set readfds;
    struct timeval tv;
    //------
-   unsigned int volume_val=50;
+//   unsigned int volume_val=50; //50% for USB_Speaker
+   unsigned int volume_val=80; //80% for Headphone
    char strCMD[50];
 
 
