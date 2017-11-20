@@ -156,8 +156,9 @@ int main(int argc, char *argv[])
 				msg_ret=recvMsgQue(msg_id,MSG_TYPE_SG_PWM_WIDTH);
 			}
 
-			usleep(5000);
 		}
+		else
+			usleep(50000);
 	}//while() for IPC msg 
 
 	usleep(500000);
