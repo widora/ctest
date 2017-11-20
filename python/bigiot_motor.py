@@ -27,7 +27,7 @@ sys.setdefaultencoding("utf-8")
 
 #----- create IPC SOCK for local MOTOR control ------ 
 g_count=0
-g_msg_dat=[0,0]
+g_msg_dat=[-1,0] 
 #----- create IPC Sock connection -----
 g_IPC_Sock=ipc_motor.create_IPCSock() #--path_ipc_socket defined in ipc_motor module
 
@@ -45,7 +45,7 @@ port = 8181
 #设备ID及key
 #----- put your own ID and KEY here
 DEVICEID='xxx'
-APIKEY='xxxxxxxxx'
+APIKEY='xxxxxxxxxx'
 
 data = b''
 
@@ -206,9 +206,9 @@ def keepCheckin():
 	   LogErr(error)
 	   LogErr("ERR: keepCheckin()")
 
-def say(s, id, coutent):
+def say(s, id, content):
 	try:
-		saydata = {"M":"say", "ID":id, "C":coutent }
+		saydata = {"M":"say", "ID":id, "C":content }
 		json_say = json.dumps(saydata)
 		s.send(json_say.encode('utf-8'))
 		s.send(b'\n')
@@ -216,7 +216,7 @@ def say(s, id, coutent):
 	except Exception,error:
 		print error
 		LogErr(error)
-		LogErr("ERR: say(s, id, coutent)")
+		LogErr("ERR: say(s, id, content)")
 
 def getvoice(words):
 	try:
@@ -256,22 +256,33 @@ def process(msg, s, json_checkin):
 #		print "接收到的数据：", json_data
 #		print "平台指令：:  ",json_data['C'].encode()
 		msg=json_data['C'].encode()
-		print "msg=%s" % msg
+		print " msg=%s" % msg
 		#-------------------  send IPC MSG to control MOTOR ---------------
 		#  command: s-400 ~ s400 to control my  motor
 		#-------------------------------------------------------------------
 		if (msg[0] == 's' or msg[0] == 'S'):
 			g_count+=1
-			msg_dat=int(msg[1:])
-			if(abs(msg_dat)<=400):
-				#--- update shared data g_msg_dat --
-				g_msg_dat[1]=msg_dat
-				g_msg_dat[0]=1  #--- activate g_msg_dat
-				say(s, json_data['ID'], "speed set to s"+str(msg_dat)+".    Thanks for testing!  test count="+str(g_count))
-			else:
-				say(s, json_data['ID'], "Spead out of range!   please send: s50 ~ s400  to control my motor")
-		else:
-			say(s, json_data['ID'], "Input data format incorrect! please try -s400 ~  +s400.")
+			if (g_msg_dat[0] == 0): #--only if server is ready and dat is cleard
+				print "Server is ready. update g_msg_dat now..."
+				msg_dat=int(msg[1:])
+				if(abs(msg_dat)<=400):
+					#--- update shared data g_msg_dat --
+					g_msg_dat[1]=msg_dat
+					g_msg_dat[0]=1  #--- activate g_msg_dat
+					time.sleep(0.1) #--- wait a while let thread_sendmsg process
+					if(g_msg_dat[0]==0): # dat processed and cleared 
+						say(s, json_data['ID'], "speed set to s"+str(msg_dat)+".    Thanks for testing!  test count="+str(g_count))
+						#---- take a pic then 
+						os.system("screen fswebcam -p YUYV --no-banner -r 320x240 /tmp/webcam.jpg")
+					else:
+						say(s, json_data['ID']," Motor server is NOT ready now! please try later.")
+			   	else:
+					say(s, json_data['ID'], "Spead out of range!  please send: s50 ~ s400  to control my motor")
+			elif( g_msg_dat[0] < 0 ):  #--- server is not ready
+				say(s, json_data['ID']," Motor server is NOT ready now! please try later.")
+ 
+		else:  #--if wrong input data froma
+			say(s, json_data['ID'], "Input data format incorrect! please try s-400 ~ s+400.")
 
 	if json_data['M'] == 'connected':
 		s.send(json_checkin.encode('utf-8'))

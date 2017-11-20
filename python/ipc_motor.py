@@ -31,6 +31,7 @@ def create_IPCSock():
 			print "The server is busy,try later..."
 		else:
 			print "connect to MOTOR server successfully!"
+			g_msg_dat[0]=0 #--set token as server avaliable
 			return sock
 
 	except socket.error:
@@ -57,13 +58,19 @@ def send_IPCMsg(g_IPC_Sock,g_msg_dat):
 			print "socket send fails! ret=%d" % ret 
 		else:
 			print "msg id=%d dat=%d send out!" % (g_msg_dat[0],g_msg_dat[1])
+	   elif(g_msg_dat[0] < 0): #-- server is not ready
+		g_IPC_Sock.close()
+		g_IPC_Sock=create_IPCSock()
+		g_msg_dat[0]=0 #--now server is ready
 	   time.sleep(0.1)
 
       except socket.error, err:
+	   g_msg_dat[0]=-1 #--set connection-broken token 
 	   print "%s" % err
 	   print "IPC Socket server close the connection! try to reconnect..."
 	   g_IPC_Sock.close()
 	   g_IPC_Sock=create_IPCSock()
+	   g_msg_dat[0]=0 #--now server is ready	   
 
       except KeyboardInterrupt:
 	   print "sendIPCMsg(): user interrupt to exit!"
@@ -90,6 +97,10 @@ def test():
 	try:
 	   while True:
 		time.sleep(1)
+		#--- check server
+		if(g_msg_dat[0] < 0):
+			print"Motor server is NOT available now,please try later!"
+			continue
 		#--- enable msg dat
 		if(bool_stepup):
 			threshold += 50
