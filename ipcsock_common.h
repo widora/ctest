@@ -23,11 +23,12 @@
 #define MAX_IPCSOCK_CLIENTS 3 //Max. number of IPC socket clients
 
 //----- define IPC MESSAGE CODE -----
-#define IPCMSG_NONE 0 //msg cleared token, ignore this msg dat, no need to send or parse
+#define IPCMSG_SERVER_NOT_READY -1
+#define IPCMSG_NONE 0 //msg is cleared.(parsed or sent already) 
 #define IPCMSG_PWM_THRESHOLD 1  // 1 for pwm threshold
 #define IPCMSG_MOTOR_DIRECTION 2 // dat=0 run, dat=1 reverse
 #define IPCMSG_MOTOR_STATUS 3  // dat=0 stop, dat=1 run
-
+//----- define DAT CODE
 #define IPCDAT_MOTOR_FORWARD 0
 #define IPCDAT_MOTOR_REVERSE 1
 #define IPCDAT_MOTOR_EMERGSTOP 0
@@ -228,8 +229,10 @@ static int read_IPCSock_Clients(struct struct_msg_dat *pmsg_dat)
 
 		//----- MUST use nonblocking select, otherwise any new added clients will NOT put into selection at once. !!!
 		nselect=select(max_fd+1,&set_SockClients,NULL,NULL,&wait_tv);
-		if(nselect == 0)
+		if(nselect == 0){
+			usleep(100000);
 			continue;
+		}
 		else if(nselect < 0){
 			perror("read_IPCSock_Clients(): select()");
 		}

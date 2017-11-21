@@ -6,6 +6,7 @@
 #include <unistd.h> // sleep
 #include <fcntl.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <linux/i2c.h>
@@ -29,6 +30,12 @@ struct i2c_rdwr_ioctl_data g_i2c_iodata;
 struct flock g_i2cFdReadLock;
 struct flock g_i2cFdWriteLock;
 
+//---- 16x8_size ASCII char. frame buffer for oled display -----
+struct oled_Ascii16x8_Frame_Buff {
+bool refresh_on[4][16]; // 1-refresh 0-no refresh
+char char_buff[4][16];//4 lines x 16 ASCII chars
+} g_Oled_Ascii16x8_Frame={0};
+
 //-------functions declaration----
 void init_I2C_IOdata(void);
 void free_I2C_IOdata(void);
@@ -39,8 +46,10 @@ void sendDatCmdoled(enum oled_sig datcmd,uint8_t val); // send data or command t
 void sendCmdOled(uint8_t cmd);
 void sendDatOled(uint8_t dat);
 void initOledDefault(void); // open i2c device and set defaul parameters for OLED
-void fillOledDat(uint8_t dat); // fill OLED GRAM with specified ata
+void fillOledDat(uint8_t dat); // fill OLED GRAM with specified data
 void drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c);
+void push_Oled_Ascii32x18_Buff(const char* pstr, uint8_t nrow, uint8_t nstart);
+void refresh_Oled_Ascii32x18_Buff(bool ref_all);
 void drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr);
 void clearOledV(void); //clear OLED GRAM with vertical addressing mode, effective!
 void setStartLine(int k);
@@ -76,7 +85,7 @@ void sigHndlOledTimer(int signo)
 */
 
 /*-----------------------------------------
-         initate i2c ioctl data
+         initiate i2c ioctl data
 -----------------------------------------*/
 void init_I2C_IOdata(void)
 {
@@ -104,9 +113,9 @@ void free_I2C_IOdata(void)
 }
 
 
-/*--------------send command to oled---------------
-  send DATA or COMMAND to oled 
-----------------------------------------------*/
+/*--------------send data or command to oled---------------
+  send DATA or COMMAND to oled, depending on oled_sig value 
+---------------------------------------------------------*/
 void sendDatCmdoled(enum oled_sig datcmd,uint8_t val) {
     int ret;
     uint8_t sig;
@@ -271,7 +280,7 @@ void clearOled(void)
 /*----------------------------------------------------
   draw Ascii symbol on Oled
   start_column: 0~7  (128x64)
-  sart_row:  0~15;!!!!!!
+  start_row:  0~15;!!!!!!
 ------------------------------------------------------*/
 void  drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c)
 {
@@ -295,6 +304,65 @@ void  drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c)
 
 }
 
+
+/*------------------------------------------------------------
+ Display ASCII chars in g_Oled_Ascii16x8_Frame.char_buff[]
+ onto the OLED.
+ref_all=false: only applicable for those with .refresh_on[]=true
+ref_all=true:  refresh all chars in buff
+------------------------------------------------------------*/
+void refresh_Oled_Ascii32x18_Buff(bool ref_all)
+{
+	int i,j;
+
+	if(ref_all){
+		memset(g_Oled_Ascii16x8_Frame.refresh_on[0],true,16*4); // refresh_on for all chars.
+	}
+
+	for(i=0;i<4;i++){//row
+		for(j=0;j<16;j++){//column
+//			printf("line=%d, buff[%d][%d]=%d ",2*i,i,j,g_Oled_Ascii16x8_Frame.refresh_on[i][j] );//only if refresh_on
+			if(g_Oled_Ascii16x8_Frame.refresh_on[i][j])//only if refresh_on
+				drawOledAscii16x8(2*i,8*j,g_Oled_Ascii16x8_Frame.char_buff[i][j]);
+		}
+//		printf("\n");
+	}
+
+	memset(g_Oled_Ascii16x8_Frame.refresh_on[0],false,16*4); // clear .refresh_on token then
+}
+
+/*-------------------------------------------------------------------
+Push a string of chars(pstr) into g_Oled_Ascii16x8_Frame[]
+within specified row number(nrow: 0~3),starting from (nstart*18) column.
+nrow [0~3]
+nstart [0~15]
+----------------------------------------------------------------------*/
+void push_Oled_Ascii32x18_Buff(const char* pstr, uint8_t nrow, uint8_t nstart)
+{
+	int k;
+	int len=strlen(pstr);
+	if(len>16) len=16;
+	if(nrow>3){
+		printf("push_Oled_Ascii32x18_Buff(): row number is out of range [0~3]!\n");
+	 	return;
+	}
+	if(nstart>15){
+		printf("push_Oled_Ascii32x18_Buff(): start number is out of range [0~15]!\n");
+		return;
+	}
+	//-----set .refresh_on[] token
+	for(k=nstart; k<nstart+len; k++){
+		if( g_Oled_Ascii16x8_Frame.char_buff[nrow][k] != *(pstr+k-nstart) )//--check if its content changed
+			g_Oled_Ascii16x8_Frame.refresh_on[nrow][k]=true;
+	}
+
+	//-----copy string to buff row----
+	strncpy(g_Oled_Ascii16x8_Frame.char_buff[nrow]+nstart,pstr,len);
+}
+
+/*-------------------------------------------------------------
+Draw a string of 16x8 ASCII chars onto the OLED
+--------------------------------------------------------------*/
 void  drawOledStr16x8(uint8_t start_row, uint8_t start_column,const char* pstr)
 {
     int k;

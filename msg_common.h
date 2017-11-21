@@ -201,10 +201,11 @@ void sigHndlOledTimer(int signo)
         //---put to TING buffer ---
         sprintf(g_strTingBuf,"Ting: %ddBm    ",atoi(strRSSI));
 */
-	//-- get count
+	//--- get count
 //        sprintf(g_strTingBuf,"Ting: %d    ",atoi(g_msg_data.text));
         sprintf(g_strTingBuf,"T:%s    ",g_msg_data.text);
-
+	//--- push to Oled frame buff
+	push_Oled_Ascii32x18_Buff(g_strTingBuf,2,0);
 	//--- record time stamp
 	gettimeofday(&tm_last_msg,NULL);
     }
@@ -221,9 +222,12 @@ void sigHndlOledTimer(int signo)
 
     //------- receive mssage queue from CC1101 ------
     msg_ret=recvMsgQue(g_msg_id,MSG_TYPE_CC1101);  
-    if(msg_ret > 0 )
+    if(msg_ret > 0 ){
        	//---put to CC1101 buffer ---
         sprintf(g_strCC1101Buf,"CC1101: %s  ",g_msg_data.text);
+	//--- push to Oled frame buff ---
+	push_Oled_Ascii32x18_Buff(g_strCC1101Buf,1,0);
+    }
     else if(msg_ret != EAGAIN)
           sprintf(g_strCC1101Buf,"CC1101: ------- ");
 
