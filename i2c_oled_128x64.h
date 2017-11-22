@@ -286,6 +286,9 @@ void  drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c)
 {
 	int i,j;
 
+	//----replace non-ASCII symbol char with 127 'delta'
+	if(c<32 || c>127) c=127;
+
 	//----set mode---
 	//-----set as vertical addressing mode -----
         sendCmdOled(0x20);  //set memory addressing mode

@@ -17,6 +17,12 @@ void main()
  int i=0,k;
  char strtime[10]={0};
 
+//---test non_ASCII char
+ char ascii_127[3];
+ ascii_127[0]=129;
+ ascii_127[1]=28;
+ ascii_127[2]='\0';
+
  //--- for IPC message queque --
  int msg_ret;
 
@@ -45,7 +51,9 @@ void main()
 	exit(-1);
   }
 
+  drawOledStr16x8(0,0,ascii_127);//test last ASCII symbol
   drawOledStr16x8(6,0,"-- Widora-NEO --");
+  drawOledStr16x8(0,120,ascii_127);//test last ASCII symbol
 
   while(1)
   {
