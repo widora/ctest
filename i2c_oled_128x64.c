@@ -4,7 +4,6 @@ TODOs and BUGs
 
 ----------------------------------------------------*/
 
-
 #include <string.h>
 #include <signal.h>
 #include "i2c_oled_128x64.h"
@@ -17,6 +16,12 @@ void main()
 {
  int i=0,k;
  char strtime[10]={0};
+
+//---test non_ASCII char
+ char ascii_127[3];
+ ascii_127[0]=129;
+ ascii_127[1]=28;
+ ascii_127[2]='\0';
 
  //--- for IPC message queque --
  int msg_ret;
@@ -46,7 +51,9 @@ void main()
 	exit(-1);
   }
 
+  drawOledStr16x8(0,0,ascii_127);//test last ASCII symbol
   drawOledStr16x8(6,0,"-- Widora-NEO --");
+  drawOledStr16x8(0,120,ascii_127);//test last ASCII symbol
 
   while(1)
   {
@@ -54,11 +61,12 @@ void main()
 	timep=time(NULL);
 	p_tm=localtime(&timep);
 	strftime(strtime,8,"%H:%M:%S",p_tm);
-//	printf("strtime=%s\n",strtime);
+	//---- push strtime to oled frame buff ---
+	push_Oled_Ascii32x18_Buff(strtime,0,3);
+
 	//---- oled show time ----
-//	drawOledStr16x8(0,0,"    ");
-	drawOledStr16x8(0,31,strtime);
-//	drawOledStr16x8(0,95,"    ");
+//	drawOledStr16x8(0,31,strtime);
+
 
 	//------ example of vertical scrolling -----
 /*
@@ -66,11 +74,15 @@ void main()
 	{
 		setStartLine(i);
 		i+=2;
-		if(i==64)i=0;
+		if(i==64) i=0;
 	}
 */
-	drawOledStr16x8(2,0,g_strTingBuf);
-	drawOledStr16x8(4,0,g_strCC1101Buf);
+	//------- display Ting and CC1101 Msg. ------
+//	drawOledStr16x8(2,0,g_strTingBuf);
+//	drawOledStr16x8(4,0,g_strCC1101Buf);
+
+	//------- refresh OLED frame buff --------
+	refresh_Oled_Ascii32x18_Buff(false);
 
 	//----- sleep a while ----
 	usleep(200000); //  --200k ~1000k same cpu load

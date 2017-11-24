@@ -1,9 +1,3 @@
-/*--------------------------------------------
-1.Non_ASCII char will be replaced by code 127(delta,the last symbol)
-
-Midas
----------------------------------------------*/
-
 #ifndef __I2C__OLED__H
 #define __I2C__OLED__H
 
@@ -291,9 +285,6 @@ void clearOled(void)
 void  drawOledAscii16x8(uint8_t start_row, uint8_t start_column,unsigned char c)
 {
 	int i,j;
-
-	//----replace non-ASCII symbol char with 127 'delta'
-	if(c<32 || c>127) c=127;
 
 	//----set mode---
 	//-----set as vertical addressing mode -----
