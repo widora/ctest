@@ -3,8 +3,10 @@
 import os
 from time import sleep
 
-str1="curl --request POST -F 'data=@"
-#---- use your own KEY and IDs
+#--- make sure you already install ac-certificates 
+str1="curl --retry 3 --connect-timeout 20 --request POST -F 'data=@"
+
+#---- input your own API-KEY , DEVICE ID and INPUT ID
 str2="' --header 'API-KEY: xxxxxxxxx' https://www.bigiot.net/pubapi/uploadImg/did/xxx/inputid/xxx"
 strImage='/tmp/webcam.jpg'
 
@@ -16,4 +18,6 @@ while(1):
 	   os.system(strcmd)
 	   print "Webcam photo send!"
 	   os.system("rm -f /tmp/webcam.jpg")
+   else:
+	print "/tmp/webcam.jpg not found! wait to retry..."
    sleep(0.5)

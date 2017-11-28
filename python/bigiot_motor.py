@@ -45,7 +45,7 @@ port = 8181
 #设备ID及key
 #----- put your own ID and KEY here
 DEVICEID='xxx'
-APIKEY='xxxxxxxxxx'
+APIKEY='xxxxxxxxx'
 
 data = b''
 
@@ -288,7 +288,7 @@ def process(msg, s, json_checkin):
 		s.send(json_checkin.encode('utf-8'))
 		s.send(b'\n')
 	if json_data['M'] == 'login':
-		say(s, json_data['ID'], "------ Hello from Midas' 16M Widora_NEO -----")
+		say(s, json_data['ID'], "------ Hello from Midas' 32M  Widora_NEO -----")
 		#say(s, json_data['ID'], 'Welcome! Your public ID is '+json_data['ID'])
         if json_data['M'] == "WELCOME TO BIGIOT":
 		print("WELCOME message from BIGIOT received")
