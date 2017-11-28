@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "include/ftdi.h"
 
 #define MM 20
@@ -19,12 +20,17 @@ int main(int argc, char **argv)
     int f,i;
     int m;
     int ret;
-    unsigned char buf[1024*MM]={0};
+//    unsigned char buf[1024*MM]={0};
+    unsigned char *buf;
     unsigned char rvbuf[1024]={0};
     int retval = 0;
     int k;
     int chunk_size;
     int baudrate;
+    struct timeval tm_start,tm_end;
+    int time_use;
+
+    buf=malloc(1024*MM);
 
     memset(buf,0xff,1024*MM);
 
@@ -87,7 +93,9 @@ int main(int argc, char **argv)
 //    int ftdi_write_data_get_chunksize(struct ftdi_context *ftdi, unsigned int *chunksize);
 //    int ftdi_usb_purge_rx_buffer(struct ftdi_context *ftdi);
     ftdi_usb_purge_rx_buffer(ftdi);
-//    ftdi_write_data_set_chunksize(ftdi,512);
+
+    chunk_size=1024*64;// >=1024*32 same effect.    default is 4096
+    ftdi_write_data_set_chunksize(ftdi,chunk_size); 
     ftdi_write_data_get_chunksize(ftdi, &chunk_size);
     printf("chunk_size=%d \n",chunk_size);
     sleep(1);
@@ -99,11 +107,13 @@ int main(int argc, char **argv)
 	buf[2*k+1]=0xff-0x81;
      }
     buf[1024*MM-1]=0b11011011;
-    k=0;
+//    k=0;
     while(1){
-//	if(k == 8) k=0;
-//	buf[0]=0xFF-(1<<k);
-	k++;
+
+      gettimeofday(&tm_start,NULL);
+
+      for(k=0;k<1024;k++)
+      {
 	//------ write
 	f = ftdi_write_data(ftdi, buf, 1024*MM);
 	if (f < 0)
@@ -111,10 +121,17 @@ int main(int argc, char **argv)
 	        fprintf(stderr,"write failed for 0x%x%x, error %d (%s)\n",buf[0],buf[1],f, ftdi_get_error_string(ftdi));
     	}
 	else
-		printf(" %dth write %d data buf=0x%02x to FTDI successfully!\n",k,f,buf[1024*MM-1]);
+	;
+//		printf(" %dth write %d data buf=0x%02x to FTDI successfully!\n",k,f,buf[1024*MM-1]);
 
-	//------read------
+     }//end of for()
+
+     gettimeofday(&tm_end,NULL);
+     time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+     printf("  ------ finish transfering %dMBytes data, time_use=%dms -----  \n",MM,time_use);
+
 /*
+	//------read------
 	f = ftdi_read_data(ftdi, rvbuf, 2048);
 	if (f < 0)
     	{
@@ -126,6 +143,8 @@ int main(int argc, char **argv)
 //    	usleep(40000);
     }
 //-----
+
+/*
     printf("turning everything on\n");
     f = ftdi_write_data(ftdi, buf, 1);
     if (f < 0)
@@ -163,12 +182,16 @@ int main(int argc, char **argv)
     }
 
     printf("\n");
+*/
+
 
     printf("disabling bitbang mode\n");
     ftdi_disable_bitbang(ftdi);
 
+
     ftdi_usb_close(ftdi);
 done:
+    free(buf);
     ftdi_free(ftdi);
 
     return retval;
