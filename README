@@ -13,4 +13,4 @@ read_kbd.c	:  read keyboard input and put to terminal
 pwm_motor.c	:  use pwm to control motor, as server.
 ipc_ctlmotor.c  :  motor contorl, as client
 mouse_motor.c 	:  use mouse to contorl motor,as client
-
+bitbang.c mpsse.c : test for FT232H bitbang and mpsse mode

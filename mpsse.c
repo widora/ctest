@@ -1,4 +1,14 @@
-/* This program is distributed under the GPL, version 2 */
+/*--------------------------------------------------------
+ This program is distributed under the GPL, version 2
+ Original Source:  https://www.intra2net.com/en/developer/libftdi/
+ from:
+  www.intra2net.com                  2003-2017 Intra2net AG
+
+./openwrt-gcc -L. -lusb-1.0 -lftdi1 -o mpsse mpsse.c
+
+Midas
+------------------------------------------------------------*/
+
 
 #include <stdio.h>
 #include <stdlib.h>
