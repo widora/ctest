@@ -26,12 +26,28 @@ https://item.congci.com/-/content/linux-shubiao-shuju-duqu-caozuo
 struct timeval Lprev_time,Lnow_time; //left button previous click time and current click time
 struct timeval Rprev_time,Rnow_time;//right button previous click time and current click time
 
-const char CMD_LIST[5][50]={
+#define  MAX_FREQ_ITEMS 10
+static float FM_FREQ[MAX_FREQ_ITEMS]={
+87.9,
+89.9,
+91.4,
+93.4,
+97.7,
+99.0,
+101.7,
+103.7,
+105.7,
+107.7,
+};
+
+#define MAX_CMD_ITEMS 5
+
+const char CMD_LIST[MAX_CMD_ITEMS][50]={
 "screen -dmS PLAY_B /mplayer/playB.sh",
 "screen -dmS PLAY_LIST /mplayer/usb_playlist",
 "screen -dmS PLAY_XM /mplayer/usb_playxmlist",
 "screen -dmS PLAY_F /mplayer/playF.sh",
-"screen -dmS PLAY_MP3 /mplayer/playMP3.sh"
+"screen -dmS PLAY_MP3 /mplayer/playMP3.sh",
 };
 
 //------ check for double click -------
@@ -48,7 +64,7 @@ bool is_dbclick(struct timeval prev_time, struct timeval now_time)
 int main(int argc,char **argv) {
    int fd,retval;
    int nread,nwrite;
-   int i,k=0;
+   int i,k=0,m=0;//k--counter for CMD_LIST[], m--counter for FM_FREQ[]
    unsigned char buf[4]={0};
    unsigned char setbuf[6]={0xf3,200,0xf3,100,0xf3,80};
    fd_set readfds;
@@ -57,7 +73,7 @@ int main(int argc,char **argv) {
 //   unsigned int volume_val=50; //50% for USB_Speaker
    unsigned int volume_val=80; //80% for Headphone
    char strCMD[50];
-
+   bool fm_radio_on=false;
 
    if(argc<2)
    {
@@ -83,11 +99,15 @@ int main(int argc,char **argv) {
    sprintf(strCMD,"amixer -c 0 set Headphone %d%%",volume_val);
    system(strCMD);
 
+   //-----start mplayer slave first  -----
+   system("killall -9 fm.sh");
+   system(CMD_LIST[1]);
+
    //-----init timeval
    gettimeofday(&Lprev_time,NULL);
    gettimeofday(&Rprev_time,NULL);
 
-
+   //------------- loop read mouse ----------
    while(1)
    {
 	tv.tv_sec=5;
@@ -122,13 +142,16 @@ int main(int argc,char **argv) {
 			 if(is_dbclick(Lprev_time,Lnow_time)){
 				printf("Left button double click detected!\n");
 				// shift command list and exectue
-				if(k<4)
+				if(k < (MAX_CMD_ITEMS-1))
 					k++;
 				else k=0;
 				printf("command: %s \n",CMD_LIST[k]);
+				//reassure to switch off radio
+				fm_radio_on=false;
+				system("killall -9 fm.sh");
 				system(CMD_LIST[k]);
 			 }
-			 else // shift to previous radio program 
+			 else if(!fm_radio_on)   //only if  mplayer_on
                          	system("mprev");
 
 			 Lprev_time=Lnow_time;//renew Lprev_time
@@ -140,10 +163,24 @@ int main(int argc,char **argv) {
 			 gettimeofday(&Rnow_time,NULL);
 			 if(is_dbclick(Rprev_time,Rnow_time)){
 				printf("Right button double click detected!\n");
+				fm_radio_on = !fm_radio_on; //switch radio status
+				if(!fm_radio_on){ //if switch off radio, then turn on mplayer
+				  	system("killall -9 fm.sh");
+					system(CMD_LIST[k]);
+				}
 			 }
 			 Rprev_time=Rnow_time;//renew Lprev_time
 
-                         system("mnext");
+			//-------- Tune radio or mplayer -----------
+			if(fm_radio_on){  //if radio is on
+				m++;
+				if(m > MAX_FREQ_ITEMS-1) m=0; 
+				sprintf(strCMD,"screen -dmS FM%-6.2f /mplayer/fm.sh %6.2f\n",FM_FREQ[m],FM_FREQ[m]);
+				printf("%s",strCMD);
+				system(strCMD);
+			}
+			else //else control mplayer
+                        	system("mnext");
 		 }
                  else if( buf[0] == MID_KEY )//middle key press
 		 {
