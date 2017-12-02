@@ -63,6 +63,9 @@ int main(int argc, char **argv)
     int k;
     unsigned short usb_val;
     int ret;
+    int baudrate;
+    struct timeval tm_start,tm_end;
+    int time_use;
 
     if ((ftdi = ftdi_new()) == 0)
     {
@@ -85,17 +88,47 @@ int main(int argc, char **argv)
     ftdi_set_bitmode(ftdi, 0xFF, BITMODE_MPSSE);
     usleep(500000);
 
+    //------   set baudrate -------
+    baudrate=3150000;
+    ret=ftdi_set_baudrate(ftdi,baudrate);
+    if(ret == -1){
+        printf("baudrate invalid!\n");
+    }
+    else if(ret != 0){
+        printf("ret=%d set baudrate fails!\n",ret);
+    }
+    else if(ret ==0 ){
+        printf("set baudrate=%d,  actual baudrate=%d \n",baudrate,ftdi->baudrate);
+    }
+
+
+
+    //---------- run LED test ------
+/*
      val=0x01;
      while(1){
-     mpsse_write_highbits(ftdi,~val);
-     mpsse_write_lowbits(ftdi,~val);
-     usleep(250000);
-     val=val<<1;
-     if(val==0) val=1;
+	     mpsse_write_highbits(ftdi,~val);
+	     mpsse_write_lowbits(ftdi,~val);
+	     usleep(250000);
+	     val=val<<1;
+	     if(val==0) val=1;
       }
+*/
 
-	sleep(10);
-    	usleep(5000000);
+     //-------- test GPIO speed ------
+     val=0x81;
+     while(1){
+	gettimeofday(&tm_start,NULL);
+	for(i=0;i<5*1024;i++){
+	     val=~val;
+	     mpsse_write_lowbits(ftdi,val);
+	}
+	gettimeofday(&tm_end,NULL);
+        time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+        printf("  ------ finish transfering 5Kbytes data, time_use=%dms -----  \n",time_use); //~200ms for 1k bytes, ~1s for 5K bytes
+
+     }
+
 
 /*
      usb_val=0xAA00;
