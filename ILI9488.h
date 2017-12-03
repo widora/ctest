@@ -19,6 +19,12 @@
  #define RESX_SET mt76x8_gpio_set_pin_value(RESX_GPIO_PIN,1)
  #define RESX_RESET mt76x8_gpio_set_pin_value(RESX_GPIO_PIN,0)
 
+//----- graphic buffer ------
+uint8_t g_GBuffer[480*320][3];
+
+
+void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend);
+void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf);
 
 void delayms(int s)
 {
@@ -111,6 +117,23 @@ int LCD_Write_NData(uint8_t *pdata, int n)
 
    return ret;
 
+}
+
+
+
+/*------ write g_GBuffer data to LCD -------------*/
+int LCD_Write_GBuffer(void)
+{
+   int ret;
+
+   //----- write data to GRAM -----
+   LCD_Write_Cmd(0x2c); //memory write
+   // LCD_Write_Cmd(0x3c); //continue memeory wirte
+
+   DCXdata;
+   ret=LCD_Write_NData(&g_GBuffer[0][0], 480*320*3); //write g_GBuffer to LCD
+
+   return ret;
 }
 
 
@@ -221,32 +244,51 @@ void LCD_INIT_ILI9488(void)
 
  //----- set interface pixel format -----
  LCD_Write_Cmd(0x3a);
- LCD_Write_Data(0b01100110);
+ LCD_Write_Data(0b01100111);
 
  //----- adjust pic layout position here ------
  LCD_Write_Cmd(0x36); //memory data access control
- LCD_Write_Data(0x00); //Data[3]=0 RGB, Data[3]=1 BGR 
+ LCD_Write_Data(0x08); //Data[3]=0 RGB, Data[3]=1 BGR 
 
  //----- write data to GRAM -----
  LCD_Write_Cmd(0x2c); //memory write
+// LCD_Write_Cmd(0x3c); //continue memeory wirte
+
  int i;
  uint8_t color[3]={
-0xff,
-0x00,
+0x0f,
+0xf0,
 0x00,
 };
 
+//00,ff,00 Yellow
+//ff,00,00 blue
+//00,00,ff  light green
+/*
+color[0]=0xff;color[1]=0x00;color[2]=0x00;
+LCD_ColorBox(0,0,30,300,color);
+color[0]=0x00;color[1]=0xff;color[2]=0x00;
+LCD_ColorBox(30,0,30,300,color);
+color[0]=0x00;color[1]=0x00;color[2]=0xff;
+LCD_ColorBox(60,0,30,300,color);
+*/
+
+//---- clear graphic buffer -----
+memset(g_GBuffer,0,480*320*3);
+
+/*
  for(i=0;i<480*320/3;i++){
 	LCD_Write_NData(color,3);
  }
  LCD_Write_Cmd(0x00); //write a dummy cmd to end
-
+*/
 
 }
 
 
-/*
+
 //------------- GRAM block address set ----------------
+// x -HEIGHT,  y-LENGTH
 void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 {
 	LCD_Write_Cmd(0x2a);
@@ -264,7 +306,7 @@ void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 
 
 // ------------  draw a color box --------------
-void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint16_t Color)
+void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf)
 {
 	uint32_t temp;
 
@@ -273,12 +315,11 @@ void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,
 
 	for (temp=0; temp<xLong*yLong; temp++)
 	{
-          WriteDData(Color);
-  	 //LCD_Write_Data(Color>>8);
-	 //LCD_Write_Data(Color&0xff);
+  	  LCD_Write_NData(color_buf,3);
 	}
 }
 
+/*
 // ------------------- show a picture stored in a char* array -----------
 
 void LCD_Fill_Pic(uint16_t x, uint16_t y, uint16_t pic_H, uint16_t pic_V, const unsigned char* pic)
@@ -293,7 +334,7 @@ void LCD_Fill_Pic(uint16_t x, uint16_t y, uint16_t pic_H, uint16_t pic_V, const 
 	for (i = 0; i < pic_H*pic_V*2; i+=2)
 	{
            LCD_Write_Data(pic[i]);
-           LCD_Write_Data(pic[i+1]);             	  
+           LCD_Write_Data(pic[i+1]);
  
 	}
  	LCD_Write_Cmd(0x36); //Set_address_mode
