@@ -19,6 +19,53 @@ Midas
 #include "ft232.h"
 #include "ILI9488.h"
 
+int show_bmpf(char *strf)
+{
+  int fp;//file handler
+  uint8_t buff[8]; //--for buffering  data temporarily
+  uint16_t picWidth, picHeight;
+  long offp; //offset position
+  int MapLen; // file size,mmap size
+  uint8_t *pmap;//mmap 
+
+  offp=18; // file offset  position for picture Width and Height data
+
+  fp=open(strf,O_RDONLY);
+  if(fp<0)
+	  {
+          	printf("\n Fail to open the file!\n");
+          }
+   else
+          printf("%s opened successfully!\n",strf);
+
+   //----    seek position and readin picWidth and picHeight   ------
+   if(lseek(fp,offp,SEEK_SET)<0)
+   	printf("Fail to offset seek position!\n");
+   read(fp,buff,8);
+
+   //----  get pic. size -----
+   picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
+   picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
+   printf("\n picWidth=%d    picHeight=%d",picWidth,picHeight);
+
+   /*--------------------- MMAP -----------------------*/
+   MapLen=picWidth*picHeight*3+54;
+   pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
+   if(pmap == MAP_FAILED){
+   	printf("\n pmap mmap failed!");
+        return -1; 
+   }
+   else
+        printf("\n pmap mmap successfully!");
+
+   //----- copy data to graphic buffer -----
+   offp=54; //---offset position where BGR data begins
+   memcpy(&g_GBuffer[0][0],pmap+offp, 480*320*3);
+
+   //------  write to LCD to show ------
+   LCD_Write_GBuffer();
+
+}
 
 /*===================== MAIN   ======================*/
 int main(int argc, char **argv)
@@ -29,6 +76,9 @@ int main(int argc, char **argv)
     int i,k;
     struct timeval tm_start,tm_end;
     int time_use;
+    //---BMP file
+    int fp; //file handler
+
 
 //-----  prepare control pins -----
     setPinMmap();
@@ -68,9 +118,10 @@ for(i=0;i<480*320;i++)
 }
 */
 
-//-----refresh GRAPHIC BUFFER --------
+//<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
 uint32_t  tmpd=1;
 //for(k=0;k<200;k++)
+/*
 while(1)
 {
         if(tmpd ==0  ) tmpd=1;
@@ -82,18 +133,22 @@ while(1)
 	}
 
 	gettimeofday(&tm_start,NULL);
+
+	LCD_Write_Cmd(0x22);//all pixels off
+//	LCD_Write_Cmd(0x28);//display off
 	LCD_Write_GBuffer();
-//	usleep(200000);
+//        LCD_Write_Cmd(0x23);//all pixels on
+//	LCD_Write_Cmd(0x29);//display on
+	LCD_Write_Cmd(0x13);//normal display mode on
+	usleep(200000);
 	gettimeofday(&tm_end,NULL);
 	time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
 	printf("  ------ finish refreshing whole graphic buffer, time_use=%dms -----  \n",time_use);
 }
+*/
 
-
-//    while(1);
-
-
-
+//<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
+show_bmpf("/tmp/widora.bmp");
 
 
 //----- close ft232 usb device -----
