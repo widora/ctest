@@ -65,6 +65,9 @@ int show_bmpf(char *strf)
    //------  write to LCD to show ------
    LCD_Write_GBuffer();
 
+   //----- close fp ----
+   close(fp);
+
 }
 
 /*===================== MAIN   ======================*/
@@ -86,9 +89,11 @@ int main(int argc, char **argv)
     open_ft232(0x0403, 0x6014);
 //-----  set to BITBANG MODE -----
     ftdi_set_bitmode(g_ftdi, 0xFF, BITMODE_BITBANG);
-//-----  set baudrate -------
-    baudrate=3150000; //20MBytes/s
+//-----  set baudrate,beware of your wiring  -----
+//-------  !!!! select low speed if the color is distorted !!!!!  -------
+//    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
+      baudrate=750000;
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
         printf("baudrate invalid!\n");
@@ -120,7 +125,6 @@ for(i=0;i<480*320;i++)
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
 uint32_t  tmpd=1;
-//for(k=0;k<200;k++)
 /*
 while(1)
 {
@@ -148,11 +152,30 @@ while(1)
 */
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
+gettimeofday(&tm_start,NULL);
 show_bmpf("/tmp/widora.bmp");
+gettimeofday(&tm_end,NULL);
+time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+
+//<<<<<<<<<<<<<<< color block test  >>>>>>>>>>>>>
+uint8_t color_buf[3];
+
+/*
+color_buf[0]=0xff;color_buf[1]=0x00;color_buf[2]=0x00;
+LCD_ColorBox(0,0,30,300,color_buf);
+color_buf[0]=0x00;color_buf[1]=0xff;color_buf[2]=0x00;
+LCD_ColorBox(30,0,30,300,color_buf);
+color_buf[0]=0x00;color_buf[1]=0x00;color_buf[2]=0xff;
+LCD_ColorBox(60,0,30,300,color_buf);
+*/
 
 
 //----- close ft232 usb device -----
     close_ft232();
+//----- release g_usb_GBuffer -----
+    if(g_usb_GBuffer != NULL)
+	    free(g_usb_GBuffer);
 //----- release pin mmap -----
     resPinMmap();
 
