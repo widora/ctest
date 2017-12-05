@@ -125,6 +125,8 @@ static int show_bmpf(char *strf)
    //------  write to LCD to show ------
    LCD_Write_GBuffer();
 
+   //------ freep mmap ----
+   munmap(pmap,MapLen); 
    //----- close fp ----
    close(fp);
 
@@ -172,7 +174,7 @@ int main(int argc, char **argv)
 //------ purge rx buffer in FT232H  ------
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
 //------  set chunk_size, default is 4096
-    chunk_size=1024*64;// >=1024*32 same effect.    default is 4096
+    chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
@@ -231,11 +233,15 @@ while(1) //loop showing BMP files in a directory
 
      //------  show the bmp file and count time -------
      gettimeofday(&tm_start,NULL);
+
      show_bmpf(str_bmpf_file);
-     sleep(1); //---hold on for a while
+
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
      printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+
+     usleep(80000);
+//     sleep(1); //---hold on for a while
 
 }
 
