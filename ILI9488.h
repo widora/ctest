@@ -225,12 +225,13 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Data(0x01); //Data[3]=0 RGB, Data[3]=1 BGR 
 
  //----- write data to GRAM -----
- LCD_Write_Cmd(0x2c); //memory write
+ // LCD_Write_Cmd(0x2c); //memory write
  // LCD_Write_Cmd(0x3c); //continue memeory wirte
 
  //---- clear graphic buffer -----
  memset(g_GBuffer,0,480*320*3);
 
+ printf("finish preparing ILI9488\n");
 }
 
 

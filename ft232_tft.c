@@ -10,23 +10,83 @@ by:
 
 Midas
 -------------------------------------------------------------------------------*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
 
-int show_bmpf(char *strf)
+
+#define STRBUFF 256   // --- length of file path&name
+#define MAX_WIDTH 320
+#define MAX_HEIGHT 480
+
+//----- for BMP files ------
+char file_path[256];
+char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
+int  g_BMP_file_num=0;//----BMP file name index
+int  g_BMP_file_total=0; //--total number of BMP files
+
+/* --------------------------------------------
+ find out all BMP files in a specified directory
+ return value:
+	 0 --- OK
+	<0 --- fails
+----------------------------------------------*/
+static int Find_BMP_files(char* path)
 {
+DIR *d;
+struct dirent *file;
+int fn_len;
+
+g_BMP_file_total=0; //--reset total  file number
+g_BMP_file_num=0; //--reset file  index
+
+//-------- if open dir error ------
+if(!(d=opendir(path)))
+{
+  printf("error open dir: %s !\n",path);
+  return -1;
+}
+
+while((file=readdir(d))!=NULL)
+{
+   //------- find out all bmp files  --------
+   fn_len=strlen(file->d_name);
+   if(strncmp(file->d_name+fn_len-4,".bmp",4)!=0 )
+       continue;
+   strncpy(g_BMP_file_name[g_BMP_file_num++],file->d_name,fn_len);
+   g_BMP_file_total++;
+ }
+
+ closedir(d);
+ return 0;
+}
+
+
+
+
+
+
+/*--------------------------------------------
+ load a 480x320x24bit bmp file and show on lcd
+ char *strf:  file path
+return value:
+	0  --OK
+	<9 --fails
+---------------------------------------------*/
+static int show_bmpf(char *strf)
+{
+  int ret=0;
   int fp;//file handler
   uint8_t buff[8]; //--for buffering  data temporarily
   uint16_t picWidth, picHeight;
   long offp; //offset position
   int MapLen; // file size,mmap size
   uint8_t *pmap;//mmap 
+
 
   offp=18; // file offset  position for picture Width and Height data
 
@@ -81,6 +141,10 @@ int main(int argc, char **argv)
     int time_use;
     //---BMP file
     int fp; //file handler
+    char str_bmpf_path[128]; //directory for BMP files 
+    char str_bmpf_file[STRBUFF];// full path+name for a BMP file.
+//    char strf[STRBUFF];
+    int Ncount=-1; //--index number of picture displayed
 
 
 //-----  prepare control pins -----
@@ -143,11 +207,37 @@ while(1)
 */
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
-gettimeofday(&tm_start,NULL);
-show_bmpf("/tmp/widora.bmp");
-gettimeofday(&tm_end,NULL);
-time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+strcpy(str_bmpf_path,"/tmp");//set directory
+while(1) //loop showing BMP files in a directory
+{
+     //-------------- reload total_numbe after one round show ---------
+      printf("BMP file  Ncount =%d  \n",Ncount);
+      if( Ncount < 0)
+      {
+          //---- find out all BMP files in specified path 
+          Find_BMP_files(str_bmpf_path);
+          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
+          if(g_BMP_file_total == 0){
+             printf("\n No BMP file found! \n");
+             return -1;
+	  }
+          Ncount=g_BMP_file_total-1; //---reset Ncount, [Nount] starting from 0
+      }
+
+     //----- load BMP file path -------------
+     sprintf(str_bmpf_file,"%s/%s",str_bmpf_path,g_BMP_file_name[Ncount]);
+     printf("str = %s\n",str_bmpf_file);
+     Ncount--;
+
+     //------  show the bmp file and count time -------
+     gettimeofday(&tm_start,NULL);
+     show_bmpf(str_bmpf_file);
+     sleep(1); //---hold on for a while
+     gettimeofday(&tm_end,NULL);
+     time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+     printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+
+}
 
 //<<<<<<<<<<<<<<< color block test  >>>>>>>>>>>>>
 uint8_t color_buf[3];
