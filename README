@@ -7,10 +7,14 @@ i2c_oled_128x64,128x32	    :  OLED example with I2C interface.
 ads_b.c 	    :  Decode ADS-B data received by a RTL-SDR USB Dongle connected to Widora-NEO.
 lirc_mplay.c    :  Infrared remote control for mplayer.
 pwmtest.c       :  C program for PWM test.
-mouse_ctlmp.c	:  use mouse to control mplayer
+mouse_ctlmp.c	:  use mouse to control mplayer and rtl_SDR radio
 evctl_kbd.c	:  use keyboard to control mplayer
 read_kbd.c	:  read keyboard input and put to terminal
 pwm_motor.c	:  use pwm to control motor, as server.
 ipc_ctlmotor.c  :  motor contorl, as client
 mouse_motor.c 	:  use mouse to contorl motor,as client
 bitbang.c mpsse.c : test for FT232H bitbang and mpsse mode
+ft232_tft.c     :  show 24bit_color BMP pictures on a tft LCD bridged by an FT232H chip through USB.
+
+
+----------  CTEST for Widora  ------------

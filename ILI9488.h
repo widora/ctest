@@ -21,7 +21,6 @@
 
 //----- graphic buffer ------
 uint8_t g_GBuffer[480*320][3];
-uint8_t *g_usb_GBuffer; //ajust bit order for ftdi usb transfer
 
 void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend);
 void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf);
@@ -76,8 +75,8 @@ int LCD_Write_Cmd(uint8_t data)
    {
           fprintf(stderr,"ftdi write failed!, error %d (%s)\n",ret, ftdi_get_error_string(g_ftdi));
    }
-   else
-	printf("ftdi succeed to write cmd: 0x%02x to ft232h \n",data);
+// else
+//	printf("ftdi succeed to write cmd: 0x%02x to ft232h \n",data);
 
    return ret;
 }
@@ -94,8 +93,8 @@ int LCD_Write_Data(uint8_t data)
    {
           fprintf(stderr,"ftdi write failed!, error %d (%s)\n",ret, ftdi_get_error_string(g_ftdi));
    }
-   else
-	printf("ftdi succeed to write data: 0x%02x to ft232h \n",data);
+//   else
+//	printf("ftdi succeed to write data: 0x%02x to ft232h \n",data);
 
    return ret;
 }
@@ -106,11 +105,7 @@ int LCD_Write_NData(uint8_t *pdata, int n)
    int ret=0;
    int i;
 
-   //------ wirte one byte by one byte -----
-   for(i=0;i<n;i++)
-		LCD_Write_Data(*(pdata+i));
-
-/*------chunck write, beware of bits order !!!!!!
+/*------chunck write, beware of baudrate speed -----*/
    DCXdata;
 
    ret = ftdi_write_data(g_ftdi, pdata, n);
@@ -118,9 +113,9 @@ int LCD_Write_NData(uint8_t *pdata, int n)
    {
           fprintf(stderr,"ftdi write failed!, error %d (%s)\n",ret, ftdi_get_error_string(g_ftdi));
    }
-   else
-	printf("ftdi succeed to write %d bytes data to ft232h \n",n);
-*/
+//   else
+//	printf("ftdi succeed to write %d bytes data to ft232h \n",n);
+
    return ret;
 
 }
@@ -136,29 +131,13 @@ int LCD_Write_GBuffer(void)
    int ret;
    int i;
 
-   //----- reorder buff to g_usb_GBuffer ------
-   if(g_usb_GBuffer==NULL)
-   {
-	printf("g_usb_GBuffer is NULL!\n");
-	return -1;
-   }
-   else{
-	for(i=0;i<480*320*3/4;i++)
-	{
-		*(g_usb_GBuffer+i*4) = *(&g_GBuffer[0][0]+i*4+3);
-		*(g_usb_GBuffer+i*4+1) = *(&g_GBuffer[0][0]+i*4+2);
-		*(g_usb_GBuffer+i*4+2) = *(&g_GBuffer[0][0]+i*4+1);
-		*(g_usb_GBuffer+i*4+3) = *(&g_GBuffer[0][0]+i*4);
-	}
-   }
-
    //----- write data to GRAM -----
    LCD_Write_Cmd(0x2c); //memory write
    // LCD_Write_Cmd(0x3c); //continue memeory wirte
 
    DCXdata;
    //------ transfer data to ft232h  -------
-//   ret = ftdi_write_data(g_ftdi, g_usb_GBuffer, 480*320*3);
+  //   ret = ftdi_write_data(g_ftdi, g_usb_GBuffer, 480*320*3);
    ret = ftdi_write_data(g_ftdi, &g_GBuffer[0][0], 480*320*3);
    if (ret < 0)
    {
@@ -171,34 +150,6 @@ int LCD_Write_GBuffer(void)
 }
 
 
-/*
-//-------- write 2 Byte date to LCD ---------
-void WriteDData(uint16_t data)
-{
-  uint8_t tmp[2];
-  tmp[0]=data>>8;
-  tmp[1]=data&0x00ff;
-
-  DCXdata;
-  SPI_Write(tmp,2);
-}
-
-//------ write N Bytes data to LCD -------------
-void WriteNData(uint8_t* data,int N)
-{
- DCXdata;
- SPI_Write(data,N);
-}
-
-
-//--------------- prepare for RAM direct write --------
-void LCD_ramWR_Start()
-{
-  LCD_Write_Cmd(0x2c);
- }
-
-*/
-
 // ------------------ LCD Initialize Function ---------------
 void LCD_INIT_ILI9488(void)
 {
@@ -206,42 +157,12 @@ void LCD_INIT_ILI9488(void)
  LCD_RESET();
  delayms(120);
 
- //--- malloc bffer ----
- g_usb_GBuffer=malloc(480*320*3);
- if(g_usb_GBuffer == NULL)
- {
-	printf("malloc() g_usb_GBuffer failed!\n");
-	return;
- }
-
-
  //---software reset ------
  LCD_Write_Cmd(0x01);
  delayms(10);
 
  LCD_Write_Cmd(0x11); // sleep out
  delayms(120); // must wait 120ms for sleep out
-
-/*
- LCD_Write_Cmd(0xc0);
- LCD_Write_Cmd(0xB7); 	//t ver address
- LCD_Write_Data(0x07);
-
-
- LCD_Write_Cmd(0xF0); 	//Enter ENG
- LCD_Write_Data(0x36);
- LCD_Write_Data(0xA5);
- LCD_Write_Data(0xD3);
-
-
- LCD_Write_Cmd(0xE5); 	//Open gamma function
- LCD_Write_Data(0x80);
-
- LCD_Write_Cmd(0xF0); 	//	Exit ENG
- LCD_Write_Data(0x36);
- LCD_Write_Data(0xA5);
- LCD_Write_Data(0x53);
-*/
 
  //------ set image function,enable 24bits data bus  -----
  LCD_Write_Cmd(0xe9);
@@ -290,14 +211,7 @@ void LCD_INIT_ILI9488(void)
 */
 
 
-// --------- brightness control ----------
-/*
- LCD_Write_Cmd(0x55);LCD_Write_Data(0x02); //-- adaptive brightness control Still Mode
- LCD_Write_Cmd(0x53);LCD_Write_Data(0x2c); //--- Display control
- LCD_Write_Cmd(0x5E);LCD_Write_Data(0x00); //--- Min Brightness
- LCD_Write_Cmd(0x51); LCD_Write_Data(0x00); //-- display brightness
- printf("\nBrightness set finished!\n");
-*/
+ // --------- brightness control ----------
 
  //------- IDLE MODE OFF -----
  LCD_Write_Cmd(0x38);
@@ -306,43 +220,16 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Cmd(0x29); 	//display ON
  delayms(10);
 
-
  //----- adjust pic layout position here ------
  LCD_Write_Cmd(0x36); //memory data access control
  LCD_Write_Data(0x01); //Data[3]=0 RGB, Data[3]=1 BGR 
 
  //----- write data to GRAM -----
  LCD_Write_Cmd(0x2c); //memory write
-// LCD_Write_Cmd(0x3c); //continue memeory wirte
+ // LCD_Write_Cmd(0x3c); //continue memeory wirte
 
- int i;
- uint8_t color[3]={
-0x0f,
-0xf0,
-0x00,
-};
-
-//00,ff,00 Yellow
-//ff,00,00 blue
-//00,00,ff  light green
-/*
-color[0]=0xff;color[1]=0x00;color[2]=0x00;
-LCD_ColorBox(0,0,30,300,color);
-color[0]=0x00;color[1]=0xff;color[2]=0x00;
-LCD_ColorBox(30,0,30,300,color);
-color[0]=0x00;color[1]=0x00;color[2]=0xff;
-LCD_ColorBox(60,0,30,300,color);
-*/
-
-//---- clear graphic buffer -----
-memset(g_GBuffer,0,480*320*3);
-
-/*
- for(i=0;i<480*320/3;i++){
-	LCD_Write_NData(color,3);
- }
- LCD_Write_Cmd(0x00); //write a dummy cmd to end
-*/
+ //---- clear graphic buffer -----
+ memset(g_GBuffer,0,480*320*3);
 
 }
 
@@ -366,21 +253,35 @@ void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 }
 
 
-// ------------  draw a color box --------------
+/* ------------  draw a color box --------------
+uint8_t color_buf[3]:  RGB 3*8bits color
+-----------------------------------------------*/
 void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf)
 {
+	int i;
 	uint32_t temp;
+	uint8_t *block_buf;
+	uint32_t byte_count;
 
+
+	byte_count=xLong*yLong*3;
+	//------ allocate mem. -------
+	block_buf=malloc( byte_count );
+	if(block_buf==NULL){
+		printf("malloc bloc_buf failed!\n");
+		return;
+	}
+	//----- fill color to mem -----
+	for(i=0;i<byte_count/3;i++)
+		memcpy(block_buf+3*i,color_buf,3);
+
+	//------ set GRAME AREA -----
 	GRAM_Block_Set(xStart,xStart+xLong-1,yStart,yStart+yLong-1);
         LCD_Write_Cmd(0x2c);  // ----for continous GRAM write
+	LCD_Write_NData(block_buf,byte_count);
 
-	for (temp=0; temp<xLong*yLong; temp++)
-	{
-//  	  LCD_Write_NData(color_buf,3);
-    	  LCD_Write_Data(color_buf[0]);
-    	  LCD_Write_Data(color_buf[1]);
-    	  LCD_Write_Data(color_buf[2]);
-	}
+	//------ free mem. -------
+	free(block_buf);
 }
 
 /*

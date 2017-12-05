@@ -113,15 +113,6 @@ int main(int argc, char **argv)
 
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
-/*
-//---- fill graphic buffer -----
-for(i=0;i<480*320;i++)
-{
-   g_GBuffer[i][0]=0xff;
-   g_GBuffer[i][1]=0x00;
-   g_GBuffer[i][2]=0x00;
-}
-*/
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
 uint32_t  tmpd=1;
@@ -160,22 +151,18 @@ printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  
 
 //<<<<<<<<<<<<<<< color block test  >>>>>>>>>>>>>
 uint8_t color_buf[3];
-
-/*
 color_buf[0]=0xff;color_buf[1]=0x00;color_buf[2]=0x00;
 LCD_ColorBox(0,0,30,300,color_buf);
 color_buf[0]=0x00;color_buf[1]=0xff;color_buf[2]=0x00;
 LCD_ColorBox(30,0,30,300,color_buf);
 color_buf[0]=0x00;color_buf[1]=0x00;color_buf[2]=0xff;
 LCD_ColorBox(60,0,30,300,color_buf);
-*/
+
 
 
 //----- close ft232 usb device -----
     close_ft232();
-//----- release g_usb_GBuffer -----
-    if(g_usb_GBuffer != NULL)
-	    free(g_usb_GBuffer);
+
 //----- release pin mmap -----
     resPinMmap();
 
