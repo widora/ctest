@@ -1,9 +1,16 @@
 /*-------------------------------------------------------------------
-with reference to:
+Use mouse to control Mplayer and RTL_SDR radio.
+
+Based on and with reference to:
 https://item.congci.com/-/content/linux-shubiao-shuju-duqu-caozuo
+
+Usage:
+	Single left click   --- shift net/FM radio channel up
+	Double left click   --- shift net radio channel_group
+	Single right click  --- shift net/FM radio channel down
+	Double right click  --- switch on/off rtl_sdr FM radio
+
 -------------------------------------------------------------------*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/input.h>
@@ -43,9 +50,9 @@ static float FM_FREQ[MAX_FREQ_ITEMS]={
 #define MAX_CMD_ITEMS 5
 
 const char CMD_LIST[MAX_CMD_ITEMS][50]={
-"screen -dmS PLAY_B /mplayer/playB.sh",
 "screen -dmS PLAY_LIST /mplayer/usb_playlist",
 "screen -dmS PLAY_XM /mplayer/usb_playxmlist",
+"screen -dmS PLAY_B /mplayer/playB.sh",
 "screen -dmS PLAY_F /mplayer/playF.sh",
 "screen -dmS PLAY_MP3 /mplayer/playMP3.sh",
 };
@@ -151,11 +158,22 @@ int main(int argc,char **argv) {
 				system("killall -9 fm.sh");
 				system(CMD_LIST[k]);
 			 }
-			 else if(!fm_radio_on)   //only if  mplayer_on
-                         	system("mprev");
+			//----- control rtl_sdr FM radio -----
+			 else if(fm_radio_on){  //if radio is on
+				m--;
+				if(m < 0) m=MAX_FREQ_ITEMS-1;
+				sprintf(strCMD,"screen -dmS FM%-6.2f /mplayer/fm.sh %6.2f\n",FM_FREQ[m],FM_FREQ[m]);//kill mplayer in sh script
+				printf("%s",strCMD);
+				system(strCMD);
+			}
+			else //else control mplayer
+                         	system("mprev &");
 
-			 Lprev_time=Lnow_time;//renew Lprev_time
+			//--- renew Lprev_tiime ---
+			 Lprev_time=Lnow_time;
+
                  }
+
                  else if( buf[0] == RIGHT_KEY )//right key press
 		 {
                          printf("--right key--\n");
@@ -164,15 +182,22 @@ int main(int argc,char **argv) {
 			 if(is_dbclick(Rprev_time,Rnow_time)){
 				printf("Right button double click detected!\n");
 				fm_radio_on = !fm_radio_on; //switch radio status
+				if(fm_radio_on){ //start rtl_srd FM radio
+					m=0;
+					sprintf(strCMD,"screen -dmS FM%-6.2f /mplayer/fm.sh %6.2f\n",FM_FREQ[m],FM_FREQ[m]);
+					printf("%s\n",strCMD);
+					system(strCMD);
+				}
 				if(!fm_radio_on){ //if switch off radio, then turn on mplayer
 				  	system("killall -9 fm.sh");
+					k=0;
+					printf("%s\n",CMD_LIST[k]);
 					system(CMD_LIST[k]);
 				}
 			 }
-			 Rprev_time=Rnow_time;//renew Lprev_time
 
 			//-------- Tune radio or mplayer -----------
-			if(fm_radio_on){  //if radio is on
+			else if(fm_radio_on){  //if radio is on
 				m++;
 				if(m > MAX_FREQ_ITEMS-1) m=0; 
 				sprintf(strCMD,"screen -dmS FM%-6.2f /mplayer/fm.sh %6.2f\n",FM_FREQ[m],FM_FREQ[m]);
@@ -180,12 +205,16 @@ int main(int argc,char **argv) {
 				system(strCMD);
 			}
 			else //else control mplayer
-                        	system("mnext");
+                        	system("mnext &");
+
+			//--- renew Rprev_tiime ---
+			 Rprev_time=Rnow_time;
 		 }
+
                  else if( buf[0] == MID_KEY )//middle key press
 		 {
 			 printf("--mid key--\n");
-			 system("mpause");
+			 system("mpause &");
 //			 usleep(100000);
 		 }
 		 else if ( buf[3] == WH_UP ){
