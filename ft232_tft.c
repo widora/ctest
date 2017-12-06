@@ -209,7 +209,8 @@ while(1)
 */
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
-strcpy(str_bmpf_path,"/tmp");//set directory
+//strcpy(str_bmpf_path,"/tmp");//set directory
+   strcpy(str_bmpf_path,argv[1]);
 while(1) //loop showing BMP files in a directory
 {
      //-------------- reload total_numbe after one round show ---------

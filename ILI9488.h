@@ -220,9 +220,16 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Cmd(0x29); 	//display ON
  delayms(10);
 
+ //-------- set column and page address area  --------
+ // GRAM_Block_Set(0,319,0,479);//full area GRAM ,column and page address normal
+
+ //--- exchagne X and Y ------
+ GRAM_Block_Set(0,479,0,319);//full area GRAM for column and page exchanged
+
  //----- adjust pic layout position here ------
  LCD_Write_Cmd(0x36); //memory data access control
- LCD_Write_Data(0x01); //Data[3]=0 RGB, Data[3]=1 BGR 
+ LCD_Write_Data(0x60); // exchange X and Y
+
 
  //----- write data to GRAM -----
  // LCD_Write_Cmd(0x2c); //memory write
