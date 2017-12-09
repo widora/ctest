@@ -5,7 +5,7 @@ by:
     www.intra2net.com    2003-2017 Intra2net AG
 
 
-./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o ft232_tft ft232_tft.c
+./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runbmp runbmp.c
 
 
 Midas
@@ -155,6 +155,7 @@ int main(int argc, char **argv)
     open_ft232(0x0403, 0x6014);
 //-----  set to BITBANG MODE -----
     ftdi_set_bitmode(g_ftdi, 0xFF, BITMODE_BITBANG);
+
 //-----  set baudrate,beware of your wiring  -----
 //-------  !!!! select low speed if the color is distorted !!!!!  -------
 //    baudrate=3150000; //20MBytes/s
@@ -173,40 +174,13 @@ int main(int argc, char **argv)
 
 //------ purge rx buffer in FT232H  ------
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
+
 //------  set chunk_size, default is 4096
     chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
-
-//<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
-uint32_t  tmpd=1;
-/*
-while(1)
-{
-        if(tmpd ==0  ) tmpd=1;
-	tmpd=tmpd<<1;
-	for(i=0;i<480*320;i++){
-		g_GBuffer[i][0]=tmpd & 0xff;
-		g_GBuffer[i][1]=((tmpd & 0xff00)>>8);
-		g_GBuffer[i][2]=((tmpd & 0xff0000)>>16);
-	}
-
-	gettimeofday(&tm_start,NULL);
-
-	LCD_Write_Cmd(0x22);//all pixels off
-//	LCD_Write_Cmd(0x28);//display off
-	LCD_Write_GBuffer();
-//        LCD_Write_Cmd(0x23);//all pixels on
-//	LCD_Write_Cmd(0x29);//display on
-	LCD_Write_Cmd(0x13);//normal display mode on
-	usleep(200000);
-	gettimeofday(&tm_end,NULL);
-	time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-	printf("  ------ finish refreshing whole graphic buffer, time_use=%dms -----  \n",time_use);
-}
-*/
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
 //strcpy(str_bmpf_path,"/tmp");//set directory
@@ -219,11 +193,13 @@ while(1) //loop showing BMP files in a directory
       {
           //---- find out all BMP files in specified path 
           Find_BMP_files(str_bmpf_path);
-          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
           if(g_BMP_file_total == 0){
              printf("\n No BMP file found! \n");
-             return -1;
+	     //---- wait for a while ---
+	     usleep(100000);
+             continue; //continue loop
 	  }
+          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
           Ncount=g_BMP_file_total-1; //---reset Ncount, [Nount] starting from 0
       }
 
@@ -234,27 +210,19 @@ while(1) //loop showing BMP files in a directory
 
      //------  show the bmp file and count time -------
      gettimeofday(&tm_start,NULL);
-
      show_bmpf(str_bmpf_file);
-
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
      printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
 
+     //----- delete file after displaying -----
+      if(remove(str_bmpf_file) != 0)
+		printf("Fail to remove the file!\n");
+
+     //----- keep the image on the display for a while ------
      usleep(60000);
-//     sleep(1); //---hold on for a while
 
 }
-
-//<<<<<<<<<<<<<<< color block test  >>>>>>>>>>>>>
-uint8_t color_buf[3];
-color_buf[0]=0xff;color_buf[1]=0x00;color_buf[2]=0x00;
-LCD_ColorBox(0,0,30,300,color_buf);
-color_buf[0]=0x00;color_buf[1]=0xff;color_buf[2]=0x00;
-LCD_ColorBox(30,0,30,300,color_buf);
-color_buf[0]=0x00;color_buf[1]=0x00;color_buf[2]=0xff;
-LCD_ColorBox(60,0,30,300,color_buf);
-
 
 
 //----- close ft232 usb device -----
