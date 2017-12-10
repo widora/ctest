@@ -14,6 +14,7 @@ Midas
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h> //stat()
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
@@ -28,6 +29,28 @@ char file_path[256];
 char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
 int  g_BMP_file_num=0;//----BMP file name index
 int  g_BMP_file_total=0; //--total number of BMP files
+
+
+/*------------------------------------------
+get file size
+return:
+	>0 ok
+	<0 fail
+-------------------------------------------*/
+unsigned long get_file_size(const char *fpath)
+{
+	unsigned long filesize=-1;
+	struct stat statbuff;
+	if(stat(fpath,&statbuff)<0)
+	{
+		return filesize;
+	}
+	else
+	{
+		filesize = statbuff.st_size;
+	}
+	return filesize;
+}
 
 /* --------------------------------------------
  find out all BMP files in a specified directory
@@ -75,7 +98,8 @@ while((file=readdir(d))!=NULL)
  char *strf:  file path
 return value:
 	0  --OK
-	<0 --fails
+	-1 --BMP file is not complete
+	-2 --mmap fails
 ---------------------------------------------*/
 static int show_bmpf(char *strf)
 {
@@ -90,6 +114,14 @@ static int show_bmpf(char *strf)
 
   offp=18; // file offset  position for picture Width and Height data
 
+   //----- check integrity of the bmp file ------
+   if( get_file_size(strf) < 460854 )
+   {
+	printf(" BMP file is not complete!\n");
+	return -1;
+   }
+
+  //---- open file  ------
   fp=open(strf,O_RDONLY);
   if(fp<0)
 	  {
@@ -113,19 +145,22 @@ static int show_bmpf(char *strf)
    pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
    if(pmap == MAP_FAILED){
    	printf("\n pmap mmap failed!");
-        return -1; 
+        return -2; 
    }
    else
         printf("\n pmap mmap successfully!");
 
    //----- copy data to graphic buffer -----
    offp=54; //---offset position where BGR data begins
+   printf("memcpy RBG data to GBuffer...\n");
    memcpy(&g_GBuffer[0][0],pmap+offp, 480*320*3);
 
    //------  write to LCD to show ------
+   printf("write to GBuffer...\n");
    LCD_Write_GBuffer();
 
    //------ freep mmap ----
+   printf("start munmap()...\n"); 
    munmap(pmap,MapLen); 
    //----- close fp ----
    close(fp);
@@ -210,7 +245,13 @@ while(1) //loop showing BMP files in a directory
 
      //------  show the bmp file and count time -------
      gettimeofday(&tm_start,NULL);
-     show_bmpf(str_bmpf_file);
+
+     if( show_bmpf(str_bmpf_file) <0 )
+     {
+	//----- if show bmp fails, then skip to continue, will NOT delete the file then -----
+	continue;
+     }
+
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
      printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
@@ -220,7 +261,7 @@ while(1) //loop showing BMP files in a directory
 		printf("Fail to remove the file!\n");
 
      //----- keep the image on the display for a while ------
-     usleep(60000);
+//     usleep(30000);
 
 }
 
