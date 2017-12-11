@@ -184,6 +184,14 @@ int main(int argc, char **argv)
     int Ncount=-1; //--index number of picture displayed
 
 
+//---- check argv[] ---------
+    if(argc != 2)
+    {
+	printf("input parameter error!\n");
+	printf("Usage: %s path  \n",argv[0]);
+	exit(-1);
+    }
+
 //-----  prepare control pins -----
     setPinMmap();
 //-----  open ft232 usb device -----
