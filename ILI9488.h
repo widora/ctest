@@ -24,6 +24,7 @@ uint8_t g_GBuffer[480*320][3];
 
 void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend);
 void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf);
+int LCD_Write_Block(int Hs,int He, int Vs, int Ve, uint8_t *data, int nb);
 
 void delayms(int s)
 {
@@ -121,15 +122,24 @@ int LCD_Write_NData(uint8_t *pdata, int n)
 }
 
 
-/*------ reorder and write GBuffer data to LCD -------------
+/*------------------------------------------------------------------
+write a block of data to LCD to refresh display
+Hs---start of horizon,    He---end of horizon
+Vs---start of vertical,    Ve---end of vertical
+data -- point to RGB data
+nb--- total bytes of RGB data
+
 return
 	>0 bytes written
 	<0 fails
--------------------------------------------------*/
-int LCD_Write_GBuffer(void)
+------------------------------------------------------------------------*/
+int LCD_Write_Block(int Hs,int He, int Vs, int Ve, uint8_t *data, int nb)
 {
    int ret;
    int i;
+
+   //------ set GRAM ZONE -------
+   GRAM_Block_Set(Hs,He,Vs,Ve);
 
    //----- write data to GRAM -----
    LCD_Write_Cmd(0x2c); //memory write
@@ -137,7 +147,40 @@ int LCD_Write_GBuffer(void)
 
    DCXdata;
    //------ transfer data to ft232h  -------
-  //   ret = ftdi_write_data(g_ftdi, g_usb_GBuffer, 480*320*3);
+   //   ret = ftdi_write_data(g_ftdi, g_usb_GBuffer, 480*320*3);
+   ret = ftdi_write_data(g_ftdi, data, nb);
+   if (ret < 0)
+   {
+          fprintf(stderr,"ftdi write failed!, error %d (%s)\n",ret, ftdi_get_error_string(g_ftdi));
+   }
+   else
+	printf("ftdi succeed to write g_usb_GBuffer to ft232h \n");
+
+   return ret;
+}
+
+
+/*-----------------------------------------------------------
+write whole page of data in GBuffer to LCD to refresh display
+return
+	>0 bytes written
+	<0 fails
+------------------------------------------------------------*/
+int LCD_Write_GBuffer(viod)
+{
+   int ret;
+   int i;
+
+   //---full_area GRAM write,whole page refresh!!!!!!------
+   GRAM_Block_Set(0,479,0,319);//column and page exchanged
+
+   //----- write data to GRAM -----
+   LCD_Write_Cmd(0x2c); //memory write
+   // LCD_Write_Cmd(0x3c); //continue memeory wirte
+
+   DCXdata;
+   //------ transfer data to ft232h  -------
+   //   ret = ftdi_write_data(g_ftdi, g_usb_GBuffer, 480*320*3);
    ret = ftdi_write_data(g_ftdi, &g_GBuffer[0][0], 480*320*3);
    if (ret < 0)
    {
@@ -220,9 +263,6 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Cmd(0x29); 	//display ON
  delayms(10);
 
- //-------- set column and page address area  --------
- // GRAM_Block_Set(0,319,0,479);//full area GRAM ,column and page address normal
-
  //--- exchagne X and Y ------
  GRAM_Block_Set(0,479,0,319);//full area GRAM for column and page exchanged
 
@@ -237,6 +277,9 @@ void LCD_INIT_ILI9488(void)
 
  //---- clear graphic buffer -----
  memset(g_GBuffer,0,480*320*3);
+
+ //----   backout  -----
+ LCD_Write_GBuffer();
 
  printf("finish preparing ILI9488\n");
 }
@@ -292,28 +335,6 @@ void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,
 	free(block_buf);
 }
 
-/*
-// ------------------- show a picture stored in a char* array -----------
-
-void LCD_Fill_Pic(uint16_t x, uint16_t y, uint16_t pic_H, uint16_t pic_V, const unsigned char* pic)
-{
-        uint32_t i;
-	uint16_t j;
-
- 	LCD_Write_Cmd(0x36); //Set_address_mode
- 	LCD_Write_Data(0x08); // show vertically 
-        GRAM_Block_Set(x,x+pic_H-1,y,y+pic_V-1);
-        LCD_Write_Cmd(0x2c);  // ----for continous GRAM write
-	for (i = 0; i < pic_H*pic_V*2; i+=2)
-	{
-           LCD_Write_Data(pic[i]);
-           LCD_Write_Data(pic[i+1]);
- 
-	}
- 	LCD_Write_Cmd(0x36); //Set_address_mode
- 	LCD_Write_Data(0x68); //show horizontally
-}
-*/
 
 
 #endif

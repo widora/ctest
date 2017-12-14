@@ -4,8 +4,11 @@ Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
     www.intra2net.com    2003-2017 Intra2net AG
 
-
-./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runbmp runbmp.c
++++++++ run only 480x320x24bit_color BMP files ++++++++
+complile:
+        ./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie runbmp.c
+usage:
+        ./runmovie path
 
 
 Midas
@@ -23,6 +26,8 @@ Midas
 #define STRBUFF 256   // --- length of file path&name
 #define MAX_WIDTH 320
 #define MAX_HEIGHT 480
+#define BMPFILE_480X320_SIZE 460854
+
 
 //----- for BMP files ------
 char file_path[256];
@@ -115,7 +120,7 @@ static int show_bmpf(char *strf)
   offp=18; // file offset  position for picture Width and Height data
 
    //----- check integrity of the bmp file ------
-   if( get_file_size(strf) < 460854 )
+   if( get_file_size(strf) < BMPFILE_480X320_SIZE )
    {
 	printf(" BMP file is not complete!\n");
 	return -1;
@@ -145,6 +150,7 @@ static int show_bmpf(char *strf)
    pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
    if(pmap == MAP_FAILED){
    	printf("\n pmap mmap failed!");
+	close(fp);
         return -2; 
    }
    else

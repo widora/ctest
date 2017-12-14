@@ -4,11 +4,11 @@ Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
     www.intra2net.com    2003-2017 Intra2net AG
 
-compile:
-	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o ft232_tft ft232_tft.c
-
+++++++++ run all sizes of 24bit_color BMP files ++++++++
+complile:
+	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie2 runbmp2.c
 usage:
-	./ft232_tft path
+	./runmovie2 path
 
 Midas
 -------------------------------------------------------------------------------*/
@@ -16,6 +16,7 @@ Midas
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h> //stat()
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
@@ -24,12 +25,35 @@ Midas
 #define STRBUFF 256   // --- length of file path&name
 #define MAX_WIDTH 320
 #define MAX_HEIGHT 480
+#define MIN_CHECK_SIZE 1000 //--- for checking integrity of BMP file 
 
 //----- for BMP files ------
 char file_path[256];
 char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
 int  g_BMP_file_num=0;//----BMP file name index
 int  g_BMP_file_total=0; //--total number of BMP files
+
+
+/*------------------------------------------
+get file size
+return:
+	>0 ok
+	<0 fail
+-------------------------------------------*/
+unsigned long get_file_size(const char *fpath)
+{
+	unsigned long filesize=-1;
+	struct stat statbuff;
+	if(stat(fpath,&statbuff)<0)
+	{
+		return filesize;
+	}
+	else
+	{
+		filesize = statbuff.st_size;
+	}
+	return filesize;
+}
 
 /* --------------------------------------------
  find out all BMP files in a specified directory
@@ -69,12 +93,16 @@ while((file=readdir(d))!=NULL)
 
 
 
+
+
+
 /*--------------------------------------------
- load a 480x320x24bit bmp file and show on lcd
+ load a 24bit bmp file and show on lcd
  char *strf:  file path
 return value:
 	0  --OK
-	<0 --fails
+	-1 --BMP file is not complete
+	-2 --mmap fails
 ---------------------------------------------*/
 static int show_bmpf(char *strf)
 {
@@ -88,9 +116,16 @@ static int show_bmpf(char *strf)
   int MapLen; // file size,mmap size
   uint8_t *pmap;//mmap 
 
-
   offp=18; // file offset  position for picture Width and Height data
 
+   //----- check integrity of the bmp file ------
+   if( get_file_size(strf) < MIN_CHECK_SIZE)  // ------!!!!!!!!!
+   {
+	printf(" BMP file is not complete!\n");
+	return -1;
+   }
+
+  //---- open file  ------
   fp=open(strf,O_RDONLY);
   if(fp<0)
 	  {
@@ -114,7 +149,8 @@ static int show_bmpf(char *strf)
    pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
    if(pmap == MAP_FAILED){
    	printf("\n pmap mmap failed!");
-        return -1; 
+	close(fp);
+        return -2; 
    }
    else
         printf("\n pmap mmap successfully!");
@@ -131,6 +167,7 @@ static int show_bmpf(char *strf)
    LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picWidth*picHeight*3);
 
    //------ freep mmap ----
+   printf("start munmap()...\n"); 
    munmap(pmap,MapLen); 
    //----- close fp ----
    close(fp);
@@ -153,12 +190,13 @@ int main(int argc, char **argv)
 //    char strf[STRBUFF];
     int Ncount=-1; //--index number of picture displayed
 
+
 //---- check argv[] ---------
     if(argc != 2)
     {
-        printf("input parameter error!\n");
-        printf("Usage: %s path  \n",argv[0]);
-        exit(-1);
+	printf("input parameter error!\n");
+	printf("Usage: %s path  \n",argv[0]);
+	exit(-1);
     }
 
 //-----  prepare control pins -----
@@ -167,6 +205,7 @@ int main(int argc, char **argv)
     open_ft232(0x0403, 0x6014);
 //-----  set to BITBANG MODE -----
     ftdi_set_bitmode(g_ftdi, 0xFF, BITMODE_BITBANG);
+
 //-----  set baudrate,beware of your wiring  -----
 //-------  !!!! select low speed if the color is distorted !!!!!  -------
 //    baudrate=3150000; //20MBytes/s
@@ -185,40 +224,13 @@ int main(int argc, char **argv)
 
 //------ purge rx buffer in FT232H  ------
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
+
 //------  set chunk_size, default is 4096
     chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
-
-//<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
-uint32_t  tmpd=1;
-/*
-while(1)
-{
-        if(tmpd ==0  ) tmpd=1;
-	tmpd=tmpd<<1;
-	for(i=0;i<480*320;i++){
-		g_GBuffer[i][0]=tmpd & 0xff;
-		g_GBuffer[i][1]=((tmpd & 0xff00)>>8);
-		g_GBuffer[i][2]=((tmpd & 0xff0000)>>16);
-	}
-
-	gettimeofday(&tm_start,NULL);
-
-	LCD_Write_Cmd(0x22);//all pixels off
-//	LCD_Write_Cmd(0x28);//display off
-	LCD_Write_GBuffer();
-//        LCD_Write_Cmd(0x23);//all pixels on
-//	LCD_Write_Cmd(0x29);//display on
-	LCD_Write_Cmd(0x13);//normal display mode on
-	usleep(200000);
-	gettimeofday(&tm_end,NULL);
-	time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-	printf("  ------ finish refreshing whole graphic buffer, time_use=%dms -----  \n",time_use);
-}
-*/
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
 //strcpy(str_bmpf_path,"/tmp");//set directory
@@ -231,11 +243,13 @@ while(1) //loop showing BMP files in a directory
       {
           //---- find out all BMP files in specified path 
           Find_BMP_files(str_bmpf_path);
-          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
           if(g_BMP_file_total == 0){
              printf("\n No BMP file found! \n");
-             return -1;
+	     //---- wait for a while ---
+	     usleep(100000);
+             continue; //continue loop
 	  }
+          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
           Ncount=g_BMP_file_total-1; //---reset Ncount, [Nount] starting from 0
       }
 
@@ -247,26 +261,26 @@ while(1) //loop showing BMP files in a directory
      //------  show the bmp file and count time -------
      gettimeofday(&tm_start,NULL);
 
-     show_bmpf(str_bmpf_file);
+     if( show_bmpf(str_bmpf_file) < 0 ) 
+     {
+	//----- if show bmp fails, then skip to continue, will NOT delete the file then -----
+	continue;
+     }
 
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-     printf("  ------ finish loading a file, time_use=%dms -----  \n",time_use);
+     printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
 
-//     usleep(60000);
-     sleep(1); //---hold on for a while
+     //----- delete file after displaying -----
 
+      if(remove(str_bmpf_file) != 0)
+		printf("Fail to remove the file!\n");
+
+
+     //----- keep the image on the display for a while ------
+//     usleep(30000);
+//	sleep(1);
 }
-
-//<<<<<<<<<<<<<<< color block test  >>>>>>>>>>>>>
-uint8_t color_buf[3];
-color_buf[0]=0xff;color_buf[1]=0x00;color_buf[2]=0x00;
-LCD_ColorBox(0,0,30,300,color_buf);
-color_buf[0]=0x00;color_buf[1]=0xff;color_buf[2]=0x00;
-LCD_ColorBox(30,0,30,300,color_buf);
-color_buf[0]=0x00;color_buf[1]=0x00;color_buf[2]=0xff;
-LCD_ColorBox(60,0,30,300,color_buf);
-
 
 
 //----- close ft232 usb device -----
