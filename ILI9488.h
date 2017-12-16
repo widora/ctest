@@ -22,10 +22,14 @@
 //----- graphic buffer ------
 uint8_t g_GBuffer[480*320][3];
 
+//----- function declaration ----------
 void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend);
-void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf);
-int LCD_Write_Block(int Hs,int He, int Vs, int Ve, uint8_t *data, int nb);
+void GBuffer_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data); //write block pic to g_GBuffer;
+int LCD_Write_GBuffer(void);//write whole page of g_GBuffer to LCD
+void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong, const uint8_t *color_buf);
+int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb);//write block pic to LCD
 
+//----- function definition ---------
 void delayms(int s)
 {
  int k,m;
@@ -101,7 +105,7 @@ int LCD_Write_Data(uint8_t data)
 }
 
 /*------ write n Bytes data to LCD -------------*/
-int LCD_Write_NData(uint8_t *pdata, int n)
+int LCD_Write_NData(const uint8_t *pdata, int n)
 {
    int ret=0;
    int i;
@@ -123,6 +127,32 @@ int LCD_Write_NData(uint8_t *pdata, int n)
 
 
 /*------------------------------------------------------------------
+write a block of data to g_GBuffer[]
+
+Hs---start of horizon,    He---end of horizon
+Vs---start of vertical,    Ve---end of vertical
+data -- point to RGB data
+------------------------------------------------------------------------*/
+void GBuffer_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data)
+{
+	int i;
+	int lenH;
+	const uint8_t *pt=data;//to data
+        uint8_t *pb;// to g_GBuffer
+
+	//------- push RGB data to GBuffer, Horizontal direction first, then Verital .....
+	lenH=(He-Hs+1)*3;
+	for(i=Vs;i<Ve+1;i++){
+		pb=&g_GBuffer[0][0]+480*i*3+Hs*3;
+		memcpy(pb,pt,lenH);
+		pt+=lenH;
+	}
+
+}
+
+
+
+/*------------------------------------------------------------------
 write a block of data to LCD to refresh display
 Hs---start of horizon,    He---end of horizon
 Vs---start of vertical,    Ve---end of vertical
@@ -133,7 +163,7 @@ return
 	>0 bytes written
 	<0 fails
 ------------------------------------------------------------------------*/
-int LCD_Write_Block(int Hs,int He, int Vs, int Ve, uint8_t *data, int nb)
+int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb)
 {
    int ret;
    int i;
@@ -166,7 +196,7 @@ return
 	>0 bytes written
 	<0 fails
 ------------------------------------------------------------*/
-int LCD_Write_GBuffer(viod)
+int LCD_Write_GBuffer(void)
 {
    int ret;
    int i;
@@ -307,7 +337,7 @@ void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend)
 /* ------------  draw a color box --------------
 uint8_t color_buf[3]:  RGB 3*8bits color
 -----------------------------------------------*/
-void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong,uint8_t *color_buf)
+void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong, const uint8_t *color_buf)
 {
 	int i;
 	uint32_t temp;

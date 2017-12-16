@@ -120,7 +120,7 @@ static int show_bmpf(char *strf)
         printf("\n pmap mmap successfully!");
 
    //------------  calculate GRAM area -------------
-   //------  picWidth MUST be an 4times number??? -------
+   //------  !!!!!!picWidth MUST be a 4times number!!!!!!  -------
    Hb=(480-picWidth+1)/2;
    Vb=(320-picHeight+1)/2;
    Hs=Hb; He=Hb+picWidth-1;
@@ -128,10 +128,16 @@ static int show_bmpf(char *strf)
 
    //------  write to LCD to show ------
    offp=54; //---offset position where BGR data begins
-   LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picWidth*picHeight*3);
+  
+   //<<<<<<<<<<<<<     Method 1: write to LCD directly    >>>>>>>>>>>>>>>
+//   LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picWidth*picHeight*3);
+
+   //<<<<<<<<<<<<<     Method 2: write to GBuffer first, then refresh GBuffer  >>>>>>>>>>>>
+   GBuffer_Write_Block(Hs, He, Vs, Ve, pmap+offp);
+   LCD_Write_GBuffer();
 
    //------ freep mmap ----
-   munmap(pmap,MapLen); 
+   munmap(pmap,MapLen);
    //----- close fp ----
    close(fp);
 
@@ -253,6 +259,8 @@ while(1) //loop showing BMP files in a directory
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
      printf("  ------ finish loading a file, time_use=%dms -----  \n",time_use);
 
+
+      //
 //     usleep(60000);
      sleep(1); //---hold on for a while
 
