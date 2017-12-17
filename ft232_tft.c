@@ -95,6 +95,7 @@ static int show_bmpf(char *strf)
   if(fp<0)
 	  {
           	printf("\n Fail to open the file!\n");
+		return -1;
           }
    else
           printf("%s opened successfully!\n",strf);
