@@ -116,7 +116,11 @@ static int show_bmpf(char *strf)
   fp=open(strf,O_RDONLY);
   if(fp<0)
 	  {
-          	printf("\n Fail to open the file!\n");
+		//--- There is probality that it fails to open 9.bmp,99.bmp,999.bmp.... !!!!!
+          	printf("\n Fail to open the file! try to remove it...\n");
+	        if(remove(strf) != 0)
+	                printf("Fail to remove the file!\n");
+
 		return -2;
           }
    else
