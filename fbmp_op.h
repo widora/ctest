@@ -8,14 +8,15 @@
 #include <sys/stat.h> //stat()
 #include "ILI9488.h"
 
-#define STRBUFF 256   // --- length of file path&name
+#define STRBUFF 256   // --- length of file path&name in g_BMP_file_name[][STRBUFF]
+#define MAX_FBMP_NUM 256 //--max number of bmp files in g_BMP_file_name[MAX_FBMP_NUM][]
 #define MAX_WIDTH 320
 #define MAX_HEIGHT 480
 #define MIN_CHECK_SIZE 1000 //--- for checking integrity of BMP file 
 
 //----- for BMP files ------
 char file_path[256];
-char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
+char g_BMP_file_name[MAX_FBMP_NUM][STRBUFF]; //---BMP file directory and name
 int  g_BMP_file_num=0;//----BMP file name index
 int  g_BMP_file_total=0; //--total number of BMP files
 
@@ -56,6 +57,9 @@ int fn_len;
 g_BMP_file_total=0; //--reset total  file number
 g_BMP_file_num=0; //--reset file  index
 
+//----clear g_BMP_file_name[] -------
+bzero(&g_BMP_file_name[0][0],MAX_FBMP_NUM*STRBUFF);
+
 //-------- if open dir error ------
 if(!(d=opendir(path)))
 {
@@ -63,7 +67,7 @@ if(!(d=opendir(path)))
   return -1;
 }
 
-while((file=readdir(d))!=NULL)
+while((file=readdir(d))!=NULL) 
 {
    //------- find out all bmp files  --------
    fn_len=strlen(file->d_name);
@@ -71,13 +75,12 @@ while((file=readdir(d))!=NULL)
        continue;
    strncpy(g_BMP_file_name[g_BMP_file_num++],file->d_name,fn_len);
    g_BMP_file_total++;
+
  }
 
  closedir(d);
  return 0;
 }
-
-
 
 
 

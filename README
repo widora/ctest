@@ -15,6 +15,6 @@ ipc_ctlmotor.c  :  motor contorl, as client
 mouse_motor.c 	:  use mouse to contorl motor,as client
 bitbang.c mpsse.c : test for FT232H bitbang and mpsse mode
 ft232_tft.c     :  show 24bit_color BMP pictures on a tft LCD bridged by an FT232H chip through USB.
-
+runbmp.c        :  show a serial of BMP files to LCD through FT232H,to produce a motioin picture.
 
 ----------  CTEST for Widora  ------------
