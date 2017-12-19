@@ -13,13 +13,13 @@ usage:
 
 
                    -----  NOTEs & BUGs  -----
-1. The odds of failing to open 9.bmp,99.bmp,999.bmp,.... are rather high !!!
-   those corpses leaving in the path will cause running movie choppy !!!
-2. After a long time playing, it may become choppy. and you need to restart the system. ????? necessary,refer to 1 ?????
-3. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
+1. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
    that means something unusual happens, it slow down the processing,check it then.
-4. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
+2. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
    However, if you install ffmpeg in the TF card, it may be more difficult to launch the application.
+   480x320 fps=15 OK
+3. TODO: allocate continous addr. mem for g_GBuffer.
+4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
 5. Everytime when you run the movie re_reate the fifo.wav,it may help to avoid choppy.
 
 Midas Zhou
