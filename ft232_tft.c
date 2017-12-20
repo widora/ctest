@@ -4,145 +4,23 @@ Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
     www.intra2net.com    2003-2017 Intra2net AG
 
+
+Loop showing 24bit_color BMP files on a LCD display connected with Widora via FT232H
+
 compile:
 	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o ft232_tft ft232_tft.c
 
 usage:
 	./ft232_tft path
 
-Midas
+Midas Zhou
 -------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <dirent.h>
-#include "include/ftdi.h"
-#include "ft232.h"
-#include "ILI9488.h"
+#include "include/ftdi.h"//bitbang ops
+#include "ft232.h"  //open_ft232(), clos_ft232(); mpss op.
+#include "fbmp_op.h" //bmp file operations
 
-
-#define STRBUFF 256   // --- length of file path&name
-#define MAX_WIDTH 320
-#define MAX_HEIGHT 480
-
-//----- for BMP files ------
-char file_path[256];
-char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
-int  g_BMP_file_num=0;//----BMP file name index
-int  g_BMP_file_total=0; //--total number of BMP files
-
-/* --------------------------------------------
- find out all BMP files in a specified directory
- return value:
-	 0 --- OK
-	<0 --- fails
-----------------------------------------------*/
-static int Find_BMP_files(char* path)
-{
-DIR *d;
-struct dirent *file;
-int fn_len;
-
-g_BMP_file_total=0; //--reset total  file number
-g_BMP_file_num=0; //--reset file  index
-
-//-------- if open dir error ------
-if(!(d=opendir(path)))
-{
-  printf("error open dir: %s !\n",path);
-  return -1;
-}
-
-while((file=readdir(d))!=NULL)
-{
-   //------- find out all bmp files  --------
-   fn_len=strlen(file->d_name);
-   if(strncmp(file->d_name+fn_len-4,".bmp",4)!=0 )
-       continue;
-   strncpy(g_BMP_file_name[g_BMP_file_num++],file->d_name,fn_len);
-   g_BMP_file_total++;
- }
-
- closedir(d);
- return 0;
-}
-
-
-
-/*--------------------------------------------
- load a 480x320x24bit bmp file and show on lcd
- char *strf:  file path
-return value:
-	0  --OK
-	<0 --fails
----------------------------------------------*/
-static int show_bmpf(char *strf)
-{
-  int ret=0;
-  int fp;//file handler
-  uint8_t buff[8]; //--for buffering  data temporarily
-  uint16_t picWidth, picHeight;
-  long offp; //offset position
-  uint16_t Hs,He,Vs,Ve; //--GRAM area definition parameters
-  uint16_t Hb,Vb;//--GRAM area corner gap distance from origin
-  int MapLen; // file size,mmap size
-  uint8_t *pmap;//mmap 
-
-
-  offp=18; // file offset  position for picture Width and Height data
-
-  fp=open(strf,O_RDONLY);
-  if(fp<0)
-	  {
-          	printf("\n Fail to open the file!\n");
-		return -1;
-          }
-   else
-          printf("%s opened successfully!\n",strf);
-
-   //----    seek position and readin picWidth and picHeight   ------
-   if(lseek(fp,offp,SEEK_SET)<0)
-   	printf("Fail to offset seek position!\n");
-   read(fp,buff,8);
-
-   //----  get pic. size -----
-   picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
-   picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-   printf("\n picWidth=%d    picHeight=%d",picWidth,picHeight);
-
-   /*--------------------- MMAP -----------------------*/
-   MapLen=picWidth*picHeight*3+54;
-   pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
-   if(pmap == MAP_FAILED){
-   	printf("\n pmap mmap failed!");
-        return -1; 
-   }
-   else
-        printf("\n pmap mmap successfully!");
-
-   //------------  calculate GRAM area -------------
-   //------  !!!!!!picWidth MUST be a 4times number!!!!!!  -------
-   Hb=(480-picWidth+1)/2;
-   Vb=(320-picHeight+1)/2;
-   Hs=Hb; He=Hb+picWidth-1;
-   Vs=Vb; Ve=Vb+picHeight-1;
-
-   //------  write to LCD to show ------
-   offp=54; //---offset position where BGR data begins
-  
-   //<<<<<<<<<<<<<     Method 1: write to LCD directly    >>>>>>>>>>>>>>>
-//   LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picWidth*picHeight*3);
-
-   //<<<<<<<<<<<<<     Method 2: write to GBuffer first, then refresh GBuffer  >>>>>>>>>>>>
-   GBuffer_Write_Block(Hs, He, Vs, Ve, pmap+offp);
-   LCD_Write_GBuffer();
-
-   //------ freep mmap ----
-   munmap(pmap,MapLen);
-   //----- close fp ----
-   close(fp);
-
-}
 
 /*===================== MAIN   ======================*/
 int main(int argc, char **argv)
@@ -157,7 +35,6 @@ int main(int argc, char **argv)
     int fp; //file handler
     char str_bmpf_path[128]; //directory for BMP files 
     char str_bmpf_file[STRBUFF];// full path+name for a BMP file.
-//    char strf[STRBUFF];
     int Ncount=-1; //--index number of picture displayed
 
 //---- check argv[] ---------
@@ -263,7 +140,7 @@ while(1) //loop showing BMP files in a directory
 
       //
 //     usleep(60000);
-     sleep(1); //---hold on for a while
+     sleep(3); //---hold on for a while
 
 }
 
@@ -275,7 +152,6 @@ color_buf[0]=0x00;color_buf[1]=0xff;color_buf[2]=0x00;
 LCD_ColorBox(30,0,30,300,color_buf);
 color_buf[0]=0x00;color_buf[1]=0x00;color_buf[2]=0xff;
 LCD_ColorBox(60,0,30,300,color_buf);
-
 
 
 //----- close ft232 usb device -----

@@ -18,7 +18,7 @@ usage:
 2. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
    However, if you install ffmpeg in the TF card, it may be more difficult to launch the application.
    480x320 fps=15 OK
-3. TODO: allocate continous addr. mem for g_GBuffer.
+3. TODO: allocate mem for g_GBuffer with continous physical addresses.
 4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
 5. Everytime when you run the movie re_reate the fifo.wav,it may help to avoid choppy.
 

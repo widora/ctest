@@ -6,6 +6,7 @@ ting_rx.c,tx.c      :  Receive and transmit example for Ting-01M LoRa module thr
 i2c_oled_128x64,128x32	    :  OLED example with I2C interface.
 ads_b.c 	    :  Decode ADS-B data received by a RTL-SDR USB Dongle connected to Widora-NEO.
 lirc_mplay.c    :  Infrared remote control for mplayer.
+alsa/autorecord*.c  :  automatic record and playback test,with options of a simple noise filter,can save to wav and mp3.
 pwmtest.c       :  C program for PWM test.
 mouse_ctlmp.c	:  use mouse to control mplayer and rtl_SDR radio
 evctl_kbd.c	:  use keyboard to control mplayer
@@ -18,3 +19,5 @@ ft232_tft.c     :  show 24bit_color BMP pictures on a tft LCD bridged by an FT23
 runbmp.c        :  show a serial of BMP files to LCD through FT232H,to produce a motioin picture.
 
 ----------  CTEST for Widora  ------------
+
+go to sns.widora.io for more details and discussions
