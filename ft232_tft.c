@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 //-------  !!!! select low speed if the color is distorted !!!!!  -------
 //    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
-      baudrate=750000;
+      baudrate=750000; 
+
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
         printf("baudrate invalid!\n");
@@ -74,7 +75,12 @@ int main(int argc, char **argv)
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
-    LCD_INIT_ILI9488();
+    LCD_INIT_ILI9488();  //--set default FXLFMT_RGB888 
+
+//------  set LCD pixle format  -------
+    LCD_Set_PxlFmt16bit();
+//    LCD_Set_PxlFmt24bit();
+
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
 uint32_t  tmpd=1;
@@ -135,7 +141,7 @@ while(1) //loop showing BMP files in a directory
 
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-     printf("  ------ finish loading a file, time_use=%dms -----  \n",time_use);
+     printf(" \n  ------ finish loading a file, time_use=%dms -----  \n",time_use);
 
 
       //

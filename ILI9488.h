@@ -11,6 +11,12 @@
 #define DCX_GPIO_PIN  14  //pin number for DC/X (data and command selection)
 #define RESX_GPIO_PIN 15   //pin number for RESX (hard reset)
 
+//----- pixel format -----
+#define PXLFMT_RGB888 0
+#define PXLFMT_RGB565 1
+//----- default format ----
+int LCD_pxlfmt=PXLFMT_RGB888;
+
 /* ---------  DCX pin:  0 as command, 1 as data --------- */
  #define DCXdata mt76x8_gpio_set_pin_value(DCX_GPIO_PIN,1)
  #define DCXcmd mt76x8_gpio_set_pin_value(DCX_GPIO_PIN,0)
@@ -22,7 +28,13 @@
 //----- graphic buffer ------
 uint8_t g_GBuffer[480*320][3];
 
+//----- convert 24bit color to 18bit color -----
+#define GET_RGB565(r,g,b)  ( (((r)>>3)<<11) | (((g)>>2)<<5) | ((b)>>3) )
+
+
 //----- function declaration ----------
+void LCD_Set_PxlFmt24bit(void);
+void LCD_Set_PxlFmt18bit(void);
 void GRAM_Block_Set(uint16_t Xstart,uint16_t Xend,uint16_t Ystart,uint16_t Yend);
 void GBuffer_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data); //write block pic to g_GBuffer;
 int LCD_Write_GBuffer(void);//write whole page of g_GBuffer to LCD
@@ -241,10 +253,13 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Cmd(0xe9);
  LCD_Write_Data(0x00);//1-24bit bus ;0-18bit bus
 
- //----- set interface pixel format -----
+ //----- set interface pixel format, default 24bit_data/18bit_color -----
+ LCD_pxlfmt=PXLFMT_RGB888;
  LCD_Write_Cmd(0x3a);
- LCD_Write_Data(0b01100110); //0b01010101-error,0b01110101-error,0b01110111-ok,0b01010111 ok,
+ LCD_Write_Data(0b01100110);//[2:0]=110 24bit_data/18bit_color; [2:0]=101  16bit_data/16bit_color;
+ //0b01010101-error,0b01110101-error,0b01110111-ok,0b01010111 ok,
 //0b01110110-ok, 0b01100110-ok, 0b01100111-ok
+
 
 /*
  //------ gama function ------
@@ -312,6 +327,25 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_GBuffer();
 
  printf("finish preparing ILI9488\n");
+}
+
+
+//----- set interface pixel format to 24bit_data/18bit_color  -----
+void LCD_Set_PxlFmt24bit(void)
+{
+  LCD_pxlfmt=PXLFMT_RGB888;
+  LCD_Write_Cmd(0x3a);
+  LCD_Write_Data(0b01100110);//[2:0]=110 18bit color; [2:0]=101  16bit color;
+  delayms(50);
+}
+
+//----- set interface pixel format to 16bit_data/16bit_color -----
+void LCD_Set_PxlFmt16bit(void)
+{
+  LCD_pxlfmt=PXLFMT_RGB565;
+  LCD_Write_Cmd(0x3a);
+  LCD_Write_Data(0b01100101);//[2:0]=110 18bit color; [2:0]=101  16bit color;
+  delayms(50);
 }
 
 

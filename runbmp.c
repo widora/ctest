@@ -1,4 +1,4 @@
-/*-----------------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------------------------
 Based on:  libftdi - A library (using libusb) to talk to FTDI's UART/FIFO chips
 Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
@@ -12,22 +12,26 @@ usage:
 	./runmovie2 path    (use ramfs!!!)
 
 
-                   -----  NOTEs & BUGs  -----
+
+                               -----  NOTEs & BUGs  -----
+
 1. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
-   that means something unusual happens, it slow down the processing,check it then.
+   that means something unusual happens, it slows down the processing, check it then.
+   The most possible is that decoding speed is faster than runbmp speed.
 2. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
    However, if you install ffmpeg in the TF card, it may be more difficult to launch the application.
    480x320 fps=15 OK
 3. TODO: allocate mem for g_GBuffer with continous physical addresses.
 4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
-5. Everytime when you run the movie re_reate the fifo.wav,it may help to avoid choppy.
+5. Everytime when you run the movie re_create the fifo.wav,it may help to avoid choppy.
 
 Midas Zhou
--------------------------------------------------------------------------------*/
+--------------------------------------------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "include/ftdi.h"//bitbang ops
+#include "include/ftdi.h" //bitbang ops
 #include "ft232.h"  //open_ft232(), clos_ft232(); mpss op.
 #include "fbmp_op.h" //bmp file operations
 
@@ -135,7 +139,7 @@ while(1) //loop showing BMP files in a directory
 
 
      //----- keep the image on the display for a while ------
-//     usleep(30000);
+//     usleep(50000);
 //	sleep(1);
 }
 

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h> //stat()
+#include <malloc.h>
 #include "ILI9488.h"
 
 #define STRBUFF 256   // --- length of file path&name in g_BMP_file_name[][STRBUFF]
@@ -98,13 +99,17 @@ static int show_bmpf(char *strf)
 {
   int ret=0;
   int fp;//file handler
+//  int LCD_pxlfmt -- global variable
   uint8_t buff[8]; //--for buffering  data temporarily
   uint16_t picWidth, picHeight;
+  uint32_t picNum;
+  int i;
   long offp; //offset position
   uint16_t Hs,He,Vs,Ve; //--GRAM area definition parameters
   uint16_t Hb,Vb;//--GRAM area corner gap distance from origin
   int MapLen; // file size,mmap size
-  uint8_t *pmap;//mmap 
+  uint8_t *pmap;//mmap
+  uint8_t *prgb565;//data for RGB565 
 
   offp=18; // file offset  position for picture Width and Height data
 
@@ -137,18 +142,21 @@ static int show_bmpf(char *strf)
    //----  get pic. size -----
    picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
    picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-   printf("\n picWidth=%d    picHeight=%d",picWidth,picHeight);
+   printf("  picWidth=%d    picHeight=%d \n",picWidth,picHeight);
+
+   //------------  pic area  ---------
+   picNum=picWidth*picHeight;
 
    /*--------------------- MMAP -----------------------*/
-   MapLen=picWidth*picHeight*3+54;
+   MapLen=picNum*3+54;
    pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
    if(pmap == MAP_FAILED){
-   	printf("\n pmap mmap failed!");
+   	printf(" pmap mmap failed! \n");
 	close(fp);
         return -3; 
    }
    else
-        printf("\n pmap mmap successfully!");
+        printf(" pmap mmap successfully! \n");
 
    //------------  calculate GRAM area -------------
    //------  picWidth MUST be an 4times number??? -------
@@ -160,16 +168,61 @@ static int show_bmpf(char *strf)
    //------  write to LCD to show ------
    offp=54; //---offset position where BGR data begins
 
-   //<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
-   LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picWidth*picHeight*3);
+   //------first  set LCD pixle format in main.c !!!!!!!
 
-   //<<<<<<<<<<<<<     Method 2:   write to GBuffer first, then refresh GBuffer  >>>>>>>>>>>>
-   //!!!!!!!!   SPEED IS LOW  !!!!!!!!!!wq
-//   GBuffer_Write_Block(Hs, He, Vs, Ve, pmap+offp);
-//   LCD_Write_GBuffer();
+   if(LCD_pxlfmt==PXLFMT_RGB565)
+   {
+	printf("--- pixel format set to PXLFMT_RGB565 ---\n");
+	//----- allocate mem. for RGB565 
+	prgb565=malloc(picNum*2);
 
+	if( prgb565==NULL )
+	{
+		printf("Fail to allocate memory for prgb565.\n");
+		//---- reset pixle formate then ----
+		LCD_pxlfmt=PXLFMT_RGB888;
+	}
+	else
+	{
+		//---- convert RBG888  to RBG565 ----
+		//uint16_t *pt565;
+		uint8_t *pt565;
+		uint8_t *pt888;
+
+		pt565=prgb565;
+
+		//----- convert from RGB888 to RGB565 ----
+		for(i=0;i<picNum;i++)
+		{
+			pt888=pmap+offp+3*i;// 3bytes for each pixel
+			//*pt565=GET_RGB565(*pt888,*(pt888+2),*(pt888+1)); //BGR -> RGB
+			pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
+			pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
+			//pt565+=1; // 2bytes for each pixel
+		}
+
+		//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
+		LCD_Write_Block(Hs,He,Vs,Ve,(uint8_t*)prgb565,picNum*2);
+	}
+   }
+
+
+   if(LCD_pxlfmt==PXLFMT_RGB888) //--- LCD_fxlfmt == PXLFMT_RGB888
+   {
+	printf("--- pixel format set to PXLFMT_RGB888 ---\n");
+	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
+	LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picNum*3);
+	//<<<<<<<<<<<<<     Method 2:   write to GBuffer first, then refresh GBuffer  >>>>>>>>>>>>
+	//!!!!!!!!   SPEED IS LOW  !!!!!!!!!!wq
+	//   GBuffer_Write_Block(Hs, He, Vs, Ve, pmap+offp);
+	//   LCD_Write_GBuffer();
+   }
+
+   //----- free mem------
+   if(prgb565 != NULL)
+	   free(prgb565);
    //------ freep mmap ----
-   printf("start munmap()...\n"); 
+   printf("start munmap()...\n\n"); 
    munmap(pmap,MapLen); 
    //----- close fp ----
    close(fp);
