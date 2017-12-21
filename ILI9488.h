@@ -189,8 +189,8 @@ int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb)
    GRAM_Block_Set(Hs,He,Vs,Ve);
 
    //----- write data to GRAM -----
-   LCD_Write_Cmd(0x2c); //memory write
-   // LCD_Write_Cmd(0x3c); //continue memeory wirte
+   //LCD_Write_Cmd(0x2c); //memory write
+    LCD_Write_Cmd(0x3c); //continue memeory wirte
 
    DCXdata;
    //------ transfer data to ft232h  -------
@@ -341,7 +341,7 @@ void LCD_Set_PxlFmt24bit(void)
   LCD_PxlFmt=PXLFMT_RGB888;
   LCD_Write_Cmd(0x3a);
   LCD_Write_Data(0b01100110);//[2:0]=110 18bit color; [2:0]=101  16bit color;
-  delayms(50);
+//  delayms(50);
 }
 
 //----- set interface pixel format to 16bit_data/16bit_color -----
@@ -350,7 +350,7 @@ void LCD_Set_PxlFmt16bit(void)
   LCD_PxlFmt=PXLFMT_RGB565;
   LCD_Write_Cmd(0x3a);
   LCD_Write_Data(0b01100101);//[2:0]=110 18bit color; [2:0]=101  16bit color;
-  delayms(50);
+//  delayms(50);
 }
 
 

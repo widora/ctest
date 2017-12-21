@@ -97,7 +97,6 @@ static int show_bmpf(char *strf)
 {
   int ret=0;
   int fp;//file handler
-//  int LCD_PxlFmt -- global variable
   uint8_t buff[8]; //--for buffering  data temporarily
   uint16_t picWidth, picHeight;
   uint32_t picNum;
@@ -195,7 +194,6 @@ static int show_bmpf(char *strf)
 		*ptt565=GET_RGB565(*(pt888),*(pt888+1),*(pt888+2)); //BGR -> RGB
 		 ptt565++; // 2bytes for each pixel
 	}
-
 	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
 	LCD_Write_Block(Hs,He,Vs,Ve,g_pRGB565,picNum*2);
    }

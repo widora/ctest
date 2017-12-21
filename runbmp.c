@@ -18,12 +18,18 @@ usage:
 1. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
    that means something unusual happens, it slows down the processing, check it then.
    The most possible is that decoding speed is faster than runbmp speed.
+   TODO: If runbmp cann't catch up with ffmpeg decoding speed, then trim some BMP files in the PATH.
 2. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
    However, if you install ffmpeg in the TF card, it may be more difficult to launch the application.
    480x320 fps=15 OK
 3. TODO: allocate mem for g_GBuffer with continous physical addresses.
 4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
+   Using RBG565 fromat can relieve some USB transmission load, but for MT7688, FFmpeg decoding speed is 
+   the bottleneck. Converting RGB888 to RGB565 also costs CPU load, which further deteriorates FFmpeg
+   decoding process.
 5. Everytime when you run the movie re_create the fifo.wav,it may help to avoid choppy.
+6. BUG: High CPU usage will cause RGB565 FTDI transfer bus error!
+7. BUG: run RGB565 480x320 BMP fails !!!
 
 Midas Zhou
 --------------------------------------------------------------------------------------------------------*/
@@ -94,8 +100,8 @@ int main(int argc, char **argv)
     LCD_INIT_ILI9488();
 
 //------  set LCD pixle format,default is RGB888  -------
-//    LCD_Set_PxlFmt16bit();
-    LCD_Set_PxlFmt24bit();
+    LCD_Set_PxlFmt16bit();
+//    LCD_Set_PxlFmt24bit();
 
 //----- allocate mem. for RGB565 ---------
    if(LCD_PxlFmt == PXLFMT_RGB565)
