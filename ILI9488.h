@@ -35,8 +35,7 @@ uint8_t *g_pRGB565;//RGB565 data buff
 uint8_t g_GBuffer[480*320][3];
 
 //----- convert 24bit color to 18bit color -----
-#define GET_RGB565(r,g,b)  ( (((r)>>3)<<11) | (((g)>>2)<<5) | ((b)>>3) )
-
+#define GET_RGB565(r,g,b)  (  ((g>>2)<<13) | ((b>>3)<<8) | ((r>>3)<<3) | (g>>5) ) 
 
 //----- function declaration ----------
 void LCD_Set_PxlFmt24bit(void);

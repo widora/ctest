@@ -7,7 +7,7 @@ by:
 
 ++++++++ run all sizes of 24bit_color BMP pic not big than 480x320 ++++++++
 complile:
-	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie2 runbmp.c
+	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie3 runbmp.c
 usage:
 	./runmovie2 path    (use ramfs!!!)
 
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     {
 	printf("input parameter error!\n");
 	printf("Usage: %s path  \n",argv[0]);
-	exit(-1);
+	return -1;
     }
 
 //-----  prepare control pins -----
@@ -96,6 +96,17 @@ int main(int argc, char **argv)
 //------  set LCD pixle format,default is RGB888  -------
 //    LCD_Set_PxlFmt16bit();
     LCD_Set_PxlFmt24bit();
+
+//----- allocate mem. for RGB565 ---------
+   if(LCD_PxlFmt == PXLFMT_RGB565)
+   {
+        g_pRGB565=malloc(PIC_MAX_WIDTH*PIC_MAX_HEIGHT*2);
+        if(g_pRGB565 == NULL)
+        {
+                printf("Fail to malloc g_pRGB565!\n");
+                return -2;
+        }
+   }
 
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
@@ -154,6 +165,10 @@ while(1) //loop showing BMP files in a directory
 
 //----- release pin mmap -----
     resPinMmap();
+
+//---- free g_pRGB565 ----
+    if(g_pRGB565 != NULL)
+ 	     free(g_pRGB565);
 
     return ret;
 }

@@ -172,22 +172,28 @@ static int show_bmpf(char *strf)
    {
 	printf("--- pixel format set to PXLFMT_RGB565 ---\n");
 
-
 	//---- convert RBG888  to RBG565 ----
-	//uint16_t *pt565;
+	uint16_t *ptt565;
 	uint8_t *pt565;
 	uint8_t *pt888;
 
 	pt565=g_pRGB565;
+        ptt565=(uint16_t*)g_pRGB565;
 
 	//----- convert from RGB888 to RGB565 ----
 	for(i=0;i<picNum;i++)
 	{
+
 		pt888=pmap+offp+3*i;// 3bytes for each pixel
-		//*pt565=GET_RGB565(*pt888,*(pt888+2),*(pt888+1)); //BGR -> RGB
+		//<<<<<<<<<  convert method 1  >>>>>>>>>
+/*
 		pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
 		pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
-		//pt565+=1; // 2bytes for each pixel
+*/
+		//<<<<<<<<  convert method 2  >>>>>>>>>
+		//#define GET_RGB565(r,g,b)  ( (((r)>>3)<<11) | (((g)>>2)<<5) | ((b)>>3)
+		*ptt565=GET_RGB565(*(pt888),*(pt888+1),*(pt888+2)); //BGR -> RGB
+		 ptt565++; // 2bytes for each pixel
 	}
 
 	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
