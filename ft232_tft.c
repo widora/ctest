@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     {
         printf("input parameter error!\n");
         printf("Usage: %s path  \n",argv[0]);
-        exit(-1);
+	return -1;
     }
 
 //-----  prepare control pins -----
@@ -80,6 +80,17 @@ int main(int argc, char **argv)
 //------  set LCD pixle format  -------
     LCD_Set_PxlFmt16bit();
 //    LCD_Set_PxlFmt24bit();
+
+//----- allocate mem. for RGB565 ---------
+   if(LCD_PxlFmt == PXLFMT_RGB565)
+   {
+        g_pRGB565=malloc(PIC_MAX_WIDTH*PIC_MAX_HEIGHT*2);
+        if(g_pRGB565 == NULL)
+	{
+		printf("Fail to malloc g_pRGB565!\n");
+		return -2;
+	}
+   }
 
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
@@ -124,7 +135,7 @@ while(1) //loop showing BMP files in a directory
           printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
           if(g_BMP_file_total == 0){
              printf("\n No BMP file found! \n");
-             return -1;
+             return -3;
 	  }
           Ncount=g_BMP_file_total-1; //---reset Ncount, [Nount] starting from 0
       }
@@ -165,6 +176,10 @@ LCD_ColorBox(60,0,30,300,color_buf);
 
 //----- release pin mmap -----
     resPinMmap();
+
+//---- free g_pRGB565 ----
+    if(g_pRGB565 != NULL)
+	free(g_pRGB565);
 
     return ret;
 }

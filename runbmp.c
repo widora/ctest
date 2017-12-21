@@ -93,6 +93,11 @@ int main(int argc, char **argv)
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
 
+//------  set LCD pixle format,default is RGB888  -------
+//    LCD_Set_PxlFmt16bit();
+    LCD_Set_PxlFmt24bit();
+
+
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
 //strcpy(str_bmpf_path,"/tmp");//set directory
    strcpy(str_bmpf_path,argv[1]);

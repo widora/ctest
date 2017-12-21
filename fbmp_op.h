@@ -11,8 +11,6 @@
 
 #define STRBUFF 256   // --- length of file path&name in g_BMP_file_name[][STRBUFF]
 #define MAX_FBMP_NUM 256 //--max number of bmp files in g_BMP_file_name[MAX_FBMP_NUM][]
-#define MAX_WIDTH 320
-#define MAX_HEIGHT 480
 #define MIN_CHECK_SIZE 1000 //--- for checking integrity of BMP file 
 
 //----- for BMP files ------
@@ -99,7 +97,7 @@ static int show_bmpf(char *strf)
 {
   int ret=0;
   int fp;//file handler
-//  int LCD_pxlfmt -- global variable
+//  int LCD_PxlFmt -- global variable
   uint8_t buff[8]; //--for buffering  data temporarily
   uint16_t picWidth, picHeight;
   uint32_t picNum;
@@ -109,7 +107,6 @@ static int show_bmpf(char *strf)
   uint16_t Hb,Vb;//--GRAM area corner gap distance from origin
   int MapLen; // file size,mmap size
   uint8_t *pmap;//mmap
-  uint8_t *prgb565;//data for RGB565 
 
   offp=18; // file offset  position for picture Width and Height data
 
@@ -169,45 +166,35 @@ static int show_bmpf(char *strf)
    offp=54; //---offset position where BGR data begins
 
    //------first  set LCD pixle format in main.c !!!!!!!
+   //----- allocate g_pRGB565 for RGB565 in  main.c !!!!!!!
 
-   if(LCD_pxlfmt==PXLFMT_RGB565)
+   if(LCD_PxlFmt==PXLFMT_RGB565)
    {
 	printf("--- pixel format set to PXLFMT_RGB565 ---\n");
-	//----- allocate mem. for RGB565 
-	prgb565=malloc(picNum*2);
 
-	if( prgb565==NULL )
+
+	//---- convert RBG888  to RBG565 ----
+	//uint16_t *pt565;
+	uint8_t *pt565;
+	uint8_t *pt888;
+
+	pt565=g_pRGB565;
+
+	//----- convert from RGB888 to RGB565 ----
+	for(i=0;i<picNum;i++)
 	{
-		printf("Fail to allocate memory for prgb565.\n");
-		//---- reset pixle formate then ----
-		LCD_pxlfmt=PXLFMT_RGB888;
+		pt888=pmap+offp+3*i;// 3bytes for each pixel
+		//*pt565=GET_RGB565(*pt888,*(pt888+2),*(pt888+1)); //BGR -> RGB
+		pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
+		pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
+		//pt565+=1; // 2bytes for each pixel
 	}
-	else
-	{
-		//---- convert RBG888  to RBG565 ----
-		//uint16_t *pt565;
-		uint8_t *pt565;
-		uint8_t *pt888;
 
-		pt565=prgb565;
-
-		//----- convert from RGB888 to RGB565 ----
-		for(i=0;i<picNum;i++)
-		{
-			pt888=pmap+offp+3*i;// 3bytes for each pixel
-			//*pt565=GET_RGB565(*pt888,*(pt888+2),*(pt888+1)); //BGR -> RGB
-			pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
-			pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
-			//pt565+=1; // 2bytes for each pixel
-		}
-
-		//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
-		LCD_Write_Block(Hs,He,Vs,Ve,(uint8_t*)prgb565,picNum*2);
-	}
+	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
+	LCD_Write_Block(Hs,He,Vs,Ve,g_pRGB565,picNum*2);
    }
 
-
-   if(LCD_pxlfmt==PXLFMT_RGB888) //--- LCD_fxlfmt == PXLFMT_RGB888
+   else if(LCD_PxlFmt==PXLFMT_RGB888) //--- LCD_fxlfmt == PXLFMT_RGB888
    {
 	printf("--- pixel format set to PXLFMT_RGB888 ---\n");
 	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
@@ -218,9 +205,6 @@ static int show_bmpf(char *strf)
 	//   LCD_Write_GBuffer();
    }
 
-   //----- free mem------
-   if(prgb565 != NULL)
-	   free(prgb565);
    //------ freep mmap ----
    printf("start munmap()...\n\n"); 
    munmap(pmap,MapLen); 
