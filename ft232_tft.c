@@ -78,19 +78,8 @@ int main(int argc, char **argv)
     LCD_INIT_ILI9488();  //--set default FXLFMT_RGB888 
 
 //------  set LCD pixle format  -------
-    LCD_Set_PxlFmt16bit();
-//    LCD_Set_PxlFmt24bit();
-
-//----- allocate mem. for RGB565 ---------
-   if(LCD_PxlFmt == PXLFMT_RGB565)
-   {
-        g_pRGB565=malloc(PIC_MAX_WIDTH*PIC_MAX_HEIGHT*2);
-        if(g_pRGB565 == NULL)
-	{
-		printf("Fail to malloc g_pRGB565!\n");
-		return -2;
-	}
-   }
+//    LCD_Set_PxlFmt16bit();
+    LCD_Set_PxlFmt24bit();
 
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>

@@ -176,7 +176,7 @@ static int show_bmpf(char *strf)
 	uint8_t *pt565;
 	uint8_t *pt888;
 
-	pt565=g_pRGB565;
+	pt565=g_pRGB565; // !!! g_pRGB565 is a proxy of g_GBuffer[][] in ILI9488.h !!!
         ptt565=(uint16_t*)g_pRGB565;
 
 	//----- convert from RGB888 to RGB565 ----
@@ -190,7 +190,6 @@ static int show_bmpf(char *strf)
 		pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
 */
 		//<<<<<<<<  convert method 2  >>>>>>>>>
-		//#define GET_RGB565(r,g,b)  ( (((r)>>3)<<11) | (((g)>>2)<<5) | ((b)>>3)
 		*ptt565=GET_RGB565(*(pt888),*(pt888+1),*(pt888+2)); //BGR -> RGB
 		 ptt565++; // 2bytes for each pixel
 	}

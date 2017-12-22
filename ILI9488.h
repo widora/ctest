@@ -31,8 +31,8 @@ int LCD_PxlFmt=PXLFMT_RGB888;
  #define RESX_RESET mt76x8_gpio_set_pin_value(RESX_GPIO_PIN,0)
 
 //----- graphic buffer ------
-uint8_t *g_pRGB565;//RGB565 data buff
-uint8_t g_GBuffer[480*320][3];
+uint8_t g_GBuffer[PIC_MAX_WIDTH*PIC_MAX_HEIGHT][3];
+uint8_t *g_pRGB565=&g_GBuffer[0][0];//RGB565 data buffer  !!!!!!--- IS A PROXY POINTER ---!!!!!
 
 //----- convert 24bit color to 18bit color -----
 #define GET_RGB565(r,g,b)  (  ((g>>2)<<13) | ((b>>3)<<8) | ((r>>3)<<3) | (g>>5) ) 
@@ -189,8 +189,8 @@ int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb)
    GRAM_Block_Set(Hs,He,Vs,Ve);
 
    //----- write data to GRAM -----
-   //LCD_Write_Cmd(0x2c); //memory write
-    LCD_Write_Cmd(0x3c); //continue memeory wirte
+   LCD_Write_Cmd(0x2c); //memory write
+   // LCD_Write_Cmd(0x3c); //???????continue memeory wirte, will split image >>>??
 
    DCXdata;
    //------ transfer data to ft232h  -------
@@ -259,12 +259,11 @@ void LCD_INIT_ILI9488(void)
  LCD_Write_Data(0x00);//1-24bit bus ;0-18bit bus
 
  //----- set interface pixel format, default 24bit_data/18bit_color -----
- LCD_PxlFmt=PXLFMT_RGB888;
+ LCD_PxlFmt=PXLFMT_RGB888; //default set
  LCD_Write_Cmd(0x3a);
  LCD_Write_Data(0b01100110);//[2:0]=110 24bit_data/18bit_color; [2:0]=101  16bit_data/16bit_color;
  //0b01010101-error,0b01110101-error,0b01110111-ok,0b01010111 ok,
 //0b01110110-ok, 0b01100110-ok, 0b01100111-ok
-
 
 /*
  //------ gama function ------
@@ -314,7 +313,7 @@ void LCD_INIT_ILI9488(void)
  delayms(10);
 
  //--- exchagne X and Y ------
- GRAM_Block_Set(0,479,0,319);//full area GRAM for column and page exchanged
+ GRAM_Block_Set(0,PIC_MAX_WIDTH-1,0,PIC_MAX_HEIGHT-1);//full area GRAM for column and page exchanged
 
  //----- adjust pic layout position here ------
  LCD_Write_Cmd(0x36); //memory data access control
@@ -326,7 +325,7 @@ void LCD_INIT_ILI9488(void)
  // LCD_Write_Cmd(0x3c); //continue memeory wirte
 
  //---- clear graphic buffer -----
- memset(g_GBuffer,0,480*320*3);
+ memset(g_GBuffer,0,PIC_MAX_WIDTH*PIC_MAX_HEIGHT*3);
 
  //----   backout  -----
  LCD_Write_GBuffer();

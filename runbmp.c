@@ -28,8 +28,8 @@ usage:
    the bottleneck. Converting RGB888 to RGB565 also costs CPU load, which further deteriorates FFmpeg
    decoding process.
 5. Everytime when you run the movie re_create the fifo.wav,it may help to avoid choppy.
-6. BUG: High CPU usage will cause RGB565 FTDI transfer bus error!
-7. BUG: run RGB565 480x320 BMP fails !!!
+6. High CPU usage will cause FTDI transfer bus error! especially when run 480x320 BMP files with
+   CPU usage >98% !!!
 
 Midas Zhou
 --------------------------------------------------------------------------------------------------------*/
@@ -100,19 +100,8 @@ int main(int argc, char **argv)
     LCD_INIT_ILI9488();
 
 //------  set LCD pixle format,default is RGB888  -------
-    LCD_Set_PxlFmt16bit();
-//    LCD_Set_PxlFmt24bit();
-
-//----- allocate mem. for RGB565 ---------
-   if(LCD_PxlFmt == PXLFMT_RGB565)
-   {
-        g_pRGB565=malloc(PIC_MAX_WIDTH*PIC_MAX_HEIGHT*2);
-        if(g_pRGB565 == NULL)
-        {
-                printf("Fail to malloc g_pRGB565!\n");
-                return -2;
-        }
-   }
+     LCD_Set_PxlFmt16bit();
+//     LCD_Set_PxlFmt24bit();
 
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
@@ -159,7 +148,6 @@ while(1) //loop showing BMP files in a directory
       if(remove(str_bmpf_file) != 0)
 		printf("Fail to remove the file!\n");
 
-
      //----- keep the image on the display for a while ------
 //     usleep(50000);
 //	sleep(1);
@@ -172,9 +160,6 @@ while(1) //loop showing BMP files in a directory
 //----- release pin mmap -----
     resPinMmap();
 
-//---- free g_pRGB565 ----
-    if(g_pRGB565 != NULL)
- 	     free(g_pRGB565);
 
     return ret;
 }
