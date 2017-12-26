@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 //-------  !!!! select low speed if the color is distorted !!!!!  -------
 //    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
-      baudrate=750000; 
+    baudrate=750000; 
 
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
@@ -77,9 +77,16 @@ int main(int argc, char **argv)
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();  //--set default FXLFMT_RGB888 
 
-//------  set LCD pixle format  -------
-//    LCD_Set_PxlFmt16bit();
-    LCD_Set_PxlFmt24bit();
+//------  set FBMP and LCD pixle format  -------
+//---CASE...  input: RGB565 , output: RGB565 ----
+    FBMP_PxlFmt=PXLFMT_RGB565;//888;//565; //BMP file format
+    //----- adjust pic layout and RGB order here ------
+    LCD_Write_Cmd(0x36); //memory data access control
+    LCD_Write_Data(0x68); // oder: BGR, see ILI9488.h for bits exchange.
+    LCD_Set_PxlFmt16bit();
+
+//---CASE...  input: RGB888 , output: RGB888 ----
+//    LCD_Set_PxlFmt24bit();
 
 
 //<<<<<<<<<<<<<  refresh GRAPHIC BUFFER test >>>>>>>>>>>>>>>>
@@ -167,8 +174,8 @@ LCD_ColorBox(60,0,30,300,color_buf);
     resPinMmap();
 
 //---- free g_pRGB565 ----
-    if(g_pRGB565 != NULL)
-	free(g_pRGB565);
+//    if(g_pRGB565 != NULL)
+//	free(g_pRGB565);
 
     return ret;
 }

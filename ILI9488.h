@@ -20,7 +20,8 @@
 #define PXLFMT_RGB565 1
 
 //----- default format ----
-int LCD_PxlFmt=PXLFMT_RGB888;
+int LCD_PxlFmt=PXLFMT_RGB888; //-- format for LCD input
+int FBMP_PxlFmt=PXLFMT_RGB888; //--input BMP file format
 
 /* ---------  DCX pin:  0 as command, 1 as data --------- */
  #define DCXdata mt76x8_gpio_set_pin_value(DCX_GPIO_PIN,1)
@@ -317,7 +318,7 @@ void LCD_INIT_ILI9488(void)
 
  //----- adjust pic layout position here ------
  LCD_Write_Cmd(0x36); //memory data access control
- LCD_Write_Data(0x60); // exchange X and Y
+ LCD_Write_Data(0x60); // exchange X and Y and RGB order
 
 
  //----- write data to GRAM -----

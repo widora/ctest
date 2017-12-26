@@ -7,10 +7,9 @@ by:
 
 ++++++++ run all sizes of 24bit_color BMP pic not big than 480x320 ++++++++
 complile:
-	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie3 runbmp.c
+	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie runbmp.c
 usage:
-	./runmovie2 path    (use ramfs!!!)
-
+	./runmovie path    (use ramfs!!!)
 
 
                                -----  NOTEs & BUGs  -----
@@ -24,12 +23,14 @@ usage:
    480x320 fps=15 OK
 3. TODO: allocate mem for g_GBuffer with continous physical addresses.
 4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
-   Using RBG565 fromat can relieve some USB transmission load, but for MT7688, FFmpeg decoding speed is 
-   the bottleneck. Converting RGB888 to RGB565 also costs CPU load, which further deteriorates FFmpeg
-   decoding process.
+   Using RBG565 fromat can relieve some USB transmission load, but for MT7688, but converting RGB888 to 
+   RGB565 also costs CPU load, which further deteriorates FFmpeg decoding process.
 5. Everytime when you run the movie re_create the fifo.wav,it may help to avoid choppy.
-6. High CPU usage will cause FTDI transfer bus error! especially when run 480x320 BMP files with
-   CPU usage >98% !!!
+6. High CPU usage will cause FTDI transfer bus error! especially when run 480x320 BMP files with RGB565 
+   conversion, CPU usage will exceed 98% !!! In that case, application will exit with bus error.
+7. Format RGB888 is recommended for runbmp, considering all factors mentioned above.
+   ffmpeg convert o RGB565  INCREASE CPU LOAD !!!
+   ffmpeg RGB565 convert ot ILI9488 RGB565 INCREASE CPU LOAD !!! 
 
 Midas Zhou
 --------------------------------------------------------------------------------------------------------*/
@@ -78,6 +79,7 @@ int main(int argc, char **argv)
 //    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
       baudrate=750000;
+
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
         printf("baudrate invalid!\n");
@@ -93,20 +95,40 @@ int main(int argc, char **argv)
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
 
 //------  set chunk_size, default is 4096
-    chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
+    chunk_size=1024*64;//64;// >=1024*32 same effect.    default is 4096
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
 
-//------  set LCD pixle format,default is RGB888  -------
-     LCD_Set_PxlFmt16bit();
-//     LCD_Set_PxlFmt24bit();
+
+/*---------------------    Set Pixle Format    ---------------------------
+ default input from bmpfile: RGB888  (from ffmpeg output)
+ default output to ili9488:  RGB888  (output to LCD)
+-------------------------------------------------------------------------*/
+  //---CASE...  input: RGB565 , output: RGB565 ----  WORST !!! !!! !!!
+/*
+    FBMP_PxlFmt=PXLFMT_RGB565;//888;//565; //BMP file format
+    //----- MUSE adjust RGB order here ------
+    LCD_Write_Cmd(0x36); //memory data access control
+    LCD_Write_Data(0x68); // oder: BGR, see fbmp_op.h for bits exchange.
+    LCD_Set_PxlFmt16bit();
+*/
+
+  //---CASE...  input: RGB888 , output: RGB565 ---- WORSE !!! !!!
+    FBMP_PxlFmt=PXLFMT_RGB888;
+    LCD_Set_PxlFmt16bit();
+
+  //---CASE...  input: RGB888 , output: RGB888 ---- GOODE!!!
+/*
+    FBMP_PxlFmt=PXLFMT_RGB888;
+    LCD_Set_PxlFmt24bit();
+*/
 
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
 //strcpy(str_bmpf_path,"/tmp");//set directory
-   strcpy(str_bmpf_path,argv[1]);
+strcpy(str_bmpf_path,argv[1]);
 while(1) //loop showing BMP files in a directory
 {
      //-------------- reload total_numbe after one round show ---------
@@ -141,10 +163,9 @@ while(1) //loop showing BMP files in a directory
 
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-     printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+     printf("  ------ finish loading a bmp file, time_use=%dms -----  \n",time_use);
 
      //----- delete file after displaying -----
-
       if(remove(str_bmpf_file) != 0)
 		printf("Fail to remove the file!\n");
 

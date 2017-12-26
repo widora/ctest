@@ -107,6 +107,11 @@ static int show_bmpf(char *strf)
   int MapLen; // file size,mmap size
   uint8_t *pmap;//mmap
 
+  uint8_t *pt565;
+  uint8_t *ptf;
+
+
+
   offp=18; // file offset  position for picture Width and Height data
 
    //----- check integrity of the bmp file ------
@@ -144,7 +149,9 @@ static int show_bmpf(char *strf)
    picNum=picWidth*picHeight;
 
    /*--------------------- MMAP -----------------------*/
-   MapLen=picNum*3+54;
+
+   MapLen=picNum*3+54; // !!!!!! ..... alsao for RBG565 ....!!!!
+
    pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
    if(pmap == MAP_FAILED){
    	printf(" pmap mmap failed! \n");
@@ -161,15 +168,35 @@ static int show_bmpf(char *strf)
    Hs=Hb; He=Hb+picWidth-1;
    Vs=Vb; Ve=Vb+picHeight-1;
 
-   //------  write to LCD to show ------
-   offp=54; //---offset position where BGR data begins
+   //=================     write RGB data to LCD     ===================
 
-   //------first  set LCD pixle format in main.c !!!!!!!
+//----    seek readin offp for RGB data position   ------
+/*
+   if(lseek(fp,0x000A,SEEK_SET)<0)  //0x000ah: offset to RGB data
+        printf("Fail to offset seek position of RGB data!\n");
+   read(fp,buff,4);
+
+   offp=*(uint32_t*)buff;
+//   offp=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
+   printf("----- RGB data offp=%d  -----\n",offp); 
+   return -1;
+*/
+   //------!!!!!!!!  first  set LCD pixle format in main.c !!!!!!! -------
+
+  //--------    set offp for RGB data position   ------
+   if(FBMP_PxlFmt==PXLFMT_RGB565)
+           offp=66; //---offset position where BGR data begins for RGB565
+   else if(FBMP_PxlFmt==PXLFMT_RGB888)
+	   offp=54; //---offset position where BGR data begins for RGB888
+
+
    //----- allocate g_pRGB565 for RGB565 in  main.c !!!!!!!
 
-   if(LCD_PxlFmt==PXLFMT_RGB565)
+
+// ------CASE 1:  24bit color BMP file: convert from RBG888 TO RGB565 and write to LCD --------
+   if(LCD_PxlFmt==PXLFMT_RGB565 && FBMP_PxlFmt==PXLFMT_RGB888)
    {
-	printf("--- pixel format set to PXLFMT_RGB565 ---\n");
+	printf("--- LCD_PxlFmt==PXLFMT_RGB565  &&  FBMP_PxlFmt==PXLFMT_RGB888 ---\n");
 
 	//---- convert RBG888  to RBG565 ----
 	uint16_t *ptt565;
@@ -185,10 +212,8 @@ static int show_bmpf(char *strf)
 
 		pt888=pmap+offp+3*i;// 3bytes for each pixel
 		//<<<<<<<<<  convert method 1  >>>>>>>>>
-/*
-		pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
-		pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
-*/
+//		pt565[2*i] = ( ( pt888[0] & 0xF8) | (pt888[1]>>5) );
+//		pt565[2*i+1]=( ((pt888[1]<<3) & 0xE0) | pt888[2]>>3 );
 		//<<<<<<<<  convert method 2  >>>>>>>>>
 		*ptt565=GET_RGB565(*(pt888),*(pt888+1),*(pt888+2)); //BGR -> RGB
 		 ptt565++; // 2bytes for each pixel
@@ -197,9 +222,32 @@ static int show_bmpf(char *strf)
 	LCD_Write_Block(Hs,He,Vs,Ve,g_pRGB565,picNum*2);
    }
 
-   else if(LCD_PxlFmt==PXLFMT_RGB888) //--- LCD_fxlfmt == PXLFMT_RGB888
+
+//------CASE 2:   16bit color BMP file:  write RGB data directly to LCD, no need for converting???------
+   else  if(LCD_PxlFmt==PXLFMT_RGB565 && FBMP_PxlFmt==PXLFMT_RGB565)
    {
-	printf("--- pixel format set to PXLFMT_RGB888 ---\n");
+//	uint8_t *pt565;
+//	uint8_t *ptf;
+
+	pt565=g_pRGB565; // !!! g_pRGB565 is a proxy of g_GBuffer[][] in ILI9488.h !!!
+	printf("--- LCD_PxlFmt==PXLFMT_RGB565  &&  FBMP_PxlFmt==PXLFMT_RGB565 ---\n");
+
+        //--------- convert BMP file rgb565 TO fit ili9488  -------
+        // !!!!!!!!!  WARNING: THIS WILL INCREASE CPU LOAD TREMENDOUSLY !!!!!!!!!!
+	for(i=0;i<picNum;i++)
+	{
+		ptf=pmap+offp+2*i;// 2 bytes for each pixel
+		*pt565=*(ptf+1);
+		*(pt565+1)=*(ptf);
+		pt565+=2;
+	}
+	LCD_Write_Block(Hs,He,Vs,Ve,g_pRGB565,picNum*2);
+   }
+
+//------CASE 3:   24bit BMP file, directly write to LCD with format RGB888 --------------
+   else if(LCD_PxlFmt==PXLFMT_RGB888 && FBMP_PxlFmt==PXLFMT_RGB888) //--- LCD_fxlfmt == PXLFMT_RGB888
+   {
+	printf("--- LCD_PxlFmt==PXLFMT_RGB888  &&  FBMP_PxlFmt==PXLFMT_RGB888 ---\n");
 	//<<<<<<<<<<<<<     Method 1:   write to LCD directly    >>>>>>>>>>>>>>>
 	LCD_Write_Block(Hs,He,Vs,Ve,pmap+offp,picNum*3);
 	//<<<<<<<<<<<<<     Method 2:   write to GBuffer first, then refresh GBuffer  >>>>>>>>>>>>
@@ -211,6 +259,7 @@ static int show_bmpf(char *strf)
    //------ freep mmap ----
    printf("start munmap()...\n\n"); 
    munmap(pmap,MapLen); 
+
    //----- close fp ----
    close(fp);
 

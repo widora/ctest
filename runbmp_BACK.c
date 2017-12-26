@@ -1,177 +1,45 @@
-/*-----------------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------------------------
 Based on:  libftdi - A library (using libusb) to talk to FTDI's UART/FIFO chips
 Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
     www.intra2net.com    2003-2017 Intra2net AG
 
-+++++++ run only 480x320x24bit_color BMP files ++++++++
+
+++++++++ run all sizes of 24bit_color BMP pic not big than 480x320 ++++++++
 complile:
-        ./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie runbmp.c
+	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o runmovie16 runbmp2.c
 usage:
-        ./runmovie path
+	./runmovie16 path    (use ramfs!!!)
 
 
-Midas
--------------------------------------------------------------------------------*/
+                               -----  NOTEs & BUGs  -----
+
+1. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
+   that means something unusual happens, it slows down the processing, check it then.
+   The most possible is that decoding speed is faster than runbmp speed.
+   TODO: If runbmp cann't catch up with ffmpeg decoding speed, then trim some BMP files in the PATH.
+2. It MAY BE a good idea to put your avi file in TF card while use usb bus for LCD transfer only.
+   However, if you install ffmpeg in the TF card, it may be more difficult to launch the application.
+   480x320 fps=15 OK
+3. TODO: allocate mem for g_GBuffer with continous physical addresses.
+4. Playing speed depends on ffmpeg decoding speed, USB transfer speed, and FT232H fanout(baudrate) speed.
+   Using RBG565 fromat can relieve some USB transmission load, but for MT7688, FFmpeg decoding speed is 
+   the bottleneck. Converting RGB888 to RGB565 also costs CPU load, which further deteriorates FFmpeg
+   decoding process.
+5. Everytime when you run the movie re_create the fifo.wav,it may help to avoid choppy.
+6. High CPU usage will cause FTDI transfer bus error! especially when run 480x320 BMP files with
+   CPU usage >98% !!!
+
+Midas Zhou
+--------------------------------------------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <dirent.h>
-#include <sys/stat.h> //stat()
-#include "include/ftdi.h"
-#include "ft232.h"
-#include "ILI9488.h"
+#include "include/ftdi.h" //bitbang ops
+#include "ft232.h"  //open_ft232(), clos_ft232(); mpss op.
+#include "fbmp_op.h" //bmp file operations
 
-
-#define STRBUFF 256   // --- length of file path&name
-#define MAX_WIDTH 320
-#define MAX_HEIGHT 480
-#define BMPFILE_480X320_SIZE 460854
-
-
-//----- for BMP files ------
-char file_path[256];
-char g_BMP_file_name[256][STRBUFF]; //---BMP file directory and name
-int  g_BMP_file_num=0;//----BMP file name index
-int  g_BMP_file_total=0; //--total number of BMP files
-
-
-/*------------------------------------------
-get file size
-return:
-	>0 ok
-	<0 fail
--------------------------------------------*/
-unsigned long get_file_size(const char *fpath)
-{
-	unsigned long filesize=-1;
-	struct stat statbuff;
-	if(stat(fpath,&statbuff)<0)
-	{
-		return filesize;
-	}
-	else
-	{
-		filesize = statbuff.st_size;
-	}
-	return filesize;
-}
-
-/* --------------------------------------------
- find out all BMP files in a specified directory
- return value:
-	 0 --- OK
-	<0 --- fails
-----------------------------------------------*/
-static int Find_BMP_files(char* path)
-{
-DIR *d;
-struct dirent *file;
-int fn_len;
-
-g_BMP_file_total=0; //--reset total  file number
-g_BMP_file_num=0; //--reset file  index
-
-//-------- if open dir error ------
-if(!(d=opendir(path)))
-{
-  printf("error open dir: %s !\n",path);
-  return -1;
-}
-
-while((file=readdir(d))!=NULL)
-{
-   //------- find out all bmp files  --------
-   fn_len=strlen(file->d_name);
-   if(strncmp(file->d_name+fn_len-4,".bmp",4)!=0 )
-       continue;
-   strncpy(g_BMP_file_name[g_BMP_file_num++],file->d_name,fn_len);
-   g_BMP_file_total++;
- }
-
- closedir(d);
- return 0;
-}
-
-
-
-
-
-
-/*--------------------------------------------
- load a 480x320x24bit bmp file and show on lcd
- char *strf:  file path
-return value:
-	0  --OK
-	-1 --BMP file is not complete
-	-2 --mmap fails
----------------------------------------------*/
-static int show_bmpf(char *strf)
-{
-  int ret=0;
-  int fp;//file handler
-  uint8_t buff[8]; //--for buffering  data temporarily
-  uint16_t picWidth, picHeight;
-  long offp; //offset position
-  int MapLen; // file size,mmap size
-  uint8_t *pmap;//mmap 
-
-
-  offp=18; // file offset  position for picture Width and Height data
-
-   //----- check integrity of the bmp file ------
-   if( get_file_size(strf) < BMPFILE_480X320_SIZE )
-   {
-	printf(" BMP file is not complete!\n");
-	return -1;
-   }
-
-  //---- open file  ------
-  fp=open(strf,O_RDONLY);
-  if(fp<0)
-	  {
-          	printf("\n Fail to open the file!\n");
-          }
-   else
-          printf("%s opened successfully!\n",strf);
-
-   //----    seek position and readin picWidth and picHeight   ------
-   if(lseek(fp,offp,SEEK_SET)<0)
-   	printf("Fail to offset seek position!\n");
-   read(fp,buff,8);
-
-   //----  get pic. size -----
-   picWidth=buff[3]<<24|buff[2]<<16|buff[1]<<8|buff[0];
-   picHeight=buff[7]<<24|buff[6]<<16|buff[5]<<8|buff[4];
-   printf("\n picWidth=%d    picHeight=%d",picWidth,picHeight);
-
-   /*--------------------- MMAP -----------------------*/
-   MapLen=picWidth*picHeight*3+54;
-   pmap=(uint8_t*)mmap(NULL,MapLen,PROT_READ,MAP_PRIVATE,fp,0);
-   if(pmap == MAP_FAILED){
-   	printf("\n pmap mmap failed!");
-	close(fp);
-        return -2; 
-   }
-   else
-        printf("\n pmap mmap successfully!");
-
-   //----- copy data to graphic buffer -----
-   offp=54; //---offset position where BGR data begins
-   printf("memcpy RBG data to GBuffer...\n");
-   memcpy(&g_GBuffer[0][0],pmap+offp, 480*320*3);
-
-   //------  write to LCD to show ------
-   printf("write to GBuffer...\n");
-   LCD_Write_GBuffer();
-
-   //------ freep mmap ----
-   printf("start munmap()...\n"); 
-   munmap(pmap,MapLen); 
-   //----- close fp ----
-   close(fp);
-
-}
 
 /*===================== MAIN   ======================*/
 int main(int argc, char **argv)
@@ -186,7 +54,6 @@ int main(int argc, char **argv)
     int fp; //file handler
     char str_bmpf_path[128]; //directory for BMP files 
     char str_bmpf_file[STRBUFF];// full path+name for a BMP file.
-//    char strf[STRBUFF];
     int Ncount=-1; //--index number of picture displayed
 
 
@@ -195,7 +62,7 @@ int main(int argc, char **argv)
     {
 	printf("input parameter error!\n");
 	printf("Usage: %s path  \n",argv[0]);
-	exit(-1);
+	return -1;
     }
 
 //-----  prepare control pins -----
@@ -210,6 +77,7 @@ int main(int argc, char **argv)
 //    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
       baudrate=750000;
+
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
         printf("baudrate invalid!\n");
@@ -225,15 +93,20 @@ int main(int argc, char **argv)
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
 
 //------  set chunk_size, default is 4096
-    chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
+    chunk_size=1024*64;//64;//32;// >=1024*32 same effect.    default is 4096
     ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
 
 //-----  Init ILI9488 and turn on display -----
     LCD_INIT_ILI9488();
 
+//------  set LCD pixle format,default is RGB888  -------
+    FBMP_PxlFmt=PXLFMT_RGB565; // input BMP file format
+    LCD_Set_PxlFmt16bit(); // format for ILI9488 input
+//     LCD_Set_PxlFmt24bit();
+
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
 //strcpy(str_bmpf_path,"/tmp");//set directory
-   strcpy(str_bmpf_path,argv[1]);
+strcpy(str_bmpf_path,argv[1]);
 while(1) //loop showing BMP files in a directory
 {
      //-------------- reload total_numbe after one round show ---------
@@ -260,7 +133,7 @@ while(1) //loop showing BMP files in a directory
      //------  show the bmp file and count time -------
      gettimeofday(&tm_start,NULL);
 
-     if( show_bmpf(str_bmpf_file) <0 )
+     if( show_bmpf(str_bmpf_file) < 0 ) 
      {
 	//----- if show bmp fails, then skip to continue, will NOT delete the file then -----
 	continue;
@@ -268,15 +141,15 @@ while(1) //loop showing BMP files in a directory
 
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-     printf("  ------ finish loading a 480*320*24bits bmp file, time_use=%dms -----  \n",time_use);
+     printf("  ------ finish loading a bmp file, time_use=%dms -----  \n",time_use);
 
      //----- delete file after displaying -----
       if(remove(str_bmpf_file) != 0)
 		printf("Fail to remove the file!\n");
 
      //----- keep the image on the display for a while ------
-//     usleep(30000);
-
+//     usleep(50000);
+//	sleep(1);
 }
 
 
@@ -285,6 +158,7 @@ while(1) //loop showing BMP files in a directory
 
 //----- release pin mmap -----
     resPinMmap();
+
 
     return ret;
 }
