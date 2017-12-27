@@ -80,7 +80,7 @@ int main(int argc, char **argv)
  default input from bmpfile: RGB888  (from ffmpeg output)
  default output to ili9488:  RGB888  (output to LCD)
 -------------------------------------------------------------------------*/
-  //---CASE...  input: RGB565 , output: RGB565 ----  WORST !!! !!! !!!
+  //---CASE...  input: RGB565 , output: RGB565 ----  WORSE !!! !!! !!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB565;//888;//565; //BMP file format
     //----- MUSE adjust RGB order here ------
@@ -89,13 +89,13 @@ int main(int argc, char **argv)
     LCD_Set_PxlFmt16bit();
 */
 
-  //---CASE...  input: RGB888 , output: RGB565 ---- WORSE !!! !!!
+  //---CASE...  input: RGB888 , output: RGB565 ---- BAD !!! !!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB888;
     LCD_Set_PxlFmt16bit();
 */
 
-  //---CASE...  input: RGB888 , output: RGB888 ---- GOODE!!!
+  //---CASE...  input: RGB888 , output: RGB888 ---- GOOD !!!
     FBMP_PxlFmt=PXLFMT_RGB888;
     LCD_Set_PxlFmt24bit();
 
@@ -148,13 +148,11 @@ while(1) //loop showing BMP files in a directory
 //	sleep(1);
 }
 
-
 //----- close ft232 usb device -----
     close_ft232();
 
-//----- release pin mmap -----
-    resPinMmap();
-
+//----- free pinmap and close ILI9488 -----
+    close_ili9488();
 
     return ret;
 }

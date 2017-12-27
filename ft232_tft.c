@@ -56,7 +56,7 @@ int main(int argc, char **argv)
  default input from bmpfile: RGB888  (from ffmpeg output)
  default output to ili9488:  RGB888  (output to LCD)
 -------------------------------------------------------------------------*/
-  //---CASE...  input: RGB565 , output: RGB565 ----  WORST !!! !!! !!!
+  //---CASE...  input: RGB565 , output: RGB565 ----  WORSE !!! !!! !!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB565;//888;//565; //BMP file format
     //----- MUSE adjust RGB order here ------
@@ -65,11 +65,11 @@ int main(int argc, char **argv)
     LCD_Set_PxlFmt16bit();
 */
 
-  //---CASE...  input: RGB888 , output: RGB565 ---- WORSE !!! !!!
+  //---CASE...  input: RGB888 , output: RGB565 ---- BAD !!! !!!
     FBMP_PxlFmt=PXLFMT_RGB888;
     LCD_Set_PxlFmt16bit();
 
-  //---CASE...  input: RGB888 , output: RGB888 ---- GOODE!!!
+  //---CASE...  input: RGB888 , output: RGB888 ---- GOOD !!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB888;
     LCD_Set_PxlFmt24bit();
