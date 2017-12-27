@@ -19,6 +19,7 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
 	int y;
 
 	//Open file
+	printf("----- try to save frame to frame%d.ppm \n",iFrame);
 	sprintf(szFilename,"frame%d.ppm",iFrame);
 	pFile=fopen(szFilename,"wb");
 	if(pFile==NULL){
@@ -76,6 +77,7 @@ int main(int argc, char *argv[]) {
 	av_dump_format(pFormatCtx, 0, argv[1], 0);
 
 	//-----Find the first video stream
+	printf("----- try to find the first video stream... \n");
 	videoStream=-1;
 	for(i=0; i<pFormatCtx->nb_streams; i++)
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -90,6 +92,7 @@ int main(int argc, char *argv[]) {
 	//-----Get a pointer to the codec context for the video stream
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
 	//-----Find the decoder for the video stream
+	printf("----- try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
 		fprintf(stderr, "Unsupported codec!\n");
@@ -109,7 +112,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
+	//----Allocate video frame
+	pFrame=av_frame_alloc();
+
 	//----allocate an AVFrame structure
+	printf("----- try to allocate an AVFrame structure...\n");
 	pFrameRGB=av_frame_alloc();
 	if(pFrameRGB==NULL) {
 		fprintf(stderr, "Fail to allocate AVFrame structure!\n");
@@ -125,6 +132,7 @@ int main(int argc, char *argv[]) {
 	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
 
 	//----Initialize SWS context for software scaling
+	printf("----- initialize SWS context for software scaling... \n");
 	sws_ctx = sws_getContext( pCodecCtx->width,
 				  pCodecCtx->height,
 				  pCodecCtx->pix_fmt,
@@ -138,15 +146,18 @@ int main(int argc, char *argv[]) {
 				);
 
 	//----Read frames and save first five frames to disk
+	printf("----- read frames and save first five frames to disk... \n");
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 		//is this a packet from the video stream ?
 		if(packet.stream_index==videoStream) {
 			//decode video frame
-			avcodec_decode_video2(pCodecCtx,pFrame, &frameFinished, &packet);
+			printf("...decoding video frame\n");
+			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 			//did we get a video frame?
 			if(frameFinished) {
 				//convert the image from its native format to RGB
+				printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -155,6 +166,8 @@ int main(int argc, char *argv[]) {
 				//----- save the frame to disk
 				if(++i<5)
 					SaveFrame(pFrameRGB, pCodecCtx->width, pCodecCtx->height,i);
+				else
+					break;
 			}
 		}
 
@@ -174,7 +187,7 @@ int main(int argc, char *argv[]) {
 	avcodec_close(pCodecCtx);
 	avcodec_close(pCodecCtxOrig);
 
-	//----Clsoe the video file
+	//----Close the video file
 	avformat_close_input(&pFormatCtx);
 
 	return 0;
