@@ -60,6 +60,8 @@ int main(int argc, char *argv[]) {
 	uint8_t			*buffer=NULL;
 	struct SwsContext	*sws_ctx=NULL;
 
+	int Hb,Vb,Hs,He,Vs,Ve;
+
 	if(argc < 2) {
 		printf("Please provide a movie file\n");
 		return -1;
@@ -74,6 +76,10 @@ int main(int argc, char *argv[]) {
 	}
 	//----- init ILI9488
 	LCD_INIT_ILI9488();
+        //----- MUSE adjust RGB order and layout here ------
+        LCD_Write_Cmd(0x36); //memory data access control
+	LCD_Write_Data(0x28); // oder: RGB, see fbmp_op.h for bits exchange.
+
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
@@ -146,6 +152,14 @@ int main(int argc, char *argv[]) {
 	numBytes=avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
 	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
 
+//<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>
+	 Hb=(PIC_MAX_WIDTH-pCodecCtx->width+1)/2;
+	 Vb=(PIC_MAX_HEIGHT-pCodecCtx->height+1)/2;
+	 Hs=Hb; He=Hb+pCodecCtx->width-1;
+	 Vs=Vb; Ve=Vb+pCodecCtx->height-1;
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
 	//----Assign appropriate parts of buffer to image planes in pFrameRGB
 	//Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture
 	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
@@ -165,18 +179,18 @@ int main(int argc, char *argv[]) {
 				);
 
 	//----Read frames and save first five frames to disk
-	printf("----- read frames and save first five frames to disk... \n");
+	printf("----- read frames and convert to RGB and then send to LCD ... \n");
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 		//is this a packet from the video stream ?
 		if(packet.stream_index==videoStream) {
 			//decode video frame
-			printf("...decoding video frame\n");
+//			printf("...decoding video frame\n");
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 			//did we get a video frame?
 			if(frameFinished) {
 				//convert the image from its native format to RGB
-				printf("...converting image to RGB\n");
+//				printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -185,7 +199,8 @@ int main(int argc, char *argv[]) {
 
 
 				//----- send data to LCD
-				LCD_Write_Block(0,pCodecCtx->width,0,pCodecCtx->height,pFrameRGB->data[0],numBytes);
+//				LCD_Write_Block(0,pCodecCtx->width,0,pCodecCtx->height,pFrameRGB->data[0],numBytes);
+				LCD_Write_Block(Hs,He,Vs,Ve,pFrameRGB->data[0],numBytes);
 
 				//----- save the frame to disk
 /*
@@ -212,15 +227,19 @@ int main(int argc, char *argv[]) {
 	av_frame_free(&pFrame);
 
 	//----Close the codecs
+	printf("----- close the codecs...\n");
 	avcodec_close(pCodecCtx);
 	avcodec_close(pCodecCtxOrig);
 
 	//----Close the video file
+	printf("----- close the viedo file...\n");
 	avformat_close_input(&pFormatCtx);
 
 
 //<<<<<<<<<<<<<<<     close FT232 and ILI9488    >>>>>>>>>>>>>>>>
+	printf("----- close ft232...\n");
 	close_ft232();
+	printf("---- close_ili9488...\n");
 	close_ili9488();
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

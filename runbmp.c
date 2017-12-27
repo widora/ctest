@@ -69,7 +69,8 @@ int main(int argc, char **argv)
 
 //-----  init ft232 ---------
     if(usb_init_ft232()<0){
-        printf("Fail to initiate ft232!\n");
+        printf("Fail to initialize ft232!\n");
+	close_ft232();
         return -1;
     }
 //-----  Init ILI9488 and turn on display -----

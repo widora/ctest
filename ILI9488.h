@@ -50,7 +50,7 @@ int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb);
 //----- function definition ---------
 void delayms(int s)
 {
- int k,m;
+ int k;
  for(k=0;k<s;k++)
  {
     usleep(1000);
@@ -126,7 +126,6 @@ int LCD_Write_Data(uint8_t data)
 int LCD_Write_NData(const uint8_t *pdata, int n)
 {
    int ret=0;
-   int i;
 
 /*------chunck write, beware of baudrate speed -----*/
    DCXdata;
@@ -184,7 +183,6 @@ return
 int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb)
 {
    int ret;
-   int i;
 
    //------ set GRAM ZONE -------
    GRAM_Block_Set(Hs,He,Vs,Ve);
@@ -201,8 +199,8 @@ int LCD_Write_Block(int Hs,int He, int Vs, int Ve, const uint8_t *data, int nb)
    {
           fprintf(stderr,"ftdi write failed!, error %d (%s)\n",ret, ftdi_get_error_string(g_ftdi));
    }
-   else
-	printf("ftdi succeed to write g_usb_GBuffer to ft232h \n");
+//   else
+//	printf("ftdi succeed to write g_usb_GBuffer to ft232h \n");
 
    return ret;
 }
@@ -217,7 +215,6 @@ return
 int LCD_Write_GBuffer(void)
 {
    int ret;
-   int i;
 
    //---full_area GRAM write,whole page refresh!!!!!!------
    GRAM_Block_Set(0,479,0,319);//column and page exchanged
@@ -394,7 +391,6 @@ uint8_t color_buf[3]:  RGB 3*8bits color
 void LCD_ColorBox(uint16_t xStart,uint16_t yStart,uint16_t xLong,uint16_t yLong, const uint8_t *color_buf)
 {
 	int i;
-	uint32_t temp;
 	uint8_t *block_buf;
 	uint32_t byte_count;
 
