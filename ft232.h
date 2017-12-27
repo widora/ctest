@@ -60,15 +60,27 @@ void close_ft232(void)
            functions in ftdi.h
 --------------------------------------------*/
 
-// ----- set to BITBANG MODE and MPSSE MODE -----
-/*
+/* ----------------------- set to BITBANG MODE and MPSSE MODE --------------------
 int ftdi_set_bitmode(ftdi, 0xFF, BITMODE_BITBANG); //0xFF -all 8bits are activated 
 int ftdi_set_bitmode(ftdi, 0x00, BITMODE_MPSSE); 
 return:
 	0: all fine
 	-1: can't enable bitbang mode
 	-2: USB device unavailable
-*/
+---------------------------------------*/
+
+
+/* --------------------------     set chunk size     ---------------------------------
+int ftdi_write_data_set_chunksize(struct ftdi_context *ftdi, unsigned int chunksize)
+
+Configure write buffer chunk size.
+    Default is 4096.
+return:
+        0: all fine
+        -1: ftdi context invalid
+------------------------------------*/
+
+
 
 
 //------ purge rx buffer in FT232H  ------
@@ -131,6 +143,55 @@ int  mpsse_write_lowbits(struct ftdi_context *ftdi, unsigned char val)
 	return ret;
 }
 
+
+/*---------------------------------------------------------------
+Open ft232 and set parameters, prepare for USB transfer
+   1. open ft232
+   2. set  mode
+   3. set baudrate
+   4. set chunksize
+
+Return value:
+	0  -- OK
+	<0 --fails
+---------------------------------------------------------------*/
+int usb_init_ft232(void)
+{
+    int ret;
+    int baudrate;
+    int chunk_size;
+
+    //-----  open ft232 usb device -----
+    open_ft232(0x0403, 0x6014);
+    //-----  set to BITBANG MODE -----
+    ftdi_set_bitmode(g_ftdi, 0xFF, BITMODE_BITBANG);
+    //-----  set baudrate,beware of your wiring  -----
+    //-------  !!!! select low speed if the color is distorted !!!!!  -------
+//    baudrate=3150000; //20MBytes/s
+//    baudrate=2000000;
+    baudrate=750000; 
+
+    ret=ftdi_set_baudrate(g_ftdi,baudrate); 
+    if(ret == -1){
+        printf("baudrate invalid!\n");
+    }
+    else if(ret != 0){
+        printf("ret=%d set baudrate fails!\n",ret);
+    }
+    else if(ret ==0 ){
+        printf("set baudrate=%d,  actual baudrate=%d \n",baudrate,g_ftdi->baudrate);
+    }
+
+    //------ purge rx buffer in FT232H  ------
+//    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
+    //------  set chunk_size, default is 4096
+    chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
+    ret=ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
+    if(ret != 0)
+	printf("Fail to set chunksize!\n");
+
+    return ret;
+}
 
 
 #endif

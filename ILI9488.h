@@ -244,6 +244,10 @@ int LCD_Write_GBuffer(void)
 // ------------------ LCD Initialize Function ---------------
 void LCD_INIT_ILI9488(void)
 {
+
+ //-----  prepare control pins -----
+ setPinMmap();
+
  delayms(20);
  LCD_RESET();
  delayms(120);
@@ -333,6 +337,17 @@ void LCD_INIT_ILI9488(void)
 
  printf("finish preparing ILI9488\n");
 }
+
+//------ free resources for ILI9488 --------
+void close_ili9488(void)
+{
+
+    //----- release pin mmap -----
+    resPinMmap();
+
+}
+
+
 
 
 //----- set interface pixel format to 24bit_data/18bit_color  -----

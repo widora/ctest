@@ -67,39 +67,13 @@ int main(int argc, char **argv)
 	return -1;
     }
 
-//-----  prepare control pins -----
-    setPinMmap();
-//-----  open ft232 usb device -----
-    open_ft232(0x0403, 0x6014);
-//-----  set to BITBANG MODE -----
-    ftdi_set_bitmode(g_ftdi, 0xFF, BITMODE_BITBANG);
-
-//-----  set baudrate,beware of your wiring  -----
-//-------  !!!! select low speed if the color is distorted !!!!!  -------
-//    baudrate=3150000; //20MBytes/s
-//    baudrate=2000000;
-      baudrate=750000;
-
-    ret=ftdi_set_baudrate(g_ftdi,baudrate); 
-    if(ret == -1){
-        printf("baudrate invalid!\n");
+//-----  init ft232 ---------
+    if(usb_init_ft232()<0){
+        printf("Fail to initiate ft232!\n");
+        return -1;
     }
-    else if(ret != 0){
-        printf("ret=%d set baudrate fails!\n",ret);
-    }
-    else if(ret ==0 ){
-        printf("set baudrate=%d,  actual baudrate=%d \n",baudrate,g_ftdi->baudrate);
-    }
-
-//------ purge rx buffer in FT232H  ------
-//    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
-
-//------  set chunk_size, default is 4096
-    chunk_size=1024*64;//64;// >=1024*32 same effect.    default is 4096
-    ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
-
 //-----  Init ILI9488 and turn on display -----
-    LCD_INIT_ILI9488();
+    LCD_INIT_ILI9488();  //--set default FXLFMT_RGB888 
 
 
 /*---------------------    Set Pixle Format    ---------------------------
@@ -116,14 +90,14 @@ int main(int argc, char **argv)
 */
 
   //---CASE...  input: RGB888 , output: RGB565 ---- WORSE !!! !!!
-    FBMP_PxlFmt=PXLFMT_RGB888;
-    LCD_Set_PxlFmt16bit();
-
-  //---CASE...  input: RGB888 , output: RGB888 ---- GOODE!!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB888;
-    LCD_Set_PxlFmt24bit();
+    LCD_Set_PxlFmt16bit();
 */
+
+  //---CASE...  input: RGB888 , output: RGB888 ---- GOODE!!!
+    FBMP_PxlFmt=PXLFMT_RGB888;
+    LCD_Set_PxlFmt24bit();
 
 
 //<<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>>
