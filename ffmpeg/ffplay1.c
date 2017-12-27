@@ -15,6 +15,9 @@ Midas
 #include "libswscale/swscale.h"
 
 #include <stdio.h>
+#include "include/ftdi.h"
+#include "ft232.h"
+#include "ILI9488.h"
 
 
 void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
@@ -61,6 +64,18 @@ int main(int argc, char *argv[]) {
 		printf("Please provide a movie file\n");
 		return -1;
 	}
+
+//<<<<<<<<<<<<<      prepare FT232 and ILI9488    >>>>>>>>>>>>>>>>
+	//----- initialize ft232
+	if(usb_init_ft232()<0){
+		printf("Fail to initialize ft232!\n");
+		close_ft232();
+		return -1;
+	}
+	//----- init ILI9488
+	LCD_INIT_ILI9488();
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 
 	//----- Register all formats and codecs
 	av_register_all();
@@ -167,11 +182,20 @@ int main(int argc, char *argv[]) {
 					   pFrame->linesize, 0, pCodecCtx->height,
 					   pFrameRGB->data, pFrameRGB->linesize
 					);
+
+
+				//----- send data to LCD
+				LCD_Write_Block(0,pCodecCtx->width,0,pCodecCtx->height,pFrameRGB->data[0],numBytes);
+
 				//----- save the frame to disk
+/*
 				if(++i<5)
 					SaveFrame(pFrameRGB, pCodecCtx->width, pCodecCtx->height,i);
 				else
 					break;
+*/
+
+
 			}
 		}
 
@@ -194,6 +218,12 @@ int main(int argc, char *argv[]) {
 	//----Close the video file
 	avformat_close_input(&pFormatCtx);
 
-	return 0;
 
+//<<<<<<<<<<<<<<<     close FT232 and ILI9488    >>>>>>>>>>>>>>>>
+	close_ft232();
+	close_ili9488();
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+	return 0;
 }
