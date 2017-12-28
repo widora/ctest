@@ -1,14 +1,19 @@
 /*-------------------------------------------------------------
 Based on: dranger.com/ffmpeg/tutorialxx.c
  				       ---  by Martin Bohme
+	  muroa.org/?q=node/11
+				       ---  by Martin Runge
+	  www.xuebuyuan.com/1624253.html
+				       ---  by niwenxian
 
-A simpley example of opening a video file then decode frames
+1. A simpley example of opening a video file then decode frames
 and send RGB data to LCD for display.
+2. Decode audio frames and save to a PCM file.
 
 Usage:
-	ffplay1 video_file
+	ffplay2 video_file
 
-Midas 
+Midas
 ---------------------------------------------------------------*/
 
 #include "libavutil/avutil.h"
@@ -21,6 +26,8 @@ Midas
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
+
+#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 
 
 void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
@@ -51,7 +58,8 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
 int main(int argc, char *argv[]) {
 	//Initializing these to NULL prevents segfaults!
 	AVFormatContext	*pFormatCtx=NULL;
-	int			i, videoStream;
+	int			i;
+	int			videoStream;
 	AVCodecContext		*pCodecCtxOrig=NULL;
 	AVCodecContext		*pCodecCtx=NULL;
 	AVCodec			*pCodec=NULL;
@@ -63,8 +71,29 @@ int main(int argc, char *argv[]) {
 	uint8_t			*buffer=NULL;
 	struct SwsContext	*sws_ctx=NULL;
 
-	int Hb,Vb,Hs,He,Vs,Ve;
+	int Hb,Vb,Hs,He,Vs,Ve;  //---for LCD image layout
 
+	//------ for audio -------
+	int			audioStream;
+	AVCodecContext		*aCodecCtxOrig=NULL;
+	AVCodecContext		*aCodecCtx=NULL;
+	AVCodec			*aCodec=NULL;
+	AVFrame			*pAudioFrame=NULL;
+	const int 		audio_sample_buf_size=2*MAX_AUDIO_FRAME_SIZE;
+	int16_t		audio_sample_buffer[audio_sample_buf_size];
+	int 			bytes_used;
+	int			sb_size=audio_sample_buf_size;
+	int			got_frame;
+ 
+	FILE* faudio; // to save decoded audio data
+	faudio=fopen("/tmp/ffaudio.pcm","wb");
+	if(faudio==NULL){
+		printf("Fail to open file for audio data saving!\n");
+		return -1;
+	}
+
+
+	//----- check input argc ----
 	if(argc < 2) {
 		printf("Please provide a movie file\n");
 		return -1;
@@ -107,18 +136,53 @@ int main(int argc, char *argv[]) {
 	printf("----- try to dump file information ...\n");
 	av_dump_format(pFormatCtx, 0, argv[1], 0);
 
-	//-----Find the first video stream
+
+	//-----Find the first video stream and audio stream
 	printf("----- try to find the first video stream... \n");
 	videoStream=-1;
-	for(i=0; i<pFormatCtx->nb_streams; i++)
-		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+	audioStream=-1;
+	for(i=0; i<pFormatCtx->nb_streams; i++) {
+		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO &&
+		   videoStream < 0) {
 			videoStream=i;
-			break;
 		}
+		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO &&
+		   audioStream < 0) {
+			audioStream=i;
+		}
+	}
+
 	if(videoStream == -1) {
 		printf("Didn't find a video stream!\n");
 		return -1;
 	}
+	if(audioStream == -1) {
+		printf("Didn't find an audio stream!\n");
+		return -1;
+	}
+
+	//-----Get a pointer to the codec context for the audio stream
+	aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
+	//-----Find the decoder for the audio stream
+	printf("----- try to find the decoder for the audio stream... \n");
+	aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
+	if(aCodec == NULL) {
+		fprintf(stderr, "Unsupported audio codec!\n");
+		return -1;
+	}
+	//----copy audio codec context
+	aCodecCtx=avcodec_alloc_context3(aCodec);
+	if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
+		fprintf(stderr, "Couldn't copy audio code context!\n");
+		return -1;
+	}
+	//----open audio codec
+	if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
+		fprintf(stderr, "Cound not open audio codec!\n");
+		return -1;
+	}
+
+
 
 	//-----Get a pointer to the codec context for the video stream
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
@@ -126,26 +190,25 @@ int main(int argc, char *argv[]) {
 	printf("----- try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
-		fprintf(stderr, "Unsupported codec!\n");
+		fprintf(stderr, "Unsupported video codec!\n");
 		return -1;
 	}
-
-	//----copy context
+	//----copy video codec context
 	pCodecCtx=avcodec_alloc_context3(pCodec);
 	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
-		fprintf(stderr, "Couldn't copy code context!\n");
+		fprintf(stderr, "Couldn't copy video code context!\n");
 		return -1;
 	}
-
-	//----open codec
+	//----open video codec
 	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
-		fprintf(stderr, "Cound not open codec!\n");
+		fprintf(stderr, "Cound not open video codec!\n");
 		return -1;
 	}
 
+	//----allocate frame for audio
+	pAudioFrame=av_frame_alloc();
 	//----Allocate video frame
 	pFrame=av_frame_alloc();
-
 	//----allocate an AVFrame structure
 	printf("----- try to allocate an AVFrame structure...\n");
 	pFrameRGB=av_frame_alloc();
@@ -184,16 +247,17 @@ int main(int argc, char *argv[]) {
 				  NULL
 				);
 
-	//----Read frames and save first five frames to disk
+	//======================  Read packets and process =============================
 	printf("----- read frames and convert to RGB and then send to LCD ... \n");
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
-		//is this a packet from the video stream ?
+
+		//----------------//////  process of video stream  \\\\\\\-----------------
 		if(packet.stream_index==videoStream) {
 			//decode video frame
 //			printf("...decoding video frame\n");
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
-			//did we get a video frame?
+			//did we get a complete video frame?
 			if(frameFinished) {
 				//convert the image from its native format to RGB
 //				printf("...converting image to RGB\n");
@@ -202,28 +266,47 @@ int main(int argc, char *argv[]) {
 					   pFrame->linesize, 0, pCodecCtx->height,
 					   pFrameRGB->data, pFrameRGB->linesize
 					);
-
-
-				//----- send data to LCD
-//				LCD_Write_Block(0,pCodecCtx->width,0,pCodecCtx->height,pFrameRGB->data[0],numBytes);
+				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
 				LCD_Write_Block(Hs,He,Vs,Ve,pFrameRGB->data[0],numBytes);
-
-				//----- save the frame to disk
-/*
-				if(++i<5)
-					SaveFrame(pFrameRGB, pCodecCtx->width, pCodecCtx->height,i);
-				else
-					break;
-*/
-
+				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 			}
-		}
+		}//----- end  of vidoStream process  ------
 
-		//---- free the packet that was allocated by av_read_frame
+		//----------------//////  process of audio stream  \\\\\\\-----------------
+		else if(packet.stream_index==audioStream) {
+			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
+			//with a self contained packet, it should be used completely.
+			//---sb_size: hold the sample buffer size, on return the number of produced samples is stored.
+//			bytes_used=avcodec_decode_audio2(pCodecCtx,audio_sample_buffer, &sb_size, (uint8_t *)packet.data,packet.size);
+			while(packet.size > 0) {
+				bytes_used=avcodec_decode_audio4(aCodecCtx, pAudioFrame, &got_frame, &packet);
+				if(bytes_used<0)
+				{
+					printf(" Error while decoding audio!\n");
+					//break;
+					continue;
+				}
+				//----- if decoded data size >0
+				if(got_frame)
+				{
+					//---- save decoded audio data
+					//------ 16bit, 44100, 1 channel?
+					fwrite(pAudioFrame->data[0], 1, pAudioFrame->linesize[0], faudio);
+					fflush(faudio);
+				}
+				packet.size -= bytes_used;
+				packet.data += bytes_used;
+			}//---end of while(packet.size>0)
+
+		}//----- ///////  end of audioStream process \\\\\\------
+
+
+		//---- free OLD packet each time,   that was allocated by av_read_frame
 		av_free_packet(&packet);
 
 	}//end of while()
+
 
 	//----Freee the RGB image
 	av_free(buffer);
@@ -232,15 +315,19 @@ int main(int argc, char *argv[]) {
 	//-----Free the YUV frame
 	av_frame_free(&pFrame);
 
+	//-----close file
+	fclose(faudio);
+
 	//----Close the codecs
 	printf("----- close the codecs...\n");
 	avcodec_close(pCodecCtx);
 	avcodec_close(pCodecCtxOrig);
+	avcodec_close(aCodecCtx);
+	avcodec_close(aCodecCtxOrig);
 
 	//----Close the video file
 	printf("----- close the viedo file...\n");
 	avformat_close_input(&pFormatCtx);
-
 
 //<<<<<<<<<<<<<<<     close FT232 and ILI9488    >>>>>>>>>>>>>>>>
 	printf("----- close ft232...\n");

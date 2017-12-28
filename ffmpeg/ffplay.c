@@ -1,8 +1,10 @@
-/*--------------------------------------------------------
+/*--------------------------------------------------------------
 Based on: dranger.com/ffmpeg/tutorialxx.c
 					    by Martin Bohme
 
---------------------------------------------------------*/
+A simpley example of opening a video file and save some frames 
+to ppm files.
+---------------------------------------------------------------*/
 
 #include "libavutil/avutil.h"
 #include "libswresample/swresample.h"
