@@ -309,6 +309,7 @@ int main(int argc, char *argv[]) {
 				{
 					//---- save decoded audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
+						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
 						for(j=0; j < aCodecCtx->frame_size; j++) {
 							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
 							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);

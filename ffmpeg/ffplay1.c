@@ -165,7 +165,6 @@ int main(int argc, char *argv[]) {
 	 Vs=Vb; Ve=Vb+pCodecCtx->height-1;
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-
 	//----Assign appropriate parts of buffer to image planes in pFrameRGB
 	//Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture
 	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
@@ -202,7 +201,6 @@ int main(int argc, char *argv[]) {
 					   pFrame->linesize, 0, pCodecCtx->height,
 					   pFrameRGB->data, pFrameRGB->linesize
 					);
-
 
 				//----- send data to LCD
 //				LCD_Write_Block(0,pCodecCtx->width,0,pCodecCtx->height,pFrameRGB->data[0],numBytes);
