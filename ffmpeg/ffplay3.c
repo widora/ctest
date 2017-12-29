@@ -309,6 +309,10 @@ int main(int argc, char *argv[]) {
 				{
 					//---- save decoded audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
+//						for(j=0;  j < pFormatCtx->streams[audioStream]->codec->frame_size; j++) {
+//							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
+//							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);
+
 						for(j=0; j < aCodecCtx->frame_size; j++) {
 							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
 							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);
@@ -320,6 +324,7 @@ int main(int argc, char *argv[]) {
 
 					fflush(faudio);
 				}
+//				packet.size=0;
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
 			}//---end of while(packet.size>0)
