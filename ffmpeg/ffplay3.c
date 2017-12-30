@@ -9,7 +9,6 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 1. A simpley example of opening a video file then decode frames
 and send RGB data to LCD for display.
 2. Decode audio frames and save to a PCM file.
-3. Playback decoded PCM data with ALSA.
 
 Usage:
 	ffplay3  video_file
@@ -27,6 +26,8 @@ Midas
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
+//#include "play_pcm.h"
+
 
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 
@@ -104,6 +105,7 @@ int main(int argc, char *argv[]) {
 		printf("Please provide a movie file\n");
 		return -1;
 	}
+
 
 //<<<<<<<<<<<<<      prepare FT232 and ILI9488    >>>>>>>>>>>>>>>>
 	//----- initialize ft232
@@ -199,6 +201,8 @@ int main(int argc, char *argv[]) {
 	printf("	bytes_per_sample: %d\n",bytes_per_sample);
 	printf("	sample_rate=%d\n",sample_rate);
 
+	//----- open pcm play device and set parameters ----
+ 	prepare_pcm_device(nb_channels,sample_rate);
 
 
 
@@ -343,6 +347,9 @@ int main(int argc, char *argv[]) {
 
 	//-----close file
 	fclose(faudio);
+
+	//-----close pcm device
+	close_pcm_device();
 
 	//----Close the codecs
 	printf("----- close the codecs...\n");

@@ -1,6 +1,7 @@
 CC = ./openwrt-uclibc-gcc
-APP = ffplay2
+APP = ffplay3
 SOURCE = $(APP).c
+OBJ = $(APP).o play_pcm.o 
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c
@@ -21,15 +22,23 @@ LIBS     += -lftdi1 -lusb-1.0
 LIBS	 += -lasound
 
 
-$(APP):$(SOURCE)
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(SOURCE)
+#----------------  APP  --------------------
+$(APP): $(OBJ) 
+	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ)
+$(APP).o: $(SOURCE) 
+	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
+play_pcm.o: play_pcm.c
+	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c play_pcm.c
 
+#---------------  APP2 -----------------------
 $(APP2):$(SOURCE2)
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP2) $(SOURCE2)
 
+
+
 PHONY:all
-all:$(APP) $(APP2)
+all:$(APP) $(APP2) 
 
 clean:
-	rm -rf $(APP) $(APP2)
+	rm -rf $(APP) $(APP2) *.o
 	
