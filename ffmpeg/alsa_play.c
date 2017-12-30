@@ -2,6 +2,7 @@
  Based on:
 	   www.itwendao.com/article/detail/420944.html
 
+  usage:  cat test.pcm | ./alsa_play    (test.pcm should be of 2 channels and 16bits per sample)
 
 some explanation:
         sample: usually 8bits or 16bits, one sample data width.

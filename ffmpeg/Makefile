@@ -1,9 +1,9 @@
 CC = ./openwrt-uclibc-gcc
 APP = ffplay2
-SOURCE = ffplay2.c
+SOURCE = $(APP).c
 
 APP2 = alsa_play
-SOURCE2 = alsa_play.c
+SOURCE2 = $(APP2).c
 
 INCLUDES += -I/home/midas/ctest
 INCLUDES += -I/home/midas/ffmpeg-2.6.9/finish/include
