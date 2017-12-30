@@ -301,15 +301,13 @@ int main(int argc, char *argv[]) {
 				if(bytes_used<0)
 				{
 					printf(" Error while decoding audio!\n");
-					//break;
 					continue;
 				}
-				//----- if decoded data size >0
+				//----- if finishing decoding complete frame(s).....
 				if(got_frame)
 				{
-					//---- save decoded audio data
+					//----- save decoded audio data ------
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
-						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
 						for(j=0; j < aCodecCtx->frame_size; j++) {
 							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
 							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);

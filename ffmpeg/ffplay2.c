@@ -9,7 +9,6 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 1. A simpley example of opening a video file then decode frames
 and send RGB data to LCD for display.
 2. Decode audio frames and save to a PCM file.
-3. Playback decoded PCM data with ALSA.
 
 Usage:
 	ffplay3  video_file
