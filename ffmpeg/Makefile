@@ -1,7 +1,7 @@
 CC = ./openwrt-uclibc-gcc
 APP = ffplay3
 SOURCE = $(APP).c
-OBJ = $(APP).o play_pcm.o 
+OBJ = $(APP).o play_ffpcm.o 
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c
@@ -27,8 +27,8 @@ $(APP): $(OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ)
 $(APP).o: $(SOURCE) 
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
-play_pcm.o: play_pcm.c
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c play_pcm.c
+play_ffpcm.o: play_ffpcm.c
+	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c play_ffpcm.c
 
 #---------------  APP2 -----------------------
 $(APP2):$(SOURCE2)

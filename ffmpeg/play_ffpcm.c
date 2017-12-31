@@ -1,4 +1,7 @@
-#include "play_pcm.h"
+#include "play_ffpcm.h"
+
+//----- definition of global varriable: g_ffpcm_handle ---------
+snd_pcm_t *g_ffpcm_handle;//=NULL assignment will cause multi_definition error in compilation ;
 
 /*------------------------------------------------
  open an PCM device and set following parameters:
@@ -6,14 +9,14 @@
  2.  PCM format    (SND_PCM_FORMAT_S16_LE)
  3.  number of channels  ------  unsigned int nchan
  4.  sampling rate  ----- unsigned int srate
-
-
+ 5.  bl_interleaved  ----- True for INTERLEAVED access, 
+			   False for NONINTERLEAVED access 
 
 Return:
 a	0  :  OK
 	<0 :  fails
 --------------------------------------------------*/
-int prepare_pcm_device(unsigned int nchan, unsigned int srate)
+int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
 {
 	int rc;
         snd_pcm_hw_params_t *params;
@@ -35,10 +38,14 @@ int prepare_pcm_device(unsigned int nchan, unsigned int srate)
 	snd_pcm_hw_params_any(g_ffpcm_handle, params);
 
 	//<<<<<<<<<<<<<<<<<<<       set hardware parameters     >>>>>>>>>>>>>>>>>>>>>>
-	//----- interleaved mode
-	snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-	//----- noninterleaved mode
-//	snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_NONINTERLEAVED);
+	if(bl_interleaved) {
+		//----- interleaved mode
+		snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+	}
+	else {
+		//----- !!!! use noninterleaved mode to play ffmpeg decoded data !!!!!
+		snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_NONINTERLEAVED);
+	}
 
 	//----- signed 16-bit little-endian format
 	snd_pcm_hw_params_set_format(g_ffpcm_handle, params, SND_PCM_FORMAT_S16_LE);
@@ -51,7 +58,7 @@ int prepare_pcm_device(unsigned int nchan, unsigned int srate)
 	if(dir != 0)
 		printf(" Actual sampling rate is set to %d HZ!\n",srate);
 
-
+	//----- set params
 	rc=snd_pcm_hw_params(g_ffpcm_handle,params);
 	if(rc<0) //rc=0 on success
 	{
@@ -71,7 +78,7 @@ int prepare_pcm_device(unsigned int nchan, unsigned int srate)
   close pcm device and free resources
 
 ----------------------------------------------------*/
-void close_pcm_device(void)
+void close_ffpcm_device(void)
 {
 	if(g_ffpcm_handle != NULL) {
 		snd_pcm_drain(g_ffpcm_handle);
@@ -81,8 +88,8 @@ void close_pcm_device(void)
 
 
 
-/*---------------------------------------------------------
-send buffer data to pcm play device 
+/*-----------------------------------------------------------------
+send buffer data to pcm play device with NONINTERLEAVED frame format !!!!
 PCM access mode MUST have been set properly in open_pcm_device().
 
 buffer ---  point to pcm data buffer
@@ -91,12 +98,15 @@ nf     ---  number of frames
 Return:
 	>0    OK
 	<0   fails
-----------------------------------------------------------*/
-void  play_pcm_buff(uint8_t * buffer, int nf)
+------------------------------------------------------------------*/
+void  play_ffpcm_buff(void ** buffer, int nf)
 {
 	int rc;
 
-        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback 
+	//---- write interleaved frame data
+//        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); 
+	//---- write noninterleaved frame data
+        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback 
         if (rc == -EPIPE)
         {
             //EPIPE means underrun
@@ -105,7 +115,7 @@ void  play_pcm_buff(uint8_t * buffer, int nf)
         }
 	else if(rc<0)
         {
-        	fprintf(stderr,"error from writei():%s\n",snd_strerror(rc));
+        	fprintf(stderr,"error from writen():%s\n",snd_strerror(rc));
         }
         else if (rc != nf)
         {

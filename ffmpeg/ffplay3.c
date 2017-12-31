@@ -8,7 +8,8 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 
 1. A simpley example of opening a video file then decode frames
 and send RGB data to LCD for display.
-2. Decode audio frames and save to a PCM file.
+2. Decode audio frames and playback.
+
 
 Usage:
 	ffplay3  video_file
@@ -26,7 +27,7 @@ Midas
 #include "include/ftdi.h"
 #include "ft232.h"
 #include "ILI9488.h"
-//#include "play_pcm.h"
+#include "play_ffpcm.h"
 
 
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
@@ -60,7 +61,7 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
 int main(int argc, char *argv[]) {
 	//Initializing these to NULL prevents segfaults!
 	AVFormatContext	*pFormatCtx=NULL;
-	int			i,j;
+	int			i;
 	int			videoStream;
 	AVCodecContext		*pCodecCtxOrig=NULL;
 	AVCodecContext		*pCodecCtx=NULL;
@@ -202,8 +203,7 @@ int main(int argc, char *argv[]) {
 	printf("	sample_rate=%d\n",sample_rate);
 
 	//----- open pcm play device and set parameters ----
- 	prepare_pcm_device(nb_channels,sample_rate);
-
+ 	prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
 
 
 	//-----Get a pointer to the codec context for the video stream
@@ -269,12 +269,14 @@ int main(int argc, char *argv[]) {
 				  NULL
 				);
 
-	//======================  Read packets and process =============================
-	printf("----- read frames and convert to RGB and then send to LCD ... \n");
+//===========================     Read packets and process data     =============================
+	printf("----- start loop of reading AV frames and decoding:\n");
+	printf("	 converting video frame to RGB and then send to display...\n");
+	printf("	 sending audio frame data to playback ... \n");
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
-		//----------------//////  process of video stream  \\\\\\\-----------------
+	//----------------//////   process of video stream   \\\\\\\-----------------
 		if(packet.stream_index==videoStream) {
 			//decode video frame
 //			printf("...decoding video frame\n");
@@ -295,7 +297,7 @@ int main(int argc, char *argv[]) {
 			}
 		}//----- end  of vidoStream process  ------
 
-		//----------------//////  process of audio stream  \\\\\\\-----------------
+	//----------------//////   process of audio stream   \\\\\\\-----------------
 		else if(packet.stream_index==audioStream) {
 			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
 			//with a self contained packet, it should be used completely.
@@ -311,13 +313,10 @@ int main(int argc, char *argv[]) {
 				//----- if decoded data size >0
 				if(got_frame)
 				{
-					//---- save decoded audio data
+					//---- playback audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
-						for(j=0; j < aCodecCtx->frame_size; j++) {
-							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
-							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);
-						}
+						 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 					}
 					else if(pAudioFrame->data[0]) {
 							fwrite(pAudioFrame->data[0]+i*bytes_per_sample,1,bytes_per_sample,faudio);
@@ -349,7 +348,7 @@ int main(int argc, char *argv[]) {
 	fclose(faudio);
 
 	//-----close pcm device
-	close_pcm_device();
+	close_ffpcm_device();
 
 	//----Close the codecs
 	printf("----- close the codecs...\n");
@@ -359,7 +358,7 @@ int main(int argc, char *argv[]) {
 	avcodec_close(aCodecCtxOrig);
 
 	//----Close the video file
-	printf("----- close the viedo file...\n");
+	printf("----- close the video file...\n");
 	avformat_close_input(&pFormatCtx);
 
 //<<<<<<<<<<<<<<<     close FT232 and ILI9488    >>>>>>>>>>>>>>>>
