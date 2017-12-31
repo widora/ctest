@@ -185,7 +185,7 @@ int usb_init_ft232(void)
     //------ purge rx buffer in FT232H  ------
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
     //------  set chunk_size, default is 4096
-    chunk_size=1024*32;// >=1024*32 same effect.    default is 4096
+    chunk_size=1024*128;//64;// >=1024*32 same effect.    default is 4096
     ret=ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
     if(ret != 0)
 	printf("Fail to set chunksize!\n");

@@ -9,7 +9,9 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 1. A simpley example of opening a video file then decode frames
 and send RGB data to LCD for display.
 2. Decode audio frames and playback.
-
+3. DivX(DV50) is better than Xdiv, especially in respect to decoded audio/video synchronization.
+4. fp=15 is OK for playing video files in a USB stick.
+5. if you adjust baudrate to 3150000 in ft232.h, FP can reach 18.
 
 Usage:
 	ffplay3  video_file
@@ -82,23 +84,13 @@ int main(int argc, char *argv[]) {
 	AVCodecContext		*aCodecCtx=NULL;
 	AVCodec			*aCodec=NULL;
 	AVFrame			*pAudioFrame=NULL;
-//	const int 		audio_sample_buf_size=2*MAX_AUDIO_FRAME_SIZE;
-//	int16_t			audio_sample_buffer[audio_sample_buf_size];
 	int 			sample_rate;
 	enum AVSampleFormat	sample_fmt;
 	int			nb_channels;
 	int			bytes_per_sample;
 	int64_t			channel_layout;
 	int 			bytes_used;
-//	int			sb_size=audio_sample_buf_size;
 	int			got_frame;
- 
-	FILE* faudio; // to save decoded audio data
-	faudio=fopen("/tmp/ffaudio.pcm","wb");
-	if(faudio==NULL){
-		printf("Fail to open file for audio data saving!\n");
-		return -1;
-	}
 
 
 	//----- check input argc ----
@@ -205,7 +197,6 @@ int main(int argc, char *argv[]) {
 	//----- open pcm play device and set parameters ----
  	prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
 
-
 	//-----Get a pointer to the codec context for the video stream
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
 	//-----Find the decoder for the video stream
@@ -276,7 +267,7 @@ int main(int argc, char *argv[]) {
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
-	//----------------//////   process of video stream   \\\\\\\-----------------
+	//----------------//////   process video stream   \\\\\\\-----------------
 		if(packet.stream_index==videoStream) {
 			//decode video frame
 //			printf("...decoding video frame\n");
@@ -297,7 +288,7 @@ int main(int argc, char *argv[]) {
 			}
 		}//----- end  of vidoStream process  ------
 
-	//----------------//////   process of audio stream   \\\\\\\-----------------
+	//----------------//////   process audio stream   \\\\\\\-----------------
 		else if(packet.stream_index==audioStream) {
 			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
 			//with a self contained packet, it should be used completely.
@@ -318,11 +309,9 @@ int main(int argc, char *argv[]) {
 						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
 						 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 					}
-					else if(pAudioFrame->data[0]) {
-							fwrite(pAudioFrame->data[0]+i*bytes_per_sample,1,bytes_per_sample,faudio);
+					else if(pAudioFrame->data[0]) {  //-- one channel only
+						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 					}
-
-					fflush(faudio);
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
@@ -343,9 +332,6 @@ int main(int argc, char *argv[]) {
 
 	//-----Free the YUV frame
 	av_frame_free(&pFrame);
-
-	//-----close file
-	fclose(faudio);
 
 	//-----close pcm device
 	close_ffpcm_device();

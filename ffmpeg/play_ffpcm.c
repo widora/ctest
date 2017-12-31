@@ -110,7 +110,7 @@ void  play_ffpcm_buff(void ** buffer, int nf)
         if (rc == -EPIPE)
         {
             //EPIPE means underrun
-            fprintf(stderr,"underrun occurred\n");
+            fprintf(stderr,"snd_pcm_writen(): underrun occurred\n");
             snd_pcm_prepare(g_ffpcm_handle);
         }
 	else if(rc<0)
