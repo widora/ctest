@@ -6,12 +6,19 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 	  www.xuebuyuan.com/1624253.html
 				       ---  by niwenxian
 
-1. A simpley example of opening a video file then decode frames
-and send RGB data to LCD for display.
+NOTE:
+1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
 2. Decode audio frames and playback.
-3. DivX(DV50) is better than Xdiv, especially in respect to decoded audio/video synchronization.
+3. DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,DivX is nearly perfect.
 4. fp=15 is OK for playing video files in a USB stick.
-5. if you adjust baudrate to 3150000 in ft232.h, FP can reach 18.
+5. if you adjust baudrate to >2000000 in ft232.h, FP can reach 18. However the color will be distorted.
+6. It depends on ffmpeg decoding speed, USB transfer speed and FT232 fanout(baudrate) speed.
+   USB control is improtant.
+7. Also notice the speed limit of your LCD controller, It's 500M bps for ILI9488.
+   Adjust baudrate for FT232 accordingly.
+   
+The data chain is like this:
+   FFmpge decoding speed ----> USB transfer speed ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
 
 Usage:
 	ffplay3  video_file
@@ -35,28 +42,10 @@ Midas
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 
 
-void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
-	FILE *pFile;
-	char szFilename[32];
-	int y;
-
-	//Open file
-	printf("----- try to save frame to frame%d.ppm \n",iFrame);
-	sprintf(szFilename,"frame%d.ppm",iFrame);
-	pFile=fopen(szFilename,"wb");
-	if(pFile==NULL){
-		printf("Fail to open file for write!\n");
-		return;
-	}
-
-	//write header
-	fprintf(pFile,"P6\n%d %d\n255\n",width,height);
-	//write pixel data
-	for(y=0; y<height; y++)
-		fwrite(pFrame->data[0]+y*pFrame->linesize[0],1,width*3,pFile);
-
-	//close file
-	fclose(pFile);
+int get_costtime(struct timeval tm_start, struct timeval tm_end) {
+	int time_cost;
+	time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+	return time_cost;
 }
 
 
@@ -91,6 +80,9 @@ int main(int argc, char *argv[]) {
 	int64_t			channel_layout;
 	int 			bytes_used;
 	int			got_frame;
+
+	//------- time structe ------
+	struct timeval tm_start, tm_end;
 
 
 	//----- check input argc ----
@@ -271,7 +263,10 @@ int main(int argc, char *argv[]) {
 		if(packet.stream_index==videoStream) {
 			//decode video frame
 //			printf("...decoding video frame\n");
+			gettimeofday(&tm_start,NULL);
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+			gettimeofday(&tm_end,NULL);
+			printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 			//did we get a complete video frame?
 			if(frameFinished) {
 				//convert the image from its native format to RGB
@@ -282,8 +277,10 @@ int main(int argc, char *argv[]) {
 					   pFrameRGB->data, pFrameRGB->linesize
 					);
 				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
+				gettimeofday(&tm_start,NULL);
 				LCD_Write_Block(Hs,He,Vs,Ve,pFrameRGB->data[0],numBytes);
-				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+				gettimeofday(&tm_end,NULL);
+				printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 			}
 		}//----- end  of vidoStream process  ------
@@ -294,7 +291,10 @@ int main(int argc, char *argv[]) {
 			//with a self contained packet, it should be used completely.
 			//---sb_size: hold the sample buffer size, on return the number of produced samples is stored.
 			while(packet.size > 0) {
+				gettimeofday(&tm_start,NULL);
 				bytes_used=avcodec_decode_audio4(aCodecCtx, pAudioFrame, &got_frame, &packet);
+				gettimeofday(&tm_end,NULL);
+				printf(" avcode_decode_audio4() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 				if(bytes_used<0)
 				{
 					printf(" Error while decoding audio!\n");
@@ -304,6 +304,7 @@ int main(int argc, char *argv[]) {
 				//----- if decoded data size >0
 				if(got_frame)
 				{
+					gettimeofday(&tm_start,NULL);
 					//---- playback audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
@@ -312,6 +313,8 @@ int main(int argc, char *argv[]) {
 					else if(pAudioFrame->data[0]) {  //-- one channel only
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 					}
+					gettimeofday(&tm_end,NULL);
+					printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;

@@ -14,6 +14,8 @@ usage:
 
                                -----  NOTEs & BUGs  -----
 
+0. Notice the speed limit of your LCD controller, for ILI9488 it's 500M bps ? !!!
+   Adjust baudrate of FT232 accordingly.
 1. Normally there are only 2-3 bmp files in the path, it will be choppy if the number is great than 5.
    that means something unusual happens, it slows down the processing, check it then.
    The most possible is that decoding speed is faster than runbmp speed.
