@@ -169,7 +169,7 @@ int usb_init_ft232(void)
     //-------  !!!! select low speed if the color is distorted !!!!!  -------
 //    baudrate=3150000; //20MBytes/s
 //    baudrate=2000000;
-    baudrate=750000; 
+    baudrate=750000; //ILI9488 write speed limit !!!
 
     ret=ftdi_set_baudrate(g_ftdi,baudrate); 
     if(ret == -1){
@@ -185,10 +185,12 @@ int usb_init_ft232(void)
     //------ purge rx buffer in FT232H  ------
 //    ftdi_usb_purge_rx_buffer(g_ftdi);// ineffective ??
     //------  set chunk_size, default is 4096
-    chunk_size=1024*128;//64;// >=1024*32 same effect.    default is 4096
+    chunk_size=1024*512;//64;// >=1024*32 same effect.    default is 4096
     ret=ftdi_write_data_set_chunksize(g_ftdi,chunk_size);
     if(ret != 0)
 	printf("Fail to set chunksize!\n");
+    else
+	printf("FTDI chunksize is set to 1024*%d \n", chunk_size/1024);
 
     return ret;
 }

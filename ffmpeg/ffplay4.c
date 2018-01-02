@@ -19,7 +19,8 @@ NOTE:
 8. Cost_time test codes will slow down processing and cause choppy for FP15 movies.
  
 The data flow of a 480*320 movie is like this:
-   FFmpeg video decoding (~10-15ms per frame) ----> USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
+   FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
+   pPICBuff ---->U SB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
@@ -27,28 +28,8 @@ Usage:
 
 Midas
 ---------------------------------------------------------------*/
+#include "ffplay.h"
 
-#include "libavutil/avutil.h"
-#include "libswresample/swresample.h"
-#include "libavcodec/avcodec.h"
-#include "libavformat/avformat.h"
-#include "libswscale/swscale.h"
-
-#include <stdio.h>
-#include "include/ftdi.h"
-#include "ft232.h"
-#include "ILI9488.h"
-#include "play_ffpcm.h"
-
-
-#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
-
-
-int get_costtime(struct timeval tm_start, struct timeval tm_end) {
-	int time_cost;
-	time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
-	return time_cost;
-}
 
 
 int main(int argc, char *argv[]) {
@@ -67,7 +48,9 @@ int main(int argc, char *argv[]) {
 	uint8_t			*buffer=NULL;
 	struct SwsContext	*sws_ctx=NULL;
 
-	int Hb,Vb,Hs,He,Vs,Ve;  //---for LCD image layout
+	int Hb,Vb;  //----Horizontal and Veritcal size of a picture
+	//---- for Pic Info. ---
+	struct PicInfo pic;
 
 	//------ for audio -------
 	int			audioStream;
@@ -86,6 +69,8 @@ int main(int argc, char *argv[]) {
 	//------- time structe ------
 	struct timeval tm_start, tm_end;
 
+	//------- thread -------
+	pthread_t pthd_displayPic;
 
 	//----- check input argc ----
 	if(argc < 2) {
@@ -226,15 +211,32 @@ int main(int argc, char *argv[]) {
 
 	//----Determine required buffer size and allocate buffer
 	numBytes=avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+	pic.numBytes=numBytes; 
 	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>>
+	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
+		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
+		return -1;
+	}
+	else
+		printf("----- finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
+
+	//------- PICBuff TEST......
+/*
+	printf("----- test to get ALL free PICbuff \n");
+	for(i=0;i<PIC_BUFF_NUM;i++){
+		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
+		IsFree_PICbuff[i]=false;
+	}
+*/
 
 //<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>
 	 Hb=(PIC_MAX_WIDTH-pCodecCtx->width+1)/2;
 	 Vb=(PIC_MAX_HEIGHT-pCodecCtx->height+1)/2;
-	 Hs=Hb; He=Hb+pCodecCtx->width-1;
-	 Vs=Vb; Ve=Vb+pCodecCtx->height-1;
+	 pic.Hs=Hb; pic.He=Hb+pCodecCtx->width-1;
+	 pic.Vs=Vb; pic.Ve=Vb+pCodecCtx->height-1;
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 
 	//----Assign appropriate parts of buffer to image planes in pFrameRGB
 	//Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture
@@ -253,6 +255,14 @@ int main(int argc, char *argv[]) {
 				  NULL,
 				  NULL
 				);
+
+//<<<<<<<<<<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>>>>>>>>>>>
+
+	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
+		printf("----- Fails to create the thread for displaying pictures! \n");
+		return -1;
+	}
+
 
 //===========================     Read packets and process data     =============================
 	printf("----- start loop of reading AV frames and decoding:\n");
@@ -280,7 +290,8 @@ int main(int argc, char *argv[]) {
 					);
 				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
 				//gettimeofday(&tm_start,NULL);
-				LCD_Write_Block(Hs,He,Vs,Ve,pFrameRGB->data[0],numBytes);
+				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
+					printf("PICBuffs are full! The video frame is dropped!\n");
 				//gettimeofday(&tm_end,NULL);
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -331,7 +342,15 @@ int main(int argc, char *argv[]) {
 	}//end of while()
 
 
-	//----Freee the RGB image
+	//------ wait display_thread ------
+	tok_QuitFFplay = true;
+	pthread_join(pthd_displayPic,NULL);
+
+	//-----free PICbuffs
+	printf("----- free PICbuffs[]...\n");
+        free_PicBuffs();
+
+	//----Free the RGB image
 	av_free(buffer);
 	av_frame_free(&pFrameRGB);
 

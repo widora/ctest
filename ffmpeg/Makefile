@@ -1,6 +1,7 @@
 CC = ./openwrt-uclibc-gcc
-APP = ffplay3
+APP = ffplay4
 SOURCE = $(APP).c
+DEPS = ffplay.h
 OBJ = $(APP).o play_ffpcm.o 
 
 APP2 = alsa_play
@@ -20,10 +21,10 @@ LDFLAGS  += -L/home/midas/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClib
 LIBS     := -lavutil -lswscale -lavcodec -lavformat -lswresample
 LIBS     += -lftdi1 -lusb-1.0
 LIBS	 += -lasound
-
+LIBS	 += -lpthread
 
 #----------------  APP  --------------------
-$(APP): $(OBJ) 
+$(APP): $(OBJ) $(DEPS)
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ)
 $(APP).o: $(SOURCE) 
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
