@@ -20,7 +20,7 @@ NOTE:
  
 The data flow of a 480*320 movie is like this:
    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
-   pPICBuff ---->U SB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
+   pPICBuff ---->USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
@@ -292,6 +292,13 @@ int main(int argc, char *argv[]) {
 				//gettimeofday(&tm_start,NULL);
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
+				//---- get play time
+				printf("\r		 Elapsed time: %ds  ---  Duration: %ds  ",
+					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
+					atoi(av_ts2timestr(pFormatCtx->streams[videoStream]->duration,&pFormatCtx->streams[videoStream]->time_base))
+				 );
+//				printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
+				fflush(stdout);
 				//gettimeofday(&tm_end,NULL);
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -322,6 +329,7 @@ int main(int argc, char *argv[]) {
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
 						 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
+
 					}
 					else if(pAudioFrame->data[0]) {  //-- one channel only
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
@@ -358,6 +366,7 @@ int main(int argc, char *argv[]) {
 	av_frame_free(&pFrame);
 
 	//-----close pcm device
+	printf("----- close PCM device...\n");
 	close_ffpcm_device();
 
 	//----Close the codecs

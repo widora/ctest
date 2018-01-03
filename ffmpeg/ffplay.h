@@ -2,6 +2,8 @@
 #define __FFPLAY_H__
 
 #include "libavutil/avutil.h"
+#include "libavutil/time.h"
+#include "libavutil/timestamp.h"
 #include "libswresample/swresample.h"
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
