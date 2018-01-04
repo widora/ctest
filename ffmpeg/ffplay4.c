@@ -8,20 +8,21 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 
 NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
-2. Decode audio frames and playback.
+2. Decode audio frames and playback by alsa PCM.
 3. DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,DivX is nearly perfect.
-4. 480*320 fp=12-15 is OK for playing video files in a USB stick.It also depends on data rate.
-5. if you adjust baudrate to >2000000 in ft232.h, FP can reach 18. However the color will be distorted.
-6. It depends on ffmpeg decoding speed, USB transfer speed and FT232 fanout(baudrate) speed.
-   USB control is improtant.
-7. Also notice the speed limit of your LCD controller, It's 500M bps for ILI9488.
-   Adjust baudrate for FT232 accordingly.
-8. Cost_time test codes will slow down processing and cause choppy for FP15 movies.
- 
+4. It plays video files smoothly with format of 480*320*24bit FP20, encoded by DivX. 
+   Decoding speed also depends on AVstream data rate of the file.
+5. The speed of whole procedure depends on ffmpeg decoding speed, USB transfer speed, FT232 fanout(baudrate) speed, and
+   LCD display speed.  USB speed control is improtant.
+6. Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
+   Adjust baudrate for FT232 accordingly, otherwise the color will be distorted.
+7. Cost_time test codes will slow down processing and cause choppy.
+
+
 The data flow of a 480*320 movie is like this:
-   FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
-   pPICBuff ---->USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
-   FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
+  (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
+  (thread)  pPICBuff ---->USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
+  (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
 	ffplay3  video_file
@@ -29,7 +30,6 @@ Usage:
 Midas
 ---------------------------------------------------------------*/
 #include "ffplay.h"
-
 
 
 int main(int argc, char *argv[]) {
@@ -291,7 +291,7 @@ int main(int argc, char *argv[]) {
 				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
 				//gettimeofday(&tm_start,NULL);
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
-					printf("PICBuffs are full! The video frame is dropped!\n");
+					printf("PICBuffs are full!  A video frame is dropped!\n");
 				//---- get play time
 				printf("\r		 Elapsed time: %ds  ---  Duration: %ds  ",
 					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
