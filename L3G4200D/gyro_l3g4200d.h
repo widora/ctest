@@ -99,9 +99,9 @@ uint8_t halSpiReadStatus(uint8_t addr)
 }
 
 void Init_L3G4200D(void) {
-	halSpiWriteReg(L3G_CTRL_REG1, 0x0f);
-	halSpiWriteReg(L3G_CTRL_REG2, 0x00);
-	halSpiWriteReg(L3G_CTRL_REG3, 0x08);
-	halSpiWriteReg(L3G_CTRL_REG4, 0x30); //+-2000dps
-	halSpiWriteReg(L3G_CTRL_REG5, 0x00);
+	halSpiWriteReg(L3G_CTRL_REG1, 0xcf);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
+	halSpiWriteReg(L3G_CTRL_REG2, 0x00);//High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
+	halSpiWriteReg(L3G_CTRL_REG3, 0x00);//interrupt configuration, disable
+	halSpiWriteReg(L3G_CTRL_REG4, 0x30);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
+	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
 }

@@ -5,11 +5,11 @@ DEPENDS = gyro_l3g4200d.h gyro_spi.h
 
 #INCLUDES = -I/home/midas/ctest/kmods/soopwm
 #LDFLAGS  = 
-#CFLAGS    = -Wall
+CFLAGS    = -Wall
 #LIBS	  = -lpthread -lm
 
 $(APP): $(SOURCES) $(DEPENDS)
-	$(CC) -o $(APP) $(SOURCES)
+	$(CC) $(CFLAGS) -o $(APP) $(SOURCES)
 
 PHONY: all
 all: $(APP)
