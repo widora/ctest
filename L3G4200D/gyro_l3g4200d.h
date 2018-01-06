@@ -3,6 +3,7 @@ TODOs and BUGs:
 ---------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 //---- SPI Read and Write BITs set -----
 #define WRITE_SINGLE 0x00
@@ -80,11 +81,12 @@ uint8_t halSpiReadReg(uint8_t addr)
 	return value;
 }
 
+
 /* burst read registers */
 //--- Max. count=31 ---//
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count)
 {
-	uint8_t tmp,value;
+	uint8_t tmp;
         tmp=addr|READ_BURST;
         SPI_Write_then_Read(&tmp,1,buffer,count);
 }
@@ -98,10 +100,26 @@ uint8_t halSpiReadStatus(uint8_t addr)
 	return value;
 }
 
+
+/*---- init L3G4200D -----*/
 void Init_L3G4200D(void) {
+        //0xcf: ODR=800Hz,Fc=30Hz, normal mode, XYZ all enabled,
+        //0x0f: ODR=100Hz,Fc=12.5Hz, normal mode, XYZ all enabled,
 	halSpiWriteReg(L3G_CTRL_REG1, 0xcf);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
-	halSpiWriteReg(L3G_CTRL_REG2, 0x00);//High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
+	// HPF normal mode,HPFcut off freq=56Hz when ODR=800Hz,
+	halSpiWriteReg(L3G_CTRL_REG2, 0b00100000);//High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
+	// Interrupt disabled
 	halSpiWriteReg(L3G_CTRL_REG3, 0x00);//interrupt configuration, disable
-	halSpiWriteReg(L3G_CTRL_REG4, 0x30);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
+	// set measure range +-2000dps
+	halSpiWriteReg(L3G_CTRL_REG4, 0b00110000);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
+	//FIFO disabled,HPF disabled,
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
+}
+
+
+/* check if XYZ new data is available */
+bool status_XYZ_available()
+{
+	//---- if STATUS_REG[3]==1, xyz data is available
+	return halSpiReadReg(L3G_STATUS_REG)&0x08;
 }
