@@ -13,7 +13,7 @@ TEST L3G4200d
 
 #define DATA_PACKET_SIZE 16 // for fbuff[], buff size, for each TCP send
 #define SEND_PACKET_NUM 1000 //number of total packets for TCP transfer
-#define RECORD_DATA_SIZE 3000 //
+#define RECORD_DATA_SIZE 4096 //
 
 /*----------------------------------------------
    calculate and return time diff. in us
@@ -51,9 +51,9 @@ int main(void)
    Init_L3G4200D();
 
    //---- init filter context
-   reset_MA16_filterCtx(&fctx_RX,0xfff);
-   reset_MA16_filterCtx(&fctx_RY,0xfff);
-   reset_MA16_filterCtx(&fctx_RZ,0xfff);
+   reset_MA16_filterCtx(&fctx_RX,0x7fff);
+   reset_MA16_filterCtx(&fctx_RY,0x7fff);
+   reset_MA16_filterCtx(&fctx_RZ,0x7fff);
 
    //---- preare TCP data server
    printf("Prepare TCP data server ...\n");

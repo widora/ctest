@@ -45,13 +45,13 @@ static int16_t int16_MA16P_filter(struct MA16_int16_FilterCtx *fctx,int16_t *sou
 	//----- get new data and put in
 	//----- check limit first
 	fctx->f_limit = abs(fctx->f_limit);
-	if( source[nmov] > fctx->f_limit ) 
+	if( source[nmov] > fctx->f_limit )
 	{
 		fctx->f_buff[16-1]=fctx->f_limit;
 	}
-	else if (source[nmov] < -1*fctx->f_limit )
+	else if (source[nmov] < -1*(fctx->f_limit) )
 	{
-		fctx->f_buff[16-1]=-1*fctx->f_limit;
+		fctx->f_buff[16-1]=-1*(fctx->f_limit);
 	}
 	else
 		fctx->f_buff[16-1]=source[nmov];
@@ -59,7 +59,7 @@ static int16_t int16_MA16P_filter(struct MA16_int16_FilterCtx *fctx,int16_t *sou
 	fctx->f_sum += source[nmov]; //add new data to f_sum
 
 	//----- update dest with average value
-	dest[nmov]=fctx->f_sum>>4;
+	dest[nmov]=(fctx->f_sum)/16;
 
 	return dest[nmov];
 }
