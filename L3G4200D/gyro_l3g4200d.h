@@ -41,6 +41,10 @@ TODOs and BUGs:
 #define L3G_INT1_DURATION 0x38
 
 
+#define L3G_READ_WAITUS 500  // poll wait time in us for read RX RY RZ
+#define L3G_BIAS_SAMPLE_NUM 512 //total number of samples needed for RXRYRZ bias calcualation
+
+
 //------------------------function definition------------------------------ 
 void halSpiStrobe(uint8_t strobe)
 {
@@ -116,10 +120,49 @@ void Init_L3G4200D(void) {
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
 }
 
-
-/* check if XYZ new data is available */
-bool status_XYZ_available()
+/*   check if XYZ new data is available  */
+bool status_XYZ_available(void)
 {
-	//---- if STATUS_REG[3]==1, xyz data is available
+	//---- if STATUS_REG[3]==1, XYZ data is available
 	return halSpiReadReg(L3G_STATUS_REG)&0x08;
 }
+
+
+/*----------------------------------------------------
+get RX RY RZ in int16_t *[3]
+----------------------------------------------------- */
+inline static void gyro_get_int16RXYZ(int16_t *angRXYZ)
+{
+	//----- wait for new data
+        while(!status_XYZ_available()) {
+//        	fprintf(stdout," XYZ new data is not availbale now!\n");
+                usleep(L3G_READ_WAITUS);
+        }
+
+        //----- read data from L3G4200
+        halSpiReadBurstReg(L3G_OUT_X_L, (uint8_t *)angRXYZ, 6);
+}
+
+/*----------------------------------------------------
+Get bias values of RX RY RZ in int16_t *[3]
+Bias values will be used to set zero level for L3G4200D
+----------------------------------------------------- */
+inline static void gyro_get_int16BiasXYZ(int16_t* bias_xyz)
+{
+	int i;
+	int16_t  xyz_val[3];
+	int32_t  xyz_sums[3]={0};
+
+	for(i=0;i<L3G_BIAS_SAMPLE_NUM;i++)
+	{
+        	gyro_get_int16RXYZ(xyz_val);
+		xyz_sums[0] += xyz_val[0];
+		xyz_sums[1] += xyz_val[1];
+		xyz_sums[2] += xyz_val[2];
+	}
+
+	for(i=0;i<3;i++)
+		bias_xyz[i]=xyz_sums[i]/L3G_BIAS_SAMPLE_NUM;
+
+}
+

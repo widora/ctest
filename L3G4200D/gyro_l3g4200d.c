@@ -35,7 +35,8 @@ int main(void)
 
    uint8_t val;
    int k;
-   uint8_t outbuff[6]; //Lxout[0] Hxout[1]
+   int16_t bias_RXYZ[3];//bias value of RX RY RZ
+   int16_t angRXYZ[3];
    int16_t angRX,angRY,angRZ; //int angular rate of X,Y,Z aixs.
    float fangRX,fangRY,fangRZ; //float angular rate of X,Y,Z aixs.
    float sensf=70/1000000.0; //sensitivity factor for FS=2000 dps.
@@ -68,6 +69,10 @@ int main(void)
    val=halSpiReadReg(L3G_OUT_TEMP);
    printf("OUT_TEMP: %d\n",val);
 
+   //----- to get bias value for RXYZ
+   gyro_get_int16BiasXYZ(bias_RXYZ);
+   printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sensf*bias_RXYZ[0],sensf*bias_RXYZ[1],sensf*bias_RXYZ[2]);
+
    //----- wait to accept data client ----
    printf("wait for Matlab to connect...\n");
    cltsock_desc=accept_data_client();
@@ -79,22 +84,18 @@ int main(void)
    //----- loop: get data and record -----
    for(k=0;k<RECORD_DATA_SIZE;k++) {
 
+
 	   gettimeofday(&tm_start,NULL);
 
-	   //----- wait for new data
-	   while(!status_XYZ_available()){
-		printf(" XYZ new data is not availbale now!\n");
-		usleep(500);
-	   }
+	   //------- read angular rate of XYZ
+	   gyro_get_int16RXYZ(angRXYZ);
+	   //------  deduce bias to adjust zero level
+	   angRX=angRXYZ[0]-bias_RXYZ[0];
+           angRY=angRXYZ[1]-bias_RXYZ[1];
+	   angRZ=angRXYZ[2]-bias_RXYZ[2];
 
-	   //----- read data from L3G4200
-	   halSpiReadBurstReg(L3G_OUT_X_L, outbuff, 6);
-	   angRX=*(int16_t *)outbuff;
-	   angRY=*(int16_t *)(outbuff+2);
-	   angRZ=*(int16_t *)(outbuff+4);
-
-	   //---- filter  RX RY RZ  data
-	   // first reset filter, then you must use the same data stream until end.
+	   //---- Activate filter for  RX RY RZ
+	   // first reset each filter context struct, then you must use the same data stream until end.
 	   int16_MA16P_filter(&fctx_RX, &angRX, &angRX, 0); //No.0 fitler
 	   int16_MA16P_filter(&fctx_RY, &angRY, &angRY, 0); //No.1 fitler
 	   int16_MA16P_filter(&fctx_RZ, &angRZ, &angRZ, 0); //No.2 fitler
