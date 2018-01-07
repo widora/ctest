@@ -1,5 +1,7 @@
 /*----------------------------------------------------
-TEST L3G4200d
+
+Note:
+1.  
 
 
 
@@ -9,7 +11,6 @@ TEST L3G4200d
 #include "gyro_spi.h"
 #include "gyro_l3g4200d.h"
 #include "data_server.h"
-#include "filters.h"
 
 #define DATA_PACKET_SIZE 16 // for fbuff[], buff size, for each TCP send
 #define SEND_PACKET_NUM 1000 //number of total packets for TCP transfer
@@ -30,7 +31,7 @@ int get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
 
 
 
-int main(void)
+int main(void) 
 {
 
    uint8_t val;
@@ -39,24 +40,19 @@ int main(void)
    int16_t angRX,angRY,angRZ; //int angular rate of X,Y,Z aixs.
    float fangRX,fangRY,fangRZ; //float angular rate of X,Y,Z aixs.
    float sensf=70/1000000.0; //sensitivity factor for FS=2000 dps.
-//   int16_t RXYZbuff[RECORD_DATA_SIZE*3]; //for INT16 raw data from G3L4200D
+//   float fRXbuff[DATA_PACKET_SIZE];//for TCP transfer
+//   float fRYbuff[DATA_PACKET_SIZE];//for TCP transfer
+//   float fRZbuff[DATA_PACKET_SIZE];//for TCP transfer
+
    float fRXYZbuff[RECORD_DATA_SIZE*3];//for TCP transfer
 
-   struct MA16_int16_FilterCtx fctx_RX,fctx_RY,fctx_RZ; // filter contexts for RX RY RZ
 
    struct timeval tm_start,tm_end;
-   printf("Open SPI ...\n");
+
    SPI_Open(); //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
-   printf("Init L3G4200D ...\n");
    Init_L3G4200D();
 
-   //---- init filter context
-   reset_MA16_filterCtx(&fctx_RX,0xfff);
-   reset_MA16_filterCtx(&fctx_RY,0xfff);
-   reset_MA16_filterCtx(&fctx_RZ,0xfff);
-
    //---- preare TCP data server
-   printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
 	printf(" fail to preapre data server!\n");
 
@@ -80,26 +76,20 @@ int main(void)
    for(k=0;k<RECORD_DATA_SIZE;k++) {
 
 	   gettimeofday(&tm_start,NULL);
-
 	   //----- wait for new data
 	   while(!status_XYZ_available()){
-		printf(" XYZ new data is not availbale now!\n");
+		printf(" xyz new data is not availbale now!\n");
 		usleep(500);
 	   }
 
-	   //----- read data from L3G4200
 	   halSpiReadBurstReg(L3G_OUT_X_L, outbuff, 6);
+//	   printf("XL:0x%02x,XH:0x%02x   YL:0x%02x,YH:0x%02x  ZL:0x%02x,ZH:0x%02x  \n",outbuff[0],outbuff[1],outbuff[2],outbuff[3],outbuff[4],outbuff[5]);
+//	   outbuff[0]=halSpiReadReg(L3G_OUT_X_L);
+//	   outbuff[1]=halSpiReadReg(L3G_OUT_X_H);
+//	   printf("XL:0x%02x, XH:0x%02x \n",outbuff[0],outbuff[1]);
 	   angRX=*(int16_t *)outbuff;
 	   angRY=*(int16_t *)(outbuff+2);
 	   angRZ=*(int16_t *)(outbuff+4);
-
-	   //---- filter  RX RY RZ  data
-	   // first reset filter, then you must use the same data stream until end.
-	   int16_MA16P_filter(&fctx_RX, &angRX, &angRX, 0); //No.0 fitler
-	   int16_MA16P_filter(&fctx_RY, &angRY, &angRY, 0); //No.1 fitler
-	   int16_MA16P_filter(&fctx_RZ, &angRZ, &angRZ, 0); //No.2 fitler
-
-	   //----- convert to real value
 	   fangRX=sensf*angRX;
 	   fangRY=sensf*angRY;
 	   fangRZ=sensf*angRZ;
@@ -109,10 +99,7 @@ int main(void)
 	   fRXYZbuff[3*k+1]=fangRY;
 	   fRXYZbuff[3*k+2]=fangRZ;
 
-	   //---- filter  RX  data
-//	   int16_MA16P_filter(fRXYZbuff, fRXYZbuff, 3k);
-
-	   printf("angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
+	   printf("angRX=%d  angRY=%d  angRZ=%d \n",angRX,angRY,angRZ);
 	   printf("fangRX=%f  fangRY=%f  fangRZ=%f \n",fangRX,fangRY,fangRZ);
 
 	   gettimeofday(&tm_end,NULL);
@@ -123,8 +110,6 @@ int main(void)
    //---- send data to client Matlab
    if( send_client_data((uint8_t *)fRXYZbuff,RECORD_DATA_SIZE*3*sizeof(float)) < 0)
 	printf("-------- fail to send client data ------\n");
-
-
 
    SPI_Close();
    //----- close TCP server

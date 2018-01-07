@@ -1,0 +1,93 @@
+#ifndef __FILTER__H__
+#define __FILTER__H__
+
+#include <stdio.h>
+#include <stdint.h>
+
+//---- 16 points moving average filter context ----
+struct  MA16_FilterCtx {
+	int16_t f_buff[16]={0}; //buffer for the 16 data
+        int32_t f_sum={0}; //sum of the 16 data
+        int16_t f_limit=0xffff; //limit value for each data of *source.
+};
+
+/*----------------------------------------------------------------------
+            ***  16 points Moving Average Filter   ***
+
+!!!!!! WARNING : There shall be only ONE instance for each FiltNum gloablly !!!!!!!
+Old data in f_buff[] will be remained unless you reset the filter.
+Reset the filter every time before call the function!
+Filter a data stream until it ends, then reset it before filter another.
+
+FlitNum:  Filter number (0-2, totally 3 filters available)
+*source:  where you put your raw data
+*dest:    where you put your filtered data
+	  (source and dest may be the same)
+nmov:     nmov_th step of moving average calculation
+
+To filter data you must iterate nmov one by one
+
+Return:
+	The last 8 pionts average value.
+	0     if FiltNum invalid
+--------------------------------------------------------------------------*/
+//static int16_t int16_MA16P_filter(int FiltNum,int16_t *source, int16_t *dest, int nmov)
+static int16_t int16_MA16P_filter(struct MA16_FilterCtx *fctx,int16_t *source, int16_t *dest, int nmov)
+{
+	int i;
+//	static int16_t f_buff[3][16]={0};
+//	static int32_t total[3]={0};
+//	static int16_t f_limit[3]={0xffff}; //limit value for *source.
+
+	//---- valify FiltNum
+//	if(FiltNum<0 || FiltNum >2) 
+//	{
+//		fprintf(stderr,"int16_MA16P_filter(): FiltNum out of range! MAX 3 filters available!\n");
+//		return 0;
+//	}
+
+
+	//----- shift filter buff data
+	total[FiltNum]-=f_buff[FiltNum][0];
+	for(i=0;i<16-1;i++)
+	{
+		f_buff[FiltNum][i]=f_buff[FiltNum][i+1];
+	}
+
+	//----- get new data and put in
+	if(source[nmov] > f_limit[FiltNum]) //--check Limit 
+	{
+		f_buff[FiltNum][16-1]=f_limit[FiltNum];
+	}
+	else
+		f_buff[FiltNum][16-1]=source[nmov];
+
+	total[FiltNum]+=f_buff[FiltNum][16-1];
+	//----- update average value
+	dest[nmov]=(total[FiltNum])>>4;
+
+	return dest[nmov];
+}
+
+/*----------------------------------------------------------------------
+Rest int16_MA16P_filter()
+clear f_buff[FiltNum][] in the filer
+----------------------------------------------------------------------*/
+void reset_int16_MA16P_filter(int FiltNum)
+{
+	int i;
+	int16_t tmp[16]={0};
+
+	//---- valify FiltNum
+	if(FiltNum<0 || FiltNum >2) 
+	{
+		fprintf(stderr,"int16_MA16P_filter(): FiltNum out of range! MAX 3 filters available!\n");
+		return;
+	}
+	//---- clear data
+	for(i=0;i<16;i++)
+		int16_MA16P_filter(FiltNum,tmp,tmp,i);
+}
+
+
+#endif
