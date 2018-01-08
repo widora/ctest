@@ -131,7 +131,7 @@ bool status_XYZ_available(void)
 /*----------------------------------------------------
 get RX RY RZ in int16_t *[3]
 ----------------------------------------------------- */
-inline static void gyro_read_int16RXYZ(int16_t *angRXYZ)
+inline static void gyro_get_int16RXYZ(int16_t *angRXYZ)
 {
 	//----- wait for new data
         while(!status_XYZ_available()) {
@@ -155,7 +155,7 @@ inline static void gyro_get_int16BiasXYZ(int16_t* bias_xyz)
 
 	for(i=0;i<L3G_BIAS_SAMPLE_NUM;i++)
 	{
-        	gyro_read_int16RXYZ(xyz_val);
+        	gyro_get_int16RXYZ(xyz_val);
 		xyz_sums[0] += xyz_val[0];
 		xyz_sums[1] += xyz_val[1];
 		xyz_sums[2] += xyz_val[2];

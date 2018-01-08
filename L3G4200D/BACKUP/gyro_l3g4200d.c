@@ -43,7 +43,7 @@ int main(void)
 //   int16_t RXYZbuff[RECORD_DATA_SIZE*3]; //for INT16 raw data from G3L4200D
    float fRXYZbuff[RECORD_DATA_SIZE*3];//for TCP transfer
 
-   struct int16MAFilterDB fdb_RX,fdb_RY,fdb_RZ; // filter contexts for RX RY RZ
+   struct MA16_int16_FilterCtx fctx_RX,fctx_RY,fctx_RZ; // filter contexts for RX RY RZ
 
    struct timeval tm_start,tm_end;
    printf("Open SPI ...\n");
@@ -51,16 +51,10 @@ int main(void)
    printf("Init L3G4200D ...\n");
    Init_L3G4200D();
 
-   //---- init filter data base
-   printf("Init int16MA filter data base ...\n");
-   Init_int16MAFilterDB(&fdb_RX, 4, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RY, 4, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RZ, 4, 0x7fff);
-   if( fdb_RX.f_buff==NULL || fdb_RY.f_buff==NULL || fdb_RZ.f_buff==NULL)
-   {
-		printf("fail to init filter data base strut!\n");
-		return -1;
-   }
+   //---- init filter context
+   reset_MA16_filterCtx(&fctx_RX,0x7fff);
+   reset_MA16_filterCtx(&fctx_RY,0x7fff);
+   reset_MA16_filterCtx(&fctx_RZ,0x7fff);
 
    //---- preare TCP data server
    printf("Prepare TCP data server ...\n");
@@ -92,22 +86,21 @@ int main(void)
    //----- loop: get data and record -----
    for(k=0;k<RECORD_DATA_SIZE;k++) {
 
+
 	   gettimeofday(&tm_start,NULL);
+
 	   //------- read angular rate of XYZ
-	   gyro_read_int16RXYZ(angRXYZ);
-	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+	   gyro_get_int16RXYZ(angRXYZ);
 	   //------  deduce bias to adjust zero level
 	   angRX=angRXYZ[0]-bias_RXYZ[0];
            angRY=angRXYZ[1]-bias_RXYZ[1];
 	   angRZ=angRXYZ[2]-bias_RXYZ[2];
-	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
 
 	   //---- Activate filter for  RX RY RZ
 	   // first reset each filter context struct, then you must use the same data stream until end.
-	   int16_MAfilter(&fdb_RX, &angRX, &angRX, 0); //No.0 fitler
-	   int16_MAfilter(&fdb_RY, &angRY, &angRY, 0); //No.1 fitler
-	   int16_MAfilter(&fdb_RZ, &angRZ, &angRZ, 0); //No.2 fitler
-	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
+	   int16_MA16P_filter(&fctx_RX, &angRX, &angRX, 0); //No.0 fitler
+	   int16_MA16P_filter(&fctx_RY, &angRY, &angRY, 0); //No.1 fitler
+	   int16_MA16P_filter(&fctx_RZ, &angRZ, &angRZ, 0); //No.2 fitler
 
 	   //----- convert to real value
 	   fangRX=sensf*angRX;
@@ -135,11 +128,7 @@ int main(void)
 	printf("-------- fail to send client data ------\n");
 
 
-   //---- release filter data base
-   Release_int16MAFilterDB(&fdb_RX);
-   Release_int16MAFilterDB(&fdb_RY);
-   Release_int16MAFilterDB(&fdb_RZ);
-   //---- close spi
+
    SPI_Close();
    //----- close TCP server
    close_data_service();
