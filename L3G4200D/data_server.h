@@ -12,6 +12,9 @@ Based on: blog.csdn.net/dlutbrucezhang/article/details/8880131
 #include <stdlib.h>
 #include <string.h>
 
+#include <errno.h>
+
+
 #define FILE_SERVER_PORT 5555
 #define SERVER_LISTEN_BACKLOG 5
 
@@ -28,6 +31,13 @@ int time_use;
 struct sockaddr_in client_addr;
 
 
+/*---------- error parse -----------*/
+void Perror(const char *strg)
+{
+	perror(strg);
+//	exit(EXIT_FAILURE);
+}
+
 
 /*---------------------------------------------
 Prepare data server and start listening
@@ -37,6 +47,8 @@ Return value:
 ----------------------------------------------*/
 int prepare_data_server(void)
 {
+   int flag;
+
    //----- set server address and port ------
    bzero(&server_addr,sizeof(server_addr));
    server_addr.sin_family = AF_INET; //Address Family IP version 4
@@ -50,6 +62,14 @@ int prepare_data_server(void)
 	printf("create server socket failed!\n");
 	return -1;
    }
+
+   //---- set socket option
+   if(setsockopt(svrsock_desc,SOL_SOCKET,SO_REUSEADDR, &flag, sizeof(flag)) != 0)
+   {
+	Perror("set socket option fail");
+	return -1;
+   }
+
 
    //-----bind socket desc. with IP address,   int bind(int sock, struct sockaddr *addr, int addrLen) -----
    if( bind(svrsock_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0 )

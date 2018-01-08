@@ -17,7 +17,7 @@ struct  int16MAFilterDB {
 };
 
 /*----------------------------------------------------------------------
-            ***  16 points Moving Average Filter   ***
+            ***  Moving Average Filter   ***
 !!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
 Filter a data stream until it ends, then reset the filter context struct before filter another.
 
@@ -33,7 +33,7 @@ Return:
 	The last 2^f_ng pionts average value.
 	0  if fails
 --------------------------------------------------------------------------*/
-static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, int16_t *source, int16_t *dest, int nmov)
+inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov)
 {
 	int i;
 	int np=1<<(fdb->f_ng);
@@ -103,7 +103,7 @@ int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit
 
 	//---- set np
 	np=1<<(fdb->f_ng);
-	fprintf(stdout," %d points moving average filer initiizing...\n",np);
+	fprintf(stdout," %d points moving average filter initilizing...\n",np);
 
 	//---- set limit
 	fdb->f_limit=abs(limit);

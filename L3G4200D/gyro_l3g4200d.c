@@ -11,37 +11,21 @@ TEST L3G4200d
 #include "data_server.h"
 #include "filters.h"
 
-#define DATA_PACKET_SIZE 16 // for fbuff[], buff size, for each TCP send
-#define SEND_PACKET_NUM 1000 //number of total packets for TCP transfer
 #define RECORD_DATA_SIZE 4096 //
-
-/*----------------------------------------------
-   calculate and return time diff. in us
-----------------------------------------------*/
-int get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
-        int time_cost;
-	if(tm_end.tv_sec>tm_start.tv_sec)
-	        time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000000+(tm_end.tv_usec-tm_start.tv_usec);
-	else // tm_end.tv_sec==tm_start.tv_sec
-	        time_cost=tm_end.tv_usec-tm_start.tv_usec;
-
-        return time_cost;
-}
-
 
 
 int main(void)
 {
-
    uint8_t val;
-   int k;
+   int i,k;
    int16_t bias_RXYZ[3];//bias value of RX RY RZ
-   int16_t angRXYZ[3];
-   int16_t angRX,angRY,angRZ; //int angular rate of X,Y,Z aixs.
-   float fangRX,fangRY,fangRZ; //float angular rate of X,Y,Z aixs.
-   float sensf=70/1000000.0; //sensitivity factor for FS=2000 dps.
-//   int16_t RXYZbuff[RECORD_DATA_SIZE*3]; //for INT16 raw data from G3L4200D
+   int16_t angRXYZ[3];//angular rate of XYZ
+   double fangRXYZ[3]; //float angular rate of X,Y,Z aixs. --- fangRXYZ[] = sensf * angRXYZ[]
+   double sensf=70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps.
    float fRXYZbuff[RECORD_DATA_SIZE*3];//for TCP transfer
+   //------ PID -----
+   uint16_t dt_us; //delta time in ms 
+   double fangXYZ[3]={0};// angle value of X Y Z  ---- fangXYZ[]= integ{ dt_us*fangRXYZ[] }
 
    struct int16MAFilterDB fdb_RX,fdb_RY,fdb_RZ; // filter contexts for RX RY RZ
 
@@ -53,9 +37,9 @@ int main(void)
 
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
-   Init_int16MAFilterDB(&fdb_RX, 4, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RY, 4, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RZ, 4, 0x7fff);
+   Init_int16MAFilterDB(&fdb_RX, 6, 0x7fff);
+   Init_int16MAFilterDB(&fdb_RY, 6, 0x7fff);
+   Init_int16MAFilterDB(&fdb_RZ, 6, 0x7fff);
    if( fdb_RX.f_buff==NULL || fdb_RY.f_buff==NULL || fdb_RZ.f_buff==NULL)
    {
 		printf("fail to init filter data base strut!\n");
@@ -65,7 +49,7 @@ int main(void)
    //---- preare TCP data server
    printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
-	printf(" fail to preapre data server!\n");
+	printf(" fail to prepare data server!\n");
 
 
    val=halSpiReadReg(L3G_WHO_AM_I);
@@ -89,46 +73,50 @@ int main(void)
 	return -1;
    }
 
-   //----- loop: get data and record -----
+   //================   loop: get data and record  ===============
    for(k=0;k<RECORD_DATA_SIZE;k++) {
 
-	   gettimeofday(&tm_start,NULL);
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
 	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+
 	   //------  deduce bias to adjust zero level
-	   angRX=angRXYZ[0]-bias_RXYZ[0];
-           angRY=angRXYZ[1]-bias_RXYZ[1];
-	   angRZ=angRXYZ[2]-bias_RXYZ[2];
-	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
+	   for(i=0; i<3; i++)
+		   angRXYZ[i]=angRXYZ[i]-bias_RXYZ[i];
+	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //---- Activate filter for  RX RY RZ
 	   // first reset each filter context struct, then you must use the same data stream until end.
-	   int16_MAfilter(&fdb_RX, &angRX, &angRX, 0); //No.0 fitler
-	   int16_MAfilter(&fdb_RY, &angRY, &angRY, 0); //No.1 fitler
-	   int16_MAfilter(&fdb_RZ, &angRZ, &angRZ, 0); //No.2 fitler
-	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
+
+	   int16_MAfilter(&fdb_RX, &angRXYZ[0], &angRXYZ[0], 0); //No.0 fitler
+	   int16_MAfilter(&fdb_RY, &angRXYZ[1], &angRXYZ[1], 0); //No.1 fitler
+	   int16_MAfilter(&fdb_RZ, &angRXYZ[2], &angRXYZ[2], 0); //No.2 fitler
+	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //----- convert to real value
-	   fangRX=sensf*angRX;
-	   fangRY=sensf*angRY;
-	   fangRZ=sensf*angRZ;
+	   for(i=0; i<3; i++)
+		   fangRXYZ[i]=sensf*angRXYZ[i];
 
 	   //----- put data to buffer ----
-	   fRXYZbuff[3*k]=fangRX;
-	   fRXYZbuff[3*k+1]=fangRY;
-	   fRXYZbuff[3*k+2]=fangRZ;
+	   for(i=0; i<3; i++)
+		   fRXYZbuff[3*k+i]=fangRXYZ[i];
 
-	   //---- filter  RX  data
-//	   int16_MA16P_filter(fRXYZbuff, fRXYZbuff, 3k);
+	   printf("angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+	   printf("fangRX=%f  fangRY=%f  fangRZ=%f \n",fangRXYZ[0],fangRXYZ[1],fangRXYZ[2]);
 
-	   printf("angRX=%d angRY=%d angRZ=%d \n",angRX,angRY,angRZ);
-	   printf("fangRX=%f  fangRY=%f  fangRZ=%f \n",fangRX,fangRY,fangRZ);
+	   gettimeofday(&tm_end,NULL);// !!!--end of read !!!
+	   //------ get time span for integration calculation
+	   dt_us=get_costtimeus(tm_start,tm_end);
+	   //------ start timing immediatly to minimize error
+	   gettimeofday(&tm_start,NULL);// !!! --start time !!!
 
-	   gettimeofday(&tm_end,NULL);
-	   printf("time_span:%dus\n",get_costtimeus(tm_start,tm_end));
+	   printf("time_span:%dus\n",dt_us);
+	   for(i=0; i<3; i++)
+		   fangXYZ[i] += dt_us*fangRXYZ[i];
 //	   usleep(200000);
    }
+
+   printf("-----  integral value of fangX=%f  fangY=%f  fangZ=%f  ------\n", fangXYZ[0], fangXYZ[1], fangXYZ[2]);
 
    //---- send data to client Matlab
    if( send_client_data((uint8_t *)fRXYZbuff,RECORD_DATA_SIZE*3*sizeof(float)) < 0)

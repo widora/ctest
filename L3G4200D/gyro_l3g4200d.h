@@ -4,6 +4,7 @@ TODOs and BUGs:
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 //---- SPI Read and Write BITs set -----
 #define WRITE_SINGLE 0x00
@@ -43,6 +44,30 @@ TODOs and BUGs:
 
 #define L3G_READ_WAITUS 500  // poll wait time in us for read RX RY RZ
 #define L3G_BIAS_SAMPLE_NUM 512 //total number of samples needed for RXRYRZ bias calcualation
+
+
+/*----------------------------------------------
+ calculate and return time difference in us
+
+Return
+  if tm_start > tm_end then return 0 !!!!
+  us
+----------------------------------------------*/
+inline int get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
+        int time_cost;
+        if(tm_end.tv_sec>tm_start.tv_sec)
+                time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000000+(tm_end.tv_usec-tm_start.tv_usec);
+	//--- also consider tm_sart > tm_end !!!!!!!
+        else if( tm_end.tv_sec==tm_start.tv_sec )
+	{
+                time_cost=tm_end.tv_usec-tm_start.tv_usec;
+		time_cost=time_cost>0 ? time_cost:0;
+	}
+	else
+		time_cost=0;
+
+       	return time_cost;
+}
 
 
 //------------------------function definition------------------------------ 
@@ -111,13 +136,15 @@ void Init_L3G4200D(void) {
         //0x0f: ODR=100Hz,Fc=12.5Hz, normal mode, XYZ all enabled,
 	halSpiWriteReg(L3G_CTRL_REG1, 0xcf);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
 	// HPF normal mode,HPFcut off freq=56Hz when ODR=800Hz,
-	halSpiWriteReg(L3G_CTRL_REG2, 0b00100000);//High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
+	halSpiWriteReg(L3G_CTRL_REG2, 0b00000000);//!!!High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
 	// Interrupt disabled
 	halSpiWriteReg(L3G_CTRL_REG3, 0x00);//interrupt configuration, disable
 	// set measure range +-2000dps
-	halSpiWriteReg(L3G_CTRL_REG4, 0b00110000);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
+	halSpiWriteReg(L3G_CTRL_REG4, 0b10100000);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
 	//FIFO disabled,HPF disabled,
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
+	//FIFO disable
+	halSpiWriteReg(L3G_FIFO_CTRL_REG,0x00);
 }
 
 /*   check if XYZ new data is available  */
