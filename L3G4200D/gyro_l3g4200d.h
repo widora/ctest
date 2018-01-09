@@ -53,8 +53,8 @@ Return
   if tm_start > tm_end then return 0 !!!!
   us
 ----------------------------------------------*/
-inline int get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
-        int time_cost;
+inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
+        uint32_t time_cost;
         if(tm_end.tv_sec>tm_start.tv_sec)
                 time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000000+(tm_end.tv_usec-tm_start.tv_usec);
 	//--- also consider tm_sart > tm_end !!!!!!!

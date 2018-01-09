@@ -13,25 +13,33 @@ TEST L3G4200d
 
 #define RECORD_DATA_SIZE 4096 //
 
+inline double math_tmIntegral(const double fx, double *sum);
 
 int main(void)
 {
    uint8_t val;
    int i,k;
+   int send_count=0;
    int16_t bias_RXYZ[3];//bias value of RX RY RZ
    int16_t angRXYZ[3];//angular rate of XYZ
    double fangRXYZ[3]; //float angular rate of X,Y,Z aixs. --- fangRXYZ[] = sensf * angRXYZ[]
    double sensf=70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps.
-   float fRXYZbuff[RECORD_DATA_SIZE*3];//for TCP transfer
+//   float fRXYZbuff[RECORD_DATA_SIZE*3];//for TCP transfer
    //------ PID -----
-   uint16_t dt_us; //delta time in ms 
+   uint32_t dt_us; //delta time in us //U16: 0-65535 
+   uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
    double fangXYZ[3]={0};// angle value of X Y Z  ---- fangXYZ[]= integ{ dt_us*fangRXYZ[] }
 
    struct int16MAFilterDB fdb_RX,fdb_RY,fdb_RZ; // filter contexts for RX RY RZ
 
    struct timeval tm_start,tm_end;
+   struct timeval tmTestStart,tmTestEnd;
+
+   //----- init spi
    printf("Open SPI ...\n");
    SPI_Open(); //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
+
+   //----- init L3G4200D
    printf("Init L3G4200D ...\n");
    Init_L3G4200D();
 
@@ -74,16 +82,18 @@ int main(void)
    }
 
    //================   loop: get data and record  ===============
-   for(k=0;k<RECORD_DATA_SIZE;k++) {
+   printf(" starting testing ...\n");
+   gettimeofday(&tmTestStart,NULL);
+   for(k=0;k<130000;k++) {
 
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
-	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+//	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //------  deduce bias to adjust zero level
 	   for(i=0; i<3; i++)
 		   angRXYZ[i]=angRXYZ[i]-bias_RXYZ[i];
-	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+//	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //---- Activate filter for  RX RY RZ
 	   // first reset each filter context struct, then you must use the same data stream until end.
@@ -91,36 +101,60 @@ int main(void)
 	   int16_MAfilter(&fdb_RX, &angRXYZ[0], &angRXYZ[0], 0); //No.0 fitler
 	   int16_MAfilter(&fdb_RY, &angRXYZ[1], &angRXYZ[1], 0); //No.1 fitler
 	   int16_MAfilter(&fdb_RZ, &angRXYZ[2], &angRXYZ[2], 0); //No.2 fitler
-	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+//	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //----- convert to real value
 	   for(i=0; i<3; i++)
 		   fangRXYZ[i]=sensf*angRXYZ[i];
 
-	   //----- put data to buffer ----
-	   for(i=0; i<3; i++)
-		   fRXYZbuff[3*k+i]=fangRXYZ[i];
+	   //<<<<<<<<   put data to buffer  >>>>>>>>>>>
+//	   for(i=0; i<3; i++)
+//		   fRXYZbuff[3*k+i]=fangRXYZ[i];
 
-	   printf("angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
-	   printf("fangRX=%f  fangRY=%f  fangRZ=%f \n",fangRXYZ[0],fangRXYZ[1],fangRXYZ[2]);
+//	   printf("angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+//	   printf("fangRX=%f  fangRY=%f  fangRZ=%f \n",fangRXYZ[0],fangRXYZ[1],fangRXYZ[2]);
+
 
 	   gettimeofday(&tm_end,NULL);// !!!--end of read !!!
 	   //------ get time span for integration calculation
 	   dt_us=get_costtimeus(tm_start,tm_end);
+	   sum_dt += dt_us;
 	   //------ start timing immediatly to minimize error
 	   gettimeofday(&tm_start,NULL);// !!! --start time !!!
 
-	   printf("time_span:%dus\n",dt_us);
+	   //------ integration of angle XYZ -----
+//	   printf("dt_us:%dus\n",dt_us);
 	   for(i=0; i<3; i++)
 		   fangXYZ[i] += dt_us*fangRXYZ[i];
+
+//	   //------ time integration of angluar rate RXYZ -----
+
+	   //<<<<<<<<<< Every 500th count:  send integral XYZ angle to client Matlab    >>>>>>>>>>>
+	   if(send_count==0)
+	   {
+		if( send_client_data((uint8_t *)fangXYZ,3*sizeof(double)) < 0)
+			printf("-------- fail to send client data ------\n");
+		send_count=100;
+	   }
+	   else
+		send_count-=1;
+
+	   //------  print out
+	   printf(" integral value:  fangX=%f  fangY=%f  fangZ=%f \r", fangXYZ[0], fangXYZ[1], fangXYZ[2]);
+	   fflush(stdout);
+
 //	   usleep(200000);
    }
+ 
+   gettimeofday(&tmTestEnd,NULL);
+   printf("\nTime elapsed: %fs \n",get_costtimeus(tmTestStart,tmTestEnd)/1000000.0);
+   printf("Sum of dt: %fs \n", sum_dt/1000000.0);
 
    printf("-----  integral value of fangX=%f  fangY=%f  fangZ=%f  ------\n", fangXYZ[0], fangXYZ[1], fangXYZ[2]);
 
    //---- send data to client Matlab
-   if( send_client_data((uint8_t *)fRXYZbuff,RECORD_DATA_SIZE*3*sizeof(float)) < 0)
-	printf("-------- fail to send client data ------\n");
+//   if( send_client_data((uint8_t *)fRXYZbuff,RECORD_DATA_SIZE*3*sizeof(float)) < 0)
+//	printf("-------- fail to send client data ------\n");
 
 
    //---- release filter data base
@@ -133,4 +167,42 @@ int main(void)
    close_data_service();
 
    return 0;
+}
+
+
+/*--------------------------------------------------------------------
+Integral of time difference and fx
+!!!!! ------ onlye one instance in a loop ------ !!!!!
+In order to get a regular time difference,you shall call this function
+in a loop.
+dt_us will be 0 at first call
+
+fx ---- function of time,whose unit is us(10^-6 s) !!!
+
+return:
+      integration(summation) of fx * dt_us
+---------------------------------------------------------------------*/
+inline double math_tmIntegral(const double fx, double *sum)
+{
+	   uint32_t dt_us;//time in us
+	   static struct timeval tm_end,tm_start;
+	   static struct timeval tm_start_1, tm_start_2;
+	   static double sum_dt; //summation of dt_us 
+
+	   gettimeofday(&tm_end,NULL);// !!!--end of read !!!
+           //------  to minimize error between two timer functions
+           gettimeofday(&tm_start,NULL);// !!! --start time !!!
+	   tm_start_2 = tm_start_1;
+	   tm_start_1 = tm_start;
+           //------ get time difference for integration calculation
+	   if(tm_start_2.tv_sec != 0) 
+	           dt_us=get_costtimeus(tm_start_2,tm_end); //return  0 if tm_start > tm_end
+	   else // discard fisrt value
+		   dt_us=0;
+
+	   sum_dt +=dt_us;
+
+           (*sum) += fx*dt_us;
+
+	   return sum_dt;
 }
