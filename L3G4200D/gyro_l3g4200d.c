@@ -12,6 +12,7 @@ TEST L3G4200d
 #include "mathwork.h"
 #include "i2c_oled_128x64.h"
 
+//#define MATLAB_TCP
 #define RECORD_DATA_SIZE 4096 //
 
 
@@ -28,7 +29,8 @@ int main(void)
    //------ PID -----
    uint32_t dt_us; //delta time in us //U16: 0-65535 
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
-//   double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
+   //in head file: double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
+
    //----- integral -----
    struct int16MAFilterDB fdb_RX,fdb_RY,fdb_RZ; // filter contexts for RX RY RZ
    struct timeval tm_start,tm_end;
@@ -74,6 +76,7 @@ int main(void)
    }
 
    //---- preare TCP data server
+#ifdef MATLAB_TCP
    printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
    {
@@ -81,7 +84,7 @@ int main(void)
 	ret_val=-3;
 	goto CALL_FAIL;
    }
-
+#endif
 
    val=halSpiReadReg(L3G_WHO_AM_I);
    printf("L3G_WHO_AM_I: 0x%02x\n",val);
@@ -97,19 +100,21 @@ int main(void)
    printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sensf*bias_RXYZ[0],sensf*bias_RXYZ[1],sensf*bias_RXYZ[2]);
 
    //----- wait to accept data client ----
+#ifdef MATLAB_TCP
    printf("wait for Matlab to connect...\n");
    cltsock_desc=accept_data_client();
    if(cltsock_desc < 0){
 	printf(" Fail to accept data client!\n");
 	return -1;
    }
+#endif
 
    //================   loop: get data and record  ===============
    printf(" starting testing ...\n");
    gettimeofday(&tmTestStart,NULL);
 
-   for(k=0;k<23000;k++) {
-
+   for(k=0;k<100000;k++) {
+//   while (1) {
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
 //	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
@@ -121,11 +126,9 @@ int main(void)
 
 	   //---- Activate filter for  RX RY RZ
 	   // first reset each filter context struct, then you must use the same data stream until end.
-
 	   int16_MAfilter(&fdb_RX, &angRXYZ[0], &angRXYZ[0], 0); //No.0 fitler
 	   int16_MAfilter(&fdb_RY, &angRXYZ[1], &angRXYZ[1], 0); //No.1 fitler
 	   int16_MAfilter(&fdb_RZ, &angRXYZ[2], &angRXYZ[2], 0); //No.2 fitler
-//	   printf("MA filtered data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //----- convert to real value
 	   for(i=0; i<3; i++)
@@ -149,14 +152,17 @@ int main(void)
 	    sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ); // one instance only!!!
 
 	   //<<<<<<<<<< Every 500th count:  send integral XYZ angle to client Matlab    >>>>>>>>>>>
+#ifdef MATLAB_TCP
 	   if(send_count==0)
 	   {
-		if( send_client_data((uint8_t *)g_fangXYZ,3*sizeof(double)) < 0)
+//		if( send_client_data((uint8_t *)g_fangXYZ,3*sizeof(double)) < 0)
+		if( send_client_data((uint8_t *)fangRXYZ,3*sizeof(double)) < 0)
 			printf("-------- fail to send client data ------\n");
 		send_count=10;
 	   }
 	   else
 		send_count-=1;
+#endif
 
 	   //------  print out
 	   printf(" integral value:  fangX=%f  fangY=%f  fangZ=%f \r", g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);

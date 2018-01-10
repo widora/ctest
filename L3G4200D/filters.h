@@ -77,12 +77,16 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 	return dest[nmov];
 }
 
-/*----------------------------------------------------------------------
+/*----------------------------------------------------------------------------
 Init. int16 MA filter strut with given value
-Return 
+
+*fdb --- filter data buffer base
+ng  --- filter grade number,  2^ng points average.
+limit  --- limit value for input data, above which the value will be trimmed .
+Return:
 	0    OK
 	<0   fails
-----------------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit)
 {
 //	int i;
@@ -100,7 +104,6 @@ int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit
 	else
 		fdb->f_ng=ng;
 
-
 	//---- set np
 	np=1<<(fdb->f_ng);
 	fprintf(stdout," %d points moving average filter initilizing...\n",np);
@@ -116,10 +119,9 @@ int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit
 		fprintf(stderr,"Init_int16MAFilterDB(): malloc f_buff failed!\n");
 		return -1;
 	}
+
 	//---- clear buff data if f_buff 
 	memset(fdb->f_buff,0,np*sizeof(int16_t));
-//	for(i=0; i<np; i++)
-//		fdb->f_buff[i]=0;
 
 	return 0;
 }
