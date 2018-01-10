@@ -3,13 +3,13 @@ APP = gyro
 SOURCES = gyro_l3g4200d.c
 DEPENDS = gyro_l3g4200d.h gyro_spi.h filters.h
 
-#INCLUDES = -I/home/midas/ctest/kmods/soopwm
+INCLUDES = -I/home/midas/cc1101_ting_oled
 #LDFLAGS  = 
 CFLAGS    = -Wall
-LIBS	  = -lm
+LIBS	  = -lm -lpthread
 
 $(APP): $(SOURCES) $(DEPENDS)
-	$(CC) $(CFLAGS) $(LIBS) -o $(APP) $(SOURCES)
+	$(CC) $(INCLUDES) $(CFLAGS) $(LIBS) -o $(APP) $(SOURCES)
 
 PHONY: all
 all: $(APP)

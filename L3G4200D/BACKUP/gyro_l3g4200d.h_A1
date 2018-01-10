@@ -45,10 +45,6 @@ TODOs and BUGs:
 #define L3G_READ_WAITUS 500  // poll wait time in us for read RX RY RZ
 #define L3G_BIAS_SAMPLE_NUM 1024 //total number of samples needed for RXRYRZ bias calcualation
 
-//----- global variables
-bool gtok_QuitGyro=false;
-double g_fangXYZ[3];
-
 
 /*----------------------------------------------
  calculate and return time difference in us
@@ -195,31 +191,5 @@ inline static void gyro_get_int16BiasXYZ(int16_t* bias_xyz)
 	for(i=0;i<3;i++)
 		bias_xyz[i]=xyz_sums[i]/L3G_BIAS_SAMPLE_NUM;
 
-}
-
-
-/*----------------------------------------------------
- thread function:
-   In a loop to display gyro data on OLED
------------------------------------------------------ */
-void  thread_gyroWriteOled(void)
-{
-	char strx[18]={0};
-	while(1)
-	{
-		//----- quit if receive token
-		if(gtok_QuitGyro)
-			break;
-		//----- write data string to OLED
-		sprintf(strx," X: %7.2f", g_fangXYZ[0]);
-		push_Oled_Ascii32x18_Buff(strx,0,0);
-		sprintf(strx," Y: %7.2f", g_fangXYZ[1]);
-		push_Oled_Ascii32x18_Buff(strx,1,0);
-		sprintf(strx," Z: %7.2f", g_fangXYZ[2]);
-		push_Oled_Ascii32x18_Buff(strx,2,0);
-
-		refresh_Oled_Ascii32x18_Buff(false);
-		usleep(10000);
-	}
 }
 
