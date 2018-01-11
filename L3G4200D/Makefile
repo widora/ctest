@@ -5,7 +5,7 @@ DEPENDS = gyro_l3g4200d.h gyro_spi.h filters.h
 
 INCLUDES = -I/home/midas/cc1101_ting_oled
 #LDFLAGS  = 
-CFLAGS    = -Wall
+#CFLAGS    = -Wall
 LIBS	  = -lm -lpthread
 
 $(APP): $(SOURCES) $(DEPENDS)

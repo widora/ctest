@@ -219,7 +219,7 @@ void  thread_gyroWriteOled(void)
 		push_Oled_Ascii32x18_Buff(strx,2,0);
 
 		refresh_Oled_Ascii32x18_Buff(false);
-		usleep(100000);
+		usleep(10000);
 	}
 }
 
