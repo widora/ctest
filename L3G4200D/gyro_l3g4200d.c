@@ -1,6 +1,8 @@
 /*----------------------------------------------------
 TEST L3G4200d
 
+set ODR=800Hz
+
 ----------------------------------------------------*/
 #include <stdio.h>
 #include <sys/time.h>
@@ -97,7 +99,7 @@ int main(void)
    cltsock_desc=accept_data_client();
    if(cltsock_desc < 0){
 	printf(" Fail to accept data client!\n");
-	return -1;
+	goto CALL_FAIL;
    }
 #endif
 

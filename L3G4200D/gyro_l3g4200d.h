@@ -42,7 +42,7 @@ TODOs and BUGs:
 #define L3G_INT1_DURATION 0x38
 
 
-#define L3G_READ_WAITUS 500  // poll wait time in us for read RX RY RZ
+#define L3G_READ_WAITUS 500  //for ODR=800Hz;  poll wait time in us for read RX RY RZ
 #define L3G_BIAS_SAMPLE_NUM 1024 //total number of samples needed for RXRYRZ bias calcualation
 
 //----- global variables
