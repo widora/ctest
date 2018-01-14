@@ -1,0 +1,2 @@
+i2c_adxl345_1.h:    I2C operated by ioctl()
+i2c_adxl345_2.h:    I2C operated by read() write()

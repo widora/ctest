@@ -50,30 +50,6 @@ bool gtok_QuitGyro=false;
 double g_fangXYZ[3];
 
 
-/*----------------------------------------------
- calculate and return time difference in us
-
-Return
-  if tm_start > tm_end then return 0 !!!!
-  us
-----------------------------------------------*/
-inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
-        uint32_t time_cost;
-        if(tm_end.tv_sec>tm_start.tv_sec)
-                time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000000+(tm_end.tv_usec-tm_start.tv_usec);
-	//--- also consider tm_sart > tm_end !!!!!!!
-        else if( tm_end.tv_sec==tm_start.tv_sec )
-	{
-                time_cost=tm_end.tv_usec-tm_start.tv_usec;
-		time_cost=time_cost>0 ? time_cost:0;
-	}
-	else
-		time_cost=0;
-
-       	return time_cost;
-}
-
-
 //------------------------function definition------------------------------ 
 void halSpiStrobe(uint8_t strobe)
 {
