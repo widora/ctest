@@ -21,13 +21,14 @@ struct  int16MAFilterDB {
 !!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
 Filter a data stream until it ends, then reset the filter context struct before filter another.
 
+To filter data you must iterate nmov one by one:
+         source[nmov] ----> filter ----> dest[nmov]
+
 *fdb:     int16 MAFilter data base
 *source:  raw data input
 *dest:    where you put your filtered data
 	  (source and dest may be the same)
 nmov:     nmov_th step of moving average calculation
-
-To filter data you must iterate nmov one by one
 
 Return:
 	The last 2^f_ng pionts average value.
@@ -36,7 +37,7 @@ Return:
 inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov)
 {
 	int i;
-	int np=1<<(fdb->f_ng);
+	int np=1<<(fdb->f_ng); //2^np points average 
 
 	//----- verify filter data base
 	if(fdb->f_buff == NULL)
@@ -49,15 +50,18 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 	//----- deduce old data from f_sum
 	fdb->f_sum -= fdb->f_buff[0];
 
-	//----- shift filter buff data
+	//----- shift filter buff data, get rid of the oldest data
 	for(i=0; i<np-1; i++)
 	{
 		fdb->f_buff[i]=fdb->f_buff[i+1];
 	}
 
-	//----- get new data and put in
+	//----- get new data to fdb->f_buff[np-1] --------
 	//----- reassure limit first
 	//fdb->f_limit = abs(fdb->f_limit);
+
+	//----------------------- Deal with Limits ----------------
+#if 0	//     Method 1:  as absolute limit 
 	if( source[nmov] > fdb->f_limit )
 	{
 		fdb->f_buff[np-1]=fdb->f_limit;
@@ -66,8 +70,25 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 	{
 		fdb->f_buff[np-1]=-1*(fdb->f_limit);
 	}
+#endif
+
+#if 1	//     Method 2:  as relative limit, comparing with previous fdb->f_buff[]
+	if( source[nmov] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up limit
+	{
+		fdb->f_buff[np-1]=fdb->f_buff[np-2]; // use previous data
+	}
+	else if (source[nmov] < ( fdb->f_buff[np-2]-fdb->f_limit) )//check low limit
+	{
+		fdb->f_buff[np-1]=fdb->f_buff[np-2]; // use previous data
+	}
+#endif
+
+        // ------ else if the value is within normal scope
 	else
 		fdb->f_buff[np-1]=source[nmov];
+
+
+
 
 	fdb->f_sum += fdb->f_buff[np-1]; //add new data to f_sum
 

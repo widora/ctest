@@ -14,7 +14,7 @@ set ODR=800Hz
 #include "mathwork.h"
 #include "i2c_oled_128x64.h"
 
-//#define MATLAB_TCP
+//#define TCP_TRANSFER
 #define RECORD_DATA_SIZE 4096 //
 
 
@@ -33,7 +33,7 @@ int main(void)
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
    //in head file: double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
 
-   //----- integral -----
+   //----- filter db -----
    struct int16MAFilterDB fdb_RXYZ[3];
 
    struct timeval tm_start,tm_end;
@@ -69,10 +69,13 @@ int main(void)
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
    if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 6, 0x7fff)<0) //2^6=64 points average filter
+   {
+	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
+   }
 
    //---- preare TCP data server
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
    printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
    {
@@ -94,11 +97,12 @@ int main(void)
    printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sensf*bias_RXYZ[0],sensf*bias_RXYZ[1],sensf*bias_RXYZ[2]);
 
    //----- wait to accept data client ----
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
    printf("wait for Matlab to connect...\n");
    cltsock_desc=accept_data_client();
    if(cltsock_desc < 0){
 	printf(" Fail to accept data client!\n");
+	ret_val=-4;
 	goto CALL_FAIL;
    }
 #endif
@@ -108,9 +112,9 @@ int main(void)
    gettimeofday(&tmTestStart,NULL);
 
    k=0;
-//   while (1) {
-//	   k++;
-   for(k=0;k<100000;k++) {
+   while (1) {
+	   k++;
+//   for(k=0;k<100000;k++) {
 
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
@@ -134,7 +138,7 @@ int main(void)
 	    sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ); // one instance only!!!
 
 	   //<<<<<<<<<< Every 500th count:  send integral XYZ angle to client Matlab    >>>>>>>>>>>
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
 //		if( send_client_data((uint8_t *)g_fangXYZ,3*sizeof(double)) < 0)
@@ -164,9 +168,11 @@ int main(void)
 
 
 CALL_FAIL:
+
 INIT_MAFILTER_FAIL:
    //---- release filter data base
    Release_int16MAFilterDB_NG(3,fdb_RXYZ);
+
 INIT_PTHREAD_FAIL:
    //----- close I2C and Oled
     free_I2C_IOdata();

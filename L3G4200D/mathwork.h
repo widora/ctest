@@ -41,12 +41,6 @@ dt_us will be 0 at first call
 return:
 	summation of dt_us
 -------------------------------------------------------------------------------*/
-//struct  tmIntegralDB {  //Time integral data base
-//uint8_t num; // num of interal groups
-//double  *fx;//fx group
-//double  *sum;//integral result group
-//}
-
 inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum)
 {
 	   uint32_t dt_us;//time in us
