@@ -1,3 +1,11 @@
+/*-------------------------------------------------------------------------------
+1. Read ADXL345 register one by one, mutiple read will cause system crash, 
+   I2C driver problem or ADXL345 defects ???
+2. The axis that is parallel with gravity will get more measuring noise or vibration?
+
+Midas
+--------------------------------------------------------------------------------*/
+
 #include <stdio.h>
 //#include "i2c_adxl345_1.h" //---use ioctl() to operate I2C
 #include "i2c_adxl345_2.h" //--- use  read() write() to operate I2C
@@ -37,7 +45,7 @@ int main(void)
    }
 
    //------ set up ADXL345
-   init_ADXL345(ADXL_ODR_400HZ,ADXL_RANGE_4G);
+   init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G);
 
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
@@ -71,8 +79,11 @@ int main(void)
 
 #if 1  //------------ I2C operation with read() /write() -------------
    i=0;
+while(1)
+{
+   i=0;
    gettimeofday(&tm_start,NULL);
-   while(1) //(i<100000)
+   while(i<100000)
    {
        i++;
        get_int16XYZ_ADXL345(accXYZ);
@@ -85,8 +96,8 @@ int main(void)
        for(j=0;j<3;j++)
        {
 		faccXYZ[j]=fs*accXYZ[j];
-       		if(faccXYZ[j]>1.5)
-			printf("\n alarm: faccXYZ[%d]=%f \n",j,faccXYZ[j]);
+//       		if(faccXYZ[j]>1.5)
+//			printf("\n alarm: faccXYZ[%d]=%f \n",j,faccXYZ[j]);
        }
        printf("I=%d, accX: %f,  accY: %f,  accZ:%f \r", i, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
        fflush(stdout);
@@ -96,14 +107,18 @@ int main(void)
        {
                if( send_client_data((uint8_t *)faccXYZ,3*sizeof(double)) < 0)
                        printf("-------- fail to send client data ------\n");
-                send_count=10;
+                send_count=4;
         }
         else
                 send_count-=1;
 #endif
    } // end of while()
+
    gettimeofday(&tm_end,NULL);
    printf("\n Time elapsed: %fs \n",get_costtimeus(tm_start,tm_end)/1000000.0);
+
+}//end of while()
+
 
 #endif  //--------- end I2c read()/write() --------
 

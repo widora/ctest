@@ -11,18 +11,19 @@
 //---- int16_t  moving average filter Data Base ----
 struct  int16MAFilterDB {
 	uint16_t f_ng; //grade number,   point number = 2^ng
-	int16_t* f_buff;//buffer for averaging data
+	//----allocate 2^ng+2 elements actually, 2 more expanded slot fors limit filter check !!!
+	int16_t* f_buff;//buffer for averaging data,size=(2^ng+2) !!!
         int32_t f_sum; //sum of the buff data
         int16_t f_limit;//=0x7fff, //limit value for each data of *source.
 };
 
 /*----------------------------------------------------------------------
             ***  Moving Average Filter   ***
-!!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
+1. !!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
 Filter a data stream until it ends, then reset the filter context struct before filter another.
-
-To filter data you must iterate nmov one by one:
+2.To filter data you must iterate nmov one by one:
          source[nmov] ----> filter ----> dest[nmov]
+3. dest[] is 2^ng+2 points later thean source[], so all consider reactive time when you choose ng.
 
 *fdb:     int16 MAFilter data base
 *source:  raw data input
@@ -37,7 +38,7 @@ Return:
 inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov)
 {
 	int i;
-	int np=1<<(fdb->f_ng); //2^np points average 
+	int np=1<<(fdb->f_ng); //2^np points average !!!!
 
 	//----- verify filter data base
 	if(fdb->f_buff == NULL)
@@ -51,48 +52,47 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 	fdb->f_sum -= fdb->f_buff[0];
 
 	//----- shift filter buff data, get rid of the oldest data
-	for(i=0; i<np-1; i++)
+	for(i=0; i<np+1; i++) //totally np+2 elements !!!
 	{
 		fdb->f_buff[i]=fdb->f_buff[i+1];
 	}
+	//----- put new data to the appended slot
+	fdb->f_buff[np+1]=source[nmov];
 
 	//----- get new data to fdb->f_buff[np-1] --------
 	//----- reassure limit first
 	//fdb->f_limit = abs(fdb->f_limit);
 
-	//----------------------- Deal with Limits ----------------
-#if 0	//     Method 1:  as absolute limit 
-	if( source[nmov] > fdb->f_limit )
+#if 1	// Limit Pick Method :  as relative limit check , comparing with next fdb->f_buff[] 
+	if( fdb->f_buff[np-1] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up limit
 	{
-		fdb->f_buff[np-1]=fdb->f_limit;
+		//------- if two CONTINOUS up_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit) )
+		{
+			// keep fdb->f_buff[np-1] then;
+		}
+		else
+			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
 	}
-	else if (source[nmov] < -1*(fdb->f_limit) )
+	else if( fdb->f_buff[np-1] < (fdb->f_buff[np-2]-fdb->f_limit) ) //check low limit
 	{
-		fdb->f_buff[np-1]=-1*(fdb->f_limit);
+		//------- if two CONTINOUS low_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit) )
+		{
+			// keep fdb->f_buff[np-1] then;
+		}
+		else
+			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
 	}
-#endif
 
-#if 1	//     Method 2:  as relative limit, comparing with previous fdb->f_buff[]
-	if( source[nmov] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up limit
-	{
-		fdb->f_buff[np-1]=fdb->f_buff[np-2]; // use previous data
-	}
-	else if (source[nmov] < ( fdb->f_buff[np-2]-fdb->f_limit) )//check low limit
-	{
-		fdb->f_buff[np-1]=fdb->f_buff[np-2]; // use previous data
-	}
 #endif
-
         // ------ else if the value is within normal scope
-	else
-		fdb->f_buff[np-1]=source[nmov];
-
-
-
+	//else 
 
 	fdb->f_sum += fdb->f_buff[np-1]; //add new data to f_sum
 
 	//----- update dest with average value
+	//----- dest[] is np+2 points later then source[]
 	dest[nmov]=(fdb->f_sum)>>(fdb->f_ng);
 
 	return dest[nmov];
@@ -126,7 +126,7 @@ inline static int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng,
 		fdb->f_ng=ng;
 
 	//---- set np
-	np=1<<(fdb->f_ng);
+	np=1<<(fdb->f_ng); //2^f_ng
 	fprintf(stdout," %d points moving average filter initilizing...\n",np);
 
 	//---- set limit
@@ -134,7 +134,7 @@ inline static int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng,
 	//---- clear sum
 	fdb->f_sum=0;
 	//---- allocate mem for buff data
-	fdb->f_buff = malloc( np*sizeof(int16_t) );
+	fdb->f_buff = malloc( (np+2)*sizeof(int16_t) ); //!!!! one more int16_t for temp. store, not for AMF buff !!!
 	if(fdb->f_buff == NULL)
 	{
 		fprintf(stderr,"Init_int16MAFilterDB(): malloc f_buff failed!\n");
@@ -142,7 +142,7 @@ inline static int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng,
 	}
 
 	//---- clear buff data if f_buff 
-	memset(fdb->f_buff,0,np*sizeof(int16_t));
+	memset(fdb->f_buff,0,(np+2)*sizeof(int16_t));
 
 	return 0;
 }
