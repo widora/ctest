@@ -59,6 +59,8 @@ Midas
 #define ADXL_RANGE_16G 0x3  //-16g~+16g
 
 
+//--------------
+#define ADXL_DATAREADY_WAITUS 1000 //wait time(us) for XYZ data 
 
 char *g_I2Cfdev="/dev/i2c-0"; //i2c device file
 int g_I2Cfd; //file descriptor
@@ -274,7 +276,10 @@ void get_int16XYZ_ADXL345(int16_t  *accXYZ)
 
     //----- wait for data to be read
     while(!DataReady_ADXL345())
-          usleep(5000);
+    {
+//	  printf("wait for ADXL data ready...\n");
+          usleep(ADXL_DATAREADY_WAITUS);
+    }
     I2C_Single_Read(0x32,xyz);
     I2C_Single_Read(0x33,xyz+1);
     I2C_Single_Read(0x34,xyz+2);

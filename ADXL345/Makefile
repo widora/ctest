@@ -6,7 +6,7 @@ DEPENDS = i2c_adxl345_2.h  ../L3G4200D/mathwork.h  ../L3G4200D/filters.h
 INCLUDES = -I/home/midas/ctest/L3G4200D
 #LDFLAGS  = 
 #CFLAGS    = -Wall
-#LIBS	  = -lm -lpthread
+LIBS	  = -lm 
 
 $(APP): $(SOURCES) $(DEPENDS)
 	$(CC) $(INCLUDES) $(CFLAGS) $(LIBS) -o $(APP) $(SOURCES)

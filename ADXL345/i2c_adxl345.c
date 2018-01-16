@@ -2,11 +2,16 @@
 1. Read ADXL345 register one by one, mutiple read will cause system crash, 
    I2C driver problem or ADXL345 defects ???
 2. The axis that is parallel with gravity will get more measuring noise or vibration?
+3. Different ODR value will incure different noise level. seems ODR 400Hz is Best.
+4. Actual sampling frequency of XYZ data shall be decided by realtime test,...
+   one circle time of reading,converting,calculating shall be counted in.
+5. IIR double precision calculation greatly deters TCP data transfer.
 
 Midas
 --------------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <math.h>
 //#include "i2c_adxl345_1.h" //---use ioctl() to operate I2C
 #include "i2c_adxl345_2.h" //--- use  read() write() to operate I2C
 #include "mathwork.h"
@@ -18,18 +23,19 @@ Midas
 int main(void)
 {
    int ret_val;
-   int i,j,k;
+   int i,j,k,m;
    uint8_t dat;
    uint8_t addr;
    int16_t accXYZ[3]={0}; // acceleration value of XYZ 
-   double  faccXYZ[3]; //faccXYZ=fs*accXYZ
+   double  faccXYZ[3]; //double //faccXYZ=fs*accXYZ
+   double  fangleYZ; //atan(Y/Z)
    uint8_t xyz[6]={0};
    int16_t *tmp=(int16_t *)xyz;
    double fs=3.9/1000.0;//scale factor 4mg/LSB for full resolutioin, 
    //----- filter data base -----
    struct int16MAFilterDB fdb_accXYZ[3];
    //Note: Big limit value smooths data better,but you have to trade off with reactive speed.
-   int16_t  relative_int16limit=128;//256 //1.0*1000/3.9=256; relative difference limit between two fdb_faccXYZ[] data
+   uint16_t  relative_uint16limit=128;//256 //1.0*1000/3.9=256; relative difference limit between two fdb_faccXYZ[] data
 
    //------ time value ----
    struct timeval tm_start,tm_end;
@@ -45,15 +51,16 @@ int main(void)
    }
 
    //------ set up ADXL345
-   init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G);
+   //Note: adjust ADXL_DATAREADY_WAITUS accordingly in i2c_adxl345_2.h ...
+   init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G); 
 
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 2, relative_int16limit)<0) //2^2=4 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 4, relative_uint16limit)<0) //2^4=16 points average filter
    {
 	ret_val=-2;
         goto INIT_MAFILTER_FAIL;
-    }
+   }
 
   //---- preare TCP data server
 #ifdef TCP_TRANSFER
@@ -79,6 +86,7 @@ int main(void)
 
 #if 1  //------------ I2C operation with read() /write() -------------
    i=0;
+   send_count=0;
 while(1)
 {
    i=0;
@@ -88,9 +96,13 @@ while(1)
        i++;
        get_int16XYZ_ADXL345(accXYZ);
 
-       //-----applay int16 Moving Average Filter 
+       //-----applay int16 Moving Average Filter
+
+       //----- single and double spiking value will be trimmed.
        int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); // three filter groups, only [0] data filterd for each filter
-       //----- now accXYZ is with filtered data, spiking values have been trimmed.
+
+       //----- apply IIR LOWPASS FILTER
+//       IIR_Lowpass_int16Filter(&accXYZ[2], &accXYZ[2], 0); // only ONE group to be filtered.
 
        //------- use factor
        for(j=0;j<3;j++)
@@ -102,16 +114,26 @@ while(1)
        printf("I=%d, accX: %f,  accY: %f,  accZ:%f \r", i, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
        fflush(stdout);
 
+      //--------- cal. fangleYZ
+//      if(faccXYZ[2]==0) faccXYZ[2]=0.00000001; // avoid zero !!!
+//      fangleYZ=atan(faccXYZ[1]/faccXYZ[2]);
+      //------- filter with IIR LOWPASS
+//      IIR_Lowpass_dblFilter(&fangleYZ, &fangleYZ, 0); // only ONE group to be filtered.
+
+
 #ifdef TCP_TRANSFER  //--- every 10th 
        if(send_count==0)
        {
-               if( send_client_data((uint8_t *)faccXYZ,3*sizeof(double)) < 0)
+//               if( send_client_data((uint8_t *)&fangleYZ, 1*sizeof(double)) < 0)  // Blocking type operation
+               if( send_client_data((uint8_t *)faccXYZ, 3*sizeof(double)) < 0)  // Blocking type operation
                        printf("-------- fail to send client data ------\n");
-                send_count=4;
+
+               send_count=5;
         }
-        else
-                send_count-=1;
-#endif
+	else
+	       send_count -= 1;
+
+#endif //TCP
    } // end of while()
 
    gettimeofday(&tm_end,NULL);

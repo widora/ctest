@@ -5,8 +5,10 @@
 #include <math.h>
 #include <stdint.h>
 
-
+#define PI 3.1415926535898
 #define INT16MAF_MAX_GRADE 10  //max grade limit for int16MA filter, 2^10 points moving average.
+
+
 
 //---- int16_t  moving average filter Data Base ----
 struct  int16MAFilterDB {
@@ -16,6 +18,18 @@ struct  int16MAFilterDB {
         int32_t f_sum; //sum of the buff data
         int16_t f_limit;//=0x7fff, //limit value for each data of *source.
 };
+
+
+//------------------------     FUNCTION DECLARATION     ---------------------------
+inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov);
+inline static int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit);
+inline void Release_int16MAFilterDB(struct int16MAFilterDB *fdb);
+inline static void int16_MAfilter_NG(uint8_t m, struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov);
+inline static int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit);
+inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb);
+static void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov);
+static void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov);
+
 
 /*----------------------------------------------------------------------
             ***  Moving Average Filter   ***
@@ -63,21 +77,23 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 	//----- reassure limit first
 	//fdb->f_limit = abs(fdb->f_limit);
 
-#if 1	// Limit Pick Method :  as relative limit check , comparing with next fdb->f_buff[] 
-	if( fdb->f_buff[np-1] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up limit
+#if 1	// Limit Pick Method : ---  Relative Limit --- , comparing with next fdb->f_buff[] 
+	if( fdb->f_buff[np-1] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up_limit
 	{
-		//------- if two CONTINOUS up_limit detected, then do NOT trim ----
-		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit) )
+		//------- if 1+2 CONTINOUS up_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit) 
+		   && fdb->f_buff[np+1] > (fdb->f_buff[np-2]+fdb->f_limit) )
 		{
 			// keep fdb->f_buff[np-1] then;
 		}
 		else
 			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
 	}
-	else if( fdb->f_buff[np-1] < (fdb->f_buff[np-2]-fdb->f_limit) ) //check low limit
+	else if( fdb->f_buff[np-1] < (fdb->f_buff[np-2]-fdb->f_limit))  //check low_limit
 	{
-		//------- if two CONTINOUS low_limit detected, then do NOT trim ----
-		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit) )
+		//------- if 1+2 CONTINOUS low_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit) 
+		  && fdb->f_buff[np+1] < (fdb->f_buff[np-2]-fdb->f_limit) )
 		{
 			// keep fdb->f_buff[np-1] then;
 		}
@@ -85,9 +101,9 @@ inline static int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t 
 			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
 	}
 
-#endif
         // ------ else if the value is within normal scope
-	//else 
+	//else do nothing !
+#endif
 
 	fdb->f_sum += fdb->f_buff[np-1]; //add new data to f_sum
 
@@ -103,7 +119,7 @@ Init. int16 MA filter strut with given value
 
 *fdb --- filter data buffer base
 ng  --- filter grade number,  2^ng points average.
-limit  --- limit value for input data, above which the value will be trimmed .
+limit  --- abs(limit) value for input data, above which the value will be trimmed .
 Return:
 	0    OK
 	<0   fails
@@ -151,7 +167,7 @@ inline static int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng,
 /*----------------------------------------------------------------------
 Release int16 MA filter struct
 ----------------------------------------------------------------------*/
-void Release_int16MAFilterDB(struct int16MAFilterDB *fdb)
+inline void Release_int16MAFilterDB(struct int16MAFilterDB *fdb)
 {
 	if(fdb->f_buff != NULL)
 		free(fdb->f_buff);
@@ -211,7 +227,7 @@ inline static int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb
 
 Release [m] groups of int16 MA filter struct
 ----------------------------------------------------------------------*/
-void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb)
+inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb)
 {
 	int i;
 	for(i=0; i<m; i++)
@@ -219,6 +235,58 @@ void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb)
 	   Release_int16MAFilterDB(fdb+i);
 	}
 }
+
+
+
+
+/*---------------------- IIR_LOWPASS_FILTER -----------------------------------
+
+                          4 order IIR filter
+
+p_in_data:   pointer to start of input data
+p_out_data:  pointer to start of output data
+nmov:        processed slot number of the data, p_in_data[nmov] --> p_out_data[nmov]
+!!!! p_ind_data and p_out_data maybe the same address !!!!!
+----------------------------------------------------------------------*/
+static void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov)
+{
+	//----factors for 4 order IIR filter ----
+	//----Fs=400Hz Fc=199Hz--
+//	static  double IIR_B[5]={ 0.9796854871904, 3.918741948762, 5.878112923142, 3.918741948762, 0.9796854871904};
+//	static  double IIR_A[5]={ 1, 3.958953318647, 5.877700273536, 3.878530549052, 0.9597836538115};
+	//----Fs=300Hz Fc=50Hz--
+	static  double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
+	static  double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
+	static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
+	//---- filter data ----
+        w[0]=p_in_data[nmov]-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];
+        p_out_data[nmov]=IIR_B[0]*w[0]+IIR_B[1]*w[1]+IIR_B[2]*w[2]+IIR_B[3]*w[3]+IIR_B[4]*w[4];
+	//---- renew w[] for next operation ----
+        w[4]=w[3];
+        w[3]=w[2];
+        w[2]=w[1];
+        w[1]=w[0];
+
+}
+/*------------------ double precision ------------------*/
+static void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
+{
+	//----factors for 4 order IIR filter ----
+	//----Fs=300Hz Fc=50Hz--
+	static  double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
+	static  double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
+	static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
+	//---- filter data ----
+        w[0]=p_in_data[nmov]-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];
+        p_out_data[nmov]=IIR_B[0]*w[0]+IIR_B[1]*w[1]+IIR_B[2]*w[2]+IIR_B[3]*w[3]+IIR_B[4]*w[4];
+	//---- renew w[] for next operation ----
+        w[4]=w[3];
+        w[3]=w[2];
+        w[2]=w[1];
+        w[1]=w[0];
+
+}
+
 
 
 
