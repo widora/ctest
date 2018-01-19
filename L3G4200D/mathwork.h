@@ -1,8 +1,15 @@
+/*------------------------------------------------
+For Widora WiFi_Robo
+
+Midas
+------------------------------------------------*/
+
 #ifndef   ___MATHWORK__H__
 #define   ___MATHWORK__H__
 
 #include <stdint.h>
 #include <sys/time.h>
+#include <malloc.h>
 
 /*----------------------------------------------
  calculate and return time difference in us
@@ -102,6 +109,8 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 
 
 //<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
+//  !!!!NOTE: all matrix data is stored from row to column.
+
 
 /*-------------------------------------------
 Print matrix
@@ -222,6 +231,99 @@ float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *m
 }
 
 
+/*----------------     MATRIX TRANSPOSE    ---------------------
+Transpose a matrix,swap element matA(i,j) and matA(j,i)
 
+int nr:  number of row
+int cn:  number of column
+*matA:   pointer to matrix A
+After operation row number will be cn, and column number will be nr.
+
+Return:
+	NULL ---  fails
+	point to matA  --- OK
+----------------------------------------------------------*/
+float* Matrix_Transpose(int nr, int nc, float *matA)
+{
+	int i,j;
+	int nbytes=nr*nc*sizeof(float);
+	float *matB=malloc(nbytes);
+
+	if(matB==NULL)
+	{
+	   fprintf(stderr,"Matrix_Transpose(): malloc() fails!\n");
+	   return NULL;
+	}
+	//----- swap to matB ----
+	for(i=0; i<nc; i++) //nc-> new nr
+		for(j=0; j<nr; j++)// nr -> new nc
+			matB[i*nr+j]=matA[j*nc+i];
+	//----- recopy to matA -----
+	memcpy(matA,matB,nbytes);
+
+	//----- release matB
+	free(matB);
+
+	return matA; 
+}
+
+
+/*----------------     MATRIX TRANSPOSE    ---------------------
+Calculate determinant of a SQUARE matrix
+
+int nrc:  number of row and column
+Return:
+	NULL ---  fails
+	pointer to the result  --- OK
+----------------------------------------------------------*/
+float* Matrix_Determ(int nrc, float *matA, float *determ)
+{
+     int i,j,k;
+     float pt=0.0,mt=0.0; //plus and minus multiplication
+     float tmp=1.0;
+
+     if(matA==NULL || determ==NULL)
+     {
+	   fprintf(stderr,"Matrix_Determ(): matrix pointer is NULL!\n");
+	   return NULL;
+     }
+
+     //------plus multiplication
+     for(i=0; i<nrc; i++) 
+     {
+	   k=i;
+  	   for(j=0; j<nrc; j++) 
+	   {
+		tmp *= matA[k];
+		if( (k+1)%nrc == 0)
+			k+=1;
+		else
+			k+=(nrc+1);
+     	   }
+	   pt += tmp;
+	   tmp=1.0;
+     }
+
+     //------minus multiplication
+     for(i=0; i<nrc; i++)
+     {
+	   k=i;
+  	   for(j=0; j<nrc; j++)
+	   {
+		tmp *= matA[k];
+		if( k%nrc == 0 )
+			k+=(2*nrc-1);
+		else
+			k+=(nrc-1);
+     	   }
+
+	   mt += tmp;
+	   tmp=1.0;
+     }
+
+     *determ = pt-mt;
+
+     return determ;
+}
 
 #endif

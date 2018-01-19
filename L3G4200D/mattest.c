@@ -24,6 +24,15 @@ void main(void)
    4,1,0.4,0.1
 };
 
+ float matM[3*3]=
+{
+   6,1,1,
+   4,-2,5,
+   2,8,7
+};
+
+ float determ;
+
   float matC[2*3]={0};
   float matD[2*3]={0};
   float matY[2*4]={0};
@@ -50,5 +59,16 @@ void main(void)
 
    printf("Matrix matY = matB*matX = \n");
    Matrix_Print(2,4,matY);
+
+   //----- Matrix Transpose Operation ----
+   Matrix_Transpose(2, 4, matY);
+   printf("Matrix matY = Transpose(matY) = \n");
+   Matrix_Print(4,2,matY);
+
+   //----- Matrix Determinant Calculation ----
+   Matrix_Determ(3, matM, &determ);
+   printf("matM = \n");
+   Matrix_Print(3,3,matM);
+   printf("Matrix_Determ(matM)=%f \n",determ);
 
 }
