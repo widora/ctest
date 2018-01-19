@@ -115,17 +115,17 @@ while(1)
        fflush(stdout);
 
       //--------- cal. fangleYZ
-//      if(faccXYZ[2]==0) faccXYZ[2]=0.00000001; // avoid zero !!!
-//      fangleYZ=atan(faccXYZ[1]/faccXYZ[2]);
+      if(faccXYZ[2]==0) faccXYZ[2]=0.00000001; // avoid zero !!!
+      fangleYZ=atan(faccXYZ[1]/faccXYZ[2]);
       //------- filter with IIR LOWPASS
-//      IIR_Lowpass_dblFilter(&fangleYZ, &fangleYZ, 0); // only ONE group to be filtered.
+      IIR_Lowpass_dblFilter(&fangleYZ, &fangleYZ, 0); // only ONE group to be filtered.
 
 
 #ifdef TCP_TRANSFER  //--- every 10th 
        if(send_count==0)
        {
-//               if( send_client_data((uint8_t *)&fangleYZ, 1*sizeof(double)) < 0)  // Blocking type operation
-               if( send_client_data((uint8_t *)faccXYZ, 3*sizeof(double)) < 0)  // Blocking type operation
+               if( send_client_data((uint8_t *)&fangleYZ, 1*sizeof(double)) < 0)  // Blocking type operation
+//               if( send_client_data((uint8_t *)faccXYZ, 3*sizeof(double)) < 0)  // Blocking type operation
                        printf("-------- fail to send client data ------\n");
 
                send_count=5;

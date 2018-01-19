@@ -1,6 +1,8 @@
 #ifndef   ___MATHWORK__H__
 #define   ___MATHWORK__H__
 
+#include <stdint.h>
+#include <sys/time.h>
 
 /*----------------------------------------------
  calculate and return time difference in us
@@ -97,5 +99,129 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 
 	   return sum_dt;
 }
+
+
+//<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
+
+/*-------------------------------------------
+Print matrix
+nr:  number of row of *matA
+nc:  number of column of *matA
+*matA: point to the matrix
+-------------------------------------------*/
+void Matrix_Print(int nr, int nc, float *matA)
+{
+   int i,j;
+
+   for(i=0; i<nr; i++)
+   {
+        printf("Row(%d):  ",i);
+        for(j=0; j<nc; j++)
+           printf("%f    ", matA[i*nc+j] );
+        printf("\n");
+   }
+}
+
+
+/*----------------     MATRIX ADD/SUB    ---------------------
+Addup/subtraction operation of two matrices with same row and column number
+int nr:  number of row
+int cn:  number of column
+*matA:   pointer to matrix A
+*matB:   pointer to matrix B
+*matC:   pointer to mastrix A+B or A-B
+Return:
+	NULL  --- fails
+	pointer to matC --- OK
+----------------------------------------------------------*/
+float* Matrix_Add(int nr, int nc, float *matA, float *matB, float *matC)
+{
+   int i,j;
+
+   //---- check pointer -----
+   if(matA==NULL || matB==NULL || matC==NULL)
+   {
+	   fprintf(stderr,"Matrix_Add(): matrix pointer is NULL!\n");
+	   return NULL;
+   }
+
+   for(i=0; i<nr; i++) //row count
+   {
+	for(j=0; j<nc; j++) //column count
+	{
+		matC[i*nc+j] = matA[i*nc+j]+matB[i*nc+j];
+	}
+   }
+
+   return matC;
+}
+
+float* Matrix_Sub(int nr, int nc, float *matA, float *matB, float *matC)
+{
+   int i,j;
+
+   //---- check pointer -----
+   if(matA==NULL || matB==NULL || matC==NULL)
+   {
+	   fprintf(stderr,"Matrix_Sub(): matrix pointer is NULL!\n");
+	   return NULL;
+   }
+
+   for(i=0; i<nr; i++) //row count
+   {
+        for(j=0; j<nc; j++) //column count
+        {
+                matC[i*nc+j] = matA[i*nc+j]-matB[i*nc+j];
+        }
+   }
+   return matC;
+}
+
+
+
+/*----------------     MATRIX MULTIPLY    ---------------------
+Multiply two matrices
+   !!! ncA == nrB !!!!
+int nrA,nrB:  number of row
+int ncA,ncB:  number of column
+matA[nrA,ncA]:   matrix A
+matB[nrB,ncB]:   matrix B
+matC[nrA,ncB]:   pointer to mastrix A*B 
+
+Return:
+	NULL ---  fails
+	point to matC  --- OK
+----------------------------------------------------------*/
+float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *matB, float *matC)
+{
+	float *fret;
+	int i,j,k;
+
+	//---- check pointer -----
+	if(matA==NULL || matB==NULL || matC==NULL)
+	{
+	   fprintf(stderr,"Matrix_Multiply(): matrix pointer is NULL!\n");
+	   return NULL;
+	}
+	//----- verify matrix dimension -----
+	if(ncA != nrB)
+	{
+	   fprintf(stderr,"Matrix_Multiply(): dimension not correct!\n");
+	   return NULL;
+	}
+
+	//---- result matrix with row: nrA  column: ncB, recuse nrA and ncB then.
+	for(i=0; i<nrA; i++) //rows of matC (matA)
+		for(j=0; j<ncB; j++) // columns of matC  (matB)
+			for(k=0; k<ncA; k++)//
+			{
+				matC[i*ncB+j] += matA[i*ncA+k]*matB[ncB*k+j]; // (row i of matA) .* (column j of matB)
+				//matC[0] += matA[k]*matB[ncB*k];//i=0,j=0
+			}
+       return matC;
+}
+
+
+
 
 #endif
