@@ -28,15 +28,26 @@ void main(void)
 {
    6,1,1,
    4,-2,5,
-   2,8,7
+   2,8,7,
 };
 
- float determ;
+
+ float matN[3*3]=
+{
+  3,3.2,5,
+  3.5,3.6,5,
+  6,6,6
+};
+
+ float invmatN[2*2]={0};
+
+  float determ;
 
   float matC[2*3]={0};
   float matD[2*3]={0};
   float matY[2*4]={0};
  
+
 
    //----- Matrix ADD_SUB Operation ----
    Matrix_Add(2,3,matA,matB,matC);
@@ -50,25 +61,41 @@ void main(void)
    Matrix_Print(2,3,matD);
 
    //----- Matrix Multiply Operation ----
-   printf("matB=\n");
+   printf("\nmatB=\n");
    Matrix_Print(2,3,matB);
-   printf("matX=\n");
+   printf("\nmatX=\n");
    Matrix_Print(3,4,matX);
   
    Matrix_Multiply(2,3,matB, 3, 4, matX, matY);
 
-   printf("Matrix matY = matB*matX = \n");
+   printf("\nMatrix matY = matB*matX = \n");
    Matrix_Print(2,4,matY);
+
+   //----- Matrix MultFactor and DivFactor ----
+   Matrix_MultFactor(2,3,matA,5.0);
+   printf("\nMatrix matA = matA*5.0 = \n");
+   Matrix_Print(2,3,matA);
+   Matrix_DivFactor(2,3,matB,5.0);
+   printf("\nMatrix matB = matB/5.0 = \n");
+   Matrix_Print(2,3,matB);
 
    //----- Matrix Transpose Operation ----
    Matrix_Transpose(2, 4, matY);
-   printf("Matrix matY = Transpose(matY) = \n");
+   printf("\nMatrix matY = Transpose(matY) = \n");
    Matrix_Print(4,2,matY);
 
    //----- Matrix Determinant Calculation ----
    Matrix_Determ(3, matM, &determ);
-   printf("matM = \n");
+   printf("\nmatM = \n");
    Matrix_Print(3,3,matM);
    printf("Matrix_Determ(matM)=%f \n",determ);
 
+   //---- Matrix Inverse Computatin -----
+   printf("\nmatN = \n");
+   Matrix_Print(3,3,matN);
+   Matrix_Determ(3,matN, &determ);
+   printf(" Matrix_Determ(matN) = %f \n",determ);
+   Matrix_Inverse(3, matN, invmatN);
+   printf("\ninvmatN = \n");
+   Matrix_Print(3,3,invmatN);
 }

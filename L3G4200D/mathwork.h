@@ -1,8 +1,14 @@
 /*------------------------------------------------
 For Widora WiFi_Robo
 
+TODO:
+
+	1. Matrix_Determ() function for matrix dimension > 3.
+	2. Float precision seems not enough ???
+	   Determinat computation example: matlab 0.6    mathwork 0.599976
+
 Midas
-------------------------------------------------*/
+------------------  COPYLEFT  --------------------*/
 
 #ifndef   ___MATHWORK__H__
 #define   ___MATHWORK__H__
@@ -231,6 +237,61 @@ float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *m
 }
 
 
+/*-----------------------------------------------
+Multiply a matrix with a factor
+int nr:  number of row
+int nc:  number of column
+*matA:   pointer to matrix A
+fc:      the  multiplicator
+Return:
+	NULL  --- fails
+	pointer to matA --- OK
+-----------------------------------------------*/
+float* Matrix_MultFactor(int nr, int nc, float *matA, float fc)
+{
+	int i;
+
+	if(matA==NULL)
+	{
+	   fprintf(stderr,"Matrix_MultFactor(): matA is a NULL pointer!\n");
+	   return NULL;
+	}
+
+	for(i=0; i<nr*nc; i++)
+		matA[i] *= fc;
+
+	return matA;
+}
+
+
+/*-----------------------------------------------
+Divide a matrix with a factor
+int nr:  number of row
+int nc:  number of column
+*matA:   pointer to matrix A
+fc:      the divider
+Return:
+	NULL  --- fails
+	pointer to matA --- OK
+-----------------------------------------------*/
+float* Matrix_DivFactor(int nr, int nc, float *matA, float fc)
+{
+	int i;
+
+	if(matA==NULL)
+	{
+	   fprintf(stderr,"Matrix_DivFactor(): matA is a NULL pointer!\n");
+	   return NULL;
+	}
+
+	for(i=0; i<nr*nc; i++)
+		matA[i] /= fc;
+
+	return matA;
+}
+
+
+
 /*----------------     MATRIX TRANSPOSE    ---------------------
 Transpose a matrix,swap element matA(i,j) and matA(j,i)
 
@@ -268,10 +329,14 @@ float* Matrix_Transpose(int nr, int nc, float *matA)
 }
 
 
-/*----------------     MATRIX TRANSPOSE    ---------------------
-Calculate determinant of a SQUARE matrix
+/*----------------     MATRIX DETERMINANT    ---------------------
 
+	!!!! for matrix dimension NOT great than 3 !!!!
+
+Calculate determinant of a SQUARE matrix
 int nrc:  number of row and column
+*matA: the square matrix
+*determ: determinant of the matrix
 Return:
 	NULL ---  fails
 	pointer to the result  --- OK
@@ -288,42 +353,150 @@ float* Matrix_Determ(int nrc, float *matA, float *determ)
 	   return NULL;
      }
 
-     //------plus multiplication
-     for(i=0; i<nrc; i++) 
+     //--------------- CASE 1 ----------------------
+     if(nrc==1)
      {
-	   k=i;
-  	   for(j=0; j<nrc; j++) 
-	   {
-		tmp *= matA[k];
-		if( (k+1)%nrc == 0)
-			k+=1;
-		else
-			k+=(nrc+1);
-     	   }
-	   pt += tmp;
-	   tmp=1.0;
+	*determ = matA[0];
+	return determ;
      }
 
-     //------minus multiplication
-     for(i=0; i<nrc; i++)
+     //--------------- CASE 2 ----------------------
+     else if(nrc==2)
      {
-	   k=i;
-  	   for(j=0; j<nrc; j++)
-	   {
-		tmp *= matA[k];
-		if( k%nrc == 0 )
-			k+=(2*nrc-1);
-		else
-			k+=(nrc-1);
-     	   }
-
-	   mt += tmp;
-	   tmp=1.0;
+	*determ = matA[0]*matA[3]-matA[1]*matA[2];
+	 return determ;
      }
 
-     *determ = pt-mt;
+     //--------------- CASE 3 ----------------------
+     else if(nrc==3) 
+     {
+     	//------plus multiplication
+	     for(i=0; i<nrc; i++)
+	     {
+		   k=i;
+	  	   for(j=0; j<nrc; j++)
+		   {
+			tmp *= matA[k];
+			if( (k+1)%nrc == 0)
+				k+=1;
+			else
+				k+=(nrc+1);
+	     	   }
+		   pt += tmp;
+		   tmp=1.0;
+	     }
 
-     return determ;
+	     //------minus multiplication
+	     for(i=0; i<nrc; i++)
+	     {
+		   k=i;
+  	  	 for(j=0; j<nrc; j++)
+		   {
+			tmp *= matA[k];
+			if( k%nrc == 0 )
+				k+=(2*nrc-1);
+			else
+				k+=(nrc-1);
+	     	   }
+
+		   mt += tmp;
+		   tmp=1.0;
+ 	    }
+
+	     *determ = pt-mt;
+	     return determ;
+     }
+
+     //--------------- CASE 4, dimension great than 3 !!! ----------------------
+     else
+     {
+	    fprintf(stderr, " Matrix dimension is great than 3, NO SOLUTION at present !!!!!\n");
+	    return NULL;
+     }
+}
+
+
+/*----------------     MATRIX INVERSE    -------------------
+compute the inverse of a SQUARE matrix
+
+int nrc:  number of row and column
+*matA: the sqaure matrix,
+*matAdj: for adjugate matrix, also for the final inversed square matrix!!!
+Return:
+	NULL ---  fails
+	pointer to the result matAdj  --- OK
+----------------------------------------------------------*/
+float* Matrix_Inverse(uint32_t nrc, float *matA, float *matAdj)
+{
+
+	int i,j,k;
+	float  det_matA; //determinant of matA
+//	float* matAdj=malloc(nrc*nrc*sizeof(float)); // for adjugate matrix
+	float* matCof=malloc((nrc-1)*(nrc-1)*sizeof(float)); //for cofactor matrix
+
+	if(matAdj==NULL || matCof==NULL)
+	{
+		fprintf(stderr,"Matrix_Inverse(): malloc matAdj or/and matCof failed!\n");
+		return NULL;
+	}
+
+	//----- check if matrix matA is invertible ----
+	Matrix_Determ(nrc,matA,&det_matA); //comput determinant of matA
+	printf("determint of input matrix is %f\n",det_matA);
+	if(det_matA == 0)
+	{
+		fprintf(stderr,"Matrix_Inverse(): matrix is NOT invertible!\n");
+		return NULL;
+	}
+
+  	//-----compute adjugate matrix
+	for(i=0; i<nrc*nrc; i++)  // i, also cross center element natural number
+	{
+            //-------compute cofactor matrix matCof(i)[]
+		j=0;// element number of matCof
+		k=0; // element number of original matA
+		while(k<nrc*nrc) // traverse all elements of the original matrix
+		{
+			//------ skip elements accroding to i ------
+			if( k/nrc == i/nrc ) //skip row  elements 
+			{
+				k+=nrc;  //skip one row
+				continue;
+			}
+		 	if( k%nrc == i%nrc ) //skip column  elements
+			{
+				k+=1; // skip one element
+				continue;
+			}
+			//--- copy an element of matA to matCof
+			matCof[j]=matA[k];
+			k++;
+			j++;
+		}//end of while()
+
+		//finish i_th matCof
+//		Matrix_Print(nrc-1,nrc-1,matCof);
+
+		//---- compute determinant of the i_th cofactor matrix as i_th element of the adjugate matrix
+		Matrix_Determ(nrc-1,matCof, matAdj+i);
+		// if(i%2 == 0) matAdj[i] = 1.0*matAdj[i];
+		if( (i/nrc)%2 != (i%nrc)%2 )
+			matAdj[i] = -1.0*matAdj[i];
+
+	}// end of for(i),  computing adjugate matrix NOT finished yet
+
+	//----- transpose the matrix to finish computing adjugate matrix
+	Matrix_Transpose(nrc, nrc, matAdj);
+
+	//----- compute inverse matrix
+	Matrix_DivFactor(nrc,nrc,matAdj,det_matA);//matAdj /= det_matA
+
+
+	//----- free mem.
+	free(matCof);
+
+	return matAdj;
+
 }
 
 #endif
