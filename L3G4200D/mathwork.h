@@ -1,3 +1,4 @@
+
 /*------------------------------------------------
 For Widora WiFi_Robo
 
@@ -16,6 +17,14 @@ Midas
 #include <stdint.h>
 #include <sys/time.h>
 #include <malloc.h>
+#include <string.h>
+
+struct float_Matrix
+{
+  int nc; //column n
+  int nr; //row n
+  float* pmat;
+};
 
 /*----------------------------------------------
  calculate and return time difference in us
@@ -114,114 +123,227 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 }
 
 
+
 //<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
 //  !!!!NOTE: all matrix data is stored from row to column.
 
 
 /*-------------------------------------------
-Print matrix
-nr:  number of row of *matA
-nc:  number of column of *matA
-*matA: point to the matrix
+              Print matrix
 -------------------------------------------*/
-void Matrix_Print(int nr, int nc, float *matA)
+void Matrix_Print(struct float_Matrix matA)
 {
    int i,j;
+   int nr=matA.nr;
+   int nc=matA.nc;
+
+   if(matA.pmat == NULL)
+   {
+	printf(" Matrix data is NULL!\n");
+	return;
+   }
+
+   for(i=0; i<nc; i++)
+	printf("       Column(%d)",i);
+   printf("\n");
 
    for(i=0; i<nr; i++)
    {
         printf("Row(%d):  ",i);
         for(j=0; j<nc; j++)
-           printf("%f    ", matA[i*nc+j] );
+           printf("%f    ", (matA.pmat)[nc*i+j] );
         printf("\n");
    }
+   printf("\n");
 }
 
 
-/*----------------     MATRIX ADD/SUB    ---------------------
+/*-------------------------     MATRIX ADD/SUB    -------------------------
+     matC = matA +/- matB
 Addup/subtraction operation of two matrices with same row and column number
-int nr:  number of row
-int cn:  number of column
 *matA:   pointer to matrix A
 *matB:   pointer to matrix B
 *matC:   pointer to mastrix A+B or A-B
+Note: matA matB and matC may be the same!!
 Return:
 	NULL  --- fails
-	pointer to matC --- OK
+	matC --- OK
 ----------------------------------------------------------*/
-float* Matrix_Add(int nr, int nc, float *matA, float *matB, float *matC)
+struct float_Matrix* Matrix_Add( struct float_Matrix *matA,
+		   struct float_Matrix *matB,
+		   struct float_Matrix *matC )
 {
    int i,j;
+   int nr,nc;
 
    //---- check pointer -----
    if(matA==NULL || matB==NULL || matC==NULL)
    {
-	   fprintf(stderr,"Matrix_Add(): matrix pointer is NULL!\n");
+	   fprintf(stderr,"Matrix_Add(): matrix is NULL!\n");
 	   return NULL;
    }
+   //----- check pmat ------
+   if(matA->pmat==NULL || matB->pmat==NULL || matC->pmat==NULL)
+   {
+	   fprintf(stderr,"Matrix_Add(): matrix pointer pmat is NULL!\n");
+	   return NULL;
+   } 
+   //---- check dimension -----
+   if(  matA->nr != matB->nr || matB->nr != matC->nr ||
+        matA->nc != matB->nc || matB->nc != matC->nc )
+   {
+	  fprintf(stderr,"Matrix_Add(): matrix dimensions don't match!\n");
+	  return NULL;
+   }
+
+   nr=matA->nr;
+   nc=matA->nc;
 
    for(i=0; i<nr; i++) //row count
    {
 	for(j=0; j<nc; j++) //column count
 	{
-		matC[i*nc+j] = matA[i*nc+j]+matB[i*nc+j];
+		(matC->pmat)[i*nc+j] = (matA->pmat)[i*nc+j]+(matB->pmat)[i*nc+j];
 	}
    }
 
    return matC;
 }
 
-float* Matrix_Sub(int nr, int nc, float *matA, float *matB, float *matC)
+struct float_Matrix* Matrix_Sub( struct float_Matrix *matA,
+				 struct float_Matrix *matB,
+				 struct float_Matrix *matC  )
 {
    int i,j;
+   int nr,nc;
 
    //---- check pointer -----
    if(matA==NULL || matB==NULL || matC==NULL)
    {
-	   fprintf(stderr,"Matrix_Sub(): matrix pointer is NULL!\n");
+	   fprintf(stderr,"Matrix_Sub(): matrix is NULL!\n");
 	   return NULL;
    }
+   //----- check pmat ------
+   if(matA->pmat==NULL || matB->pmat==NULL || matC->pmat==NULL)
+   {
+	   fprintf(stderr,"Matrix_Sub(): matrix pointer pmat is NULL!\n");
+	   return NULL;
+   }
+   //---- check dimension -----
+   if(  matA->nr != matB->nr || matB->nr != matC->nr ||
+        matA->nc != matB->nc || matB->nc != matC->nc )
+   {
+	  fprintf(stderr,"Matrix_Sub(): matrix dimensions don't match!\n");
+	  return NULL;
+   }
+
+   nr=matA->nr;
+   nc=matA->nc;
 
    for(i=0; i<nr; i++) //row count
    {
         for(j=0; j<nc; j++) //column count
         {
-                matC[i*nc+j] = matA[i*nc+j]-matB[i*nc+j];
+                (matC->pmat)[i*nc+j] = (matA->pmat)[i*nc+j]-(matB->pmat)[i*nc+j];
         }
    }
    return matC;
 }
 
 
+/*----------------     MATRIX Get a Column  ---------------------
+Copy a column of a matrix to another one dimension matrix,or to the first
+column of another matrix.
+matA:   pointer to matrix A
+nclmA:  number of column to be copied
+matB:   pointer to the result matrix.
+nclmB:  number of column to copy to
+Return:
+	NULL  --- fails
+	matB   --- OK
+----------------------------------------------------------*/
+//struct float_Matrix* Matrix_GetColumn(int nrA, int ncA, float *matA, int nclm,float *matClm)
+struct float_Matrix* Matrix_CopyColumn(struct float_Matrix *matA, int nclmA, struct float_Matrix *matB, int nclmB)
+{
+    int i;
+    int ncA,nrA,ncB;
+
+   //---- check pointer -----
+   if(matA==NULL || matB==NULL )
+   {
+	   fprintf(stderr,"Matrix_CopyColumn(): matrix is NULL!\n");
+	   return NULL;
+   }
+
+   //----- check pmat ------
+   if(matA->pmat==NULL || matB->pmat==NULL )
+   {
+	   fprintf(stderr,"Matrix_CopyColumn(): matrix pointer pmat is NULL!\n");
+	   return NULL;
+   }
+
+    ncA=matA->nc;
+    nrA=matA->nr;
+    ncB=matB->nc;
+
+   //----- check column number
+   if( nclmA > ncA || nclmB > ncB)
+   {
+	   fprintf(stderr,"Matrix_CopyColumn():column number out of range!\n");
+	   return NULL;
+   }
+
+   for(i=0; i<nrA; i++)
+	(matB->pmat)[nclmB+i*ncB] = (matA->pmat)[nclmA+i*ncA];
+
+   return   matB;
+
+}
+
 
 /*----------------     MATRIX MULTIPLY    ---------------------
 Multiply two matrices
    !!! ncA == nrB !!!!
-int nrA,nrB:  number of row
-int ncA,ncB:  number of column
 matA[nrA,ncA]:   matrix A
 matB[nrB,ncB]:   matrix B
-matC[nrA,ncB]:   pointer to mastrix A*B 
+matC[nrA,ncB]:   mastrix c=A*B
 
 Return:
 	NULL ---  fails
-	point to matC  --- OK
+	matC  --- OK
 ----------------------------------------------------------*/
-float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *matB, float *matC)
+struct float_Matrix* Matrix_Multiply( struct float_Matrix *matA,
+				      struct float_Matrix *matB,
+				      struct float_Matrix *matC )
 {
 	float *fret;
 	int i,j,k;
+	int nrA,ncA,nrB,ncB,nrC,ncC;
 
 	//---- check pointer -----
 	if(matA==NULL || matB==NULL || matC==NULL)
 	{
-	   fprintf(stderr,"Matrix_Multiply(): matrix pointer is NULL!\n");
+	   fprintf(stderr,"Matrix_Multiply(): matrix is NULL!\n");
 	   return NULL;
 	}
-	//----- verify matrix dimension -----
-	if(ncA != nrB)
+   	//----- check pmat ------
+	if(matA->pmat==NULL || matB->pmat==NULL || matC->pmat==NULL)
 	{
-	   fprintf(stderr,"Matrix_Multiply(): dimension not correct!\n");
+	    fprintf(stderr,"Matrix_Multiply(): matrix pointer pmat is NULL!\n");
+	    return NULL;
+	}
+
+	nrA=matA->nr;
+	ncA=matA->nc;
+	nrB=matB->nr;
+	ncB=matB->nc;
+	nrC=matC->nr;
+	ncC=matC->nc;
+
+	//----- match matrix dimension -----
+	if(ncA != nrB || nrC != nrA || ncC != ncB)
+	{
+	   fprintf(stderr,"Matrix_Multiply(): dimension not match!\n");
 	   return NULL;
 	}
 
@@ -230,7 +352,7 @@ float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *m
 		for(j=0; j<ncB; j++) // columns of matC  (matB)
 			for(k=0; k<ncA; k++)//
 			{
-				matC[i*ncB+j] += matA[i*ncA+k]*matB[ncB*k+j]; // (row i of matA) .* (column j of matB)
+				(matC->pmat)[i*ncB+j] += (matA->pmat)[i*ncA+k] * (matB->pmat)[ncB*k+j]; // (element j, row i of matA) .* (column j of matB)
 				//matC[0] += matA[k]*matB[ncB*k];//i=0,j=0
 			}
        return matC;
@@ -238,54 +360,82 @@ float* Matrix_Multiply(int nrA, int ncA, float *matA, int nrB, int ncB, float *m
 
 
 /*-----------------------------------------------
+	 matA=matA*fc
 Multiply a matrix with a factor
-int nr:  number of row
-int nc:  number of column
-*matA:   pointer to matrix A
+matA:   pointer to matrix A
 fc:      the  multiplicator
 Return:
 	NULL  --- fails
-	pointer to matA --- OK
+	matA --- OK
 -----------------------------------------------*/
-float* Matrix_MultFactor(int nr, int nc, float *matA, float fc)
+struct float_Matrix* Matrix_MultFactor(struct float_Matrix *matA, float fc)
 {
 	int i;
+	int nr;
+	int nc;
 
+	//---- check pointer ----
 	if(matA==NULL)
 	{
-	   fprintf(stderr,"Matrix_MultFactor(): matA is a NULL pointer!\n");
+	   fprintf(stderr,"Matrix_MultFactor(): matA is a NULL!\n");
 	   return NULL;
 	}
+   	//----- check pmat ------
+	if(matA->pmat==NULL)
+	{
+	    fprintf(stderr,"Matrix_MultFactor(): matA->pmat is a NULL!\n");
+	    return NULL;
+	}
+
+	nr=matA->nr;
+	nc=matA->nc;
 
 	for(i=0; i<nr*nc; i++)
-		matA[i] *= fc;
+		(matA->pmat)[i] *= fc;
 
 	return matA;
 }
 
 
 /*-----------------------------------------------
-Divide a matrix with a factor
-int nr:  number of row
-int nc:  number of column
-*matA:   pointer to matrix A
+	matA=matA/factor
+Divide a matrix with a factor 
+matA:    pointer to matrix
 fc:      the divider
 Return:
 	NULL  --- fails
 	pointer to matA --- OK
 -----------------------------------------------*/
-float* Matrix_DivFactor(int nr, int nc, float *matA, float fc)
+struct float_Matrix* Matrix_DivFactor(struct float_Matrix *matA, float fc)
 {
 	int i;
+	int nr;
+	int nc;
 
+	//----- check pointer ----
 	if(matA==NULL)
 	{
 	   fprintf(stderr,"Matrix_DivFactor(): matA is a NULL pointer!\n");
 	   return NULL;
 	}
+   	//----- check pmat ------
+	if(matA->pmat==NULL)
+	{
+	    fprintf(stderr,"Matrix_DivFactor(): matA->pmat is a NULL!\n");
+	    return NULL;
+	}
+	//---- check fc -----
+	if(fc==0)
+	{
+	    fprintf(stderr,"Matrix_DivFactor(): divider factor is ZERO!\n");
+	    return NULL;
+	}
+
+	nr=matA->nr;
+	nc=matA->nc;
 
 	for(i=0; i<nr*nc; i++)
-		matA[i] /= fc;
+		(matA->pmat)[i] /= fc;
 
 	return matA;
 }
@@ -293,77 +443,130 @@ float* Matrix_DivFactor(int nr, int nc, float *matA, float fc)
 
 
 /*----------------     MATRIX TRANSPOSE    ---------------------
-Transpose a matrix,swap element matA(i,j) and matA(j,i)
+	matA(i,j) -> matB(j,i)
+Transpose a matrix and copy to another matrix
+transpose means: swap element matA(i,j) and matA(j,i)
+after operation row number will be cn, and column number will be nr.
 
-int nr:  number of row
-int cn:  number of column
-*matA:   pointer to matrix A
-After operation row number will be cn, and column number will be nr.
+matA:   pointer to matrix A
+matB:   pointer to matrix B, who will receive the transposed matrix.
+
+Note:   1.MatA and matB may be the same!
+	2.Applicable ONLY if (nrA*ncA == nrB*ncB)
 
 Return:
 	NULL ---  fails
-	point to matA  --- OK
+	point to matB  --- OK
 ----------------------------------------------------------*/
-float* Matrix_Transpose(int nr, int nc, float *matA)
+struct float_Matrix* Matrix_Transpose( struct float_Matrix *matA,
+				       struct float_Matrix *matB )
 {
 	int i,j;
-	int nbytes=nr*nc*sizeof(float);
-	float *matB=malloc(nbytes);
+	int nr;
+	int nc;
+	int nbytes;
+	float *mat; //for temp. buff
 
-	if(matB==NULL)
+	//---- check pointer -----
+	if(matA==NULL || matB==NULL)
 	{
-	   fprintf(stderr,"Matrix_Transpose(): malloc() fails!\n");
+	   fprintf(stderr,"Matrix_Transpose(): matrix is NULL!\n");
 	   return NULL;
 	}
+   	//----- check pmat ------
+	if(matA->pmat==NULL || matB->pmat==NULL)
+	{
+	    fprintf(stderr,"Matrix_Transpose(): matrix data pmat is NULL!\n");
+	    return NULL;
+	}
+
+	nr=matA->nr;
+	nc=matA->nc;
+	nbytes=nr*nc*sizeof(float);
+
+	mat=malloc(nbytes); //for temp. buff
+	if(mat==NULL)
+	{
+	   fprintf(stderr,"Matrix_Transpose(): malloc() mat fails!\n");
+	   return NULL;
+	}
+
+	//----- match matrix dimension -----
+	if( nr*nc != (matB->nr)*(matB->nc) )
+	{
+	   fprintf(stderr,"Matrix_Transpose(): dimensions do not match!\n");
+	   return NULL;
+	}
+
+
 	//----- swap to matB ----
 	for(i=0; i<nc; i++) //nc-> new nr
 		for(j=0; j<nr; j++)// nr -> new nc
-			matB[i*nr+j]=matA[j*nc+i];
+			mat[i*nr+j]=(matA->pmat)[j*nc+i];
+
 	//----- recopy to matA -----
-	memcpy(matA,matB,nbytes);
+	memcpy(matB->pmat,mat,nbytes);
 
-	//----- release matB
-	free(matB);
+	//----- revise nc and nr for matB ----
+	matB->nr = nc;
+	matB->nc = nr;
 
-	return matA; 
+	//----- release temp. mat
+	free(mat);
+
+	return matB; 
 }
 
 
 /*----------------     MATRIX DETERMINANT    ---------------------
 
-	!!!! for matrix dimension NOT great than 3 !!!!
+	!!!! for matrix dimension NOT great than 3 ONLY !!!!
 
 Calculate determinant of a SQUARE matrix
 int nrc:  number of row and column
-*matA: the square matrix
-*determ: determinant of the matrix
+matA:   the square matrix
+determ: determinant of the matrix
 Return:
 	NULL ---  fails
-	pointer to the result  --- OK
+	float pointer to the result  --- OK
 ----------------------------------------------------------*/
-float* Matrix_Determ(int nrc, float *matA, float *determ)
+float* Matrix_Determ( struct float_Matrix *matA,
+				    float *determ )
 {
      int i,j,k;
+     int nrc;
      float pt=0.0,mt=0.0; //plus and minus multiplication
      float tmp=1.0;
 
+     //----- preset determ
+     *determ = 0.0;
+
+     //----- check pointer ----
      if(matA==NULL || determ==NULL)
      {
-	   fprintf(stderr,"Matrix_Determ(): matrix pointer is NULL!\n");
-	   return NULL;
+	   fprintf(stderr,"Matrix_Determ(): matrix is NULL!\n");
+	   return determ;
      }
+     //----- check matrix dimension -----
+     if(matA->nr != matA->nc)
+     {
+	   fprintf(stderr,"Matrix_Determ(): it's NOT a square matrix!\n");
+	   return determ;
+     }
+
+     nrc=matA->nr;
 
      //--------------- CASE 1 ----------------------
      if(nrc==1)
      {
-	*determ = matA[0];
+	*determ = (matA->pmat)[0];
 	return determ;
      }
 
      //--------------- CASE 2 ----------------------
      else if(nrc==2)
      {
-	*determ = matA[0]*matA[3]-matA[1]*matA[2];
+	*determ = (matA->pmat)[0]*(matA->pmat)[3]-(matA->pmat)[1]*(matA->pmat)[2];
 	 return determ;
      }
 
@@ -376,7 +579,7 @@ float* Matrix_Determ(int nrc, float *matA, float *determ)
 		   k=i;
 	  	   for(j=0; j<nrc; j++)
 		   {
-			tmp *= matA[k];
+			tmp *= (matA->pmat)[k];
 			if( (k+1)%nrc == 0)
 				k+=1;
 			else
@@ -392,7 +595,7 @@ float* Matrix_Determ(int nrc, float *matA, float *determ)
 		   k=i;
   	  	 for(j=0; j<nrc; j++)
 		   {
-			tmp *= matA[k];
+			tmp *= (matA->pmat)[k];
 			if( k%nrc == 0 )
 				k+=(2*nrc-1);
 			else
@@ -411,38 +614,88 @@ float* Matrix_Determ(int nrc, float *matA, float *determ)
      else
      {
 	    fprintf(stderr, " Matrix dimension is great than 3, NO SOLUTION at present !!!!!\n");
-	    return NULL;
+	    return determ;
      }
 }
+
 
 
 /*----------------     MATRIX INVERSE    -------------------
 compute the inverse of a SQUARE matrix
 
 int nrc:  number of row and column
-*matA: the sqaure matrix,
-*matAdj: for adjugate matrix, also for the final inversed square matrix!!!
+matA: the sqaure matrix,
+matAdj: for adjugate matrix, also for the final inversed square matrix!!!
 Return:
 	NULL ---  fails
 	pointer to the result matAdj  --- OK
 ----------------------------------------------------------*/
-float* Matrix_Inverse(uint32_t nrc, float *matA, float *matAdj)
+struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
+				    struct float_Matrix *matAdj )
 {
-
 	int i,j,k;
+	int nrc;
 	float  det_matA; //determinant of matA
-//	float* matAdj=malloc(nrc*nrc*sizeof(float)); // for adjugate matrix
-	float* matCof=malloc((nrc-1)*(nrc-1)*sizeof(float)); //for cofactor matrix
+	struct float_Matrix matCof;
+//	float* matCof=malloc((nrc-1)*(nrc-1)*sizeof(float)); //for cofactor matrix data
 
-	if(matAdj==NULL || matCof==NULL)
+	//------ check pointer -----
+	if(matA==NULL || matAdj==NULL)
 	{
-		fprintf(stderr,"Matrix_Inverse(): malloc matAdj or/and matCof failed!\n");
+		fprintf(stderr,"Matrix_Inverse():  matA and/or matAdj is a NULL!\n");
+		return NULL;
+	}
+	//----- check data -----
+        if(matA->pmat==NULL || matAdj->pmat==NULL)
+        {
+	   	fprintf(stderr,"Matrix_Inverse():  matrix data is NULL!\n");
+	   	return NULL;
+        }
+
+	//----- check dimension -----
+	if( matA->nc != matA->nr || matAdj->nc != matAdj->nr )
+	{
+		fprintf(stderr,"Matrix_Inverse():  matrix is not square!\n");
+		return NULL;
+	}
+	if( matA->nc != matAdj->nc )
+	{
+		fprintf(stderr,"Matrix_Inverse():  dimensions do NOT match!\n");
 		return NULL;
 	}
 
+        nrc=matA->nr;
+	matCof.nc=nrc-1;
+	matCof.nr=nrc-1;
+
+	//----- check nrc and malloc matCof ------
+	if( nrc <= 0)
+        {
+		fprintf(stderr,"Matrix_Inverse():  nrc <= 0 !! \n");
+		return NULL;
+        }
+	else if( nrc == 1 ) // if it's ONE dimentsion matrix !!!
+        {
+		matAdj->pmat[0]=1.0/(matA->pmat[0]);
+		return matAdj;
+
+        }
+        else // nrc > 1
+        {
+		//---- malloc matCof ----
+		matCof.pmat=malloc((nrc-1)*(nrc-1)*sizeof(float)); //for cofactor matrix data
+		//------ check pointer -----
+		if( matCof.pmat==NULL)
+		{
+			fprintf(stderr,"Matrix_Inverse():  malloc. matCof.pmat failed!\n");
+			return NULL;
+		}
+   	}
+
+
 	//----- check if matrix matA is invertible ----
-	Matrix_Determ(nrc,matA,&det_matA); //comput determinant of matA
-	printf("determint of input matrix is %f\n",det_matA);
+	Matrix_Determ(matA,&det_matA); //comput determinant of matA
+	printf("Matrix_Inverse(): determint of input matrix is %f\n",det_matA);
 	if(det_matA == 0)
 	{
 		fprintf(stderr,"Matrix_Inverse(): matrix is NOT invertible!\n");
@@ -469,34 +722,34 @@ float* Matrix_Inverse(uint32_t nrc, float *matA, float *matAdj)
 				continue;
 			}
 			//--- copy an element of matA to matCof
-			matCof[j]=matA[k];
+			matCof.pmat[j]=matA->pmat[k];
 			k++;
 			j++;
 		}//end of while()
 
 		//finish i_th matCof
-//		Matrix_Print(nrc-1,nrc-1,matCof);
 
 		//---- compute determinant of the i_th cofactor matrix as i_th element of the adjugate matrix
-		Matrix_Determ(nrc-1,matCof, matAdj+i);
-		// if(i%2 == 0) matAdj[i] = 1.0*matAdj[i];
+		Matrix_Determ(&matCof, (matAdj->pmat+i));
+		//----- decide the sign of the element
 		if( (i/nrc)%2 != (i%nrc)%2 )
-			matAdj[i] = -1.0*matAdj[i];
+			(matAdj->pmat)[i] = -1.0*(matAdj->pmat)[i];
 
 	}// end of for(i),  computing adjugate matrix NOT finished yet
 
+
 	//----- transpose the matrix to finish computing adjugate matrix
-	Matrix_Transpose(nrc, nrc, matAdj);
+	Matrix_Transpose(matAdj,matAdj);
 
 	//----- compute inverse matrix
-	Matrix_DivFactor(nrc,nrc,matAdj,det_matA);//matAdj /= det_matA
-
+	Matrix_DivFactor(matAdj,det_matA);//matAdj /= det_matA
 
 	//----- free mem.
-	free(matCof);
+	free(matCof.pmat);
 
 	return matAdj;
 
 }
+
 
 #endif
