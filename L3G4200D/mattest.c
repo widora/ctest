@@ -149,6 +149,20 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 		1,2.353,434,5656,
 		1,233,344,343543.23
 		};
+   struct float_Matrix mat_4X4;
+   mat_4X4.nr=4; mat_4X4.nc=4; mat_4X4.pmat=mat4X4;
+   float invmat4X4[4*4]={0};
+   struct float_Matrix invmat_4X4;
+   invmat_4X4.nr=4; invmat_4X4.nc=4; invmat_4X4.pmat=invmat4X4;
+   printf("\nmat_4X4 = \n");
+   Matrix_Print(mat_4X4);
+   Matrix_Determ(&mat_4X4, &determ);
+   printf("determ of |mat4X4| = %e \n",determ );
+   Matrix_Inverse(&mat_4X4, &invmat_4X4);
+   printf("\ninvmat_4X4 = \n");
+   Matrix_Print(invmat_4X4);
+
+/*
    printf("mat4x4 = \n");
    for(i=0; i<4; i++)
    {
@@ -157,7 +171,7 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 	printf("\n");
    }
    printf("|mat4X4| = %e \n",MatrixGT3X3_Determ(4,mat4X4) );
-
+*/
    //----- 8X8 Matrix Determinant Computation ----
    float mat6X6[6*6]={
 1548196.19929056,       317736.825975421,       65209.2355136882,       13382.9133063996,       2746.5797928119,
@@ -173,6 +187,21 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 40359797792706,      0.281614466038468,      0.329949967550431,      0.386581636298681,      0.452933402699983,
 0.530673596515285,
 		};
+
+   struct float_Matrix mat_6X6;
+   mat_6X6.nr=6; mat_6X6.nc=6; mat_6X6.pmat=mat6X6;
+   float invmat6X6[6*6]={0};
+   struct float_Matrix invmat_6X6;
+   invmat_6X6.nr=6; invmat_6X6.nc=6; invmat_6X6.pmat=invmat6X6;
+   printf("\nmat_6X6 = \n");
+   Matrix_Print(mat_6X6);
+   Matrix_Determ(&mat_6X6, &determ);
+   printf("determ of |mat6X6| = %e \n",determ );
+   Matrix_Inverse(&mat_6X6, &invmat_6X6);
+   printf("\ninvmat_6X6 = \n");
+   Matrix_Print(invmat_6X6);
+
+/*
    printf("mat6x6 = \n");
    for(i=0; i<6; i++)
    {
@@ -181,7 +210,7 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 	printf("\n");
    }
    printf("|mat6X6|= %e \n",MatrixGT3X3_Determ(6,mat6X6) );
-
+*/
 
    //----- 8X8 Matrix Determinant Computation ----
    float mat8X8[8*8]={
@@ -202,6 +231,22 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 2600.45128660534,       1085.42261166079,       453.052995829233,       189.103317753609,       78.9313063032946,
 32.9457525587259,	13.7514842018456,       5.7398390708038,
 		};
+
+
+   struct float_Matrix mat_8X8;
+   mat_8X8.nr=8; mat_8X8.nc=8; mat_8X8.pmat=mat8X8;
+   float invmat8X8[8*8]={0};
+   struct float_Matrix invmat_8X8;
+   invmat_8X8.nr=8; invmat_8X8.nc=8; invmat_8X8.pmat=invmat8X8;
+   printf("\nmat_8X8 = \n");
+   Matrix_Print(mat_8X8);
+   Matrix_Determ(&mat_8X8, &determ);
+   printf("determ of |mat8X8| = %e \n",determ );
+   Matrix_Inverse(&mat_8X8, &invmat_8X8);
+   printf("\ninvmat_8X8 = \n");
+   Matrix_Print(invmat_8X8);
+
+/*
    printf("mat8x8 = \n");
    for(i=0; i<8; i++)
    {
@@ -210,7 +255,6 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
 	printf("\n");
    }
    printf("|mat8X8|= %f \n",MatrixGT3X3_Determ(8,mat8X8) );
-
-
+*/
 
 }

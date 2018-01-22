@@ -26,6 +26,12 @@ struct float_Matrix
   float* pmat;
 };
 
+
+//------ function declaration -------
+float  Matrix3X3_Determ(float *pmat);
+float  MatrixGT3X3_Determ(int nrc, float *pmat);
+
+
 /*----------------------------------------------
  calculate and return time difference in us
 
@@ -562,17 +568,25 @@ float* Matrix_Determ( struct float_Matrix *matA,
 	*determ = (matA->pmat)[0];
 	return determ;
      }
-
      //--------------- CASE 2 ----------------------
      else if(nrc==2)
      {
 	*determ = (matA->pmat)[0]*(matA->pmat)[3]-(matA->pmat)[1]*(matA->pmat)[2];
 	 return determ;
      }
-
      //--------------- CASE 3 ----------------------
-     else if(nrc==3) 
+     else if(nrc==3)
      {
+	*determ=Matrix3X3_Determ(matA->pmat);
+	return determ;
+     }
+     //--------------- CASE >3 ----------------------
+     else // (nrc > 3)
+     {
+
+	*determ=MatrixGT3X3_Determ(nrc, matA->pmat);
+	return determ;
+/*
      	//------plus multiplication
 	     for(i=0; i<nrc; i++)
 	     {
@@ -608,14 +622,17 @@ float* Matrix_Determ( struct float_Matrix *matA,
 
 	     *determ = pt-mt;
 	     return determ;
+*/
      }
 
      //--------------- CASE 4, dimension great than 3 !!! ----------------------
+/*
      else
      {
 	    fprintf(stderr, " Matrix dimension is great than 3, NO SOLUTION at present !!!!!\n");
 	    return determ;
      }
+*/
 }
 
 
