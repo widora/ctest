@@ -678,7 +678,6 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
         {
 		matAdj->pmat[0]=1.0/(matA->pmat[0]);
 		return matAdj;
-
         }
         else // nrc > 1
         {
@@ -726,7 +725,6 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 			k++;
 			j++;
 		}//end of while()
-
 		//finish i_th matCof
 
 		//---- compute determinant of the i_th cofactor matrix as i_th element of the adjugate matrix
@@ -734,9 +732,7 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 		//----- decide the sign of the element
 		if( (i/nrc)%2 != (i%nrc)%2 )
 			(matAdj->pmat)[i] = -1.0*(matAdj->pmat)[i];
-
 	}// end of for(i),  computing adjugate matrix NOT finished yet
-
 
 	//----- transpose the matrix to finish computing adjugate matrix
 	Matrix_Transpose(matAdj,matAdj);
@@ -748,8 +744,139 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 	free(matCof.pmat);
 
 	return matAdj;
-
 }
 
+
+/*-------------------------------------------------
+       3x3 matrix determinant computation
+
+pmat: pointer to a 3x3 data array as input matrix
+return:
+	fails       0
+	succeed     determinant value
+--------------------------------------------------*/
+float  Matrix3X3_Determ(float *pmat)
+{
+     int i,j,k;
+     float pt=0.0,mt=0.0; //plus and minus multiplication
+     float tmp=1.0;
+     //----- preset determ
+     float determ = 0.0;
+
+     //----- check pointer -----
+     if(pmat==NULL)
+     {
+	fprintf(stderr,"Matrix4X4_Determ(): pmat is NULL!\n");
+	return 0;
+     }
+    //------plus multiplication
+     for(i=0; i<3; i++)
+     {
+	   k=i;
+  	   for(j=0; j<3; j++)
+	   {
+		tmp *= pmat[k];
+		if( (k+1)%3 == 0)
+			k+=1;
+		else
+			k+=(3+1);
+     	   }
+	   pt += tmp;
+	   tmp=1.0;
+     }
+
+     //------minus multiplication
+     for(i=0; i<3; i++)
+     {
+	   k=i;
+	   for(j=0; j<3; j++)
+	   {
+		tmp *= pmat[k];
+		if( k%3 == 0 )
+			k+=(2*3-1);
+		else
+			k+=(3-1);
+	   }
+	   mt += tmp;
+	   tmp=1.0;
+      }
+
+     determ = pt-mt;
+     return determ;
+}
+
+
+/*-----------------------------------------------------------
+       >3x3 matrix determinant computation
+!!! Warning: THis is a self recursive function !!!!
+The input Must be a square matrix, number of rows and columns are the same
+ncr: dimension number, number of columns or rows
+pmat: pointer to a >=4x4 data array as input matrix
+return:
+	fails       0
+	succeed     determinant value
+-------------------------------------------------------------*/
+float  MatrixGT3X3_Determ(int nrc, float *pmat)
+{
+   int i,j,k;
+   float *pmatCof; //pointer to cofactor matrix
+   float determ=0;
+   float sign; //sign of element of the adjugate matrix
+
+   if (nrc < 3)
+	return 0;
+   if (nrc == 3)
+	return Matrix3X3_Determ(pmat);
+
+   //------------     else if nrc >3    --------------
+   //-----malloc for pmatCof---
+   pmatCof=malloc((nrc-1)*(nrc-1)*sizeof(float));
+   if(pmatCof == NULL)
+   {
+	fprintf(stderr,"MatrixGT3X3_Determ(): malloc pmatConf failed!\n");
+	return 0;
+   }
+   //-----compute adjugate matrix
+   //----- the terminant of a matrix equals summation of (element value)*(its adjugate matrix value) in (any) one of rows ----
+   for(i=0; i<nrc; i++)  // i, also cross center element natural number
+   {
+       //-------compute cofactor matrix matCof(i)[]
+	j=0;// element number of matCof
+	k=0; // element number of original matA
+	while(k<nrc*nrc) // traverse all elements of the original matrix
+	{
+		//------ skip elements accroding to i ------
+		if( k/nrc == i/nrc ) //skip row  elements 
+		{
+			k+=nrc;  //skip one row
+			continue;
+		}
+	 	if( k%nrc == i%nrc ) //skip column  elements
+		{
+			k+=1; // skip one element
+			continue;
+		}
+		//--- copy an element of matA to matCof
+		pmatCof[j]=pmat[k];
+		k++;
+		j++;
+	}//end of while()
+	//finish i_th matCof
+
+	//----- decide the sign of the element
+	if( (i/nrc)%2 != (i%nrc)%2 )
+		sign=-1.0;
+	else
+		sign=1.0;
+	//----- recursive call -----
+	determ += pmat[i]*sign*MatrixGT3X3_Determ(nrc-1, pmatCof);
+
+//	printf("determ[%d]=%f\n",i,determ);
+
+   }// end of for(i),  computing adjugate matrix NOT finished yet
+
+  return determ;
+
+}
 
 #endif
