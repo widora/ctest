@@ -6,61 +6,37 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 	  www.xuebuyuan.com/1624253.html
 				       ---  by niwenxian
 
-1. A simpley example of opening a video file then decode frames
-and send RGB data to LCD for display.
-2. Decode audio frames and save to a PCM file.
+NOTE:
+1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
+   Files without audio stream can also be played.
+2. Decode audio frames and playback by alsa PCM.
+3. DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,DivX is nearly perfect.
+4. It plays video files smoothly with format of 480*320*24bit FP20, encoded by DivX. 
+   Decoding speed also depends on AVstream data rate of the file.
+5. The speed of whole procedure depends on ffmpeg decoding speed, USB transfer speed, FT232 fanout(baudrate) speed, and
+   LCD display speed.  USB speed control is improtant.
+6. Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
+   Adjust baudrate for FT232 accordingly, otherwise the color will be distorted.
+7. Cost_time test codes will slow down processing and cause choppy.
+
+
+The data flow of a 480*320 movie is like this:
+  (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
+  (thread)  pPICBuff ---->USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
+  (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
 	ffplay3  video_file
 
 Midas
 ---------------------------------------------------------------*/
-
-#include "libavutil/avutil.h"
-#include "libswresample/swresample.h"
-#include "libavcodec/avcodec.h"
-#include "libavformat/avformat.h"
-#include "libswscale/swscale.h"
-
-#include <stdio.h>
-#include "include/ftdi.h"
-#include "ft232.h"
-#include "ILI9488.h"
-#include "play_pcm.h"
-
-
-#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
-
-
-void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame){
-	FILE *pFile;
-	char szFilename[32];
-	int y;
-
-	//Open file
-	printf("----- try to save frame to frame%d.ppm \n",iFrame);
-	sprintf(szFilename,"frame%d.ppm",iFrame);
-	pFile=fopen(szFilename,"wb");
-	if(pFile==NULL){
-		printf("Fail to open file for write!\n");
-		return;
-	}
-
-	//write header
-	fprintf(pFile,"P6\n%d %d\n255\n",width,height);
-	//write pixel data
-	for(y=0; y<height; y++)
-		fwrite(pFrame->data[0]+y*pFrame->linesize[0],1,width*3,pFile);
-
-	//close file
-	fclose(pFile);
-}
+#include "ffplay.h"
 
 
 int main(int argc, char *argv[]) {
 	//Initializing these to NULL prevents segfaults!
 	AVFormatContext	*pFormatCtx=NULL;
-	int			i,j;
+	int			i;
 	int			videoStream;
 	AVCodecContext		*pCodecCtxOrig=NULL;
 	AVCodecContext		*pCodecCtx=NULL;
@@ -73,7 +49,9 @@ int main(int argc, char *argv[]) {
 	uint8_t			*buffer=NULL;
 	struct SwsContext	*sws_ctx=NULL;
 
-	int Hb,Vb,Hs,He,Vs,Ve;  //---for LCD image layout
+	int Hb,Vb;  //----Horizontal and Veritcal size of a picture
+	//---- for Pic Info. ---
+	struct PicInfo pic;
 
 	//------ for audio -------
 	int			audioStream;
@@ -81,24 +59,19 @@ int main(int argc, char *argv[]) {
 	AVCodecContext		*aCodecCtx=NULL;
 	AVCodec			*aCodec=NULL;
 	AVFrame			*pAudioFrame=NULL;
-//	const int 		audio_sample_buf_size=2*MAX_AUDIO_FRAME_SIZE;
-//	int16_t			audio_sample_buffer[audio_sample_buf_size];
 	int 			sample_rate;
 	enum AVSampleFormat	sample_fmt;
 	int			nb_channels;
 	int			bytes_per_sample;
 	int64_t			channel_layout;
 	int 			bytes_used;
-//	int			sb_size=audio_sample_buf_size;
 	int			got_frame;
- 
-	FILE* faudio; // to save decoded audio data
-	faudio=fopen("/tmp/ffaudio.pcm","wb");
-	if(faudio==NULL){
-		printf("Fail to open file for audio data saving!\n");
-		return -1;
-	}
 
+	//------- time structe ------
+	struct timeval tm_start, tm_end;
+
+	//------- thread -------
+	pthread_t pthd_displayPic;
 
 	//----- check input argc ----
 	if(argc < 2) {
@@ -165,9 +138,12 @@ int main(int argc, char *argv[]) {
 	}
 	if(audioStream == -1) {
 		printf("Didn't find an audio stream!\n");
-		return -1;
+//		return -1;
 	}
 
+
+  if(audioStream != -1) // only if audioStream exists
+  {
 	//-----Get a pointer to the codec context for the audio stream
 	aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 	//-----Find the decoder for the audio stream
@@ -202,8 +178,9 @@ int main(int argc, char *argv[]) {
 	printf("	sample_rate=%d\n",sample_rate);
 
 	//----- open pcm play device and set parameters ----
- 	prepare_pcm_device(nb_channels,sample_rate);
+ 	prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
 
+  } //--- end of if(audioStream =! -1)
 
 
 	//-----Get a pointer to the codec context for the video stream
@@ -241,15 +218,32 @@ int main(int argc, char *argv[]) {
 
 	//----Determine required buffer size and allocate buffer
 	numBytes=avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+	pic.numBytes=numBytes; 
 	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>>
+	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
+		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
+		return -1;
+	}
+	else
+		printf("----- finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
+
+	//------- PICBuff TEST......
+/*
+	printf("----- test to get ALL free PICbuff \n");
+	for(i=0;i<PIC_BUFF_NUM;i++){
+		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
+		IsFree_PICbuff[i]=false;
+	}
+*/
 
 //<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>
 	 Hb=(PIC_MAX_WIDTH-pCodecCtx->width+1)/2;
 	 Vb=(PIC_MAX_HEIGHT-pCodecCtx->height+1)/2;
-	 Hs=Hb; He=Hb+pCodecCtx->width-1;
-	 Vs=Vb; Ve=Vb+pCodecCtx->height-1;
+	 pic.Hs=Hb; pic.He=Hb+pCodecCtx->width-1;
+	 pic.Vs=Vb; pic.Ve=Vb+pCodecCtx->height-1;
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 
 	//----Assign appropriate parts of buffer to image planes in pFrameRGB
 	//Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture
@@ -269,16 +263,29 @@ int main(int argc, char *argv[]) {
 				  NULL
 				);
 
-	//======================  Read packets and process =============================
-	printf("----- read frames and convert to RGB and then send to LCD ... \n");
+//<<<<<<<<<<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>>>>>>>>>>>
+
+	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
+		printf("----- Fails to create the thread for displaying pictures! \n");
+		return -1;
+	}
+
+
+//===========================     Read packets and process data     =============================
+	printf("----- start loop of reading AV frames and decoding:\n");
+	printf("	 converting video frame to RGB and then send to display...\n");
+	printf("	 sending audio frame data to playback ... \n");
 	i=0;
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
-		//----------------//////  process of video stream  \\\\\\\-----------------
+	//----------------//////   process video stream   \\\\\\\-----------------
 		if(packet.stream_index==videoStream) {
 			//decode video frame
 //			printf("...decoding video frame\n");
+			//gettimeofday(&tm_start,NULL);
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+			//gettimeofday(&tm_end,NULL);
+			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 			//did we get a complete video frame?
 			if(frameFinished) {
 				//convert the image from its native format to RGB
@@ -289,19 +296,32 @@ int main(int argc, char *argv[]) {
 					   pFrameRGB->data, pFrameRGB->linesize
 					);
 				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
-				LCD_Write_Block(Hs,He,Vs,Ve,pFrameRGB->data[0],numBytes);
-				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+				//gettimeofday(&tm_start,NULL);
+				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
+					printf("PICBuffs are full!  A video frame is dropped!\n");
+				//---- get play time
+				printf("\r		 Elapsed time: %ds  ---  Duration: %ds  ",
+					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
+					atoi(av_ts2timestr(pFormatCtx->streams[videoStream]->duration,&pFormatCtx->streams[videoStream]->time_base))
+				 );
+//				printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
+				fflush(stdout);
+				//gettimeofday(&tm_end,NULL);
+				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 			}
 		}//----- end  of vidoStream process  ------
 
-		//----------------//////  process of audio stream  \\\\\\\-----------------
-		else if(packet.stream_index==audioStream) {
+	//----------------//////   process audio stream   \\\\\\\-----------------
+		else if( audioStream != -1 && packet.stream_index==audioStream) {
 			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
 			//with a self contained packet, it should be used completely.
 			//---sb_size: hold the sample buffer size, on return the number of produced samples is stored.
 			while(packet.size > 0) {
+				//gettimeofday(&tm_start,NULL);
 				bytes_used=avcodec_decode_audio4(aCodecCtx, pAudioFrame, &got_frame, &packet);
+				//gettimeofday(&tm_end,NULL);
+				//printf(" avcode_decode_audio4() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 				if(bytes_used<0)
 				{
 					printf(" Error while decoding audio!\n");
@@ -311,21 +331,18 @@ int main(int argc, char *argv[]) {
 				//----- if decoded data size >0
 				if(got_frame)
 				{
-					//---- save decoded audio data
+					//gettimeofday(&tm_start,NULL);
+					//---- playback audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
-						//  record 2 channel data only
-						for(j=0; j < aCodecCtx->frame_size; j++) {
-							// save as interleaved mode
-							fwrite(pAudioFrame->data[0]+j*bytes_per_sample,1,bytes_per_sample,faudio);
-							fwrite(pAudioFrame->data[1]+j*bytes_per_sample,1,bytes_per_sample,faudio);
-						}
-					}
-					else if(pAudioFrame->data[0]) {
-							fwrite(pAudioFrame->data[0]+i*bytes_per_sample,1,bytes_per_sample,faudio);
-					}
+						 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 
-					fflush(faudio);
+					}
+					else if(pAudioFrame->data[0]) {  //-- one channel only
+						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
+					}
+					//gettimeofday(&tm_end,NULL);
+					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
@@ -333,25 +350,30 @@ int main(int argc, char *argv[]) {
 
 		}//----- ///////  end of audioStream process \\\\\\------
 
-
 		//---- free OLD packet each time,   that was allocated by av_read_frame
 		av_free_packet(&packet);
 
 	}//end of while()
 
 
-	//----Freee the RGB image
+	//------ wait display_thread ------
+	tok_QuitFFplay = true;
+	pthread_join(pthd_displayPic,NULL);
+
+	//-----free PICbuffs
+	printf("----- free PICbuffs[]...\n");
+        free_PicBuffs();
+
+	//----Free the RGB image
 	av_free(buffer);
 	av_frame_free(&pFrameRGB);
 
 	//-----Free the YUV frame
 	av_frame_free(&pFrame);
 
-	//-----close file
-	fclose(faudio);
-
 	//-----close pcm device
-	close_pcm_device();
+	printf("----- close PCM device...\n");
+	close_ffpcm_device();
 
 	//----Close the codecs
 	printf("----- close the codecs...\n");
@@ -361,7 +383,7 @@ int main(int argc, char *argv[]) {
 	avcodec_close(aCodecCtxOrig);
 
 	//----Close the video file
-	printf("----- close the viedo file...\n");
+	printf("----- close the video file...\n");
 	avformat_close_input(&pFormatCtx);
 
 //<<<<<<<<<<<<<<<     close FT232 and ILI9488    >>>>>>>>>>>>>>>>

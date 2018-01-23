@@ -1,5 +1,5 @@
 CC = ./openwrt-uclibc-gcc
-APP = ffplay4
+APP = ffplay5
 SOURCE = $(APP).c
 DEPS = ffplay.h
 OBJ = $(APP).o play_ffpcm.o 

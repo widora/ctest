@@ -1,15 +1,14 @@
 
-/*------------------------------------------------
+/*----------------------------------------------------------------------
 For Widora WiFi_Robo
 
 TODO:
-
-	1. Matrix_Determ() function for matrix dimension > 3.
-	2. Float precision seems not enough ???
+	1. Float precision seems not enough ???
 	   Determinat computation example: matlab 0.6    mathwork 0.599976
+	2.
 
 Midas
-------------------  COPYLEFT  --------------------*/
+----------------------------  COPYLEFT  --------------------------------*/
 
 #ifndef   ___MATHWORK__H__
 #define   ___MATHWORK__H__
@@ -28,8 +27,35 @@ struct float_Matrix
 
 
 //------ function declaration -------
+inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end);
+inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum);
+inline uint32_t math_tmIntegral(const double fx, double *sum);
+void   Matrix_Print(struct float_Matrix matA);
+
 float  Matrix3X3_Determ(float *pmat);
 float  MatrixGT3X3_Determ(int nrc, float *pmat);
+
+struct float_Matrix* Matrix_CopyColumn(struct float_Matrix *matA, int nclmA, struct float_Matrix *matB, int nclmB);
+
+struct float_Matrix* Matrix_Add( struct float_Matrix *matA,
+				 struct float_Matrix *matB,
+				 struct float_Matrix *matC );
+
+struct float_Matrix* Matrix_Sub( struct float_Matrix *matA,
+				 struct float_Matrix *matB,
+				 struct float_Matrix *matC  );
+
+struct float_Matrix* Matrix_Multiply( struct float_Matrix *matA,
+				      struct float_Matrix *matB,
+				      struct float_Matrix *matC );
+
+struct float_Matrix* Matrix_MultFactor(struct float_Matrix *matA, float fc);
+struct float_Matrix* Matrix_DivFactor(struct float_Matrix *matA, float fc);
+struct float_Matrix* Matrix_Transpose( struct float_Matrix *matA,
+				       struct float_Matrix *matB );
+float* Matrix_Determ( struct float_Matrix *matA,  float *determ );
+struct float_Matrix* Matrix_Inverse( struct float_Matrix *matA,
+				     struct float_Matrix *matAdj );
 
 
 /*----------------------------------------------
@@ -39,7 +65,8 @@ Return
   if tm_start > tm_end then return 0 !!!!
   us
 ----------------------------------------------*/
-inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end) {
+inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end)
+{
         uint32_t time_cost;
         if(tm_end.tv_sec>tm_start.tv_sec)
                 time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000000+(tm_end.tv_usec-tm_start.tv_usec);
@@ -268,7 +295,6 @@ Return:
 	NULL  --- fails
 	matB   --- OK
 ----------------------------------------------------------*/
-//struct float_Matrix* Matrix_GetColumn(int nrA, int ncA, float *matA, int nclm,float *matClm)
 struct float_Matrix* Matrix_CopyColumn(struct float_Matrix *matA, int nclmA, struct float_Matrix *matB, int nclmB)
 {
     int i;
@@ -586,53 +612,9 @@ float* Matrix_Determ( struct float_Matrix *matA,
 
 	*determ=MatrixGT3X3_Determ(nrc, matA->pmat);
 	return determ;
-/*
-     	//------plus multiplication
-	     for(i=0; i<nrc; i++)
-	     {
-		   k=i;
-	  	   for(j=0; j<nrc; j++)
-		   {
-			tmp *= (matA->pmat)[k];
-			if( (k+1)%nrc == 0)
-				k+=1;
-			else
-				k+=(nrc+1);
-	     	   }
-		   pt += tmp;
-		   tmp=1.0;
-	     }
 
-	     //------minus multiplication
-	     for(i=0; i<nrc; i++)
-	     {
-		   k=i;
-  	  	 for(j=0; j<nrc; j++)
-		   {
-			tmp *= (matA->pmat)[k];
-			if( k%nrc == 0 )
-				k+=(2*nrc-1);
-			else
-				k+=(nrc-1);
-	     	   }
-
-		   mt += tmp;
-		   tmp=1.0;
- 	    }
-
-	     *determ = pt-mt;
-	     return determ;
-*/
      }
 
-     //--------------- CASE 4, dimension great than 3 !!! ----------------------
-/*
-     else
-     {
-	    fprintf(stderr, " Matrix dimension is great than 3, NO SOLUTION at present !!!!!\n");
-	    return determ;
-     }
-*/
 }
 
 
@@ -654,7 +636,6 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 	int nrc;
 	float  det_matA; //determinant of matA
 	struct float_Matrix matCof;
-//	float* matCof=malloc((nrc-1)*(nrc-1)*sizeof(float)); //for cofactor matrix data
 
 	//------ check pointer -----
 	if(matA==NULL || matAdj==NULL)
@@ -708,7 +689,6 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 		}
    	}
 
-
 	//----- check if matrix matA is invertible ----
 	Matrix_Determ(matA,&det_matA); //comput determinant of matA
 	printf("Matrix_Inverse(): determint of input matrix is %f\n",det_matA);
@@ -750,8 +730,7 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 		if( (i/nrc)%2 != (i%nrc)%2 )
 			(matAdj->pmat)[i] = -1.0*(matAdj->pmat)[i];
 	}// end of for(i),  computing adjugate matrix NOT finished yet
-
-	//----- transpose the matrix to finish computing adjugate matrix
+	//----- transpose the matrix to finish computing adjugate matrix !!!
 	Matrix_Transpose(matAdj,matAdj);
 
 	//----- compute inverse matrix
@@ -840,12 +819,17 @@ float  MatrixGT3X3_Determ(int nrc, float *pmat)
    float determ=0;
    float sign; //sign of element of the adjugate matrix
 
+   //---------------  CASE   nrc<3  -----------------
    if (nrc < 3)
+   {
+	printf("MatrixGT3X3_Determ(): matrix dimension is LESS than 3x3!\n");
 	return 0;
+   }
+   //---------------  CASE   nrc=3  !!!! this case is a MUST for recursive call !!!!  -----------------
    if (nrc == 3)
 	return Matrix3X3_Determ(pmat);
 
-   //------------     else if nrc >3    --------------
+   //------------     CASE   nrc >3    --------------
    //-----malloc for pmatCof---
    pmatCof=malloc((nrc-1)*(nrc-1)*sizeof(float));
    if(pmatCof == NULL)
@@ -853,9 +837,9 @@ float  MatrixGT3X3_Determ(int nrc, float *pmat)
 	fprintf(stderr,"MatrixGT3X3_Determ(): malloc pmatConf failed!\n");
 	return 0;
    }
-   //-----compute adjugate matrix
-   //----- the terminant of a matrix equals summation of (element value)*(its adjugate matrix value) in (any) one of rows ----
-   for(i=0; i<nrc; i++)  // i, also cross center element natural number
+
+   //----- the terminant of a matrix equals summation of (any) one row of (element value)*sign*(determinant of its cofactor matrix)  ----
+   for(i=0; i<nrc; i++)  //summation first row,  i- also cross center element natural number
    {
        //-------compute cofactor matrix matCof(i)[]
 	j=0;// element number of matCof
@@ -885,7 +869,9 @@ float  MatrixGT3X3_Determ(int nrc, float *pmat)
 		sign=-1.0;
 	else
 		sign=1.0;
+
 	//----- recursive call -----
+        //summation of first row of (element value)*sign*(determinant of its cofactor;
 	determ += pmat[i]*sign*MatrixGT3X3_Determ(nrc-1, pmatCof);
 
 //	printf("determ[%d]=%f\n",i,determ);

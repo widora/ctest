@@ -256,5 +256,25 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
    }
    printf("|mat8X8|= %f \n",MatrixGT3X3_Determ(8,mat8X8) );
 */
+    //-------------- 20x20 killed !!??? ---------
+   float mat10X10[10*10]={0};
+
+   for(i=0; i<10; i++)
+	for(j=0;j<10;j++)
+		mat10X10[i*10+j]=(0.2*(i+1))*j+0.1*i;
+
+   struct float_Matrix mat_10X10;
+   mat_10X10.nr=10; mat_10X10.nc=10; mat_10X10.pmat=mat10X10;
+   float invmat10X10[10*10]={0};
+   struct float_Matrix invmat_10X10;
+   invmat_10X10.nr=10; invmat_10X10.nc=10; invmat_10X10.pmat=invmat10X10;
+   printf("\nmat_10X10 = \n");
+   Matrix_Print(mat_10X10);
+   Matrix_Determ(&mat_10X10, &determ);
+   printf("determ of |mat10X10| = %e \n",determ );
+   Matrix_Inverse(&mat_10X10, &invmat_10X10);
+   printf("\ninvmat_10X10 = \n");
+   Matrix_Print(invmat_10X10);
+
 
 }
