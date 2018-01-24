@@ -256,7 +256,8 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
    }
    printf("|mat8X8|= %f \n",MatrixGT3X3_Determ(8,mat8X8) );
 */
-    //-------------- 20x20 killed !!??? ---------
+    //-------------- 10x10 killed !!??? ---------
+/*
    float mat10X10[10*10]={0};
 
    for(i=0; i<10; i++)
@@ -275,6 +276,39 @@ mat_N.nr=2; mat_N.nc=2; mat_N.pmat=matN;
    Matrix_Inverse(&mat_10X10, &invmat_10X10);
    printf("\ninvmat_10X10 = \n");
    Matrix_Print(invmat_10X10);
+*/
+
+
+//----- (3,1) * (1,1) Matrix_Multiply()  -------
+   float Mat3X1A[3*1]=
+{
+  1,
+  2,
+  3
+};
+   struct float_Matrix Mat_3X1A;
+   Mat_3X1A.nr=3; Mat_3X1A.nc=1; Mat_3X1A.pmat=Mat3X1A;
+
+   float Mat3X1B[3*1]={0};
+   struct float_Matrix Mat_3X1B;
+   Mat_3X1B.nr=3; Mat_3X1B.nc=1; Mat_3X1B.pmat=Mat3X1B;
+ 
+ float Mat1X1A[1*1]=
+{
+  0.5
+};
+  struct float_Matrix Mat_1X1A;
+  Mat_1X1A.nr=1; Mat_1X1A.nc=1; Mat_1X1A.pmat=Mat1X1A;
+
+printf("Mat_3X1A=\n");
+Matrix_Print(Mat_3X1A);
+printf("Mat_1x1A=\n");
+Matrix_Print(Mat_1X1A);
+
+Matrix_Multiply(&Mat_3X1A, &Mat_1X1A, &Mat_3X1B);
+printf("Mat_3x1B=\n");
+Matrix_Print(Mat_3X1B);
+
 
 
 }

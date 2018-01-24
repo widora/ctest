@@ -30,6 +30,12 @@ struct float_Matrix
 inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end);
 inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum);
 inline uint32_t math_tmIntegral(const double fx, double *sum);
+
+/*<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
+NOTE:
+	1. All matrix data is stored from row to column.
+	2. All indexes are starting from 0 !!!
+------------------------------------------------------------------*/
 void   Matrix_Print(struct float_Matrix matA);
 
 float  Matrix3X3_Determ(float *pmat);
@@ -45,8 +51,8 @@ struct float_Matrix* Matrix_Sub( struct float_Matrix *matA,
 				 struct float_Matrix *matB,
 				 struct float_Matrix *matC  );
 
-struct float_Matrix* Matrix_Multiply( struct float_Matrix *matA,
-				      struct float_Matrix *matB,
+struct float_Matrix* Matrix_Multiply( const struct float_Matrix *matA,
+				      const struct float_Matrix *matB,
 				      struct float_Matrix *matC );
 
 struct float_Matrix* Matrix_MultFactor(struct float_Matrix *matA, float fc);
@@ -158,8 +164,9 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 
 
 //<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
-//  !!!!NOTE: all matrix data is stored from row to column.
-
+//  !!!! NOTE:
+//		1. All matrix data is stored from row to column.
+//		2. All indexes are starting from 0 !!!
 
 /*-------------------------------------------
               Print matrix
@@ -344,8 +351,8 @@ Return:
 	NULL ---  fails
 	matC  --- OK
 ----------------------------------------------------------*/
-struct float_Matrix* Matrix_Multiply( struct float_Matrix *matA,
-				      struct float_Matrix *matB,
+struct float_Matrix* Matrix_Multiply( const struct float_Matrix *matA,
+				      const struct float_Matrix *matB,
 				      struct float_Matrix *matC )
 {
 	float *fret;
@@ -382,11 +389,15 @@ struct float_Matrix* Matrix_Multiply( struct float_Matrix *matA,
 	//---- result matrix with row: nrA  column: ncB, recuse nrA and ncB then.
 	for(i=0; i<nrA; i++) //rows of matC (matA)
 		for(j=0; j<ncB; j++) // columns of matC  (matB)
+		{
+			//---- clear matC->pmat first before += !!!!!!
+			(matC->pmat)[i*ncB+j] =0;
 			for(k=0; k<ncA; k++)//
 			{
 				(matC->pmat)[i*ncB+j] += (matA->pmat)[i*ncA+k] * (matB->pmat)[ncB*k+j]; // (element j, row i of matA) .* (column j of matB)
 				//matC[0] += matA[k]*matB[ncB*k];//i=0,j=0
 			}
+		}
        return matC;
 }
 

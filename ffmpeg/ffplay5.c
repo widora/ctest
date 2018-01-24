@@ -6,6 +6,10 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 	  www.xuebuyuan.com/1624253.html
 				       ---  by niwenxian
 
+TODO:
+1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
+
+
 NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
    Files without audio stream can also be played.
