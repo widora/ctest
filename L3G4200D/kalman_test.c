@@ -203,7 +203,12 @@ float MatK[3*1]={0}; //for temp. buff
 struct float_Matrix Mat_K;
 Mat_K.nr=3; Mat_K.nc=1; Mat_K.pmat=MatK;
 
-float MatI[3*3]={0}; //eye matrix with 1 on diagonal and zeros elesewhere
+float MatI[3*3]= //eye matrix with 1 on diagonal and zeros elesewhere
+{
+  1,0,0,
+  0,1,0,
+  0,0,1
+ }; 
 struct float_Matrix Mat_I;
 Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 
@@ -213,35 +218,9 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 	int n=100; //samples, number of points to be filtered
 	int i,j,k;
 
-/*
-	//------ print mat_s[] -----
-	printf("mat_s[] = \n");
-	for(i=0; i<10; i++) // 10 data per line
-	{
-		for(j=0; j<n/10; j++)
-			printf("%f  ",mat_s[n/10*i+j]);
-		printf("\n");
-	}
-	//------ print mat_v[] -----
-	printf("mat_v[] = \n");
-	for(i=0; i<10; i++) // 10 data per line
-	{
-		for(j=0; j<n/10; j++)
-			printf("%f  ",mat_v[n/10*i+j]);
-		printf("\n");
-	}
-	//------ print mat_a[] -----
-	printf("mat_a[] = \n");
-	for(i=0; i<10; i++) // 10 data per line
-	{
-		for(j=0; j<n/10; j++)
-			printf("%f  ",mat_a[n/10*i+j]);
-		printf("\n");
-	}
-*/
 
         //------- Kalman Filter Processing --------
-        for(k=0; k<3; k++)
+        for(k=0; k<n; k++)
 	{
 
 		printf("--------- k=%d ---------\n",k);
@@ -268,8 +247,8 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 		//-----Update Kalman Gain:  K = Pp*H'*inv(H*Pp*H'+R)  -----
 		//			  (1,3) =(3,3)*(1,3)'*inv((1,3)*(3,3)*(1,3)'+(1,1))
 		Matrix_Transpose( &Mat_H, &Mat_H_trans);
-		printf("Mat_H_trans=\n");
-		Matrix_Print(Mat_H_trans);
+//		printf("Mat_H_trans=\n");
+//		Matrix_Print(Mat_H_trans);
 		Matrix_Multiply( &Mat_Pp,
 				 Matrix_Multiply( &Mat_H_trans,
 						  Matrix_Inverse( Matrix_Add(  Matrix_Multiply( &Mat_H,
@@ -285,17 +264,17 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 				),
 				&Mat_K
 		);
-		printf("Inv(H*P2*H'+Rk)=\n");
-		Matrix_Print(Mat_1X1C);
-		printf("H'*Inv(H*P2*H'+Rk)=\n");
-		Matrix_Print(Mat_3X1B);
+//		printf("Inv(H*P2*H'+Rk)=\n");
+//		Matrix_Print(Mat_1X1C);
+//		printf("H'*Inv(H*P2*H'+Rk)=\n");
+//		Matrix_Print(Mat_3X1B);
 		printf("K=\n");
 		Matrix_Print(Mat_K);
 
 		//-----Update(posteriori) state:  Y = Yp + K*(S-H*Yp)   ---- (3,1) = (3,1) + (3,1)*( (1,1)-(1,3)*(3,1) )
 		Matrix_CopyColumn(&Mat_S,k,&Mat_1X1A,0); //extract one column from Mat_S, to Mat_1X1A,
-		printf("Mat_1X1A=Mat_S[%d]=\n",k);
-		Matrix_Print(Mat_1X1A);
+//		printf("Mat_1X1A=Mat_S[%d]=\n",k);
+//		Matrix_Print(Mat_1X1A);
 		Matrix_Add( &Mat_Yp,
 			    Matrix_Multiply( &Mat_K,
 					     Matrix_Sub( &Mat_1X1A,
@@ -306,14 +285,14 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 			    ),
 			    &Mat_Y
 		);
-		printf("Mat_Yp=\n");
-		Matrix_Print(Mat_Yp);
-		printf("Mat_H=\n");
-		Matrix_Print(Mat_H);
-		printf("H*Yp=\n");
-		Matrix_Print(Mat_1X1B);
-		printf("S-H*Yp=\n");
-		Matrix_Print(Mat_1X1C);
+//		printf("Mat_Yp=\n");
+//		Matrix_Print(Mat_Yp);
+//		printf("Mat_H=\n");
+//		Matrix_Print(Mat_H);
+//		printf("H*Yp=\n");
+//		Matrix_Print(Mat_1X1B);
+//		printf("S-H*Yp=\n");
+//		Matrix_Print(Mat_1X1C);
 		printf("Mat_Y=\n");
 		Matrix_Print(Mat_Y);
 
@@ -325,17 +304,19 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 				 &Mat_Pp,
 				 &Mat_P
 		);
-		printf("K(3,1)*H(1,3)=\n");
-		Matrix_Print(Mat_3X3A);
+//		printf("K*H=\n");
+//		Matrix_Print(Mat_3X3A);
+//		printf("I-K*H=\n");
+//		Matrix_Print(Mat_3X3B);
 		printf("Mat_P=\n");
 		Matrix_Print(Mat_P);
 
 	} //end of for()
 
-	printf("Mat_K=\n");
+	printf("----- final Kalman Gain Matrix Mat_K= \n");
 	Matrix_Print(Mat_K);
-	printf("Mat_Y=\n");
-	Matrix_Print(Mat_Y);
+	printf("----- final State Covaraince Matrix  Mat_P= \n");
+	Matrix_Print(Mat_P);
 
 	return 0;
 }
