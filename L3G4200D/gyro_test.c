@@ -1,6 +1,8 @@
 /*----------------------------------------------------
 TEST L3G4200d
 
+set ODR=800Hz
+
 ----------------------------------------------------*/
 #include <stdio.h>
 #include <sys/time.h>
@@ -10,10 +12,9 @@ TEST L3G4200d
 #include "data_server.h"
 #include "filters.h"
 #include "mathwork.h"
-#include "i2c_oled_128x64.h"
 
-//#define MATLAB_TCP
-#define RECORD_DATA_SIZE 4096 //
+#define TCP_TRANSFER
+//#define RECORD_DATA_SIZE 4096 //
 
 
 int main(void)
@@ -31,8 +32,9 @@ int main(void)
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
    //in head file: double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
 
-   //----- integral -----
-   struct int16MAFilterDB fdb_RX,fdb_RY,fdb_RZ; // filter contexts for RX RY RZ
+   //----- filter db -----
+   struct int16MAFilterDB fdb_RXYZ[3];
+
    struct timeval tm_start,tm_end;
    struct timeval tmTestStart,tmTestEnd;
    //----- pthread -----
@@ -65,18 +67,14 @@ int main(void)
    }
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
-   Init_int16MAFilterDB(&fdb_RX, 6, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RY, 6, 0x7fff);
-   Init_int16MAFilterDB(&fdb_RZ, 6, 0x7fff);
-   if( fdb_RX.f_buff==NULL || fdb_RY.f_buff==NULL || fdb_RZ.f_buff==NULL)
+   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 6, 0x7fff)<0) //2^6=64 points average filter
    {
-		printf("fail to init filter data base strut!\n");
-		ret_val=-2;
-		goto INIT_MAFILTER_FAIL;
+	ret_val=-2;
+	goto INIT_MAFILTER_FAIL;
    }
 
    //---- preare TCP data server
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
    printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
    {
@@ -88,8 +86,6 @@ int main(void)
 
    val=halSpiReadReg(L3G_WHO_AM_I);
    printf("L3G_WHO_AM_I: 0x%02x\n",val);
-   val=halSpiReadReg(L3G_FIFO_CTRL_REG);
-   printf("FIFO_CTRL_REG: 0x%02x\n",val);
    val=halSpiReadReg(L3G_OUT_TEMP);
    printf("OUT_TEMP: %d\n",val);
 
@@ -100,21 +96,25 @@ int main(void)
    printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sensf*bias_RXYZ[0],sensf*bias_RXYZ[1],sensf*bias_RXYZ[2]);
 
    //----- wait to accept data client ----
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
    printf("wait for Matlab to connect...\n");
    cltsock_desc=accept_data_client();
    if(cltsock_desc < 0){
 	printf(" Fail to accept data client!\n");
-	return -1;
+	ret_val=-4;
+	goto CALL_FAIL;
    }
 #endif
 
-   //================   loop: get data and process  ===============
+   //================   loop: get data and record  ===============
    printf(" starting testing ...\n");
    gettimeofday(&tmTestStart,NULL);
 
-   for(k=0;k<100000;k++) {
-//   while (1) {
+   k=0;
+   while (1) {
+	   k++;
+//   for(k=0;k<100000;k++) {
+
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
 //	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
@@ -126,46 +126,30 @@ int main(void)
 
 	   //---- Activate filter for  RX RY RZ
 	   // first reset each filter context struct, then you must use the same data stream until end.
-	   int16_MAfilter(&fdb_RX, &angRXYZ[0], &angRXYZ[0], 0); //No.0 fitler
-	   int16_MAfilter(&fdb_RY, &angRXYZ[1], &angRXYZ[1], 0); //No.1 fitler
-	   int16_MAfilter(&fdb_RZ, &angRXYZ[2], &angRXYZ[2], 0); //No.2 fitler
+	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); // three group fitler 
 
 	   //----- convert to real value
 	   for(i=0; i<3; i++)
 		   fangRXYZ[i]=sensf*angRXYZ[i];
 
 
-#if 0 //xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-	   gettimeofday(&tm_end,NULL);// !!!--end of read !!!
-	   //------ get time span for integration calculation
-	   dt_us=get_costtimeus(tm_start,tm_end);
-	   sum_dt += dt_us;
-	   //------ start timing immediatly to minimize error
-	   gettimeofday(&tm_start,NULL);// !!! --start time !!!
-	   //------ integration of angle XYZ -----
-//	   printf("dt_us:%dus\n",dt_us);
-	   for(i=0; i<3; i++)
-		   g_fangXYZ[i] += dt_us*fangRXYZ[i];
-#endif //xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	    sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ); // one instance only!!!
 
 	   //<<<<<<<<<< Every 500th count:  send integral XYZ angle to client Matlab    >>>>>>>>>>>
-#ifdef MATLAB_TCP
+#ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
 //		if( send_client_data((uint8_t *)g_fangXYZ,3*sizeof(double)) < 0)
 		if( send_client_data((uint8_t *)fangRXYZ,3*sizeof(double)) < 0)
 			printf("-------- fail to send client data ------\n");
-		send_count=10;
+		send_count=10; //send everty 10th data to the client
 	   }
 	   else
 		send_count-=1;
 #endif
-
 	   //------  print out
-	   printf(" integral value:  fangX=%f  fangY=%f  fangZ=%f \r", g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
+	   printf(" k=%d   fangX=%f  fangY=%f  fangZ=%f \r", k, g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
 	   fflush(stdout);
 
    }  //---------------------------  end of loop  -----------------------------
@@ -183,11 +167,11 @@ int main(void)
 
 
 CALL_FAIL:
+
 INIT_MAFILTER_FAIL:
    //---- release filter data base
-   Release_int16MAFilterDB(&fdb_RX);
-   Release_int16MAFilterDB(&fdb_RY);
-   Release_int16MAFilterDB(&fdb_RZ);
+   Release_int16MAFilterDB_NG(3,fdb_RXYZ);
+
 INIT_PTHREAD_FAIL:
    //----- close I2C and Oled
     free_I2C_IOdata();

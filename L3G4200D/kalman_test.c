@@ -1,18 +1,18 @@
-/*-------------------------------------------------------------------
+/*-------------------------------------------------------------------------
 KALMAN filter test program
   Example derived from:	blog.csdn.net/zhangwenyu111/article/details/17034813
 
 
--------------------------------------------------------------------*/
+---------------------------------------------------------------------------*/
 #include <stdio.h>
+#include <sys/time.h>
 #include "mathwork.h"
-
-
-
 
 
 int main(void)
 {
+
+  struct timeval tm_start, tm_end;
 
 /*------------------ Parameter Description ---------------------
 T: sampling period, T=1s.
@@ -218,7 +218,7 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 	int n=100; //samples, number of points to be filtered
 	int i,j,k;
 
-
+	gettimeofday(&tm_start,NULL);
         //------- Kalman Filter Processing --------
         for(k=0; k<n; k++)
 	{
@@ -313,10 +313,13 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 
 	} //end of for()
 
+	gettimeofday(&tm_end,NULL);
+	printf("----- recursion count: %d, time elapsed: %d(us) \n",k,get_costtimeus(tm_start, tm_end));
 	printf("----- final Kalman Gain Matrix Mat_K= \n");
 	Matrix_Print(Mat_K);
 	printf("----- final State Covaraince Matrix  Mat_P= \n");
 	Matrix_Print(Mat_P);
+
 
 	return 0;
 }

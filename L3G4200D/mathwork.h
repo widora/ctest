@@ -18,6 +18,10 @@ Midas
 #include <malloc.h>
 #include <string.h>
 
+
+#define TEST_TEST_TEST 1
+
+
 struct float_Matrix
 {
   int nc; //column n

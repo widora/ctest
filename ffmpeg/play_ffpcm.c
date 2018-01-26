@@ -2,7 +2,7 @@
 
 //----- definition of global varriable: g_ffpcm_handle ---------
 snd_pcm_t *g_ffpcm_handle;//=NULL assignment will cause multi_definition error in compilation ;
-
+bool g_blInterleaved;
 /*------------------------------------------------
  open an PCM device and set following parameters:
  1.  access mode  (SND_PCM_ACCESS_RW_INTERLEAVED)
@@ -22,6 +22,9 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
         snd_pcm_hw_params_t *params;
 	snd_pcm_uframes_t frames;
         int dir=0;
+
+	//----- save interleave mode
+	g_blInterleaved=bl_interleaved;
 
 	//----- open PCM device for playblack
 	rc=snd_pcm_open(&g_ffpcm_handle,"default",SND_PCM_STREAM_PLAYBACK,0);
@@ -104,13 +107,15 @@ void  play_ffpcm_buff(void ** buffer, int nf)
 	int rc;
 
 	//---- write interleaved frame data
-//        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); 
+	if(g_blInterleaved)
+	        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); 
 	//---- write noninterleaved frame data
-        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback 
+	else
+       	        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback 
         if (rc == -EPIPE)
         {
             //EPIPE means underrun
-            fprintf(stderr,"snd_pcm_writen(): underrun occurred\n");
+            fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
             snd_pcm_prepare(g_ffpcm_handle);
         }
 	else if(rc<0)

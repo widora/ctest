@@ -8,7 +8,7 @@ Based on: dranger.com/ffmpeg/tutorialxx.c
 
 TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
-
+   It dosen't work for ACC_LC decoding, lots of float point operation.
 
 NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
@@ -63,13 +63,18 @@ int main(int argc, char *argv[]) {
 	AVCodecContext		*aCodecCtx=NULL;
 	AVCodec			*aCodec=NULL;
 	AVFrame			*pAudioFrame=NULL;
+	int			frame_size;
 	int 			sample_rate;
+	int			out_sample_rate; //after conversion, for ffplaypcm
 	enum AVSampleFormat	sample_fmt;
 	int			nb_channels;
 	int			bytes_per_sample;
 	int64_t			channel_layout;
 	int 			bytes_used;
 	int			got_frame;
+	SwrContext		*swr; //AV_SAMPLE_FMT_FLTP format conversion
+	uint8_t			*outputBuffer;//for converted data
+	int 			outsamples;
 
 	//------- time structe ------
 	struct timeval tm_start, tm_end;
@@ -169,20 +174,50 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	//----- get audio stream parameters -----------------------------
+	frame_size = aCodecCtx->frame_size;
 	sample_rate = aCodecCtx->sample_rate;
 	sample_fmt  = aCodecCtx->sample_fmt;
 	bytes_per_sample = av_get_bytes_per_sample(sample_fmt);
 	nb_channels = aCodecCtx->channels;
 	channel_layout = aCodecCtx->channel_layout;
-
+	printf("	frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
 	printf("	channel_layout=%lld\n",channel_layout);//long long int type
 	printf("	nb_channels=%d\n",nb_channels);
 	printf("	sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
 	printf("	bytes_per_sample: %d\n",bytes_per_sample);
 	printf("	sample_rate=%d\n",sample_rate);
 
-	//----- open pcm play device and set parameters ----
- 	prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
+
+	//----- prepare SWR context for FLTP format conversion -----
+	if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
+		//----- set out sample rate for ffplaypcm
+		out_sample_rate=44100;
+
+		printf("----- prepare swr for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
+		swr=swr_alloc();
+		av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
+		av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
+		av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
+		av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
+		av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
+		av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+		swr_init(swr);
+
+		//---- alloc outputBuffer
+		outputBuffer=malloc(2*frame_size * bytes_per_sample);
+		if(outputBuffer == NULL)
+	        {
+			printf("malloc() outputBuffer failed!\n");
+			return -1;
+		}
+		//----- open pcm play device and set parameters ----
+ 		prepare_ffpcm_device(nb_channels,out_sample_rate,true); //true for interleaved access
+	}
+	else
+	{
+		//----- open pcm play device and set parameters ----
+ 		prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
+	}
 
   } //--- end of if(audioStream =! -1)
 
@@ -302,7 +337,7 @@ int main(int argc, char *argv[]) {
 				//<<<<<<<<<<<<<<<<<<<<<<<<    send data to LCD      >>>>>>>>>>>>>>>>>>>>>>>>
 				//gettimeofday(&tm_start,NULL);
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
-					printf("PICBuffs are full!  A video frame is dropped!\n");
+					printf("PICBuffs are full! The video frame is dropped!\n");
 				//---- get play time
 				printf("\r		 Elapsed time: %ds  ---  Duration: %ds  ",
 					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
@@ -317,7 +352,7 @@ int main(int argc, char *argv[]) {
 		}//----- end  of vidoStream process  ------
 
 	//----------------//////   process audio stream   \\\\\\\-----------------
-		else if( audioStream != -1 && packet.stream_index==audioStream) {
+		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
 			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
 			//with a self contained packet, it should be used completely.
 			//---sb_size: hold the sample buffer size, on return the number of produced samples is stored.
@@ -338,9 +373,15 @@ int main(int argc, char *argv[]) {
 					//gettimeofday(&tm_start,NULL);
 					//---- playback audio data
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
-						// aCodecCtx->frame_size: Number of samples per channel in an audio frame
-						 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
-
+						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
+						// Number of samples per channel in an audio frame
+						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, pAudioFrame->data, aCodecCtx->frame_size);
+							printf("outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							play_ffpcm_buff( &outputBuffer,outsamples);
+						}
+						else
+							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 					}
 					else if(pAudioFrame->data[0]) {  //-- one channel only
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
@@ -378,6 +419,13 @@ int main(int argc, char *argv[]) {
 	//-----close pcm device
 	printf("----- close PCM device...\n");
 	close_ffpcm_device();
+
+	//----- free swr
+	printf("---- free swr...\n");
+	swr_free(&swr);
+
+	if(outputBuffer != NULL)
+		free(outputBuffer);
 
 	//----Close the codecs
 	printf("----- close the codecs...\n");

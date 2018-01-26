@@ -1,10 +1,15 @@
 /*---------------     ----------------
 TODOs and BUGs:
 ---------------------------------------------------------------------------*/
+#ifndef  __GYRO_L3G4200D__
+#define __GYRO_L3G4200D__
+
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include "i2c_oled_128x64.h"
+#include "gyro_spi.h"
 
 //---- SPI Read and Write BITs set -----
 #define WRITE_SINGLE 0x00
@@ -41,32 +46,46 @@ TODOs and BUGs:
 #define L3G_INT1_TSH_ZL 0x37
 #define L3G_INT1_DURATION 0x38
 
-
 #define L3G_READ_WAITUS 500  //for ODR=800Hz;  poll wait time in us for read RX RY RZ
 #define L3G_BIAS_SAMPLE_NUM 1024 //total number of samples needed for RXRYRZ bias calcualation
 
 //----- global variables
-bool gtok_QuitGyro=false;
-double g_fangXYZ[3];
+static bool gtok_QuitGyro=false; // to inform a  thread to quit if true
+double g_fangXYZ[3]; //float value of XYZ angular speed 
 
+//----- Function Declaration  ------
+void halSpiWriteReg(const uint8_t addr, const uint8_t value);
+void halSpiWriteBurstReg(const uint8_t addr,  uint8_t *buffer, const uint8_t count);
+uint8_t halSpiReadReg(uint8_t addr);
+void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
+uint8_t halSpiReadStatus(uint8_t addr);
+void Init_L3G4200D(void);
+bool status_XYZ_available(void);
+inline void gyro_read_int16RXYZ(int16_t *angRXYZ);
+inline void gyro_get_int16BiasXYZ(int16_t* bias_xyz);
+void  thread_gyroWriteOled(void);
+
+
+#if 0
 
 //------------------------function definition------------------------------ 
+/*
 void halSpiStrobe(uint8_t strobe)
 {
 	SPI_Write(&strobe,1);
 }
 
-
-/* read Status byte from MISO */
+// read Status byte from MISO 
 uint8_t halSpiGetStatus(void)
 {
 	uint8_t status;
         SPI_Read(&status,1);
 	return status;
 }
+*/
 
 /* Write to a register */
-void halSpiWriteReg(uint8_t addr, uint8_t value)
+void halSpiWriteReg(const uint8_t addr, const uint8_t value)
 {
 	uint8_t data[2];
 	data[0]=addr; data[1]=value;
@@ -74,7 +93,7 @@ void halSpiWriteReg(uint8_t addr, uint8_t value)
 }
 
 /*  burst write to registers */
-void halSpiWriteBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count)
+void halSpiWriteBurstReg(const uint8_t addr, const uint8_t *buffer, const uint8_t count)
 {
 	uint8_t tmp;
 	tmp=addr|WRITE_BURST;
@@ -199,3 +218,7 @@ void  thread_gyroWriteOled(void)
 	}
 }
 
+
+#endif
+
+#endif
