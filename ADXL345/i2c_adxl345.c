@@ -13,12 +13,12 @@ Midas
 #include <stdio.h>
 #include <math.h>
 //#include "i2c_adxl345_1.h" //---use ioctl() to operate I2C
-#include "i2c_adxl345_2.h" //--- use  read() write() to operate I2C
+#include "i2c_adxl345.h" //--- use  read() write() to operate I2C
 #include "mathwork.h"
 #include "filters.h"
 #include "data_server.h"
 
-#define TCP_TRANSFER
+//#define TCP_TRANSFER
 
 int main(void)
 {
@@ -27,6 +27,7 @@ int main(void)
    uint8_t dat;
    uint8_t addr;
    int16_t accXYZ[3]={0}; // acceleration value of XYZ 
+   int16_t bias_AXYZ[3];
    double  faccXYZ[3]; //double //faccXYZ=fs*accXYZ
    double  fangleYZ; //atan(Y/Z)
    uint8_t xyz[6]={0};
@@ -42,17 +43,24 @@ int main(void)
    int send_count=0;
 
    //----- open and setup i2c slave
+/*
    printf("init i2c slave...\n");
-   if( init_I2C_Slave() <0 )
+   if( Init_I2C_Slave() <0 )
    {
 	printf("init i2c slave failed!\n");
         ret_val=-1;
 	goto INIT_I2C_FAIL;
    }
+*/
 
    //------ set up ADXL345
    //Note: adjust ADXL_DATAREADY_WAITUS accordingly in i2c_adxl345_2.h ...
-   init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G); 
+   printf("Init ADXL345 ...\n");
+   if(Init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G) != 0 )
+   {
+	ret_val=-1;
+	goto INIT_ADXL345_FAIL;
+   }
 
    //---- init filter data base
    printf("Init int16MA filter data base ...\n");
@@ -85,6 +93,14 @@ int main(void)
 
 
 #if 1  //------------ I2C operation with read() /write() -------------
+
+   //----- to get bias value for AXYZ
+   printf("---  Read and calculate the bias value now, keep the Z-axis of ADXL345 upright and static !!!  ---\n");
+   sleep(1);
+   adxl_get_int16BiasXYZ(bias_AXYZ);
+   printf("bias_AccX: %f,  bias_AccY: %f, bias_AccZ: %f \n",fs*bias_AXYZ[0],fs*bias_AXYZ[1],fs*bias_AXYZ[2]);
+
+   //------------ loop  -------------
    i=0;
    send_count=0;
 while(1)
@@ -94,10 +110,13 @@ while(1)
    while(i<100000)
    {
        i++;
-       get_int16XYZ_ADXL345(accXYZ);
+       adxl_read_int16AXYZ(accXYZ);
+
+       //------  deduce bias to adjust zero level
+       for(j=0; j<3; j++)
+                accXYZ[j]=accXYZ[j]-bias_AXYZ[j];
 
        //-----applay int16 Moving Average Filter
-
        //----- single and double spiking value will be trimmed.
        int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); // three filter groups, only [0] data filterd for each filter
 
@@ -108,9 +127,10 @@ while(1)
        for(j=0;j<3;j++)
        {
 		faccXYZ[j]=fs*accXYZ[j];
-//       		if(faccXYZ[j]>1.5)
-//			printf("\n alarm: faccXYZ[%d]=%f \n",j,faccXYZ[j]);
        }
+       //----- Z-axis as gravity -----
+	faccXYZ[2] += 1.0;
+
        printf("I=%d, accX: %f,  accY: %f,  accZ:%f \r", i, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
        fflush(stdout);
 
@@ -195,9 +215,8 @@ INIT_MAFILTER_FAIL:
    //---- release filter data base
    Release_int16MAFilterDB_NG(3,fdb_accXYZ);
 
-   //----- close i2c dev
-   close(g_I2Cfd);
+INIT_ADXL345_FAIL:
+   Close_ADXL345();
 
-INIT_I2C_FAIL:
    return ret_val;
 }

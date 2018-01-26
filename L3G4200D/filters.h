@@ -28,8 +28,8 @@ inline void Release_int16MAFilterDB(struct int16MAFilterDB *fdb);
 inline void int16_MAfilter_NG(uint8_t m, struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov);
 inline int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit);
 inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb);
-static void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov);
-static void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov);
+void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov);
+void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov);
 
 
 #endif

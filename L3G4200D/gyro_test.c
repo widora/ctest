@@ -13,8 +13,7 @@ set ODR=800Hz
 #include "filters.h"
 #include "mathwork.h"
 
-#define TCP_TRANSFER
-//#define RECORD_DATA_SIZE 4096 //
+//#define TCP_TRANSFER
 
 
 int main(void)
@@ -41,15 +40,14 @@ int main(void)
    pthread_t pthrd_WriteOled;
    int pret;
 
-
-   //----- init spi
-   printf("Open SPI ...\n");
-   SPI_Open(); //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
-
    //----- init L3G4200D
    printf("Init L3G4200D ...\n");
-   Init_L3G4200D();
-
+   if( Init_L3G4200D() !=0 )
+   {
+	printf("Init L3G4200D failed!\n");
+	ret_val=-1;
+	goto INIT_L3G4200D_FAIL;
+   }
    //----- init i2c and oled
    printf("Init I2C OLED ...\n");
    init_I2C_Slave();
@@ -176,8 +174,11 @@ INIT_PTHREAD_FAIL:
    //----- close I2C and Oled
     free_I2C_IOdata();
     intFcntlOp(g_fdOled,F_SETLK,F_UNLCK,0,SEEK_SET,10);
-   //---- close spi
-   SPI_Close();
+
+INIT_L3G4200D_FAIL:
+   //----- close L3G4200D
+    Close_L3G4200D();
+
    //----- close TCP server
    close_data_service();
 

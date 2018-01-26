@@ -258,10 +258,12 @@ return 0xF1;
 
 fd = open(spi_device, O_RDWR); 
 /* fd = open(device, O_RDONLY); */
-if (fd < 0)
-pabort("can't open device");
+if (fd < 0){
+	pabort("can't open device");
+	return -1;
+}
 else
-pr_debug("SPI - Open Succeed. Start Init SPI...\n");
+	pr_debug("SPI - Open Succeed. Start Init SPI...\n");
 
 
 g_SPI_Fd = fd;
@@ -301,7 +303,7 @@ pabort("can't set max speed hz");
 
 ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed);
 if (ret == -1)
-pabort("can't get max speed hz");
+	pabort("can't get max speed hz");
 
 
 pr_debug("spi mode: %d\n", mode);
@@ -309,7 +311,7 @@ pr_debug("bits per word: %d\n", bits);
 pr_debug("max speed: %d KHz (%d MHz)\n", speed / 1000, speed / 1000 / 1000);
 
 
-return ret;
+return 0;//ret;
 }
 
 

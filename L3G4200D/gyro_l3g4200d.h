@@ -59,7 +59,7 @@ void halSpiWriteBurstReg(const uint8_t addr,  uint8_t *buffer, const uint8_t cou
 uint8_t halSpiReadReg(uint8_t addr);
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
-void Init_L3G4200D(void);
+int Init_L3G4200D(void);
 bool status_XYZ_available(void);
 inline void gyro_read_int16RXYZ(int16_t *angRXYZ);
 inline void gyro_get_int16BiasXYZ(int16_t* bias_xyz);

@@ -61,25 +61,26 @@ Midas
 
 //--------------
 #define ADXL_DATAREADY_WAITUS 1000 //wait time(us) for XYZ data 
+#define ADXL_BIAS_SAMPLE_NUM 1024
 
-char *g_I2Cfdev="/dev/i2c-0"; //i2c device file
-int g_I2Cfd; //file descriptor
-uint8_t  I2C_Addr_ADXL345=0x1d; //0x1d--SDO high  //0x53--SDO grounding
+static char *g_I2Cfdev="/dev/i2c-0"; //i2c device file
+static int g_I2Cfd; //file descriptor
+static uint8_t  I2C_Addr_ADXL345=0x1d; //0x1d--SDO high  //0x53--SDO grounding
 
 //---- i2c ioctl data ----
-struct i2c_rdwr_ioctl_data g_i2c_ioctlmsg;
-struct i2c_msg g_msgs[2];//0-for write, 1-for read
-
+static struct i2c_rdwr_ioctl_data g_i2c_ioctlmsg;
+static struct i2c_msg g_msgs[2];//0-for write, 1-for read
 
 //-------functions declaration----
 void init_I2C_IOmsg(void);
-int init_I2C_Slave(void);
-int I2C_Single_Write(uint8_t reg_addr, uint8_t reg_dat);
-int I2C_Single_Read(uint8_t reg_addr, uint8_t *reg_dat);
-int I2C_Multi_Read(uint8_t nbytes, uint8_t reg_addr, uint8_t *reg_dat);
+static int init_I2C_Slave(void);
+static int I2C_Single_Write(uint8_t reg_addr, uint8_t reg_dat);
+static int I2C_Single_Read(uint8_t reg_addr, uint8_t *reg_dat);
+static int I2C_Multi_Read(uint8_t nbytes, uint8_t reg_addr, uint8_t *reg_dat);
 bool DataReady_ADXL345(void);
 void init_ADXL345(uint8_t data_rate, uint8_t g_range);
-void get_int16XYZ_ADXL345(int16_t  *accXYZ);
+void adxl_read_int16AXYZ(int16_t  *accXYZ);
+inline void adxl_get_int16BiasXYZ(int16_t* bias_xyz);
 
 
 
@@ -98,7 +99,7 @@ Return:
 	0  ok
 	<0 fails
 --------------------------------------------------------*/
-int init_I2C_Slave(void)
+static int init_I2C_Slave(void)
 {
   struct flock lock;
 
@@ -247,10 +248,22 @@ bool DataReady_ADXL345(void)
 
  /*---------------------------------------------------------------
               init ADXL345  with Full resolustion
+Return:
+	0   --- OK
+	<0  --- Fail
  ---------------------------------------------------------------*/
-void init_ADXL345(uint8_t data_rate, uint8_t g_range)
+int Init_ADXL345(uint8_t data_rate, uint8_t g_range)
 {
    usleep(500000);
+
+ //----- open and setup i2c slave
+   printf("init i2c slave...\n");
+   if( init_I2C_Slave() <0 )
+   {
+        printf("init i2c slave failed!\n");
+        return -1;
+   }
+
    I2C_Single_Write(ADXL345REG_DATA_FORMAT,ADXL_FULL_MODE|g_range);//Full resolutioin, +-16g,right-justified mode
    //----- for BW_RATE ODR:
    // 0x0f-3200Hz,0x0e-1600Hz,0x0d-800Hz,0x0c-400Hz,0x0b-200Hz, 0x0a-100Hz, 0x09-50Hz
@@ -261,13 +274,27 @@ void init_ADXL345(uint8_t data_rate, uint8_t g_range)
    I2C_Single_Write(ADXL345REG_OFSY, 0x00);
    I2C_Single_Write(ADXL345REG_OFSZ, 0x0F);
 
+   //--- re-confirm setup here ///
+
+   return 0;
+}
+
+
+/*--------------------------------------------
+   close ADXL345
+--------------------------------------------*/
+void Close_ADXL345(void)
+{
+   //----- close i2c dev
+   if(!g_I2Cfd)
+	   close(g_I2Cfd);
 }
 
 /*--------------------------------------------
  Read DATAX0-DATAZ1 
  Retrun int16_t [3]
 --------------------------------------------*/
-void get_int16XYZ_ADXL345(int16_t  *accXYZ)
+void adxl_read_int16AXYZ(int16_t  *accXYZ)
 {
     uint8_t *xyz = (uint8_t *)accXYZ;
 
@@ -289,4 +316,27 @@ void get_int16XYZ_ADXL345(int16_t  *accXYZ)
 
 }
 
+
+/*----------------------------------------------------
+Get bias values of AX AY AZ in int16_t *[3]
+Bias values will be used to set zero level for ADXL345
+----------------------------------------------------- */
+inline void adxl_get_int16BiasXYZ(int16_t* bias_xyz)
+{
+        int i;
+        int16_t  xyz_val[3];
+        int32_t  xyz_sums[3]={0};
+
+        for(i=0;i<ADXL_BIAS_SAMPLE_NUM;i++)
+        {
+                adxl_read_int16AXYZ(xyz_val);
+                xyz_sums[0] += xyz_val[0];
+                xyz_sums[1] += xyz_val[1];
+                xyz_sums[2] += xyz_val[2];
+        }
+
+        for(i=0;i<3;i++)
+                bias_xyz[i]=xyz_sums[i]/ADXL_BIAS_SAMPLE_NUM;
+
+}
 #endif

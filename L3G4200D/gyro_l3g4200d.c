@@ -62,8 +62,21 @@ uint8_t halSpiReadStatus(uint8_t addr)
 }
 
 
-/*---- init L3G4200D -----*/
-void Init_L3G4200D(void) {
+/*------- init L3G4200D -----------
+
+Return:
+	0  OK
+	<0 Fail
+------------------------------------*/
+int Init_L3G4200D(void) {
+
+	usleep(200000);
+
+	//----- init spi -----
+	if( SPI_Open() != 0 ) //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
+		return -1;
+
+	//------ set registers  -----
         //0xcf: ODR=800Hz,Fc=30Hz, normal mode, XYZ all enabled,
         //0x0f: ODR=100Hz,Fc=12.5Hz, normal mode, XYZ all enabled,
 	halSpiWriteReg(L3G_CTRL_REG1, 0xcf);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
@@ -77,6 +90,18 @@ void Init_L3G4200D(void) {
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
 	//FIFO disable
 	halSpiWriteReg(L3G_FIFO_CTRL_REG,0x00);
+
+	//---reconfirm register value here....
+
+	return 0;
+}
+
+
+void Close_L3G4200D(void)
+{
+   //---- close spi
+   SPI_Close();// fd checked in function
+
 }
 
 /*   check if XYZ new data is available  */
