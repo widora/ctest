@@ -32,7 +32,7 @@ int main(void)
    double  fangleYZ; //atan(Y/Z)
    uint8_t xyz[6]={0};
    int16_t *tmp=(int16_t *)xyz;
-   double fs=3.9/1000.0;//scale factor 4mg/LSB for full resolutioin, 
+//   double fs=3.9/1000.0;//scale factor 4mg/LSB for full resolution, 
    //----- filter data base -----
    struct int16MAFilterDB fdb_accXYZ[3];
    //Note: Big limit value smooths data better,but you have to trade off with reactive speed.
@@ -42,21 +42,12 @@ int main(void)
    struct timeval tm_start,tm_end;
    int send_count=0;
 
-   //----- open and setup i2c slave
-/*
-   printf("init i2c slave...\n");
-   if( Init_I2C_Slave() <0 )
-   {
-	printf("init i2c slave failed!\n");
-        ret_val=-1;
-	goto INIT_I2C_FAIL;
-   }
-*/
-
    //------ set up ADXL345
    //Note: adjust ADXL_DATAREADY_WAITUS accordingly in i2c_adxl345_2.h ...
+   //Full resolution,OFSX,OFSY,
+   //OFSZ also set in Init_ADXL345()
    printf("Init ADXL345 ...\n");
-   if(Init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G) != 0 )
+   if(Init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G) != 0 ) 
    {
 	ret_val=-1;
 	goto INIT_ADXL345_FAIL;
@@ -94,12 +85,6 @@ int main(void)
 
 #if 1  //------------ I2C operation with read() /write() -------------
 
-   //----- to get bias value for AXYZ
-   printf("---  Read and calculate the bias value now, keep the Z-axis of ADXL345 upright and static !!!  ---\n");
-   sleep(1);
-   adxl_get_int16BiasXYZ(bias_AXYZ);
-   printf("bias_AccX: %f,  bias_AccY: %f, bias_AccZ: %f \n",fs*bias_AXYZ[0],fs*bias_AXYZ[1],fs*bias_AXYZ[2]);
-
    //------------ loop  -------------
    i=0;
    send_count=0;
@@ -110,11 +95,7 @@ while(1)
    while(i<100000)
    {
        i++;
-       adxl_read_int16AXYZ(accXYZ);
-
-       //------  deduce bias to adjust zero level
-       for(j=0; j<3; j++)
-                accXYZ[j]=accXYZ[j]-bias_AXYZ[j];
+       adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
 
        //-----applay int16 Moving Average Filter
        //----- single and double spiking value will be trimmed.
@@ -126,10 +107,8 @@ while(1)
        //------- use factor
        for(j=0;j<3;j++)
        {
-		faccXYZ[j]=fs*accXYZ[j];
+		faccXYZ[j]=fsmg_full/1000.0*accXYZ[j];
        }
-       //----- Z-axis as gravity -----
-	faccXYZ[2] += 1.0;
 
        printf("I=%d, accX: %f,  accY: %f,  accZ:%f \r", i, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
        fflush(stdout);

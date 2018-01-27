@@ -63,6 +63,7 @@ Midas
 #define ADXL_DATAREADY_WAITUS 1000 //wait time(us) for XYZ data 
 #define ADXL_BIAS_SAMPLE_NUM 1024
 
+static float fsmg_full=3.9; //3.9mg/LSB scale factor for full resolution.
 static char *g_I2Cfdev="/dev/i2c-0"; //i2c device file
 static int g_I2Cfd; //file descriptor
 static uint8_t  I2C_Addr_ADXL345=0x1d; //0x1d--SDO high  //0x53--SDO grounding
@@ -90,7 +91,7 @@ inline void adxl_get_int16BiasXYZ(int16_t* bias_xyz);
 -----------------------------------------*/
 void init_I2C_IOmsg(void)
 {
-  printf("hello");
+  printf("	hello");
 }
 
 
@@ -105,30 +106,30 @@ static int init_I2C_Slave(void)
 
   if((g_I2Cfd=open(g_I2Cfdev,O_RDWR))<0)
   {
-	perror("fail to open i2c device!");
+	perror("	fail to open i2c device!");
         return -1;
   }
   else
-   	printf("Open %s successfully!\n",g_I2Cfdev);
+   	printf("	Open %s successfully!\n",g_I2Cfdev);
 
   if(ioctl(g_I2Cfd, I2C_SLAVE_FORCE,I2C_Addr_ADXL345)<0)
   {
-       perror("fail to set slave address!");
+       perror("		fail to set slave address!");
        return -1;
   }
   else
-	printf("set i2c slave address successfully!\n");
+	printf("	set i2c slave address successfully!\n");
 
   //----- set g_I2Cfd
   if(ioctl(g_I2Cfd,I2C_TIMEOUT,3)<0) 
   {
-       perror("fail to set I2C_TIMEOUT!");
+       perror("		fail to set I2C_TIMEOUT!");
        return -1;
   }
 
   if( ioctl(g_I2Cfd,I2C_RETRIES,1) <0 ) // !!!!!!!!
   {
-       perror("fail to set I2C_RETRIES!");
+       perror("	fail to set I2C_RETRIES!");
        return -1;
   }
 
@@ -162,7 +163,7 @@ int I2C_Single_Write(uint8_t reg_addr, uint8_t reg_dat)
     ret=write(g_I2Cfd,buff,2);
     if(ret !=2 )
     {
-	printf(" I2C Single Read failed\n");
+	printf(" 	I2C Single Read failed\n");
 	return -1;
     }
 
@@ -185,13 +186,13 @@ int I2C_Single_Read(uint8_t reg_addr, uint8_t *reg_dat)
     ret=write(g_I2Cfd,&reg_addr,1);
     if(ret !=1 )
     {
-	printf(" I2C Single Read(write addr) failed\n");
+	printf("	 I2C Single Read(write addr) failed\n");
 	return -1;
     }
     ret=read(g_I2Cfd,&buff,1);
     if(ret !=1 )
     {
-	printf(" I2C Single Read(read data) failed\n");
+	printf(" 	I2C Single Read(read data) failed\n");
 	return -1;
     }
 
@@ -219,13 +220,13 @@ int I2C_Multi_Read(uint8_t nbytes, uint8_t reg_addr, uint8_t *reg_dat)
     ret=write(g_I2Cfd,&reg_addr,1);
     if(ret !=1 )
     {
-	printf(" I2C Mutli Read():  write addr failed\n");
+	printf(" 	I2C Mutli Read():  write addr failed\n");
 	return -1;
     }
     ret=read(g_I2Cfd,reg_dat,nbytes);
     if(ret !=nbytes )
     {
-	printf(" I2C Multi Read():   read data failed\n");
+	printf(" 	I2C Multi Read():   read data failed\n");
 	return -1;
     }
 
@@ -247,20 +248,26 @@ bool DataReady_ADXL345(void)
 
 
  /*---------------------------------------------------------------
-              init ADXL345  with Full resolustion
+              init ADXL345  with Full resolution
+1. Init in full resolution mode
+2. Max. offset adjustment value OFX,OFY,OFZ, is 2g!!!
 Return:
 	0   --- OK
 	<0  --- Fail
  ---------------------------------------------------------------*/
 int Init_ADXL345(uint8_t data_rate, uint8_t g_range)
 {
+
+   int8_t  int8_OFSX,int8_OFSY,int8_OFSZ;
+   int16_t bias_AXYZ[3];
+
    usleep(500000);
 
  //----- open and setup i2c slave
-   printf("init i2c slave...\n");
+   printf("	init i2c slave...\n");
    if( init_I2C_Slave() <0 )
    {
-        printf("init i2c slave failed!\n");
+        printf("	init i2c slave failed!\n");
         return -1;
    }
 
@@ -270,11 +277,31 @@ int Init_ADXL345(uint8_t data_rate, uint8_t g_range)
    I2C_Single_Write(ADXL345REG_BW_RATE, ADXL_NORMAL_POWER|data_rate);//operation,0x1- reduced power mode, 0x0e 1600Hz,  0x08 ODR 25Hz, 0x1c ODR=400Hz,0x1d 800Hz,  0x1A ODR=100HZ; 0x0 normaol operation,0x1 reduced power mode
    I2C_Single_Write(ADXL345REG_POWER_CTL, 0x08);//measurement mode, no sleep
    I2C_Single_Write(ADXL345REG_INT_ENABLE, 0x00);//no interrupt
-   I2C_Single_Write(ADXL345REG_OFSX, 0x00);//user-set offset adjustments in twos complement format with a scale factor of 15.6mg/LSB
-   I2C_Single_Write(ADXL345REG_OFSY, 0x00);
-   I2C_Single_Write(ADXL345REG_OFSZ, 0x0F);
 
    //--- re-confirm setup here ///
+
+   //----- to get bias value for AXYZ
+   // !!! before that you need to clear OFSX,OFSY,OFSZ !!!
+   I2C_Single_Write(ADXL345REG_OFSX, 0);
+   I2C_Single_Write(ADXL345REG_OFSY, 0);
+   I2C_Single_Write(ADXL345REG_OFSZ, 0);
+   usleep(20000);
+   printf("	---  Read and calculate the bias value now, keep the Z-axis of ADXL345 upright and static !!!  ---\n");
+   sleep(1);
+   adxl_get_int16BiasXYZ(bias_AXYZ);
+   printf("	bias_AccX: %fmg,  bias_AccY: %fmg, bias_AccZ: %fmg \n",fsmg_full*bias_AXYZ[0],fsmg_full*bias_AXYZ[1],fsmg_full*bias_AXYZ[2]);
+
+   //------ get eight bits OFSX,OFSY,OFSZ for offset adjustments
+   //------ they are in tows complement format with a scale facotr of 15.6mg/LSB(0x7F=2g)
+   //------ the value stored in the offset registers (!!!is automatically added) to the acceleration data
+   int8_OFSX = -fsmg_full/15.6*bias_AXYZ[0]; //
+   int8_OFSY = -fsmg_full/15.6*bias_AXYZ[1]; //
+   int8_OFSZ = -(fsmg_full/15.6*bias_AXYZ[2]-1000.0/15.6); // 1000/3.9~=250 !!!! Z-axis as gravity vertical !!!!
+   printf("	int8_OFSX: %d,  int8_OFSY: %d, int8_OFSZ: %d \n",int8_OFSX,int8_OFSY,int8_OFSZ);
+   //user-set offset adjustments in twos complement format with a scale factor of 15.6mg/LSB
+   I2C_Single_Write(ADXL345REG_OFSX, int8_OFSX);
+   I2C_Single_Write(ADXL345REG_OFSY, int8_OFSY);
+   I2C_Single_Write(ADXL345REG_OFSZ, int8_OFSZ);
 
    return 0;
 }
