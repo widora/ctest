@@ -22,10 +22,9 @@ int main(void)
    uint8_t val;
    int i,k;
    int send_count=0;
-   int16_t bias_RXYZ[3];//bias value of RX RY RZ
    int16_t angRXYZ[3];//angular rate of XYZ
    double fangRXYZ[3]; //float angular rate of X,Y,Z aixs. --- fangRXYZ[] = sensf * angRXYZ[]
-   double sensf=70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps.
+   //double fs_dpus;global ar.
    //------ PID -----
    uint32_t dt_us; //delta time in us //U16: 0-65535 
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
@@ -48,13 +47,18 @@ int main(void)
 	ret_val=-1;
 	goto INIT_L3G4200D_FAIL;
    }
+
+
    //----- init i2c and oled
    printf("Init I2C OLED ...\n");
+   init_OLED_128x64();
+/*
    init_I2C_Slave();
    initOledDefault();
    clearOledV();
    push_Oled_Ascii32x18_Buff("-- Widora-NEO --",3,0);
    refresh_Oled_Ascii32x18_Buff(false);
+*/
 
    //----- create thread for displaying data to OLED
    if(pthread_create(&pthrd_WriteOled,NULL, (void *)thread_gyroWriteOled, NULL) !=0)
@@ -86,12 +90,13 @@ int main(void)
    printf("L3G_WHO_AM_I: 0x%02x\n",val);
    val=halSpiReadReg(L3G_OUT_TEMP);
    printf("OUT_TEMP: %d\n",val);
-
+/*
    //----- to get bias value for RXYZ
    printf("---  Read and calculate the bias value now, keep the L3G4200D even and static !!!  ---\n");
    sleep(1);
    gyro_get_int16BiasXYZ(bias_RXYZ);
    printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sensf*bias_RXYZ[0],sensf*bias_RXYZ[1],sensf*bias_RXYZ[2]);
+*/
 
    //----- wait to accept data client ----
 #ifdef TCP_TRANSFER
@@ -119,7 +124,7 @@ int main(void)
 
 	   //------  deduce bias to adjust zero level
 	   for(i=0; i<3; i++)
-		   angRXYZ[i]=angRXYZ[i]-bias_RXYZ[i];
+		   angRXYZ[i]=angRXYZ[i]-g_bias_int16RXYZ[i];
 //	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
 	   //---- Activate filter for  RX RY RZ
@@ -128,7 +133,7 @@ int main(void)
 
 	   //----- convert to real value
 	   for(i=0; i<3; i++)
-		   fangRXYZ[i]=sensf*angRXYZ[i];
+		   fangRXYZ[i]=sf_dpus*angRXYZ[i];
 
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
@@ -172,8 +177,7 @@ INIT_MAFILTER_FAIL:
 
 INIT_PTHREAD_FAIL:
    //----- close I2C and Oled
-    free_I2C_IOdata();
-    intFcntlOp(g_fdOled,F_SETLK,F_UNLCK,0,SEEK_SET,10);
+   close_OLED_128x64();
 
 INIT_L3G4200D_FAIL:
    //----- close L3G4200D

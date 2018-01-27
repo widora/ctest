@@ -289,7 +289,7 @@ int Init_ADXL345(uint8_t data_rate, uint8_t g_range)
    printf("	---  Read and calculate the bias value now, keep the Z-axis of ADXL345 upright and static !!!  ---\n");
    sleep(1);
    adxl_get_int16BiasXYZ(bias_AXYZ);
-   printf("	bias_AccX: %fmg,  bias_AccY: %fmg, bias_AccZ: %fmg \n",fsmg_full*bias_AXYZ[0],fsmg_full*bias_AXYZ[1],fsmg_full*bias_AXYZ[2]);
+   printf("	bias_AccX: %fmg,  bias_AccY: %fmg, bias_AccZ(Gravity): %fmg \n",fsmg_full*bias_AXYZ[0],fsmg_full*bias_AXYZ[1],fsmg_full*bias_AXYZ[2]);
 
    //------ get eight bits OFSX,OFSY,OFSZ for offset adjustments
    //------ they are in tows complement format with a scale facotr of 15.6mg/LSB(0x7F=2g)

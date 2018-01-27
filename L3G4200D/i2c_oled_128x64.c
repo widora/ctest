@@ -33,6 +33,30 @@ void sigHndlOledTimer(int signo)
 }
 */
 
+
+/*-----------------------------------------
+         Init OLED
+-----------------------------------------*/
+void init_OLED_128x64(void)
+{
+   init_I2C_Slave();
+   initOledDefault();
+   clearOledV();
+   push_Oled_Ascii32x18_Buff("-- Widora-NEO --",3,0);
+   refresh_Oled_Ascii32x18_Buff(false);
+}
+
+
+/*-----------------------------------------
+         close OLED
+-----------------------------------------*/
+void close_OLED_128x64(void)
+{
+    free_I2C_IOdata();
+    intFcntlOp(g_fdOled,F_SETLK,F_UNLCK,0,SEEK_SET,10);
+}
+
+
 /*-----------------------------------------
          initiate i2c ioctl data
 -----------------------------------------*/

@@ -2,6 +2,13 @@
 //------------------------L3G4200D Operation Function Definition------------------------------ 
 #include "gyro_l3g4200d.h"
 
+
+double sf_dpus;//init in Init_L3G4200D() 70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps
+bool gtok_QuitGyro=false; //=true to inform a  thread to quit if true
+double g_fangXYZ[3]; //float value of XYZ angular speed
+int16_t g_bias_int16RXYZ[3];//bias value of RX RY RZ, get in Init_L3G4200D()
+
+
 /*
 void halSpiStrobe(uint8_t strobe)
 {
@@ -16,6 +23,10 @@ uint8_t halSpiGetStatus(void)
 	return status;
 }
 */
+
+
+
+
 
 /* Write to a register */
 void halSpiWriteReg(const uint8_t addr, const uint8_t value)
@@ -71,7 +82,6 @@ Return:
 int Init_L3G4200D(void) {
 
 	usleep(200000);
-
 	//----- init spi -----
 	if( SPI_Open() != 0 ) //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
 		return -1;
@@ -86,12 +96,21 @@ int Init_L3G4200D(void) {
 	halSpiWriteReg(L3G_CTRL_REG3, 0x00);//interrupt configuration, disable
 	// set measure range +-2000dps
 	halSpiWriteReg(L3G_CTRL_REG4, 0b10100000);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
+	sf_dpus=70/1000000000.0; // accoring to DPS set above
 	//FIFO disabled,HPF disabled,
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
 	//FIFO disable
 	halSpiWriteReg(L3G_FIFO_CTRL_REG,0x00);
 
 	//---reconfirm register value here....
+
+	//----- to get bias value for RXYZ
+	printf("	Read and calculate the bias value now, keep the L3G4200D even and static !!!\n");
+	sleep(1);
+	gyro_get_int16BiasXYZ(g_bias_int16RXYZ);
+	printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sf_dpus*g_bias_int16RXYZ[0],
+						sf_dpus*g_bias_int16RXYZ[1],sf_dpus*g_bias_int16RXYZ[2]);
+
 
 	return 0;
 }

@@ -22,7 +22,7 @@ Midas
 #include <sys/time.h>
 #include "ascii2.h"
 
-int g_fdOled;
+static int g_fdOled;
 static char *g_pstroledDev="/dev/i2c-0";
 static uint8_t g_u8oledAddr=0x78>>1;
 enum oled_sig{   //---command or data
@@ -31,10 +31,10 @@ oled_SIG_DAT
 };
 
 //---- i2c ioctl data ----
-struct i2c_rdwr_ioctl_data g_i2c_iodata;
+static struct i2c_rdwr_ioctl_data g_i2c_iodata;
 //---- i2c dev lock ----
-struct flock g_i2cFdReadLock;
-struct flock g_i2cFdWriteLock;
+static struct flock g_i2cFdReadLock;
+static struct flock g_i2cFdWriteLock;
 
 //---- 16x8_size ASCII char. frame buffer for oled display -----
 static struct oled_Ascii16x8_Frame_Buff {
@@ -43,6 +43,8 @@ char char_buff[4][16];//4 lines x 16 ASCII chars
 } g_Oled_Ascii16x8_Frame={0};
 
 //-------functions declaration----
+void close_OLED_128x64(void);
+void init_OLED_128x64(void);
 void init_I2C_IOdata(void);
 void free_I2C_IOdata(void);
 void init_I2C_Slave(void);
