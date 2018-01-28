@@ -39,7 +39,7 @@ void sigHndlOledTimer(int signo)
 -----------------------------------------*/
 void init_OLED_128x64(void)
 {
-   init_I2C_Slave();
+   init_OLED_I2C_Slave();
    initOledDefault();
    clearOledV();
    push_Oled_Ascii32x18_Buff("-- Widora-NEO --",3,0);
@@ -60,7 +60,7 @@ void close_OLED_128x64(void)
 /*-----------------------------------------
          initiate i2c ioctl data
 -----------------------------------------*/
-void init_I2C_IOdata(void)
+static void init_I2C_IOdata(void)
 {
     g_i2c_iodata.nmsgs=1;
     g_i2c_iodata.msgs=(struct i2c_msg*)malloc(g_i2c_iodata.nmsgs*sizeof(struct i2c_msg));
@@ -77,7 +77,7 @@ void init_I2C_IOdata(void)
 /*-----------------------------------------
          free i2c ioctl data mem.
 -----------------------------------------*/
-void free_I2C_IOdata(void)
+static void free_I2C_IOdata(void)
 {
     if(g_i2c_iodata.msgs != NULL)
 	    free(g_i2c_iodata.msgs);
@@ -121,7 +121,7 @@ void sendDatOled(uint8_t dat)
 }
 
 /*----- open i2c slave and init ioctl -----*/
-void init_I2C_Slave(void)
+void init_OLED_I2C_Slave(void)
 {
   int fret;
   struct flock lock;
@@ -132,7 +132,7 @@ void init_I2C_Slave(void)
         exit(1);
   }
   else
-   	printf("Open i2c bus successfully!\n");
+   	printf("	Open i2c bus successfully!\n");
 
   //----- set g_fdOled 
   ioctl(g_fdOled,I2C_TIMEOUT,2);
@@ -141,7 +141,7 @@ void init_I2C_Slave(void)
   //------ try to lock file
   intFcntlOp(g_fdOled,F_SETLK, F_WRLCK, 0, SEEK_SET,0);//write lock
   //  intFcntlOp(g_fdOled,F_SETLK, F_RDLCK, 0, SEEK_SET,0);//read lock
-  printf("I2C fd lock operation finished.\n");
+  printf("	I2C fd lock operation finished.\n");
 
   //---- init i2c ioctl data -----
   init_I2C_IOdata();
@@ -384,11 +384,11 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
       switch(fcret & O_ACCMODE)
       {
 	case O_RDONLY:
-		printf("Read only..\n");break;
-	case O_WRONLY:	
-		printf("Write only..\n");break;
-	case O_RDWR:	
-		printf("Read and Write ..\n");break;
+		printf("	Read only..\n");break;
+	case O_WRONLY:
+		printf("	Write only..\n");break;
+	case O_RDWR:
+		printf("	Read and Write ..\n");break;
 	default:
 		printf("File is not valid..\n");
        }
@@ -408,8 +408,8 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
      }
 
      //-------------UNAPPLICABLE !!!!!
-     printf("lock.l_type: 0x%x\n",lock.l_type);
-     printf("F_WRLCK: 0x%x\n",F_WRLCK);
+     printf("	lock.l_type: 0x%x\n",lock.l_type);
+     printf("	F_WRLCK: 0x%x\n",F_WRLCK);
 
     if((lock.l_type==F_WRLCK) || (lock.l_type==F_RDLCK) )
     {
@@ -428,7 +428,7 @@ int intFcntlOp(int fd, int cmd, int type, off_t offset, int whence, off_t len)
 	printf("fcntl operation error!\n");
 	exit(1);
     }
-    printf("fcntl ret=%d\n",ret);
+    printf("	fcntl ret=%d\n",ret);
     return ret;
 }
 

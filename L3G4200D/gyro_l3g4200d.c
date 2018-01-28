@@ -3,7 +3,7 @@
 #include "gyro_l3g4200d.h"
 
 
-double sf_dpus;//init in Init_L3G4200D() 70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps
+double fs_dpus;//init in Init_L3G4200D() 70/1000000000.0;//dpus //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps
 bool gtok_QuitGyro=false; //=true to inform a  thread to quit if true
 double g_fangXYZ[3]; //float value of XYZ angular speed
 int16_t g_bias_int16RXYZ[3];//bias value of RX RY RZ, get in Init_L3G4200D()
@@ -79,24 +79,34 @@ Return:
 	0  OK
 	<0 Fail
 ------------------------------------*/
-int Init_L3G4200D(void) {
+int Init_L3G4200D(enum L3G_ODRBW_setval ODRBW_setval)
+{
+
+	uint8_t val;
 
 	usleep(200000);
 	//----- init spi -----
 	if( SPI_Open() != 0 ) //SP clock set to 10MHz OK, if set to 5MHz, then read value of WHO_AM_I is NOT correct !!!!???????
 		return -1;
 
+	//------ read WHO_AM_I and TEMP ------
+	val=halSpiReadReg(L3G_WHO_AM_I);
+	printf("	L3G_WHO_AM_I: 0x%02x\n",val);
+	val=halSpiReadReg(L3G_OUT_TEMP);
+	printf("	OUT_TEMP: %d\n",val);
+
 	//------ set registers  -----
-        //0xcf: ODR=800Hz,Fc=30Hz, normal mode, XYZ all enabled,
-        //0x0f: ODR=100Hz,Fc=12.5Hz, normal mode, XYZ all enabled,
-	halSpiWriteReg(L3G_CTRL_REG1, 0xcf);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
+	// set ODR,BW,PowerMode,and Axis
+        // |0x0f: normal mode(or sleep mode), XYZ all enabled,
+        // |0x07: power down mode, XYZ all enable,
+	halSpiWriteReg(L3G_CTRL_REG1, ODRBW_setval|0x0f);//output data rate[7:6], bandwidth[5:4],power down mode[3], and Axis enable[2:0]
 	// HPF normal mode,HPFcut off freq=56Hz when ODR=800Hz,
 	halSpiWriteReg(L3G_CTRL_REG2, 0b00000000);//!!!High Pass filter mode[5:4], High Pass filter Cutoff freqency [3:0]
 	// Interrupt disabled
 	halSpiWriteReg(L3G_CTRL_REG3, 0x00);//interrupt configuration, disable
 	// set measure range +-2000dps
 	halSpiWriteReg(L3G_CTRL_REG4, 0b10100000);//+-2000dps, update method[7],big/little endian[6],full scale[5:4],self test[2:1],SPI mode[0] 
-	sf_dpus=70/1000000000.0; // accoring to DPS set above
+	fs_dpus=70/1.0e9;//1000000000.0; // accoring to DPS set above
 	//FIFO disabled,HPF disabled,
 	halSpiWriteReg(L3G_CTRL_REG5, 0x00);//FIFO disabled, boot[7],FIFO_EN[6],HighPass filter enable[5],INI1 select[3:2],Out select[1:0]
 	//FIFO disable
@@ -108,8 +118,8 @@ int Init_L3G4200D(void) {
 	printf("	Read and calculate the bias value now, keep the L3G4200D even and static !!!\n");
 	sleep(1);
 	gyro_get_int16BiasXYZ(g_bias_int16RXYZ);
-	printf("bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",sf_dpus*g_bias_int16RXYZ[0],
-						sf_dpus*g_bias_int16RXYZ[1],sf_dpus*g_bias_int16RXYZ[2]);
+	printf("	bias_RX: %f,  bias_RY: %f, bias_RZ: %f \n",fs_dpus*g_bias_int16RXYZ[0],
+						fs_dpus*g_bias_int16RXYZ[1],fs_dpus*g_bias_int16RXYZ[2]);
 
 
 	return 0;

@@ -38,16 +38,16 @@ static struct flock g_i2cFdWriteLock;
 
 //---- 16x8_size ASCII char. frame buffer for oled display -----
 static struct oled_Ascii16x8_Frame_Buff {
-bool refresh_on[4][16]; // 1-refresh 0-no refresh
-char char_buff[4][16];//4 lines x 16 ASCII chars
+	bool refresh_on[4][16]; // 1-refresh 0-no refresh
+	char char_buff[4][16];//4 lines x 16 ASCII chars
 } g_Oled_Ascii16x8_Frame={0};
 
 //-------functions declaration----
 void close_OLED_128x64(void);
 void init_OLED_128x64(void);
-void init_I2C_IOdata(void);
-void free_I2C_IOdata(void);
-void init_I2C_Slave(void);
+static void init_I2C_IOdata(void);
+static void free_I2C_IOdata(void);
+void init_OLED_I2C_Slave(void);
 void initOledTimer(void);
 void sigHndlOledTimer(int signo);
 void sendDatCmdoled(enum oled_sig datcmd,uint8_t val); // send data or command to I2C device

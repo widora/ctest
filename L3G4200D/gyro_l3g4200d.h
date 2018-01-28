@@ -46,11 +46,29 @@ TODOs and BUGs:
 #define L3G_INT1_TSH_ZL 0x37
 #define L3G_INT1_DURATION 0x38
 
+enum L3G_ODRBW_setval
+{
+ L3G_DR100_BW12_5=0x00,
+ L3G_DR100_BW25=0x10,
+ L3G_DR200_BW12_5=0x40,
+ L3G_DR200_BW25=0x50,
+ L3G_DR200_BW50=0x60,
+ L3G_DR200_BW70=0x70,
+ L3G_DR400_BW20=0x80,
+ L3G_DR400_BW25=0x90,
+ L3G_DR400_BW50=0xA0,
+ L3G_DR400_BW110=0xB0,
+ L3G_DR800_BW30=0xC0,
+ L3G_DR800_BW35=0xD0,
+ L3G_DR800_BW50=0xE0,
+ L3G_DR800_BW110=0xF0,
+};
+
 #define L3G_READ_WAITUS 500  //for ODR=800Hz;  poll wait time in us for read RX RY RZ
-#define L3G_BIAS_SAMPLE_NUM 1024 //total number of samples needed for RXRYRZ bias calcualation
+#define L3G_BIAS_SAMPLE_NUM 128 //1024 //total number of samples needed for RXRYRZ bias calcualation
 
 //----- global variables -----
-extern double sf_dpus;//init in Init_L3G4200D()  //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps.
+extern double fs_dpus;//init in Init_L3G4200D()  //70/1000.0-dps, 70/1000000.0-dpms //sensitivity factor for FS=2000 dps.
 extern bool gtok_QuitGyro;//=false //=true to inform a  thread to quit if true
 extern double g_fangXYZ[3]; //float value of XYZ angle
 extern int16_t g_bias_int16RXYZ[3];
@@ -61,7 +79,7 @@ void halSpiWriteBurstReg(const uint8_t addr,  uint8_t *buffer, const uint8_t cou
 uint8_t halSpiReadReg(uint8_t addr);
 void halSpiReadBurstReg(uint8_t addr, uint8_t *buffer, uint8_t count);
 uint8_t halSpiReadStatus(uint8_t addr);
-int Init_L3G4200D(void);
+int Init_L3G4200D(enum L3G_ODRBW_setval ODRBW_setval);
 bool status_XYZ_available(void);
 inline void gyro_read_int16RXYZ(int16_t *angRXYZ);
 inline void gyro_get_int16BiasXYZ(int16_t* bias_xyz);

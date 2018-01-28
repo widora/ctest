@@ -113,7 +113,7 @@ inline int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_
 
 	//---- set np
 	np=1<<(fdb->f_ng); //2^f_ng
-	fprintf(stdout," %d points moving average filter initilizing...\n",np);
+	fprintf(stdout,"	%d points moving average filter initilizing...\n",np);
 
 	//---- set limit
 	fdb->f_limit=abs(limit);
@@ -225,8 +225,8 @@ void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov)
 //	static  double IIR_B[5]={ 0.9796854871904, 3.918741948762, 5.878112923142, 3.918741948762, 0.9796854871904};
 //	static  double IIR_A[5]={ 1, 3.958953318647, 5.877700273536, 3.878530549052, 0.9597836538115};
 	//----Fs=300Hz Fc=50Hz--
-	static  double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
-	static  double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
+	static const double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
+	static const double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
 	static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
 	//---- filter data ----
         w[0]=p_in_data[nmov]-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];
@@ -243,8 +243,8 @@ void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
 {
 	//----factors for 4 order IIR filter ----
 	//----Fs=300Hz Fc=50Hz--
-	static  double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
-	static  double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
+	static const double IIR_B[5]={ 0.02607772170109, 0.1043108868044, 0.1564663302066, 0.1043108868044, 0.02607772170109};
+	static const double IIR_A[5]={ 1, -1.306605144101, 1.03045383542, -0.3623690447689, 0.0557639006678};
 	static  double w[5]={0.0, 0.0, 0.0, 0.0, 0.0};
 	//---- filter data ----
         w[0]=p_in_data[nmov]-IIR_A[1]*w[1]-IIR_A[2]*w[2]-IIR_A[3]*w[3]-IIR_A[4]*w[4];

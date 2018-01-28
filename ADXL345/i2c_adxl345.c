@@ -1,201 +1,289 @@
-/*-------------------------------------------------------------------------------
-1. Read ADXL345 register one by one, mutiple read will cause system crash, 
-   I2C driver problem or ADXL345 defects ???
-2. The axis that is parallel with gravity will get more measuring noise or vibration?
-3. Different ODR value will incure different noise level. seems ODR 400Hz is Best.
-4. Actual sampling frequency of XYZ data shall be decided by realtime test,...
-   one circle time of reading,converting,calculating shall be counted in.
-5. IIR double precision calculation greatly deters TCP data transfer.
+/*--------------------------------------------
+Operate I2C slave with  read() write()
 
 Midas
---------------------------------------------------------------------------------*/
+---------------------------------------------*/
+#include "i2c_adxl345.h"
 
-#include <stdio.h>
-#include <math.h>
-//#include "i2c_adxl345_1.h" //---use ioctl() to operate I2C
-#include "i2c_adxl345.h" //--- use  read() write() to operate I2C
-#include "mathwork.h"
-#include "filters.h"
-#include "data_server.h"
 
-//#define TCP_TRANSFER
 
-int main(void)
+/*-----------------------------------------
+         initiate i2c ioctl msg data
+-----------------------------------------*/
+void init_I2C_IOmsg(void)
 {
-   int ret_val;
-   int i,j,k,m;
+  printf("	hello");
+}
+
+
+/*----- open i2c slave and init ioctl IOsmg -------------
+Return:
+	0  ok
+	<0 fails
+--------------------------------------------------------*/
+static int init_ADXL_I2C_Slave(void)
+{
+  struct flock lock;
+
+  if((g_I2Cfd=open(g_I2Cfdev,O_RDWR))<0)
+  {
+	perror("	fail to open i2c device!");
+        return -1;
+  }
+  else
+   	printf("	Open %s successfully!\n",g_I2Cfdev);
+
+  if(ioctl(g_I2Cfd, I2C_SLAVE_FORCE,I2C_Addr_ADXL345)<0)
+  {
+       perror("		fail to set slave address!");
+       return -1;
+  }
+  else
+	printf("	set i2c slave address successfully!\n");
+
+  //----- set g_I2Cfd
+  if(ioctl(g_I2Cfd,I2C_TIMEOUT,3)<0) 
+  {
+       perror("		fail to set I2C_TIMEOUT!");
+       return -1;
+  }
+
+  if( ioctl(g_I2Cfd,I2C_RETRIES,1) <0 ) // !!!!!!!!
+  {
+       perror("	fail to set I2C_RETRIES!");
+       return -1;
+  }
+
+  //---- init i2c ioctl msg data -----
+  init_I2C_IOmsg();
+
+  //-----  set I2C speed ------
+/*
+  if(ioctl(g_fdOled,I2C_SPEED,200000)<0)
+	printf("Set I2C speed fails!\n");
+  else
+	printf("Set I2C speed to 200KHz successfully!\n");
+*/
+  return 0;
+}
+
+
+/*------------------------------------------
+Write Register data
+
+Return
+     <0  fails
+     >0  OK
+-------------------------------------------*/
+int I2C_Single_Write(uint8_t reg_addr, uint8_t reg_dat)
+{
+    int ret;
+    uint8_t buff[2];
+
+    buff[0]=reg_addr; buff[1]=reg_dat;
+    ret=write(g_I2Cfd,buff,2);
+    if(ret !=2 )
+    {
+	printf(" 	I2C Single Read failed\n");
+	return -1;
+    }
+
+    return ret;
+}
+
+
+/*------------------------------------------
+Read single Register data
+
+Return
+     <0  fails
+     >0  OK
+-------------------------------------------*/
+int I2C_Single_Read(uint8_t reg_addr, uint8_t *reg_dat)
+{
+    int ret;
+    uint8_t buff;
+
+    ret=write(g_I2Cfd,&reg_addr,1);
+    if(ret !=1 )
+    {
+	printf("	 I2C Single Read(write addr) failed\n");
+	return -1;
+    }
+    ret=read(g_I2Cfd,&buff,1);
+    if(ret !=1 )
+    {
+	printf(" 	I2C Single Read(read data) failed\n");
+	return -1;
+    }
+
+    *reg_dat = buff;
+
+    return ret;
+}
+
+/*------------------------------------------
+Read multiple Register data
+
+nbytes: bytes to be read
+reg_addr:  starting register address
+reg_dat[]: data returned
+
+Return
+     <0  fails
+     >0  OK
+-------------------------------------------*/
+int I2C_Multi_Read(uint8_t nbytes, uint8_t reg_addr, uint8_t *reg_dat)
+{
+    int ret;
+    uint8_t buff;
+
+    ret=write(g_I2Cfd,&reg_addr,1);
+    if(ret !=1 )
+    {
+	printf(" 	I2C Mutli Read():  write addr failed\n");
+	return -1;
+    }
+    ret=read(g_I2Cfd,reg_dat,nbytes);
+    if(ret !=nbytes )
+    {
+	printf(" 	I2C Multi Read():   read data failed\n");
+	return -1;
+    }
+
+    return ret;
+}
+
+
+/*----------------------------------------------------
+check ADXL345 register 0x30 to see if DATA_READY is 1
+----------------------------------------------------*/
+bool DataReady_ADXL345(void)
+{
    uint8_t dat;
-   uint8_t addr;
-   int16_t accXYZ[3]={0}; // acceleration value of XYZ 
-   int16_t bias_AXYZ[3];
-   double  faccXYZ[3]; //double //faccXYZ=fs*accXYZ
-   double  fangleYZ; //atan(Y/Z)
-   uint8_t xyz[6]={0};
-   int16_t *tmp=(int16_t *)xyz;
-//   double fs=3.9/1000.0;//scale factor 4mg/LSB for full resolution, 
-   //----- filter data base -----
-   struct int16MAFilterDB fdb_accXYZ[3];
-   //Note: Big limit value smooths data better,but you have to trade off with reactive speed.
-   uint16_t  relative_uint16limit=128;//256 //1.0*1000/3.9=256; relative difference limit between two fdb_faccXYZ[] data
-
-   //------ time value ----
-   struct timeval tm_start,tm_end;
-   int send_count=0;
-
-   //------ set up ADXL345
-   //Note: adjust ADXL_DATAREADY_WAITUS accordingly in i2c_adxl345_2.h ...
-   //Full resolution,OFSX,OFSY,
-   //OFSZ also set in Init_ADXL345()
-   printf("Init ADXL345 ...\n");
-   if(Init_ADXL345(ADXL_ODR_800HZ,ADXL_RANGE_4G) != 0 ) 
-   {
-	ret_val=-1;
-	goto INIT_ADXL345_FAIL;
-   }
-
-   //---- init filter data base
-   printf("Init int16MA filter data base ...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 4, relative_uint16limit)<0) //2^4=16 points average filter
-   {
-	ret_val=-2;
-        goto INIT_MAFILTER_FAIL;
-   }
-
-  //---- preare TCP data server
-#ifdef TCP_TRANSFER
-   printf("Prepare TCP data server ...\n");
-   if(prepare_data_server() < 0)
-   {
-        printf(" fail to prepare data server!\n");
-        ret_val=-3;
-        goto CALL_FAIL;
-   }
-
-   //----- wait to accept data client ----
-   printf("wait for Matlab to connect...\n");
-   cltsock_desc=accept_data_client();
-   if(cltsock_desc < 0)
-   {
-        printf(" Fail to accept data client!\n");
-	ret_val=-4;
-        goto CALL_FAIL;
-   }
-#endif  //----- TCP TRANSER
+   I2C_Single_Read(ADXL345REG_INT_SOURCE, &dat);
+//   printf("INT_SOURCE: 0x%02x \n",dat);
+   return (dat>>7);
+}
 
 
-#if 1  //------------ I2C operation with read() /write() -------------
 
-   //------------ loop  -------------
-   i=0;
-   send_count=0;
-while(1)
+ /*---------------------------------------------------------------
+              init ADXL345  with Full resolution
+1. Init in full resolution mode
+2. Max. offset adjustment value OFX,OFY,OFZ, is 2g!!!
+Return:
+	0   --- OK
+	<0  --- Fail
+ ---------------------------------------------------------------*/
+int Init_ADXL345(enum ADXL_ODRBW_setval ODRBW_setval, uint8_t g_range)
 {
-   i=0;
-   gettimeofday(&tm_start,NULL);
-   while(i<100000)
+
+   int8_t  int8_OFSX,int8_OFSY,int8_OFSZ;
+   int16_t bias_AXYZ[3];
+
+   usleep(500000);
+
+ //----- open and setup i2c slave
+   printf("	init i2c slave...\n");
+   if( init_ADXL_I2C_Slave() <0 )
    {
-       i++;
-       adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
+        printf("	init i2c slave failed!\n");
+        return -1;
+   }
 
-       //-----applay int16 Moving Average Filter
-       //----- single and double spiking value will be trimmed.
-       int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); // three filter groups, only [0] data filterd for each filter
+   I2C_Single_Write(ADXL345REG_DATA_FORMAT,ADXL_FULL_MODE|g_range);//Full resolutioin, +-16g,right-justified mode
+   //----- for BW_RATE ODR:
+   // 0x0f-3200Hz,0x0e-1600Hz,0x0d-800Hz,0x0c-400Hz,0x0b-200Hz, 0x0a-100Hz, 0x09-50Hz
+   I2C_Single_Write(ADXL345REG_BW_RATE, ADXL_NORMAL_POWER|ODRBW_setval);//operation,0x1- reduced power mode, 0x0e 1600Hz,  0x08 ODR 25Hz, 0x1c ODR=400Hz,0x1d 800Hz,  0x1A ODR=100HZ; 0x0 normaol operation,0x1 reduced power mode
+   I2C_Single_Write(ADXL345REG_POWER_CTL, 0x08);//measurement mode, no sleep
+   I2C_Single_Write(ADXL345REG_INT_ENABLE, 0x00);//no interrupt
 
-       //----- apply IIR LOWPASS FILTER
-//       IIR_Lowpass_int16Filter(&accXYZ[2], &accXYZ[2], 0); // only ONE group to be filtered.
+   //--- re-confirm setup here ///
 
-       //------- use factor
-       for(j=0;j<3;j++)
-       {
-		faccXYZ[j]=fsmg_full/1000.0*accXYZ[j];
-       }
+   //----- to get bias value for AXYZ
+   // !!! before that you need to clear OFSX,OFSY,OFSZ !!!
+   I2C_Single_Write(ADXL345REG_OFSX, 0);
+   I2C_Single_Write(ADXL345REG_OFSY, 0);
+   I2C_Single_Write(ADXL345REG_OFSZ, 0);
+   usleep(20000);
+   printf("	!!! Read and calculate the bias value now, keep the Z-axis of ADXL345 upright and static !!!\n");
+   sleep(1);
+   adxl_get_int16BiasXYZ(bias_AXYZ);
+   printf("	bias_AccX: %fmg,  bias_AccY: %fmg, bias_AccZ(Gravity): %fmg \n",fsmg_full*bias_AXYZ[0],fsmg_full*bias_AXYZ[1],fsmg_full*bias_AXYZ[2]-1000.0);
 
-       printf("I=%d, accX: %f,  accY: %f,  accZ:%f \r", i, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
-       fflush(stdout);
+   //------ get eight bits OFSX,OFSY,OFSZ for offset adjustments
+   //------ they are in tows complement format with a scale facotr of 15.6mg/LSB(0x7F=2g)
+   //------ the value stored in the offset registers (!!!is automatically added) to the acceleration data
+   int8_OFSX = -fsmg_full/15.6*bias_AXYZ[0]; //
+   int8_OFSY = -fsmg_full/15.6*bias_AXYZ[1]; //
+   int8_OFSZ = -(fsmg_full/15.6*bias_AXYZ[2]-1000.0/15.6); // 1000/3.9~=250 !!!! Z-axis as gravity vertical !!!!
+   printf("	int8_OFSX: %d,  int8_OFSY: %d, int8_OFSZ: %d \n",int8_OFSX,int8_OFSY,int8_OFSZ);
+   //user-set offset adjustments in twos complement format with a scale factor of 15.6mg/LSB
+   I2C_Single_Write(ADXL345REG_OFSX, int8_OFSX);
+   I2C_Single_Write(ADXL345REG_OFSY, int8_OFSY);
+   I2C_Single_Write(ADXL345REG_OFSZ, int8_OFSZ);
 
-      //--------- cal. fangleYZ
-      if(faccXYZ[2]==0) faccXYZ[2]=0.00000001; // avoid zero !!!
-      fangleYZ=atan(faccXYZ[1]/faccXYZ[2]);
-      //------- filter with IIR LOWPASS
-      IIR_Lowpass_dblFilter(&fangleYZ, &fangleYZ, 0); // only ONE group to be filtered.
+   return 0;
+}
 
 
-#ifdef TCP_TRANSFER  //--- every 10th 
-       if(send_count==0)
-       {
-               if( send_client_data((uint8_t *)&fangleYZ, 1*sizeof(double)) < 0)  // Blocking type operation
-//               if( send_client_data((uint8_t *)faccXYZ, 3*sizeof(double)) < 0)  // Blocking type operation
-                       printf("-------- fail to send client data ------\n");
+/*--------------------------------------------
+   close ADXL345
+--------------------------------------------*/
+void Close_ADXL345(void)
+{
+   //----- close i2c dev
+   if(!g_I2Cfd)
+	   close(g_I2Cfd);
+}
 
-               send_count=5;
+/*--------------------------------------------
+ Read DATAX0-DATAZ1 
+ Retrun int16_t [3]
+--------------------------------------------*/
+void adxl_read_int16AXYZ(int16_t  *accXYZ)
+{
+    uint8_t *xyz = (uint8_t *)accXYZ;
+
+    //----- read XYZ data one byte by one byte,!!!!!!!!!!!!!!!
+    //------  continous reading will crash Openwrt !!!!
+
+    //----- wait for data to be read
+    while(!DataReady_ADXL345())
+    {
+//	  printf("wait for ADXL data ready...\n");
+          usleep(ADXL_DATAREADY_WAITUS);
+    }
+    I2C_Single_Read(0x32,xyz);
+    I2C_Single_Read(0x33,xyz+1);
+    I2C_Single_Read(0x34,xyz+2);
+    I2C_Single_Read(0x35,xyz+3);
+    I2C_Single_Read(0x36,xyz+4);
+    I2C_Single_Read(0x37,xyz+5);
+
+}
+
+
+/*----------------------------------------------------
+Get bias values of AX AY AZ in int16_t *[3]
+Bias values will be used to set zero level for ADXL345
+----------------------------------------------------- */
+inline void adxl_get_int16BiasXYZ(int16_t* bias_xyz)
+{
+        int i;
+        int16_t  xyz_val[3];
+        int32_t  xyz_sums[3]={0};
+
+        for(i=0;i<ADXL_BIAS_SAMPLE_NUM;i++)
+        {
+                adxl_read_int16AXYZ(xyz_val);
+                xyz_sums[0] += xyz_val[0];
+                xyz_sums[1] += xyz_val[1];
+                xyz_sums[2] += xyz_val[2];
         }
-	else
-	       send_count -= 1;
 
-#endif //TCP
-   } // end of while()
+        for(i=0;i<3;i++)
+                bias_xyz[i]=xyz_sums[i]/ADXL_BIAS_SAMPLE_NUM;
 
-   gettimeofday(&tm_end,NULL);
-   printf("\n Time elapsed: %fs \n",get_costtimeus(tm_start,tm_end)/1000000.0);
-
-}//end of while()
-
-
-#endif  //--------- end I2c read()/write() --------
-
-
-
-
-#if 0 //------------  I2C OPERATION with IOCTL() -----------------
-   printf("read register...\n");
-   addr=0x00;
-   Single_Read_ADXL345(addr, &dat);
-   printf("dat=0x%02x\n",dat);
-
-   Single_Write_ADXL345(0x2c,0x0e);
-   addr=0x2c;
-   Single_Read_ADXL345(addr, &dat);
-   printf("dat=0x%02x\n",dat);
-
-   i=0;
-   addr=0x32;
-
-   for(i=0x1D; i<0x39; i++)
-   {
-	Single_Read_ADXL345(i, &dat);
-        printf("ADDR 0x%02x    VAL 0x%02x \n",i,dat);
-   }
-
-   while(1) 
-   {
-	i++;
-	//----- !!!!! wait for data, if data is NOT ready, Multi_Read() will crash Openwrt !!!!!
-	while(!IS_DataReady_ADXL345()) {
-		usleep(100000);
-		printf(" data not ready! \n");
-	}
-	//----- read data
-   	Multi_Read_ADXL345(6,addr,(uint8_t *)accXYZ);
-//   	printf("accX=%d, accY=%d, accZ=%d \n",accXYZ[0],accXYZ[1],accXYZ[2]);
-   	printf("I=%d   accX=%f, accY=%f, accZ=%f \r",i,accXYZ[0]*fs,accXYZ[1]*fs,accXYZ[2]*fs);
-	fflush(stdout);
-        usleep(10000);//for ODR=100HZ, sleep 5ms
-   }
-
-#endif  //-------- end of I2C operation with ioctl() -----
-
-
-
-
-CALL_FAIL:
-
-
-INIT_MAFILTER_FAIL:
-   //---- release filter data base
-   Release_int16MAFilterDB_NG(3,fdb_accXYZ);
-
-INIT_ADXL345_FAIL:
-   Close_ADXL345();
-
-   return ret_val;
 }

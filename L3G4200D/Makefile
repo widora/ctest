@@ -1,6 +1,6 @@
 #----  NOTE:
 #----- 1. DEPENDS and INCLUDES are for two separate process, you must present directory for both if necessary.
-#----- 2. Only depended files will be checked for update.
+#----- 2. Only dependent files will be checked for update.
 #----- 3. Adding keyword 'static' for some functions may pass compiling, but cause running error! be careful.
 
 CC = /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
@@ -34,4 +34,4 @@ all: $(APP)
 
 clean:
 	rm -rf $(APP)
-	rm -rf $(OBJS)
+	rm -rf *.o
