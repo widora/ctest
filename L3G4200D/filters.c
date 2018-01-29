@@ -260,3 +260,46 @@ void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
 
 
 
+
+/*-------------------------------------   System Matrix    ------------------------------------------
+( State Dimension: n, Observation Dimension m.   m<=n )
+
+(input/output)  Mat_Y[nx1]:  the state (optimized mean value)  matrix of concerning variables (updated)
+                             with init. value.
+(-)             Mat_Yp[nx1]:   predicted of Mat_Yp[]
+(input)         Mat_F[nxn]:  the state-transition matrix
+(input)         Mat_H[mxn]:  the observation transformation matrix
+(input)         Mat_S[mx1]:  the observation matrix
+(input/output)  Mat_Q[nxn]:  the covariance matrix of the process noise
+                             with some estimated init value.
+(input/output)  Mat_R[mxm]:  the covarinace matrix of the observation noise
+                             with some estimated init value.
+(input/output)  Mat_P[nxn]:  the state_estimation error covaraince matrix (updated)
+                             init. with some estimated value.
+(-)             Mat_Pp[nxn]: predicted of Mat_P[]
+(-)             Mat_K[mxn]:  Kalman Gain matrix
+(-)             Mat_I[nxn]:  Eye matrix with 1 on diagonal and zeros elesewhere
+---------------------------------------------------------------------------------------------------*/
+void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
+			  struct float_Matrix *pMat_S)  //input observation matrix
+{
+
+
+
+
+}
+
+inline int Init_floatKalman_FilterDB( struct floatKalmanDB *fdb,
+				     int n, int m,  //n---state var. dimension,  m---observation dimension
+				     struct float_Matrix *pMat_Y,  //state var.
+				     struct float_Matrix *pMat_F,  //transition
+				     struct float_Matrix *pMat_P,  //state covariance
+				     struct float_Matrix *pMat_H,  //observation transformation
+				     struct float_Matrix *pMat_Q,  //system noise covariance
+				     struct float_Matrix *pMat_R )  //observation noise covariance
+{
+
+
+
+
+}

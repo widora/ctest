@@ -16,7 +16,10 @@ DEPENDS = ../ADXL345/i2c_adxl345.h \
 
 OBJS =   ../ADXL345/i2c_adxl345.o \
 	 ../L3G4200D/i2c_oled_128x64.o \
-	 ../L3G4200D/gyro_l3g4200d.o ../L3G4200D/filters.o ../L3G4200D/gyro_spi.o
+	 ../L3G4200D/gyro_l3g4200d.o \
+	 ../L3G4200D/mathwork.o \
+	 ../L3G4200D/filters.o \
+	 ../L3G4200D/gyro_spi.o
 
 INCLUDES = -I/home/midas/ctest
 INCLUDES += -I/home/midas/ctest/ADXL345

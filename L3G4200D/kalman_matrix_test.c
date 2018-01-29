@@ -87,21 +87,25 @@ float matA[100]= //measured value, object acceleration.
 
 
 
-/*----------------------  System Matrix  -----------------------
-(input/output)  Mat_Y[n]:    the state (optimized mean value)  matrix of concerning variables (updated)
+/*-------------------------------------   System Matrix    ------------------------------------------
+( State Dimension: n, Observation Dimension m.   m<=n )
+
+(input/output)  Mat_Y[nx1]:    the state (optimized mean value)  matrix of concerning variables (updated)
 	 		     with init. value.
-(-) 		Mat_Yp[n]:   predicted of Mat_Yp[]
+(-) 		Mat_Yp[nx1]:   predicted of Mat_Yp[]
 (input)  	Mat_F[nxn]:  the state-transition matrix
-(input)  	Mat_H[1xn]:  the observation matrix  !!!! for 1 dimension array ??????
+(input)  	Mat_H[mxn]:  the observation transformation matrix
+(input)		Mat_S[mx1]:  the observation matrix
 (input/output) 	Mat_Q[nxn]:  the covariance matrix of the process noise
 	 		     with some estimated init value.
-(input/output)	Mat_R[1x1]:  the covarinace matrix of the observation noise
+(input/output)	Mat_R[mxm]:  the covarinace matrix of the observation noise
 	 		     with some estimated init value.
 (input/output) 	Mat_P[nxn]:  the state_estimation error covaraince matrix (updated)
 	 		     init. with some estimated value.
-(output) 	Mat_Pp[nxn]: predicted of Mat_P[]
-(output)	Mat_K[]: Kalman Gain matrix
----------------------------------------------------------------*/
+(-)		Mat_Pp[nxn]: predicted of Mat_P[]
+(-)		Mat_K[mxn]:  Kalman Gain matrix
+(-)		Mat_I[nxn]:  Eye matrix with 1 on diagonal and zeros elesewhere
+---------------------------------------------------------------------------------------------------*/
 float MatY[3*1]=  //----- state of s,v,a
 {
 900,
@@ -174,37 +178,42 @@ Mat_K.nr=3; Mat_K.nc=1; Mat_K.pmat=MatK;
 
 
 //-------temp. buff matrxi ----------
+//Mat [mxm]
 float Mat1X1A[1*1]={0}; //for temp. buff
 struct float_Matrix Mat_1X1A;
 Mat_1X1A.nr=1; Mat_1X1A.nc=1; Mat_1X1A.pmat=Mat1X1A;
 
+//Mat [mxm]
 float Mat1X1B[1*1]={0}; //for temp. buff
 struct float_Matrix Mat_1X1B;
 Mat_1X1B.nr=1; Mat_1X1B.nc=1; Mat_1X1B.pmat=Mat1X1B;
 
+//Mat [mxm]
 float Mat1X1C[1*1]={0}; //for temp. buff
 struct float_Matrix Mat_1X1C;
 Mat_1X1C.nr=1; Mat_1X1C.nc=1; Mat_1X1C.pmat=Mat1X1C;
 
-
+//----Mat [nxm]
 float Mat3X1A[3*1]={0}; //for temp. buff
 struct float_Matrix Mat_3X1A;
 Mat_3X1A.nr=3; Mat_3X1A.nc=1; Mat_3X1A.pmat=Mat3X1A;
 
+//----Mat [nxm]
 float Mat3X1B[3*1]={0}; //for temp. buff
 struct float_Matrix Mat_3X1B;
 Mat_3X1B.nr=3; Mat_3X1B.nc=1; Mat_3X1B.pmat=Mat3X1B;
 
-
+//----Mat [nxn]
 float Mat3X3A[3*3]={0}; //for temp. buff
 struct float_Matrix Mat_3X3A;
 Mat_3X3A.nr=3; Mat_3X3A.nc=3; Mat_3X3A.pmat=Mat3X3A;
 
+//----Mat [nxn]
 float Mat3X3B[3*3]={0}; //for temp. buff
 struct float_Matrix Mat_3X3B;
 Mat_3X3B.nr=3; Mat_3X3B.nc=3; Mat_3X3B.pmat=Mat3X3B;
 
-
+//----Mat [nxn]
 float MatI[3*3]= //eye matrix with 1 on diagonal and zeros elesewhere
 {
   1,0,0,
@@ -227,11 +236,13 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 		printf("--------- k=%d ---------\n",k);
 
 		//----- 1.Predict(priori) state:  Yp = F*Y -----(3,1) = (3,3)*(3,1)
+		//----- 1.Predict(priori) state:  Yp = F*Y -----(n,1) = (n,n)*(n,1)
 		Matrix_Multiply(&Mat_F,&Mat_Y,&Mat_Yp);
 		printf("Mat_Yp=\n");
 		Matrix_Print(Mat_Yp);
 
 		//----- 2. Predict(priori) state covariance:  Pp = F*P*F'+Q ----- (3,3)=(3,3)*(3,3)*(3,3)'+(3,3)
+		//----- 2. Predict(priori) state covariance:  Pp = F*P*F'+Q ----- (n,n)=(n,n)*(n,n)*(n,n)'+(n,n)
 		Matrix_Add (
 			Matrix_Multiply( &Mat_F,
 					 Matrix_Multiply( &Mat_P,
@@ -248,6 +259,7 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 
 		//----- 3. Update Kalman Gain:  K = Pp*H'*inv(H*Pp*H'+R)  -----
 		//			  (3,1) =(3,3)*(1,3)'*inv((1,3)*(3,3)*(1,3)'+(1,1))
+		//			  (n,m) =(n,n)*(m,n)'*inv((m,n)*(n,n)*(m,n)'+(m,m))
 		Matrix_Transpose( &Mat_H, &Mat_H_trans);
 //		printf("Mat_H_trans=\n");
 //		Matrix_Print(Mat_H_trans);
@@ -274,6 +286,7 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 		Matrix_Print(Mat_K);
 
 		//----- 4. Update(posteriori) state:  Y = Yp + K*(S-H*Yp)   ---- (3,1) = (3,1) + (3,1)*( (1,1)-(1,3)*(3,1) )
+		//----- 4. Update(posteriori) state:  Y = Yp + K*(S-H*Yp)   ---- (n,1) = (n,1) + (n,m)*( (m,1)-(m,n)*(n,1) )
 		Matrix_CopyColumn(&Mat_S,k,&Mat_1X1A,0); //extract one column from Mat_S, to Mat_1X1A,
 //		printf("Mat_1X1A=Mat_S[%d]=\n",k);
 //		Matrix_Print(Mat_1X1A);
@@ -299,6 +312,7 @@ Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
 		Matrix_Print(Mat_Y);
 
 		//----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (3,1) = ( (3,3)-(3,1)*(1,3) )*(3,1)
+		//----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (n,1) = ( (n,n)-(n,m)*(m,n) )*(n,1)
 		Matrix_Multiply( Matrix_Sub( &Mat_I,
 					     Matrix_Multiply( &Mat_K, &Mat_H, &Mat_3X3A),
 					     &Mat_3X3B
