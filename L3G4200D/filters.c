@@ -262,14 +262,14 @@ void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
 
 
 /*-------------------------------------   System Matrix    ------------------------------------------
-( State Dimension: n, Observation Dimension m.   m<=n )
+( State Dimension: n, Observation Dimension m.   m<=n??? )
 
 (input/output)  Mat_Y[nx1]:  the state (optimized mean value)  matrix of concerning variables (updated)
                              with init. value.
 (-)             Mat_Yp[nx1]:   predicted of Mat_Yp[]
 (input)         Mat_F[nxn]:  the state-transition matrix
 (input)         Mat_H[mxn]:  the observation transformation matrix
-(input)         Mat_S[mx1]:  the observation matrix
+(input)         Mat_S[mx1]:  the observation matrix (observed var.)
 (input/output)  Mat_Q[nxn]:  the covariance matrix of the process noise
                              with some estimated init value.
 (input/output)  Mat_R[mxm]:  the covarinace matrix of the observation noise
@@ -289,17 +289,136 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
 
 }
 
-inline int Init_floatKalman_FilterDB( struct floatKalmanDB *fdb,
+/*
+
+struct floatKalmanDB {
+        int n; // state var. dimension
+        int m; // observation dimension
+        struct float_Matrix *pMY;  //[nx1] state var. matrix
+        struct float_Matrix *pMYp; //[nx1] predicted state var.
+        struct float_Matrix *pMF;  //[nxn] transition matrix
+        struct float_Matrix *pMP;  //[nxn] state covariance
+        struct float_Matrix *pMPp; //[nxn] predicted state conv. 
+        struct float_Matrix *pMH;  //[mxn] observation transformation
+        struct float_Matrix *pMQ;  //[nxn] system noise covariance
+        struct float_Matrix *pMR;  //[mxm] observation noise covariance
+        struct float_Matrix *pMI; //[nxn] eye matrix with 1 on diagonal and zeros elesewhere
+        struct float_Matrix *pMK; //[mxn] Kalman Gain Matrix
+
+*/
+
+
+/*----------------------------------------------------------------
+Initiliaze kalman filter data base
+Return:
+	0    OK
+	<0   fails
+----------------------------------------------------------------*/
+int Init_floatKalman_FilterDB( struct floatKalmanDB *fdb,
 				     int n, int m,  //n---state var. dimension,  m---observation dimension
-				     struct float_Matrix *pMat_Y,  //state var.
-				     struct float_Matrix *pMat_F,  //transition
-				     struct float_Matrix *pMat_P,  //state covariance
-				     struct float_Matrix *pMat_H,  //observation transformation
-				     struct float_Matrix *pMat_Q,  //system noise covariance
-				     struct float_Matrix *pMat_R )  //observation noise covariance
+				     struct float_Matrix *pMat_Y,  //[nx1] state var.
+				     struct float_Matrix *pMat_F,  //[nxn] transition
+				     struct float_Matrix *pMat_P,  //[nxn] state covariance
+				     struct float_Matrix *pMat_H,  //[mxn] observation transformation
+				     struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
+				     struct float_Matrix *pMat_R )  //[mxm] observation noise covariance
 {
+	int i,j;
+
+	//----- check n and m -----
+	if( n<1 || m < 1)
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): n or m illegal!\n");
+		return -1;
+	}
+
+    //----- dedicate input matrxi to filter database matrix ------
+	if(pMat_Y->nr != n || pMat_Y->nc != 1 )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_Y[nx1] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMY=pMat_Y;
+	//-------------------------------------
+	if(pMat_F->nr != n || pMat_F->nc != n )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_F[nxn] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMF=pMat_F;
+	//-------------------------------------
+	if(pMat_P->nr != n || pMat_P->nc != n )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_P[nxn] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMP=pMat_P;
+	//-------------------------------------
+	if(pMat_H->nr != m || pMat_H->nc != n )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_H[mxn] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMH=pMat_H;
+	//-------------------------------------
+	if(pMat_Q->nr != n || pMat_Q->nc != n )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_Q[nxn] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMQ=pMat_Q;
+	//-------------------------------------
+	if(pMat_R->nr != m || pMat_R->nc != m )
+	{
+		fprintf(stderr,"Init_floatKalman_FilterDB(): pMat_R[mxm] dimension incorrect!\n");
+		return -1;
+	}
+	fdb->pMR=pMat_R;
+
+   //--------------  init other kalman filter matrix  ----------------
+   /* following pointers MUST be freed in filterDB release function */
+	//----- pMYp: [nx1] predicted state var.
+	fdb->pMYp = init_float_Matrix(n,1);
+        //----- pMPp: [nxn] predicted state conv.
+	fdb->pMPp = init_float_Matrix(n,n);
+        //----- pMI: [nxn] eye matrix with 1 on diagonal and zeros elesewhere
+	fdb->pMI = init_float_Matrix(n,n);
+	for(i=0;i<n;i++) {  //---- put 1.o to diagonal element 
+		for(j=0;j<n;j++) {
+			if(i==j)
+				(fdb->pMI->pmat)[i*i]=1.0;
+		}
+	}
+        //----- pMK: [mxn] Kalman Gain Matrix
+	fdb->pMK = init_float_Matrix(m,n);
+
+   //--------------  init temp. buffer matrix  ----------------
+       //Mat [mxm]
+        struct float_Matrix *pMat_mXmA;
+        //Mat [mxm]
+        struct float_Matrix *pMat_mXmB;
+        //Mat [mxm]
+        struct float_Matrix *pMat_mXmC;
+        //----Mat [nxm]
+        struct float_Matrix *pMat_nXmA;
+        //----Mat [nxm]
+        struct float_Matrix *pMat_nXmB;
+        //----Mat [nxn]
+        struct float_Matrix *pMat_nXnA;
+        //----Mat [nxn]
+        struct float_Matrix *pMat_nXnB;
+ 
 
 
+
+	return 0;
+}
+
+/*----------------------------------------------------------------
+ Release float type Kalman Filter Data Base
+----------------------------------------------------------------*/
+void Release_floatKalman_FilterDB( struct floatKalmanDB *fdb )
+{
 
 
 }

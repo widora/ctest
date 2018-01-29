@@ -21,8 +21,8 @@ Midas
 
 struct float_Matrix
 {
-  int nc; //column n
   int nr; //row n
+  int nc; //column n
   float* pmat;
 };
 
@@ -37,8 +37,12 @@ NOTE:
 	1. All matrix data is stored from row to column.
 	2. All indexes are starting from 0 !!!
 ------------------------------------------------------------------*/
-void   Matrix_Print(struct float_Matrix matA);
+struct float_Matrix * init_float_Matrix(int nr, int nc);
+void release_float_Matrix(struct float_Matrix * pMat);
 
+
+void   Matrix_Print(struct float_Matrix matA);
+struct float_Matrix*  Matrix_FillArray(struct float_Matrix * pMat, float * array); //fill pMat->pmat with data from array
 float  Matrix3X3_Determ(float *pmat); // determinnat of a 3X3 matrix
 float  MatrixGT3X3_Determ(int nrc, float *pmat); // determinant of a matrix whose dimension is great than 3x3
 

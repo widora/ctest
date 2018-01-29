@@ -12,6 +12,29 @@ KALMAN filter test program
 int main(void)
 {
 
+while(1)
+{
+  //----- test init and release ---
+  struct float_Matrix *pmtest=init_float_Matrix(5,5);
+  Matrix_Print(*pmtest);
+
+  float fmat[5*5]=
+ {
+   1,2,3,4,5,
+   6,7,8,9,0,
+   1,2,3,4,5,
+   6,7,8,9,0,
+   1,2,3,4,5
+ };
+  Matrix_FillArray(pmtest,fmat); 
+
+  Matrix_Print(*pmtest);
+  release_float_Matrix(pmtest);
+ 
+}
+ return 0;
+
+
   struct timeval tm_start, tm_end;
 
 /*------------------ Parameter Description ---------------------

@@ -111,10 +111,86 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 
 
 
-//<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
+//<<<<<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>>>
 //  !!!! NOTE:
 //		1. All matrix data is stored from row to column.
 //		2. All indexes are starting from 0 !!!
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/*-------------------------    Init Matirx    -------------------------
+Init a NULL float_Matrix pointer,
+Just allocationg mem for the pointer and nrxnc array for its pmat
+Return:
+	NULL  --- fails
+	pMat --- OK
+----------------------------------------------------------*/
+struct float_Matrix * init_float_Matrix(int nr, int nc)
+{
+	struct float_Matrix * pMat;
+
+	//---- check column and row number -----
+	if( nc < 1 || nr < 1)
+	{
+		fprintf(stderr,"init_float_Matrix(): column or row number illegal!\n");
+		return NULL;
+	}
+
+	//----- allocate mem. for pMat ----
+	pMat=malloc(sizeof(struct float_Matrix));
+        if( pMat == NULL)
+	{
+		fprintf(stderr,"init_float_Matrix(): malloc for pMat failed!\n");
+		return NULL;
+	}
+
+	pMat->nr=nr;
+	pMat->nc=nc;
+
+	//----- allocate mem. for pMat->pmat ----
+        pMat->pmat=malloc(nr*nc*sizeof(float));
+        if( pMat->pmat == NULL)
+	{
+		fprintf(stderr,"init_float_Matrix(): malloc for pMat->pmat failed!\n");
+		return NULL;
+	}
+	//---- clear mem. for pmat------
+	memset(pMat->pmat,0,nr*nc*sizeof(float));
+
+	return pMat;
+}
+
+
+/*----------------    Release Matirx    -------------------
+Release a float_Matrix pointer, and its pmat of nr*nc array
+----------------------------------------------------------*/
+void release_float_Matrix(struct float_Matrix * pMat)
+{
+   if(pMat != NULL)
+   {
+	if(pMat->pmat != NULL)
+		free(pMat->pmat);
+	free(pMat);
+   }
+}
+
+
+
+/*------------------------------------------------------------
+	copy data from array and fill to pMat->pmat
+-------------------------------------------------------------*/
+struct float_Matrix * Matrix_FillArray(struct float_Matrix * pMat, float *array)
+{
+    if(pMat == NULL || array == NULL)
+    {
+	fprintf(stderr,"Matrix_FillArray(): pMat or array is NULL!\n");
+	return NULL;
+    }
+
+    memcpy(pMat->pmat,array,(pMat->nr)*(pMat->nc)*sizeof(float));
+
+    return pMat;
+}
+
 
 /*-------------------------------------------
               Print matrix

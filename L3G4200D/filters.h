@@ -65,6 +65,7 @@ inline int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb, uint1
 inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb);
 void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov);
 void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov);
+//-------- Kalman Filter ----
 
 
 #endif
