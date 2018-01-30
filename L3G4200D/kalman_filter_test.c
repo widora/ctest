@@ -7,13 +7,12 @@ KALMAN filter test program
 #include <stdio.h>
 #include <sys/time.h>
 #include "mathwork.h"
-
+#include "filters.h"
 
 int main(void)
 {
+   int count;
 
-while(1)
-{
   //----- test init and release ---
   struct float_Matrix *pmtest=init_float_Matrix(5,5);
   Matrix_Print(*pmtest);
@@ -30,9 +29,8 @@ while(1)
 
   Matrix_Print(*pmtest);
   release_float_Matrix(pmtest);
- 
-}
- return 0;
+
+
 
 
   struct timeval tm_start, tm_end;
@@ -198,6 +196,62 @@ Matrix_Print(Mat_Pp);
 float MatK[3*1]={0}; //----- Kalman Gain Matrix
 struct float_Matrix Mat_K;
 Mat_K.nr=3; Mat_K.nc=1; Mat_K.pmat=MatK;
+
+
+
+//-----------   KALMAN FILTER TEST  ------------
+struct floatKalmanDB *fdb_kalman;
+struct float_Matrix * pMat_1X1 = init_float_Matrix(1,1);
+
+fdb_kalman = Init_floatKalman_FilterDB( 3, 1,
+	&Mat_Y, &Mat_F, &Mat_P, &Mat_H, &Mat_Q, &Mat_R);
+
+/*
+                                     int n, int m,  //n---state var. dimension,  m---observation dimension
+                                     struct float_Matrix *pMat_Y,  //[nx1] state var.
+                                     struct float_Matrix *pMat_F,  //[nxn] transition
+                                     struct float_Matrix *pMat_P,  //[nxn] state covariance
+                                     struct float_Matrix *pMat_H,  //[mxn] observation transformation
+                                     struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
+                                     struct float_Matrix *pMat_R )  //[mxm] observation noise covariance
+*/
+for(count=0; count<100; count++)
+{
+	*pMat_1X1->pmat=MatS[count];
+	float_KalmanFilter( fdb_kalman, pMat_1X1 );   //[mx1] input observation matrix
+
+/*
+   count++;
+   printf("----------------- count %d ---------------\n",count);
+   printf("fdb->pMI:\n");
+   Matrix_Print(*(fdb_kalman->pMI));
+   printf("fdb->pMY:\n");
+   Matrix_Print(*(fdb_kalman->pMY));
+   printf("fdb->pMP:\n");
+   Matrix_Print(*(fdb_kalman->pMP));
+   printf("fdb->pMF:\n");
+   Matrix_Print(*(fdb_kalman->pMF));
+   printf("fdb->pMH:\n");
+   Matrix_Print(*(fdb_kalman->pMH));
+   printf("fdb->pMR:\n");
+   Matrix_Print(*(fdb_kalman->pMR));
+   printf("fdb->pMQ:\n");
+   Matrix_Print(*(fdb_kalman->pMQ));
+*/
+
+}
+   release_float_Matrix(pMat_1X1);
+   Release_floatKalman_FilterDB(fdb_kalman);
+
+   usleep(50000);
+
+   return 0;
+
+
+//--------------   KALMAN FILTER TEST END   ---------------
+
+
+
 
 
 //-------temp. buff matrxi ----------

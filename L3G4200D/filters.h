@@ -28,28 +28,36 @@ struct floatKalmanDB {
 	struct float_Matrix *pMY;  //[nx1] state var. matrix
         struct float_Matrix *pMYp; //[nx1] predicted state var.
         struct float_Matrix *pMF;  //[nxn] transition matrix
+        struct float_Matrix *pMFtp;  //[nxn] transpose matrix of pMF
         struct float_Matrix *pMP;  //[nxn] state covariance
 	struct float_Matrix *pMPp; //[nxn] predicted state conv. 
         struct float_Matrix *pMH;  //[mxn] observation transformation
+        struct float_Matrix *pMHtp;  //[mxn] transpose matrix of observation transformation
         struct float_Matrix *pMQ;  //[nxn] system noise covariance
         struct float_Matrix *pMR;  //[mxm] observation noise covariance
 	struct float_Matrix *pMI; //[nxn] eye matrix with 1 on diagonal and zeros elesewhere
-	struct float_Matrix *pMK; //[mxn] Kalman Gain Matrix
+	struct float_Matrix *pMK; //[nxm] Kalman Gain Matrix
 
 	//-----  temp. buff matrxi for matrix computation operation ------
+	//Mat [mx1]
+	struct float_Matrix *pMat_mX1A;
+	//Mat [mx1]
+	struct float_Matrix *pMat_mX1B;
 	//Mat [mxm]
 	struct float_Matrix *pMat_mXmA;
 	//Mat [mxm]
 	struct float_Matrix *pMat_mXmB;
 	//Mat [mxm]
 	struct float_Matrix *pMat_mXmC;
-	//----Mat [nxm]
+	//Mat [nx1]
+	struct float_Matrix *pMat_nX1A;
+	//Mat [nxm]
 	struct float_Matrix *pMat_nXmA;
-	//----Mat [nxm]
+	//Mat [nxm]
 	struct float_Matrix *pMat_nXmB;
-	//----Mat [nxn]
+	//Mat [nxn]
 	struct float_Matrix *pMat_nXnA;
-	//----Mat [nxn]
+	//Mat [nxn]
 	struct float_Matrix *pMat_nXnB;
 
 };
@@ -65,7 +73,20 @@ inline int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb, uint1
 inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb);
 void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov);
 void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov);
+
 //-------- Kalman Filter ----
+struct floatKalmanDB * Init_floatKalman_FilterDB(
+                                     int n, int m,  //n---state var. dimension,  m---observation dimension
+                                     struct float_Matrix *pMat_Y,  //[nx1] state var.
+                                     struct float_Matrix *pMat_F,  //[nxn] transition
+                                     struct float_Matrix *pMat_P,  //[nxn] state covariance
+                                     struct float_Matrix *pMat_H,  //[mxn] observation transformation
+                                     struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
+                                     struct float_Matrix *pMat_R );  //[mxm] observation noise covariance
+
+void Release_floatKalman_FilterDB( struct floatKalmanDB *fdb );
+void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
+                          struct float_Matrix *pMS );   //[mx1] input observation matrix
 
 
 #endif
