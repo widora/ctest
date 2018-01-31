@@ -178,7 +178,7 @@ void release_float_Matrix(struct float_Matrix * pMat)
 /*------------------------------------------------------------
 	copy data from array and fill to pMat->pmat
 -------------------------------------------------------------*/
-struct float_Matrix * Matrix_FillArray(struct float_Matrix * pMat, float *array)
+struct float_Matrix * Matrix_FillArray(struct float_Matrix * pMat, const float *array)
 {
     if(pMat == NULL || array == NULL)
     {
@@ -233,8 +233,8 @@ Return:
 	NULL  --- fails
 	matC --- OK
 ----------------------------------------------------------*/
-struct float_Matrix* Matrix_Add( struct float_Matrix *matA,
-		   struct float_Matrix *matB,
+struct float_Matrix* Matrix_Add( const struct float_Matrix *matA,
+		   const struct float_Matrix *matB,
 		   struct float_Matrix *matC )
 {
    int i,j;
@@ -274,8 +274,8 @@ struct float_Matrix* Matrix_Add( struct float_Matrix *matA,
    return matC;
 }
 
-struct float_Matrix* Matrix_Sub( struct float_Matrix *matA,
-				 struct float_Matrix *matB,
+struct float_Matrix* Matrix_Sub( const struct float_Matrix *matA,
+				 const struct float_Matrix *matB,
 				 struct float_Matrix *matC  )
 {
    int i,j;
@@ -525,7 +525,7 @@ Return:
 	NULL ---  fails
 	point to matB  --- OK
 ----------------------------------------------------------*/
-struct float_Matrix* Matrix_Transpose( struct float_Matrix *matA,
+struct float_Matrix* Matrix_Transpose( const struct float_Matrix *matA,
 				       struct float_Matrix *matB )
 {
 	int i,j;
@@ -597,7 +597,7 @@ Return:
 	NULL ---  fails
 	float pointer to the result  --- OK
 ----------------------------------------------------------*/
-float* Matrix_Determ( struct float_Matrix *matA,
+float* Matrix_Determ( const struct float_Matrix *matA,
 				    float *determ )
 {
      int i,j,k;
@@ -664,7 +664,7 @@ Return:
 	NULL ---  fails
 	pointer to the result matAdj  --- OK
 ----------------------------------------------------------*/
-struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
+struct float_Matrix* Matrix_Inverse(const struct float_Matrix *matA,
 				    struct float_Matrix *matAdj )
 {
 	int i,j,k;
@@ -726,7 +726,7 @@ struct float_Matrix* Matrix_Inverse(struct float_Matrix *matA,
 
 	//----- check if matrix matA is invertible ----
 	Matrix_Determ(matA,&det_matA); //comput determinant of matA
-	printf("Matrix_Inverse(): determint of input matrix is %f\n",det_matA);
+//	printf("Matrix_Inverse(): determint of input matrix is %f\n",det_matA);
 	if(det_matA == 0)
 	{
 		fprintf(stderr,"Matrix_Inverse(): matrix is NOT invertible!\n");

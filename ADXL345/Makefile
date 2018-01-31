@@ -2,7 +2,7 @@ CC = /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-l
 APP = adxl345
 SOURCES = adxl_test.c
 DEPENDS = i2c_adxl345.h  ../L3G4200D/data_server.h ../L3G4200D/mathwork.h  ../L3G4200D/filters.h
-OBJS = ../L3G4200D/filters.o i2c_adxl345.o
+OBJS = ../L3G4200D/mathwork.o ../L3G4200D/filters.o i2c_adxl345.o
 
 INCLUDES = -I/home/midas/ctest/L3G4200D
 #LDFLAGS  = 

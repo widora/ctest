@@ -42,18 +42,18 @@ void release_float_Matrix(struct float_Matrix * pMat);
 
 
 void   Matrix_Print(struct float_Matrix matA);
-struct float_Matrix*  Matrix_FillArray(struct float_Matrix * pMat, float * array); //fill pMat->pmat with data from array
+struct float_Matrix*  Matrix_FillArray(struct float_Matrix * pMat, const float * array); //fill pMat->pmat with data from array
 float  Matrix3X3_Determ(float *pmat); // determinnat of a 3X3 matrix
 float  MatrixGT3X3_Determ(int nrc, float *pmat); // determinant of a matrix whose dimension is great than 3x3
 
 struct float_Matrix* Matrix_CopyColumn(struct float_Matrix *matA, int nclmA, struct float_Matrix *matB, int nclmB);
 
-struct float_Matrix* Matrix_Add( struct float_Matrix *matA,
-				 struct float_Matrix *matB,
+struct float_Matrix* Matrix_Add( const struct float_Matrix *matA,
+				 const struct float_Matrix *matB,
 				 struct float_Matrix *matC );
 
-struct float_Matrix* Matrix_Sub( struct float_Matrix *matA,
-				 struct float_Matrix *matB,
+struct float_Matrix* Matrix_Sub( const struct float_Matrix *matA,
+				 const struct float_Matrix *matB,
 				 struct float_Matrix *matC  );
 
 struct float_Matrix* Matrix_Multiply( const struct float_Matrix *matA,
@@ -62,10 +62,10 @@ struct float_Matrix* Matrix_Multiply( const struct float_Matrix *matA,
 
 struct float_Matrix* Matrix_MultFactor(struct float_Matrix *matA, float fc);
 struct float_Matrix* Matrix_DivFactor(struct float_Matrix *matA, float fc);
-struct float_Matrix* Matrix_Transpose( struct float_Matrix *matA,
+struct float_Matrix* Matrix_Transpose(const struct float_Matrix *matA,
 				       struct float_Matrix *matB );
-float* Matrix_Determ( struct float_Matrix *matA,  float *determ );
-struct float_Matrix* Matrix_Inverse( struct float_Matrix *matA,
+float* Matrix_Determ( const struct float_Matrix *matA,  float *determ );
+struct float_Matrix* Matrix_Inverse( const struct float_Matrix *matA,
 				     struct float_Matrix *matAdj );
 
 

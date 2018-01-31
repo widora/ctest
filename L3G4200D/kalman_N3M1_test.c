@@ -200,11 +200,15 @@ Mat_K.nr=3; Mat_K.nc=1; Mat_K.pmat=MatK;
 
 
 //-----------   KALMAN FILTER TEST  ------------
+struct float_Matrix *pMat_1X1;
 struct floatKalmanDB *fdb_kalman;
-struct float_Matrix * pMat_1X1 = init_float_Matrix(1,1);
 
-fdb_kalman = Init_floatKalman_FilterDB( 3, 1,
-	&Mat_Y, &Mat_F, &Mat_P, &Mat_H, &Mat_Q, &Mat_R);
+
+while(1)
+{
+  	pMat_1X1 = init_float_Matrix(1,1);
+	fdb_kalman = Init_floatKalman_FilterDB( 3, 1,
+		&Mat_Y, &Mat_F, &Mat_P, &Mat_H, &Mat_Q, &Mat_R);
 
 /*
                                      int n, int m,  //n---state var. dimension,  m---observation dimension
@@ -215,10 +219,10 @@ fdb_kalman = Init_floatKalman_FilterDB( 3, 1,
                                      struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
                                      struct float_Matrix *pMat_R )  //[mxm] observation noise covariance
 */
-for(count=0; count<100; count++)
-{
-	*pMat_1X1->pmat=MatS[count];
-	float_KalmanFilter( fdb_kalman, pMat_1X1 );   //[mx1] input observation matrix
+	for(count=0; count<100; count++)
+	{
+		*pMat_1X1->pmat=MatS[count];
+		float_KalmanFilter( fdb_kalman, pMat_1X1 );   //[mx1] input observation matrix
 
 /*
    count++;
@@ -239,180 +243,14 @@ for(count=0; count<100; count++)
    Matrix_Print(*(fdb_kalman->pMQ));
 */
 
-}
+	}
+
    release_float_Matrix(pMat_1X1);
    Release_floatKalman_FilterDB(fdb_kalman);
-
-   usleep(50000);
+   usleep(100000);
+}
+//--------------   KALMAN FILTER TEST END   ---------------
 
    return 0;
 
-
-//--------------   KALMAN FILTER TEST END   ---------------
-
-
-
-
-
-//-------temp. buff matrxi ----------
-//Mat [mxm]
-float Mat1X1A[1*1]={0}; //for temp. buff
-struct float_Matrix Mat_1X1A;
-Mat_1X1A.nr=1; Mat_1X1A.nc=1; Mat_1X1A.pmat=Mat1X1A;
-
-//Mat [mxm]
-float Mat1X1B[1*1]={0}; //for temp. buff
-struct float_Matrix Mat_1X1B;
-Mat_1X1B.nr=1; Mat_1X1B.nc=1; Mat_1X1B.pmat=Mat1X1B;
-
-//Mat [mxm]
-float Mat1X1C[1*1]={0}; //for temp. buff
-struct float_Matrix Mat_1X1C;
-Mat_1X1C.nr=1; Mat_1X1C.nc=1; Mat_1X1C.pmat=Mat1X1C;
-
-//----Mat [nxm]
-float Mat3X1A[3*1]={0}; //for temp. buff
-struct float_Matrix Mat_3X1A;
-Mat_3X1A.nr=3; Mat_3X1A.nc=1; Mat_3X1A.pmat=Mat3X1A;
-
-//----Mat [nxm]
-float Mat3X1B[3*1]={0}; //for temp. buff
-struct float_Matrix Mat_3X1B;
-Mat_3X1B.nr=3; Mat_3X1B.nc=1; Mat_3X1B.pmat=Mat3X1B;
-
-//----Mat [nxn]
-float Mat3X3A[3*3]={0}; //for temp. buff
-struct float_Matrix Mat_3X3A;
-Mat_3X3A.nr=3; Mat_3X3A.nc=3; Mat_3X3A.pmat=Mat3X3A;
-
-//----Mat [nxn]
-float Mat3X3B[3*3]={0}; //for temp. buff
-struct float_Matrix Mat_3X3B;
-Mat_3X3B.nr=3; Mat_3X3B.nc=3; Mat_3X3B.pmat=Mat3X3B;
-
-//----Mat [nxn]
-float MatI[3*3]= //eye matrix with 1 on diagonal and zeros elesewhere
-{
-  1,0,0,
-  0,1,0,
-  0,0,1
- }; 
-struct float_Matrix Mat_I;
-Mat_I.nr=3; Mat_I.nc=3; Mat_I.pmat=MatI;
-
-
-//-------------- test -------------------------
-
-	int n=100; //samples, number of points to be filtered
-	int i,j,k;
-
-	gettimeofday(&tm_start,NULL);
-        //------- Kalman Filter Processing --------
-        for(k=0; k<n; k++)
-	{
-		printf("--------- k=%d ---------\n",k);
-
-		//----- 1.Predict(priori) state:  Yp = F*Y -----(3,1) = (3,3)*(3,1)
-		//----- 1.Predict(priori) state:  Yp = F*Y -----(n,1) = (n,n)*(n,1)
-		Matrix_Multiply(&Mat_F,&Mat_Y,&Mat_Yp);
-		printf("Mat_Yp=\n");
-		Matrix_Print(Mat_Yp);
-
-		//----- 2. Predict(priori) state covariance:  Pp = F*P*F'+Q ----- (3,3)=(3,3)*(3,3)*(3,3)'+(3,3)
-		//----- 2. Predict(priori) state covariance:  Pp = F*P*F'+Q ----- (n,n)=(n,n)*(n,n)*(n,n)'+(n,n)
-		Matrix_Add (
-			Matrix_Multiply( &Mat_F,
-					 Matrix_Multiply( &Mat_P,
-							  Matrix_Transpose(&Mat_F,&Mat_F_trans),
-							  &Mat_3X3A
-							),
-					 &Mat_3X3B
-					),
-			&Mat_Q,
-			&Mat_Pp  //the result matrix
-		);
-		printf("Mat_Pp=\n");
-		Matrix_Print(Mat_Pp);
-
-		//----- 3. Update Kalman Gain:  K = Pp*H'*inv(H*Pp*H'+R)  -----
-		//			  (3,1) =(3,3)*(1,3)'*inv((1,3)*(3,3)*(1,3)'+(1,1))
-		//			  (n,m) =(n,n)*(m,n)'*inv((m,n)*(n,n)*(m,n)'+(m,m))
-		Matrix_Transpose( &Mat_H, &Mat_H_trans);
-//		printf("Mat_H_trans=\n");
-//		Matrix_Print(Mat_H_trans);
-		Matrix_Multiply( &Mat_Pp,
-				 Matrix_Multiply( &Mat_H_trans,
-						  Matrix_Inverse( Matrix_Add(  Matrix_Multiply( &Mat_H,
-										                Matrix_Multiply( &Mat_Pp, &Mat_H_trans,&Mat_3X1A),
-											        &Mat_1X1A
-									        ),
-										&Mat_R,
-										&Mat_1X1B
-								   ),
-								   &Mat_1X1C
-						  ),
-						  &Mat_3X1B
-				),
-				&Mat_K
-		);
-//		printf("Inv(H*P2*H'+Rk)=\n");
-//		Matrix_Print(Mat_1X1C);
-//		printf("H'*Inv(H*P2*H'+Rk)=\n");
-//		Matrix_Print(Mat_3X1B);
-		printf("K=\n");
-		Matrix_Print(Mat_K);
-
-		//----- 4. Update(posteriori) state:  Y = Yp + K*(S-H*Yp)   ---- (3,1) = (3,1) + (3,1)*( (1,1)-(1,3)*(3,1) )
-		//----- 4. Update(posteriori) state:  Y = Yp + K*(S-H*Yp)   ---- (n,1) = (n,1) + (n,m)*( (m,1)-(m,n)*(n,1) )
-		Matrix_CopyColumn(&Mat_S,k,&Mat_1X1A,0); //extract one column from Mat_S, to Mat_1X1A,
-//		printf("Mat_1X1A=Mat_S[%d]=\n",k);
-//		Matrix_Print(Mat_1X1A);
-		Matrix_Add( &Mat_Yp,
-			    Matrix_Multiply( &Mat_K,
-					     Matrix_Sub( &Mat_1X1A,
-							 Matrix_Multiply( &Mat_H, &Mat_Yp, &Mat_1X1B),
-					     		 &Mat_1X1C
-					     ),
-					     &Mat_3X1A
-			    ),
-			    &Mat_Y
-		);
-//		printf("Mat_Yp=\n");
-//		Matrix_Print(Mat_Yp);
-//		printf("Mat_H=\n");
-//		Matrix_Print(Mat_H);
-//		printf("H*Yp=\n");
-//		Matrix_Print(Mat_1X1B);
-//		printf("S-H*Yp=\n");
-//		Matrix_Print(Mat_1X1C);
-		printf("Mat_Y=\n");
-		Matrix_Print(Mat_Y);
-
-		//----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (3,1) = ( (3,3)-(3,1)*(1,3) )*(3,1)
-		//----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (n,1) = ( (n,n)-(n,m)*(m,n) )*(n,1)
-		Matrix_Multiply( Matrix_Sub( &Mat_I,
-					     Matrix_Multiply( &Mat_K, &Mat_H, &Mat_3X3A),
-					     &Mat_3X3B
-				 ),
-				 &Mat_Pp,
-				 &Mat_P
-		);
-//		printf("K*H=\n");
-//		Matrix_Print(Mat_3X3A);
-//		printf("I-K*H=\n");
-//		Matrix_Print(Mat_3X3B);
-		printf("Mat_P=\n");
-		Matrix_Print(Mat_P);
-
-	} //end of for()
-
-	gettimeofday(&tm_end,NULL);
-	printf("----- recursion count: %d, time elapsed: %d(us) \n",k,get_costtimeus(tm_start, tm_end));
-	printf("----- final Kalman Gain Matrix Mat_K= \n");
-	Matrix_Print(Mat_K);
-	printf("----- final State Covaraince Matrix  Mat_P= \n");
-	Matrix_Print(Mat_P);
-
-
-	return 0;
 }

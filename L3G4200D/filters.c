@@ -218,7 +218,7 @@ p_out_data:  pointer to start of output data
 nmov:        processed slot number of the data, p_in_data[nmov] --> p_out_data[nmov]
 !!!! p_ind_data and p_out_data maybe the same address !!!!!
 ----------------------------------------------------------------------*/
-void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov)
+void IIR_Lowpass_int16Filter(const int16_t *p_in_data, int16_t *p_out_data, int nmov)
 {
 	//----factors for 4 order IIR filter ----
 	//----Fs=400Hz Fc=199Hz--
@@ -239,7 +239,7 @@ void IIR_Lowpass_int16Filter(int16_t *p_in_data, int16_t *p_out_data, int nmov)
 
 }
 /*------------------ double precision ------------------*/
-void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
+void IIR_Lowpass_dblFilter(const double *p_in_data, double *p_out_data, int nmov)
 {
 	//----factors for 4 order IIR filter ----
 	//----Fs=300Hz Fc=50Hz--
@@ -262,7 +262,9 @@ void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
 
 
 /*-------------------------------------   System Matrix    ------------------------------------------
-( State Dimension: n, Observation Dimension m.   m<=n??? )
+<<< 1.  State Dimension: n, Observation Dimension m.   m<=n???   >>>>
+<<< 2.  Control matrix is omitted, So let Mat_Q=[0]???
+
 
 (input/output)  Mat_Y[nx1]:  the state (optimized mean value)  matrix of concerning variables (updated)
                              with init. value.
@@ -271,10 +273,10 @@ void IIR_Lowpass_dblFilter(double *p_in_data, double *p_out_data, int nmov)
 (-)  	        Mat_Ftp[nxn]:  the transpose of state-transition matrix
 (input)         Mat_H[mxn]:  the observation transformation matrix
 (-)	        Mat_Htp[nxm]:  the transpose of observation transformation matrix
-(input)         Mat_S[mx1]:  the observation matrix (observed var.)
-(input/output)  Mat_Q[nxn]:  the covariance matrix of the process noise
+(input)         Mat_S[mx1]:  the observation matrix (observed,reading var.)
+(input/output)  Mat_Q[nxn]:  the covariance matrix of the untracked noise for outside
                              with some estimated init value.
-(input/output)  Mat_R[mxm]:  the covarinace matrix of the observation noise
+(input/output)  Mat_R[mxm]:  the covarinace matrix of the observation(reading,sensor) noise
                              with some estimated init value.
 (input/output)  Mat_P[nxn]:  the state_estimation error covaraince matrix (updated)
                              init. with some estimated value.
@@ -310,7 +312,7 @@ pMS: [mx1] input observation matrix
 
 ---------------------------------------------------------------------------------*/
 void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
-			  struct float_Matrix *pMS )  //[mx1] input observation matrix
+			 const struct float_Matrix *pMS )  //[mx1] input observation matrix
 {
 
 	//----- check observation matrix dimension -----
@@ -322,13 +324,13 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
 	}
 
 	//----- 1.Predict(priori) state:  Yp = F*Y -----(n,1) = (n,n)*(n,1)
-	printf("Yp = F*Y\n");
+//	printf("Yp = F*Y\n");
         Matrix_Multiply(fdb->pMF,fdb->pMY,fdb->pMYp);
-        printf("pMYp=\n");
-        Matrix_Print(*fdb->pMYp);
+//        printf("pMYp=\n");
+//        Matrix_Print(*fdb->pMYp);
 
         //----- 2. Predict(priori) state covariance:  Pp = F*P*F'+Q ----- (n,n)=(n,n)*(n,n)*(n,n)'+(n,n)
-	printf("Pp = F*P*F'+Q \n");
+//	printf("Pp = F*P*F'+Q \n");
         Matrix_Add (
                 Matrix_Multiply( fdb->pMF,
                                  Matrix_Multiply( fdb->pMP,
@@ -340,12 +342,12 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
                 fdb->pMQ,
                 fdb->pMPp  //the result matrix
         );
-        printf("pMPp=\n");
-        Matrix_Print(*fdb->pMPp);
+//        printf("pMPp=\n");
+//        Matrix_Print(*fdb->pMPp);
 
         //----- 3. Update Kalman Gain:  K = Pp*H'*inv(H*Pp*H'+R)  -----
         //                        (n,m) =(n,n)*(m,n)'*inv((m,n)*(n,n)*(m,n)'+(m,m))
-	printf("K = Pp*H'*inv(H*Pp*H'+R) \n");
+//	printf("K = Pp*H'*inv(H*Pp*H'+R) \n");
         Matrix_Transpose( fdb->pMH, fdb->pMHtp);
         Matrix_Multiply( fdb->pMPp,
                          Matrix_Multiply( fdb->pMHtp,
@@ -362,12 +364,12 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
                         ),
                         fdb->pMK
         );
-        printf("Kalman Gain K=\n");
-        Matrix_Print(*fdb->pMK);
+//        printf("Kalman Gain K=\n");
+//        Matrix_Print(*fdb->pMK);
 
         //----- 4. Update(posteriori) state:  Y = Yp + K*(S-H*Yp)  ----- (n,1) = (n,1) + (n,m)*( (m,1)-(m,n)*(n,1) )
         // Matrix_CopyColumn(&Mat_S,k,&Mat_1X1A,0); //extract one column from Mat_S, to Mat_1X1A,
-	printf(" Y = Yp + K*(S-H*Yp) \n");
+//	printf(" Y = Yp + K*(S-H*Yp) \n");
         Matrix_Add( fdb->pMYp,
                     Matrix_Multiply( fdb->pMK,
                                      Matrix_Sub( pMS, // ------- input obversation matrix here -------
@@ -378,11 +380,11 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
                     ),
                     fdb->pMY
         );
-        printf("pMY=\n");
-        Matrix_Print(*fdb->pMY);
+//        printf("pMY=\n");
+//        Matrix_Print(*fdb->pMY);
 
-        //----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (n,1) = ( (n,n)-(n,m)*(m,n) )*(n,1)
-	printf("P = (I-K*H)*P \n");
+        //----- 5. Update(posteriori) state covariance:  P = (I-K*H)*Pp   ---- (n,n) = ( (n,n)-(n,m)*(m,n) )*(n,n)
+//	printf("P = (I-K*H)*Pp \n");
         Matrix_Multiply( Matrix_Sub( fdb->pMI,
                                     Matrix_Multiply( fdb->pMK, fdb->pMH, fdb->pMat_nXnA),
                                     fdb->pMat_nXnB
@@ -390,8 +392,8 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
                          fdb->pMPp,
                          fdb->pMP
         );
-        printf("Mat_P=\n");
-        Matrix_Print(*fdb->pMP);
+//      printf("Mat_P=\n");
+//      Matrix_Print(*fdb->pMP);
 
 }
 
@@ -404,15 +406,17 @@ Initiliaze kalman filter data base
 Return:
 	fdb    OK
 	NULL   fails
+
+   !!!--- WARNING ---!!! pMat_Y and pMat_P will be changed
 ----------------------------------------------------------------*/
 struct floatKalmanDB * Init_floatKalman_FilterDB(
 				     int n, int m,  //n---state var. dimension,  m---observation dimension
 				     struct float_Matrix *pMat_Y,  //[nx1] state var.
-				     struct float_Matrix *pMat_F,  //[nxn] transition
+			     const   struct float_Matrix *pMat_F,  //[nxn] transition
 				     struct float_Matrix *pMat_P,  //[nxn] state covariance
-				     struct float_Matrix *pMat_H,  //[mxn] observation transformation
-				     struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
-				     struct float_Matrix *pMat_R )  //[mxm] observation noise covariance
+			     const   struct float_Matrix *pMat_H,  //[mxn] observation transformation
+			     const   struct float_Matrix *pMat_Q,  //[nxn] system noise covariance
+			     const   struct float_Matrix *pMat_R )  //[mxm] observation noise covariance
 {
 	struct floatKalmanDB *fdb;
 	int i,j;
