@@ -46,13 +46,13 @@ in a loop.
 dt_us will be 0 at first call
 3. parameters:
 	*num ---- number of integral groups.
-	*fx ---- [num] functions of time,whose unit is us(10^-6 s) !!!
+	*fx ---- [num] functions of time,whose unit is rad/us(10^-6 s) !!!
 	*sum ----[num] results integration(summation) of fx * dt_us in sum[num]
-
+	*pdt_us --- period time(us) for the LAST LOOP !!!
 return:
 	summation of dt_us
 -------------------------------------------------------------------------------*/
-inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum)
+inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum, uint32_t* pdt_us)
 {
 	   uint32_t dt_us;//time in us
 	   static struct timeval tm_end,tm_start;
@@ -71,6 +71,7 @@ inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum)
 	   else // discard fisrt value
 		   dt_us=0;
 
+	   *pdt_us=dt_us;
   	   sum_dt +=dt_us;
 
 	   //------ integration calculation -----
@@ -84,7 +85,7 @@ inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum)
 
 
 /*------------  single group time integral  -------------------*/
-inline uint32_t math_tmIntegral(const double fx, double *sum)
+inline uint32_t math_tmIntegral(const double fx, double *sum, uint32_t *pdt_us)
 {
 	   uint32_t dt_us;//time in us
 	   static struct timeval tm_end,tm_start;
@@ -102,6 +103,7 @@ inline uint32_t math_tmIntegral(const double fx, double *sum)
 	   else // discard fisrt value
 		   dt_us=0;
 
+	   *pdt_us=dt_us;
 	   sum_dt +=dt_us;
 
            (*sum) += fx*dt_us;

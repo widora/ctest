@@ -28,7 +28,7 @@ INCLUDES += -I/home/midas/ctest/L3G4200D
 #CFLAGS    = -Wall
 LIBS	  = -lm -lpthread
 
-$(APP) :  $(DEPENDS) $(OBJS) wbiroll.c
+$(APP) :  $(DEPENDS) $(OBJS) wbiroll.c kalman_n2m2.h
 	$(CC) wbiroll.c -o $(APP) $(CFLAGS) $(LIBS) $(INCLUDES) $(OBJS) 
 
 

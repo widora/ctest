@@ -29,8 +29,8 @@ struct float_Matrix
 
 //------ function declaration -------
 inline uint32_t get_costtimeus(struct timeval tm_start, struct timeval tm_end);
-inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum);
-inline uint32_t math_tmIntegral(const double fx, double *sum);
+inline uint32_t math_tmIntegral_NG(uint8_t num, const double *fx, double *sum, uint32_t *pdt_us);
+inline uint32_t math_tmIntegral(const double fx, double *sum, uint32_t *pdt_us);
 
 /*<<<<<<<<<<<<<<<      MATRIX ---  OPERATION     >>>>>>>>>>>>>>>>>>
 NOTE:

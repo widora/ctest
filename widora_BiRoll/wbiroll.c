@@ -13,7 +13,7 @@ set ACC. ADXL345 ODR=800Hz BW=400Hz
 #include "data_server.h"
 #include "filters.h"
 #include "mathwork.h"
-
+#include "kalman_n2m2.h"
 
 //#define TCP_TRANSFER
 
@@ -28,6 +28,7 @@ int main(void)
    //------ for ADXL345  -----
    int16_t accXYZ[3]={0}; // acceleration value of XYZ
    double  faccXYZ[3]; //double //faccXYZ=fsmg_full*accXYZ
+   float fangX; //atan(X/Z) angle of X axis
    struct int16MAFilterDB fdb_accXYZ[3]; // filter data base
    //Note: Big limit value smooths data better,but you have to trade off with reactive speed.
    uint16_t  relative_uint16limit=128;//256 //1.0*1000/3.9=256; relative difference limit between two fdb_faccXYZ[] data
@@ -74,6 +75,12 @@ int main(void)
    printf("Init I2C OLED ...\n");
    init_OLED_128x64();
 
+   //----- init N2M2 Kalman Filter ----
+   if(init_N2M2_KalmanFilter() !=0)
+   {
+        ret_val=-1;
+        goto INIT_KALMAN_FAIL;
+   }
 
    //----- create thread for displaying data to OLED
    if(pthread_create(&pthrd_WriteOled,NULL, (void *)thread_gyroWriteOled, NULL) !=0)
@@ -123,62 +130,87 @@ int main(void)
    }
 #endif
 
-   //================   loop: get data and record  ===============
+   //================   LOOP: read data from sensors and proceed  ===============
    printf(" starting testing ...\n");
    gettimeofday(&tmTestStart,NULL);
 
    k=0;
-   while (1) {
+ while (1) {
 	   k++;
 //   for(k=0;k<100000;k++) {
 
+	    printf("Reading ADXL345 and L3G4200 ...\n");
 	   //----- read acceleration value of XYZ
 	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
 //	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
+	   printf("Deducing bias ...\n");
 	   //------  ADXL345: set OFSX,OFSY,OFSZ in Init_ADXL345()
 	   //------  L3G4200D: deduce bias to adjust zero level
 	   for(i=0; i<3; i++)
 		   angRXYZ[i]=angRXYZ[i]-g_bias_int16RXYZ[i];
 //	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
-           //----- Activate filter for acceleration accXYZ ----
-           //----- single and double spiking value will be trimmed.
-           int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); // three filter groups, only [0] data filt
-	   //----- Activate filter for  angualr rate RX RY RZ  -------
-	   // first reset each filter context struct, then you must use the same data stream until end.
-	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); // three group fitler 
+	   printf("Passing through Moving Average filters...\n");
+           //----- Passing through filter for acceleration accXYZ ----
+           //( single and double spiking value will be trimmed. )
+           int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); //int16, dest. and source is the same,three filter groups, only [0] data filt
+	   //----- Passing through filter for angualr rate RX RY RZ  -------
+	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); //int16, dest. and source is the same,three group fitler 
 
+	   printf("Calculating fangX...\n");
+	   //------ calculate fangX -------
+	   if(accXYZ[2] == 0) accXYZ[2]=1;
+	   fangX=atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
+	   printf("fangX=%f \n",fangX*180.0/PI);
 
 	   //----- accXYZ,angRXYZ convert to real value -------
 	   for(i=0; i<3; i++)
 	   {
            	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i];
-		fangRXYZ[i]=fs_dpus*angRXYZ[i];
+		fangRXYZ[i]=fs_dpus*angRXYZ[i];  //rad/us
  	   }
+/*
            printf("\rK=%d, accX: %+f,  accY: %+f,  accZ:%+f \n", k, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
 	   printf("k=%d, fangX: %+f,  fangY: %+f,  fangZ:%+f \e[1A", k, g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
 	   fflush(stdout);
+*/
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
-	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ); // one instance only!!!
+	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
+	   printf("dt_us = %dus \n", dt_us);
 
-	   //<<<<<<<<<< Every 500th count:  send integral XYZ angle to client Matlab    >>>>>>>>>>>
+	   //----- PASS dt_us to pMat_H
+	   *(pMat_F->pmat+1)=dt_us;
+
+           //----- KALMAN FILTER: get float type sensor readings(measurement) ----
+	   // vector (angle,angular rate, 0)
+	   *pMat_S->pmat = fangX;
+	   *(pMat_S->pmat+1) = fangRXYZ[0];
+
+           //----- KALMAN FILTER: Passing through Kalman filter -----
+           float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
+	   printf("pMat_Y:  %f,   %f \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+
+
+
+
 #ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
-//		if( send_client_data((uint8_t *)g_fangXYZ,3*sizeof(double)) < 0)
-		if( send_client_data((uint8_t *)fangRXYZ,3*sizeof(double)) < 0)
+//		if( send_client_data((uint8_t *)&fangX, sizeof(float)) < 0)
+		if( send_client_data((uint8_t *)(pMat_S->pmat), 2*sizeof(float)) < 0)
 			printf("-------- fail to send client data ------\n");
-		send_count=10; //send everty 10th data to the client
+		send_count=5; //send everty 10th data to the client
 	   }
 	   else
 		send_count-=1;
 #endif
 
    }  //---------------------------  end of loop  -----------------------------
+
 
    gettimeofday(&tmTestEnd,NULL);
    printf("\n k=%d\n",k);
@@ -193,6 +225,10 @@ int main(void)
 
 
 CALL_FAIL:
+
+INIT_KALMAN_FAIL:
+   //----- release Kalman data base and filter -----
+   release_N2M2_KalmanFilter();
 
 INIT_MAFILTER_FAIL:
    //---- release filter data base
