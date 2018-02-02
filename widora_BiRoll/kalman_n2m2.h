@@ -28,16 +28,15 @@
 (-)		Mat_I[nxn]:  Eye matrix with 1 on diagonal and zeros elesewhere
 ---------------------------------------------------------------------------------------------------*/
 
-//--------- init N3M3 Kalman Filter Param. Matrixces  -------
-float MatY[2*1]=  //----- state of (angle, angular rate,0)
+float MatY[2*1]=  //----- state of (angle, angular rate)
 {
-0,
-0
+ 0,
+ 0
 };
 
 float MatF[2*2]= //----- state transition matrix
 {
- 1, 0,  //5000 dt_us  will be real value
+ 1, 0,  //dt_us  will be real value
  0, 1
 };
 
@@ -49,20 +48,20 @@ float MatH[2*2]= //----- observation matrix
 
 float MatQ[2*2]= //----- process outside noise covariance
 {
- 1.0e-30,0,   // give a little value to prevent inv failure.
- 0,1.0e-30
+ 0.5, 0,   // give a little value to prevent matrix-inverting failure.
+ 0, 0.001
 };
 
 float MatR[2*2]= //----- observatin(reading) noise covaraince
 {
- 0,0,
- 0,0
+ 1.0e-8,0,
+ 0,1.0e-8
 };
 
-float MatP[2*2]= //----- state convaraince matrix 
+float MatP[2*2]= //----- state convaraince matrix. init value !!
 {
  0.3,0,
- 0,0.0001
+ 0,0.001
 };
 
 

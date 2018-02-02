@@ -10,7 +10,7 @@
 
 #define PI 3.1415926535898
 #define INT16MAF_MAX_GRADE 10  //max grade limit for int16MA filter, 2^10 points moving average.
-
+#define FLOAT_MAF_MAX_GRADE 10 //max grade limit for floatMA filter, 2^10 points moving average.
 
 //---- int16_t  moving average filter Data Base ----
 struct  int16MAFilterDB {
@@ -19,6 +19,14 @@ struct  int16MAFilterDB {
 	int16_t* f_buff;//buffer for averaging data,size=(2^ng+2) !!!
         int32_t f_sum; //sum of the buff data
         int16_t f_limit;//=0x7fff, //limit value for each data of *source.
+};
+//---- float_type  moving average filter Data Base ----
+struct  floatMAFilterDB {
+	uint16_t f_ng; //grade number,   point number = 2^ng
+	//----allocate 2^ng+2 elements actually, 2 more expanded slot fors limit filter check !!!
+	float* f_buff;//buffer for averaging data,size=(2^ng+2) !!!
+        float f_sum; //sum of the buff data
+        float f_limit;//=0x7fff, //limit value for each data of *source.
 };
 
 //----- float Kalman filter Data Base -----
@@ -65,16 +73,27 @@ const	struct float_Matrix *pMR;  //[mxm] observation noise covariance
 
 
 //------------------------     FUNCTION DECLARATION     ---------------------------
+
+//---------------  Int16 Type MAF  ---------------
 inline int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov);
 inline int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit);
 inline void Release_int16MAFilterDB(struct int16MAFilterDB *fdb);
+
 inline void int16_MAfilter_NG(uint8_t m, struct int16MAFilterDB *fdb, const int16_t *source, int16_t *dest, int nmov);
 inline int Init_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb, uint16_t ng, int16_t limit);
 inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb);
+
+//<<<<<<<<<<<<<<<<  Float Type MAF  >>>>>>>>>>>>>
+inline float float_MAfilter(struct floatMAFilterDB *fdb, const float *source, float *dest, int nmov);
+inline int Init_floatMAFilterDB(struct floatMAFilterDB *fdb, uint16_t ng, float limit);
+inline void Release_floatMAFilterDB(struct floatMAFilterDB *fd);
+
+//----------------  IIR Filter  -------------
 void IIR_Lowpass_int16Filter(const int16_t *p_in_data, int16_t *p_out_data, int nmov);
 void IIR_Lowpass_dblFilter(const double *p_in_data, double *p_out_data, int nmov);
 
-//------------------   Kalman Filter  ---------------
+
+//-------------------------   Kalman Filter  ------------------------
 /*  !!!WARNING!!! pMat_Y and pMat_P will be changed */
 struct floatKalmanDB * Init_floatKalman_FilterDB(
                                      int n, int m,  //n---state var. dimension,  m---observation dimension

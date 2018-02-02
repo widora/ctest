@@ -31,6 +31,7 @@ int main(void)
    double  faccXYZ[3]; //double //faccXYZ=fsmg_full*accXYZ
    float fangX; //atan(X/Z) angle of X axis
    struct int16MAFilterDB fdb_accXYZ[3]; // filter data base
+   struct floatMAFilterDB fdb_fangX; //float type filter data base for ANGLE X
    //Note: Big limit value smooths data better,but you have to trade off with reactive speed.
    uint16_t  relative_uint16limit=128;//256 //1.0*1000/3.9=256; relative difference limit between two fdb_faccXYZ[] data
 
@@ -106,8 +107,13 @@ int main(void)
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
    }
-
-
+   //----- init filter data base for fangX ----
+   printf("Init float type MA filter data base for fangX...\n");
+   if( Init_floatMAFilterDB( &fdb_fangX, 6, 0.2) <0 ) //0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
+   {
+	ret_val=-2;
+	goto INIT_MAFILTER_FAIL;
+   }
 
    //---- preare TCP data server
 #ifdef TCP_TRANSFER
@@ -140,32 +146,33 @@ int main(void)
 	   k++;
 //   for(k=0;k<100000;k++) {
 
-	    printf("Reading ADXL345 and L3G4200 ...\n");
+//	    printf("Reading ADXL345 and L3G4200 ...\n");
 	   //----- read acceleration value of XYZ
 	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
 	   //------- read angular rate of XYZ
 	   gyro_read_int16RXYZ(angRXYZ);
 //	   printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
-	   printf("Deducing bias ...\n");
+//	   printf("Deducing bias ...\n");
 	   //------  ADXL345: set OFSX,OFSY,OFSZ in Init_ADXL345()
 	   //------  L3G4200D: deduce bias to adjust zero level
 	   for(i=0; i<3; i++)
 		   angRXYZ[i]=angRXYZ[i]-g_bias_int16RXYZ[i];
 //	   printf("Zero_leveled data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
-	   printf("Passing through Moving Average filters...\n");
+//	   printf("Passing through Moving Average filters...\n");
            //----- Passing through filter for acceleration accXYZ ----
            //( single and double spiking value will be trimmed. )
            int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); //int16, dest. and source is the same,three filter groups, only [0] data filt
 	   //----- Passing through filter for angualr rate RX RY RZ  -------
 	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); //int16, dest. and source is the same,three group fitler 
-
-	   printf("Calculating fangX...\n");
+//	   printf("Calculating fangX...\n");
 	   //------ calculate fangX -------
-	   if(accXYZ[2] == 0) accXYZ[2]=1;
+	   if(accXYZ[2] == 0) accXYZ[2]=1;  // !!!!! IMPROTATN !!!!
 	   fangX=-1.0*atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
 	   printf("fangX=%f \n",fangX*180.0/PI);
+	   //----- Passing through filter for fangX ------
+	   float_MAfilter(&fdb_fangX,&fangX,&fangX,0);
 
 	   //----- accXYZ,angRXYZ convert to real value -------
 	   for(i=0; i<3; i++)
@@ -184,18 +191,28 @@ int main(void)
 	   printf("dt_us = %dus \n", dt_us);
 
 	   //----- PASS dt_us to pMat_H
-	   *(pMat_F->pmat+1)=dt_us;
+	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
 
            //----- KALMAN FILTER: get float type sensor readings(measurement) ----
-	   // vector (angle,angular rate, 0)
-	   *pMat_S->pmat = fangX;
+	   //----- Avoid ZERO! -----
+//	   if(abs(fangX) < 1.0e-10 )fangX=1.0e-10; if( abs(fangRXYZ[0]) < 1.0e-10)fangRXYZ[0]=1.0e-10;
+	   // vector (angle,angular rate)
+	   *pMat_S->pmat=fangX;
 	   *(pMat_S->pmat+1) = fangRXYZ[0];
 
+	   //----- Avoid ZERO ! ------
+	   if(*(pMat_P->pmat) < 1.0e-15){
+//		 *(pMat_P->pmat) = 0.5;
+		 printf("==========================\n");
+	   }
+	   if(*(pMat_P->pmat+2) < 1.0e-15 ){
+//		 *(pMat_P->pmat+2) = 1.0e-8;
+		printf("--------------------------\n");
+	   }
            //----- KALMAN FILTER: Passing through Kalman filter -----
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
-	   printf("pMat_Y:  %f,   %f \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
-
-
+	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+2));
 
 
 #ifdef TCP_TRANSFER
@@ -235,6 +252,7 @@ INIT_MAFILTER_FAIL:
    //---- release filter data base
    Release_int16MAFilterDB_NG(3,fdb_accXYZ);
    Release_int16MAFilterDB_NG(3,fdb_RXYZ);
+   Release_floatMAFilterDB(&fdb_fangX);
 
 INIT_PTHREAD_FAIL:
    //----- close I2C and Oled

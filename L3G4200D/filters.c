@@ -2,7 +2,7 @@
 
 
 /*----------------------------------------------------------------------
-            ***  Moving Average Filter   ***
+            *** INT16 TYPE  Moving Average Filter   ***
 1. !!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
 Filter a data stream until it ends, then reset the filter context struct before filter another.
 2.To filter data you must iterate nmov one by one:
@@ -27,7 +27,7 @@ inline int16_t int16_MAfilter(struct int16MAFilterDB *fdb, const int16_t *source
 	//----- verify filter data base
 	if(fdb->f_buff == NULL)
 	{
-		fprintf(stderr,"int16_MA16P_filter(): int16MAFilter data base has not been initilized yet!\n");
+		fprintf(stderr,"int16_MAfilter(): int16MAFilter data base has not been initilized yet!\n");
 		*dest=0;
 		return 0;
 	}
@@ -89,7 +89,7 @@ Init. int16 MA filter strut with given value
 
 *fdb --- filter data buffer base
 ng  --- filter grade number,  2^ng points average.
-limit  --- abs(limit) value for input data, above which the value will be trimmed .
+(incremental)limit  --- abs(limit) value for input data incremental value, above which the value will be trimmed .
 Return:
 	0    OK
 	<0   fails
@@ -105,7 +105,7 @@ inline int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_
 	//---- set grade
 	if(ng>INT16MAF_MAX_GRADE)
 	{
-		printf("Max. Filter grade is 10!\n");
+		printf("Max. Filter grade is %d!\n",INT16MAF_MAX_GRADE);
 		fdb->f_ng=INT16MAF_MAX_GRADE;
 	}
 	else
@@ -113,7 +113,7 @@ inline int Init_int16MAFilterDB(struct int16MAFilterDB *fdb, uint16_t ng, int16_
 
 	//---- set np
 	np=1<<(fdb->f_ng); //2^f_ng
-	fprintf(stdout,"	%d points moving average filter initilizing...\n",np);
+	fprintf(stdout,"	%d points INT16 moving average filter initilizing...\n",np);
 
 	//---- set limit
 	fdb->f_limit=abs(limit);
@@ -143,7 +143,6 @@ inline void Release_int16MAFilterDB(struct int16MAFilterDB *fdb)
 		free(fdb->f_buff);
 
 }
-
 
 /*--------------------------------------------------------
 <<<<<<<<    multi group moving average filter   >>>>
@@ -206,6 +205,151 @@ inline void Release_int16MAFilterDB_NG(uint8_t m, struct int16MAFilterDB *fdb)
 	}
 }
 
+
+//<<<<<<<<<<<<<<<<<<<<<<<<   FLOAT TYPE MOVING AVERAGE FILTER  >>>>>>>>>>>>>>>>>>>>>>>>>
+
+/*----------------------------------------------------------------------
+            *** Float TYPE  Moving Average Filter   ***
+1. !!!Reset the filter data base struct every time before call the function, to clear old data in f_buff and f_sum.
+Filter a data stream until it ends, then reset the filter context struct before filter another.
+2.To filter data you must iterate nmov one by one:
+         source[nmov] ----> filter ----> dest[nmov]
+3. dest[] is 2^ng+2 points later thean source[], so all consider reactive time when you choose ng.
+
+*fdb:     int16 MAFilter data base
+*source:  raw data input
+*dest:    where you put your filtered data
+	  (source and dest may be the same)
+nmov:     nmov_th step of moving average calculation
+
+Return:
+	The last 2^f_ng pionts average value.
+	0  if fails
+--------------------------------------------------------------------------*/
+inline float float_MAfilter(struct floatMAFilterDB *fdb, const float *source, float *dest, int nmov)
+{
+	int i;
+	int np=1<<(fdb->f_ng); //2^np points average !!!!
+
+	//----- verify filter data base
+	if(fdb->f_buff == NULL)
+	{
+		fprintf(stderr,"float_Mafilter(): floatMAFilter data base has not been initilized yet!\n");
+		*dest=0;
+		return 0;
+	}
+
+	//----- deduce old data from f_sum
+	fdb->f_sum -= fdb->f_buff[0];
+
+	//----- shift filter buff data, get rid of the oldest data
+	for(i=0; i<np+1; i++) //totally np+2 elements !!!
+	{
+		fdb->f_buff[i]=fdb->f_buff[i+1];
+	}
+	//----- put new data to the appended slot
+	fdb->f_buff[np+1]=source[nmov];
+
+	//----- get new data to fdb->f_buff[np-1] --------
+	//----- reassure limit first
+	//fdb->f_limit = abs(fdb->f_limit);
+
+#if 1	// Limit Pick Method : ---  Relative Limit --- , comparing with next fdb->f_buff[] 
+	if( fdb->f_buff[np-1] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up_limit
+	{
+		//------- if 1+2 CONTINOUS up_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit) 
+		   && fdb->f_buff[np+1] > (fdb->f_buff[np-2]+fdb->f_limit) )
+		{
+			// keep fdb->f_buff[np-1] then;
+		}
+		else
+			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
+	}
+	else if( fdb->f_buff[np-1] < (fdb->f_buff[np-2]-fdb->f_limit))  //check low_limit
+	{
+		//------- if 1+2 CONTINOUS low_limit detected, then do NOT trim ----
+		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit) 
+		  && fdb->f_buff[np+1] < (fdb->f_buff[np-2]-fdb->f_limit) )
+		{
+			// keep fdb->f_buff[np-1] then;
+		}
+		else
+			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
+	}
+
+        // ------ else if the value is within normal scope
+	//else do nothing !
+#endif
+
+	fdb->f_sum += fdb->f_buff[np-1]; //add new data to f_sum
+
+	//----- update dest with average value
+	//----- dest[] is np+2 points later then source[]
+	dest[nmov]=(fdb->f_sum)/(1 << (fdb->f_ng));
+
+	return dest[nmov];
+}
+
+/*----------------------------------------------------------------------------
+Init. float MA filter strut with given value
+
+*fdb --- filter data buffer base
+ng  --- filter grade number,  2^ng points average.
+(incremental)limit  --- abs(limit) value for input data incremental value, above which the value will be trimmed .
+Return:
+	0    OK
+	<0   fails
+--------------------------------------------------------------------------*/
+inline int Init_floatMAFilterDB(struct floatMAFilterDB *fdb, uint16_t ng, float limit)
+{
+//	int i;
+	int np;
+
+	//---- clear struct
+	memset(fdb,0,sizeof(struct floatMAFilterDB)); 
+
+	//---- set grade
+	if(ng>FLOAT_MAF_MAX_GRADE)
+	{
+		printf("Max. Filter grade is d%!\n",FLOAT_MAF_MAX_GRADE);
+		fdb->f_ng=FLOAT_MAF_MAX_GRADE;
+	}
+	else
+		fdb->f_ng=ng;
+
+	//---- set np
+	np=1<<(fdb->f_ng); //2^f_ng
+	fprintf(stdout,"	%d points float type moving average filter initilizing...\n",np);
+
+	//---- set limit
+	fdb->f_limit=abs(limit);
+	//---- clear sum
+	fdb->f_sum=0;
+	//---- allocate mem for buff data
+	fdb->f_buff = (float *)malloc( (np+2)*sizeof(float) ); //!!!! two more float for temp. store, not for AMF buff !!!
+	if(fdb->f_buff == NULL)
+	{
+		fprintf(stderr,"Init_floatMAFilterDB(): malloc f_buff failed!\n");
+		return -1;
+	}
+
+	//---- clear buff data if f_buff
+	memset(fdb->f_buff,0,(np+2)*sizeof(float));
+
+	return 0;
+}
+
+
+/*----------------------------------------------------------------------
+Release float type MA filter struct
+----------------------------------------------------------------------*/
+inline void Release_floatMAFilterDB(struct floatMAFilterDB *fdb)
+{
+	if(fdb->f_buff != NULL)
+		free(fdb->f_buff);
+
+}
 
 
 
