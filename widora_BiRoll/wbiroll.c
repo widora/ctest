@@ -1,7 +1,8 @@
 /*----------------------------------------------------
 
-set GYRO L3G4200 ODR=800Hz BW=35Hz
-set ACC. ADXL345 ODR=800Hz BW=400Hz
+1. set GYRO L3G4200 ODR=800Hz BW=35Hz
+2. set ACC. ADXL345 ODR=800Hz BW=400Hz
+3. set angle and angular rate with the same sign
 
 ----------------------------------------------------*/
 #include <stdio.h>
@@ -15,7 +16,7 @@ set ACC. ADXL345 ODR=800Hz BW=400Hz
 #include "mathwork.h"
 #include "kalman_n2m2.h"
 
-//#define TCP_TRANSFER
+#define TCP_TRANSFER
 
 
 int main(void)
@@ -163,7 +164,7 @@ int main(void)
 	   printf("Calculating fangX...\n");
 	   //------ calculate fangX -------
 	   if(accXYZ[2] == 0) accXYZ[2]=1;
-	   fangX=atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
+	   fangX=-1.0*atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
 	   printf("fangX=%f \n",fangX*180.0/PI);
 
 	   //----- accXYZ,angRXYZ convert to real value -------
@@ -200,8 +201,8 @@ int main(void)
 #ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
-//		if( send_client_data((uint8_t *)&fangX, sizeof(float)) < 0)
-		if( send_client_data((uint8_t *)(pMat_S->pmat), 2*sizeof(float)) < 0)
+//		if( send_client_data((uint8_t *)(pMat_S->pmat), 2*sizeof(float)) < 0)
+		if( send_client_data((uint8_t *)(fdb_kalman->pMY->pmat), 2*sizeof(float)) < 0)
 			printf("-------- fail to send client data ------\n");
 		send_count=5; //send everty 10th data to the client
 	   }
