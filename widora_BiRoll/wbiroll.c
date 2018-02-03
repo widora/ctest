@@ -1,9 +1,18 @@
 /*----------------------------------------------------
-
+Note:
 1. set GYRO L3G4200 ODR=800Hz BW=35Hz
 2. set ACC. ADXL345 ODR=800Hz BW=400Hz
-3. set angle and angular rate with the same sign
+3. set angle and angular rate with the same sign(positive or negative)
+4. Since period of one circle  of data reading(NOT interruptuve read) and processing is not fixed,
+   that introduces untraced noise which may be unlinear.
+5. Kalman Filter are more effective when objects are in motion !!!???
+   So other filters shall be used for stationary moment.
+6. Because of real-time computation, parameter matrix(Q,R,P,H etc.) need to adjust to prevent from
+   sliding to zero..???
+7. You have to trade off between smoothness and agility when deceide
+   filtering grade.
 
+Midas
 ----------------------------------------------------*/
 #include <stdio.h>
 #include <sys/time.h>
@@ -46,6 +55,8 @@ int main(void)
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
    //in head file: double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
 
+   //----- TCP buffer -----
+   float tcp_buff[2];
 
    //----- timer -----
    struct timeval tm_start,tm_end;
@@ -92,24 +103,23 @@ int main(void)
 		goto INIT_PTHREAD_FAIL;
    }
 
-
    //---- init filter data base for ADXL345 -----
    printf("Init int16MA filter data base for ADXL345 ...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 4, relative_uint16limit)<0) //2^4=16 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 2, relative_uint16limit)<0) //2^4=16 points average filter
    {
         ret_val=-2;
         goto INIT_MAFILTER_FAIL;
    }
    //---- init filter data base for L3G4200D -----
    printf("Init int16MA filter data base for L3G4200D...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 6, 0x7fff)<0) //2^6=64 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 4, 0x7fff)<0) // 2^6=64 points average filter
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
    }
    //----- init filter data base for fangX ----
    printf("Init float type MA filter data base for fangX...\n");
-   if( Init_floatMAFilterDB( &fdb_fangX, 6, 0.2) <0 ) //0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
+   if( Init_floatMAFilterDB( &fdb_fangX, 4, 0.3) <0 ) //  2^6=64 points MAF,0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
@@ -168,9 +178,13 @@ int main(void)
 	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); //int16, dest. and source is the same,three group fitler 
 //	   printf("Calculating fangX...\n");
 	   //------ calculate fangX -------
-	   if(accXYZ[2] == 0) accXYZ[2]=1;  // !!!!! IMPROTATN !!!!
+	   if(accXYZ[2] == 0)  // !!!!! Only for first zero data in filter buffer !!!!!!
+	   {
+		printf("accXYZ[2] == %d !\n",accXYZ[2]);
+	   	accXYZ[2]=1;  // !!!!!--- TO AVOID ZERO CASE,IMPORTANT. or it will corrupt Kalman --- !!!!
+	   }
 	   fangX=-1.0*atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
-	   printf("fangX=%f \n",fangX*180.0/PI);
+//	   printf("fangX=%f \n",fangX*180.0/PI);
 	   //----- Passing through filter for fangX ------
 	   float_MAfilter(&fdb_fangX,&fangX,&fangX,0);
 
@@ -188,40 +202,47 @@ int main(void)
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
-	   printf("dt_us = %dus \n", dt_us);
+//	   printf("dt_us = %dus \n", dt_us);
 
 	   //----- PASS dt_us to pMat_H
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
 
            //----- KALMAN FILTER: get float type sensor readings(measurement) ----
 	   //----- Avoid ZERO! -----
-//	   if(abs(fangX) < 1.0e-10 )fangX=1.0e-10; if( abs(fangRXYZ[0]) < 1.0e-10)fangRXYZ[0]=1.0e-10;
+//not necessry???	   if(fabs(fangX) < 1.0e-10 )fangX=1.0e-10; if( fabs(fangRXYZ[0]) < 1.0e-10)fangRXYZ[0]=1.0e-10;
 	   // vector (angle,angular rate)
 	   *pMat_S->pmat=fangX;
 	   *(pMat_S->pmat+1) = fangRXYZ[0];
 
-	   //----- Avoid ZERO ! ------
-	   if(*(pMat_P->pmat) < 1.0e-15){
-//		 *(pMat_P->pmat) = 0.5;
+	   //----- Avoid ZERO ???? !!!Not necessary!!! ------
+
+/*
+	   if(*(pMat_P->pmat) < 1.0e-8){
+		 *(pMat_P->pmat) = 3.0e-8;
 		 printf("==========================\n");
 	   }
-	   if(*(pMat_P->pmat+2) < 1.0e-15 ){
-//		 *(pMat_P->pmat+2) = 1.0e-8;
+	   if(*(pMat_P->pmat+2) < 1.0e-10 ){
+		 *(pMat_P->pmat+2) = 1.0e-8;
 		printf("--------------------------\n");
 	   }
+*/
            //----- KALMAN FILTER: Passing through Kalman filter -----
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
-	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+//	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
 	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+2));
 
 
 #ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
-//		if( send_client_data((uint8_t *)(pMat_S->pmat), 2*sizeof(float)) < 0)
+		//----- push up buff data
+//		tcp_buff[0]=fangX;
+//		tcp_buff[1]=fangRXYZ[0];
+		//----- TCP send
+//		if( send_client_data((uint8_t *)tcp_buff, 2*sizeof(float)) < 0)
 		if( send_client_data((uint8_t *)(fdb_kalman->pMY->pmat), 2*sizeof(float)) < 0)
 			printf("-------- fail to send client data ------\n");
-		send_count=5; //send everty 10th data to the client
+		send_count=5; //send everty xth data to the client
 	   }
 	   else
 		send_count-=1;

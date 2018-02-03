@@ -258,9 +258,10 @@ inline float float_MAfilter(struct floatMAFilterDB *fdb, const float *source, fl
 	if( fdb->f_buff[np-1] > (fdb->f_buff[np-2]+fdb->f_limit) ) //check up_limit
 	{
 		//------- if 1+2 CONTINOUS up_limit detected, then do NOT trim ----
-		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit) 
+		if( fdb->f_buff[np] > (fdb->f_buff[np-2]+fdb->f_limit)
 		   && fdb->f_buff[np+1] > (fdb->f_buff[np-2]+fdb->f_limit) )
 		{
+			printf("floatMAFilter():::::::::::::((  3 up spikes,sustained!  )):::::::::::::::\n");
 			// keep fdb->f_buff[np-1] then;
 		}
 		else
@@ -269,10 +270,11 @@ inline float float_MAfilter(struct floatMAFilterDB *fdb, const float *source, fl
 	else if( fdb->f_buff[np-1] < (fdb->f_buff[np-2]-fdb->f_limit))  //check low_limit
 	{
 		//------- if 1+2 CONTINOUS low_limit detected, then do NOT trim ----
-		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit) 
+		if( fdb->f_buff[np] < (fdb->f_buff[np-2]-fdb->f_limit)
 		  && fdb->f_buff[np+1] < (fdb->f_buff[np-2]-fdb->f_limit) )
 		{
 			// keep fdb->f_buff[np-1] then;
+			printf("floatMAFilter():::::::::::::((  3 down spikes,sustained!  )):::::::::::::::\n");
 		}
 		else
 			fdb->f_buff[np-1]=fdb->f_buff[np-2]; //use previous value then;
@@ -323,11 +325,12 @@ inline int Init_floatMAFilterDB(struct floatMAFilterDB *fdb, uint16_t ng, float 
 	fprintf(stdout,"	%d points float type moving average filter initilizing...\n",np);
 
 	//---- set limit
-	fdb->f_limit=abs(limit);
+	fdb->f_limit=fabs(limit); // !!! abs() is for int. while fabs(0 is for float type.
+	printf(" set incremental limit value=%f for floatMAF !\n", fdb->f_limit);
 	//---- clear sum
 	fdb->f_sum=0;
 	//---- allocate mem for buff data
-	fdb->f_buff = (float *)malloc( (np+2)*sizeof(float) ); //!!!! two more float for temp. store, not for AMF buff !!!
+	fdb->f_buff = (float *)malloc( (np+2)*sizeof(float) ); //!!!! two more float for temp. store, for incremental value check !!!
 	if(fdb->f_buff == NULL)
 	{
 		fprintf(stderr,"Init_floatMAFilterDB(): malloc f_buff failed!\n");
