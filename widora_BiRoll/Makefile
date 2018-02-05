@@ -12,7 +12,8 @@ DEPENDS = ../ADXL345/i2c_adxl345.h \
 	  ../L3G4200D/gyro_spi.h \
 	  ../L3G4200D/filters.h \
 	  ../L3G4200D/mathwork.h \
-	  ../L3G4200D/i2c_oled_128x64.h
+	  ../L3G4200D/i2c_oled_128x64.h \
+	  ../L3G4200D/data_server.h
 
 OBJS =   ../ADXL345/i2c_adxl345.o \
 	 ../L3G4200D/i2c_oled_128x64.o \

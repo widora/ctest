@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <malloc.h>
+#include <pthread.h>
 #include "mathwork.h"
 
 #define PI 3.1415926535898
@@ -31,6 +32,7 @@ struct  floatMAFilterDB {
 
 //----- float Kalman filter Data Base -----
 struct floatKalmanDB {
+	pthread_mutex_t kmlock;  //mutex lock
 	int n; // state var. dimension
 	int m; // observation dimension
 	struct float_Matrix *pMY;  //[nx1] state var. matrix

@@ -568,6 +568,7 @@ struct floatKalmanDB * Init_floatKalman_FilterDB(
 	struct floatKalmanDB *fdb;
 	int i,j;
 
+
 	//------ init struct floatKalmanDB ----
 	fdb=malloc(sizeof(struct floatKalmanDB));
 	if(fdb==NULL)
@@ -576,6 +577,9 @@ struct floatKalmanDB * Init_floatKalman_FilterDB(
 		return NULL;
 	}
 	memset(fdb,0,sizeof(struct floatKalmanDB));
+
+	//----- init mutex lock
+	pthread_mutex_init(&fdb->kmlock,NULL);
 
 	//----- check n and m -----
 	if( n<1 || m < 1)
@@ -718,6 +722,9 @@ void Release_floatKalman_FilterDB( struct floatKalmanDB *fdb )
 	release_float_Matrix(fdb->pMat_nXmB);
 	release_float_Matrix(fdb->pMat_nXnA);
 	release_float_Matrix(fdb->pMat_nXnB);
+
+	//----- release mutex lock
+	pthread_mutex_destroy(&fdb->kmlock);
 
 	printf("free fdb...\n");
     	free(fdb);

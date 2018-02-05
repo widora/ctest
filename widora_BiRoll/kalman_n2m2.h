@@ -48,20 +48,21 @@ float MatH[2*2]= //----- observation matrix
 
 float MatQ[2*2]= //----- process outside noise covariance
 {
- 0.5, 0,   // give a little value to prevent matrix-inverting failure.
- 0, 0.01
+ 0.1, 0.01,   // give a little value to prevent matrix-inverting failure.
+ 0.01, 0.05
 };
 
 float MatR[2*2]= //----- observatin(reading) noise covaraince
 {
- 1.0e-4,0,
- 0,1.0e-8
+  1.0e-4,0,
+  0,1.0e-8
 };
 
+// !!! MatP MUST be rather reasonable !!!
 float MatP[2*2]= //----- state convaraince matrix. init value !!
 {
- 0.3,0.1,
- 0.1,0.3
+ 3.0, 0,  //1.0e-4,0,
+ 0, 1.0   //1.0e-6
 };
 
 struct float_Matrix * pMat_Y;

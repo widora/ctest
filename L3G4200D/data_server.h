@@ -14,6 +14,7 @@ Based on: blog.csdn.net/dlutbrucezhang/article/details/8880131
 
 #include <errno.h>
 
+#include "filters.h"
 
 #define FILE_SERVER_PORT 5555
 #define SERVER_LISTEN_BACKLOG 5
@@ -29,7 +30,6 @@ int time_use;
 
 //---- addr. for client
 struct sockaddr_in client_addr;
-
 
 /*---------- error parse -----------*/
 void Perror(const char *strg)
@@ -133,6 +133,45 @@ void close_data_service(void)
 	close(cltsock_desc);
 	close(svrsock_desc);
 }
+
+/*--------------  thread function  --------------------
+Send data(angle and angular rate) to client in a loop
+------------------------------------------------------*/
+void loop_send_data(void * arg)
+{
+	int ret;
+	int k;
+	float data[10]; //5 angle + 5 angular_rate
+
+	struct floatKalmanDB *fdb_kalman=(struct floatKalmanDB *)arg;
+
+	k=0;
+	while(1)
+	{
+		if(gtok_QuitGyro) //signal for quit
+			break;
+		if(k==5) //data count 
+		{
+			ret=send(cltsock_desc,data,2*5*sizeof(float),0);
+			if(ret<0)
+				fprintf(stderr,"loop_send_data err: %s \n",strerror(errno));
+			k=0;
+		}
+		else
+		{
+			pthread_mutex_lock(&fdb_kalman->kmlock);
+			//----- copy data from kalman filter
+	 		data[k]= *(fdb_kalman->pMY->pmat);
+			data[k+5]= *(fdb_kalman->pMY->pmat+1);
+			pthread_mutex_unlock(&fdb_kalman->kmlock);
+
+			k++;
+		}
+		usleep(5*2000); // 5/2=2ms, this may control data sampling rate for TCP
+	}
+
+}
+
 
 
 #endif

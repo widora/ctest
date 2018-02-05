@@ -17,6 +17,7 @@ Midas
 #include <stdio.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include "gyro_spi.h"
 #include "gyro_l3g4200d.h"
 #include "i2c_adxl345.h" //--- use  read() write() to operate I2C
@@ -26,7 +27,6 @@ Midas
 #include "kalman_n2m2.h"
 
 #define TCP_TRANSFER
-
 
 int main(void)
 {
@@ -64,6 +64,8 @@ int main(void)
 
    //----- pthread -----
    pthread_t pthrd_WriteOled;
+   pthread_t pthrd_TCPsendData;
+//   bool gtok_DataReady=false; // True if fdb_kalman is updated.
    int pret;
 
    //------ init. ADXL345 -----
@@ -98,10 +100,11 @@ int main(void)
    //----- create thread for displaying data to OLED
    if(pthread_create(&pthrd_WriteOled,NULL, (void *)thread_gyroWriteOled, NULL) !=0)
    {
-		printf("fail to create pthread for OLED displaying\n");
-		ret_val=-1;
-		goto INIT_PTHREAD_FAIL;
+	printf("fail to create pthread for OLED displaying\n");
+	ret_val=-1;
+	goto INIT_PTHREAD_FAIL;
    }
+
 
    //---- init filter data base for ADXL345 -----
    printf("Init int16MA filter data base for ADXL345 ...\n");
@@ -112,14 +115,14 @@ int main(void)
    }
    //---- init filter data base for L3G4200D -----
    printf("Init int16MA filter data base for L3G4200D...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 4, 0x7fff)<0) // 2^6=64 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 2, 0x7fff)<0) // 2^6=64 points average filter
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
    }
    //----- init filter data base for fangX ----
    printf("Init float type MA filter data base for fangX...\n");
-   if( Init_floatMAFilterDB( &fdb_fangX, 4, 0.3) <0 ) //  2^6=64 points MAF,0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
+   if( Init_floatMAFilterDB( &fdb_fangX, 3, 0.3) <0 ) //  2^6=64 points MAF,0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
@@ -127,6 +130,7 @@ int main(void)
 
    //---- preare TCP data server
 #ifdef TCP_TRANSFER
+
    printf("Prepare TCP data server ...\n");
    if(prepare_data_server() < 0)
    {
@@ -134,10 +138,8 @@ int main(void)
 	ret_val=-3;
 	goto CALL_FAIL;
    }
-#endif
 
    //----- wait to accept data client ----
-#ifdef TCP_TRANSFER
    printf("wait for Matlab to connect...\n");
    cltsock_desc=accept_data_client();
    if(cltsock_desc < 0){
@@ -145,6 +147,15 @@ int main(void)
 	ret_val=-4;
 	goto CALL_FAIL;
    }
+
+   //----- create thread for TCP data sending
+   if(pthread_create(&pthrd_TCPsendData,NULL,(void *)loop_send_data, (void *)fdb_kalman) !=0)
+   {
+	printf("fail to create pthread for TCP data transfering\n");
+	ret_val=-1;
+	goto CALL_FAIL;
+   }
+
 #endif
 
    //================   LOOP: read data from sensors and proceed  ===============
@@ -191,7 +202,7 @@ int main(void)
 	   //----- accXYZ,angRXYZ convert to real value -------
 	   for(i=0; i<3; i++)
 	   {
-           	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i];
+           	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i]; // g
 		fangRXYZ[i]=fs_dpus*angRXYZ[i];  //rad/us
  	   }
 /*
@@ -202,7 +213,7 @@ int main(void)
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
-//	   printf("dt_us = %dus \n", dt_us);
+	   printf("dt_us = %dus \n", dt_us);
 
 	   //----- PASS dt_us to pMat_H
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
@@ -227,11 +238,14 @@ int main(void)
 	   }
 */
            //----- KALMAN FILTER: Passing through Kalman filter -----
+	   pthread_mutex_lock(&fdb_kalman->kmlock);
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
-//	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+	   pthread_mutex_unlock(&fdb_kalman->kmlock);
+	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
 	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+2));
+	   printf("pMat_Q:  %e,   %e \n", *pMat_Q->pmat, *(pMat_Q->pmat+2));
 
-
+/*
 #ifdef TCP_TRANSFER
 	   if(send_count==0)
 	   {
@@ -247,7 +261,7 @@ int main(void)
 	   else
 		send_count-=1;
 #endif
-
+*/
    }  //---------------------------  end of loop  -----------------------------
 
 
@@ -261,6 +275,7 @@ int main(void)
    //----- wait OLED display thread
    gtok_QuitGyro=true;
    pthread_join(pthrd_WriteOled,NULL);
+   pthread_join(pthrd_TCPsendData,NULL);
 
 
 CALL_FAIL:

@@ -6,7 +6,7 @@
 CC = /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 APP = gyro
 SOURCES = gyro_test.c
-DEPENDS = gyro_l3g4200d.h gyro_spi.h filters.h mathwork.h i2c_oled_128x64.h
+DEPENDS = gyro_l3g4200d.h gyro_spi.h filters.h mathwork.h i2c_oled_128x64.h data_server.h
 OBJS =i2c_oled_128x64.o gyro_l3g4200d.o filters.o mathwork.o gyro_spi.o
 
 INCLUDES = -I/home/midas/ctest
@@ -14,7 +14,7 @@ INCLUDES = -I/home/midas/ctest
 #CFLAGS    = -Wall
 LIBS	  = -lm -lpthread
 
-$(APP) : gyro_test.c $(OBJS) filters.h mathwork.h
+$(APP) : gyro_test.c $(OBJS)  $(DEPENDS)
 	$(CC) -o $(APP) $(CFLAGS) -lpthread $(INCLUDES) gyro_test.c $(OBJS)
 
 filters.o : filters.c mathwork.h mathwork.o
