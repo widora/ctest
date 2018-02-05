@@ -1,4 +1,4 @@
-/*----------------------------------------------------
+/*----------------------------------------------------------------------------------------
 Note:
 1. set GYRO L3G4200 ODR=800Hz BW=35Hz
 2. set ACC. ADXL345 ODR=800Hz BW=400Hz
@@ -9,11 +9,13 @@ Note:
    So other filters shall be used for stationary moment.
 6. Because of real-time computation, parameter matrix(Q,R,P,H etc.) need to adjust to prevent from
    sliding to zero..???
-7. You have to trade off between smoothness and agility when deceide
+7. Kalman matrix Q and R shall not both be zero !!! that will make computing matrix invertible!
+8. You have to trade off between smoothness and agility when deceide
    filtering grade.
-
+9. Sensors' sampling frequency shall be high enough to cover main noise frequency ??
+10. When either Q or R is a zero matrix, matrix P will finally evolved to a zero matrix!  Why ???!
 Midas
-----------------------------------------------------*/
+-----------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <sys/time.h>
 #include <pthread.h>
@@ -108,21 +110,21 @@ int main(void)
 
    //---- init filter data base for ADXL345 -----
    printf("Init int16MA filter data base for ADXL345 ...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 2, relative_uint16limit)<0) //2^4=16 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_accXYZ, 1, relative_uint16limit)<0) //2^4=16 points average filter
    {
         ret_val=-2;
         goto INIT_MAFILTER_FAIL;
    }
    //---- init filter data base for L3G4200D -----
    printf("Init int16MA filter data base for L3G4200D...\n");
-   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 2, 0x7fff)<0) // 2^6=64 points average filter
+   if( Init_int16MAFilterDB_NG(3, fdb_RXYZ, 1, 0x7fff)<0) // 2^6=64 points average filter
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
    }
    //----- init filter data base for fangX ----
    printf("Init float type MA filter data base for fangX...\n");
-   if( Init_floatMAFilterDB( &fdb_fangX, 3, 0.3) <0 ) //  2^6=64 points MAF,0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
+   if( Init_floatMAFilterDB( &fdb_fangX, 1, 0.1) <0 ) //  2^6=64 points MAF,0.2 rad/5ms !!! MAX. incremental of angle chang in ~5ms (one data gap)
    {
 	ret_val=-2;
 	goto INIT_MAFILTER_FAIL;
@@ -226,6 +228,7 @@ int main(void)
 	   *(pMat_S->pmat+1) = fangRXYZ[0];
 
 	   //----- Avoid ZERO ???? !!!Not necessary!!! ------
+//	   *(pMat_P->pmat) = 0.3;
 
 /*
 	   if(*(pMat_P->pmat) < 1.0e-8){
@@ -242,7 +245,8 @@ int main(void)
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
 	   pthread_mutex_unlock(&fdb_kalman->kmlock);
 	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
-	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+2));
+	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+3));
+	   printf("pMat_Pp:  %e,  %e \n", *fdb_kalman->pMPp->pmat, *(fdb_kalman->pMPp->pmat+3));
 	   printf("pMat_Q:  %e,   %e \n", *pMat_Q->pmat, *(pMat_Q->pmat+2));
 
 /*

@@ -36,7 +36,7 @@ float MatY[2*1]=  //----- state of (angle, angular rate)
 
 float MatF[2*2]= //----- state transition matrix
 {
- 1, 0,  ///Angle[n]=Angle[n-1]+angular_rate*5m  dt_us  will be real value
+ 1, 6000,  ///Angle[n]=Angle[n-1]+angular_rate*5m  dt_us  will be real value
  0, 1
 };
 
@@ -46,23 +46,29 @@ float MatH[2*2]= //----- observation matrix
  0, 1
 };
 
+/*--------------------------------------
+ Pp=F*P*F'+Q
+MatQ and MatR shall NOT both be zero!
+---------------------------------------*/
 float MatQ[2*2]= //----- process outside noise covariance
 {
- 0.1, 0.01,   // give a little value to prevent matrix-inverting failure.
- 0.01, 0.05
+1e-18, 0.0, //1e-5  // ????give a little value to prevent matrix-inverting failure.
+ 0.0, 1e-20
 };
 
 float MatR[2*2]= //----- observatin(reading) noise covaraince
 {
-  1.0e-4,0,
-  0,1.0e-8
+  2e-6,0, //1e-6,0,  --OK
+  0,1e-6 //0,1e-6
 };
+
+
 
 // !!! MatP MUST be rather reasonable !!!
 float MatP[2*2]= //----- state convaraince matrix. init value !!
 {
- 3.0, 0,  //1.0e-4,0,
- 0, 1.0   //1.0e-6
+ 1,0, //  2.0e-4,0,
+ 0, 5.0e-4
 };
 
 struct float_Matrix * pMat_Y;
