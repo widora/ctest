@@ -40,7 +40,8 @@ struct floatKalmanDB {
 const	struct float_Matrix *pMF;  //[nxn] transition matrix
         struct float_Matrix *pMFtp;  //[nxn] transpose matrix of pMF
         struct float_Matrix *pMP;  //[nxn] state covariance
-	struct float_Matrix *pMPp; //[nxn] predicted state conv. 
+	struct float_Matrix *pMPp; //[nxn] predicted state conv.
+const   struct float_Matrix *pMS;  //[mx1] observation(reading) -- (Input)
 const   struct float_Matrix *pMH;  //[mxn] observation transformation
         struct float_Matrix *pMHtp;  //[mxn] transpose matrix of observation transformation
 const   struct float_Matrix *pMQ;  //[nxn] system noise covariance

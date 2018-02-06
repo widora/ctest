@@ -141,7 +141,7 @@ void loop_send_data(void * arg)
 {
 	int ret;
 	int k;
-	float data[10]; //5 angle + 5 angular_rate
+	float data[5*3]; //5 angle(original) + 5 angle(filtered) + 5 angular_rate
 
 	struct floatKalmanDB *fdb_kalman=(struct floatKalmanDB *)arg;
 
@@ -150,9 +150,9 @@ void loop_send_data(void * arg)
 	{
 		if(gtok_QuitGyro) //signal for quit
 			break;
-		if(k==5) //data count 
+		if(k==5) //data count
 		{
-			ret=send(cltsock_desc,data,2*5*sizeof(float),0);
+			ret=send(cltsock_desc,data,3*5*sizeof(float),0);
 			if(ret<0)
 				fprintf(stderr,"loop_send_data err: %s \n",strerror(errno));
 			k=0;
@@ -161,8 +161,9 @@ void loop_send_data(void * arg)
 		{
 			pthread_mutex_lock(&fdb_kalman->kmlock);
 			//----- copy data from kalman filter
-	 		data[k]= *(fdb_kalman->pMY->pmat);
-			data[k+5]= *(fdb_kalman->pMY->pmat+1);
+	 		data[k]= *(fdb_kalman->pMS->pmat);
+	 		data[k+5]= *(fdb_kalman->pMY->pmat);
+			data[k+10]= *(fdb_kalman->pMY->pmat+1);
 			pthread_mutex_unlock(&fdb_kalman->kmlock);
 
 			k++;

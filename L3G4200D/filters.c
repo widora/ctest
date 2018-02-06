@@ -436,14 +436,15 @@ struct floatKalmanDB {
         int m; // observation dimension
         struct float_Matrix *pMY;  //[nx1] state var. matrix
         struct float_Matrix *pMYp; //[nx1] predicted state var.
-        struct float_Matrix *pMF;  //[nxn] transition matrix
-        struct float_Matrix *pMFtp;  //[nxn] transpose of transition matrix
+const   struct float_Matrix *pMF;  //[nxn] transition matrix
+        struct float_Matrix *pMFtp;  //[nxn] transpose matrix of pMF
         struct float_Matrix *pMP;  //[nxn] state covariance
         struct float_Matrix *pMPp; //[nxn] predicted state conv. 
-        struct float_Matrix *pMH;  //[mxn] observation transformation
-        struct float_Matrix *pMHtp;  //[nxm] the transpose of observation transformation
-        struct float_Matrix *pMQ;  //[nxn] system noise covariance
-        struct float_Matrix *pMR;  //[mxm] observation noise covariance
+const   struct float_Matrix *pMS;  //[mx1] observation(reading) -- Input
+const   struct float_Matrix *pMH;  //[mxn] observation transformation
+        struct float_Matrix *pMHtp;  //[mxn] transpose matrix of observation transformation
+const   struct float_Matrix *pMQ;  //[nxn] system noise covariance
+const   struct float_Matrix *pMR;  //[mxm] observation noise covariance
         struct float_Matrix *pMI; //[nxn] eye matrix with 1 on diagonal and zeros elesewhere
         struct float_Matrix *pMK; //[nxm] Kalman Gain Matrix
 ---------------------------------------------------------------------------------------------------*/
@@ -469,6 +470,9 @@ void  float_KalmanFilter( struct floatKalmanDB *fdb,    //filter data base
 				matrix dimension incorrect!\n", fdb->m, pMS->nr, pMS->nc);
 		return;
 	}
+
+	//----- get pMS ----
+	fdb->pMS = pMS;
 
 	//----- 1.Predict(priori) state:  Yp = F*Y -----(n,1) = (n,n)*(n,1)
 //	printf("Yp = F*Y\n");

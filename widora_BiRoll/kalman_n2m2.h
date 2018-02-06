@@ -52,8 +52,8 @@ MatQ and MatR shall NOT both be zero!
 ---------------------------------------*/
 float MatQ[2*2]= //----- process outside noise covariance
 {
-1e-18, 0.0, //1e-5  // ????give a little value to prevent matrix-inverting failure.
- 0.0, 1e-20
+1e-16, 0.0, //1e-18,0,  // ????give a little value to prevent matrix-inverting failure.
+ 0.0, 1e-19 //0,1e-20,0
 };
 
 float MatR[2*2]= //----- observatin(reading) noise covaraince
