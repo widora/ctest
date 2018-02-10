@@ -28,8 +28,9 @@ Midas
 #include "filters.h"
 #include "mathwork.h"
 #include "kalman_n2m2.h"
+#include "pwm_ctl.c" //motor control
 
-#define TCP_TRANSFER
+//#define TCP_TRANSFER
 //#define PTHREAD_READ_SENSORS
 
 
@@ -206,6 +207,15 @@ int main(void)
 	goto INIT_MAFILTER_FAIL;
    }
 
+
+   //----- prepare Motor control system  ----
+   printf("Init Motro control system ...\n");
+   if( init_Motor_Control() != 0)
+   {
+	ret_val=-2;
+	goto INIT_MOTOR_CONTROL_FAIL;
+   }
+
 //-------------- Prepare TCP Data Server ----------------
 #ifdef TCP_TRANSFER
    printf("Prepare TCP data server ...\n");
@@ -329,7 +339,7 @@ while (1) {
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
-//	   printf("dt_us = %dus \n", dt_us);
+	   printf("dt_us = %dus \n", dt_us);
 
 	   //----- PASS dt_us to pMat_H
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
@@ -345,10 +355,16 @@ while (1) {
 	   pthread_mutex_lock(&fdb_kalman->kmlock);
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
 	   pthread_mutex_unlock(&fdb_kalman->kmlock);
-//	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
 //	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+3));
 //	   printf("pMat_Pp:  %e,  %e \n", *fdb_kalman->pMPp->pmat, *(fdb_kalman->pMPp->pmat+3));
 //	   printf("pMat_Q:  %e,   %e \n", *pMat_Q->pmat, *(pMat_Q->pmat+2));
+
+	   //------ control motor to counter inclination -------
+	   // 1e-2 angle, 1e-7 angular rate
+//	   set_Motor_Speed(50+10*100*fabs(*pMat_Y->pmat)+3e+7*fabs(*(pMat_Y->pmat+1)), *pMat_Y->pmat);
+	   set_Motor_Speed(300+2*100*fabs(*pMat_Y->pmat), *pMat_Y->pmat);
+//	   set_Motor_Speed(300+50*1e+7*fabs(*(pMat_Y->pmat+1)), *(pMat_Y->pmat+1));
 
    }  //---------------------------  end of loop  -----------------------------
 
@@ -375,11 +391,15 @@ while (1) {
 
 CALL_FAIL:
 
+
 #ifdef PTHREAD_READ_SENSORS
    //------ release mutext locker -----
    pthread_mutex_destroy(&int16_accXYZ_data.accmLock);
    pthread_mutex_destroy(&int16_angRXYZ_data.angmLock);
 #endif //PTHREAD_READ_SENSORS end
+
+INIT_MOTOR_CONTROL_FAIL:
+   release_Motor_Control();
 
 INIT_KALMAN_FAIL:
    //----- release Kalman data base and filter -----

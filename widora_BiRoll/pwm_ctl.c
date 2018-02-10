@@ -19,13 +19,15 @@ Midas
 #include <math.h> //-- -lm
 #include <stdbool.h> //bool
 #include "pinctl.h"
-
 #include "/home/midas/ctest/kmods/soopwm/sooall_pwm.h"
+
 #define PWM_DEV "/dev/sooall_pwm"
+
+#define MAX_MOTOR_PWM 400
+#define MIN_MOTOR_PWM 255
 
 static int g_pwm_fd; // pwm device descriptor
 static struct pwm_cfg  g_pwm_cfg; //pwm configuration strut
-
 
 /*-------------  init_Motor_Control  ----------------------
 Prepare motor direction control pins and PWM configuration
@@ -118,14 +120,17 @@ colse pwm device and release GPIO pin mmap
 both PWM0 and PWM1 will be configured
 PWM0 -- right wheel motor
 PWM1 -- left wheel motro
+
 pwmval: pwm threshold value
-	Limit: 400(fastest) - 250(slowest)
+	Limit:
+		MAX_MOTOR_PWM(fastest)
+		MIN_MOTOR_PWM(slowest)
 dirval:
 	> 0 forward
 	= 0 brake
 	< 0 revers
 -----------------------------------------*/
-void set_Motor_Speed(int pwmval,  int dirval)
+void set_Motor_Speed(int pwmval,  float dirval)
 {
 	//----- set running direction ------
 	if (dirval == 0)
@@ -136,10 +141,15 @@ void set_Motor_Speed(int pwmval,  int dirval)
 		SET_MOTOR_REVERSE;
 
 	//----- set pwm shreshold to change running speed -----
-	if(pwmval > 400 || pwmval <250)
+	if(pwmval > MAX_MOTOR_PWM )
 	{
-		printf(" PWM threshold out of range(250~400) !\n");
-		return;
+		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval, MAX_MOTOR_PWM, MIN_MOTOR_PWM);
+		pwmval=MAX_MOTOR_PWM;
+	}
+	else if(pwmval < MIN_MOTOR_PWM )
+	{
+		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval,MAX_MOTOR_PWM, MIN_MOTOR_PWM);
+		pwmval=MIN_MOTOR_PWM;
 	}
 	g_pwm_cfg.threshold=pwmval;
 	g_pwm_cfg.no        =   0;    /* pwm0 */
@@ -151,6 +161,7 @@ void set_Motor_Speed(int pwmval,  int dirval)
 
 }
 
+/*
 //========================== Main  ==========
 int main(int argc, char *argv[])
 {
@@ -191,3 +202,4 @@ int main(int argc, char *argv[])
 	ret=0;
 	return ret;
 }
+*/
