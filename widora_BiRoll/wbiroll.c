@@ -162,9 +162,10 @@ int main(void)
 	goto INIT_L3G4200D_FAIL;
    }
    //----- init i2c and oled -----
+/*
    printf("Init I2C OLED ...\n");
    init_OLED_128x64();
-
+*/
    //----- init N2M2 Kalman Filter ----
    if(init_N2M2_KalmanFilter() !=0)
    {
@@ -173,12 +174,15 @@ int main(void)
    }
 
    //----- create thread for displaying data to OLED
+/*
    if(pthread_create(&pthrd_WriteOled,NULL, (void *)thread_gyroWriteOled, NULL) !=0)
+
    {
 	printf("fail to create pthread for OLED displaying\n");
 	ret_val=-1;
 	goto INIT_PTHREAD_FAIL;
    }
+*/
 
    //---- init filter data base for ADXL345 -----
    printf("Init int16MA filter data base for ADXL345 ...\n");
@@ -318,14 +322,14 @@ while (1) {
            	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i]; // g
 		fangRXYZ[i]=fs_dpus*angRXYZ[i];  //rad/us
  	   }
-/*
-           printf("\rK=%d, accX: %+f,  accY: %+f,  accZ:%+f \n", k, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
-	   printf("k=%d, fangX: %+f,  fangY: %+f,  fangZ:%+f \e[1A", k, g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
-	   fflush(stdout);
-*/
+
+//         printf("\rK=%d, accX: %+f,  accY: %+f,  accZ:%+f \n", k, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
+//	   printf("k=%d, fangX: %+f,  fangY: %+f,  fangZ:%+f \e[1A", k, g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
+//	   fflush(stdout);
+
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
-	   printf("dt_us = %dus \n", dt_us);
+//	   printf("dt_us = %dus \n", dt_us);
 
 	   //----- PASS dt_us to pMat_H
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
@@ -335,7 +339,7 @@ while (1) {
 //not necessry???	   if(fabs(fangX) < 1.0e-10 )fangX=1.0e-10; if( fabs(fangRXYZ[0]) < 1.0e-10)fangRXYZ[0]=1.0e-10;
 	   // vector (angle,angular rate)
 	   *pMat_S->pmat=fangX;
-	   *(pMat_S->pmat+1) = fangRXYZ[0];
+	   *(pMat_S->pmat+1) = fangRXYZ[1];
 
            //----- KALMAN FILTER: Passing through Kalman filter -----
 	   pthread_mutex_lock(&fdb_kalman->kmlock);
@@ -356,11 +360,13 @@ while (1) {
 
    printf("-----  integral value of fangX=%f  fangY=%f  fangZ=%f  ------\n", g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
 
-   //----- wait OLED display thread
+   //----- thread quit signal -----
    gtok_QuitGyro=true;
+/*
+   //----- wait OLED display thread
    pthread_join(pthrd_WriteOled,NULL);
    pthread_join(pthrd_TCPsendData,NULL);
-
+*/
 #ifdef PTHREAD_READ_SENSORS
    pthread_join(pthrd_ReadADXL345,NULL);
    pthread_join(pthrd_ReadL3G4200D,NULL);
@@ -387,8 +393,9 @@ INIT_MAFILTER_FAIL:
 
 INIT_PTHREAD_FAIL:
    //----- close I2C and Oled
+/*
    close_OLED_128x64();
-
+*/
 INIT_L3G4200D_FAIL:
    //----- close L3G4200D
    Close_L3G4200D();

@@ -2,7 +2,7 @@
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 ------------------------------------------------------------------*/
-//#include <stdint.h> //this is for uint32_t in user space only, shall make it comment when compile for kernel module.
+#include <stdint.h> //this is for uint32_t in user space only, shall make it comment when compile for kernel module.
 
 #ifndef _SOOALL_PWM_H_
 #define _SOOALL_PWM_H_
