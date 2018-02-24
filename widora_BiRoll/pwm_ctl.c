@@ -143,12 +143,12 @@ void set_Motor_Speed(int pwmval,  float dirval)
 	//----- set pwm shreshold to change running speed -----
 	if(pwmval > MAX_MOTOR_PWM )
 	{
-		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval, MAX_MOTOR_PWM, MIN_MOTOR_PWM);
+//		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval, MAX_MOTOR_PWM, MIN_MOTOR_PWM);
 		pwmval=MAX_MOTOR_PWM;
 	}
 	else if(pwmval < MIN_MOTOR_PWM )
 	{
-		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval,MAX_MOTOR_PWM, MIN_MOTOR_PWM);
+//		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval,MAX_MOTOR_PWM, MIN_MOTOR_PWM);
 		pwmval=MIN_MOTOR_PWM;
 	}
 	g_pwm_cfg.threshold=pwmval;

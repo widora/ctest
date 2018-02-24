@@ -13,7 +13,8 @@ Note:
     You MUST adjust matrix Q and R deliberately, assign with reasonable value to make Kalman work.
 9. Multi_threads for polling_sensor_data works ugly unless you set usleep(5000) in main while() loop,
     however it still produce more burr signals for acceleration reading than non_threads pollinging method.
-10. If there are other devices connected to the I2C interface, that will affect acceleration result considerably.
+10. If there are other devices connected to the I2C interface, that will affect acceleration result considerably??.
+11. Power supply for motor driver and Widora_NEO must be effectively decoupled, or provided separately.
 
 Midas
 -----------------------------------------------------------------------------------------*/
@@ -101,7 +102,9 @@ void read_int16angRXYZ(void *arg)
 #endif //PTHREAD_READ_SENSORS end
 
 
-//======================  MAIN ====================
+/*=========================   MAIN  ===============================
+    WiBi Roll Main Function
+-----------------------------------------------------------------*/
 int main(void)
 {
    int ret_val;
@@ -126,6 +129,8 @@ int main(void)
    struct int16MAFilterDB fdb_RXYZ[3]; //filter data base
 
    //------ PID time difference -----
+   int pwmval; //pwm value and direction for Motor control
+   float pwmdir;
    uint32_t dt_us; //delta time in us //U16: 0-65535 
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
    //in head file: double g_fangXYZ[3]={0};// angle value of X Y Z  ---- g_fangXYZ[]= integ{ dt_us*fangRXYZ[] }
@@ -269,7 +274,7 @@ int main(void)
 	goto CALL_FAIL;
    }
    printf(" finishing creating pthread reading sensors....\n");
-#endif  //PTHREAD_READ_SENSORS
+#endif  //PTHREAD_READ_SENSORS ends
 
 
    k=0;
@@ -291,7 +296,7 @@ while (1) {
 	   memcpy(angRXYZ,int16_angRXYZ_data.angRXYZ,3*sizeof(int16_t));
 	   pthread_mutex_unlock(&int16_angRXYZ_data.angmLock);
 
-#else  // No pthread applied ---
+#else  // ------ <<<<<<  No pthread applied  >>>>>> -------- Prefered!!!
 	   //printf("start adxl reading..\n");
 	   //----- read acceleration value of XYZ
 	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
@@ -302,9 +307,8 @@ while (1) {
 
 #endif  //PTHREAD_READ_SENSORS end
 
-
 	   //=================(( apply BIAs  ))=================
-	   //------  ADXL345: register OFSX,OFSY,OFSZ set in Init_ADXL345()
+	   //------  ADXL345: bias ajusted already with register OFSX,OFSY,OFSZ set in Init_ADXL345(), 
 	   //------  L3G4200D: deduce bias to adjust zero level, g_bias_int16RXYZ[] get in Init_L3G4200D()
 	   for(i=0; i<3; i++)
 		   angRXYZ[i]=angRXYZ[i]-g_bias_int16RXYZ[i];
@@ -316,7 +320,7 @@ while (1) {
 	   //----- Passing through filter for angualr rate RX RY RZ  -------
 	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); //int16, dest. and source is the same,three group fitler 
 	   //------ calculate fangX -------
-	   if(accXYZ[2] == 0)  // !!!!! Only for first zero data in filter buffer !!!!!!
+	   if(accXYZ[2] == 0)  // !!!!! for initial zero data in filter buffer !!!!!!
 	   {
 		printf("accXYZ[2] == %d !\n",accXYZ[2]);
 	   	accXYZ[2]=1;  // !!!!!--- TO AVOID ZERO CASE,IMPORTANT. or it will corrupt Kalman --- !!!!
@@ -329,10 +333,9 @@ while (1) {
 	   //----- accXYZ,angRXYZ convert to real value -------
 	   for(i=0; i<3; i++)
 	   {
-           	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i]; // g
-		fangRXYZ[i]=fs_dpus*angRXYZ[i];  //rad/us
+           	faccXYZ[i]=fsmg_full/1000.0*accXYZ[i]; // final unit: (g)
+		fangRXYZ[i]=fs_dpus*angRXYZ[i]; // final unit: (rad/us)
  	   }
-
 //         printf("\rK=%d, accX: %+f,  accY: %+f,  accZ:%+f \n", k, faccXYZ[0], faccXYZ[1], faccXYZ[2]);
 //	   printf("k=%d, fangX: %+f,  fangY: %+f,  fangZ:%+f \e[1A", k, g_fangXYZ[0], g_fangXYZ[1], g_fangXYZ[2]);
 //	   fflush(stdout);
@@ -341,29 +344,35 @@ while (1) {
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
 	   printf("dt_us = %dus \n", dt_us);
 
-	   //----- PASS dt_us to pMat_H
+	   //----- PASS dt_us to pMat_H ------
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
 
            //----- KALMAN FILTER: get float type sensor readings(measurement) ----
 	   //----- Avoid ZERO! -----
 //not necessry???	   if(fabs(fangX) < 1.0e-10 )fangX=1.0e-10; if( fabs(fangRXYZ[0]) < 1.0e-10)fangRXYZ[0]=1.0e-10;
-	   // vector (angle,angular rate)
-	   *pMat_S->pmat=fangX;
-	   *(pMat_S->pmat+1) = fangRXYZ[1];
+	   // assign observation vector (angle,angular rate)
+	   *pMat_S->pmat=fangX; //angle
+	   *(pMat_S->pmat+1) = fangRXYZ[1]; //angular rate
 
            //----- KALMAN FILTER: Passing through Kalman filter -----
 	   pthread_mutex_lock(&fdb_kalman->kmlock);
            float_KalmanFilter( fdb_kalman, pMat_S );   //[mx1] input observation matrix
 	   pthread_mutex_unlock(&fdb_kalman->kmlock);
-	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
+//	   printf("pMat_Y:  %e,   %e \n", *pMat_Y->pmat, *(pMat_Y->pmat+1));
 //	   printf("pMat_P:  %e,   %e \n", *fdb_kalman->pMP->pmat, *(fdb_kalman->pMP->pmat+3));
 //	   printf("pMat_Pp:  %e,  %e \n", *fdb_kalman->pMPp->pmat, *(fdb_kalman->pMPp->pmat+3));
 //	   printf("pMat_Q:  %e,   %e \n", *pMat_Q->pmat, *(pMat_Q->pmat+2));
 
 	   //------ control motor to counter inclination -------
+	   //  void set_Motor_Speed(int pwmval,  float dirval)
 	   // 1e-2 angle, 1e-7 angular rate
+	   // pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only)
+	   pwmval=4000*fabs(*pMat_Y->pmat)+1.0e8*fabs(*(pMat_Y->pmat+1));
+	   pwmdir=*pMat_Y->pmat;
+	   printf(" pwmval=%d pwmdir=%f\n",pwmval, pwmdir);
+	   set_Motor_Speed(pwmval, pwmdir);
 //	   set_Motor_Speed(50+10*100*fabs(*pMat_Y->pmat)+3e+7*fabs(*(pMat_Y->pmat+1)), *pMat_Y->pmat);
-	   set_Motor_Speed(300+2*100*fabs(*pMat_Y->pmat), *pMat_Y->pmat);
+//	   set_Motor_Speed(300+5*100*fabs(*pMat_Y->pmat), *pMat_Y->pmat);
 //	   set_Motor_Speed(300+50*1e+7*fabs(*(pMat_Y->pmat+1)), *(pMat_Y->pmat+1));
 
    }  //---------------------------  end of loop  -----------------------------
