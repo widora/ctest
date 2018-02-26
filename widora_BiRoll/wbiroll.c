@@ -15,6 +15,7 @@ Note:
     however it still produce more burr signals for acceleration reading than non_threads pollinging method.
 10. If there are other devices connected to the I2C interface, that will affect acceleration result considerably??.
 11. Power supply for motor driver and Widora_NEO must be effectively decoupled, or provided separately.
+12. Ajust MAX_MOTOR_PWM to limit running speed.
 
 Midas
 -----------------------------------------------------------------------------------------*/
@@ -149,6 +150,7 @@ int main(void)
    pthread_t pthrd_ReadL3G4200D;
    int pret;
    int mret;
+
    //------ init. ADXL345 -----
    //Note: adjust ADXL_DATAREADY_WAITUS accordingly in i2c_adxl345_2.h ...
    //Full resolution,OFSX,OFSY,
@@ -297,11 +299,11 @@ while (1) {
 	   pthread_mutex_unlock(&int16_angRXYZ_data.angmLock);
 
 #else  // ------ <<<<<<  No pthread applied  >>>>>> -------- Prefered!!!
-	   //printf("start adxl reading..\n");
+//	   printf("start adxl reading..\n");
 	   //----- read acceleration value of XYZ
 	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
 	   //------- read angular rate of XYZ
-	   //printf(" start gyro reading...\n");
+//	   printf(" start gyro reading...\n");
 	   gyro_read_int16RXYZ(angRXYZ);
 	   //printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
 
@@ -319,14 +321,16 @@ while (1) {
            int16_MAfilter_NG(3,fdb_accXYZ, accXYZ, accXYZ, 0); //int16, dest. and source is the same,three filter groups, only [0] data filt
 	   //----- Passing through filter for angualr rate RX RY RZ  -------
 	   int16_MAfilter_NG(3,fdb_RXYZ, angRXYZ, angRXYZ, 0); //int16, dest. and source is the same,three group fitler 
-	   //------ calculate fangX -------
+	   //------ to provent initial zero  -------
 	   if(accXYZ[2] == 0)  // !!!!! for initial zero data in filter buffer !!!!!!
 	   {
 		printf("accXYZ[2] == %d !\n",accXYZ[2]);
 	   	accXYZ[2]=1;  // !!!!!--- TO AVOID ZERO CASE,IMPORTANT. or it will corrupt Kalman --- !!!!
 	   }
+	   //----- calcualate inclination angle fangX ----
 	   fangX=-1.0*atan( (accXYZ[0]*1.0)/(accXYZ[2]*1.0) ); //atan(x/z)
 //	   printf("fangX=%f \n",fangX*180.0/PI);
+
 	   //----- Passing through filter for fangX ------
 	   float_MAfilter(&fdb_fangX,&fangX,&fangX,0);
 
@@ -342,9 +346,14 @@ while (1) {
 
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
-	   printf("dt_us = %dus \n", dt_us);
+	   if(k==10) {
+	   	printf("dt_us = %dus \n", dt_us);
+		k=0;
+	   }
+	   else
+		k++;
 
-	   //----- PASS dt_us to pMat_H ------
+	   //----- PASS dt_us to pMat_F ------
 	   *(pMat_F->pmat+1)=dt_us; // !!! -- This will introduce unlinear factors -- !!!
 
            //----- KALMAN FILTER: get float type sensor readings(measurement) ----
@@ -367,9 +376,10 @@ while (1) {
 	   //  void set_Motor_Speed(int pwmval,  float dirval)
 	   // 1e-2 angle, 1e-7 angular rate
 	   // pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only)
-	   pwmval=4000*fabs(*pMat_Y->pmat)+1.0e8*fabs(*(pMat_Y->pmat+1));
+	   pwmval=6000*fabs(*pMat_Y->pmat)+5.0e8*fabs(*(pMat_Y->pmat+1));
 	   pwmdir=*pMat_Y->pmat;
-	   printf(" pwmval=%d pwmdir=%f\n",pwmval, pwmdir);
+//	   printf(" pwmval=%d pwmdir=%f\n",pwmval, pwmdir);
+//	   printf(" try to set Motor speed ...\n");
 	   set_Motor_Speed(pwmval, pwmdir);
 //	   set_Motor_Speed(50+10*100*fabs(*pMat_Y->pmat)+3e+7*fabs(*(pMat_Y->pmat+1)), *pMat_Y->pmat);
 //	   set_Motor_Speed(300+5*100*fabs(*pMat_Y->pmat), *pMat_Y->pmat);

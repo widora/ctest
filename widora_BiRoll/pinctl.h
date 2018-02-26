@@ -9,7 +9,7 @@ GPIO pinctrl set for DC motor driver module L298N
 #define  PIN2_DIRECTION 39// GPIO pin for motor direction control IN2
 
 /*--------------- L298N Module --------------
-ENA/ENAB	IN1	IN2
+ENA/ENB		IN1	IN2
 	1	0	0	BRAKE
 	1	0	1	FORWARD
 	1	1	0	REVERSE

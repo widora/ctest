@@ -3,6 +3,9 @@ PWM driver Based on:
 Author: qianrushizaixian
 refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 
+
+
+
 --- TODOs & BUGs ---
 1. the motor will get stuck when starting pwm_threshold is too small. 
   --- use ACTIVATE_EMERG_STOP to prevent it.
@@ -10,6 +13,13 @@ refer to:  blog.csdn.net/qianrushizaixian/article/details/46536005
 
 Midas
 ------------------------------------------------------------------*/
+
+/*------- ( L298N and Wiora_NEO pwm control wiring ) --------
+L298N Module  <--->  Widora_NEO
+   ENA		  PWM1
+   ENB		  PWM0
+-----------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -23,7 +33,7 @@ Midas
 
 #define PWM_DEV "/dev/sooall_pwm"
 
-#define MAX_MOTOR_PWM 400
+#define MAX_MOTOR_PWM 380 //400
 #define MIN_MOTOR_PWM 255
 
 static int g_pwm_fd; // pwm device descriptor
@@ -149,7 +159,8 @@ void set_Motor_Speed(int pwmval,  float dirval)
 	else if(pwmval < MIN_MOTOR_PWM )
 	{
 //		printf("pwmval=%d, PWM threshold out of range(%d~%d) !\n", pwmval,MAX_MOTOR_PWM, MIN_MOTOR_PWM);
-		pwmval=MIN_MOTOR_PWM;
+		//pwmval=MIN_MOTOR_PWM;
+		SET_MOTOR_BRAKE;
 	}
 	g_pwm_cfg.threshold=pwmval;
 	g_pwm_cfg.no        =   0;    /* pwm0 */
