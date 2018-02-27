@@ -33,7 +33,7 @@ L298N Module  <--->  Widora_NEO
 
 #define PWM_DEV "/dev/sooall_pwm"
 
-#define MAX_MOTOR_PWM 380 //400
+#define MAX_MOTOR_PWM 300 //400
 #define MIN_MOTOR_PWM 255
 
 static int g_pwm_fd; // pwm device descriptor
@@ -139,16 +139,31 @@ dirval:
 	> 0 forward
 	= 0 brake
 	< 0 revers
+
+return:
+	1  forward
+	0 brake
+	-1 reverse
 -----------------------------------------*/
-void set_Motor_Speed(int pwmval,  float dirval)
+inline int set_Motor_Speed(int pwmval,  float dirval)
 {
+	static retval;
+
 	//----- set running direction ------
-	if (dirval == 0)
+	if (dirval == 0){
 		SET_MOTOR_BRAKE;
-	else if(dirval >0)
+		retval=0;
+	}
+	else if(dirval >0){
+		SET_MOTOR_BRAKE; // brake first
 		SET_MOTOR_FORWARD;
-	else
+		retval=1;
+	}
+	else {
+		SET_MOTOR_BRAKE; // brake first
 		SET_MOTOR_REVERSE;
+		retval=-1;
+	}
 
 	//----- set pwm shreshold to change running speed -----
 	if(pwmval > MAX_MOTOR_PWM )
@@ -170,6 +185,7 @@ void set_Motor_Speed(int pwmval,  float dirval)
 	ioctl(g_pwm_fd, PWM_CONFIGURE, &g_pwm_cfg);
 	ioctl(g_pwm_fd, PWM_ENABLE, &g_pwm_cfg);
 
+	return retval;
 }
 
 /*
@@ -183,30 +199,41 @@ int main(int argc, char *argv[])
 
 	init_Motor_Control();
 
-  while(1)
-  {
-	printf("test accelerating ...\n");
-	set_Motor_Speed(350, 0); //brake
-	for(k=minpwm; k<maxpwm; k++)
+	//----- test motor reponse time ------
+	while(1)
 	{
-		set_Motor_Speed(k, 1);//forward
-		usleep(20000);
+	 	set_Motor_Speed(320,1);
+		usleep(25000);
+		set_Motor_Speed(320,-1);
+		usleep(25000);
 	}
-	sleep(5);
 
-	printf("test braking ...\n");
-	set_Motor_Speed(350, 0); //brake
-	sleep(3);
-
-	printf("test decelerating ...\n");
-	for(k=maxpwm; k>minpwm; k--)
+	#if 0 //-------   forward, brake ,backward test  -----------
+	while(1)
 	{
-		set_Motor_Speed(k, -1);//forward
-		usleep(20000);
-	}
-	sleep(5);
-	set_Motor_Speed(350, 0); //brake
-  }//end of while()
+		printf("test accelerating ...\n");
+		set_Motor_Speed(350, 0); //brake
+		for(k=minpwm; k<maxpwm; k++)
+		{
+			set_Motor_Speed(k, 1);//forward
+			usleep(20000);
+		}
+		sleep(5);
+
+		printf("test braking ...\n");
+		set_Motor_Speed(350, 0); //brake
+		sleep(3);
+
+		printf("test decelerating ...\n");
+		for(k=maxpwm; k>minpwm; k--)
+		{
+			set_Motor_Speed(k, -1);//forward
+			usleep(20000);
+		}
+		sleep(5);
+		set_Motor_Speed(350, 0); //brake
+	}//end of while()
+	#endif //--------------------------------------------
 
 	release_Motor_Control();
 

@@ -16,6 +16,11 @@ Note:
 10. If there are other devices connected to the I2C interface, that will affect acceleration result considerably??.
 11. Power supply for motor driver and Widora_NEO must be effectively decoupled, or provided separately.
 12. Ajust MAX_MOTOR_PWM to limit running speed.
+13. Motor's reactive agility is also vital for self_balance!  System response time must correspond with
+    actuator's response time, or vice versa.
+    Make a test program to check motor response time first, and 
+14. pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only), be careful to positive/negative direction of Ang_rate!
+15. 
 
 Midas
 -----------------------------------------------------------------------------------------*/
@@ -131,6 +136,7 @@ int main(void)
 
    //------ PID time difference -----
    int pwmval; //pwm value and direction for Motor control
+   int retdir; //return value for direction, 0--brake, 1--forward, -1--backward
    float pwmdir;
    uint32_t dt_us; //delta time in us //U16: 0-65535 
    uint32_t sum_dt=0;//sum of dt //U32: 0-4294967295 ~4.3*10^9
@@ -347,7 +353,7 @@ while (1) {
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
 	   if(k==10) {
-	   	printf("dt_us = %dus \n", dt_us);
+	   	printf("dt_us = %dus  pwmval=%d  retdir=%d \n", dt_us, pwmval, retdir);
 		k=0;
 	   }
 	   else
@@ -373,18 +379,17 @@ while (1) {
 //	   printf("pMat_Q:  %e,   %e \n", *pMat_Q->pmat, *(pMat_Q->pmat+2));
 
 	   //------ control motor to counter inclination -------
-	   //  void set_Motor_Speed(int pwmval,  float dirval)
-	   // 1e-2 angle, 1e-7 angular rate
-	   // pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only)
-	   pwmval=6000*fabs(*pMat_Y->pmat)+5.0e8*fabs(*(pMat_Y->pmat+1));
+	   //	active PWM threshold abs. vale: 255 - 400
+	   //   10deg = 0.17rad -> 400
+	   //   1rad/us = 1.0e6 rad/s ->400 
+	   //	void set_Motor_Speed(int pwmval,  float dirval)
+	   //   1e-2 angle, 1e-7 angular rate
+	   //	pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only)
+	  pwmval= 220 /*+300*fabs(*pMat_Y->pmat) */ +1.0e8*fabs(*(pMat_Y->pmat+1));
 	   pwmdir=*pMat_Y->pmat;
 //	   printf(" pwmval=%d pwmdir=%f\n",pwmval, pwmdir);
 //	   printf(" try to set Motor speed ...\n");
-	   set_Motor_Speed(pwmval, pwmdir);
-//	   set_Motor_Speed(50+10*100*fabs(*pMat_Y->pmat)+3e+7*fabs(*(pMat_Y->pmat+1)), *pMat_Y->pmat);
-//	   set_Motor_Speed(300+5*100*fabs(*pMat_Y->pmat), *pMat_Y->pmat);
-//	   set_Motor_Speed(300+50*1e+7*fabs(*(pMat_Y->pmat+1)), *(pMat_Y->pmat+1));
-
+	   retdir=set_Motor_Speed(pwmval, pwmdir);
    }  //---------------------------  end of loop  -----------------------------
 
 
