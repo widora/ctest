@@ -10,10 +10,10 @@ GPIO pinctrl set for DC motor driver module L298N
 
 /*--------------- L298N Module --------------
 ENA/ENB		IN1	IN2
-	1	0	0	BRAKE
+	1	0	0	BRAKE ?????
 	1	0	1	FORWARD
 	1	1	0	REVERSE
-	1	1	1	BRAKE
+	1	1	1	BRAKE ????
 --------------------------------------------*/
 
 /* --------- motor running direction control macro. --------- */

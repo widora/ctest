@@ -33,7 +33,7 @@ L298N Module  <--->  Widora_NEO
 
 #define PWM_DEV "/dev/sooall_pwm"
 
-#define MAX_MOTOR_PWM 300 //400
+#define MAX_MOTOR_PWM 360 //400
 #define MIN_MOTOR_PWM 255
 
 static int g_pwm_fd; // pwm device descriptor

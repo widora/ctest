@@ -20,7 +20,10 @@ Note:
     actuator's response time, or vice versa.
     Make a test program to check motor response time first, and 
 14. pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only), be careful to positive/negative direction of Ang_rate!
-15. 
+15. Spike noise in sensor reading may indicate that power supply is NOT clean.
+16. The speed of DC motor is voltage(pwm adjusted) controlled, NOT PWM contolled. that triggers nonlinear reaction!
+    !!!Adjust voltage to adjust motor reactive force.
+17. MAFilter buffer will make motor response lag behind inclination.
 
 Midas
 -----------------------------------------------------------------------------------------*/
@@ -135,6 +138,7 @@ int main(void)
    struct int16MAFilterDB fdb_RXYZ[3]; //filter data base
 
    //------ PID time difference -----
+   int valP, valD; 
    int pwmval; //pwm value and direction for Motor control
    int retdir; //return value for direction, 0--brake, 1--forward, -1--backward
    float pwmdir;
@@ -305,13 +309,14 @@ while (1) {
 	   pthread_mutex_unlock(&int16_angRXYZ_data.angmLock);
 
 #else  // ------ <<<<<<  No pthread applied  >>>>>> -------- Prefered!!!
-//	   printf("start adxl reading..\n");
-	   //----- read acceleration value of XYZ
-	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
+
 	   //------- read angular rate of XYZ
 //	   printf(" start gyro reading...\n");
 	   gyro_read_int16RXYZ(angRXYZ);
 	   //printf("Raw data: angRX=%d angRY=%d angRZ=%d \n",angRXYZ[0],angRXYZ[1],angRXYZ[2]);
+//	   printf("start adxl reading..\n");
+	   //----- read acceleration value of XYZ
+	   adxl_read_int16AXYZ(accXYZ); // OFSX,OFSY,OFSZ preset in Init_ADXL345()
 
 #endif  //PTHREAD_READ_SENSORS end
 
@@ -353,7 +358,7 @@ while (1) {
 	   //<<<<<<<<<<<<      time integration of angluar rate RXYZ     >>>>>>>>>>>>>
 	   sum_dt=math_tmIntegral_NG(3,fangRXYZ, g_fangXYZ, &dt_us); // one instance only!!!
 	   if(k==10) {
-	   	printf("dt_us = %dus  pwmval=%d  retdir=%d \n", dt_us, pwmval, retdir);
+	   	//printf("dt_us = %dus valP=%d valD=%d  pwmval=%d  retdir=%d \n", dt_us, valP, valD, pwmval, retdir);
 		k=0;
 	   }
 	   else
@@ -385,7 +390,17 @@ while (1) {
 	   //	void set_Motor_Speed(int pwmval,  float dirval)
 	   //   1e-2 angle, 1e-7 angular rate
 	   //	pwmval=Kap*Angle+Kad*Ang_rate  (PID -- use PD only)
-	  pwmval= 220 /*+300*fabs(*pMat_Y->pmat) */ +1.0e8*fabs(*(pMat_Y->pmat+1));
+	   //   !!! another adjustable parameter is motor drive voltage !!!
+//-------   linear PID  --------
+	  valP= 500*fabs(*pMat_Y->pmat);
+	  valD= 1.0e8*fabs(*(pMat_Y->pmat+1));
+	  pwmval= 220+valP+valD;
+
+//-------   non_linear PID  --------
+//	  valP= 800*pow( fabs(*pMat_Y->pmat), 1.4 );
+//	  valD= 0.35e8*fabs(*(pMat_Y->pmat+1));
+//	  pwmval= 220+valP+valD;
+
 	   pwmdir=*pMat_Y->pmat;
 //	   printf(" pwmval=%d pwmdir=%f\n",pwmval, pwmdir);
 //	   printf(" try to set Motor speed ...\n");
