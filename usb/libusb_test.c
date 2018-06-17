@@ -49,7 +49,7 @@ int main(void)
    libusb_device_handle *dev_handle;
    libusb_context *ctx=NULL;
    struct libusb_transfer *trans;
-   unsigned char data[64]={0}; // full speed interrupt packet: max. 64bytes.
+   unsigned char data_out[64]={0}; // full speed interrupt packet: max. 64bytes.
    // wMaxPacketSize bytes defined in USB config. descriptor
    unsigned char data_in[4]={0};
    int r;
@@ -133,28 +133,34 @@ Note:
     5. The default endpoint bInterval value is used as the polling interval.
     6. Return 0 as success.
 --------------------------------------------------------------------------------*/
-  data[64-1]=0x00;
+  data_out[64-1]=0x00;
   i=0;
  //------------------ loop transfering data to EP1 ----------
  while(1)
  {
     //---- shift data ---
-    data[64-1]+=1;
+    data_out[64-1]+=1;
 
+/*
     //---- write to USB device EP 1 OUT ---
-    r=libusb_interrupt_transfer(dev_handle,0x01,data, 64, &cnt, 200); //0x00:host->dev, 0x80:dev->host
+    r=libusb_interrupt_transfer(dev_handle,0x01,data_out, 64, &cnt, 200); //0x00:host->dev, 0x80:dev->host
     if(r != 0)
 	perror("libusb_interrupt_transfer() EP1-Out error");
     if(cnt != 64)
 	printf("!!!Only %d bytes data have been transferred to EP01 .\n",cnt);
+*/
 
     //---- read from EP 1 IN  ---
-/*
     r=libusb_interrupt_transfer(dev_handle,0x81,data_in,4, &cnt, 200); //0x00:host->dev, 0x80:dev->host
-    if(!r)
+    if(r != 0)
 	perror("libusb_interrupt_transfer() EP1-IN error");
     printf("%d bytes frome EP1-IN,data_in[]= 0x%02x%02x%02x%02x \n",cnt,data_in[3],data_in[2],data_in[1],data_in[0]);
-*/
+
+    //----- control volume -----
+    sprintf(strCMD, "amixer set Speaker %d%%", 70+30*data_in[0]/256);
+    printf("%s \n",strCMD);
+    system(strCMD);
+
 
     //---- espeak ----
 /*
