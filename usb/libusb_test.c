@@ -11,6 +11,7 @@ Reference: https://blog.csdn.net/kangear/article/details/32176659
 #include <stdio.h>
 #include <sys/types.h>
 #include <libusb.h>
+#include <time.h>
 
 /*----- VID and PID -----*/
 #define IdVendor 0xc251
@@ -55,7 +56,11 @@ int main(void)
    int r;
    ssize_t cnt;
    int i;
+   int pv_vol;//volume percentage value
    char strCMD[50]={0};
+
+   struct timeval tm_start,tm_end;
+   int tm_used;
 
    r=libusb_init(&ctx);
    if(r<0)
@@ -141,23 +146,31 @@ Note:
     //---- shift data ---
     data_out[64-1]+=1;
 
-/*
+    gettimeofday(&tm_start,NULL);
+
     //---- write to USB device EP 1 OUT ---
     r=libusb_interrupt_transfer(dev_handle,0x01,data_out, 64, &cnt, 200); //0x00:host->dev, 0x80:dev->host
     if(r != 0)
 	perror("libusb_interrupt_transfer() EP1-Out error");
     if(cnt != 64)
 	printf("!!!Only %d bytes data have been transferred to EP01 .\n",cnt);
-*/
+
 
     //---- read from EP 1 IN  ---
     r=libusb_interrupt_transfer(dev_handle,0x81,data_in,4, &cnt, 200); //0x00:host->dev, 0x80:dev->host
     if(r != 0)
 	perror("libusb_interrupt_transfer() EP1-IN error");
-    printf("%d bytes frome EP1-IN,data_in[]= 0x%02x%02x%02x%02x \n",cnt,data_in[3],data_in[2],data_in[1],data_in[0]);
+    //printf("%d bytes frome EP1-IN,data_in[]= 0x%02x%02x%02x%02x \n",cnt,data_in[3],data_in[2],data_in[1],data_in[0]);
+    gettimeofday(&tm_end,NULL);
+    tm_used=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+    printf("USB EP1 read by interrupt transfer, time used = %dms \n",tm_used);
 
     //----- control volume -----
-    sprintf(strCMD, "amixer set Speaker %d%%", 70+30*data_in[0]/256);
+    pv_vol=60+40*data_in[0]/256;
+    //--- set quiet threshold value
+    if(pv_vol<62)pv_vol=0;
+
+    sprintf(strCMD, "amixer set Speaker %d%% >/dev/null", pv_vol);
     printf("%s \n",strCMD);
     system(strCMD);
 
