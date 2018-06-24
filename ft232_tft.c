@@ -4,8 +4,10 @@ Original Source:  https://www.intra2net.com/en/developer/libftdi/
 by:
     www.intra2net.com    2003-2017 Intra2net AG
 
+1. It loops showing 24bit_color BMP files onto a LCD display connected with Widora via FT232H.
+2. Original 24bit color BMP file shall show just up-right in Windows' Painter.
+3. Copy libftdi1.so to /usr/lib, make a soft link of libftdi1.so.2 to it.
 
-Loop showing 24bit_color BMP files on a LCD display connected with Widora via FT232H
 
 compile:
 	./openwrt-gcc -L. -lftdi1 -lusb-1.0 -o ft232_tft ft232_tft.c
@@ -67,14 +69,15 @@ int main(int argc, char **argv)
 */
 
   //---CASE...  input: RGB888 , output: RGB565 ---- BAD !!! !!!
-    FBMP_PxlFmt=PXLFMT_RGB888;
-    LCD_Set_PxlFmt16bit();
-
-  //---CASE...  input: RGB888 , output: RGB888 ---- GOOD !!!
 /*
     FBMP_PxlFmt=PXLFMT_RGB888;
-    LCD_Set_PxlFmt24bit();
+    LCD_Set_PxlFmt16bit();
 */
+  //---CASE...  input: RGB888 , output: RGB888 ---- GOOD !!!
+
+    FBMP_PxlFmt=PXLFMT_RGB888;
+    LCD_Set_PxlFmt24bit();
+
 
 
 
@@ -141,8 +144,8 @@ while(1) //loop showing BMP files in a directory
 
 
       //
-//     usleep(60000);
-     sleep(3); //---hold on for a while
+     usleep(60000);
+//     sleep(3); //---hold on for a while
 
 }
 

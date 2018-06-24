@@ -1,7 +1,8 @@
 /*--------------------------------------------------------------------------------------------------------------------
 Reference: https://blog.csdn.net/kangear/article/details/32176659
 
-Function: Use Bluepill as USB dongle to control volume for Widora-NEO.
+Function: Use Bluepill as USB dongle to control volume & mplayer for Widora-NEO.
+	  Use buttons of Bluepill to control mplayer to play forward/reverse.
 	  Adjust a VR connected to Bluepill to change ADC input voltage, value of ADC result will be transfered to Wiora-NEO.
 
 1. The Max. packet size for the interrupt endpoints:
@@ -24,8 +25,9 @@ Function: Use Bluepill as USB dongle to control volume for Widora-NEO.
 #include <string.h> //memset
 
 /*----- VID and PID -----*/
-#define IdVendor 0xc251
-#define IdProduct 0x1c01
+#define IdVendor 0x6666
+#define IdProduct 0x6666
+
 
 
 /*---------------------------------------------------------
@@ -153,16 +155,22 @@ Note:
     if(cnt != 64)
 	printf("!!!Only %d bytes data have been transferred to EP01. return code r=%d .\n",cnt,r);
 
-
     //---- read from EP 1 IN, with value of   ---
     r=libusb_interrupt_transfer(dev_handle,0x81,data_in,4, &cnt, 200); //0x00:host->dev, 0x80:dev->host
     if(r != 0)
 	perror("libusb_interrupt_transfer() EP1-IN error");
-    //printf("%d bytes frome EP1-IN,data_in[]= 0x%02x%02x%02x%02x \n",cnt,data_in[3],data_in[2],data_in[1],data_in[0]);
+    printf("%d bytes frome EP1-IN,data_in[]= 0x%02x%02x%02x%02x \n",cnt,data_in[3],data_in[2],data_in[1],data_in[0]);
     gettimeofday(&tm_end,NULL);
     tm_used=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
     printf("EP1 read by interrupt transfer, time used = %dms \n",tm_used);
 
+    //---- check command in data_in[1] -----
+    //play forward
+    if(data_in[1]==0x01)
+		system("echo pt_step 1 > /home/slave");
+    //play backward
+    if(data_in[1]==0x02)
+		system("echo pt_step -1 > /home/slave");
 
     //----- control volume -----, data_in[0] is the converted value(8/12) of ADC results in stm32
     pv_vol=60+40*data_in[0]/256;
