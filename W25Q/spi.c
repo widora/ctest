@@ -9,6 +9,10 @@ Noticed that tx_buf[] and rx_buf[] in spi_io_transfer is for full-dual transfer.
 for half-dual SPI transfer,we shall put send-mesg in tx_buf[0], while get recv_mesg
 in rx_buf[1]. rx_buf[0] is deemed inncorrect!
 
+LIMITS:!!!
+Max. len of struct spi_ioc_transfer = 36(bytes)
+(max. SPI transfer) 1-byte command + 3-bytes address + 32-bytes data = 36 bytes
+
 Midas Zhou
 ----------------------------------------------------------------------------------*/
 #include "spi.h"
@@ -79,7 +83,7 @@ SPI_Write( )
   Emulating half-duplex transfer.
   Write to SPI device with no interruption
 
-  n_tx+n_rx = MAX.32bytes?
+  n_tx,n_rx = MAX.36bytes
 
   send mesg in xfer[0].tx_buf
 --------------------------------------------------------------*/
@@ -109,7 +113,7 @@ SPI_Write_then_Read( )
   Emulating half-duplex transfer.
   Write then Read SPI device with no interruption
 
-  n_tx+n_rx = MAX.32bytes?
+  n_tx,n_rx = MAX.36 bytes
 
   send mesg in xfer[0].tx_buf
   recv mesg in xfer[1].rx_buf
@@ -141,7 +145,7 @@ SPI_Write_then_Read( )
 /*---------------------------------------------------------
  SPI_Write_then_Write( )
  Write 2 times to SPI device with no interruption.
- n_tx1+n_tx2 = MAX.36?
+ xfer.len[] = MAX.36 bytes
 ---------------------------------------------------------*/
 int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2)
 {

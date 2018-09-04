@@ -17,8 +17,8 @@ W25Q128FV(QPI Mode)     17h		   6018h
 
 int main()
 {
-	uint8_t TxBuf[16];
-	uint8_t RxBuf[16];
+	uint8_t TxBuf[4+256]; //4=1byte instruction + 3bytes addr.
+	uint8_t RxBuf[256];
 	int i;
 	int addr;//24bit addr.
 
@@ -87,7 +87,7 @@ int main()
 
 
 
-	/*	Write Enable --06h	*/
+	/*	Write Enable --06h  before Page Program !!!  */
 	TxBuf[0]=0x06;
 	SPI_Write(TxBuf,1);
 
@@ -100,30 +100,42 @@ int main()
 	TxBuf[1]=(addr&0xFF0000)>>16;
 	TxBuf[2]=(addr&0xFF00)>>8;
 	TxBuf[3]=addr&0xFF;
-	TxBuf[4]=0x99;
-	TxBuf[5]=0x66;
-	SPI_Write(TxBuf,6);
-	usleep(100000);
-	printf("write data: 0x%x,0x%x\n",TxBuf[4],TxBuf[5]);
+	for(i=0;i<32;i++)
+	{
+		TxBuf[4+i]=i;
+	}
+	SPI_Write(TxBuf,4+32);
+	usleep(200000);
+	printf("write data: 0x");
+	for(i=0;i<32;i++)
+	{
+		printf("%02x",TxBuf[i+4]);
+	}
+	printf("\n");
+
+
+
 	/*	Write Enable --06h	*/
 //	TxBuf[0]=0x06;
 //	SPI_Write(TxBuf,1);
 
 
-
 	/*	Write Disable --04h	*/
-
 
 	//	Read Data  --03h
 	TxBuf[0]=0x03;
 	TxBuf[1]=(addr&0xFF0000)>>16;
 	TxBuf[2]=(addr&0xFF00)>>8;
 	TxBuf[3]=addr&0xFF;
-	SPI_Write_then_Read(TxBuf,4,RxBuf,2);
-	usleep(100000);
-	printf("read data: 0x%x,0x%x\n",RxBuf[0],RxBuf[1]);
-
-
+//	SPI_Write_then_Read(TxBuf,4,RxBuf,2);
+	SPI_Write_then_Read(TxBuf,4,RxBuf,32);
+	usleep(300000);
+	printf("read data: 0x");
+	for(i=0;i<32;i++)
+	{
+		printf("%02x",RxBuf[i]);
+	}
+	printf("\n");
 
 	//---- close spi dev
 	SPI_Close();
