@@ -39,11 +39,14 @@
 
 CC=/home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
+
+#### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 APPS = w25q_test
 
+#### -----  编译标志 -----
 CFLAGS=-Wall
 LDFLAGS=
 
@@ -51,6 +54,7 @@ LDFLAGS=
 #-----如果前面有include命令，那么make命令只会执行下面all中的第一个依赖文件，除非用make all完整命令
 #-----把 include &(DEP_FILES) 防到后面就 OK了。
 #----在Makefile中$$var才相当于shell中的$var
+
 
 $(warning "----- all:$(APPS) -----")
 all:  $(APPS)
@@ -61,19 +65,25 @@ all:  $(APPS)
 
 $(warning "----- %:%.c -----")
 
+
+#### ------ 手动设置特定目标生成规则  ------
+####----- !!!! manually edit here !!!! -----
 w25q_test: spi.o w25q_test.o
 	$(CC) $(CFLAGS) $(LDFLAGS) spi.o w25q_test.o -o w25q_test
 
+
+#### ----- 目标文件自动生成规则 -----
 %:%.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c
 
 clean:
-	rm -rf $(APPS) $(DEP_FILES)
+	rm -rf $(OBJS) $(APPS) $(DEP_FILES)
 
 
 include $(DEP_FILES)
 
 $(warning "----- %.dep: %.c -----")
+#### ---- 头文件自动生成规则 -----
 %.dep: %.c
 	@set -e; rm -f $@
 	@$(CC) -MM $(CFLAGS) $< > $@.123
