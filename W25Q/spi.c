@@ -17,7 +17,7 @@ Midas Zhou
 const char *spi_fdev = "/dev/spidev32766.1";
 uint8_t spi_mode = 0;
 uint8_t spi_bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
-uint32_t spi_speed =10*1000*1000;/* min.1M 设置传输速度 */
+uint32_t spi_speed =18*1000*1000;/* min.1M 设置传输速度 */
 uint16_t spi_delay = 0;
 int g_SPI_Fd = 0; //SPI device file descriptor
 
@@ -72,6 +72,37 @@ int SPI_Transfer( const uint8_t *TxBuf,  uint8_t *RxBuf, int len, int ns)
 
 	return ret;
 }
+
+
+/*--------------------------------------------------------------
+SPI_Write( )
+  Emulating half-duplex transfer.
+  Write to SPI device with no interruption
+
+  n_tx+n_rx = MAX.32bytes?
+
+  send mesg in xfer[0].tx_buf
+--------------------------------------------------------------*/
+ int SPI_Write(const uint8_t *TxBuf, int n_tx)
+{
+ 	int ret;
+ 	int fd = g_SPI_Fd;
+
+	 struct spi_ioc_transfer xfer[2];
+	 memset(xfer,0,sizeof(xfer));
+
+	 xfer[0].tx_buf = (unsigned long) TxBuf;
+	 xfer[0].len = n_tx;
+	 xfer[0].delay_usecs = spi_delay;
+
+	 ret = ioctl(fd, SPI_IOC_MESSAGE(1), xfer);
+	 if (ret < 1)
+		printf("********** SPI_Write(): Can't send message **********\n");
+
+ return ret;
+}
+
+
 
 /*--------------------------------------------------------------
 SPI_Write_then_Read( )
