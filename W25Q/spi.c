@@ -83,7 +83,7 @@ SPI_Write( )
   Emulating half-duplex transfer.
   Write to SPI device with no interruption
 
-  n_tx,n_rx = MAX.36bytes
+  n_tx = MAX.36bytes
 
   send mesg in xfer[0].tx_buf
 --------------------------------------------------------------*/
@@ -184,7 +184,7 @@ int SPI_Open(void)
 
 	fd = open(spi_fdev, O_RDWR);
 	if (fd < 0){
-		pabort(" Can't open device");
+		perror(" Can't open device");
 		return -1;
 	}
 	else
@@ -196,31 +196,31 @@ int SPI_Open(void)
 	/* set spi mode */
 	ret = ioctl(fd, SPI_IOC_WR_MODE, &spi_mode);
 	if (ret == -1)
-		pabort("ioctl can't set spi SPI_IOC_WR_MODE mode");
+		perror("ioctl can't set spi SPI_IOC_WR_MODE mode");
 
 	ret = ioctl(fd, SPI_IOC_RD_MODE, &spi_mode);
 	if (ret == -1)
-		pabort("ioctl can't set spi SPI_IOC_RD_MODE mode");
+		perror("ioctl can't set spi SPI_IOC_RD_MODE mode");
 
 
 	/* set bits per word */
 	ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &spi_bits);
 	if (ret == -1)
-		pabort("ioctl can't set bits per word SPI_IOC_WR_BITS_PER_WORD");
+		perror("ioctl can't set bits per word SPI_IOC_WR_BITS_PER_WORD");
 	ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &spi_bits);
 	if (ret == -1)
-		pabort("ioctl can't set bits per word SPI_IOC_RD_BITS_PER_WORD");
+		perror("ioctl can't set bits per word SPI_IOC_RD_BITS_PER_WORD");
 
 
 	/* set spi speed in hz */
 	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_speed);
 	if (ret == -1)
-		pabort("can't set max speed hz");
+		perror("can't set max speed hz");
 
 
 	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &spi_speed);
 	if (ret == -1)
-		pabort("can't get max speed hz");
+		perror("can't get max speed hz");
 
 	printf("	spi mode: %d\n", spi_mode);
 	printf("	bits per word: %d\n", spi_bits);
