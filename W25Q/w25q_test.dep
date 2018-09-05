@@ -1,1 +1,0 @@
-w25q_test : w25q_test.c spi.h
