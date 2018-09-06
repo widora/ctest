@@ -11,6 +11,7 @@
 #		LDFLAGS =
 #	4.指定默认生成目标，如:
 #		all: app1 app2
+#	    4.1 手动设置特定目标生成规则
 #	5.目标文件，库文件，应用程序的生成规则，如：
 #		%.o:%.c
 #			gcc -c .........
@@ -68,8 +69,8 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-w25q_test: spi.o w25q_test.o
-	$(CC) $(CFLAGS) $(LDFLAGS) spi.o w25q_test.o -o w25q_test
+w25q_test: $(OBJS)    ### w25q_test.o w25q.o spi.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o w25q_test
 
 
 #### ----- 目标文件自动生成规则 -----

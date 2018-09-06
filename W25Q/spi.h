@@ -22,14 +22,12 @@ Based on:
 //----- turn on/off SPI DEBUG
 #define SPI_DEBUG 0
 
-
 extern const char *str_spi_device;
 extern uint8_t spi_mode;
 extern uint8_t spi_bits; // 8bits,MSB first
 extern uint32_t spi_speed;// set speed
 extern uint16_t delay;
 extern int g_SPI_Fd; //SPI device file descriptor
-
 
 //----- FUCNTION DECLARATION -----
 void pabort(const char *s);
