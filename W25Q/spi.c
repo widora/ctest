@@ -10,7 +10,7 @@ for half-dual SPI transfer,we shall put send-mesg in tx_buf[0], while get recv_m
 in rx_buf[1]. rx_buf[0] is deemed inncorrect!
 
 LIMITS:!!!
-Max. len of struct spi_ioc_transfer = 36(bytes)
+Max. total length of all TxBuf and RxBuf in each SPI ioctl transfer = 36(bytes)
 (max. SPI transfer) 1-byte command + 3-bytes address + 32-bytes data = 36 bytes
 
 Midas Zhou
@@ -35,6 +35,7 @@ void pabort(const char *s) {
  one time transfer only, ns=1.
  send mesg in tx_buf
  recv mesg in rx_buf shall not be used, as it's not correct !!!
+ 2*len MAX.36bytes
 ------------------------------------------------------------------------*/
 int SPI_Transfer( const uint8_t *TxBuf,  uint8_t *RxBuf, int len, int ns)
 {
@@ -106,18 +107,53 @@ SPI_Write( )
  return ret;
 }
 
-
-
 /*--------------------------------------------------------------
+SPI_Write_Command_Data( )
+  Write to SPI device command then data,with no interruption
+
+  ncmd+ndat = MAX.36bytes
+
+cmd: command pointer
+ncmd: command length
+dat: data pointer
+cdat: data length
+
+Return:
+	< 1  fails
+--------------------------------------------------------------*/
+int SPI_Write_Command_Data(const uint8_t *cmd, int ncmd, const uint8_t *dat, int ndat)
+{
+ 	int ret;
+ 	int fd = g_SPI_Fd;
+
+	struct spi_ioc_transfer xfer[2];
+	memset(xfer,0,sizeof(xfer));
+
+	xfer[0].tx_buf = (unsigned long) cmd;
+	xfer[0].len = ncmd;
+	xfer[0].delay_usecs = spi_delay;
+	xfer[1].tx_buf = (unsigned long) dat;
+	xfer[1].len = ndat;
+	xfer[1].delay_usecs = spi_delay;
+
+	ret = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
+	if (ret < 1)
+		printf("********** SPI_Write(): Can't send message **********\n");
+
+ return ret;
+}
+
+
+/*--------------------------------------------------------------------------------
 SPI_Write_then_Read( )
   Emulating half-duplex transfer.
   Write then Read SPI device with no interruption
 
-  n_tx,n_rx = MAX.36 bytes
+  n_tx+n_rx = MAX.36 bytes
 
   send mesg in xfer[0].tx_buf
   recv mesg in xfer[1].rx_buf
---------------------------------------------------------------*/
+---------------------------------------------------------------------------------*/
  int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx)
 {
  	int ret;
@@ -145,7 +181,7 @@ SPI_Write_then_Read( )
 /*---------------------------------------------------------
  SPI_Write_then_Write( )
  Write 2 times to SPI device with no interruption.
- xfer.len[] = MAX.36 bytes
+ n_tx1+n_tx2 = MAX.36 bytes
 ---------------------------------------------------------*/
 int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2)
 {

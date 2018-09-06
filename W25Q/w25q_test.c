@@ -2,7 +2,7 @@
 Nor flash W25Q128
 Total 16Mbytes, with 256 blocks(64Kbyte), each block has 16 secotrs(4kbyte),
 and each sector has 16 page(256byte).
-
+16Mbyte = 256*16*16*256 byte
 
 Manufacture ID         MF7:0
 -----------------------------
@@ -17,9 +17,9 @@ W25Q128FV(QPI Mode)     17h		   6018h
 
 
 Pending:
-1. Check whether left space is enough before write/program.
-
-
+1. Check whether space is enough before write/program.
+2. Max. load is 36bytes for each half-dual SPI transfer.
+3. TxBuf[] and RxBuf[] shall be independent in functions.
 --------------------------------------------------------------------------*/
 
 #include <stdbool.h>
@@ -40,6 +40,8 @@ return: register status data
 ------------------------------------*/
 uint8_t flash_read_status(int regnum)
 {
+	uint8_t TxBuf[2],RxBuf[2];
+
 	switch(regnum)
 	{
 		case 1:
@@ -75,11 +77,10 @@ int flash_write_enable(void)
 	if(SPI_Write(TxBuf,1) < 1)
 		return -1;
 
-	/*     Global/Sector Unlock --98h    */
+	/*     Global/Sector Unlock --98h    necessary -----------????????  */
 	TxBuf[0]=0x98;
 	if(SPI_Write(TxBuf,1) < 1)
 		return -1;
-
 
 	return 0;
 }
@@ -106,12 +107,12 @@ int flash_write_disable(void)
 	return 0;
 }
 
-/*----------------------------------------------
-wait for flash busy status, etc. during erasing.
+/*--------------------------------------------------------
+wait for flash busy status, etc. during erasing,writing.
 
 return ms:
 	>=0	OK
-------------------------------------------------*/
+---------------------------------------------------------*/
 int flash_wait_busy(void)
 {
 	uint8_t TxBuf[2],RxBuf[2];
@@ -120,7 +121,7 @@ int flash_wait_busy(void)
 	// Read Status Register-1  --05h, get S7-S0
 	TxBuf[0]=0x05;
 
-	int wdelay=10; //status poll interval in ms.
+	int wdelay=5; //status poll interval in ms.
 	int i=0;
 
 	do {
@@ -130,13 +131,14 @@ int flash_wait_busy(void)
 		{
 			return -1;
 		}
-		//--check if BUSY(S0=1)
-		printf("Return Status Register-1: 0x%02x \n",RxBuf[0]);
 
-		if(((RxBuf[0]) & 0x01) == 1)
-			printf("BUSY for Write/Erase.\n");
-		else
+		//--check if BUSY(S0=1)
+//		printf("Return Status Register-1: 0x%02x \n",RxBuf[0]);
+
+		if(((RxBuf[0]) & 0x01) == 0)
 			break;
+//		else
+//			printf("BUSY for Write/Erase.\n");
 
 	} while(1);
 
@@ -152,6 +154,7 @@ return:
 ------------------------------------------------*/
 int flash_sector_erase(int addr)
 {
+	uint8_t TxBuf[2],RxBuf[2];
 	int tmp;
 
 	//// Sector Erase 4k-bytes --20h, execute the Write Enable first.
@@ -164,8 +167,6 @@ int flash_sector_erase(int addr)
 	//--- enable write before sector erase
 	if(flash_write_enable()!=0)
 		return -1;
-
-//	usleep(10*1000);
 
 	//--- send sector erase command
 	if(SPI_Write(TxBuf,4)<1)
@@ -187,7 +188,6 @@ int flash_sector_erase(int addr)
 
 
 
-
 //// 32K Block Erase 32k-bytes --52h, execute the Write Enable first.
 //// 64K Block Erase 64k-bytes --D8h, execute the Write Enable first.
 //// Chip Erase --C7h or 60h, execute the Write Enable first.
@@ -200,6 +200,7 @@ return:
 ------------------------------------------------*/
 int flash_block_erase(bool bl32k, int addr)
 {
+	uint8_t TxBuf[2],RxBuf[2];
 	int tmp;
 
 	if(bl32k)
@@ -240,9 +241,9 @@ int flash_block_erase(bool bl32k, int addr)
 	else
 	{
 		if(bl32k)
-			printf("Finish erasing 32K block starting from 0x%06x in %dms\n",addr&0xFF8000,tmp);
+			printf("Finish erasing 32K block starting from 0x%06X in %dms\n",addr&0xFF8000,tmp);
 		else
-			printf("Finish erasing 64K block starting from 0x%06x in %dms\n",addr&0xFF0000,tmp);
+			printf("Finish erasing 64K block starting from 0x%06X in %dms\n",addr&0xFF0000,tmp);
 	}
 
 	return 0;
@@ -265,11 +266,14 @@ dat: data pointer
 addr: where to write
 cnt:  number of bytes to write
 
+
+!!! LIMIT cnt=max.32 !!!
 return:
 	0	OK
 ----------------------------------------------------------------------*/
 int flash_write_bytes(uint8_t *dat, int addr,int cnt)
 {
+	uint8_t CmdBuf[4];
 	int i;
 
 	if(cnt>32)
@@ -278,37 +282,142 @@ int flash_write_bytes(uint8_t *dat, int addr,int cnt)
 		printf("WARNING: Max. 32bytes for each flash write. other data will be discarded!\n");
 	}
 
-	//--- Page Program --02h
-	TxBuf[0]=0x02;
-	TxBuf[1]=(addr & 0xFF0000)>>16;
-	TxBuf[2]=(addr & 0xFF00)>>8;
-	TxBuf[3]=(addr & 0xFF);
-
-	//--- copy data to TxBuf[]
-	for(i=0;i<cnt;i++)
-	{
-		TxBuf[4+i]=dat[i];
-	}
+	//--- Page Program Command --02h
+	CmdBuf[0]=0x02;
+	CmdBuf[1]=(addr & 0xFF0000)>>16;
+	CmdBuf[2]=(addr & 0xFF00)>>8;
+	CmdBuf[3]=(addr & 0xFF);
 
 	//--- Write Enable before Page Program !!!
 	if(flash_write_enable()!=0)
 		return -1;
 
 	//--- send write command
-	if(SPI_Write(TxBuf,4+cnt)<1)
+       	if( SPI_Write_Command_Data(CmdBuf, 4, dat, cnt) < 1)
 		return -1;
 
-        // wait write/erase completion
-        flash_wait_busy();
-
+	// wait write/erasing completion
+	flash_wait_busy();
 
 	//--- print data
 	printf("write data to 0x%06X: 0x",addr);
 	for(i=0;i<cnt;i++)
 	{
-		printf("%02x",TxBuf[i+4]);
+		printf("%02x",dat[i]);
 	}
 	printf("\n");
+
+	return 0;
+}
+
+
+
+
+/*----------------------------------------------------------------------
+Flash Write One Page (256bytes)
+
+NOTE: !!!--- Address NOT alinged for page ---!!!
+
+dat: pointer to data.
+
+return:
+	0	OK
+----------------------------------------------------------------------*/
+int flash_write_page(uint8_t *dat, int addr)
+{
+	int i,k;
+	uint8_t CmdBuf[4];
+	int faddr=addr;
+
+	//--- Page Write/Program Command --02h
+	CmdBuf[0]=0x02;
+
+	//--- send write command
+	for(i=0;i<256/32;i++)
+	{
+		//--- shift addr ----
+		faddr+=i*32;
+		CmdBuf[1]=(faddr & 0xFF0000)>>16;
+		CmdBuf[2]=(faddr & 0xFF00)>>8;
+		CmdBuf[3]=(faddr & 0xFF);
+
+		//--- Write Enable before Page Program !!!
+		if(flash_write_enable()!=0)
+			return -1;
+
+		//--- SPI transfer
+        	if( SPI_Write_Command_Data(CmdBuf, 4, dat+i*32, 32) < 1)
+			return -1;
+
+		// wait write/erasing completion
+		flash_wait_busy();
+/*
+		printf("write page i=%d\n",i);
+		for(k=0;k<32;k++)
+			printf("0x%02X",*(dat+i*32+k));
+		printf("\n");
+*/
+	}
+
+	return 0;
+}
+
+
+/*----------------------------------------------------------------------
+Flash Read Data
+
+NOTE: !!!--- Address NOT alinged for page ---!!!
+
+addr:  flash data address
+dat:   pointer to received data buf.
+cnt:   number of data bytes to be read
+
+return:
+	0	OK
+----------------------------------------------------------------------*/
+int flash_read_data(int addr, uint8_t *dat, int cnt)
+{
+
+	int i;
+	int n32,nrem;
+	uint8_t CmdBuf[4];
+	int faddr=addr;
+
+	//--- Flash Read Data Command  --03h
+	CmdBuf[0]=0x03;
+
+	n32=cnt>>5;// cnt/32
+	nrem=cnt%32;// remainder
+
+	//--- read 32bytes one SPI transfer
+	for(i=0;i<n32;i++)
+	{
+		//--- shift addr ----
+		faddr+=i*32;
+		CmdBuf[1]=(faddr & 0xFF0000)>>16;
+		CmdBuf[2]=(faddr & 0xFF00)>>8;
+		CmdBuf[3]=(faddr & 0xFF);
+
+		if(SPI_Write_then_Read(CmdBuf,4,dat+32*i,32)<1)
+			return -1;
+
+		// wait write/erasing completion
+		flash_wait_busy();
+
+	}
+
+	//--- read remainder
+	//--- shift addr ----
+	faddr+=n32*32;
+	CmdBuf[1]=(faddr & 0xFF0000)>>16;
+	CmdBuf[2]=(faddr & 0xFF00)>>8;
+	CmdBuf[3]=(faddr & 0xFF);
+
+	if(SPI_Write_then_Read(CmdBuf,4,dat+32*n32,nrem)<1)
+		return -1;
+
+	// wait write/erasing completion
+	flash_wait_busy();
 
 	return 0;
 }
@@ -321,10 +430,18 @@ int main(void)
 {
 
 	int i;
-	int addr=(55<<12)+5;//24bit addr.
-	uint8_t dat[32];
+	int addr=(1024<<12);//24bit addr.
+	uint8_t dat[256];
+	uint8_t buf[256];
 
-	printf("set addr=0x%06x\n",addr);
+	//--- prepare test data
+	for(i=0;i<256;i++)
+	{
+		dat[i]=i;
+	}
+	//--- confirm address
+	printf("set addr=0x%06X\n",addr);
+
 
 	//----- init and open spi dev -----
         if( SPI_Open() != 0 )
@@ -357,45 +474,49 @@ int main(void)
 	printf("Release Power-down and get Device ID: 0x%02X\n",RxBuf[0]);
 
 	//---- read Status Registers
-	flash_write_enable();
 	for(i=1;i<4;i++)
 		printf("Status Register-%d: 0x%02X \n",i,flash_read_status(i));
 
 	//--- erase sector before program
-	if(flash_sector_erase(addr)!=0) return -1;//24bits address, multiply of 4k
-	//--- erase 64K block
-//	if(flash_block_erase(false,addr)!=0) return -1;//24bits address, multiply of 4k
+//	if(flash_sector_erase(addr)!=0) return -1;//24bits address, multiply of 4k
+	//--- erase 32 block(true) or 64K block(false)
+	if(flash_block_erase(false,addr)!=0) return -1;//24bits address, multiply of 4k
 
-	for(i=0;i<32;i++)
-	{
-		dat[i]=i<<1;
-	}
-	//---- write data to flash
+
+
+	//================= write data(max.32) to flash ==================
         flash_write_bytes(dat,addr,32);
-
-	//	Read Data  --03h
-	TxBuf[0]=0x03;
-	TxBuf[1]=(addr & 0xFF0000)>>16;
-	TxBuf[2]=(addr & 0xFF00)>>8;
-	TxBuf[3]=(addr & 0xFF);
-	SPI_Write_then_Read(TxBuf,4,RxBuf,32);
-//	usleep(300000);
-	printf("read data from 0x%X: 0x",addr);
+	//---- read back to confirm
+	flash_read_data(addr, buf, 32);
+	printf("read data from 0x%06X: 0x",addr);
 	for(i=0;i<32;i++)
 	{
-		printf("%02x",RxBuf[i]);
+		printf("%02x",buf[i]);
 	}
 	printf("\n");
+
+
+	//================= flash write one page ===============
+	//erase sector before write/program
+	if(flash_sector_erase(addr)!=0) return -1;//24bits address, multiply of 4k
+	printf("start flash_write_page()...\n");
+	flash_write_page(dat, addr);
+	printf("finish flash_write_page().......................\n");
+
+	//---- read one page data back to confirm
+	flash_read_data(addr, buf, 256);
+	printf("read data from 0x%06X: 0x",addr);
+	for(i=0;i<256;i++)
+	{
+		printf("%02x",buf[i]);
+	}
+	printf("\n");
+
 
 
 	//---- read Status Registers
 	for(i=1;i<4;i++)
 		printf("Status Register-%d: 0x%02X \n",i,flash_read_status(i));
-
-
-	//---  Write disable flash after use !!! 
-	if(flash_write_disable()!=0)
-		printf("flash_write_disable() fails!\n");
 
 	//---- close spi dev
 	printf("Close spi fd.\n");
