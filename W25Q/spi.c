@@ -21,7 +21,7 @@ Midas Zhou
 const char *spi_fdev = "/dev/spidev32766.1";
 uint8_t spi_mode = 0;
 uint8_t spi_bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
-uint32_t spi_speed = 20*1000*1000;/* min.1M 设置传输速度 */
+uint32_t spi_speed = 18*1000*1000;/* min.1M 设置传输速度 */
 uint16_t spi_delay = 0;
 int g_SPI_Fd = 0; //SPI device file descriptor
 

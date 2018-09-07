@@ -27,19 +27,35 @@ Note:
 #include <sys/time.h>
 #include <stdio.h>
 
-/*--------------------------------------------------------------
-			Main()
---------------------------------------------------------------*/
-int main(void)
+/*------------------------------------------
+       compare two uint8_t array
+return:
+	0    same
+	-1   different
+------------------------------------------*/
+int comp_u8array(uint8_t *src, uint8_t *dest, int n)
 {
 	int i;
+
+	for(i=0;i<n;i++)
+	{
+		if( *(src+i) != *(dest+i) ) return -1;
+	}
+
+	return 0;
+}
+
+/*-------------------------------------------------------
+			Main()
+-------------------------------------------------------*/
+int main(void)
+{
+	int i,mk;
+	int nblock;
 	// Flash capacity 16Mbyte = 256(Blocks)*16(Sectors)*16(Pages)*256(Bytes)
-	int addr=4096*2048;//24bits address, 16MB=4K*4K
+	int addr=0;//24bits address, 16MB=4K*4K
 	uint8_t dat[256];
 	uint8_t buf[256];
-
-//	uint8_t TxBuf[4+32]; //4=1byte instruction + 3bytes addr.
-//	uint8_t RxBuf[36];
 
 	struct timeval tm_start, tm_end;
 	int tm_used;
@@ -47,11 +63,17 @@ int main(void)
 	//--- prepare test data
 	for(i=0;i<256;i++)
 	{
-		dat[i]=i;
+		dat[i]=0;//i;
+		buf[i]=0;//i;
 	}
+	//--- check comp_u8array()
+	buf[222]=9;
+	if(comp_u8array(dat,buf,256) != 0)
+		printf("dat[] and buf[] differs!\n");
+
+
 	//--- confirm address
 	printf("set addr=0x%06X\n",addr);
-
 
 	//----- init and open spi dev -----
         if( SPI_Open() != 0 )
@@ -123,9 +145,6 @@ Try it later.\n");
 	printf(".....start flash_write_page()...........>>>>> \n");
 	gettimeofday(&tm_start,NULL);
 
-//	addr=0x00; //start from beginning of the flash
-//	for(i=0;i<256*16*16;i++) // 256*16*16 pages totally for a 16MB flash
-		if(flash_write_page(dat, addr+i*256) !=0)return -1;
 	if(flash_write_page(dat, addr) !=0)return -1;
 
 	gettimeofday(&tm_end,NULL);
@@ -143,7 +162,51 @@ Try it later.\n");
 	printf("\n");
 
 
+	/* >>>>>>>>>(((  Scan whole chip to check defective pages  )))<<<<<<<<<< */
+	nblock=256; //total 256  64k-blocks for a 16MB chip.
+	printf("Write and read data to check defective page if any ...\n");
+	for(mk=0;mk<nblock;mk++)
+	{
+	    /* >>>>>>>>>>>>>>>>(((  write/read each 64k-block = 16*16pages  )))<<<<<<<<<<<<<<< */
+		// erase 64k block before write/program
+		if(flash_block_erase(false, mk*64*1024)!=0) return -1;
+
+		//////////////
+//		printf(".....start write a 64k-block ...........>>>>> \n");
+//		gettimeofday(&tm_start,NULL);
+
+		for(i=0;i<16*16;i++) // 64k=16*16*page(256B)
+			if(flash_write_page(dat, mk*64*1024+i*256) !=0)return -1;
+
+//		gettimeofday(&tm_end,NULL);
+//		printf(".....finish write a 64k-block ..........<<<<< ");
+//		tm_used=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+//		printf(" time cost: %dms \n",tm_used);
+		///////////////
+
+	    /* >>>>>>>>>>>>>(((  check data for a 64k-block  )))<<<<<<<<<<<<<<<<< */
+//		printf("read back and check integrity of data...\n");
+		for(i=0;i<16*16;i++) //64k=16*16*page(256B)
+		{
+			flash_read_data(mk*64*1024+i*256, buf, 256);
+			if(comp_u8array(dat,buf,256) != 0)
+				printf("Error data found in page(0-255): %d of 64k-block(0-255): %d \n ",i,mk);
+		}
+		//---- read one page data to confirm
+/*
+		flash_read_data(addr+9*256, buf, 256);
+		printf("read data from 0x%06X: 0x",addr+9*256);
+		for(i=0;i<256;i++)
+		{
+			printf("%02x",buf[i]);
+		}
+		printf("\n");
+*/
+	}
+
+
 	/* >>>>>>>>>>>>>>>>>>>(((  Chip Erase  )))<<<<<<<<<<<<<<<<<<<< */
+/*
         printf(".....start flash_chip_erase()...........>>>>> \n");
         gettimeofday(&tm_start,NULL);
 	flash_chip_erase();
@@ -160,7 +223,7 @@ Try it later.\n");
                 printf("%02x",buf[i]);
         }
         printf("\n");
-
+*/
 
 
 	//---- read Status Registers
