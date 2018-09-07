@@ -18,8 +18,7 @@ W25Q128FV(QPI Mode)     17h		   6018h
 
 Note:
 0. Use default set WPS=CMP=BP1=BP2=BP3=0, no protection for any address.
-1. Flash write speed is abt. 6k/s for half-dual SPI transfer.
-2. Increasing SPI frequecy from 1MHZ will not affect flash-write speed any more.???????????
+1. Flash write speed is abt. 125kBytes/s for single SPI transfer with 18MHz clock.
 -------------------------------------------------------------------------------------------*/
 #include "spi.h"
 #include "w25q.h"
@@ -99,7 +98,7 @@ int main(void)
 
 
 
-	//================= write data(max.32) to flash ==================
+	/* >>>>>>>>>>>>>>>>(((  Write data no more than 32 bytes  )))<<<<<<<<<<<<<<<<< */
         flash_write_bytes(dat,addr,32);
 	//---- read back to confirm
 	flash_read_data(addr, buf, 32);
@@ -111,13 +110,20 @@ int main(void)
 	printf("\n");
 
 
-	//================= flash write one page ===============
-	// abt. 40ms for each page, so write speed is abt. 6k/s
+
+	/* >>>>>>>>>>>>>>>>>>>(((  flash write one page  )))<<<<<<<<<<<<<<<<<<<< */
+	// abt. 2ms for each page, so write speed is abt. 125k/s.
 	// erase sector before write/program
 	if(flash_sector_erase(addr)!=0) return -1;//24bits address, multiply of 4k
+
 	printf(".....start flash_write_page()...........>>>>> \n");
 	gettimeofday(&tm_start,NULL);
+
+//	addr=0x00; //start from beginning of the flash
+//	for(i=0;i<256*16*16;i++) // 256*16*16 pages totally for a 16MB flash
+		if(flash_write_page(dat, addr+i*256) !=0)return -1;
 	if(flash_write_page(dat, addr) !=0)return -1;
+
 	gettimeofday(&tm_end,NULL);
 	printf(".....finish flash_write_page()..........<<<<< ");
 	tm_used=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
@@ -131,6 +137,26 @@ int main(void)
 		printf("%02x",buf[i]);
 	}
 	printf("\n");
+
+
+	/* >>>>>>>>>>>>>>>>>>>(((  Chip Erase  )))<<<<<<<<<<<<<<<<<<<< */
+        printf(".....start flash_chip_erase()...........>>>>> \n");
+        gettimeofday(&tm_start,NULL);
+	flash_chip_erase();
+        gettimeofday(&tm_end,NULL);
+        printf(".....finish flash_chip_erase()..........<<<<< ");
+        tm_used=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+        printf(" time cost: %dms \n",tm_used);
+
+        //---- read written page data back to confirm
+        flash_read_data(addr, buf, 256);
+        printf("After chip erasing, read data from 0x%06X: 0x",addr);
+        for(i=0;i<256;i++)
+        {
+                printf("%02x",buf[i]);
+        }
+        printf("\n");
+
 
 
 	//---- read Status Registers

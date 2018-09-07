@@ -28,9 +28,10 @@
 extern uint8_t flash_read_status(int regnum);
 extern int flash_write_enable(void);
 extern int flash_write_disable(void);
-extern int flash_wait_busy(void);
+extern int flash_wait_busy(int interval);
 extern int flash_sector_erase(int addr);
 extern int flash_block_erase(bool bl32k, int addr);
+extern int flash_chip_erase(void);
 extern int flash_write_bytes(uint8_t *dat, int addr,int cnt);
 extern int flash_write_page(uint8_t *dat, int addr);
 extern int flash_read_data(int addr, uint8_t *dat, int cnt);

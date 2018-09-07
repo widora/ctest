@@ -1,15 +1,25 @@
-/*------------- W25Q128 Half-Dual SPI OPERTAION ---------------
-Nor flash W25Q128
+/*------------------------ W25Q128 Half-Dual SPI OPERTAION ---------------------------
+Nor flash W25Q128VF
 Total 16Mbytes, with 256 blocks(64Kbyte), each block has 16 secotrs(4kbyte),
 and each sector has 16 page(256byte).
 16Mbyte = 256(Blocks)*16(Sectors)*16(Pages)*256(Bytes)
 
-Pending:
+Pending and Note:
 1. Check whether space is enough before write/program.
 2. Max. load for each half-dual SPI ioctl operation is 36bytes, including Tx and Rx data.
-3. Address to be aligned for flash-write operation ???
-   Address is aligned for flash-erase operation.
---------------------------------------------------------------------------*/
+3. Address to be aligned for all flash-write operation ???
+
+4. Address is aligned for all flash-erase operation.
+5. Adjust interval(us) in flash_wait_busy(interval) to save waiting time!
+   reference:
+	flash_write_bytes() ......  flash_wait_busy(0)
+	flash_write_page() ......  flash_wait_busy(0)
+	flash_read_data() ......  flash_wait_busy(100)
+
+
+   Tested on Widora-NEO
+   Midas
+--------------------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include "w25q.h"
 #include "spi.h"
@@ -97,10 +107,12 @@ int flash_write_disable(void)
 /*--------------------------------------------------------
 wait for flash busy status, etc. during erasing,writing.
 
+interval(us): busy_statu checking interval,in us.
+
 return ms:
 	>=0	OK
 ---------------------------------------------------------*/
-int flash_wait_busy(void)
+int flash_wait_busy(int interval)
 {
 	uint8_t TxBuf[2],RxBuf[2];
 
@@ -108,12 +120,9 @@ int flash_wait_busy(void)
 	// Read Status Register-1  --05h, get S7-S0
 	TxBuf[0]=W25Q_READ_STATUS_REG_1;
 
-	int wdelay=5; //status poll interval in ms.
 	int i=0;
 
 	do {
-		usleep(1000*wdelay); //----set delay........
-		i++;
 		if(SPI_Write_then_Read(TxBuf,1,RxBuf,1) < 1)
 		{
 			return -1;
@@ -123,13 +132,19 @@ int flash_wait_busy(void)
 //		printf("Return Status Register-1: 0x%02x \n",RxBuf[0]);
 
 		if(((RxBuf[0]) & 0x01) == 0)
+		{
 			break;
-//		else
+		}
+		else
+		{
+			usleep(interval); //----set delay........
+			i++;
 //			printf("BUSY for Write/Erase.\n");
+		}
 
 	} while(1);
 
-	return i*wdelay; //in ms
+	return i*interval/1000; //in ms
 }
 
 /*----------------------------------------------
@@ -161,7 +176,7 @@ int flash_sector_erase(int addr)
 		return -1;
 
 	// wait erasing completion
-	tmp=flash_wait_busy();
+	tmp=flash_wait_busy(100);
 
 	if(tmp < 0)
 	{
@@ -219,7 +234,7 @@ int flash_block_erase(bool bl32k, int addr)
 		return -1;
 
 	// wait erasing completion
-	tmp=flash_wait_busy();
+	tmp=flash_wait_busy(100);
 
 	if(tmp < 0)
 	{
@@ -233,6 +248,46 @@ int flash_block_erase(bool bl32k, int addr)
 		else
 			printf("Finish erasing 64K block starting from 0x%06X in %dms\n",addr&0xFF0000,tmp);
 	}
+
+	return 0;
+}
+
+/*----------------------------------------------------------
+Flash Chip Erase.
+
+Erase whole flash memory and set 0xFF for all bytes.
+Check STATUS to confirm completion of erasing.
+
+return:
+	0	OK
+----------------------------------------------------------*/
+int flash_chip_erase(void)
+{
+	uint8_t CmdBuf[2];
+	int tmp;
+
+	//Chip Erase --C7h or 60h, execute the Write Enable first.
+	CmdBuf[0]=W25Q_CHIP_ERASE;
+
+	//--- enable write before sector erase
+	if(flash_write_enable()!=0)
+		return -1;
+
+	//--- send chip erase command
+	if(SPI_Write(CmdBuf,1)<1)
+		return -1;
+
+	// wait erasing completion
+	tmp=flash_wait_busy(20000);
+
+	if(tmp < 0)
+	{
+		printf("flash_wait_busy() fails!\n");
+		return -1;
+	}
+	else
+		printf("Finish erasing whole chip in %dms\n",tmp);
+
 
 	return 0;
 }
@@ -285,7 +340,7 @@ int flash_write_bytes(uint8_t *dat, int addr,int cnt)
 		return -1;
 
 	// wait write/erasing completion
-	flash_wait_busy();
+	flash_wait_busy(0);
 
 	//--- print data
 	printf("write data to 0x%06X: 0x",addr);
@@ -335,8 +390,8 @@ int flash_write_page(uint8_t *dat, int addr)
         	if( SPI_Write_Command_Data(CmdBuf, 4, dat+i*32, 32) < 1)
 			return -1;
 
-		// wait write/erasing completion
-		flash_wait_busy();
+		// wait write/erasing completion !!!!!
+		flash_wait_busy(0); //------------------
 /*
 		printf("write page i=%d\n",i);
 		for(k=0;k<32;k++)
@@ -344,6 +399,7 @@ int flash_write_page(uint8_t *dat, int addr)
 		printf("\n");
 */
 	}
+
 
 	return 0;
 }
@@ -388,7 +444,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 			return -1;
 
 		// wait write/erasing completion
-		flash_wait_busy();
+		flash_wait_busy(100);
 
 	}
 
@@ -403,7 +459,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 		return -1;
 
 	// wait write/erasing completion
-	flash_wait_busy();
+	flash_wait_busy(100);
 
 	return 0;
 }
