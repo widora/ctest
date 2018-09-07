@@ -14,8 +14,8 @@ Pending and Note:
    reference:
 	flash_write_bytes() ......  flash_wait_busy(0)
 	flash_write_page() ......  flash_wait_busy(0)
-	flash_read_data() ......  flash_wait_busy(100)
-
+	flash_read_data() ......  flash_wait_busy(100)  ----necessary ???????
+6.W25Q128 has a 256-bytes page buffer inside.
 
    Tested on Widora-NEO
    Midas
@@ -25,40 +25,143 @@ Pending and Note:
 #include "spi.h"
 
 
+/*-----------------------------------------------------------------------------------
+Software Reset the device
+
+default Status Register-3 S23 bit: HOLD/RST=0, pin(/HOLD or /RESET) acts as /HOLD pin.
+
+WARNING:
+  The current operation will be terminated !!!
+	                  and all volitale settings will be lost!!!
+-----------------------------------------------------------------------------------*/
+void flash_soft_reset(void)
+{
+	uint8_t CmdBuf[2];
+
+	//--- enable reset first
+	CmdBuf[0]=W25Q_ENABLE_RESET;
+	SPI_Write(CmdBuf,1);
+
+	//--- reset the device then
+	CmdBuf[0]=W25Q_RESET_DEVICE;
+	SPI_Write(CmdBuf,1);
+
+	//---- takes appr. tRS=30us to reset
+	usleep(100);
+}
+
+
+/*------------------------------------------------------------------------
+Power-down to save reduce chip power consumption
+power-down to be activated in tDP=3us
+Note:
+   All commands will be ignored in Power-down state,except Release power-down.
+ So power-down can be used to proctect your data.
+-------------------------------------------------------------------------*/
+void flash_power_down(void)
+{
+	uint8_t CmdBuf[2];
+
+	CmdBuf[0]=W25Q_POWER_DOWN;
+	SPI_Write(CmdBuf,1);
+}
+
+/*--------------------------------------------------------------
+Restore device frome power-down to normal operation state
+Release will take abt. tRES1=3us
+--------------------------------------------------------------*/
+void flash_release_power_down(void)
+{
+	uint8_t CmdBuf[2];
+
+	CmdBuf[0]=W25Q_RELEASE_POWER_DOWN;
+	SPI_Write(CmdBuf,1);
+}
+
+
 /*----------------------------------
 Read Status Registers
 	Status Register-1(05h)
 	Status Register-2(35h)
 	Status Register-3(15h)
 
-reg: 1,2 or 3 for Regiser-number
+regnum: 1,2 or 3 for Regiser-number
 
 return: register status data
 ------------------------------------*/
 uint8_t flash_read_status(int regnum)
 {
-	uint8_t TxBuf[2],RxBuf[2];
+	uint8_t CmdBuf[2],RxBuf[2];
 
 	switch(regnum)
 	{
 		case 1:
-			TxBuf[0]=W25Q_READ_STATUS_REG_1;
+			CmdBuf[0]=W25Q_READ_STATUS_REG_1;
 			break;
 		case 2:
-			TxBuf[0]=W25Q_READ_STATUS_REG_2;
+			CmdBuf[0]=W25Q_READ_STATUS_REG_2;
 			break;
 		case 3:
-			TxBuf[0]=W25Q_READ_STATUS_REG_3;
+			CmdBuf[0]=W25Q_READ_STATUS_REG_3;
 			break;
 		default:
-			TxBuf[0]=W25Q_READ_STATUS_REG_1;
+			CmdBuf[0]=W25Q_READ_STATUS_REG_1;
 			printf("Status register number error! use Register-1.\n");
 	}
 
-	SPI_Write_then_Read(TxBuf,1,RxBuf,1);
+	SPI_Write_then_Read(CmdBuf,1,RxBuf,1);
 
 	return RxBuf[0];
 }
+
+
+/*--------------------------------------------
+Read BUSY bit of status register-1,
+1--busy or in power-down state !!!
+0--free/ready
+
+return:
+	true  --busy
+	false --free/ready to accept command
+
+---------------------------------------------*/
+bool flash_is_busy(void)
+{
+	return ( flash_read_status(1) & 0x01 );
+}
+
+
+/*------------------------------------------------
+
+Read and print chip MID/DID/JEDEC ID/UID
+
+------------------------------------------------*/
+void flash_read_IDs(void)
+{
+	uint8_t CmdBuf[8],RxBuf[8];
+	int i;
+
+        //----- send Instruction 0x90 to W25Q then get MID/DID
+        CmdBuf[0]=W25Q_READ_MID_DID;
+        SPI_Write_then_Read(CmdBuf,4,RxBuf,2);
+        printf("Manufacturer ID: 0x%02X,  Device ID: 0x%02X \n",RxBuf[0],RxBuf[1]);
+
+        //----- send Instruction 0x9F to W25Q then get JEDEC ID in "MF7:0,ID15:8,ID7:0"
+        CmdBuf[0]=W25Q_READ_JEDEC_ID;
+        SPI_Write_then_Read(CmdBuf,1,RxBuf,3);
+        printf("Manufacturer ID: 0x%02X, Memory Type: 0x%02X, Capacity: 0x%02X \n",RxBuf[0],RxBuf[1],RxBuf[2]);
+
+        //----- Read Unique ID --4Bh
+        CmdBuf[0]=W25Q_READ_UID;
+        SPI_Write_then_Read(CmdBuf,5,RxBuf,8); //4-dummy bytes after command,then return back 64-bits UID
+        printf("64-bits Unique ID: 0x");
+        for(i=0;i<8;i++)
+                printf("%02X",RxBuf[i]);
+        printf("\n");
+
+}
+
+
 
 /*---------------------------
 Write Enable Instruction
@@ -444,7 +547,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 			return -1;
 
 		// wait write/erasing completion
-		flash_wait_busy(100);
+//no-need	flash_wait_busy(100);
 
 	}
 
@@ -459,7 +562,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 		return -1;
 
 	// wait write/erasing completion
-	flash_wait_busy(100);
+//no-need	flash_wait_busy(100);
 
 	return 0;
 }
