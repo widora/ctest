@@ -7,15 +7,17 @@ and each sector has 16 page(256byte).
 Pending and Note:
 1. Check whether space is enough before write/program.
 2. Max. load for each half-dual SPI ioctl operation is 36bytes, including Tx and Rx data.
-3. Address to be aligned for all flash-write operation ???
-
+3. Address to be aligned for all flash_write operation ???
 4. Address is aligned for all flash-erase operation.
 5. Adjust interval(us) in flash_wait_busy(interval) to save waiting time!
    reference:
 	flash_write_bytes() ......  flash_wait_busy(0)
 	flash_write_page() ......  flash_wait_busy(0)
-	flash_read_data() ......  flash_wait_busy(100)  ----necessary ???????
-6.W25Q128 has a 256-bytes page buffer inside.
+	XXXXX flash_read_data() ......  flash_wait_busy(100) XXXX --not necessary!
+	flash_sector_erase() ...... flash_wait_busy(100)
+	flash_block_erase() ...... flash_wait_busy(100)
+	flash_chip_erase() ...... flash_wait_busy(20000)
+6.W25Q128 has a 256-bytes page buffer inside for read/write.
 
    Tested on Widora-NEO
    Midas
@@ -24,6 +26,7 @@ Pending and Note:
 #include "w25q.h"
 #include "spi.h"
 
+#define DEBUG_TIME_COST 0
 
 /*-----------------------------------------------------------------------------------
 Software Reset the device
@@ -286,9 +289,11 @@ int flash_sector_erase(int addr)
 		printf("flash_wait_busy() fails!\n");
 		return -1;
 	}
+
+	#if DEBUG_TIME_COST
 	else
 		printf("Finish erasing 4k sector starting from 0x%06x in %dms\n",(addr&0xFFF000),tmp);
-
+	#endif
 	return 0;
 }
 
@@ -344,6 +349,7 @@ int flash_block_erase(bool bl32k, int addr)
 		printf("flash_wait_busy() fails!\n");
 		return -1;
 	}
+	#if DEBUG_TIME_COST
 	else
 	{
 		if(bl32k)
@@ -351,6 +357,7 @@ int flash_block_erase(bool bl32k, int addr)
 		else
 			printf("Finish erasing 64K block starting from 0x%06X in %dms\n",addr&0xFF0000,tmp);
 	}
+	#endif
 
 	return 0;
 }
@@ -388,9 +395,10 @@ int flash_chip_erase(void)
 		printf("flash_wait_busy() fails!\n");
 		return -1;
 	}
+	#if DEBUG_TIME_COST
 	else
 		printf("Finish erasing whole chip in %dms\n",tmp);
-
+	#endif
 
 	return 0;
 }
@@ -547,7 +555,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 			return -1;
 
 		// wait write/erasing completion
-//no-need	flash_wait_busy(100);
+//no-need!!!	flash_wait_busy(100);
 
 	}
 
@@ -562,7 +570,7 @@ int flash_read_data(int addr, uint8_t *dat, int cnt)
 		return -1;
 
 	// wait write/erasing completion
-//no-need	flash_wait_busy(100);
+//no-need!!!	flash_wait_busy(100);
 
 	return 0;
 }
