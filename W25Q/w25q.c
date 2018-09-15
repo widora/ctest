@@ -26,6 +26,7 @@ Pending and Note:
 #include "w25q.h"
 #include "spi.h"
 
+/*----- turn/on for time consumption print in functions -----*/
 #define DEBUG_TIME_COST 0
 
 /*-----------------------------------------------------------------------------------

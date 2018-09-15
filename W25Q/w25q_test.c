@@ -21,6 +21,8 @@ Note:
 0. Use default set WPS=CMP=BP1=BP2=BP3=0, no protection for any address.
 1. Flash write speed is abt. 125kBytes/s for single SPI transfer with 18MHz clock.
 2. Check BUSY bit of Status Register-1 first to make sure the flash chip is ready.
+
+Midas
 -----------------------------------------------------------------------------------*/
 #include "spi.h"
 #include "w25q.h"
