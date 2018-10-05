@@ -210,7 +210,7 @@ static irqreturn_t LIRC_int_handle(int irq,void *dev_id,struct pt_regs *regs)
   int k=0,k1=0,k2=0,k3=0,k4=0;
   int j,n;
   //u32 data=0;
-  
+ 
   if(GINT_STATUS)
   //if(confirm_interrupt()) //---- NOTE: call this operation will cost ~3ms !!!  
   //if(1)
@@ -220,7 +220,7 @@ static irqreturn_t LIRC_int_handle(int irq,void *dev_id,struct pt_regs *regs)
       disable_irq_nosync(LIRC_INT_NUM);
       //disable_irq(LIRC_INT_NUM); !!!!!!! WARNING: disable_irq() MUST NOT use in irq handler or in IRQF_SHARED mode,This will cause dead-loop !!!!!.
       disable_gpio_int();
-       
+
       while(!get_gpio_data())
        {
         udelay(1);
@@ -323,7 +323,11 @@ static irqreturn_t LIRC_int_handle(int irq,void *dev_id,struct pt_regs *regs)
 static int lirc_register_irq(void)
 {
      int intc_result;
-
+/*
+static inline int __must_check
+request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
+            const char *name, void *dev)
+*/
      intc_result=request_irq(LIRC_INT_NUM,LIRC_int_handle,IRQF_DISABLED,"LIRC_midas",NULL);
      //intc_result=request_irq(LIRC_INT_NUM,LIRC_int_handle,IRQF_SHARED,"LIRC_midas",(void *)&LIRC_cdev);
  /*--------------------------   IRQF_DISABLED or IRQF_SHARED   -------------------------------------
@@ -365,8 +369,8 @@ static int LIRC_open(struct inode *inode, struct file *file)
          if(ret_v)
             printk("------ LIRC: register IRQ faile! ------\n");
          //----------   init work-queue  for irq handler low part
-         INIT_WORK(&lirc_wq,enable_irq_wq);        
-               
+         INIT_WORK(&lirc_wq,enable_irq_wq);
+
 	return 0;
 }
 
@@ -389,12 +393,10 @@ static ssize_t LIRC_read(struct file *file, char __user *buffer,
 {
 	int ret_v = 0;
 //	printk("LIRC driver read...\n");
-	if(LIRC_DATA != 0)
-	{
-	        copy_to_user(buffer,&LIRC_DATA,4);
-	        LIRC_DATA=0; //--clear data after read
-        	ret_v=4;
-	}
+
+        copy_to_user(buffer,&LIRC_DATA,4);
+        LIRC_DATA=0; //--clear data after read
+        ret_v=4;
 
 	return ret_v;
 }
@@ -468,7 +470,7 @@ static __init int LIRC_init(void)
 {
 	int ret_v = 0;
 
-	printk("------------$$  LIRC driver init  $$----------\n");
+	printk("-------------  LIRC driver init  ----------\n");
 
 	//函数alloc_chrdev_region主要参数说明：
 	//参数2： 次设备号

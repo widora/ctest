@@ -1,8 +1,8 @@
-cmd_/home/midas/ctest/kmods/klirc/lirc.o := /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc -Wp,-MD,/home/midas/ctest/kmods/klirc/.lirc.o.d  -nostdinc -isystem /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib/gcc/mipsel-openwrt-linux-uclibc/4.8.3/include -I./arch/mips/include -Iarch/mips/include/generated  -Iinclude -I./arch/mips/include/uapi -Iarch/mips/include/generated/uapi -I./include/uapi -Iinclude/generated/uapi -include ./include/linux/kconfig.h -D__KERNEL__ -DVMLINUX_LOAD_ADDRESS=0xffffffff80000000 -DDATAOFFSET=0 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -mno-check-zero-division -mabi=32 -G 0 -mno-abicalls -fno-pic -pipe -mno-branch-likely -msoft-float -DGAS_HAS_SET_HARDFLOAT -Wa,-msoft-float -ffreestanding -march=mips32r2 -Wa,-mips32r2 -Wa,--trap -I./arch/mips/include/asm/mach-ralink -I./arch/mips/include/asm/mach-ralink/mt7620 -I./arch/mips/include/asm/mach-generic -fno-delete-null-pointer-checks -Os -Wno-maybe-uninitialized --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -fno-var-tracking-assignments -g -femit-struct-debug-baseonly -fno-var-tracking -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE -mno-long-calls  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(lirc)"  -D"KBUILD_MODNAME=KBUILD_STR(lirc)" -c -o /home/midas/ctest/kmods/klirc/lirc.o /home/midas/ctest/kmods/klirc/lirc.c
+cmd_/home/midas-zhou/ctest/kmods/klirc/lirc.o := /home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc -Wp,-MD,/home/midas-zhou/ctest/kmods/klirc/.lirc.o.d  -nostdinc -isystem /home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib/gcc/mipsel-openwrt-linux-uclibc/4.8.3/include -I./arch/mips/include -Iarch/mips/include/generated  -Iinclude -I./arch/mips/include/uapi -Iarch/mips/include/generated/uapi -I./include/uapi -Iinclude/generated/uapi -include ./include/linux/kconfig.h -D__KERNEL__ -DVMLINUX_LOAD_ADDRESS=0xffffffff80000000 -DDATAOFFSET=0 -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -mno-check-zero-division -mabi=32 -G 0 -mno-abicalls -fno-pic -pipe -mno-branch-likely -msoft-float -DGAS_HAS_SET_HARDFLOAT -Wa,-msoft-float -ffreestanding -march=mips32r2 -Wa,-mips32r2 -Wa,--trap -I./arch/mips/include/asm/mach-ralink -I./arch/mips/include/asm/mach-ralink/mt7620 -I./arch/mips/include/asm/mach-generic -fno-delete-null-pointer-checks -Os -Wno-maybe-uninitialized --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -fno-var-tracking-assignments -g -femit-struct-debug-baseonly -fno-var-tracking -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE -mno-long-calls  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(lirc)"  -D"KBUILD_MODNAME=KBUILD_STR(lirc)" -c -o /home/midas-zhou/ctest/kmods/klirc/lirc.o /home/midas-zhou/ctest/kmods/klirc/lirc.c
 
-source_/home/midas/ctest/kmods/klirc/lirc.o := /home/midas/ctest/kmods/klirc/lirc.c
+source_/home/midas-zhou/ctest/kmods/klirc/lirc.o := /home/midas-zhou/ctest/kmods/klirc/lirc.c
 
-deps_/home/midas/ctest/kmods/klirc/lirc.o := \
+deps_/home/midas-zhou/ctest/kmods/klirc/lirc.o := \
   include/linux/mm.h \
     $(wildcard include/config/need/multiple/nodes.h) \
     $(wildcard include/config/sysctl.h) \
@@ -128,7 +128,7 @@ deps_/home/midas/ctest/kmods/klirc/lirc.o := \
     $(wildcard include/config/ring/buffer.h) \
     $(wildcard include/config/tracing.h) \
     $(wildcard include/config/ftrace/mcount/record.h) \
-  /home/midas/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib/gcc/mipsel-openwrt-linux-uclibc/4.8.3/include/stdarg.h \
+  /home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/lib/gcc/mipsel-openwrt-linux-uclibc/4.8.3/include/stdarg.h \
   include/linux/bitops.h \
   arch/mips/include/asm/bitops.h \
     $(wildcard include/config/cpu/mipsr2.h) \
@@ -838,6 +838,6 @@ deps_/home/midas/ctest/kmods/klirc/lirc.o := \
     $(wildcard include/config/irq/forced/threading.h) \
     $(wildcard include/config/generic/irq/probe.h) \
 
-/home/midas/ctest/kmods/klirc/lirc.o: $(deps_/home/midas/ctest/kmods/klirc/lirc.o)
+/home/midas-zhou/ctest/kmods/klirc/lirc.o: $(deps_/home/midas-zhou/ctest/kmods/klirc/lirc.o)
 
-$(deps_/home/midas/ctest/kmods/klirc/lirc.o):
+$(deps_/home/midas-zhou/ctest/kmods/klirc/lirc.o):
