@@ -16,4 +16,5 @@ all:
 
 clean:
 	rm -f lirc_app lirc_mplay
-	rm -f *.o *.ko *.mod.c *.mod.o *.order *.symvers
+	rm -rf *.o *.ko *.o.cmd *.mod.c *.mod.o *.order *.symvers
+	rm -f .*
