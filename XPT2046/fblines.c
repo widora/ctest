@@ -53,17 +53,30 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
         int tekyy=*yy2-*yy1;
 
         //if((*xx2>=*xx1)&&(*yy2>=*yy1))
-        if(*xx2>=*xx1)
+        if(*xx2>*xx1)
         {
             for(i=*xx1;i<=*xx2;i++)
             {
                 j=(i-*xx1)*tekyy/tekxx+*yy1;
                 draw_dot(fr_dev,i,j);
-		draw_dot(fr_dev,i+1,j);
-		draw_dot(fr_dev,i,j+1);
-		draw_dot(fr_dev,i+1,j+1);
+//		draw_dot(fr_dev,i+1,j);
+//		draw_dot(fr_dev,i,j+1);
+//		draw_dot(fr_dev,i+1,j+1);
             }
         }
+	else if(*xx2 == *xx1)
+	{
+	   if(*yy2>=*yy1)
+	   {
+		for(i=*yy1;i<*yy2;i++)
+		   draw_dot(fr_dev,*xx1,i);
+	    }
+	    else //yy2<yy1
+	   {
+		for(i=*yy2;i<*yy1;i++)
+			draw_dot(fr_dev,*xx1,i);
+	   }
+	}
         else
         {
             //if(*xx2<*xx1)

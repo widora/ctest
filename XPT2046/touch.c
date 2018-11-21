@@ -29,6 +29,7 @@
 
 int main(void)
 {
+	int sx0=0,sy0=0;
 	int sx,sy;  //LCD screen coordinates.
 	uint8_t cmd;
 	uint8_t  xp[2],yp[2];
@@ -43,20 +44,35 @@ int main(void)
 
 	while(1)
 	{
+
+	    usleep(3000);  //small value increase width of pen
+
 	    cmd=XPT_CMD_READXP;
 	    SPI_Write_then_Read(&cmd, 1, xp, 2);
 	    cmd=XPT_CMD_READYP;
 	    SPI_Write_then_Read(&cmd, 1, yp, 2);
 
+	   /*  valifiy read dat */
 	    if(xp[0]){
 //	    	    printf("Xp[0]=%d\n",xp[0]); //untoched: Xp[0]=0, Xp[1]=0,
 	    }
+	    else{  /* meanless xp, or pen_up */
+		/* reset sx0,sy0 */
+		sx0=0;sy0=0;
+		continue;
+	   }
 
 	    if(yp[0]<117){
-  //     	    	printf("Yp[0]=%d\n",yp[0]); //untoched: Yp[0]=127=[2b0111,1111] ,Yp[1]=248=[2b1111,1100]
+ // 	     	printf("Yp[0]=%d\n",yp[0]); //untoched: Yp[0]=127=[2b0111,1111] ,Yp[1]=248=[2b1111,1100]
+
 	    }
-	    else
-		yp[0]=0;
+	    else  /* meanless yp, or pen_up */
+	    {
+		  yp[0]=0;
+		  /* reset sx0,sy0 */
+		  sx0=0;sy0=0;
+		  continue;
+	     }
 
 	    /* normalize x,y dat */
 	    if(xp[0]<XPT_XP_MIN)xp[0]=XPT_XP_MIN;
@@ -69,12 +85,33 @@ int main(void)
 	    sy=LCD_SIZE_Y*(yp[0]-XPT_YP_MIN)/(XPT_YP_MAX-XPT_YP_MIN+1);
 //	    printf("sx=%d, sy=%d \n",sx,sy);
 
-	    draw_dot(&fr_dev,sx,sy);
-//	    draw_dot(&fr_dev,sx+1,sy);
-//	    draw_dot(&fr_dev,sx,sy+1);
-//	    draw_dot(&fr_dev,sx+1,sy+1);
+	    /*  restore data */
+	    if(sx0==0 || sy0==0){
+		sx0=sx;
+		sy0=sy;
+	    }
 
-	    usleep(5000);
+	    /* ignore uncontinous points */
+	    // too small value will cause more breaks and gaps
+	    if( abs(sx-sx0)>4 || abs(sy-sy0)>4 ) {
+		  /* reset sx0,sy0 */
+		  sx0=0;sy0=0;
+  		  continue;
+	    }
+
+	    /* ignore repeated points */
+	    if(sx0==sx && sy0==sy)continue;
+
+
+	    /*  draw point  */
+//	    draw_dot(&fr_dev,sx,sy);
+	    /*  draw line */
+	    draw_line(&fr_dev,sx0,sy0,sx,sy);
+
+	    /* update sx0,sy0 */
+	    sx0=sx;sy0=sy;
+
+
 	}
 
 	/* close fb dev */
