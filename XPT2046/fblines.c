@@ -9,6 +9,8 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 -----------------------------------------------------------------------------*/
     #include "fblines.h"
 
+    static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
+
     void init_dev(FBDEV *dev)
     {
         FBDEV *fr_dev=dev;
@@ -22,6 +24,43 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
         printf("init_dev successfully.\n");
     }
 
+  /*------------------------------------
+  check if (px,py) in box(x1,y1,x2,y2)
+  return true or false
+  -------------------------------------*/
+  bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
+  {
+      int xl,xh,yl,yh;
+
+	if(x1>=x2){
+		xh=x1;xl=x2;
+	}
+	else {
+		xl=x1;xh=x2;
+	}
+
+	if(y1>=y2){
+		yh=y1;yl=y2;
+	}
+	else {
+		yh=y2;yl=y1;
+	}
+
+	if( (px>=xl && px<=xh) && (py>=yl && py<=yh))
+		return true;
+	else
+		return false;
+  }
+
+
+
+    /*  set color for every dot */
+    void fbset_color(uint16_t color)
+    {
+	fb_color=color;
+
+    }
+
     void draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
     {
         FBDEV *fr_dev=dev;
@@ -31,12 +70,16 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
         long int location=0;
         location=(*xx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (*yy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+/*
         int b=10;
-        int g=10;
-        int r=220;
+        int g=60;
+        int r=20;
         unsigned short int t=r<<11|g<<5|b;
-        *((unsigned short int *)(fr_dev->map_fb+location))=t;
+*/
+        *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
     }
+
+
 
 
     void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2) 
@@ -89,6 +132,25 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
 
     }
+
+
+    /*------------------------------------------------
+	           draw an oval
+    -------------------------------------------------*/
+    void draw_oval(FBDEV *dev,int x,int y) //(x.y) 是坐标
+    {
+        FBDEV *fr_dev=dev;
+        int *xx=&x;
+        int *yy=&y;
+
+	draw_line(fr_dev,*xx,*yy-3,*xx,*yy+3);
+	draw_line(fr_dev,*xx-1,*yy-2,*xx-1,*yy+2);
+	draw_line(fr_dev,*xx-2,*yy-1,*xx-2,*yy+1);
+	draw_line(fr_dev,*xx+1,*yy-2,*xx+1,*yy+2);
+	draw_line(fr_dev,*xx+2,*yy-2,*xx+2,*yy+2);
+
+    }
+
 
     void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
     {

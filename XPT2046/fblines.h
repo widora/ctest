@@ -13,6 +13,9 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
     #include <linux/fb.h>
     #include <sys/mman.h>
     #include <sys/ioctl.h>
+    #include <stdint.h>
+    #include <math.h>
+    #include <stdbool.h>
 
     typedef struct fbdev{
         int fdfd; //open "dev/fb0"
@@ -23,8 +26,11 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
     }FBDEV;
 
     void init_dev(FBDEV *dev);
+    bool point_inbox(int px,int py,int x1,int y1,int x2,int y2);
+    void fbset_color(uint16_t color);
     void draw_dot(FBDEV *dev,int x,int y); //(x.y) 是坐标
     void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
+    void draw_oval(FBDEV *dev,int x,int y);
     void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 
 
