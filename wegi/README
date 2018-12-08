@@ -1,0 +1,4 @@
+NOTE:
+1. Copy main() source file to temp_app.c, then you can use Makefile.
+2. Change the original main() source file to xxx_C for backup.  
+3. Make it and you will get bin file temp_app, change the name as you wish.
