@@ -1,0 +1,3 @@
+tmp_app : tmp_app.c spi.h fblines.h egi.h xpt2046.h bmpjpg.h \
+ include/jpeglib.h include/jconfig.h include/jmorecfg.h include/jerror.h \
+ dict.h

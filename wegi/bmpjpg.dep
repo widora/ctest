@@ -1,0 +1,2 @@
+bmpjpg : bmpjpg.c include/jpeglib.h include/jconfig.h include/jmorecfg.h \
+ include/jerror.h bmpjpg.h fblines.h

@@ -32,11 +32,82 @@ Midas Zhou
 #include "bmpjpg.h"
 #include "dict.h"
 
+#include <signal.h>
+#include <sys/time.h>
+#include <time.h>
+
+
+struct itimerval tm_val, tm_oval;
+char tm_strbuf[50]={0};
+
+
+/*----------------------------------
+ get local time in string in format:
+ 	Year Mon Day H:M:S
+------------------------------------*/
+void tm_get_strtime(char *tmbuf)
+{
+	time_t tm_t; /* time in seconds */
+	struct tm *tm_s; /* time in struct */
+
+	time(&tm_t);
+	tm_s=localtime(&tm_t);
+
+	/*
+		tm_s->tm_year start from 1900
+		tm_s->tm_mon start from 0
+	*/
+#if 0
+	printf("%d-%d-%d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
+			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
+#endif
+	sprintf(tmbuf,"%d %d %d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
+			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
+
+}
+
+/* -----------------------------
+ timer routine
+-------------------------------*/
+void tm_sigroutine(int signo)
+{
+	if(signo == SIGALRM)
+	{
+		printf(" . tick . \n");
+
+	}
+
+	/* restore tm_sigroutine */
+	signal(SIGALRM, tm_sigroutine);
+}
+
+/*---------------------------------
+set timer for SIGALRM
+us: time interval in us.
+----------------------------------*/
+void tm_settimer(int us)
+{
+	/* time left before next expiration  */
+	tm_val.it_value.tv_sec=0;
+	tm_val.it_value.tv_usec=us;
+	/* time interval for periodic timer */
+	tm_val.it_interval.tv_sec=0;
+	tm_val.it_interval.tv_usec=us;
+
+	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
+
+}
+
+
+
+
+
 /*-------------------  MAIN  ---------------------*/
 int main(void)
 {
 	int i,j,k;
 	int index;
+
 	/*-------------------------------------------------
 	 native XPT touch pad coordinate value
 	!!!!!!!! WARNING: use xp[0] and yp[0] only !!!!!
@@ -52,11 +123,10 @@ int main(void)
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
 	uint16_t sx0=0,sy0=0;//saved last TOUCH point coordinate, for comparison.
 
-	//uint8_t cmd;
+	/* Frame buffer device */
         FBDEV     fr_dev;
 
-
-	/* buttons array param */
+	/* ---- buttons array param ------*/
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
@@ -65,32 +135,37 @@ int main(void)
 	int sbox=70; /* side length of the square box */
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
-
 	char str_syscmd[100];
 
 
-	/* open spi dev */
+	/* --- open spi dev --- */
 	SPI_Open();
-	/* prepare fb device */
+
+	/* --- prepare fb device --- */
         fr_dev.fdfd=-1;
         init_dev(&fr_dev);
-	/* clear the screen with BLACK*/
-	clear_screen(&fr_dev,(0|0|0));
+
+	/* --- clear screen with BLACK --- */
+	clear_screen(&fr_dev,(0<<11|0<<5|0));
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&fr_dev,0,0);
 
 	/* --- load symbol dict --- */
 	//dict_display_img(&fr_dev,"dict.img");
-
 	if(dict_load_h20w15("/home/dict.img")==NULL)
 		exit(-1);
 
+	/* --- print and display symbols --- */
+#if 0
 	dict_print_symb20x15(dict_h20w15);
 	for(i=0;i<10;i++)
-		dict_display_symb20x15(1,&fr_dev, (uint16_t *)(dict_h20w15+i*15*20), 30+i*15, 320-40);
-
+		dict_writeFB_symb20x15(&fr_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
+#endif
 //	exit(1);
+
+
+
 
 	/* ----- generate eboxe parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
@@ -107,24 +182,38 @@ int main(void)
 	/* print box position for debug */
 	// for(i=0;i<nrow*ncolumn;i++)
 	//	printf("ebox[%d]: x0=%d, y0=%d\n",i,ebox[i].x0,ebox[i].y0);
-	/* ----- draw the boxes ----- */
+
+	/* ----- draw the eboxes ----- */
 	for(i=0;i<nrow*ncolumn;i++)
 	{
-		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
+		/* color adjust for button */
+//ok		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
+		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
+//ok		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
 
 		draw_filled_rect(&fr_dev,ebox[i].x0,ebox[i].y0,\
 			ebox[i].x0+ebox[i].width,ebox[i].y0+ebox[i].height);
 	}
 
 
+	/* ---- set timer for time display ---- */
+	tm_settimer(500000);/* set timer interval interval */
+	signal(SIGALRM, tm_sigroutine);
 
+
+	/* set default color */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
-	/* ---------------- MAIN LOOP -----------------------*/
+	/* ===============----------(((  MAIN LOOP  )))----------================= */
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
 		usleep(3000); //3000
+
+		/* ----- CLOCK: write Time string to FBDEV  ----- */
+		tm_get_strtime(tm_strbuf);
+		wirteFB_str20x15(&fr_dev, 0, (30<<11|45<<5|10), tm_strbuf+10, 45, 320-35);/* get rid of y-m-d */
+
 
 		/*--------- read XPT to get touch-pad coordinate --------*/
 		if( xpt_read_xy(xp,yp)!=0 ) /* if read XPT fails,break or pen-up */
@@ -138,8 +227,6 @@ int main(void)
 		}
 		else
 		{
-//			xyp_samples[0][nsample]=xp;
-//			xyp_samples[1][nsample]=yp;
 			xp_accum += xp[0];
 			yp_accum += yp[0];
 			nsample++;
@@ -172,7 +259,6 @@ int main(void)
 			system(str_syscmd);
 			//usleep(200000); //this will make touch points scattered.
 		}
-
 
 
 #if 0
@@ -209,7 +295,9 @@ int main(void)
 	    sx0=sx;sy0=sy;
 	}
 
-	/* release dict data */
+
+
+	/* release dict mem */
 	dict_release_h20w15();
 
 	/* close fb dev */
