@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+ /*------------------------------------------------------------------------------
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
@@ -9,6 +9,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
 
 modified by Midas-Zhou
+1. add 
 -----------------------------------------------------------------------------*/
 #include "fblines.h"
 
@@ -47,6 +48,7 @@ modified by Midas-Zhou
 	close(dev->fdfd);
     }
 
+
   /*------------------------------------
   check if (px,py) in box(x1,y1,x2,y2)
   return true or false
@@ -76,7 +78,6 @@ modified by Midas-Zhou
   }
 
 
-
     /*  set color for every dot */
     void fbset_color(uint16_t color)
     {
@@ -84,21 +85,27 @@ modified by Midas-Zhou
 
     }
 
+    /* clear screen with given color */
+    void clear_screen(FBDEV *dev, uint16_t color)
+    {
+	FBDEV *fr_dev=dev;
+	long int location=0;
+
+	for(location=0; location < (fr_dev->screensize); location++)
+	        *((unsigned short int *)(fr_dev->map_fb+location))=color;
+    }
+
+
     void draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
     {
         FBDEV *fr_dev=dev;
         int *xx=&x;
         int *yy=&y;
-
         long int location=0;
+
         location=(*xx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (*yy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
-/*
-        int b=10;
-        int g=60;
-        int r=20;
-        unsigned short int t=r<<11|g<<5|b;
-*/
+
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
     }
 
@@ -180,12 +187,6 @@ modified by Midas-Zhou
     void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
     {
         FBDEV *fr_dev=dev;
-/*
-        int *xx1=&x1;
-        int *yy1=&y1;
-        int *xx2=&x2;
-        int *yy2=&y2;
-*/
 
 	draw_line(fr_dev,x1,y1,x1,y2);
 	draw_line(fr_dev,x1,y2,x2,y2);

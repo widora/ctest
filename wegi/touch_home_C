@@ -16,10 +16,9 @@ usleep 3000us seems OK, or the data will be too scattered.
 
 7. point to an oval area mapping form TOUCH to LCD.
 
-
 TODO:
 1. Screen sleep
-2. LCD_SIZE_X,Y to be cancelled. 
+2.
 
 
 Midas Zhou
@@ -29,8 +28,7 @@ Midas Zhou
 #include "fblines.h"
 #include "egi.h"
 #include "xpt2046.h"
-#include "bmpjpg.h"
-#include "dict.h"
+
 
 /*-------------------  MAIN  ---------------------*/
 int main(void)
@@ -61,7 +59,7 @@ int main(void)
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
 	int startX=0;  /* start X of eboxes array */
-	int startY=120; /* start Y of eboxes array */
+	int startY=100; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
@@ -77,20 +75,6 @@ int main(void)
 	/* clear the screen with BLACK*/
 	clear_screen(&fr_dev,(0|0|0));
 
-	/* --- load screen paper --- */
-	show_jpg("home.jpg",&fr_dev,0,0);
-
-	/* --- load symbol dict --- */
-	//dict_display_img(&fr_dev,"dict.img");
-
-	if(dict_load_h20w15("/home/dict.img")==NULL)
-		exit(-1);
-
-	dict_print_symb20x15(dict_h20w15);
-	for(i=0;i<10;i++)
-		dict_display_symb20x15(1,&fr_dev, (uint16_t *)(dict_h20w15+i*15*20), 30+i*15, 320-40);
-
-//	exit(1);
 
 	/* ----- generate eboxe parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
@@ -208,9 +192,6 @@ int main(void)
 	    /* update sx0,sy0 */
 	    sx0=sx;sy0=sy;
 	}
-
-	/* release dict data */
-	dict_release_h20w15();
 
 	/* close fb dev */
         munmap(fr_dev.map_fb,fr_dev.screensize);

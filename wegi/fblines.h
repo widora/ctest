@@ -36,6 +36,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
     void release_dev(FBDEV *dev);
     bool point_inbox(int px,int py,int x1,int y1,int x2,int y2);
     void fbset_color(uint16_t color);
+    void clear_screen(FBDEV *dev, uint16_t color);
     void draw_dot(FBDEV *dev,int x,int y); //(x.y) 是坐标
     void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
     void draw_oval(FBDEV *dev,int x,int y);
