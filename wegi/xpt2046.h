@@ -26,8 +26,8 @@ Midas Zhou
 [1-0]	PD1-PD0		-- 11: normal power
 			   00: power saving mode
 ---------------------------------------------------------------*/
-#define XPT_CMD_READXP	0xD0 //0xD0 //1101,0000  /* read X position data */
-#define XPT_CMD_READYP	0x90 //0x90 //1001,0000 /* read Y position data */
+#define XPT_CMD_READXP  0xD0 //0xD0 //1101,0000  /* read X position data */
+#define XPT_CMD_READYP  0x90 //0x90 //1001,0000 /* read Y position data */
 
 /* ----- XPT bias and limit value ----- */
 #define XPT_XP_MIN 7
@@ -43,9 +43,17 @@ Midas Zhou
 #define LCD_SIZE_X 240
 #define LCD_SIZE_Y 320
 
+#define XPT_PENUP_READCOUNT 5 /* use to detect pen-up scenario */
+
+/* status for XPT touch data reading */
+#define XPT_READ_STATUS_COMPLETE      0   /* OK, reading session is just finished, data is ready.*/
+#define XPT_READ_STATUS_GOING    1        /* session is going on,  data is NOT ready.*/
+#define XPT_READ_STATUS_PENUP    2       /* pen-up status */
+
 
 /* -------------------------- functions ------------------------ */
 int xpt_read_xy(uint8_t *xp, uint8_t *yp);
 void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t *ys);
+int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy);
 
 #endif

@@ -8,41 +8,7 @@ Midas Zhou
 #include "xpt2046.h"
 
 
-
-/*--------------   8BITS CONTROL COMMAND FOR XPT2046   -------------------
-[7] 	S 		-- 1:  new control bits,
-	     		   0:  ignore data on pins
-
-[6-4]   A2-A0 		-- 101: X-position
-		   	   001: Y-position
-
-[3]	MODE 		-- 1:  8bits resolution
-		 	   0:  12bits resolution
-
-[2]	SER/(-)DFR	-- 1:  normal mode
-			   0:  differential mode
-
-[1-0]	PD1-PD0		-- 11: normal power
-			   00: power saving mode
----------------------------------------------------------------*/
-#define XPT_CMD_READXP	0xD0 //0xD0 //1101,0000  /* read X position data */
-#define XPT_CMD_READYP	0x90 //0x90 //1001,0000 /* read Y position data */
-
-/* ----- XPT bias and limit value ----- */
-#define XPT_XP_MIN 7
-#define XPT_XP_MAX 116 //actual 116
-#define XPT_YP_MIN 17
-#define XPT_YP_MAX 116  //actual 116
-
-/* ------ touch read sample number ------*/
-#define XPT_SAMPLE_EXPNUM 4  /* 2^4=2*2*2*2 */
-#define XPT_SAMPLE_NUMBER 1<<XPT_SAMPLE_EXPNUM  /* sample for each touch-read session */
-
-/* ----- LCD parameters ----- */
-#define LCD_SIZE_X 240
-#define LCD_SIZE_Y 320
-
-
+int xpt_nsample; /* sample index for XPT touch point coordinate */
 
 /*---------------------------------------------------------------
 read XPT touching coordinates, and normalize it.
@@ -106,3 +72,107 @@ void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t 
 	*ys=LCD_SIZE_Y*(yp[0]-XPT_YP_MIN)/(XPT_YP_MAX-XPT_YP_MIN+1);
 }
 
+
+/*---------------------------------------------------------------------------------------
+1. The function MUST be called at least XPT_SAMPLE_NUMBER times in order to get a meaningful data.
+   This function may be called in a loop, it reads one touch data for each circle.
+   It returns valid value only XPT_SAMPLE_NUMER consecutive samples have been read in.
+   Anyway, put the function in the caller's loop maybe a good idea for the following reason:
+   !!!!! --- Keep enough time-gap for XPT to prepare data in each read-session --- !!!!!
+
+2. The function reads touch-pad XPT_SAMPLE_NUMBER times by calling xpt_read_xy(xp,yp), then it will
+   calculate average touching coordinate x,y of those samples.
+
+3. If pen-up or break happens and xpt_read_xy() fails, then incomplete samples will be discarded,
+   the read session will restart again to ensure consistency of sample data.
+
+4. The final average touch-pad coordinates will be converted to LCD x,y and passed to the caller.
+
+5. The caller has the responsibility to decide whether to continue or go on its loop depending on
+   return value.
+
+
+avgsx,avgsy:	pointer to average x,y in tft-LCD coordinate.
+
+Return:
+	XPT_READ_STATUS_COMPLETE      0		OK, reading session just finished, (avgsx,avgsy) is ready.
+	XPT_READ_STATUS_GOING 	1		during reading session, avgsx,avgsy is NOT ready.
+	XPT_READ_STATUS_PENUP	2	pen-up
+
+
+	else		fail !!!!! no quit until get enough consecutive samples !!!!!
+
+TODO:
+
+---------------------------------------------------------------------------------------*/
+int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
+{
+        /*-------------------------------------------------
+         native XPT touch pad coordinate value
+        !!!!!! WARNING: use xp[0] and yp[0] only !!!!!
+        ---------------------------------------------------*/
+        uint8_t  xp[2]; /* when untoched: Xp[0]=0, Xp[1]=0 */
+        uint8_t  yp[2]; /* untoched: Yp[0]=127=[2b0111,1111] ,Yp[1]=248=[2b1111,1100]  */
+        static int xp_accum; /* accumulator of xp */
+        static int yp_accum; /* accumulator of yp */
+        static int nsample=0; /* samples index */
+	static int nfail=0; /* xpt_read_xy() fail counter, use to detect pen-up */
+
+        /* LCD coordinate value */
+        //uint16_t sx,sy;  //current coordinate, it's a LCD screen coordinates derived from TOUCH coo$
+
+	int ret;
+
+        /*--------- read XPT to get touch-pad coordinate --------*/
+        if( xpt_read_xy(xp,yp)!=0 ) /* if read XPT fails,break or pen-up */
+        {
+                /* reset nsample and accumulator then */
+                nsample=0;
+                xp_accum=0;yp_accum=0;
+
+ 		/* consecutive failure counts, check if pen-up */
+		nfail++;
+		if( nfail > XPT_PENUP_READCOUNT ) /* pen-up status */
+		{
+		/* do not change the XPT statu, until a touch is read */
+		/* do not reset nfail here, it will reset when a touch is read in flowing else{} */
+			//touch nfail=0;/* reset nfail */
+			return XPT_READ_STATUS_PENUP;
+		}
+        }
+        else
+        {
+		/* if not consecutive read fail, reset nfail */
+		nfail=0;
+		/* accumulate xp yp */
+                xp_accum += xp[0];
+                yp_accum += yp[0];
+                nsample++;
+        }
+
+
+	/* if sample number reaches XPT_SAMPLE_NUMER, pass value to the caller. */
+	if(nsample == XPT_SAMPLE_NUMBER)
+	{
+        	/* average of accumulated value, */
+      		xp[0]=xp_accum>>XPT_SAMPLE_EXPNUM; /* shift exponent number of 2 */
+        	yp[0]=yp_accum>>XPT_SAMPLE_EXPNUM;
+
+        	/* reset nsample and accumulator then */
+        	nsample=0;
+        	xp_accum=0;yp_accum=0;
+
+        	/* convert to LCD coordinate, and pass to avsx,avsy */
+        	xpt_maplcd_xy(xp, yp, avgsx, avgsy);
+        	printf("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],*avgsx,*avgsy);
+
+
+		ret=XPT_READ_STATUS_COMPLETE; /* mission complete */
+	}
+	else
+	{
+		ret=XPT_READ_STATUS_GOING; /* session is going on  */
+	}
+
+	return ret;
+}

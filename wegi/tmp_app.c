@@ -20,7 +20,8 @@ usleep 3000us seems OK, or the data will be too scattered.
 TODO:
 1. Screen sleep
 2. LCD_SIZE_X,Y to be cancelled. 
-
+3. home page refresh button... 3s pressing test.
+4. pen-up scenario handling for touch-pad loop-reading
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -73,7 +74,7 @@ void tm_sigroutine(int signo)
 {
 	if(signo == SIGALRM)
 	{
-		printf(" . tick . \n");
+//		printf(" . tick . \n");
 
 	}
 
@@ -95,10 +96,7 @@ void tm_settimer(int us)
 	tm_val.it_interval.tv_usec=us;
 
 	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
-
 }
-
-
 
 
 
@@ -107,21 +105,10 @@ int main(void)
 {
 	int i,j,k;
 	int index;
+	int ret;
 
-	/*-------------------------------------------------
-	 native XPT touch pad coordinate value
-	!!!!!!!! WARNING: use xp[0] and yp[0] only !!!!!
-	---------------------------------------------------*/
-	uint8_t  xp[2]; /* when untoched: Xp[0]=0, Xp[1]=0 */
-	uint8_t  yp[2]; /* untoched: Yp[0]=127=[2b0111,1111] ,Yp[1]=248=[2b1111,1100]  */
-	uint8_t	 xyp_samples[2][10]; /* store 10 samples of x,y */
-	int xp_accum; /* accumulator of xp */
-	int yp_accum; /* accumulator of yp */
-	int nsample=0; /* number of samples for each touch-read session */
-
-	/* LCD coordinate value */
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
-	uint16_t sx0=0,sy0=0;//saved last TOUCH point coordinate, for comparison.
+
 
 	/* Frame buffer device */
         FBDEV     fr_dev;
@@ -136,6 +123,7 @@ int main(void)
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
 	char str_syscmd[100];
+
 
 
 	/* --- open spi dev --- */
@@ -163,8 +151,6 @@ int main(void)
 		dict_writeFB_symb20x15(&fr_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 //	exit(1);
-
-
 
 
 	/* ----- generate eboxe parameters ----- */
@@ -204,96 +190,58 @@ int main(void)
 	/* set default color */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
+
 	/* ===============----------(((  MAIN LOOP  )))----------================= */
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
 		usleep(3000); //3000
 
-		/* ----- CLOCK: write Time string to FBDEV  ----- */
-		tm_get_strtime(tm_strbuf);
-		wirteFB_str20x15(&fr_dev, 0, (30<<11|45<<5|10), tm_strbuf+10, 45, 320-35);/* get rid of y-m-d */
 
-
-		/*--------- read XPT to get touch-pad coordinate --------*/
-		if( xpt_read_xy(xp,yp)!=0 ) /* if read XPT fails,break or pen-up */
+		/*--------- read XPT to get avg tft-LCD coordinate --------*/
+		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
+		if(ret == XPT_READ_STATUS_GOING )
 		{
-			/* reset sx0,sy0 if there is a break or pen-up */
-			sx0=0;sy0=0;
-			/* reset nsample and accumulator then */
-			nsample=0;
-			xp_accum=0;yp_accum=0;
-			continue;
+			continue; /* continue to loop to read touch data */
 		}
-		else
+		else if(ret == XPT_READ_STATUS_PENUP )
 		{
-			xp_accum += xp[0];
-			yp_accum += yp[0];
-			nsample++;
+			/* get time and display */
+			tm_get_strtime(tm_strbuf);
+			wirteFB_str20x15(&fr_dev, 0, (30<<11|45<<5|10), tm_strbuf+10, 45, 320-35);/* get rid of y-m-d */
+
+			continue; /* continue to loop to read touch data */
 		}
-		if(nsample<XPT_SAMPLE_NUMBER)continue; /* if not get enough samples */
+		else if(ret == XPT_READ_STATUS_COMPLETE)
+		{
+			printf("--- XPT_READ_STATUS_COMPLETE ---\n");
 
-		/* average of accumulated value */
-		xp[0]=xp_accum>>XPT_SAMPLE_EXPNUM; /* shift exponent number of 2 */
-		yp[0]=yp_accum>>XPT_SAMPLE_EXPNUM;
-		/* reset nsample and accumulator then */
-		nsample=0;
-		xp_accum=0;yp_accum=0;
+			/* going on then to check and activate pressed button */
+		}
 
-		/*----- convert to LCD coordinate sx,sy ------*/
-	    	xpt_maplcd_xy(xp, yp, &sx, &sy);
-	    	printf("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],sx,sy);
 
-	    	/*  if sx0,sy0 is set to 0, then store new data */
-	    	if(sx0==0 || sy0==0){
-			sx0=sx;
-			sy0=sy;
-	    	}
-
-		/*---  get index of pressed ebox ----*/
+		/*---  get index of pressed ebox and activate the button ----*/
 	    	index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
+
 		if(index>=0) /* if get meaningful index */
 		{
-			printf("button[%d] pressed!\n",index);
-			sprintf(str_syscmd,"jpgshow m_%d.jpg",index+1);
-			system(str_syscmd);
+			if(index==0)
+			{
+				printf("refresh fb now.\n");
+				system("sh -c ./tmp_app");
+				exit(1);
+			}
+			else
+			{
+				printf("button[%d] pressed!\n",index);
+				sprintf(str_syscmd,"jpgshow m_%d.jpg",index+1);
+				system(str_syscmd);
+			}
 			//usleep(200000); //this will make touch points scattered.
 		}
 
 
-#if 0
-	    /* ignore uncontinous points */
-	    // too small value will cause more breaks and gaps
-	    if( abs(sx-sx0)>3 || abs(sy-sy0)>3 ) {
-		  /* reset sx0,sy0 */
-		  sx0=0;sy0=0;
-  		  continue;
-	    }
-
-	    /* ignore repeated points */
-	    if(sx0==sx && sy0==sy)continue;
-#endif
-
-	    /* ------------- draw points to LCD -------------*/
-#if 0
-	    /*  ---Method 1. draw point---  */
-//	    printf("sx=%d, sy=%d\n",sx,sy);
-	    /*  --- valid range of sx,sy ---- */
-	    if(sx<1+1 || sx>240-1 || sy<1+1 || sy>320-1)continue;
-
-	    /*  ---Method 2. draw oval---  */
-	    draw_oval(&fr_dev,sx,sy);
-
-	    /*  ---Method 3. draw rectangle---  */
-//    	    draw_rect(&fr_dev,sx-3,sy-1,sx,sy+2); //2*4 rect
-
-	    /*  draw line */
-//	    draw_line(&fr_dev,sx0,sy0,sx,sy);
-
-#endif
-	    /* update sx0,sy0 */
-	    sx0=sx;sy0=sy;
-	}
+	} /* end of while() loop */
 
 
 

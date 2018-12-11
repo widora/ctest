@@ -207,7 +207,7 @@ void dict_writeFB_symb20x15(FBDEV *fb_dev, int blackoff, uint16_t color, \
 	/* check index range */
 	if( index > DICT_NUM_LIMIT_H20W15-1 || index < 0 )
 	{
-		printf("dict_writeFB_symb20x15(): index out of range! check DICT_NUM_LIMIT \n");
+//		printf("dict_writeFB_symb20x15(): index out of range! check DICT_NUM_LIMIT \n");
 		return;
 	}
 
