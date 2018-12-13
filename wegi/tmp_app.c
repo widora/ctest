@@ -19,96 +19,34 @@ usleep 3000us seems OK, or the data will be too scattered.
 
 TODO:
 1. Screen sleep
-2. LCD_SIZE_X,Y to be cancelled. 
+2. LCD_SIZE_X,Y to be cancelled.
 3. home page refresh button... 3s pressing test.
-4. pen-up scenario handling for touch-pad loop-reading
+4. apply mutli-process for separative jobs: reading-touch-pad, CLOCK,texting,... etc.
+5. show_jpg() last line missing
+6. systme()... sh -c ...
+7. btn-press and btn-release signal
 
 Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
+#include <signal.h>
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
 #include "dict.h"
-
-#include <signal.h>
-#include <sys/time.h>
-#include <time.h>
+#include "egi_timer.h"
+#include "symbol.h"
 
 
-struct itimerval tm_val, tm_oval;
-char tm_strbuf[50]={0};
-
-
-/*----------------------------------
- get local time in string in format:
- 	Year Mon Day H:M:S
-------------------------------------*/
-void tm_get_strtime(char *tmbuf)
-{
-	time_t tm_t; /* time in seconds */
-	struct tm *tm_s; /* time in struct */
-
-	time(&tm_t);
-	tm_s=localtime(&tm_t);
-
-	/*
-		tm_s->tm_year start from 1900
-		tm_s->tm_mon start from 0
-	*/
-#if 0
-	printf("%d-%d-%d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-#endif
-	sprintf(tmbuf,"%d %d %d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-
-}
-
-/* -----------------------------
- timer routine
--------------------------------*/
-void tm_sigroutine(int signo)
-{
-	if(signo == SIGALRM)
-	{
-//		printf(" . tick . \n");
-
-	}
-
-	/* restore tm_sigroutine */
-	signal(SIGALRM, tm_sigroutine);
-}
-
-/*---------------------------------
-set timer for SIGALRM
-us: time interval in us.
-----------------------------------*/
-void tm_settimer(int us)
-{
-	/* time left before next expiration  */
-	tm_val.it_value.tv_sec=0;
-	tm_val.it_value.tv_usec=us;
-	/* time interval for periodic timer */
-	tm_val.it_interval.tv_sec=0;
-	tm_val.it_interval.tv_usec=us;
-
-	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
-}
-
-
-
-/*-------------------  MAIN  ---------------------*/
+/*  ---------------------  MAIN  ---------------------  */
 int main(void)
 {
-	int i,j,k;
+	int i,j;
 	int index;
 	int ret;
-
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
-
 
 	/* Frame buffer device */
         FBDEV     fr_dev;
@@ -117,14 +55,14 @@ int main(void)
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
+//	struct egi_element_box imgbox;
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
-	char str_syscmd[100];
-
-
+	//char str_syscmd[100];
+	char strf[100];
 
 	/* --- open spi dev --- */
 	SPI_Open();
@@ -134,26 +72,45 @@ int main(void)
         init_dev(&fr_dev);
 
 	/* --- clear screen with BLACK --- */
-	clear_screen(&fr_dev,(0<<11|0<<5|0));
+/* do NOT clear, to avoid flashing */
+	//clear_screen(&fr_dev,(0<<11|0<<5|0));
 
 	/* --- load screen paper --- */
-	show_jpg("home.jpg",&fr_dev,0,0);
+	show_jpg("home.jpg",&fr_dev,0,0,0); /*black on*/
 
 	/* --- load symbol dict --- */
 	//dict_display_img(&fr_dev,"dict.img");
 	if(dict_load_h20w15("/home/dict.img")==NULL)
+	{
+		printf("Fail to load home page!\n");
 		exit(-1);
-
+	}
 	/* --- print and display symbols --- */
 #if 0
 	dict_print_symb20x15(dict_h20w15);
 	for(i=0;i<10;i++)
 		dict_writeFB_symb20x15(&fr_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
-//	exit(1);
 
 
-	/* ----- generate eboxe parameters ----- */
+	/* --- load testfont ---- */
+	if(symbol_load_page(&sympg_testfont)==NULL)
+		exit(-2);
+	/* print all symbols in the page */
+	symbol_print_allinpage(sympg_testfont,0xffff);
+	exit(-1);
+
+	/* ----- image box test ----- */
+/*
+	imgbox.height=100;
+	imgbox.width=240;
+	imgbox.x0=0;
+	imgbox.y0=0;
+	draw_rect(&fr_dev,imgbox.x0,imgbox.y0,\
+		imgbox.x0+imgbox.width-1,imgbox.y0+imgbox.height-1);
+*/
+
+	/* ----- generate ebox parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
 	{
 		for(j=0;j<ncolumn;j++) /* column */
@@ -165,6 +122,7 @@ int main(void)
 			ebox[ncolumn*i+j].y0=startY+i*(sgap+sbox);
 		}
 	}
+
 	/* print box position for debug */
 	// for(i=0;i<nrow*ncolumn;i++)
 	//	printf("ebox[%d]: x0=%d, y0=%d\n",i,ebox[i].x0,ebox[i].y0);
@@ -178,7 +136,7 @@ int main(void)
 //ok		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
 
 		draw_filled_rect(&fr_dev,ebox[i].x0,ebox[i].y0,\
-			ebox[i].x0+ebox[i].width,ebox[i].y0+ebox[i].height);
+			ebox[i].x0+ebox[i].width-1,ebox[i].y0+ebox[i].height-1);
 	}
 
 
@@ -187,7 +145,7 @@ int main(void)
 	signal(SIGALRM, tm_sigroutine);
 
 
-	/* set default color */
+	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
 
@@ -197,13 +155,13 @@ int main(void)
 		/*------ relate with number of touch-read samples -----*/
 		usleep(3000); //3000
 
-
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 		if(ret == XPT_READ_STATUS_GOING )
 		{
-			continue; /* continue to loop to read touch data */
+			continue; /* continue to loop to finish reading touch data */
 		}
+		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
 			/* get time and display */
@@ -220,30 +178,35 @@ int main(void)
 		}
 
 
+		////////// -----------  Touch Event Handling  ----------- //////////
+
 		/*---  get index of pressed ebox and activate the button ----*/
 	    	index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
 
+		printf("get box index=%d\n",index);
 		if(index>=0) /* if get meaningful index */
 		{
 			if(index==0)
 			{
 				printf("refresh fb now.\n");
-				system("sh -c ./tmp_app");
+				system("/tmp/tmp_app");
 				exit(1);
 			}
 			else
 			{
 				printf("button[%d] pressed!\n",index);
-				sprintf(str_syscmd,"jpgshow m_%d.jpg",index+1);
-				system(str_syscmd);
+				sprintf(strf,"m_%d.jpg",index+1);
+				show_jpg(strf, &fr_dev, 1, 0, 0);/*black off*/
+
 			}
 			//usleep(200000); //this will make touch points scattered.
 		}
 
-
 	} /* end of while() loop */
 
 
+	/* release symbol mem page */
+	symbol_release_page(&sympg_testfont);
 
 	/* release dict mem */
 	dict_release_h20w15();

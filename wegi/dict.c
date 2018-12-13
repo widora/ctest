@@ -1,4 +1,7 @@
-/*-----------------------------------------------------------------
+
+/*----------------- !!! OBSOLETE !!! --------------------------------
+    ===---  This is for clock digital number only !!!!  ---===
+
 Dict for symbols
 
 A dict is a 240x320x2B symbol page, every symbol is
@@ -103,7 +106,7 @@ Return:
 uint16_t *dict_load_h20w15(char *path)
 {
 	int fd;
-	int i,j,k;
+	int i,j;
 	uint16_t *dict;
 
 	int x0,y0; /* start position of a symbol,in pixel */
@@ -195,12 +198,12 @@ x0,y0:		start position in screen.
 void dict_writeFB_symb20x15(FBDEV *fb_dev, int blackoff, uint16_t color, \
 				 int index, int x0, int y0)
 {
-	int i,j,k;
+	int i,j;
 	FBDEV *dev = fb_dev;
 	uint16_t *pdict=dict_h20w15+index*15*20;
 
 	int xres=dev->vinfo.xres;
-	int yres=dev->vinfo.yres;
+	//int yres=dev->vinfo.yres;
         long int pos=0; /* position in fb */
 	uint16_t symcolor;
 
@@ -245,7 +248,7 @@ void wirteFB_str20x15(FBDEV *fb_dev, int blackoff, uint16_t color, \
 {
 	int i=0;
 	int index; /* index in dict_h20w15 */
-	int sx0,sy0;/* start point of each symbol */
+	//int sx0,sy0;/* start point of each symbol */
 
 	if(str==NULL)
 	{

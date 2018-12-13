@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------------------
 embedded graphic interface based on frame buffer.
 
-Midas
+Midas Zhou
 -----------------------------------------------------------------------------*/
 #ifndef __EGI_H__
 #define __EGI_H__
@@ -15,16 +15,35 @@ Midas
 /* -----  structs  ----- */
 struct egi_element_box
 {
-	 /* start point coordinate, top left point */
+	/* start point coordinate, left top point */
 	int x0;
 	int y0;
+
 	/* box size */
 	int height;
 	int width;
-	/* box color */
+
+	/* prime box color */
 	uint16_t color;
+
 	/* box icon jpg file */
 	char *filjpg;
+
+	/* pointer to back image */
+	uint16_t *pbkimg;
+
+	/* pointer to icon image */
+	uint16_t *picon;
+
+};
+
+struct egi_page
+{
+	/* back image */
+	uint16_t *bkimg;
+
+	/* eboxes */
+	struct egi_element_box *boxlist;
 };
 
 

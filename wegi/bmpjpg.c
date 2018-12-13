@@ -8,6 +8,8 @@ original source: https://blog.csdn.net/luxiaoxun/article/details/7622988
 TODO:
     1. to pad width to a multiple of 4 for bmp file.
     2. jpgshow() picture flips --OK
+    3. in show_jpg(), just force 8bit color data to be 24bit, need to improve.!!!
+
 
 ./open-gcc -L./lib -I./include -ljpeg -o jpgshow fbshow.c
 
@@ -30,7 +32,7 @@ BITMAPFILEHEADER FileHead;
 BITMAPINFOHEADER InfoHead;
 
 static int xres = 240;
-static int yres = 320;
+//static int yres = 320;
 static int bits_per_pixel = 16; //tft lcd
 
 int show_bmp(char* fpath, FBDEV *fb_dev)
@@ -137,11 +139,13 @@ int show_bmp(char* fpath, FBDEV *fb_dev)
 
 
 /*------------------------------------------------------
+    blackoff: if balckoff>0, then make black transparent
     (x0,y0): original coordinate of picture in LCD
 --------------------------------------------------------*/
-int show_jpg(char* fpath, FBDEV *fb_dev, int x0, int y0)
+int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
 	int width,height;
+	int components; 
 	unsigned char *imgbuf;
 	unsigned char *dat;
 	unsigned char tmpa,tmpb;
@@ -153,18 +157,26 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int x0, int y0)
 	/* get fb map */
 	char *fbp =fb_dev->map_fb;
 
-	imgbuf=open_jpgImg(fpath,&width,&height,&infile);
+	imgbuf=open_jpgImg(fpath,&width,&height,&components, &infile);
 
 	if(imgbuf==NULL) {
 		printf("open_jpgImg fails!\n");
 		return -1;
 	}
 
+	/* WARNING: need to be improve here: converting 8bit to 24bit color*/
+	if(components==1) /* 8bit color */
+	{
+		height=height/3; /* force to be 24bit pic, however shorten the height */
+	}
+
 	dat=imgbuf;
+
 
 //       printf("open_jpgImg() succeed, width=%d, height=%d\n",width,height);
 
 #if 0	//---- normal data sequence ------
+	/* WARNING: blackoff not apply here */
 	line_x = line_y = 0;
 	for(line_y=0;line_y<height;line_y++) {
 		for(line_x=0;line_x<width;line_x++) {
@@ -189,17 +201,22 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int x0, int y0)
    	        	// ---- dat(R8G8B8) converting to format R5G6B5(as for framebuffer) -----
         	        tmpa=((*(dat+1)&0b11100)<<3) + ((*(dat+2) & 0b11111000)>>3);
 	                tmpb=(*dat&0b11111000) + ((*(dat+1)&0b11100000)>>5);
-	#ifdef PIC_BLACK_IGNORE
-			/* --- ignore black pixels, make it transparent for background. ----- */
-			if(tmpa || tmpb)
+
+			if(blackoff) /* don't write black to fb, so make it transparent to back color */
 			{
-        	        	*(fbp + location + 0)=tmpa;
-	                	*(fbp + location + 1)=tmpb;
+				/* --- ignore black pixels, make it transparent for background. ----- */
+				if(tmpa || tmpb) /* only write non-black data */
+				{
+        	        		*(fbp + location + 0)=tmpa;
+	                		*(fbp + location + 1)=tmpb;
+				}
 			}
-	#else
-        	        	*(fbp + location + 0)=tmpa;
-	                	*(fbp + location + 1)=tmpb;
-	#endif
+			else	/* write all color data to fb */
+			{
+        	        		*(fbp + location + 0)=tmpa;
+	                		*(fbp + location + 1)=tmpb;
+			}
+
 
 			dat+=3;
 		}
@@ -213,11 +230,12 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int x0, int y0)
 /*--------------------------------------------------------------
  open jpg file and return decompressed image buffer pointer
  int *w,*h:   with and height of the image
+ int *components:  out color components
  return:
 	=NULL fail
 	>0 decompressed image buffer pointer
 --------------------------------------------------------------*/
-unsigned char * open_jpgImg(char * filename, int *w, int *h, FILE **fil)
+unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FILE **fil)
 {
         struct jpeg_decompress_struct cinfo;
         struct jpeg_error_mgr jerr;
@@ -243,7 +261,9 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, FILE **fil)
         jpeg_start_decompress(&cinfo);
         *w = cinfo.output_width;
         *h = cinfo.output_height;
+	*components=cinfo.out_color_components;
 
+//	printf("output color components=%d\n",cinfo.out_color_components);
 //        printf("output_width====%d\n",cinfo.output_width);
 //        printf("output_height====%d\n",cinfo.output_height);
 

@@ -31,8 +31,6 @@ Midas
 #include "fblines.h"
 
 
-//#define PIC_BLACK_IGNORE /* ignore black pixels in a pic, don't write it to the FB */
-
 //14byte文件头
 typedef struct
 {
@@ -69,8 +67,8 @@ typedef struct
 
 /*  ----- functions --------  */
 int show_bmp(char* fpath,FBDEV *fb_dev);
-int show_jpg(char* fpath,FBDEV *fb_dev, int x0, int y0);
-unsigned char *open_jpgImg(char *filename, int *w, int *h, FILE **fil);
+int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
+unsigned char *open_jpgImg(char *filename, int *w, int *h, int *components, FILE **fil);
 void close_jpgImg(unsigned char *imgbuf);
 
 #endif

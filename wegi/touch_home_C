@@ -19,84 +19,21 @@ usleep 3000us seems OK, or the data will be too scattered.
 
 TODO:
 1. Screen sleep
-2. LCD_SIZE_X,Y to be cancelled. 
+2. LCD_SIZE_X,Y to be cancelled.
 3. home page refresh button... 3s pressing test.
-4. pen-up scenario handling for touch-pad loop-reading
+4. apply mutli-process for separative jobs: read-touch-pad, CLOCK etc.
 
 Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
+#include <signal.h>
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
 #include "dict.h"
-
-#include <signal.h>
-#include <sys/time.h>
-#include <time.h>
-
-
-struct itimerval tm_val, tm_oval;
-char tm_strbuf[50]={0};
-
-
-/*----------------------------------
- get local time in string in format:
- 	Year Mon Day H:M:S
-------------------------------------*/
-void tm_get_strtime(char *tmbuf)
-{
-	time_t tm_t; /* time in seconds */
-	struct tm *tm_s; /* time in struct */
-
-	time(&tm_t);
-	tm_s=localtime(&tm_t);
-
-	/*
-		tm_s->tm_year start from 1900
-		tm_s->tm_mon start from 0
-	*/
-#if 0
-	printf("%d-%d-%d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-#endif
-	sprintf(tmbuf,"%d %d %d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-
-}
-
-/* -----------------------------
- timer routine
--------------------------------*/
-void tm_sigroutine(int signo)
-{
-	if(signo == SIGALRM)
-	{
-//		printf(" . tick . \n");
-
-	}
-
-	/* restore tm_sigroutine */
-	signal(SIGALRM, tm_sigroutine);
-}
-
-/*---------------------------------
-set timer for SIGALRM
-us: time interval in us.
-----------------------------------*/
-void tm_settimer(int us)
-{
-	/* time left before next expiration  */
-	tm_val.it_value.tv_sec=0;
-	tm_val.it_value.tv_usec=us;
-	/* time interval for periodic timer */
-	tm_val.it_interval.tv_sec=0;
-	tm_val.it_interval.tv_usec=us;
-
-	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
-}
+#include "egi_timer.h"
 
 
 
@@ -106,7 +43,6 @@ int main(void)
 	int i,j,k;
 	int index;
 	int ret;
-
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
 
 
@@ -123,7 +59,7 @@ int main(void)
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
 	char str_syscmd[100];
-
+	char strf[100];
 
 
 	/* --- open spi dev --- */
@@ -134,10 +70,11 @@ int main(void)
         init_dev(&fr_dev);
 
 	/* --- clear screen with BLACK --- */
-	clear_screen(&fr_dev,(0<<11|0<<5|0));
+/* do NOT clear to avoid flashing */
+	//clear_screen(&fr_dev,(0<<11|0<<5|0));
 
 	/* --- load screen paper --- */
-	show_jpg("home.jpg",&fr_dev,0,0);
+	show_jpg("home.jpg",&fr_dev,0,0,0); /*black on*/
 
 	/* --- load symbol dict --- */
 	//dict_display_img(&fr_dev,"dict.img");
@@ -219,6 +156,7 @@ int main(void)
 			/* going on then to check and activate pressed button */
 		}
 
+		////////// -----------  Touch Event Handling  ----------- //////////
 
 		/*---  get index of pressed ebox and activate the button ----*/
 	    	index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
@@ -234,8 +172,9 @@ int main(void)
 			else
 			{
 				printf("button[%d] pressed!\n",index);
-				sprintf(str_syscmd,"jpgshow m_%d.jpg",index+1);
-				system(str_syscmd);
+				sprintf(strf,"m_%d.jpg",index+1);
+				show_jpg(strf, &fr_dev, 1, 0, 0);/*black off*/
+
 			}
 			//usleep(200000); //this will make touch points scattered.
 		}
