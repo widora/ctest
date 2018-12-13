@@ -20,7 +20,7 @@ struct symbol_page
 	/* symbol image file path */
 	/* for a 320x240x2Byte page, 2Bytes for 16bit color */
 	char *path;
-	/* page mem data, store each symbol data consecutively. */
+	/* page symbol mem data, store each symbol data consecutively, no hole. while img page file may have hole or blank row*/
 	uint16_t *data;
 	/* maximum number of symbols in this page, start from 0 */
 	int  maxnum; /* maxnum+1 = total number */
@@ -32,7 +32,7 @@ struct symbol_page
 	//struct symbol_index *symindex; /* symb_index[x], x is the corresponding code number of the symbol, like ASCII code */
 
 	/* use pstart to locate a symbole in a row */
-	int *symoffset; /* in pixel, offset of the symbol in mem data of a smybol mem page, NOT img page!! */
+	int *symoffset; /* in pixel, offset from uint16_t *data for each smybol!! */
 	int *symwidth; /* in pixel, symbol width may be different, while height MUST be the same */
 
 	/* !!!!! following not used, if symbol encoded from 0, you can use array index number as code number.
@@ -50,6 +50,6 @@ extern struct symbol_page sympg_testfont;
 uint16_t *symbol_load_page(struct symbol_page *sym_page);
 void symbol_release_page(struct symbol_page *sym_page);
 void symbol_save_pagemem(struct symbol_page *sym_page);
-void symbol_print_allinpage(struct symbol_page sym_page, int16_t transpcolor);
+void symbol_print_allinpage(struct symbol_page sym_page, int symbol, uint16_t transpcolor);
 
 #endif

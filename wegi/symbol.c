@@ -29,29 +29,26 @@ Midas
 #include "symbol.h"
 
 
-
-
-
 //----------------------------------=-------------------------------------
 
-/* ascii 0-127 index for symbol */
+/* ascii 0-127 symbol width, 5-pixel blank for unprintable symbols */
 int testfont_width[16*8] =
 {
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* no data this row, so put zero */
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* no data this row, so put zero */
+	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
+	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
 	5,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
 	11,11,11,11,11,11,11,11,11,11,6,6,10,10,10,10, /* 0123456789:;<=>? */
 	19,12,11,11,13,10,10,13,13,5,7,11,9,18,14,14, /* @ABCDEFGHIJKLMNO */
 	11,14,11,10,10,13,12,19,11,10,10,6,8,6,10,10, /* PQRSTUVWXYZ[\]^_ */
 	6,10,11,9,11,10,6,10,11,5,5,10,5,17,11,10, /* uppoint' abcdefghijklmnop */
-	11,11,7,8,7,11,9,15,9,10,8,7,10,7,10 /*pqrstuvwxyz{|} wave */
+	11,11,7,8,7,11,9,15,9,10,8,7,10,7,10,5 /*pqrstuvwxyz{|}~ blank */
 };
 
 /* symbole page struct for testfont */
 struct symbol_page sympg_testfont=
 {
 	.path="testfont.img",
-	.data=NULL,
+	//.data=NULL,
 	.maxnum=128-1, 
 	.sqrow=16,
 	.symheight=26,
@@ -78,11 +75,11 @@ sqrow:	symbol quantity in each row of an img page
 uint16_t *symbol_load_page(struct symbol_page *sym_page)
 {
 	int fd;
-	int memsize=0; /* memsize for all symbol data */
+	int datasize; /* memsize for all symbol data */
 	int i,j,k;
 	int x0,y0; /* origin position of a symbol in a image page, left top of a symbol */
 	int nr,no;
-	int offset=0; /* in pixel, offset for each symbol in data mem */
+	int offset=0; /* in pixel, offset of data mem for each symbol, NOT of img file */
 	int all_height; /* height for all symbol in a page */
 	int width; /* width of a symbol */
 
@@ -121,7 +118,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	all_height=sym_page->symheight;
 
 	/* malloc mem for symbol_page.symoffset */
-	sym_page->symoffset = malloc((sym_page->maxnum+1)*sizeof(int));
+	sym_page->symoffset = malloc( ((sym_page->maxnum)+1) * sizeof(int) );
 	{
 		if(sym_page->symoffset == NULL)
 		{
@@ -132,17 +129,15 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 	/* calculate symindex->sym_offset for each symbol
            and mem size needed for all symbols */
-	i=0;
-	memsize=0;
-	sym_page->symoffset[i]=memsize;
-	for(i=1;i<=sym_page->maxnum;i++)
+	datasize=0;
+	for(i=0;i<=sym_page->maxnum;i++)
 	{
-		memsize += (sym_page->symwidth[i-1]) * all_height ;/* in pixel */
-		sym_page->symoffset[i]=memsize;
+		sym_page->symoffset[i]=datasize;
+		datasize += sym_page->symwidth[i] * all_height ;/* in pixel */
 	}
 
 	/* malloc mem for symbol_page.data */
-	sym_page->data= malloc(memsize*2); /* memsize in pixel */
+	sym_page->data= malloc( datasize*sizeof(uint16_t) ); /* memsize in pixel of 16bit color*/
 	{
 		if(sym_page->data == NULL)
 		{
@@ -152,9 +147,20 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		}
 	}
 
+
+
 	/* read symbol pixel data from image file to sym_page.data */
         for(i=0; i<=sym_page->maxnum; i++) /* i for each symbol */
         {
+
+		/* width of a symbol width MUST NOT be zero */
+		if( sym_page->symwidth[i]==0 )
+		{
+			printf("symbol_load_page(): sym_page->symwidth[%d]=0!, a symbol width MUST NOT be zero!\n",i);
+			symbol_release_page(sym_page);
+			return NULL;
+		}
+
 		nr=i/(sym_page->sqrow); /* locate row number of the page */
 		no=i%(sym_page->sqrow); /* in symbol,locate order number of a symbol in a row */
 
@@ -176,6 +182,11 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 		offset=sym_page->symoffset[i]; /* in pixel, offset of the symbol in mem data */
 		width=sym_page->symwidth[i]; /* width of the symbol */
+#if 1
+		if(i=='M')
+			printf(" width of 'M' is %d, offset is %d \n",width,offset);
+#endif
+
 
                 for(j=0;j<all_height;j++) /* for each pixel row of a symbol */
                 {
@@ -196,25 +207,32 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
                                 return NULL;
                         }
 
-#if 0
-			/* for test ------------- */
-			for(k=0;k<width;k++)
-			{
-				if( *(sym_page->data+offset+width*j+k) != 0xFFFF)
-					printf("*");
-				else
-					printf(" ");
-			}
-			printf("\n");
-#endif
                 }
+
         }
         printf("finish reading %s.\n",sym_page->path);
 
 
+#if 0	/* for test ---------------------------------- */
+	i='M';
+	offset=sym_page->symoffset[i];
+	width=sym_page->symwidth[i];
+	for(j=0;j<all_height;j++)
+	{
+		for(k=0;k<width;k++)
+		{
+			if( *(uint16_t *)(sym_page->data+offset+width*j+k) != 0xFFFF)
+				printf("*");
+			else
+				printf(" ");
+		}
+		printf("\n");
+	}
+#endif
+
 	close(fd);
 	printf("symbol_load_page(): succeed to load symbol image file %s!\n", sym_page->path);
-
+	printf("sym_page->data = %p \n",sym_page->data);
 	return (uint16_t *)sym_page->data;
 }
 
@@ -225,9 +243,16 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 void symbol_release_page(struct symbol_page *sym_page)
 {
 	if(sym_page->data != NULL)
+	{
 		free(sym_page->data);
+		sym_page->data=NULL;
+	}
 	if(sym_page->symwidth != NULL)
+	{
 		free(sym_page->symwidth);
+		sym_page->symwidth=NULL;
+	}
+
 }
 
 
@@ -239,7 +264,7 @@ sym_page: 	a mem symbol page.
 transpcolor:	color treated as transparent.
 		black =0x0000; white = 0xffff;
 ----------------------------------------------------------------------------*/
-void symbol_print_allinpage(struct symbol_page sym_page, int16_t transpcolor)
+void symbol_print_allinpage(struct symbol_page sym_page, int symbol, uint16_t transpcolor)
 {
         int i,j,k;
 
@@ -264,15 +289,17 @@ void symbol_print_allinpage(struct symbol_page sym_page, int16_t transpcolor)
 	}
 #endif
 
-        for(i=0; i<=sym_page.maxnum; i++) /* i, each symbol */
+//        for(i=0; i<=sym_page.maxnum; i++) /* i, each symbol */
+	i=symbol;
+//	printf("width of %c is %d, offset is %d\n",symbol,sym_page.symwidth[i],sym_page.symoffset[i]);
         {
 		for(j=0;j<sym_page.symheight;j++) /*for each row of a symbol */
 		{
 			for(k=0;k<sym_page.symwidth[i];k++)
 			{
 				/* if not transparent color, then print the pixel */
-				if( *(sym_page.data	\
-					+sym_page.symoffset[i] +sym_page.symwidth[i]*j +k) != transpcolor )
+				if( *(uint16_t *)( sym_page.data+(sym_page.symoffset)[i] \
+						+(sym_page.symwidth)[i]*j +k ) != transpcolor )
                                         printf("*");
                                 else
                                         printf(" ");

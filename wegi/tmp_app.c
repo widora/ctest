@@ -97,8 +97,10 @@ int main(void)
 	if(symbol_load_page(&sympg_testfont)==NULL)
 		exit(-2);
 	/* print all symbols in the page */
-	symbol_print_allinpage(sympg_testfont,0xffff);
+	for(i=80;i<127;i++)
+		symbol_print_allinpage(sympg_testfont,i,0xffff);
 	exit(-1);
+
 
 	/* ----- image box test ----- */
 /*
