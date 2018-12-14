@@ -3,14 +3,18 @@
 #include <time.h>
 #include <stdio.h>
 #include "egi_timer.h"
+#include "symbol.h"
+#include "fblines.h"
+#include "dict.h"
 
 struct itimerval tm_val, tm_oval;
 char tm_strbuf[50]={0};
+const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 
 
 /*----------------------------------
  get local time in string in format:
- 	Year Mon Day H:M:S
+ 		H:M:S
 ------------------------------------*/
 void tm_get_strtime(char *tmbuf)
 {
@@ -24,14 +28,28 @@ void tm_get_strtime(char *tmbuf)
 		tm_s->tm_year start from 1900
 		tm_s->tm_mon start from 0
 	*/
-#if 0
-	printf("%d-%d-%d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-#endif
-	sprintf(tmbuf,"%d %d %d %02d:%02d:%02d\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
-
+	sprintf(tmbuf,"%02d:%02d:%02d\n",tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
 }
+
+
+/*----------------------------------
+ get local time in string in format:
+ 	Year_Mon_Day  Weekday
+------------------------------------*/
+void tm_get_strday(char *tmdaybuf)
+{
+	time_t tm_t; /* time in seconds */
+	struct tm *tm_s; /* time in struct */
+
+	time(&tm_t);
+	tm_s=localtime(&tm_t);
+
+	sprintf(tmdaybuf,"%d-%d-%d   %s\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
+			str_weekday[tm_s->tm_wday] );
+}
+
+
+
 
 /* -----------------------------
  timer routine
@@ -41,6 +59,17 @@ void tm_sigroutine(int signo)
 	if(signo == SIGALRM)
 	{
 //		printf(" . tick . \n");
+
+	/* ------- routine action every tick -------- */
+#if 0	// put heavy action here is not a good ideal !!!!!!
+        /* get time and display */
+        tm_get_strtime(tm_strbuf);
+        wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38); 
+        tm_get_strday(tm_strbuf);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
+        //symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
+#endif
+
 
 	}
 

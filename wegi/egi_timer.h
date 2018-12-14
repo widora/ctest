@@ -12,6 +12,7 @@ extern char tm_strbuf[];
 
 /* functions */
 void tm_get_strtime(char *tmbuf);
+void tm_get_strday(char *tmdaybuf);
 void tm_sigroutine(int signo);
 void tm_settimer(int us);
 

@@ -16,8 +16,9 @@ For test only!
 TODO:
 0.  if image file is not complete.
 1.  void symbol_save_pagemem( )
-2.  void symbol_writeFB( )
+2.  void symbol_writeFB( ) ... direct copy to fb.
 3.  data encode.
+4.  symbol linear enlarge and shrink.
 
 Midas
 ----------------------------------------------------------------------------*/
@@ -31,11 +32,16 @@ Midas
 
 //----------------------------------=-------------------------------------
 
-/* ascii 0-127 symbol width, 5-pixel blank for unprintable symbols */
-int testfont_width[16*8] =
+/*
+ascii 0-127 symbol width,
+5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
+*/
+static int testfont_width[16*8] =
 {
 	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
 	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
+//	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
+//	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	5,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
 	11,11,11,11,11,11,11,11,11,11,6,6,10,10,10,10, /* 0123456789:;<=>? */
 	19,12,11,11,13,10,10,13,13,5,7,11,9,18,14,14, /* @ABCDEFGHIJKLMNO */
@@ -47,8 +53,8 @@ int testfont_width[16*8] =
 /* symbole page struct for testfont */
 struct symbol_page sympg_testfont=
 {
-	.path="testfont.img",
-	//.data=NULL,
+	.path="/home/testfont.img",
+	.data=NULL,
 	.maxnum=128-1, 
 	.sqrow=16,
 	.symheight=26,
@@ -153,14 +159,15 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
         for(i=0; i<=sym_page->maxnum; i++) /* i for each symbol */
         {
 
-		/* width of a symbol width MUST NOT be zero */
+		/* width of a symbol width MUST NOT be zero.!   --- zero also OK, */
+/*
 		if( sym_page->symwidth[i]==0 )
 		{
 			printf("symbol_load_page(): sym_page->symwidth[%d]=0!, a symbol width MUST NOT be zero!\n",i);
 			symbol_release_page(sym_page);
 			return NULL;
 		}
-
+*/
 		nr=i/(sym_page->sqrow); /* locate row number of the page */
 		no=i%(sym_page->sqrow); /* in symbol,locate order number of a symbol in a row */
 
@@ -169,24 +176,16 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		else
 			x0 += sym_page->symwidth[i-1]; /* origin pixel order in a row */
 
-#if 0
-		if(i>0) /*offset for each symbol in sym_page.data mem 
-			in pixel, to be used in read() */
-		{
-			offset += (sym_page->symwidth[i-1])*all_height;
-		}
-#endif
 
                 y0 = nr * all_height; /* origin pixel order in a column */
                 //printf("x0=%d, y0=%d \n",x0,y0);
 
 		offset=sym_page->symoffset[i]; /* in pixel, offset of the symbol in mem data */
 		width=sym_page->symwidth[i]; /* width of the symbol */
-#if 1
+#if 0 /*  for test -----------------------------------*/
 		if(i=='M')
 			printf(" width of 'M' is %d, offset is %d \n",width,offset);
-#endif
-
+#endif /*  test end -----------------------------------*/
 
                 for(j=0;j<all_height;j++) /* for each pixel row of a symbol */
                 {
@@ -212,7 +211,6 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
         }
         printf("finish reading %s.\n",sym_page->path);
 
-
 #if 0	/* for test ---------------------------------- */
 	i='M';
 	offset=sym_page->symoffset[i];
@@ -228,7 +226,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		}
 		printf("\n");
 	}
-#endif
+#endif /*  test end -----------------------------------*/
 
 	close(fd);
 	printf("symbol_load_page(): succeed to load symbol image file %s!\n", sym_page->path);
@@ -255,61 +253,78 @@ void symbol_release_page(struct symbol_page *sym_page)
 
 }
 
+/*-----------------------------------------------------------------------
+check integrity of a ((loaded)) page structure
+
+sym_page: a loaded page
+func:	  function name of the caller
+
+return:
+	0	OK
+	<0	fails
+-----------------------------------------------------------------------*/
+int symbol_check_page(const struct symbol_page *sym_page, char *func)
+{
+
+        /* check for maxnum */
+        if(sym_page->maxnum < 0 )
+        {
+                printf("%s(): symbol number less than 1! fail to load page.\n",func);
+                return -1;
+        }
+        /* check for data */
+        if(sym_page->data == NULL)
+        {
+                printf("%s(): sym_page->data is NULL! the symbol page has not been loaded?!\n",func);
+	                return -2;
+        }
+        /* check for symb_index */
+        if(sym_page->symwidth == NULL)
+        {
+                printf("%s(): symbol width list is empty!\n",func);
+                return -3;
+        }
+
+	return 0;
+}
+
+
+
+
 
 /*--------------------------------------------------------------------------
 print all symbol in a mem page.
 print '*' if the pixel data is not 0.
 
-sym_page: 	a mem symbol page.
+sym_page: 	a mem symbol page pointer.
 transpcolor:	color treated as transparent.
 		black =0x0000; white = 0xffff;
 ----------------------------------------------------------------------------*/
-void symbol_print_allinpage(struct symbol_page sym_page, int symbol, uint16_t transpcolor)
+void symbol_print_symbol( const struct symbol_page *sym_page, int symbol, uint16_t transpcolor)
 {
-        int i,j,k;
+        int i;
+	int j,k;
 
-#if 1   /*------------ check integrity of a ((loaded)) page structure -----------*/
-	/* check for maxnum */
-	if(sym_page.maxnum < 0 )
-	{
-		printf("symbol_load_page(): symbol number less than 1! fail to load page.\n");
+	/* check page first */
+	if(symbol_check_page(sym_page,"symbol_print_symbol") != 0)
 		return;
-	}
-	/* check for data */
-	if(sym_page.data == NULL)
-	{
-		printf("symbol_print_allinpage(): sym_page->data is NULL! the symbol page has not been loaded?!\n");
-		return;
-	}
-	/* check for symb_index */
-	if(sym_page.symwidth == NULL)
-	{
-		printf("symbol_print_allinpage(): symbol width list is empty! \n");
-		return;
-	}
-#endif
 
-//        for(i=0; i<=sym_page.maxnum; i++) /* i, each symbol */
 	i=symbol;
-//	printf("width of %c is %d, offset is %d\n",symbol,sym_page.symwidth[i],sym_page.symoffset[i]);
-        {
-		for(j=0;j<sym_page.symheight;j++) /*for each row of a symbol */
+
+	for(j=0;j<sym_page->symheight;j++) /*for each row of a symbol */
+	{
+		for(k=0;k<sym_page->symwidth[i];k++)
 		{
-			for(k=0;k<sym_page.symwidth[i];k++)
-			{
-				/* if not transparent color, then print the pixel */
-				if( *(uint16_t *)( sym_page.data+(sym_page.symoffset)[i] \
-						+(sym_page.symwidth)[i]*j +k ) != transpcolor )
-                                        printf("*");
-                                else
-                                        printf(" ");
-                        }
-                        printf("\n"); /* end of each row */
-		}
-        }
+			/* if not transparent color, then print the pixel */
+			if( *(uint16_t *)( sym_page->data+(sym_page->symoffset)[i] \
+					+(sym_page->symwidth)[i]*j +k ) != transpcolor )
+                                       printf("*");
+                               else
+                                       printf(" ");
+                       }
+                       printf("\n"); /* end of each row */
+	}
 }
-
-
 
 
 /*-----------------------------------------------------
@@ -320,11 +335,94 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 
 
 }
-/*
-	write a symbole pixel data to FB device
-*/
-void symbol_writeFB(struct symbol_page *sym_page, int sym_code)
+
+
+/*------------------------------------------------------------------------------
+	write a symbol pixel data to FB device
+fbdev: 		FB device
+sym_page: 	symbol page
+transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
+	     	<0	 no transparent pixel
+x0,y0: 		start position coordinate in screen, left top point of a symbol.
+sym_code: 	symbol code number
+-------------------------------------------------------------------------------*/
+void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
+		int transpcolor, int x0, int y0, int sym_code)
 {
+	int i,j,k;
+	FBDEV *dev = fb_dev;
+	long int pos; /* offset position in fb map */
+	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
+	uint16_t pcolor;
+
+	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
+	int offset=sym_page->symoffset[sym_code];
+	int height=sym_page->symheight;
+	int width=sym_page->symwidth[sym_code];
+
+	/* check page */
+#if 1 /* It wastes time. NO need here,we shall move this to .... */
+	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
+		return;
+#endif
 
 
+	/* check sym_code */
+	if( sym_code < 0 || sym_code > sym_page->maxnum )
+		return;
+
+	for(i=0;i<height;i++)
+	{
+		for(j=0;j<width;j++)
+		{
+			pos=(y0+i)*xres+x0+j; /* in pixel */
+			pcolor=*(data+offset+width*i+j);/* get pixel in page data */
+
+//			if(TESTFONT_COLOR_FLIP)
+//			{
+//				transpcolor = ~(uint16_t)transpcolor;
+//			}
+
+			/* Wrtie to FB only if:
+			   (no transp. color applied) OR (write only untransparent pixel) */
+			if(transpcolor<0 || pcolor!=transpcolor )
+			{
+
+				if(TESTFONT_COLOR_FLIP)
+				{
+					pcolor = ~pcolor;
+				}
+
+				*(uint16_t *)(dev->map_fb+pos*2)=pcolor; /* in pixel, deref. to uint16_t */
+			}
+
+			/* copy all data if no transp. pixel applied */
+		}
+	}
+}
+
+
+/*------------------------------------------------------------------------------
+write a char string to FB device with a font symbol page.
+Write at the same line.
+
+fbdev: 		FB device
+sym_page: 	a font symbol page
+transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
+	     	<0	 no transparent pixel
+x0,y0: 		start position coordinate in screen, left top point of a symbol.
+str:		pointer to a char string.
+-------------------------------------------------------------------------------*/
+void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
+		int transpcolor, int x0, int y0, const char* str)
+{
+	const char *p=str;
+	int x=x0;
+
+	while(*p)
+	{
+		symbol_writeFB(fb_dev,sym_page,transpcolor,x,y0,*p);/* at same line, so y=y0 */
+		x+=sym_page->symwidth[(int)(*p)];
+		p++;
+	}
 }

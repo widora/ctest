@@ -12,6 +12,13 @@ modified by Midas-Zhou
 1. add 
 -----------------------------------------------------------------------------*/
 #include "fblines.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+
+/* global variale, Frame buffer device */
+FBDEV   gv_fb_dev;
 
 #ifndef _TYPE_FBDEV_
 #define _TYPE_FBDEV_
@@ -24,11 +31,11 @@ modified by Midas-Zhou
     }FBDEV;
 #endif
 
-    /* default color set */
-    static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
+ /* default color set */
+ static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
 
-    void init_dev(FBDEV *dev)
-    {
+ void init_dev(FBDEV *dev)
+ {
         FBDEV *fr_dev=dev;
 
         fr_dev->fdfd=open("/dev/fb0",O_RDWR);
@@ -38,7 +45,7 @@ modified by Midas-Zhou
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
         fr_dev->map_fb=(char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,fr_dev->fdfd,0);
 //        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
-    }
+  }
 
     void release_dev(FBDEV *dev)
     {

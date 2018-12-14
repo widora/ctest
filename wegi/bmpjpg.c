@@ -193,7 +193,7 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 #else
 	//---- flip picture to be same data sequence of BMP file ---
 	line_x = line_y = 0;
-	for(line_y=height-1;line_y>0;line_y--) {
+	for(line_y=height-1;line_y>=0;line_y--) {
 		for(line_x=0;line_x<width;line_x++) {
 			location = (line_x+x0) * bits_per_pixel / 8 + (height - line_y - 1 +y0) * xres * bits_per_pixel / 8;
 			//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .

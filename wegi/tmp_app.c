@@ -22,9 +22,8 @@ TODO:
 2. LCD_SIZE_X,Y to be cancelled.
 3. home page refresh button... 3s pressing test.
 4. apply mutli-process for separative jobs: reading-touch-pad, CLOCK,texting,... etc.
-5. show_jpg() last line missing
-6. systme()... sh -c ...
-7. btn-press and btn-release signal
+5. systme()... sh -c ...
+6. btn-press and btn-release signal
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -40,6 +39,8 @@ Midas Zhou
 #include "symbol.h"
 
 
+
+
 /*  ---------------------  MAIN  ---------------------  */
 int main(void)
 {
@@ -49,12 +50,13 @@ int main(void)
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
 
 	/* Frame buffer device */
-        FBDEV     fr_dev;
+//        FBDEV     fb_dev;
 
 	/* ---- buttons array param ------*/
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
+	struct egi_element_box ebox_clock;
 //	struct egi_element_box imgbox;
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
@@ -68,18 +70,19 @@ int main(void)
 	SPI_Open();
 
 	/* --- prepare fb device --- */
-        fr_dev.fdfd=-1;
-        init_dev(&fr_dev);
+        gv_fb_dev.fdfd=-1;
+        init_dev(&gv_fb_dev);
+
 
 	/* --- clear screen with BLACK --- */
 /* do NOT clear, to avoid flashing */
-	//clear_screen(&fr_dev,(0<<11|0<<5|0));
+	//clear_screen(&fb_dev,(0<<11|0<<5|0));
 
 	/* --- load screen paper --- */
-	show_jpg("home.jpg",&fr_dev,0,0,0); /*black on*/
+	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
 	/* --- load symbol dict --- */
-	//dict_display_img(&fr_dev,"dict.img");
+	//dict_display_img(&fb_dev,"dict.img");
 	if(dict_load_h20w15("/home/dict.img")==NULL)
 	{
 		printf("Fail to load home page!\n");
@@ -89,17 +92,26 @@ int main(void)
 #if 0
 	dict_print_symb20x15(dict_h20w15);
 	for(i=0;i<10;i++)
-		dict_writeFB_symb20x15(&fr_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
+		dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 
 
 	/* --- load testfont ---- */
 	if(symbol_load_page(&sympg_testfont)==NULL)
 		exit(-2);
+
 	/* print all symbols in the page */
-	for(i=80;i<127;i++)
-		symbol_print_allinpage(sympg_testfont,i,0xffff);
-	exit(-1);
+#if 0
+	for(i=32;i<127;i++)
+	{
+		symbol_print_symbol(&sympg_testfont,i,0xffff);
+		//getchar();
+	}
+#endif
+	//symbol_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,0,0,'M');
+	//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,50,50,"Hello Widora!");
+
+//	exit(-1);
 
 
 	/* ----- image box test ----- */
@@ -108,7 +120,7 @@ int main(void)
 	imgbox.width=240;
 	imgbox.x0=0;
 	imgbox.y0=0;
-	draw_rect(&fr_dev,imgbox.x0,imgbox.y0,\
+	draw_rect(&gv_fb_dev,imgbox.x0,imgbox.y0,\
 		imgbox.x0+imgbox.width-1,imgbox.y0+imgbox.height-1);
 */
 
@@ -118,12 +130,23 @@ int main(void)
 		for(j=0;j<ncolumn;j++) /* column */
 		{
 			/* generate boxes */
+			ebox[ncolumn*i+j].type=type_button;
 			ebox[ncolumn*i+j].height=sbox;
 			ebox[ncolumn*i+j].width=sbox;
 			ebox[ncolumn*i+j].x0=startX+(j+1)*sgap+j*sbox;
 			ebox[ncolumn*i+j].y0=startY+i*(sgap+sbox);
 		}
 	}
+
+	/* ------- CLOCK ebox ------- */
+	ebox_clock.type = type_txt;
+	ebox_clock.height = 30;
+	ebox_clock.width = 150;
+	ebox_clock.color = -1; /*transparent*/
+	ebox_clock.x0= 60;
+	ebox_clock.y0= 320-38;
+
+	egi_init_ebox(&ebox_clock);
 
 	/* print box position for debug */
 	// for(i=0;i<nrow*ncolumn;i++)
@@ -133,11 +156,11 @@ int main(void)
 	for(i=0;i<nrow*ncolumn;i++)
 	{
 		/* color adjust for button */
-//ok		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
-		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
-//ok		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
+		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
+//		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
+//		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
 
-		draw_filled_rect(&fr_dev,ebox[i].x0,ebox[i].y0,\
+		draw_filled_rect(&gv_fb_dev,ebox[i].x0,ebox[i].y0,\
 			ebox[i].x0+ebox[i].width-1,ebox[i].y0+ebox[i].height-1);
 	}
 
@@ -163,13 +186,18 @@ int main(void)
 		{
 			continue; /* continue to loop to finish reading touch data */
 		}
+
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
+#if 1
 			/* get time and display */
 			tm_get_strtime(tm_strbuf);
-			wirteFB_str20x15(&fr_dev, 0, (30<<11|45<<5|10), tm_strbuf+10, 45, 320-35);/* get rid of y-m-d */
-
+			wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
+			tm_get_strday(tm_strbuf);
+			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
+			//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
+#endif
 			continue; /* continue to loop to read touch data */
 		}
 		else if(ret == XPT_READ_STATUS_COMPLETE)
@@ -198,7 +226,7 @@ int main(void)
 			{
 				printf("button[%d] pressed!\n",index);
 				sprintf(strf,"m_%d.jpg",index+1);
-				show_jpg(strf, &fr_dev, 1, 0, 0);/*black off*/
+				show_jpg(strf, &gv_fb_dev, 1, 0, 0);/*black off*/
 
 			}
 			//usleep(200000); //this will make touch points scattered.
@@ -214,8 +242,8 @@ int main(void)
 	dict_release_h20w15();
 
 	/* close fb dev */
-        munmap(fr_dev.map_fb,fr_dev.screensize);
-        close(fr_dev.fdfd);
+        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
+        close(gv_fb_dev.fdfd);
 
 	/* close spi dev */
 	SPI_Close();

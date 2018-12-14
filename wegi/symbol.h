@@ -7,9 +7,17 @@ Midas
 #define __SYMBOL_H__
 
 
+#include "fblines.h"
+
+
 /* symbol image size */
 #define SYM_IMGPAGE_WIDTH 240
 #define SYM_IMGPAGE_HEIGHT 320
+
+
+#define TESTFONT_COLOR_FLIP 1
+
+
 
 
 /*
@@ -49,7 +57,14 @@ extern struct symbol_page sympg_testfont;
 /*------------------- functions ---------------------*/
 uint16_t *symbol_load_page(struct symbol_page *sym_page);
 void symbol_release_page(struct symbol_page *sym_page);
+int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
-void symbol_print_allinpage(struct symbol_page sym_page, int symbol, uint16_t transpcolor);
+void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
+void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
+                int transpcolor, int x0, int y0, int sym_code);
+void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+                int transpcolor, int x0, int y0, const char* str);
+
+
 
 #endif

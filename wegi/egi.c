@@ -63,3 +63,65 @@ int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num)
 }
 
 
+/*------------------------------------------------------
+initialize an egi_element box according to its type
+
+Return:
+        non-null        OK
+        NULL            fails
+-------------------------------------------------------*/
+struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox)
+{
+        switch(ebox->type)
+        {
+                case type_txt:
+                {
+			printf("this is a type_txt ebox!\n");
+
+                        break;
+                }
+                case type_picture:
+                        break;
+                case type_button:
+                        break;
+                case type_chart:
+                        break;
+                case type_motion:
+                        break;
+
+                default:
+                        break;
+        }
+
+	return ebox;
+}
+
+
+/*------------------------------------------------------
+free an egi_element box according to its type
+-------------------------------------------------------*/
+void egi_free_ebox(struct egi_element_box *ebox)
+{
+        switch(ebox->type)
+        {
+                case type_txt:
+                {
+
+
+                        break;
+                }
+                case type_picture:
+                        break;
+                case type_button:
+                        break;
+                case type_chart:
+                        break;
+                case type_motion:
+                        break;
+
+                default:
+                        break;
+        }
+
+}
+
