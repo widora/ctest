@@ -1,4 +1,4 @@
- /*------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
@@ -8,17 +8,20 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 博客：yuweixian4230.blog.chinaunix.net
 
 
-modified by Midas-Zhou
-1. add 
+TODO:
+0.  draw_dot(): check FB mem. boundary during writing. ---OK
+
+
+Modified by Midas-Zhou
+1. add
 -----------------------------------------------------------------------------*/
 #include "fblines.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <math.h>
 
-/* global variale, Frame buffer device */
-FBDEV   gv_fb_dev;
 
 #ifndef _TYPE_FBDEV_
 #define _TYPE_FBDEV_
@@ -30,6 +33,11 @@ FBDEV   gv_fb_dev;
         char *map_fb;
     }FBDEV;
 #endif
+
+
+/* global variale, Frame buffer device */
+FBDEV   gv_fb_dev;
+
 
  /* default color set */
  static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
@@ -89,7 +97,6 @@ FBDEV   gv_fb_dev;
     void fbset_color(uint16_t color)
     {
 	fb_color=color;
-
     }
 
     /* clear screen with given color */
@@ -102,7 +109,24 @@ FBDEV   gv_fb_dev;
 	        *((unsigned short int *)(fr_dev->map_fb+location))=color;
     }
 
+    void draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
+    {
+        FBDEV *fr_dev=dev;
+        long int location=0;
 
+        location=(x+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
+                     (y+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+
+	if( location > (fr_dev->screensize-sizeof(uint16_t)) )
+	{
+		printf("WARNING: point location out of fb mem.!\n");
+		return;
+	}
+
+        *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
+    }
+
+#if 0
     void draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
     {
         FBDEV *fr_dev=dev;
@@ -115,7 +139,7 @@ FBDEV   gv_fb_dev;
 
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
     }
-
+#endif
 
 
 
@@ -187,7 +211,6 @@ FBDEV   gv_fb_dev;
 	draw_line(fr_dev,*xx-2,*yy-1,*xx-2,*yy+1);
 	draw_line(fr_dev,*xx+1,*yy-2,*xx+1,*yy+2);
 	draw_line(fr_dev,*xx+2,*yy-2,*xx+2,*yy+2);
-
     }
 
 
@@ -220,3 +243,34 @@ FBDEV   gv_fb_dev;
     }
 
 
+
+    void draw_circle(FBDEV *dev, int x, int y, int r)
+    {
+	int i;
+	int s;
+
+	for(i=0;i<r;i++)
+	{
+		s=sqrt(r*r-i*i);
+		draw_dot(dev,x-s,y+i);
+		draw_dot(dev,x+s,y+i);
+		draw_dot(dev,x-s,y-i);
+		draw_dot(dev,x+s,y-i);
+	}
+    }
+
+
+    void draw_filled_circle(FBDEV *dev, int x, int y, int r)
+    {
+	int i;
+	int s;
+
+	for(i=0;i<r;i++)
+	{
+		s=sqrt(r*r-i*i);
+		if(i==0)s-=1;
+		draw_line(dev,x-s,y+i,x+s,y+i);
+		draw_line(dev,x-s,y-i,x+s,y-i);
+	}
+
+    }

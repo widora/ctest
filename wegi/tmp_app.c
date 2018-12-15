@@ -57,7 +57,7 @@ int main(void)
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
 	struct egi_element_box ebox_clock;
-//	struct egi_element_box imgbox;
+	struct egi_data_txt clock_txt;
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
@@ -114,16 +114,6 @@ int main(void)
 //	exit(-1);
 
 
-	/* ----- image box test ----- */
-/*
-	imgbox.height=100;
-	imgbox.width=240;
-	imgbox.x0=0;
-	imgbox.y0=0;
-	draw_rect(&gv_fb_dev,imgbox.x0,imgbox.y0,\
-		imgbox.x0+imgbox.width-1,imgbox.y0+imgbox.height-1);
-*/
-
 	/* ----- generate ebox parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
 	{
@@ -138,21 +128,11 @@ int main(void)
 		}
 	}
 
-	/* ------- CLOCK ebox ------- */
-	ebox_clock.type = type_txt;
-	ebox_clock.height = 30;
-	ebox_clock.width = 150;
-	ebox_clock.color = -1; /*transparent*/
-	ebox_clock.x0= 60;
-	ebox_clock.y0= 320-38;
-
-	egi_init_ebox(&ebox_clock);
-
 	/* print box position for debug */
 	// for(i=0;i<nrow*ncolumn;i++)
 	//	printf("ebox[%d]: x0=%d, y0=%d\n",i,ebox[i].x0,ebox[i].y0);
 
-	/* ----- draw the eboxes ----- */
+	/* ------------ draw the eboxes -------------- */
 	for(i=0;i<nrow*ncolumn;i++)
 	{
 		/* color adjust for button */
@@ -160,9 +140,46 @@ int main(void)
 //		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
 //		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
 
-		draw_filled_rect(&gv_fb_dev,ebox[i].x0,ebox[i].y0,\
-			ebox[i].x0+ebox[i].width-1,ebox[i].y0+ebox[i].height-1);
+	    if(1)
+	    {
+                if(i==0)fbset_color((0<<11)|(60<<5)|30);
+                if(i==1)fbset_color((30<<11)|(60<<5)|0);
+                if(i==2)fbset_color((0<<11)|(0<<5)|30);
+                if(i==3)fbset_color((30<<11)|(0<<5)|0);
+                if(i==4)fbset_color((0<<11)|(60<<5)|0);
+                if(i==5)fbset_color((30<<11)|(0<<5)|30);
+	    }
+		/*  draw filled rectangle */
+//		draw_filled_rect(&gv_fb_dev,ebox[i].x0,ebox[i].y0,
+//			ebox[i].x0+ebox[i].width-1,ebox[i].y0+ebox[i].height-1);
+		/* or, draw filled circle */
+		draw_filled_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
+			ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
 	}
+
+
+	/* ------------ CLOCK ebox test ------------------ */
+	// llen=20*12*2, /*in byte, estimated: 20char * 12pixel/per_char * 2byte/pixel */
+	clock_txt.txt=NULL;
+	/* init txtbox data:  15 lines, 480bytes per line */
+	egi_init_data_txt(&clock_txt, 15, 480, &sympg_testfont, 0xffff);
+	//clock_txt.txt[0]="Hello world!";
+	//clock_txt.txt[1]="Wondful Widora!";
+	for(i=0;i<15;i++)
+		sprintf(clock_txt.txt[i],"Hello world --%d--\n",i);
+
+	ebox_clock.type = type_txt;
+	ebox_clock.egi_data =(void *) &clock_txt;
+	ebox_clock.height = 90; /* two line */
+	ebox_clock.width = 150;
+	ebox_clock.color = -1; /* >0 transparent color*/
+	ebox_clock.x0= 60;
+	ebox_clock.y0= 0;//30;
+	/* updata txt box */
+	egi_txtbox_refresh(&ebox_clock);
+
+
+
 
 
 	/* ---- set timer for time display ---- */
@@ -174,7 +191,28 @@ int main(void)
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
 
-	/* ===============----------(((  MAIN LOOP  )))----------================= */
+	/*  test circle */
+#if 0
+	for(i=0;i<6;i++)
+	{
+		if(i==0)fbset_color((0<<11)|(60<<5)|30);
+		if(i==1)fbset_color((30<<11)|(60<<5)|0);
+		if(i==2)fbset_color((0<<11)|(0<<5)|30);
+		if(i==3)fbset_color((30<<11)|(0<<5)|0);
+		if(i==4)fbset_color((0<<11)|(60<<5)|0);
+		if(i==5)fbset_color((30<<11)|(0<<5)|30);
+
+		draw_filled_circle(&gv_fb_dev,20+i*i*7,70,10+i*4);
+	}
+#endif
+
+
+
+
+
+
+
+/* ===============----------(((  MAIN LOOP  )))----------================= */
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
@@ -195,8 +233,8 @@ int main(void)
 			tm_get_strtime(tm_strbuf);
 			wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 			tm_get_strday(tm_strbuf);
-			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
-			//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
+			//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
+			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
 #endif
 			continue; /* continue to loop to read touch data */
 		}

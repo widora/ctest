@@ -14,9 +14,13 @@ For test only!
 
 
 TODO:
+0.  check FB mem boundary while writing fonts. ----OK
+0.  symbol_string_writeFB(), if symbol type is font. ---OK
+0.  apply struct egi_data_txt->color for txt color. in symbol_string_writeFB() and symbol_writeFB()
+0.  different type symbol now use same writeFB function !!!!! font and icon different writeFB func????
 0.  if image file is not complete.
 1.  void symbol_save_pagemem( )
-2.  void symbol_writeFB( ) ... direct copy to fb.
+2.  void symbol_writeFB( ) ... copy all data if no transp. pixel applied.
 3.  data encode.
 4.  symbol linear enlarge and shrink.
 
@@ -53,9 +57,11 @@ static int testfont_width[16*8] =
 /* symbole page struct for testfont */
 struct symbol_page sympg_testfont=
 {
+	.symtype=type_font,
 	.path="/home/testfont.img",
+	.bkcolor=0xffff,
 	.data=NULL,
-	.maxnum=128-1, 
+	.maxnum=128-1,
 	.sqrow=16,
 	.symheight=26,
 	.symwidth=testfont_width,
@@ -192,16 +198,16 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
                         /* in image file: seek position for pstart of a row, in bytes. 2bytes per pixel */
                         if( lseek(fd,(y0+j)*SYM_IMGPAGE_WIDTH*2+x0*2,SEEK_SET)<0 ) /* in bytes */
                         {
-                                perror("lseek dict file");
+                                perror("lseek symbol image file");
 				symbol_release_page(sym_page);
                                 return NULL;
                         }
 
                         /* in mem data: read each row pixel data form image file to sym_page.data,
 			2bytes per pixel, read one row pixel data each time */
-                        if( read(fd, (uint8_t *)(sym_page->data+offset+width*j), width*2) < 0 )
+                        if( read(fd, (uint8_t *)(sym_page->data+offset+width*j), width*2) < width*2 )
                         {
-                                perror("read dict file");
+                                perror("read symbol image file");
 	 			symbol_release_page(sym_page);
                                 return NULL;
                         }
@@ -230,7 +236,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 	close(fd);
 	printf("symbol_load_page(): succeed to load symbol image file %s!\n", sym_page->path);
-	printf("sym_page->data = %p \n",sym_page->data);
+	//printf("sym_page->data = %p \n",sym_page->data);
 	return (uint16_t *)sym_page->data;
 }
 
@@ -354,18 +360,17 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	long int pos; /* offset position in fb map */
 	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
 	uint16_t pcolor;
-
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
 	int offset=sym_page->symoffset[sym_code];
 	int height=sym_page->symheight;
 	int width=sym_page->symwidth[sym_code];
+	//long int screensize=fb_dev->screensize;
 
 	/* check page */
 #if 1 /* It wastes time. NO need here,we shall move this to .... */
 	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
 		return;
 #endif
-
 
 	/* check sym_code */
 	if( sym_code < 0 || sym_code > sym_page->maxnum )
@@ -378,25 +383,27 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			pos=(y0+i)*xres+x0+j; /* in pixel */
 			pcolor=*(data+offset+width*i+j);/* get pixel in page data */
 
-//			if(TESTFONT_COLOR_FLIP)
-//			{
-//				transpcolor = ~(uint16_t)transpcolor;
-//			}
-
 			/* Wrtie to FB only if:
 			   (no transp. color applied) OR (write only untransparent pixel) */
-			if(transpcolor<0 || pcolor!=transpcolor )
+			if(transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
-
+				/* if use complementary color */
 				if(TESTFONT_COLOR_FLIP)
 				{
 					pcolor = ~pcolor;
 				}
 
+				/* check fb mem. boundary */
+			        if( pos*2 > (fb_dev->screensize-sizeof(uint16_t)) )
+        			{
+                			printf("WARNING: font point reach boundary of FB mem.!\n");
+                			return;
+        			}
+
 				*(uint16_t *)(dev->map_fb+pos*2)=pcolor; /* in pixel, deref. to uint16_t */
 			}
 
-			/* copy all data if no transp. pixel applied */
+			/* -----copy all data if no transp. pixel applied---- */
 		}
 	}
 }
@@ -409,7 +416,9 @@ Write at the same line.
 fbdev: 		FB device
 sym_page: 	a font symbol page
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
-	     	<0	 no transparent pixel
+		    for fonts symbol,
+	     	<0	 --- no transparent pixel
+
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 str:		pointer to a char string.
 -------------------------------------------------------------------------------*/
@@ -418,11 +427,16 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 {
 	const char *p=str;
 	int x=x0;
+	int tspcolor=transpcolor;
+
+	/* if the symbol is font then use symbol back color as transparent tunnel */
+	if(tspcolor >0 && sym_page->symtype == type_font )
+		tspcolor=sym_page->bkcolor;
 
 	while(*p)
 	{
-		symbol_writeFB(fb_dev,sym_page,transpcolor,x,y0,*p);/* at same line, so y=y0 */
-		x+=sym_page->symwidth[(int)(*p)];
+		symbol_writeFB(fb_dev,sym_page,tspcolor,x,y0,*p);/* at same line, so y=y0 */
+		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
 	}
 }

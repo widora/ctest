@@ -50,7 +50,7 @@ APPS = tmp_app
 #### -----  编译标志 -----
 CFLAGS = -Wall
 CFLAGS += -I./ -I./include
-LDFLAGS = -L./lib -ljpeg
+LDFLAGS = -L./lib -ljpeg -lm
 
 
 #----- 打印依赖文件  include $(DEP_FILES)
@@ -69,12 +69,12 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-tmp_app: $(OBJS)    ###touch.o spi.o
+tmp_app: $(OBJS)  ###touch.o spi.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o tmp_app
 
 
 #### ----- 目标文件自动生成规则 -----
-%:%.c
+%:%.c $(DEP_FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c
 
 

@@ -97,8 +97,8 @@ avgsx,avgsy:	pointer to average x,y in tft-LCD coordinate.
 Return:
 	XPT_READ_STATUS_COMPLETE      0		OK, reading session just finished, (avgsx,avgsy) is ready.
 	XPT_READ_STATUS_GOING 	1		during reading session, avgsx,avgsy is NOT ready.
-	XPT_READ_STATUS_PENUP	2	pen-up
-
+	XPT_READ_STATUS_PENUP	2		pen-up
+	XPT_READ_STATUS_HOLDON  3		pressed and hold on
 
 	else		fail !!!!! no quit until get enough consecutive samples !!!!!
 

@@ -43,6 +43,7 @@ void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
 void draw_oval(FBDEV *dev,int x,int y);
 void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 void draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
-
+void draw_circle(FBDEV *dev, int x, int y, int r);
+void draw_filled_circle(FBDEV *dev, int x, int y, int r);
 
 #endif

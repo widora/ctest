@@ -15,19 +15,29 @@ Midas
 #define SYM_IMGPAGE_HEIGHT 320
 
 
-#define TESTFONT_COLOR_FLIP 1
+#define TESTFONT_COLOR_FLIP 0 /* 1 use complementary color */
 
 
+/* symbol type */
+enum symbol_type
+{
+        type_font,
+        type_icon,
+};
 
 
 /*
-symbole page struct
+symbol page struct
 */
 struct symbol_page
 {
+	/* symbol type */
+	enum symbol_type symtype;
 	/* symbol image file path */
 	/* for a 320x240x2Byte page, 2Bytes for 16bit color */
 	char *path;
+	/* back color of the image, a font symbol may use bkcolor as transparent channel */
+	uint16_t  bkcolor;
 	/* page symbol mem data, store each symbol data consecutively, no hole. while img page file may have hole or blank row*/
 	uint16_t *data;
 	/* maximum number of symbols in this page, start from 0 */

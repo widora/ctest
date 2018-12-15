@@ -7,9 +7,6 @@ Midas Zhou
 #define __XPT2046_H__
 
 
-#include <stdio.h>
-
-
 /*--------------   8BITS CONTROL COMMAND FOR XPT2046   -------------------
 [7] 	S 		-- 1:  new control bits,
 	     		   0:  ignore data on pins
@@ -39,7 +36,8 @@ Midas Zhou
 #define XPT_SAMPLE_EXPNUM 4  /* 2^4=2*2*2*2 */
 #define XPT_SAMPLE_NUMBER 1<<XPT_SAMPLE_EXPNUM  /* sample for each touch-read session */
 
-/* ----- LCD parameters ----- */
+/* ----- LCD parameters  ----- */
+/* to be replaced with fb parameters .... */
 #define LCD_SIZE_X 240
 #define LCD_SIZE_Y 320
 
@@ -48,8 +46,8 @@ Midas Zhou
 /* status for XPT touch data reading */
 #define XPT_READ_STATUS_COMPLETE      0   /* OK, reading session is just finished, data is ready.*/
 #define XPT_READ_STATUS_GOING    1        /* session is going on,  data is NOT ready.*/
-#define XPT_READ_STATUS_PENUP    2       /* pen-up status */
-
+#define XPT_READ_STATUS_PENUP    2       /* pen-up status, pen untouched */
+#define XPT_READ_STATUS_HOLDON   3	/* pressed and hold on */
 
 /* -------------------------- functions ------------------------ */
 int xpt_read_xy(uint8_t *xp, uint8_t *yp);
