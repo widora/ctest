@@ -61,7 +61,7 @@ void tm_sigroutine(int signo)
 //		printf(" . tick . \n");
 
 	/* ------- routine action every tick -------- */
-#if 0	// put heavy action here is not a good ideal !!!!!!
+#if 0	// put heavy action here is not a good ideal ??????  !!!!!!
         /* get time and display */
         tm_get_strtime(tm_strbuf);
         wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38); 
@@ -69,7 +69,6 @@ void tm_sigroutine(int signo)
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
         //symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
 #endif
-
 
 	}
 

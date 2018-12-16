@@ -23,6 +23,7 @@ TODO:
 2.  void symbol_writeFB( ) ... copy all data if no transp. pixel applied.
 3.  data encode.
 4.  symbol linear enlarge and shrink.
+5. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
 Midas
 ----------------------------------------------------------------------------*/
@@ -31,6 +32,7 @@ Midas
 #include <unistd.h> /*close*/
 #include <stdint.h>
 #include <fcntl.h>
+#include <string.h>
 #include "symbol.h"
 
 
@@ -343,8 +345,14 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 }
 
 
-/*------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------------
 	write a symbol pixel data to FB device
+
+1. Write to FB in unit of symboy_width*pixel if no color treatment applied for symbols,
+   or in pixel if color treatment is applied.
+2. So the method of checking FB left space is different, depending on above mentioned
+   writing methods.
+
 fbdev: 		FB device
 sym_page: 	symbol page
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
@@ -383,7 +391,26 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			pos=(y0+i)*xres+x0+j; /* in pixel */
 			pcolor=*(data+offset+width*i+j);/* get pixel in page data */
 
-			/* Wrtie to FB only if:
+#if 0 /* memcpy to fb is very slow !!!!!!!!!! */
+			/* -----copy all data if no transp. pixel applied && no color flip ---- */
+			if(transpcolor<0 && TESTFONT_COLOR_FLIP==0 )
+			{
+				/* check fb mem. boundary for one symbol wide */
+			        if( pos*2 > (fb_dev->screensize-width*sizeof(uint16_t)) )
+        			{
+                			printf("WARNING: symbol row reach boundary of FB mem.!\n");
+                			return;
+        			}
+				/* memcpy a pixel row of the symbol to FB */
+				memcpy( (void *)(dev->map_fb+pos*2), (void *)(data+offset+width*i),width*sizeof(uint16_t));
+		/* test--------------------------*/
+				printf("write FB in symbol width\n");
+
+				break;
+			}
+#endif
+			/* ----- other conditions ---------
+			   Wrtie to FB only if:
 			   (no transp. color applied) OR (write only untransparent pixel) */
 			if(transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
@@ -396,14 +423,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				/* check fb mem. boundary */
 			        if( pos*2 > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
-                			printf("WARNING: font point reach boundary of FB mem.!\n");
+                			printf("WARNING: symbol point reach boundary of FB mem.!\n");
                 			return;
         			}
 
 				*(uint16_t *)(dev->map_fb+pos*2)=pcolor; /* in pixel, deref. to uint16_t */
 			}
 
-			/* -----copy all data if no transp. pixel applied---- */
 		}
 	}
 }

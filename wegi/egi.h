@@ -47,13 +47,15 @@ struct egi_element_box
 	int width;
 
 	/* prime box color
-	   >0 transparent tunnel color;
-	   <0 not transparent
+	   >=0 normal 16bits color;
+	   <0 transparent,will not draw the color. fonts floating on a page,for example.
 	  Usually it shall be transparet, except for an egi page.
 	 */
-	int color;
+	int prmcolor;
 
-	/* pointer to back image */
+	/* pointer to back image
+	   for a page, it is a wallpaper.
+	   for other eboxes, it's an image backup for its holder(page)*/
 	uint16_t *bkimg;
 
 	/* data pointer to different types of struct egi_data_xxx */
@@ -62,8 +64,11 @@ struct egi_element_box
 	/* pointer to icon image */
 //	uint16_t *picon;
 
-	/* action in refresh, reload */
-	void (*refresh)(void);
+	/*  method */
+	void (*activate)(struct egi_element_box *);
+	void (*refresh)(struct egi_element_box *);
+	void (*sleep)(struct egi_element_box *);
+	void (*destroy)(struct egi_element_box *);
 
 	/* child list */
 	struct egi_element_box *child;
@@ -74,6 +79,8 @@ struct egi_element_box
 /* egi data for a txt type ebox */
 struct egi_data_txt
 {
+	int offx; /* offset from ebox x0,y0 */
+	int offy;
 	int nl;  /* number of txt lines */
 	int llen; /* in byte, data length for each line */
 	struct symbol_page *font;
@@ -113,7 +120,7 @@ int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num);
 
 
 struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
-                        int nl, int llen, struct symbol_page *font, uint16_t color);
+                 int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
 struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox);
 void egi_free_data_txt(struct egi_data_txt *data_txt);

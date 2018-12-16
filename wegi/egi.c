@@ -12,8 +12,10 @@ Very simple concept:
 
 
 TODO:
+	0. egi_txtbox_filltxt(),fill txt buffer of txt_data->txt.
 	1. egi_init_data_txt(): llen according to ebox->height and width.
 	2. apply struct egi_data_txt->color for txt color,in egi_txtbox_refresh()
+3. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
 
 
@@ -21,7 +23,7 @@ Midas Zhou
 ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h> /*malloc*/
-//#include <stdbool.h>
+#include <string.h> /* memset */
 #include "egi.h"
 #include "symbol.h"
 
@@ -89,6 +91,7 @@ int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num)
 /*--------------------------------------------------------------------------------
 initialize struct egi_data_txt according
 
+offx,offy:			offset from prime ebox
 int nl:   			number of txt lines
 int llen:  			in byte, data length for each line
 struct symbol_page *font:	txt font
@@ -100,14 +103,10 @@ Return:
         NULL            fails
 ---------------------------------------------------------------------------------*/
 struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
-			int nl, int llen, struct symbol_page *font, uint16_t color)
+			int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color)
 {
 	int i,j;
 
-	data_txt->nl=nl;
-	data_txt->llen=llen;
-	data_txt->font=font;
-	data_txt->color=color;
 
 	/* check data first */
 	if(data_txt == NULL)
@@ -131,6 +130,13 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 		return NULL;
 	}
 
+	/* --- assign var ---- */
+	data_txt->nl=nl;
+	data_txt->llen=llen;
+	data_txt->font=font;
+	data_txt->color=color;
+	data_txt->offx=offx;
+	data_txt->offy=offy;
 
 	/* --- malloc data --- */
 	data_txt->txt=malloc(nl*sizeof(char *));
@@ -150,6 +156,8 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 			free(data_txt->txt);
 			return NULL;
 		}
+
+		memset(data_txt->txt[i],0,llen*sizeof(char));
 	}
 
 	return data_txt;
@@ -157,11 +165,24 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 
 
 /*-----------------------------------------------------------------------
+activate a txt ebox:
+	0. 
+ 	1. store back image.
+	2. refresh the ebox.
+	3. change status token to active,
+------------------------------------------------------------------------*/
+void egi_txtbox_activate(struct egi_element_box *ebox)
+{
+
+
+}
+
+
+
+/*-----------------------------------------------------------------------
 refresh a txt ebox:
-	1.restore back img,
- 	2.update its txt,
-
-
+	1.refresh back color if ebox->prmcolor >0,
+ 	2.update txt.
 ------------------------------------------------------------------------*/
 void egi_txtbox_refresh(struct egi_element_box *ebox)
 {
@@ -179,19 +200,31 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
 	int nl=data_txt->nl;
 	int llen=data_txt->llen;
+	int offx=data_txt->offx;
+	int offy=data_txt->offy;
 	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
 
-	/* print out txt */
+	/* test--------------   print out txt */
 	for(i=0;i<nl;i++)
 		printf("ebox txt[%d]:%s\n",i,txt[i]);
 
-	/* write to FB */
+	/* ---- 1. refresh prime color under the symbol  before updating txt.  */
+	if(ebox->prmcolor >= 0)
+	{
+		/* check ebox height and font lines, then adjust  */
+		height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+		fbset_color(ebox->prmcolor);
+		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width,y0+height);
+		fbset_color(0); /* use black as frame  */
+		draw_rect(&gv_fb_dev,x0,y0,x0+width,y0+height);
+	}
+	/* ---- 2. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, transpcolor, x0,y0, char*)...
 					for font symbol: tranpcolor is its img symbol bkcolor!!! */
-		symbol_string_writeFB(&gv_fb_dev, data_txt->font, -1, x0, y0+font_height*i, txt[i]);
-
+		symbol_string_writeFB(&gv_fb_dev, data_txt->font, -1, x0+offx, \
+						 y0+offy+font_height*i, txt[i]);
 }
 
 

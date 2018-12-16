@@ -24,6 +24,7 @@ TODO:
 4. apply mutli-process for separative jobs: reading-touch-pad, CLOCK,texting,... etc.
 5. systme()... sh -c ...
 6. btn-press and btn-release signal
+7. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -37,8 +38,6 @@ Midas Zhou
 #include "dict.h"
 #include "egi_timer.h"
 #include "symbol.h"
-
-
 
 
 /*  ---------------------  MAIN  ---------------------  */
@@ -65,6 +64,10 @@ int main(void)
 
 	//char str_syscmd[100];
 	char strf[100];
+	uint16_t *buf;
+
+	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+
 
 	/* --- open spi dev --- */
 	SPI_Open();
@@ -161,35 +164,36 @@ int main(void)
 	/* ------------ CLOCK ebox test ------------------ */
 	// llen=20*12*2, /*in byte, estimated: 20char * 12pixel/per_char * 2byte/pixel */
 	clock_txt.txt=NULL;
-	/* init txtbox data:  15 lines, 480bytes per line */
-	egi_init_data_txt(&clock_txt, 15, 480, &sympg_testfont, 0xffff);
+	/* init txtbox data: offset(10,10) 2_lines, 480bytes per txt line */
+	egi_init_data_txt(&clock_txt, 5, 5, 2, 480, &sympg_testfont, 0xffff);
 	//clock_txt.txt[0]="Hello world!";
 	//clock_txt.txt[1]="Wondful Widora!";
-	for(i=0;i<15;i++)
+
+/*
+	for(i=0;i<3;i++)
 		sprintf(clock_txt.txt[i],"Hello world --%d--\n",i);
+*/
+	//-- Losing TXT data pointer !!!!! clock_txt.txt[0] ="?\r\r\r?\n\n\n\n\n!@$%^&";
+	strncpy(clock_txt.txt[0],"88888888888888888",20);
+	strncpy(clock_txt.txt[0],"Hello, World!",20);
 
 	ebox_clock.type = type_txt;
 	ebox_clock.egi_data =(void *) &clock_txt;
-	ebox_clock.height = 90; /* two line */
-	ebox_clock.width = 150;
-	ebox_clock.color = -1; /* >0 transparent color*/
-	ebox_clock.x0= 60;
-	ebox_clock.y0= 0;//30;
+	ebox_clock.height = 60; /* two line */
+	ebox_clock.width = 230;
+	ebox_clock.prmcolor =0xffff; // ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
+	ebox_clock.x0= 5;
+	ebox_clock.y0= 5;//30;
+
 	/* updata txt box */
 	egi_txtbox_refresh(&ebox_clock);
-
-
-
-
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
 
-
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
-
 
 	/*  test circle */
 #if 0
@@ -206,7 +210,8 @@ int main(void)
 	}
 #endif
 
-
+	/* --- copy partial fb mem to buf -----*/
+	fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
 
 
 
@@ -229,12 +234,34 @@ int main(void)
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
 #if 1
-			/* get time and display */
+		  /*  Heavy load task MUST NOT put her */
+			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 			wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
+
+			/* if tm changes, put in txtbox */
+			if( strcmp(clock_txt.txt[1],tm_strbuf) !=0 )
+			{
+				strncpy(clock_txt.txt[1],tm_strbuf,10);
+				if(ebox_clock.y0 > 320-1)ebox_clock.y0=0;
+				ebox_clock.y0+=5;
+				egi_txtbox_refresh(&ebox_clock);
+
+				/*--- FB partial area data copy ---*/
+			 	fb_cpyfrom_buf(&gv_fb_dev, 100,0,150,320-1, buf);
+
+			}
+
+			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
 			//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
 			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
+			/* copy to clock_txt */
+			strncpy(clock_txt.txt[0],tm_strbuf,20);
+
+
+
+
 #endif
 			continue; /* continue to loop to read touch data */
 		}
