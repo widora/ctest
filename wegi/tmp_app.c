@@ -55,8 +55,13 @@ int main(void)
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
+
+	struct egi_element_box ebox_note={0};
+	struct egi_data_txt note_txt={0};
+
 	struct egi_element_box ebox_clock={0};
 	struct egi_data_txt clock_txt={0};
+
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
@@ -102,6 +107,10 @@ int main(void)
 	/* --- load testfont ---- */
 	if(symbol_load_page(&sympg_testfont)==NULL)
 		exit(-2);
+	/* --- load numbfont ---- */
+	if(symbol_load_page(&sympg_numbfont)==NULL)
+		exit(-2);
+
 
 	/* print all symbols in the page */
 #if 0
@@ -111,10 +120,12 @@ int main(void)
 		//getchar();
 	}
 #endif
-	//symbol_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,0,0,'M');
-	//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,50,50,"Hello Widora!");
 
-//	exit(-1);
+#if 0
+	for(i=48;i<58;i++)
+		symbol_print_symbol(&sympg_numbfont,i,0x0);
+#endif
+
 
 	/* ----- generate ebox parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
@@ -165,31 +176,35 @@ int main(void)
 		2.  then assign ebox_clock
 		3.  activate teh exbox_clock
 	*/
-
-	//clock_txt.txt=NULL;
-	/* init txtbox data: offset(10,10) 2_lines, 480bytes per txt line */
-	egi_init_data_txt(&clock_txt, 5, 5, 2, 480, &sympg_testfont, 0xffff);
-
-	//-- Losing TXT data pointer !!!!! clock_txt.txt[0] ="?\r\r\r?\n\n\n\n\n!@$%^&";
-	strncpy(clock_txt.txt[0],"88888888888888888",20);
-	strncpy(clock_txt.txt[0],"Hello, World!",20);
-
+	/* init txtbox data: offset(x,y) 1_lines, 480bytes per txt line,font, font_color */
+	egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont, (30<<11|45<<5|10) );
 	ebox_clock.type = type_txt;
 	ebox_clock.egi_data =(void *) &clock_txt;
-	ebox_clock.height = 60; /* two line */
-	ebox_clock.width = 230;
-	ebox_clock.prmcolor =0xffff; // ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
-	ebox_clock.x0= 5;
-	ebox_clock.y0= 0;
+	ebox_clock.height = 20; /* ebox height */
+	ebox_clock.width = 120;
+	ebox_clock.prmcolor = -1; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
+	ebox_clock.x0= 60;
+	ebox_clock.y0= 320-38;
+
+	/* ------------ NOTE ebox test ------------------ */
+	/* init txtbox data: offset(10,10) 2_lines, 480bytes per txt line,font, font_color */
+	egi_init_data_txt(&note_txt, 5, 5, 2, 480, &sympg_testfont, 0);
+	ebox_note.type = type_txt;
+	ebox_note.egi_data =(void *) &note_txt;
+	ebox_note.height = 60; /* two line */
+	ebox_note.width = 200;
+	ebox_note.prmcolor =(0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
+	ebox_note.x0= 30;
+	ebox_note.y0= 0;
 
 
 	/* --- activate the txt box now, store bkimg, put status etc.... --- */
 	egi_txtbox_activate(&ebox_clock);
+	egi_txtbox_activate(&ebox_note);
+
 	/* refresh txt box */
-	ebox_clock.y0 += 20;
-	egi_txtbox_refresh(&ebox_clock);
-
-
+	//ebox_clock.y0 += 20;
+	//egi_txtbox_refresh(&ebox_clock);
 
 
 
@@ -244,28 +259,32 @@ int main(void)
 		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
-			wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 
 			/* if tm changes, put in txtbox */
-			if( strcmp(clock_txt.txt[1],tm_strbuf) !=0 )
+			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
-				strncpy(clock_txt.txt[1],tm_strbuf,10);
-				if(ebox_clock.y0 > 320-1)ebox_clock.y0=0;
-				ebox_clock.x0+=10;
-				ebox_clock.y0+=5;
+				/* refresh NOTE ebox */
+				strncpy(note_txt.txt[1],tm_strbuf,10);
+				if(ebox_note.y0 > 320-1)ebox_note.y0=0;
+				ebox_note.x0+=10;
+				ebox_note.y0+=10;
+				egi_txtbox_refresh(&ebox_note);
+
+				/* refresh CLOCK ebox */
+				//OBSOLETE: wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
+				//symbol_string_writeFB(&gv_fb_dev, &sympg_numbfont,(30<<11|45<<5|10),0,60,320-38,tm_strbuf);
+				strncpy(clock_txt.txt[0],tm_strbuf,10);
 				egi_txtbox_refresh(&ebox_clock);
 
-				/*--- FB partial area data copy ---*/
-			 	//fb_cpyfrom_buf(&gv_fb_dev, 100,0,150,320-1, buf);
+
 
 			}
 
 			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
-			//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
-			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
-			/* copy to clock_txt */
-			strncpy(clock_txt.txt[0],tm_strbuf,20);
+			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0,0xffff,32,90,tm_strbuf);
+			/* copy to note_txt */
+			strncpy(note_txt.txt[0],tm_strbuf,20);
 
 #endif
 			continue; /* continue to loop to read touch data */

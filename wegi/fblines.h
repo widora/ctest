@@ -15,7 +15,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 #include <stdint.h>
 #include <stdbool.h>
 
-/* for draw_dot() */
+/* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define FB_DOTOUT_ROLLBACK
 
 

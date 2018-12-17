@@ -11,12 +11,10 @@ For test only!
    A mem symbol page may be saved as a file.
 5. All symbols in a page MUST have the same height, and each row has the same
    number of total symbols.
+6. 
 
 
 TODO:
-0.  check FB mem boundary while writing fonts. ----OK
-0.  symbol_string_writeFB(), if symbol type is font. ---OK
-0.  apply struct egi_data_txt->color for txt color. in symbol_string_writeFB() and symbol_writeFB()
 0.  different type symbol now use same writeFB function !!!!! font and icon different writeFB func????
 0.  if image file is not complete.
 1.  void symbol_save_pagemem( )
@@ -36,10 +34,8 @@ Midas
 #include "symbol.h"
 
 
-//----------------------------------=-------------------------------------
-
-/*
-ascii 0-127 symbol width,
+/*--------------------(  testfont  )------------------------
+   ascii 0-127 symbol width,
 5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
 */
 static int testfont_width[16*8] =
@@ -55,7 +51,6 @@ static int testfont_width[16*8] =
 	6,10,11,9,11,10,6,10,11,5,5,10,5,17,11,10, /* uppoint' abcdefghijklmnop */
 	11,11,7,8,7,11,9,15,9,10,8,7,10,7,10,5 /*pqrstuvwxyz{|}~ blank */
 };
-
 /* symbole page struct for testfont */
 struct symbol_page sympg_testfont=
 {
@@ -66,8 +61,35 @@ struct symbol_page sympg_testfont=
 	.maxnum=128-1,
 	.sqrow=16,
 	.symheight=26,
-	.symwidth=testfont_width,
+	.symwidth=testfont_width, /* width list */
 };
+
+
+/*--------------------------(  numbfont  )-----------------------------------
+ 	big number font 0123456789:
+*/
+static int numbfont_width[16*8] =
+{
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	15,15,15,15,15,15,15,15,15,15,15,0,0,0,0,0, /* 0123456789: */
+};
+/* symbole page struct for testfont */
+struct symbol_page sympg_numbfont=
+{
+	.symtype=type_font,
+	.path="/home/numbfont.img",
+	.bkcolor=0x0000,
+	.data=NULL,
+	.maxnum=16*4-1,
+	.sqrow=16,
+	.symheight=20,
+	.symwidth=numbfont_width, /* width list */
+};
+
+
+
 
 
 
@@ -355,13 +377,19 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 
 fbdev: 		FB device
 sym_page: 	symbol page
+
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 	     	<0	 no transparent pixel
+
+fontcolor:	font color
+		>= 0, use given font color.
+		<0   use default color in img data
+
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code: 	symbol code number
 -------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
-		int transpcolor, int x0, int y0, int sym_code)
+		int fontcolor, int transpcolor, int x0, int y0, int sym_code)
 {
 	int i,j,k;
 	FBDEV *dev = fb_dev;
@@ -409,6 +437,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				break;
 			}
 #endif
+
 			/* ----- other conditions ---------
 			   Wrtie to FB only if:
 			   (no transp. color applied) OR (write only untransparent pixel) */
@@ -420,14 +449,23 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 					pcolor = ~pcolor;
 				}
 
-				/* check fb mem. boundary */
-			        if( pos*2 > (fb_dev->screensize-sizeof(uint16_t)) )
+				/* check available space,  fb mem. boundary */
+				pos<<=1; /*pixel to byte,  pos=pos*2 */
+			        if( pos > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
+#ifdef FB_SYMOUT_ROLLBACK
+					pos=pos%fb_dev->screensize;
+#else
                 			printf("WARNING: symbol point reach boundary of FB mem.!\n");
                 			return;
+#endif
         			}
 
-				*(uint16_t *)(dev->map_fb+pos*2)=pcolor; /* in pixel, deref. to uint16_t */
+				/* if use fontcolor */
+				if(fontcolor>=0)
+					pcolor=(uint16_t)fontcolor;
+
+				*(uint16_t *)(dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
 			}
 
 		}
@@ -441,6 +479,9 @@ Write at the same line.
 
 fbdev: 		FB device
 sym_page: 	a font symbol page
+fontcolor:	font color
+		>= 0, use given font color.
+		<0   use default color in img data
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 		    for fonts symbol,
 	     	<0	 --- no transparent pixel
@@ -449,7 +490,7 @@ x0,y0: 		start position coordinate in screen, left top point of a symbol.
 str:		pointer to a char string.
 -------------------------------------------------------------------------------*/
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
-		int transpcolor, int x0, int y0, const char* str)
+		int fontcolor, int transpcolor, int x0, int y0, const char* str)
 {
 	const char *p=str;
 	int x=x0;
@@ -461,7 +502,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 	while(*p)
 	{
-		symbol_writeFB(fb_dev,sym_page,tspcolor,x,y0,*p);/* at same line, so y=y0 */
+		symbol_writeFB(fb_dev,sym_page,fontcolor,tspcolor,x,y0,*p);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
 	}

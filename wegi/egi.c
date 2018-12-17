@@ -234,18 +234,20 @@ void egi_txtbox_activate(struct egi_element_box *ebox)
 
 	/* refresh displaying the ebox */
 	egi_txtbox_refresh(ebox);
+
+	ebox->status=status_active;
 }
 
 
 
 /*-----------------------------------------------------------------------
-refresh a txt ebox:
+refresh a txt ebox.
 	0.refresh ebox image according to following parameter updates:
 		---txt(offx,offy,nl,llen)
 		---size(height,width)
 		---positon(x0,y0)
 		---ebox color
-	1.refresh back color if ebox->prmcolor >0,
+	1.refresh ebox color if ebox->prmcolor >0,
  	2.update txt.
 ------------------------------------------------------------------------*/
 void egi_txtbox_refresh(struct egi_element_box *ebox)
@@ -306,16 +308,17 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 		/* set color and draw filled rectangle */
 		fbset_color(ebox->prmcolor);
 		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
-		/* draw black frame rect */
-		fbset_color(0); /* use black as frame color  */
-		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 	}
+
+	/* --- draw black frame rect --- */
+	fbset_color(0); /* use black as frame color  */
+	draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 
 	/* ---- 3. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
-		/*  (fb_dev,font, transpcolor, x0,y0, char*)...
+		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					for font symbol: tranpcolor is its img symbol bkcolor!!! */
-		symbol_string_writeFB(&gv_fb_dev, data_txt->font, -1, x0+offx, \
+		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
 						 y0+offy+font_height*i, txt[i]);
 }
 

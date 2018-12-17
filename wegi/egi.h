@@ -38,6 +38,7 @@ enum egi_ebox_type
 /* element box status */
 enum egi_ebox_status
 {
+	status_idle=0,
 	status_sleep,
 	status_active,
 };

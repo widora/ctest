@@ -10,12 +10,15 @@ Midas
 #include "fblines.h"
 
 
+
 /* symbol image size */
 #define SYM_IMGPAGE_WIDTH 240
 #define SYM_IMGPAGE_HEIGHT 320
 
-
 #define TESTFONT_COLOR_FLIP 0 /* 1 use complementary color */
+
+/*for symbol_writeFB(), roll back to start if symbol point reach boundary of FB mem */
+#define FB_SYMOUT_ROLLBACK
 
 
 /* symbol type */
@@ -61,8 +64,9 @@ struct symbol_page
 };
 
 
-
 extern struct symbol_page sympg_testfont;
+extern struct symbol_page sympg_numbfont;
+
 
 /*------------------- functions ---------------------*/
 uint16_t *symbol_load_page(struct symbol_page *sym_page);
@@ -71,9 +75,9 @@ int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
 void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
-                int transpcolor, int x0, int y0, int sym_code);
+                int fontcolor, int transpcolor, int x0, int y0, int sym_code);
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
-                int transpcolor, int x0, int y0, const char* str);
+                int fontcolor, int transpcolor, int x0, int y0, const char* str);
 
 
 
