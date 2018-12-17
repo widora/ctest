@@ -2,3 +2,5 @@ NOTE:
 1. Copy main() source file to temp_app.c, then you can use Makefile.
 2. Change the original main() source file to xxx_C for backup.  
 3. Make it and you will get bin file temp_app, change the name as you wish.
+4. Black_and_While font images show sharply in contrasting color backgroud, while Gray font images show softly
+   and smoothly in simlar color backgroup. 

@@ -15,6 +15,8 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 #include <stdint.h>
 #include <stdbool.h>
 
+/* for draw_dot() */
+#define FB_DOTOUT_ROLLBACK
 
 
 #ifndef _TYPE_FBDEV_

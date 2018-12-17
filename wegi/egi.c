@@ -156,31 +156,95 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 			free(data_txt->txt);
 			return NULL;
 		}
-
 		memset(data_txt->txt[i],0,llen*sizeof(char));
 	}
-
 	return data_txt;
 }
 
 
 /*-----------------------------------------------------------------------
 activate a txt ebox:
-	0. 
- 	1. store back image.
+	0. adjust ebox height and width according to its font line set
+ 	1. store back image of  txtbox frame range.
 	2. refresh the ebox.
 	3. change status token to active,
+
+TODO:
+	if ebox_size is fixed or is re-sizable, bkimg mem size MUST adjusted.
+
+ 
 ------------------------------------------------------------------------*/
 void egi_txtbox_activate(struct egi_element_box *ebox)
 {
+	int i,j;
+	int x0=ebox->x0;
+	int y0=ebox->y0;
+	int height=ebox->height;
+	int width=ebox->width;
+	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
+	int nl=data_txt->nl;
+	int llen=data_txt->llen;
+	int offx=data_txt->offx;
+	int offy=data_txt->offy;
+	char **txt=data_txt->txt;
+	int font_height=data_txt->font->symheight;
+
+	/* confirm ebox type */
+        if(ebox->type != type_txt)
+        {
+                printf("egi_txtbox_activate(): Not txt type ebox!\n");
+                return;
+        }
 
 
+	/* malloc exbo->bkimg for bk image storing */
+	if(ebox->bkimg != NULL)
+	{
+		printf("egi_txtbox_activat(): ebox->bkimg is not NULL, fail to malloc!\n");
+		return;
+	}
+
+
+        /* check ebox height and font lines, then adjust the height */
+        height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+        ebox->height=height;
+
+	// malloc more mem in case ebox size is enlarged later????? //
+	//ebox->bkimg= malloc(240*320*2);
+	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
+
+	if(ebox->bkimg == NULL)
+	{
+		printf("egi_txtbox_activat(): fail to malloc for ebox->bkimg!\n");
+		return;
+	}
+
+	/* define bkimg box */
+	ebox->bkbox.startxy.x=x0;
+	ebox->bkbox.startxy.y=y0;
+	ebox->bkbox.endxy.x=x0+width-1;
+	ebox->bkbox.endxy.y=y0+height-1;
+
+	printf("activate() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
+
+	/* store bk image which will be restored when this ebox position/size changes */
+	fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+	/* refresh displaying the ebox */
+	egi_txtbox_refresh(ebox);
 }
 
 
 
 /*-----------------------------------------------------------------------
 refresh a txt ebox:
+	0.refresh ebox image according to following parameter updates:
+		---txt(offx,offy,nl,llen)
+		---size(height,width)
+		---positon(x0,y0)
+		---ebox color
 	1.refresh back color if ebox->prmcolor >0,
  	2.update txt.
 ------------------------------------------------------------------------*/
@@ -204,22 +268,50 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	int offy=data_txt->offy;
 	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
+	//struct egi_box_coords bkbox=ebox->bkbox;
 
-	/* test--------------   print out txt */
+	/* test--------------   print out box txt content */
+#if 0
 	for(i=0;i<nl;i++)
-		printf("ebox txt[%d]:%s\n",i,txt[i]);
+		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
+#endif
 
-	/* ---- 1. refresh prime color under the symbol  before updating txt.  */
+	/* ---- 1. restore bk image before refresh */
+	printf("refresh() fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+
+        fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+        /* ---- 2. redefine bkimg box range, in case it may change */
+	/* check ebox height and font lines in case it may changes, then adjust the height */
+	/* updata bkimg->bkbox according */
+	height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+	ebox->height=height;
+        ebox->bkbox.startxy.x=x0;
+        ebox->bkbox.startxy.y=y0;
+        ebox->bkbox.endxy.x=x0+width-1;
+        ebox->bkbox.endxy.y=y0+height-1;
+
+	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+
+        /* ---- 3. store bk image which will be restored when this ebox position/size changes */
+        fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+	/* ---- 2. refresh prime color under the symbol  before updating txt.  */
 	if(ebox->prmcolor >= 0)
 	{
-		/* check ebox height and font lines, then adjust  */
-		height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+		/* set color and draw filled rectangle */
 		fbset_color(ebox->prmcolor);
-		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width,y0+height);
-		fbset_color(0); /* use black as frame  */
-		draw_rect(&gv_fb_dev,x0,y0,x0+width,y0+height);
+		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+		/* draw black frame rect */
+		fbset_color(0); /* use black as frame color  */
+		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 	}
-	/* ---- 2. refresh TXT, write txt line to FB */
+
+	/* ---- 3. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, transpcolor, x0,y0, char*)...
 					for font symbol: tranpcolor is its img symbol bkcolor!!! */

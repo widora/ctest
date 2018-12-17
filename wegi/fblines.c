@@ -127,8 +127,14 @@ FBDEV   gv_fb_dev;
 	if( location > (fr_dev->screensize-sizeof(uint16_t)) )
 	{
 		printf("WARNING: point location out of fb mem.!\n");
+#ifdef FB_DOTOUT_ROLLBACK
+		location=location%fr_dev->screensize;
+#else
 		return -1;
+#endif
+
 	}
+
 
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 
@@ -326,20 +332,30 @@ FBDEV   gv_fb_dev;
 		yu=y2;yd=y1;
 
 	/* check area coordinates */
-	if( xl > fb_dev->vinfo.xres-1 || yd>fb_dev->vinfo.yres-1 || xr<0 || yu<0 )
+#ifdef FB_DOT_OUT_ROLLBACK
+	if( xl > fb_dev->vinfo.xres-1 || yd > fb_dev->vinfo.yres-1 || xr<0 || yu<0 )
 		return -1;
+#else
+	if( xr<0 || yu<0 )
+		return -1;
+#endif
+
 
 	/* if partial area valid, adjust x,y  */
 	if(xr>fb_dev->vinfo.xres-1)
 	{
+#ifndef FB_DOTOUT_ROLLBACK
 		xr=fb_dev->vinfo.xres-1;
 		ret=1;
+#endif
 	}
 	if(xl<0)xl=0;
 	if(yu>fb_dev->vinfo.yres-1)
 	{
+#ifndef FB_DOTOUT_ROLLBACK
 		yu=fb_dev->vinfo.yres-1;
 		ret=1;
+#endif
 	}
 	if(yd<0)yd=0;
 
@@ -351,6 +367,13 @@ FBDEV   gv_fb_dev;
 		{
 	      	  	location=(j+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (i+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
+#ifdef FB_DOTOUT_ROLLBACK
+			if( location > (fb_dev->screensize-sizeof(uint16_t)) )
+			{
+				location=location%fb_dev->screensize;
+			}
+#endif
+			/* copy to buf */
         		*buf = *((uint16_t *)(fb_dev->map_fb+location));
 			 buf++;
 		}
@@ -394,20 +417,29 @@ FBDEV   gv_fb_dev;
 		yu=y2;yd=y1;
 
 	/* check area coordinates */
+#ifdef FB_DOT_OUT_ROLLBACK
 	if( xl > fb_dev->vinfo.xres-1 || yd > fb_dev->vinfo.yres-1 || xr<0 || yu<0 )
 		return -1;
+#else
+	if( xr<0 || yu<0 )
+		return -1;
+#endif
 
 	/* if partial area valid, adjust x,y  */
 	if(xr>fb_dev->vinfo.xres-1)
 	{
+#ifndef FB_DOTOUT_ROLLBACK
 		xr=fb_dev->vinfo.xres-1;
 		ret=1;
+#endif
 	}
 	if(xl<0)xl=0;
 	if(yu>fb_dev->vinfo.yres-1)
 	{
+#ifndef FB_DOTOUT_ROLLBACK
 		yu=fb_dev->vinfo.yres-1;
 		ret=1;
+#endif
 	}
 	if(yd<0)yd=0;
 
@@ -416,8 +448,15 @@ FBDEV   gv_fb_dev;
 	{
         	for(j=xl;j<=xr;j++)
 		{
-	      	  	location=(j+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+			location=(j+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (i+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
+#ifdef FB_DOTOUT_ROLLBACK
+			if( location > (fb_dev->screensize-sizeof(uint16_t)) )
+			{
+				location=location%fb_dev->screensize;
+			}
+#endif
+			/* copy to fb */
         		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
 			buf++;
 		}

@@ -55,8 +55,8 @@ int main(void)
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
-	struct egi_element_box ebox_clock;
-	struct egi_data_txt clock_txt;
+	struct egi_element_box ebox_clock={0};
+	struct egi_data_txt clock_txt={0};
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
@@ -64,9 +64,9 @@ int main(void)
 
 	//char str_syscmd[100];
 	char strf[100];
-	uint16_t *buf;
 
-	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+	//uint16_t *buf;
+	//buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 
 	/* --- open spi dev --- */
@@ -116,7 +116,6 @@ int main(void)
 
 //	exit(-1);
 
-
 	/* ----- generate ebox parameters ----- */
 	for(i=0;i<nrow;i++) /* row */
 	{
@@ -161,18 +160,16 @@ int main(void)
 	}
 
 
-	/* ------------ CLOCK ebox test ------------------ */
-	// llen=20*12*2, /*in byte, estimated: 20char * 12pixel/per_char * 2byte/pixel */
-	clock_txt.txt=NULL;
+	/* ------------ CLOCK ebox test ------------------ ----
+		1.  egi_init_data_txt()
+		2.  then assign ebox_clock
+		3.  activate teh exbox_clock
+	*/
+
+	//clock_txt.txt=NULL;
 	/* init txtbox data: offset(10,10) 2_lines, 480bytes per txt line */
 	egi_init_data_txt(&clock_txt, 5, 5, 2, 480, &sympg_testfont, 0xffff);
-	//clock_txt.txt[0]="Hello world!";
-	//clock_txt.txt[1]="Wondful Widora!";
 
-/*
-	for(i=0;i<3;i++)
-		sprintf(clock_txt.txt[i],"Hello world --%d--\n",i);
-*/
 	//-- Losing TXT data pointer !!!!! clock_txt.txt[0] ="?\r\r\r?\n\n\n\n\n!@$%^&";
 	strncpy(clock_txt.txt[0],"88888888888888888",20);
 	strncpy(clock_txt.txt[0],"Hello, World!",20);
@@ -183,10 +180,19 @@ int main(void)
 	ebox_clock.width = 230;
 	ebox_clock.prmcolor =0xffff; // ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
 	ebox_clock.x0= 5;
-	ebox_clock.y0= 5;//30;
+	ebox_clock.y0= 0;
 
-	/* updata txt box */
+
+	/* --- activate the txt box now, store bkimg, put status etc.... --- */
+	egi_txtbox_activate(&ebox_clock);
+	/* refresh txt box */
+	ebox_clock.y0 += 20;
 	egi_txtbox_refresh(&ebox_clock);
+
+
+
+
+
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -211,8 +217,7 @@ int main(void)
 #endif
 
 	/* --- copy partial fb mem to buf -----*/
-	fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
-
+	//fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
 
 
 
@@ -223,6 +228,7 @@ int main(void)
 		/*------ relate with number of touch-read samples -----*/
 		usleep(3000); //3000
 
+
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 		if(ret == XPT_READ_STATUS_GOING )
@@ -230,11 +236,12 @@ int main(void)
 			continue; /* continue to loop to finish reading touch data */
 		}
 
+
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
 #if 1
-		  /*  Heavy load task MUST NOT put her */
+		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 			wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
@@ -244,11 +251,12 @@ int main(void)
 			{
 				strncpy(clock_txt.txt[1],tm_strbuf,10);
 				if(ebox_clock.y0 > 320-1)ebox_clock.y0=0;
+				ebox_clock.x0+=10;
 				ebox_clock.y0+=5;
 				egi_txtbox_refresh(&ebox_clock);
 
 				/*--- FB partial area data copy ---*/
-			 	fb_cpyfrom_buf(&gv_fb_dev, 100,0,150,320-1, buf);
+			 	//fb_cpyfrom_buf(&gv_fb_dev, 100,0,150,320-1, buf);
 
 			}
 
@@ -259,12 +267,14 @@ int main(void)
 			/* copy to clock_txt */
 			strncpy(clock_txt.txt[0],tm_strbuf,20);
 
-
-
-
 #endif
 			continue; /* continue to loop to read touch data */
 		}
+
+
+
+
+
 		else if(ret == XPT_READ_STATUS_COMPLETE)
 		{
 			printf("--- XPT_READ_STATUS_COMPLETE ---\n");

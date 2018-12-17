@@ -1,6 +1,7 @@
 /*------------------------------------------------------------------------------------
 embedded graphic interface based on frame buffer, 16bit color tft-LCD.
 
+
 Midas Zhou
 ------------------------------------------------------------------------------------*/
 #ifndef __EGI_H__
@@ -12,12 +13,17 @@ Midas Zhou
 #include <stdbool.h>
 
 
-struct egi_coordinate
+struct egi_point_coord
 {
 	unsigned int x;
 	unsigned int y;
 };
 
+struct egi_box_coords
+{
+	struct egi_point_coord startxy;
+	struct egi_point_coord endxy;
+};
 
 /* element box type */
 enum egi_ebox_type
@@ -29,14 +35,21 @@ enum egi_ebox_type
 	type_motion,
 };
 
-
-
+/* element box status */
+enum egi_ebox_status
+{
+	status_sleep,
+	status_active,
+};
 
 /* -----  structs ebox, is basic element of egi. ----- */
 struct egi_element_box
 {
 	/* ebox type */
 	enum egi_ebox_type type;
+
+	/* ebox statu */
+	enum egi_ebox_status status;
 
 	/* start point coordinate, left top point */
 	unsigned int x0;
@@ -49,7 +62,7 @@ struct egi_element_box
 	/* prime box color
 	   >=0 normal 16bits color;
 	   <0 transparent,will not draw the color. fonts floating on a page,for example.
-	  Usually it shall be transparet, except for an egi page.
+	  Usually it shall be transparet, except for an egi page, or an floating txtbox?
 	 */
 	int prmcolor;
 
@@ -57,6 +70,8 @@ struct egi_element_box
 	   for a page, it is a wallpaper.
 	   for other eboxes, it's an image backup for its holder(page)*/
 	uint16_t *bkimg;
+	/* tracking box coordinates for image backup */
+	struct egi_box_coords bkbox;
 
 	/* data pointer to different types of struct egi_data_xxx */
 	void *egi_data;
@@ -73,7 +88,6 @@ struct egi_element_box
 	/* child list */
 	struct egi_element_box *child;
 };
-
 
 
 /* egi data for a txt type ebox */
@@ -102,14 +116,13 @@ struct egi_data_pic
 
 
 /* an egi_page takes hold of whole tft-LCD screen */
-struct egi_page
+struct egi_data_page
 {
-	/* back image */
-	uint16_t *bkimg;
-
 	/* eboxes */
 	struct egi_element_box *boxlist;
 };
+
+
 
 
 
@@ -126,6 +139,7 @@ struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
 void egi_free_ebox(struct egi_element_box *ebox);
 
+void egi_txtbox_activate(struct egi_element_box *ebox);
 void egi_txtbox_refresh(struct egi_element_box *ebox);
 void egi_refresh(struct egi_element_box *ebox);
 
