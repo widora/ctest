@@ -18,8 +18,9 @@ usleep 3000us seems OK, or the data will be too scattered.
 
 
 TODO:
+0. Cancel extern vars in all head file, add xx_get_xxVAR() functions.
 1. Screen sleep
-2. LCD_SIZE_X,Y to be cancelled.
+2. LCD_SIZE_X,Y to be cancelled. use FB parameter instead.
 3. home page refresh button... 3s pressing test.
 4. apply mutli-process for separative jobs: reading-touch-pad, CLOCK,texting,... etc.
 5. systme()... sh -c ...
@@ -30,6 +31,7 @@ Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
 #include <signal.h>
+#include "color.h"
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
@@ -74,6 +76,10 @@ int main(void)
 	//buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 
+	uint16_t mag=COLOR_RGB_TO16BITS(255,0,255);
+
+	printf("mag=%04x\n",mag);
+
 	/* --- open spi dev --- */
 	SPI_Open();
 
@@ -88,6 +94,8 @@ int main(void)
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
+	//show_jpg("m_1.jpg",&gv_fb_dev,1,0,0); /* black off */
+	//show_bmp("p2.bmp",&gv_fb_dev,1); /* black off */
 
 	/* --- load symbol dict --- */
 	//dict_display_img(&fb_dev,"dict.img");
@@ -168,8 +176,22 @@ int main(void)
 		/* or, draw filled circle */
 		draw_filled_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
 			ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
+
+		fbset_color(0); //set black rim
+		draw_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
+                        ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
+//		draw_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
+//                      ebox[i].y0+ebox[i].height/2, ebox[i].height/2-1);
 	}
 
+#if 0 /* ----  test circle ----------*/
+	fbset_color(WEGI_COLOR_OCEAN);
+	draw_filled_circle(&gv_fb_dev,120,160,90);
+	fbset_color(0);
+	draw_circle(&gv_fb_dev,120,160,90);
+
+exit(1);
+#endif
 
 	/* ------------ CLOCK ebox test ------------------ ----
 		1.  egi_init_data_txt()
@@ -177,7 +199,7 @@ int main(void)
 		3.  activate teh exbox_clock
 	*/
 	/* init txtbox data: offset(x,y) 1_lines, 480bytes per txt line,font, font_color */
-	egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont, (30<<11|45<<5|10) );
+	egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont,WEGI_COLOR_BROWN);//(30<<11|45<<5|10) );
 	ebox_clock.type = type_txt;
 	ebox_clock.egi_data =(void *) &clock_txt;
 	ebox_clock.height = 20; /* ebox height */
@@ -193,21 +215,16 @@ int main(void)
 	ebox_note.egi_data =(void *) &note_txt;
 	ebox_note.height = 60; /* two line */
 	ebox_note.width = 200;
-	ebox_note.prmcolor =(0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
+	ebox_note.prmcolor = WEGI_COLOR_GRAY;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
 	ebox_note.x0= 30;
 	ebox_note.y0= 0;
 
-
-	/* --- activate the txt box now, store bkimg, put status etc.... --- */
 	egi_txtbox_activate(&ebox_clock);
 	egi_txtbox_activate(&ebox_note);
 
 	/* refresh txt box */
 	//ebox_clock.y0 += 20;
 	//egi_txtbox_refresh(&ebox_clock);
-
-
-
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -216,7 +233,7 @@ int main(void)
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
-	/*  test circle */
+	/*  test an array of circle */
 #if 0
 	for(i=0;i<6;i++)
 	{
@@ -271,26 +288,20 @@ int main(void)
 				egi_txtbox_refresh(&ebox_note);
 
 				/* refresh CLOCK ebox */
-				//OBSOLETE: wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
-				//symbol_string_writeFB(&gv_fb_dev, &sympg_numbfont,(30<<11|45<<5|10),0,60,320-38,tm_strbuf);
+				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt.txt[0],tm_strbuf,10);
 				egi_txtbox_refresh(&ebox_clock);
-
-
-
 			}
 
 			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
-			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0,0xffff,32,90,tm_strbuf);
+			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,COLOR_RGB_TO16BITS(0x33,0x99,0x33),1,30,2,tm_strbuf);//32,90
 			/* copy to note_txt */
 			strncpy(note_txt.txt[0],tm_strbuf,20);
 
 #endif
 			continue; /* continue to loop to read touch data */
 		}
-
-
 
 
 

@@ -245,6 +245,7 @@ FBDEV   gv_fb_dev;
 	Return:
 		0	OK
 		-1	point out of FB mem
+    Midas
     ------------------------------------------------------------*/
     int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
     {
@@ -268,6 +269,12 @@ FBDEV   gv_fb_dev;
 
 
 
+    /*------------------------------------------------
+    draw a circle,
+	(x,y)	circle center
+	r	radius
+    Midas
+    -------------------------------------------------*/
     void draw_circle(FBDEV *dev, int x, int y, int r)
     {
 	int i;
@@ -276,14 +283,23 @@ FBDEV   gv_fb_dev;
 	for(i=0;i<r;i++)
 	{
 		s=sqrt(r*r-i*i);
+		if(i==0)s-=1; /* erase four tips */
 		draw_dot(dev,x-s,y+i);
 		draw_dot(dev,x+s,y+i);
 		draw_dot(dev,x-s,y-i);
 		draw_dot(dev,x+s,y-i);
+		/* flip X-Y */
+		draw_dot(dev,x-i,y+s);
+		draw_dot(dev,x+i,y+s);
+		draw_dot(dev,x-i,y-s);
+		draw_dot(dev,x+i,y-s);
 	}
     }
 
-
+    /*------------------------------------------------
+    draw a filled circle
+    Midas
+    -------------------------------------------------*/
     void draw_filled_circle(FBDEV *dev, int x, int y, int r)
     {
 	int i;
@@ -292,7 +308,7 @@ FBDEV   gv_fb_dev;
 	for(i=0;i<r;i++)
 	{
 		s=sqrt(r*r-i*i);
-		if(i==0)s-=1;
+		if(i==0)s-=1; /* erase four tips */
 		draw_line(dev,x-s,y+i,x+s,y+i);
 		draw_line(dev,x-s,y-i,x+s,y-i);
 	}
@@ -309,6 +325,7 @@ FBDEV   gv_fb_dev;
 		1	partial area out of FB mem boundary
 		0	OK
 		-1	fails
+   Midas
    ----------------------------------------------------------------------------*/
    int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
    {
@@ -394,6 +411,7 @@ FBDEV   gv_fb_dev;
 		1	partial area out of FB mem boundary
 		0	OK
 		-1	fails
+   Midas
    ----------------------------------------------------------------------------*/
    int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
    {

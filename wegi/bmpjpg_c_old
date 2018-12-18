@@ -36,13 +36,12 @@ static int xres = 240;
 //static int yres = 320;
 static int bits_per_pixel = 16; //tft lcd
 
-int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
+int show_bmp(char* fpath, FBDEV *fb_dev)
 {
 	FILE *fp;
 	int rc;
 	int line_x, line_y;
 	long int location = 0;
-	uint16_t color;
 
 	/* get fb map */
 	char *fbp =fb_dev->map_fb;
@@ -121,13 +120,8 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 		//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .
 		// little endian is noticed.
 		// ---- converting to format R5G6B5(as for framebuffer) -----
-		color=COLOR_RGB_TO16BITS(pix.red,pix.green,pix.blue);
-		/*if blockoff>0, don't write black to fb, so make it transparent to back color */
-		if(  !blackoff || color )
-		{
-			*(uint16_t *)(fbp+location)=color;
-		}
-
+		*(fbp + location + 0)=(((pix.green)&0b11100)<<3) + (((pix.blue)&0b11111000)>>3);
+		*(fbp + location + 1)=((pix.red)&0b11111000) + (((pix.green)&0b11100000)>>5);
 
 		line_x++;
 		if (line_x == InfoHead.ciWidth )
@@ -155,6 +149,7 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	int components; 
 	unsigned char *imgbuf;
 	unsigned char *dat;
+	unsigned char tmpa,tmpb;
 	uint16_t color;
 	long int location = 0;
 	int line_x,line_y;
@@ -191,12 +186,9 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 			//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .
 			// little endian is noticed.
    	        	// ---- dat(R8G8B8) converting to format R5G6B5(as for framebuffer) -----
-			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
-			/*if blockoff>0, don't write black to fb, so make it transparent to back color */
-			if(  !blackoff || color )
-			{
-				*(uint16_t *)(fbp+location)=color;
-			}
+        	        *(fbp + location + 0)=((*(dat+1)&0b11100)<<3) + ((*(dat+2) & 0b11111000)>>3);
+	                *(fbp + location + 1)=(*dat&0b11111000) + ((*(dat+1)&0b11100000)>>5);
+
 			dat+=3;
 		}
 	}
@@ -209,12 +201,31 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 			//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .
 			// little endian is noticed.
    	        	// ---- dat(R8G8B8) converting to format R5G6B5(as for framebuffer) -----
+
+
 			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
-			/*if blockoff>0, don't write black to fb, so make it transparent to back color */
-			if(  !blackoff || color )
+			*(uint16_t *)(fbp+location)=color;
+
+#if 0 //------- 24bit to 16 bit ------
+        	        tmpa=((*(dat+1)&0b11100)<<3) + ((*(dat+2) & 0b11111000)>>3);
+	                tmpb=(*dat&0b11111000) + ((*(dat+1)&0b11100000)>>5);
+
+			if(blackoff) /* don't write black to fb, so make it transparent to back color */
 			{
-				*(uint16_t *)(fbp+location)=color;
+				/* --- ignore black pixels, make it transparent for background. ----- */
+				if(tmpa || tmpb) /* only write non-black data */
+				{
+        	        		*(fbp + location + 0)=tmpa;
+	                		*(fbp + location + 1)=tmpb;
+				}
 			}
+			else	/* write all color data to fb */
+			{
+        	        		*(fbp + location + 0)=tmpa;
+	                		*(fbp + location + 1)=tmpb;
+			}
+#endif //------- 24bit to 16 bit (END) ------
+
 			dat+=3;
 		}
 	}
