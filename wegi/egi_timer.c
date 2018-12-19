@@ -8,9 +8,13 @@
 #include "dict.h"
 
 struct itimerval tm_val, tm_oval;
+
 char tm_strbuf[50]={0};
 const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 
+/* global tick */
+struct itimerval tm_tick_val,tm_tick_oval;
+long long unsigned int tm_tick_count=0;
 
 /*----------------------------------
  get local time in string in format:
@@ -92,5 +96,41 @@ void tm_settimer(int us)
 	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
 }
 
+/*-------------------------------------
+set timer for SIGALRM of global tick
+us: global tick time interval in us.
+--------------------------------------*/
+void tm_tick_settimer(int us)
+{
+	/* time left before next expiration  */
+	tm_tick_val.it_value.tv_sec=0;
+	tm_tick_val.it_value.tv_usec=us;
+	/* time interval for periodic timer */
+	tm_tick_val.it_interval.tv_sec=0;
+	tm_tick_val.it_interval.tv_usec=us;
+	/* use real time */
+	setitimer(ITIMER_REAL,&tm_tick_val,NULL); /* NULL get rid of old time value */
+}
+
+/* -----------------------------
+  global tick timer routine
+-------------------------------*/
+void tm_tick_sigroutine(int signo)
+{
+	if(signo == SIGALRM)
+	{
+		tm_tick_count+=1;
+	}
+
+	/* restore tm_sigroutine */
+	signal(SIGALRM, tm_tick_sigroutine);
+}
 
 
+/*-----------------------------
+	return tm_tick_count
+------------------------------*/
+long long unsigned int tm_get_tickcount(void)
+{
+	return tm_tick_count;
+}

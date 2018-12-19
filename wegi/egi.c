@@ -13,6 +13,7 @@ Very simple concept:
 
 TODO:
 	0. egi_txtbox_filltxt(),fill txt buffer of txt_data->txt.
+	1. different symbol in a txt_data......
 	1. egi_init_data_txt(): llen according to ebox->height and width.
 	2. apply struct egi_data_txt->color for txt color,in egi_txtbox_refresh()
 3. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.

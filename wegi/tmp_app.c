@@ -49,7 +49,6 @@ int main(void)
 	int index;
 	int ret;
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
-
 	/* Frame buffer device */
 //        FBDEV     fb_dev;
 
@@ -73,6 +72,8 @@ int main(void)
 	int startY=120; /* start Y of eboxes array */
 	int sbox=70; /* side length of the square box */
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
+
+	int delt=5; /* incremental value*/
 
 	//char str_syscmd[100];
 	char strf[100];
@@ -248,8 +249,7 @@ exit(1);
 	ebox_memo.width = 120;
 	ebox_memo.prmcolor = WEGI_COLOR_ORANGE;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
 	ebox_memo.x0= 0;
-	ebox_memo.y0= 50;
-
+	ebox_memo.y0= 25;
 
 	/* activate eboxes */
 	egi_txtbox_activate(&ebox_clock);
@@ -259,7 +259,6 @@ exit(1);
 	strncpy(memo_txt.txt[1],"Make Coffee!",12);
 
 
-
 	/* refresh txt box */
 	//ebox_clock.y0 += 20;
 	//egi_txtbox_refresh(&ebox_clock);
@@ -267,6 +266,8 @@ exit(1);
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
+	tm_tick_settimer(TM_TICK_INTERVAL);
+	signal(SIGALRM, tm_tick_sigroutine);
 
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
@@ -315,16 +316,36 @@ exit(1);
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
+			/* refresh eboxes according to tick */
+			if( tm_get_tickcount()%10 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
+			{
+				printf("tick = %lld\n",tm_get_tickcount());
+				if(ebox_note.y0 <= 85 ) delt=5;
+				if(ebox_note.y0 >= 320-60 ) delt=-5;
+				ebox_note.y0 += delt; //85 - (320-60)
+				egi_txtbox_refresh(&ebox_note);
+			}
+			/* refresh eboxes according to tick */
+			if( tm_get_tickcount()%6 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
+			{
+				ebox_memo.x0 -=10;
+				egi_txtbox_refresh(&ebox_memo);
+			}
+
 			/* -----ONLY if tm changes, put in txtbox and refresh displaying */
 			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
+
 				/* refresh NOTE ebox */
 				strncpy(note_txt.txt[1],tm_strbuf,10);
 				//if(ebox_note.y0 > 320-1)ebox_note.y0=0;
 				//ebox_note.x0+=10;
-				ebox_note.y0 -= 10;
+#if 0
+				if(ebox_note.y0 <= 85 ) delt=5;
+				if(ebox_note.y0 >= 320-60 ) delt=-5;
+				ebox_note.y0 += delt; //85 - (320-60)
 				egi_txtbox_refresh(&ebox_note);
-
+#endif
 				/* refresh CLOCK ebox */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt.txt[0],tm_strbuf,10);
@@ -332,9 +353,10 @@ exit(1);
 				egi_txtbox_refresh(&ebox_clock);
 
 				/* refre MEMO ebox */
+#if 0
 				ebox_memo.x0 +=15;
 				egi_txtbox_refresh(&ebox_memo);
-
+#endif
 			}
 
 			/* get year-mon-day and display */

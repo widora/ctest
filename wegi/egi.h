@@ -49,6 +49,9 @@ struct egi_element_box
 	/* ebox type */
 	enum egi_ebox_type type;
 
+	/* ebox tag */
+	char *tag;	/* a simple description of the ebox for later debug */
+
 	/* ebox statu */
 	enum egi_ebox_status status;
 
