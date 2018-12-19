@@ -181,7 +181,6 @@ int main(void)
 		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
 //		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
 //		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
-
 	    if(1)
 	    {
                 if(i==0)fbset_color((0<<11)|(60<<5)|30);
@@ -254,9 +253,9 @@ exit(1);
 	/* activate eboxes */
 	egi_txtbox_activate(&ebox_clock);
 	egi_txtbox_activate(&ebox_note);
-	egi_txtbox_activate(&ebox_memo);
 	strncpy(memo_txt.txt[0],"MEMO:",12);
 	strncpy(memo_txt.txt[1],"Make Coffee!",12);
+	egi_txtbox_activate(&ebox_memo);
 
 
 	/* refresh txt box */
@@ -311,12 +310,11 @@ exit(1);
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
-#if 1
 		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
-			/* refresh eboxes according to tick */
+			/* refresh NOTE eboxe according to tick */
 			if( tm_get_tickcount()%10 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
 			{
 				printf("tick = %lld\n",tm_get_tickcount());
@@ -325,51 +323,28 @@ exit(1);
 				ebox_note.y0 += delt; //85 - (320-60)
 				egi_txtbox_refresh(&ebox_note);
 			}
-			/* refresh eboxes according to tick */
-			if( tm_get_tickcount()%6 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
-			{
-				ebox_memo.x0 -=10;
-				egi_txtbox_refresh(&ebox_memo);
-			}
 
 			/* -----ONLY if tm changes, put in txtbox and refresh displaying */
 			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
-
-				/* refresh NOTE ebox */
+				/* update NOTE ebox txt  */
 				strncpy(note_txt.txt[1],tm_strbuf,10);
-				//if(ebox_note.y0 > 320-1)ebox_note.y0=0;
-				//ebox_note.x0+=10;
-#if 0
-				if(ebox_note.y0 <= 85 ) delt=5;
-				if(ebox_note.y0 >= 320-60 ) delt=-5;
-				ebox_note.y0 += delt; //85 - (320-60)
-				egi_txtbox_refresh(&ebox_note);
-#endif
-				/* refresh CLOCK ebox */
+
+				/* -----refresh CLOCK ebox---- */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt.txt[0],tm_strbuf,10);
 				clock_txt.color += (15<<8 | 10<<5 | 5 );
 				egi_txtbox_refresh(&ebox_clock);
-
-				/* refre MEMO ebox */
-#if 0
-				ebox_memo.x0 +=15;
-				egi_txtbox_refresh(&ebox_memo);
-#endif
 			}
 
 			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
-			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,COLOR_RGB_TO16BITS(0x33,0x99,0x33),1,30,2,tm_strbuf);//32,90
+			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,WEGI_COLOR_SPRINGGREEN,1,12,2,tm_strbuf);//32,90
 			/* copy to note_txt */
 			strncpy(note_txt.txt[0],tm_strbuf,22);
 
-#endif
 			continue; /* continue to loop to read touch data */
 		}
-
-
 
 		else if(ret == XPT_READ_STATUS_COMPLETE)
 		{
@@ -377,7 +352,6 @@ exit(1);
 
 			/* going on then to check and activate pressed button */
 		}
-
 
 		////////// -----------  Touch Event Handling  ----------- //////////
 
@@ -396,15 +370,33 @@ exit(1);
 			else
 			{
 				printf("button[%d] pressed!\n",index);
-				sprintf(strf,"m_%d.jpg",index+1);
-				show_jpg(strf, &gv_fb_dev, 1, 0, 0);/*black off*/
-
+				//sprintf(strf,"m_%d.jpg",index+1);
+				//show_jpg(strf, &gv_fb_dev, 1, 0, 0);/*black off*/
+				switch(index)
+				{
+					case 0:
+						break;
+					case 1:
+						break;
+					case 2:
+						ebox_memo.y0 -= 10;
+						break;
+					case 3:
+						ebox_memo.x0 -= 10;
+						break;
+					case 4:
+						ebox_memo.x0 += 10;
+						break;
+					case 5:
+						ebox_memo.y0 += 10;
+						break;
+				}
+				/* refresh ebox */
+				egi_txtbox_refresh(&ebox_memo);
 			}
 			//usleep(200000); //this will make touch points scattered.
 		}
-
 	} /* end of while() loop */
-
 
 	/* release symbol mem page */
 	symbol_release_page(&sympg_testfont);

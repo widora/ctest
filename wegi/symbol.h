@@ -18,7 +18,7 @@ Midas
 #define TESTFONT_COLOR_FLIP 0 /* 1 use complementary color */
 
 /*for symbol_writeFB(), roll back to start if symbol point reach boundary of FB mem */
-#define FB_SYMOUT_ROLLBACK
+#define FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
 
 
 /* symbol type */

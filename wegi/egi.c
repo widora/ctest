@@ -237,10 +237,11 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
 				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
 
+	/* change its status */
+	ebox->status=status_active;
+
 	/* refresh displaying the ebox */
 	egi_txtbox_refresh(ebox);
-
-	ebox->status=status_active;
 
 	return 0;
 }
@@ -277,10 +278,16 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	int offy=data_txt->offy;
 	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
-	//struct egi_box_coords bkbox=ebox->bkbox;
 
-	/* test--------------   print out box txt content */
+	/* ---- 0 First check the ebox status ---- */
+	if( ebox->status != status_active )
+	{
+		printf("This ebox is not active! refresh action is ignored! \n");
+		return;
+	}
+
 #if 0
+	/* test--------------   print out box txt content */
 	for(i=0;i<nl;i++)
 		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
 #endif
