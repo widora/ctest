@@ -58,11 +58,16 @@ int main(void)
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
 
+
 	struct egi_element_box ebox_note={0};
 	struct egi_data_txt note_txt={0};
 
 	struct egi_element_box ebox_clock={0};
 	struct egi_data_txt clock_txt={0};
+
+	struct egi_element_box ebox_memo={0};
+	struct egi_data_txt memo_txt={0};
+
 
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
@@ -72,12 +77,10 @@ int main(void)
 	//char str_syscmd[100];
 	char strf[100];
 
-	//uint16_t *buf;
-	//buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
-
+	uint16_t *buf;
+	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 	uint16_t mag=COLOR_RGB_TO16BITS(255,0,255);
-
 	printf("mag=%04x\n",mag);
 
 	/* --- open spi dev --- */
@@ -90,7 +93,24 @@ int main(void)
 
 	/* --- clear screen with BLACK --- */
 /* do NOT clear, to avoid flashing */
-	//clear_screen(&fb_dev,(0<<11|0<<5|0));
+#if 0
+	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
+	fbset_color(0xffff);
+	draw_filled_rect(&gv_fb_dev,0,0,20,20);
+	printf("draw_-50,-50,-150,-150\n");
+
+//	int x1=50,y1=150,x2=150,y2=200;
+	int x1=50,y1=0,x2=51,y2=1;
+	fb_cpyto_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
+	for(i=1;i<10000;i++){
+		fb_cpyfrom_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
+		y1 -= 15; y2 -= 15;
+		fb_cpyto_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
+		draw_filled_rect(&gv_fb_dev,x1,y1,x2,y2);
+		usleep(800000);
+	}
+	exit(1);
+#endif
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
@@ -209,18 +229,36 @@ exit(1);
 	ebox_clock.y0= 320-38;
 
 	/* ------------ NOTE ebox test ------------------ */
-	/* init txtbox data: offset(10,10) 2_lines, 480bytes per txt line,font, font_color */
-	egi_init_data_txt(&note_txt, 5, 5, 2, 480, &sympg_testfont, 0);
+	/* init txtbox data: offset(10,10) 2_lines, 510bytes per txt line,font, font_color */
+	egi_init_data_txt(&note_txt, 5, 5, 2, 510, &sympg_testfont, 0);
 	ebox_note.type = type_txt;
 	ebox_note.egi_data =(void *) &note_txt;
 	ebox_note.height = 60; /* two line */
-	ebox_note.width = 200;
+	ebox_note.width = 230;
 	ebox_note.prmcolor = WEGI_COLOR_GRAY;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
-	ebox_note.x0= 30;
-	ebox_note.y0= 0;
+	ebox_note.x0= 5;
+	ebox_note.y0= 320-80;
 
+	/* ------------ MEMO ebox test ------------------ */
+	/* init txtbox data: txt offset(5,50) to box, 2_lines, 480bytes per txt line,font, font_color */
+	egi_init_data_txt(&memo_txt, 5, 5, 2, 200, &sympg_testfont, 0);
+	ebox_memo.type = type_txt;
+	ebox_memo.egi_data =(void *)&memo_txt; /* try &note_txt.....you may use other txt data  */
+	ebox_memo.height = 30; /*box height, one line, will be ajusted according to numb of lines */
+	ebox_memo.width = 120;
+	ebox_memo.prmcolor = WEGI_COLOR_ORANGE;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
+	ebox_memo.x0= 0;
+	ebox_memo.y0= 50;
+
+
+	/* activate eboxes */
 	egi_txtbox_activate(&ebox_clock);
 	egi_txtbox_activate(&ebox_note);
+	egi_txtbox_activate(&ebox_memo);
+	strncpy(memo_txt.txt[0],"MEMO:",12);
+	strncpy(memo_txt.txt[1],"Make Coffee!",12);
+
+
 
 	/* refresh txt box */
 	//ebox_clock.y0 += 20;
@@ -277,27 +315,33 @@ exit(1);
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
-			/* if tm changes, put in txtbox */
+			/* -----ONLY if tm changes, put in txtbox and refresh displaying */
 			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
 				/* refresh NOTE ebox */
 				strncpy(note_txt.txt[1],tm_strbuf,10);
-				if(ebox_note.y0 > 320-1)ebox_note.y0=0;
-				ebox_note.x0+=10;
-				ebox_note.y0+=10;
+				//if(ebox_note.y0 > 320-1)ebox_note.y0=0;
+				//ebox_note.x0+=10;
+				ebox_note.y0 -= 10;
 				egi_txtbox_refresh(&ebox_note);
 
 				/* refresh CLOCK ebox */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt.txt[0],tm_strbuf,10);
+				clock_txt.color += (15<<8 | 10<<5 | 5 );
 				egi_txtbox_refresh(&ebox_clock);
+
+				/* refre MEMO ebox */
+				ebox_memo.x0 +=15;
+				egi_txtbox_refresh(&ebox_memo);
+
 			}
 
 			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
 			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,COLOR_RGB_TO16BITS(0x33,0x99,0x33),1,30,2,tm_strbuf);//32,90
 			/* copy to note_txt */
-			strncpy(note_txt.txt[0],tm_strbuf,20);
+			strncpy(note_txt.txt[0],tm_strbuf,22);
 
 #endif
 			continue; /* continue to loop to read touch data */

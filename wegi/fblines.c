@@ -114,27 +114,45 @@ FBDEV   gv_fb_dev;
 
     Return:
 	0	OK
-	-1	get out of FB mem.
-    -----------------------------------------------------*/
+	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
+    --------------------------------------------------------*/
     int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
     {
         FBDEV *fr_dev=dev;
+	int fx=x;
+	int fy=y;
         long int location=0;
+	int xres=fr_dev->vinfo.xres;
+	int yres=fr_dev->vinfo.yres;
 
-        location=(x+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-                     (y+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+	//printf("x=%d,y=%d \n",fx,fy);
 
-	if( location > (fr_dev->screensize-sizeof(uint16_t)) )
-	{
-		printf("WARNING: point location out of fb mem.!\n");
 #ifdef FB_DOTOUT_ROLLBACK
-		location=location%fr_dev->screensize;
-#else
-		return -1;
+	/* map to LCD(X,Y) */
+	if(fx>xres-1)
+		fx=fx%xres;
+	else if(fx<0)
+		fx=xres-(-fx)%xres;
+
+	if( fy > yres-1) {
+		fy=fy%yres;
+	}
+	else if(fy<0) {
+		fy=yres-(-fy)%yres;
+	}
 #endif
 
-	}
+        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
+                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
 
+
+#ifndef FB_DOTOUT_ROLLBACK
+	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) )
+	{
+		printf("WARNING: point location out of fb mem.!\n");
+		return -1;
+	}
+#endif
 
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 
@@ -171,6 +189,8 @@ FBDEV   gv_fb_dev;
         int j=0;
         int tekxx=*xx2-*xx1;
         int tekyy=*yy2-*yy1;
+
+
 
 // draw_line(&fr_dev,240,318,240,246);
 
@@ -249,20 +269,40 @@ FBDEV   gv_fb_dev;
     ------------------------------------------------------------*/
     int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
     {
-        FBDEV *fr_dev=dev;
-        int *xx1=&x1;
-        int *yy1=&y1;
-        int *xx2=&x2;
-        int *yy2=&y2;
-        int i=0,j=0;
+	int xr,xl,yu,yd;
+	int i,j;
 
-        for(j=*yy1;j<*yy2;j++) //注意 这里要 xx1 < xx2
-            for(i=*xx1;i<*xx2;i++)
-            {
+        /* sort point coordinates */
+        if(x1>x2)
+        {
+                xr=x1;
+		xl=x2;
+        }
+        else
+	{
+                xr=x2;
+		xl=x1;
+	}
 
-                if(draw_dot(fr_dev,i,j)<0)
-			return -1;
-            }
+        if(y1>y2)
+        {
+                yu=y1;
+		yd=y2;
+        }
+        else
+	{
+                yu=y2;
+		yd=y1;
+	}
+
+	for(i=yd;i<yu;i++)
+	{
+		for(j=xl;j<xr;j++)
+		{
+                	if(draw_dot(dev,j,i)<0)
+				return -1;
+		}
+	}
 
 	return 0;
     }
@@ -334,68 +374,86 @@ FBDEV   gv_fb_dev;
 	int yu,yd; /* up down */
 	int ret=0;
 	long int location=0;
+	int xres=fb_dev->vinfo.xres;
+	int yres=fb_dev->vinfo.yres;
+	int tmpx,tmpy;
 
-	if(x1>x2)
-	{
-		xr=x1;xl=x2;
+	/* sort point coordinates */
+	if(x1>x2){
+		xr=x1;
+		xl=x2;
 	}
-	else
-		xr=x2;xl=x1;
-	if(y1>y2)
-	{
-		yu=y1;yd=y2;
+	else{
+		xr=x2;
+		xl=x1;
 	}
-	else
-		yu=y2;yd=y1;
-
-	/* check area coordinates */
-#ifdef FB_DOT_OUT_ROLLBACK
-	if( xl > fb_dev->vinfo.xres-1 || yd > fb_dev->vinfo.yres-1 || xr<0 || yu<0 )
-		return -1;
-#else
-	if( xr<0 || yu<0 )
-		return -1;
-#endif
-
-
-	/* if partial area valid, adjust x,y  */
-	if(xr>fb_dev->vinfo.xres-1)
-	{
-#ifndef FB_DOTOUT_ROLLBACK
-		xr=fb_dev->vinfo.xres-1;
-		ret=1;
-#endif
+	if(y1>y2){
+		yu=y1;
+		yd=y2;
 	}
-	if(xl<0)xl=0;
-	if(yu>fb_dev->vinfo.yres-1)
-	{
-#ifndef FB_DOTOUT_ROLLBACK
-		yu=fb_dev->vinfo.yres-1;
-		ret=1;
-#endif
+	else{
+		yu=y2;
+		yd=y1;
 	}
-	if(yd<0)yd=0;
 
-	/* copy mem */
-//	printf("xl=%d,xr=%d, yd=%d, yu=%d\n",xl,xr,yd,yu);
+
+	/* ---------  copy mem --------- */
 	for(i=yd;i<=yu;i++)
 	{
         	for(j=xl;j<=xr;j++)
 		{
-	      	  	location=(j+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
-        	        	     (i+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
-#ifdef FB_DOTOUT_ROLLBACK
-			if( location > (fb_dev->screensize-sizeof(uint16_t)) )
+
+#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
+			/* map i,j to LCD(Y,X) */
+			if(i<0) /* map Y */
+				tmpy=yres-(-i)%yres;
+			else if(i > yres-1)
+				tmpy=i%yres;
+			else
+				tmpy=i;
+
+			if(j<0) /* map X */
+				tmpx=xres-(-j)%xres;
+			else if(j > xres-1)
+				tmpx=j%xres;
+			else
+				tmpx=j;
+
+			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+        	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
+
+
+#else  /* -----------------  NO ROLLBACK  ------------------------*/
+			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				location=location%fb_dev->screensize;
+				printf("WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				ret=1;
 			}
+			/* map i,j to LCD(Y,X) */
+			if(i>yres-1) /* map Y */
+				tmpy=yres-1;
+			else if(i<0)
+				tmpy=0;
+			else
+				tmpy=i;
+
+			if(j>xres-1) /* map X */
+				tmpx=xres-1;
+			else if(j<0)
+				tmpx=0;
+			else
+				tmpx=j;
+
+			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+        	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
+
 #endif
 			/* copy to buf */
         		*buf = *((uint16_t *)(fb_dev->map_fb+location));
 			 buf++;
 		}
 	}
-	printf(" fb_cpyfrom_buf = %d\n", ret);
+//	printf(" fb_cpyfrom_buf = %d\n", ret);
 
 	return ret;
    }
@@ -420,66 +478,84 @@ FBDEV   gv_fb_dev;
 	int yu,yd; /* up down */
 	int ret=0;
 	long int location=0;
+	int xres=fb_dev->vinfo.xres;
+	int yres=fb_dev->vinfo.yres;
+	int tmpx,tmpy;
 
-	if(x1>x2)
-	{
-		xr=x1;xl=x2;
+	/* sort point coordinates */
+	if(x1>x2){
+		xr=x1;
+		xl=x2;
 	}
-	else
-		xr=x2;xl=x1;
-	if(y1>y2)
-	{
-		yu=y1;yd=y2;
+	else{
+		xr=x2;
+		xl=x1;
 	}
-	else
-		yu=y2;yd=y1;
 
-	/* check area coordinates */
-#ifdef FB_DOT_OUT_ROLLBACK
-	if( xl > fb_dev->vinfo.xres-1 || yd > fb_dev->vinfo.yres-1 || xr<0 || yu<0 )
-		return -1;
-#else
-	if( xr<0 || yu<0 )
-		return -1;
-#endif
-
-	/* if partial area valid, adjust x,y  */
-	if(xr>fb_dev->vinfo.xres-1)
-	{
-#ifndef FB_DOTOUT_ROLLBACK
-		xr=fb_dev->vinfo.xres-1;
-		ret=1;
-#endif
+	if(y1>y2){
+		yu=y1;
+		yd=y2;
 	}
-	if(xl<0)xl=0;
-	if(yu>fb_dev->vinfo.yres-1)
-	{
-#ifndef FB_DOTOUT_ROLLBACK
-		yu=fb_dev->vinfo.yres-1;
-		ret=1;
-#endif
+	else{
+		yu=y2;
+		yd=y1;
 	}
-	if(yd<0)yd=0;
 
-	/* copy mem */
+
+	/* ------------ copy mem ------------*/
 	for(i=yd;i<=yu;i++)
 	{
         	for(j=xl;j<=xr;j++)
 		{
-			location=(j+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
-        	        	     (i+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
-#ifdef FB_DOTOUT_ROLLBACK
-			if( location > (fb_dev->screensize-sizeof(uint16_t)) )
+#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
+			/* map i,j to LCD(Y,X) */
+			if(i<0) /* map Y */
+				tmpy=yres-(-i)%yres;
+			else if(i>yres-1)
+				tmpy=i%yres;
+			else
+				tmpy=i;
+
+			if(j<0) /* map X */
+				tmpx=xres-(-j)%xres;
+			else if(j>xres-1)
+				tmpx=j%xres;
+			else
+				tmpx=j;
+
+			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+        	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
+
+#else  /* -----------------  NO ROLLBACK  ------------------------*/
+			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				location=location%fb_dev->screensize;
+				printf("WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				ret=1;
 			}
+			/* map i,j to LCD(Y,X) */
+			if(i>yres-1) /* map Y */
+				tmpy=yres-1;
+			else if(i<0)
+				tmpy=0;
+			else
+				tmpy=i;
+
+			if(j>xres-1) /* map X */
+				tmpx=xres-1;
+			else if(j<0)
+				tmpx=0;
+			else
+				tmpx=j;
+
+			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+        	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 #endif
-			/* copy to fb */
+			/* --- copy to fb ---*/
         		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
 			buf++;
 		}
 	}
-	printf(" fb_cpyto_buf = %d\n", ret);
+	//printf(" fb_cpyto_buf = %d\n", ret);
 
 	return ret;
    }

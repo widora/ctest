@@ -93,7 +93,8 @@ initialize struct egi_data_txt according
 
 offx,offy:			offset from prime ebox
 int nl:   			number of txt lines
-int llen:  			in byte, data length for each line
+int llen:  			in byte, data length for each line, 
+			!!!!! -	llen deciding howmany symbols it may hold.
 struct symbol_page *font:	txt font
 uint16_t color:     		txt color
 char **txt:       		multiline txt data
@@ -170,11 +171,14 @@ activate a txt ebox:
 	3. change status token to active,
 
 TODO:
-	if ebox_size is fixed or is re-sizable, bkimg mem size MUST adjusted.
+	if ebox_size is re-sizable dynamically, bkimg mem size MUST adjusted.
 
- 
+Return:
+	0	OK
+	<0	fails!
+
 ------------------------------------------------------------------------*/
-void egi_txtbox_activate(struct egi_element_box *ebox)
+int egi_txtbox_activate(struct egi_element_box *ebox)
 {
 	int i,j;
 	int x0=ebox->x0;
@@ -193,7 +197,7 @@ void egi_txtbox_activate(struct egi_element_box *ebox)
         if(ebox->type != type_txt)
         {
                 printf("egi_txtbox_activate(): Not txt type ebox!\n");
-                return;
+                return -1;
         }
 
 
@@ -201,7 +205,7 @@ void egi_txtbox_activate(struct egi_element_box *ebox)
 	if(ebox->bkimg != NULL)
 	{
 		printf("egi_txtbox_activat(): ebox->bkimg is not NULL, fail to malloc!\n");
-		return;
+		return -2;
 	}
 
 
@@ -216,7 +220,7 @@ void egi_txtbox_activate(struct egi_element_box *ebox)
 	if(ebox->bkimg == NULL)
 	{
 		printf("egi_txtbox_activat(): fail to malloc for ebox->bkimg!\n");
-		return;
+		return -3;
 	}
 
 	/* define bkimg box */
@@ -236,6 +240,8 @@ void egi_txtbox_activate(struct egi_element_box *ebox)
 	egi_txtbox_refresh(ebox);
 
 	ebox->status=status_active;
+
+	return 0;
 }
 
 

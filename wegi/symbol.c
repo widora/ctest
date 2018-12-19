@@ -395,6 +395,8 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	FBDEV *dev = fb_dev;
 	long int pos; /* offset position in fb map */
 	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
+	int yres=dev->vinfo.yres;
+	int mapx,mapy; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
 	int offset=sym_page->symoffset[sym_code];
@@ -412,18 +414,53 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	if( sym_code < 0 || sym_code > sym_page->maxnum )
 		return;
 
+
+	/* get symbol pixel and copy it to FB mem */
 	for(i=0;i<height;i++)
 	{
 		for(j=0;j<width;j++)
 		{
-			pos=(y0+i)*xres+x0+j; /* in pixel */
-			pcolor=*(data+offset+width*i+j);/* get pixel in page data */
+#ifdef FB_SYMOUT_ROLLBACK
+			/* map X */
+			if(x0<0)
+				mapx=xres-(-x0)%xres;
+			else if(x0>xres-1)
+				mapx=x0%xres;
+			else
+				mapx=x0;
+			/* map Y */
+/* TODO: map whole symbol, skip whole symbol. however,we need only map line 
+			if(y0<0)
+				mapy=yres-(-y0)%yres;
+			else if(y0>yres-1)
+				mapy=y0%yres;
+			else
+				mapy=y0;
+*/
+			/* map Y, line by line, !!!NOT symbole by symbole */
+			if( (y0+i)<0 )
+				y0=yres-(-y0-i)%yres-i;//y0+i=yres-(-y0-i)%yres;
+			else if( (y0+i)>yres-1 )
+				y0=(y0+i)%yres-i;
+			else
+				mapy=y0;
 
-#if 0 /* memcpy to fb is very slow !!!!!!!!!! */
+
+#else /*--- if  NO ROLLBACK ---*/
+			mapx=x0;	mapy=y0;
+
+#endif
+			/*x0,y0 mapped to LCD(xy),
+				however, pos may also be out of FB screensize  */
+			pos=(mapy+i)*xres+mapx+j; /* in pixel, LCD fb mem position */
+			pcolor=*(data+offset+width*i+j);/* get symbol pixel in page data */
+
+
+#if 0 /* !!!!!!!!---------memcpy to fb is very slow -----------!!!!!!!!!! */
 			/* -----copy all data if no transp. pixel applied && no color flip ---- */
 			if(transpcolor<0 && TESTFONT_COLOR_FLIP==0 )
 			{
-				/* check fb mem. boundary for one symbol wide */
+				/* check available space for a 2bytes pixel color,  fb mem. boundary */
 			        if( pos*2 > (fb_dev->screensize-width*sizeof(uint16_t)) )
         			{
                 			printf("WARNING: symbol row reach boundary of FB mem.!\n");
@@ -431,14 +468,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
         			}
 				/* memcpy a pixel row of the symbol to FB */
 				memcpy( (void *)(dev->map_fb+pos*2), (void *)(data+offset+width*i),width*sizeof(uint16_t));
-		/* test--------------------------*/
-				printf("write FB in symbol width\n");
 
 				break;
 			}
-#endif
+#endif /* ---------------memcpy END ---------------*/
 
-			/* ----- other conditions ---------
+
+			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
 			   (no transp. color applied) OR (write only untransparent pixel) */
 			if(transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
@@ -449,25 +485,20 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 					pcolor = ~pcolor;
 				}
 
-				/* check available space,  fb mem. boundary */
+				/* check available space for a 2bytes pixel color,  fb mem. boundary */
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
 			        if( pos > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
-#ifdef FB_SYMOUT_ROLLBACK
-					pos=pos%fb_dev->screensize;
-#else
                 			printf("WARNING: symbol point reach boundary of FB mem.!\n");
                 			return;
-#endif
         			}
 
-				/* if use fontcolor */
+				/*  if use fontcolor  */
 				if(fontcolor>=0)
 					pcolor=(uint16_t)fontcolor;
 
 				*(uint16_t *)(dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
 			}
-
 		}
 	}
 }

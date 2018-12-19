@@ -38,7 +38,7 @@ enum egi_ebox_type
 /* element box status */
 enum egi_ebox_status
 {
-	status_idle=0,
+	status_nobody=0,
 	status_sleep,
 	status_active,
 };
@@ -140,7 +140,7 @@ struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
 void egi_free_ebox(struct egi_element_box *ebox);
 
-void egi_txtbox_activate(struct egi_element_box *ebox);
+int egi_txtbox_activate(struct egi_element_box *ebox);
 void egi_txtbox_refresh(struct egi_element_box *ebox);
 void egi_refresh(struct egi_element_box *ebox);
 
