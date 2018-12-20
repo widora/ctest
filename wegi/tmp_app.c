@@ -49,24 +49,11 @@ int main(void)
 	int index;
 	int ret;
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
-	/* Frame buffer device */
-//        FBDEV     fb_dev;
 
 	/* ---- buttons array param ------*/
 	int nrow=2; /* number of buttons at Y directions */
 	int ncolumn=3; /* number of buttons at X directions */
 	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
-
-
-	struct egi_element_box ebox_note={0};
-	struct egi_data_txt note_txt={0};
-
-	struct egi_element_box ebox_clock={0};
-	struct egi_data_txt clock_txt={0};
-
-	struct egi_element_box ebox_memo={0};
-	struct egi_data_txt memo_txt={0};
-
 
 	int startX=0;  /* start X of eboxes array */
 	int startY=120; /* start Y of eboxes array */
@@ -74,7 +61,6 @@ int main(void)
 	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
 
 	int delt=5; /* incremental value*/
-
 	//char str_syscmd[100];
 	char strf[100];
 
@@ -84,6 +70,86 @@ int main(void)
 	uint16_t mag=COLOR_RGB_TO16BITS(255,0,255);
 	printf("mag=%04x\n",mag);
 
+
+
+	/* ------------ NOTE ebox test ------------------ */
+	struct egi_data_txt note_txt={0};
+	/* init txtbox data: offset(10,10) 2_lines, 510bytes per txt line,font, font_color */
+	if( egi_init_data_txt(&note_txt, 5, 5, 2, 510, &sympg_testfont, WEGI_COLOR_BLACK) ==NULL ) {
+		printf("init NOTE data txt fail!\n"); exit(1);
+	 }
+	struct egi_element_box ebox_note=
+	{
+		.type = type_txt,
+		.egi_data =(void *) &note_txt,
+		.height = 60, /* two line */
+		.width = 230,
+		.prmcolor = WEGI_COLOR_GRAY,/* <0, transparent */
+		.x0= 5,
+		.y0= 320-80,
+	};
+
+	/* ------------ CLOCK ebox test ------------------- */
+	struct egi_data_txt clock_txt={0};
+	/* init txtbox data: offset(x,y) 1_lines, 480bytes per txt line,font, font_color */
+	if( egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont,WEGI_COLOR_BROWN) ==NULL ) {
+		printf("init CLOCK data txt fail!\n"); exit(1);
+	 }
+	struct egi_element_box ebox_clock=
+	{
+		.type = type_txt,
+		.egi_data =(void *) &clock_txt,
+		.height = 20, /* ebox height */
+		.width = 120,
+		.prmcolor = -1, /*-1, if<0,transparent */
+		.x0= 60,
+		.y0= 320-38,
+		.frame=-1, /* <0, no frame */
+	};
+
+	/* ------------ MEMO ebox test ------------------ */
+	struct egi_data_txt memo_txt={0};
+	/* init txtbox data: txt offset(5,50) to box, 2_lines, 480bytes per txt line,font, font_color */
+	if( egi_init_data_txt(&memo_txt, 5, 5, 2, 200, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
+		printf("init MEMO data txt fail!\n"); exit(1);
+	}
+	struct egi_element_box ebox_memo=
+	{
+		.type = type_txt,
+		.egi_data =(void *)&memo_txt, /* try &note_txt.....you may use other txt data  */
+		.height = 30, /*box height, one line, will be ajusted according to numb of lines */
+		.width = 120,
+		.prmcolor = WEGI_COLOR_ORANGE,
+		.x0= 0,
+		.y0= 25,
+	};
+
+
+	/* ------------ BUTTON ebox ------------------ */
+	struct egi_element_box  ebox_buttons[9]={0};
+
+	struct egi_data_btn home_btns[9]={0};
+	for(i=0;i<3;i++) /* row of icon img */
+	{
+		for(j=0;j<3;j++) /* column of icon img */
+		{
+			home_btns[3*i+j].type=type_button;
+			home_btns[3*i+j].id=3*i+j;
+			home_btns[3*i+j].offy=100+(15+60)*i;
+			home_btns[3*i+j].offx=15+(15+60)*j;
+			home_btns[3*i+j].icon=&sympg_icon;
+			home_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
+			/* hook to ebox model */
+			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
+		}
+	}
+
+
+
+
+
+
+
 	/* --- open spi dev --- */
 	SPI_Open();
 
@@ -91,25 +157,12 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-
 	/* --- clear screen with BLACK --- */
 /* do NOT clear, to avoid flashing */
 #if 0
 	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
 	fbset_color(0xffff);
 	draw_filled_rect(&gv_fb_dev,0,0,20,20);
-	printf("draw_-50,-50,-150,-150\n");
-
-//	int x1=50,y1=150,x2=150,y2=200;
-	int x1=50,y1=0,x2=51,y2=1;
-	fb_cpyto_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
-	for(i=1;i<10000;i++){
-		fb_cpyfrom_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
-		y1 -= 15; y2 -= 15;
-		fb_cpyto_buf(&gv_fb_dev,x1,y1,x2,y2, buf);
-		draw_filled_rect(&gv_fb_dev,x1,y1,x2,y2);
-		usleep(800000);
-	}
 	exit(1);
 #endif
 
@@ -125,6 +178,7 @@ int main(void)
 		printf("Fail to load home page!\n");
 		exit(-1);
 	}
+
 	/* --- print and display symbols --- */
 #if 0
 	dict_print_symb20x15(dict_h20w15);
@@ -139,6 +193,10 @@ int main(void)
 	/* --- load numbfont ---- */
 	if(symbol_load_page(&sympg_numbfont)==NULL)
 		exit(-2);
+	/* --- load icons ---- */
+	if(symbol_load_page(&sympg_icon)==NULL)
+		exit(-2);
+
 
 
 	/* print all symbols in the page */
@@ -149,11 +207,20 @@ int main(void)
 		//getchar();
 	}
 #endif
-
 #if 0
 	for(i=48;i<58;i++)
 		symbol_print_symbol(&sympg_numbfont,i,0x0);
 #endif
+
+	/* ------ display an icon ----- */
+	delt=130;
+	for(i=0;i<3;i++)
+	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,15,i*65+delt,i);
+	for(i=4;i<7;i++)
+	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,90,i*65+delt,i);
+	for(i=8;i<11;i++)
+	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,165,i*65+delt,i);
+exit(1);
 
 
 	/* ----- generate ebox parameters ----- */
@@ -213,44 +280,8 @@ int main(void)
 exit(1);
 #endif
 
-	/* ------------ CLOCK ebox test ------------------ ----
-		1.  egi_init_data_txt()
-		2.  then assign ebox_clock
-		3.  activate teh exbox_clock
-	*/
-	/* init txtbox data: offset(x,y) 1_lines, 480bytes per txt line,font, font_color */
-	egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont,WEGI_COLOR_BROWN);//(30<<11|45<<5|10) );
-	ebox_clock.type = type_txt;
-	ebox_clock.egi_data =(void *) &clock_txt;
-	ebox_clock.height = 20; /* ebox height */
-	ebox_clock.width = 120;
-	ebox_clock.prmcolor = -1; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
-	ebox_clock.x0= 60;
-	ebox_clock.y0= 320-38;
 
-	/* ------------ NOTE ebox test ------------------ */
-	/* init txtbox data: offset(10,10) 2_lines, 510bytes per txt line,font, font_color */
-	egi_init_data_txt(&note_txt, 5, 5, 2, 510, &sympg_testfont, 0);
-	ebox_note.type = type_txt;
-	ebox_note.egi_data =(void *) &note_txt;
-	ebox_note.height = 60; /* two line */
-	ebox_note.width = 230;
-	ebox_note.prmcolor = WEGI_COLOR_GRAY;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
-	ebox_note.x0= 5;
-	ebox_note.y0= 320-80;
-
-	/* ------------ MEMO ebox test ------------------ */
-	/* init txtbox data: txt offset(5,50) to box, 2_lines, 480bytes per txt line,font, font_color */
-	egi_init_data_txt(&memo_txt, 5, 5, 2, 200, &sympg_testfont, 0);
-	ebox_memo.type = type_txt;
-	ebox_memo.egi_data =(void *)&memo_txt; /* try &note_txt.....you may use other txt data  */
-	ebox_memo.height = 30; /*box height, one line, will be ajusted according to numb of lines */
-	ebox_memo.width = 120;
-	ebox_memo.prmcolor = WEGI_COLOR_ORANGE;// (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3; //0xffff; //-1, if<0,transparent   ( (0xEC&0xf8)<<8 | (0xEC&0xfc)<<3 | 0xEC>>3); /* 24bit E8E8E8 * <0 no prime color*/
-	ebox_memo.x0= 0;
-	ebox_memo.y0= 25;
-
-	/* activate eboxes */
+	/* ----------- activate eboxes ---------*/
 	egi_txtbox_activate(&ebox_clock);
 	egi_txtbox_activate(&ebox_note);
 	strncpy(memo_txt.txt[0],"MEMO:",12);
@@ -258,15 +289,13 @@ exit(1);
 	egi_txtbox_activate(&ebox_memo);
 
 
-	/* refresh txt box */
-	//ebox_clock.y0 += 20;
-	//egi_txtbox_refresh(&ebox_clock);
-
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
 	tm_tick_settimer(TM_TICK_INTERVAL);
 	signal(SIGALRM, tm_tick_sigroutine);
+
+
 
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
@@ -315,7 +344,7 @@ exit(1);
 			tm_get_strtime(tm_strbuf);
 
 			/* refresh NOTE eboxe according to tick */
-			if( tm_get_tickcount()%10 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
+			if( tm_get_tickcount()%20 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
 			{
 				printf("tick = %lld\n",tm_get_tickcount());
 				if(ebox_note.y0 <= 85 ) delt=5;

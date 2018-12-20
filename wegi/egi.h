@@ -25,7 +25,7 @@ struct egi_box_coords
 	struct egi_point_coord endxy;
 };
 
-/* element box type */
+/* ----------element box type */
 enum egi_ebox_type
 {
 	type_txt,
@@ -43,7 +43,26 @@ enum egi_ebox_status
 	status_active,
 };
 
-/* -----  structs ebox, is basic element of egi. ----- */
+/* -----------button shape type */
+enum egi_btn_type
+{
+	square=0, /* default */
+	circle,
+};
+/* button status */
+enum egi_btn_status
+{
+	released=0,
+	pressed,
+};
+
+
+
+/*
+	-----  structs ebox, is basic element of egi. ----- 
+	1. An abstract model of all egi objects.
+	2. Common characteristic and parameters for all types of egi objects.
+*/
 struct egi_element_box
 {
 	/* ebox type */
@@ -62,6 +81,13 @@ struct egi_element_box
 	/* box size, fit to different type */
 	int height;
 	int width;
+
+	/*  frame type
+	 <0: no frame
+	 =0: simple type
+	 >0: TBD
+	*/
+	int  frame;
 
 	/* prime box color
 	   >=0 normal 16bits color;
@@ -89,6 +115,7 @@ struct egi_element_box
 	void (*sleep)(struct egi_element_box *);
 	void (*destroy)(struct egi_element_box *);
 
+
 	/* child list */
 	struct egi_element_box *child;
 };
@@ -109,8 +136,17 @@ struct egi_data_txt
 /* egi data for a botton type ebox */
 struct egi_data_btn
 {
-
+	char tag[32]; /* short description of the button */
+	int id; /* unique id number for btn */
+	int offx; /* offset from ebox */
+	int offy;
+	enum egi_btn_type type; /* button shape type, square or circle */
+	struct symbol_page *icon; /* button icon */
+	int icon_code; /* code number of the symbol in the symbol_page */ 
+	enum egi_btn_status status; /* button status, pressed or released */
+	void (* action)(enum egi_btn_status status); /* triggered action */
 };
+
 
 /* egi data for a picture type ebox */
 struct egi_data_pic
@@ -146,6 +182,7 @@ void egi_free_ebox(struct egi_element_box *ebox);
 int egi_txtbox_activate(struct egi_element_box *ebox);
 void egi_txtbox_refresh(struct egi_element_box *ebox);
 void egi_refresh(struct egi_element_box *ebox);
+
 
 
 #endif

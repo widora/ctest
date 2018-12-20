@@ -89,6 +89,26 @@ struct symbol_page sympg_numbfont=
 };
 
 
+/*--------------------------(  icon  )-----------------------------------*/
+static int icon_width[60*2] =
+{
+	60,60,60,60,
+	60,60,60,60,
+	60,60,60,60,
+};
+/* symbole page struct for testfont */
+struct symbol_page sympg_icon=
+{
+	.symtype=type_icon,
+	.path="/home/icon.img",
+	.bkcolor=0x0000,
+	.data=NULL,
+	.maxnum=4*3-1, /* 2 rows of ioncs */
+	.sqrow=4, /* 4 icons per row */
+	.symheight=60,
+	.symwidth=icon_width, /* width list */
+};
+
 
 
 

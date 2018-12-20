@@ -66,6 +66,7 @@ struct symbol_page
 
 extern struct symbol_page sympg_testfont;
 extern struct symbol_page sympg_numbfont;
+extern struct symbol_page sympg_icon;
 
 
 /*------------------- functions ---------------------*/

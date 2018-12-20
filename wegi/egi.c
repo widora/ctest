@@ -119,7 +119,7 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 	if(data_txt->txt !=NULL) /* if data_txt defined statically, txt may NOT be NULL !!! */
 	{
 		printf("egi_init_data_txt(): ---WARNING!!!--- data_txt->txt is NOT NULL!\n");
-		//return NULL;
+		return NULL;
 	}
 	if( nl<1 || llen<1 )
 	{
@@ -181,17 +181,17 @@ Return:
 ------------------------------------------------------------------------*/
 int egi_txtbox_activate(struct egi_element_box *ebox)
 {
-	int i,j;
+//	int i,j;
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
 	int nl=data_txt->nl;
-	int llen=data_txt->llen;
-	int offx=data_txt->offx;
+//	int llen=data_txt->llen;
+//	int offx=data_txt->offx;
 	int offy=data_txt->offy;
-	char **txt=data_txt->txt;
+//	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
 
 	/* confirm ebox type */
@@ -201,7 +201,6 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
                 return -1;
         }
 
-
 	/* malloc exbo->bkimg for bk image storing */
 	if(ebox->bkimg != NULL)
 	{
@@ -209,19 +208,23 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 		return -2;
 	}
 
-
         /* check ebox height and font lines, then adjust the height */
         height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
         ebox->height=height;
 
 	// malloc more mem in case ebox size is enlarged later????? //
 	//ebox->bkimg= malloc(240*320*2);
+	if( height<=0 || width <=0 )
+	{
+		printf("egi_txtbox_activate(): ebox height or width is <=0!\n");
+		return -3;
+	}
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
 
 	if(ebox->bkimg == NULL)
 	{
 		printf("egi_txtbox_activat(): fail to malloc for ebox->bkimg!\n");
-		return -3;
+		return -4;
 	}
 
 	/* define bkimg box */
@@ -266,14 +269,14 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 		return;
 	}
 
-	int i,j;
+	int i;
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
 	int nl=data_txt->nl;
-	int llen=data_txt->llen;
+//	int llen=data_txt->llen;
 	int offx=data_txt->offx;
 	int offy=data_txt->offy;
 	char **txt=data_txt->txt;
@@ -324,11 +327,15 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 	}
 
-	/* --- draw black frame rect --- */
-	fbset_color(0); /* use black as frame color  */
-	draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+	/* --- 4. draw frame according to its type  --- */
+	if(ebox->frame == 0) /* 0: simple type */
+	{
+		fbset_color(0); /* use black as frame color  */
+		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+	}
+	/* TODO: other type of frame .....*/
 
-	/* ---- 3. refresh TXT, write txt line to FB */
+	/* ---- 5. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					for font symbol: tranpcolor is its img symbol bkcolor!!! */
@@ -336,6 +343,42 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 						 y0+offy+font_height*i, txt[i]);
 }
 
+
+
+
+
+
+/*-----------------------------------------------------------------------
+activate a button type ebox:
+	1. get icon symbol information
+	2. draw the icon
+TODO:
+
+Return:
+	0	OK
+	<0	fails!
+------------------------------------------------------------------------*/
+int egi_btnbox_activate(struct egi_element_box *ebox)
+{
+	int i,j;
+
+	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	int symheight=data_btn->icon->symheight;
+	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
+	/* origin(left top): here we assume ebox->x0,y0 to be (0,0) in most case.*/
+	int x0=ebox->x0+data_btn->offx;
+	int y0=ebox->y0+data_btn->offy;
+
+	/* confirm ebox type */
+        if(ebox->type != type_button)
+        {
+                printf("egi_btnbox_activate(): Not button type ebox!\n");
+                return -1;
+        }
+
+
+	return 0;
+}
 
 
 /*----------------------------------------------------
