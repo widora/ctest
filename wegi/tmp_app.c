@@ -50,19 +50,9 @@ int main(void)
 	int ret;
 	uint16_t sx,sy;  //current TOUCH point coordinate, it's a LCD screen coordinates derived from TOUCH coordinate.
 
-	/* ---- buttons array param ------*/
-	int nrow=2; /* number of buttons at Y directions */
-	int ncolumn=3; /* number of buttons at X directions */
-	struct egi_element_box ebox[nrow*ncolumn]; /* square boxes for buttons */
-
-	int startX=0;  /* start X of eboxes array */
-	int startY=120; /* start Y of eboxes array */
-	int sbox=70; /* side length of the square box */
-	int sgap=(LCD_SIZE_X - ncolumn*sbox)/(ncolumn+1); /* gaps between boxes(bottons) */
-
 	int delt=5; /* incremental value*/
 	//char str_syscmd[100];
-	char strf[100];
+	//char strf[100];
 
 	uint16_t *buf;
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
@@ -87,6 +77,7 @@ int main(void)
 		.prmcolor = WEGI_COLOR_GRAY,/* <0, transparent */
 		.x0= 5,
 		.y0= 320-80,
+		.tag="note pad",
 	};
 
 	/* ------------ CLOCK ebox test ------------------- */
@@ -101,16 +92,17 @@ int main(void)
 		.egi_data =(void *) &clock_txt,
 		.height = 20, /* ebox height */
 		.width = 120,
-		.prmcolor = -1, /*-1, if<0,transparent */
+		.prmcolor = EGI_NOPRIM_COLOR, /*-1, if<0,transparent */
 		.x0= 60,
 		.y0= 320-38,
 		.frame=-1, /* <0, no frame */
+		.tag="timer txt",
 	};
 
 	/* ------------ MEMO ebox test ------------------ */
 	struct egi_data_txt memo_txt={0};
-	/* init txtbox data: txt offset(5,50) to box, 2_lines, 480bytes per txt line,font, font_color */
-	if( egi_init_data_txt(&memo_txt, 5, 5, 2, 200, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
+	/* init txtbox data: txt offset(5,50) to box, 4_lines, 480bytes per txt line,font, font_color */
+	if( egi_init_data_txt(&memo_txt, 5, 5, 4, 160, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
 		printf("init MEMO data txt fail!\n"); exit(1);
 	}
 	struct egi_element_box ebox_memo=
@@ -118,10 +110,11 @@ int main(void)
 		.type = type_txt,
 		.egi_data =(void *)&memo_txt, /* try &note_txt.....you may use other txt data  */
 		.height = 30, /*box height, one line, will be ajusted according to numb of lines */
-		.width = 120,
-		.prmcolor = WEGI_COLOR_ORANGE,
+		.width = 160,
+		.prmcolor = EGI_NOPRIM_COLOR,//WEGI_COLOR_ORANGE,
 		.x0= 0,
 		.y0= 25,
+		.tag="memo stick",
 	};
 
 
@@ -141,6 +134,7 @@ int main(void)
 			/* hook to ebox model */
 			ebox_buttons[3*i+j].type=type_button;
 			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
+			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
 	}
 
@@ -259,7 +253,6 @@ int main(void)
 exit(1);
 #endif
 
-
 	/* ----------- activate txt and note eboxes ---------*/
 	/* note:
 	   Be careful to activate eboxes in the correct sequence.!!!
@@ -268,13 +261,18 @@ exit(1);
 	/* ------ activate icons ----- */
 	for(i=0;i<9;i++)
 		egi_btnbox_activate(ebox_buttons+i);
-	egi_txtbox_activate(&ebox_clock);
-	egi_txtbox_activate(&ebox_note);
-	ebox_note.status=status_nobody; /* do not refresh note */
-	strncpy(memo_txt.txt[0],"MEMO:",12);
-	strncpy(memo_txt.txt[1],"Make Coffee!",12);
-	egi_txtbox_activate(&ebox_memo);
+	egi_txtbox_activate(&ebox_clock); /* no time string here...*/
+	egi_txtbox_sleep(&ebox_clock);/* put to sleep */
 
+	egi_txtbox_activate(&ebox_note);
+        egi_txtbox_sleep(&ebox_note); /* put to sleep */
+	egi_txtbox_activate(&ebox_note);/* wake up */
+//exit(1);
+	strncpy(memo_txt.txt[0],"MEMO:",12);
+	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
+	strncpy(memo_txt.txt[2],"2. take a break.",20);
+	strncpy(memo_txt.txt[3],"3. write codes",20);
+	egi_txtbox_activate(&ebox_memo);
 
 
 	/* ---- set timer for time display ---- */
@@ -326,15 +324,19 @@ exit(1);
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
-			/* refresh NOTE eboxe according to tick */
-			if( tm_get_tickcount()%30 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
+/* TODO: if NOTE and MEMO has the same interval value,then the later one will never be performed !!!
+			/* refresh timer NOTE eboxe according to tick */
+			if( tm_get_tickcount()%50 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
 			{
 				printf("tick = %lld\n",tm_get_tickcount());
-				if(ebox_note.y0 <= 85 ) delt=5;
-				if(ebox_note.y0 >= 320-60 ) delt=-5;
-				ebox_note.y0 += delt; //85 - (320-60)
+				if(ebox_note.x0 <=60  ) delt=10;
+				if(ebox_note.x0 >=300 ) delt=-10;
+				ebox_note.x0 += delt; //85 - (320-60)
 				egi_txtbox_refresh(&ebox_note);
-
+			}
+			/* refresh MEMO eboxe according to tick */
+			if( tm_get_tickcount()%20 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
+			{
 				ebox_memo.x0 -= 10;
 				egi_txtbox_refresh(&ebox_memo);
 			}
@@ -344,11 +346,10 @@ exit(1);
 			{
 				/* update NOTE ebox txt  */
 				strncpy(note_txt.txt[1],tm_strbuf,10);
-
 				/* -----refresh CLOCK ebox---- */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt.txt[0],tm_strbuf,10);
-				clock_txt.color += (15<<8 | 10<<5 | 5 );
+				clock_txt.color += (6<<8 | 4<<5 | 2 );
 				egi_txtbox_refresh(&ebox_clock);
 			}
 

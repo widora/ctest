@@ -69,17 +69,21 @@ enum egi_btn_status
 
 
 /*
-	-----  structs ebox, is basic element of egi. ----- 
+	-----  structs ebox, is basic element of egi. -----
 	1. An abstract model of all egi objects.
 	2. Common characteristic and parameters for all types of egi objects.
+	3. or a holder for all egi objects.
 */
 struct egi_element_box
 {
 	/* ebox type */
 	enum egi_ebox_type type;
 
+	/* movable or stationary */
+	bool movale;
+
 	/* ebox tag */
-	char *tag;	/* a simple description of the ebox for later debug */
+	char tag[32];	/* a simple description of the ebox for later debug */
 
 	/* ebox statu */
 	enum egi_ebox_status status;
@@ -107,9 +111,15 @@ struct egi_element_box
 	int prmcolor;
 
 	/* pointer to back image
-	   for a page, it is a wallpaper.
-	   for other eboxes, it's an image backup for its holder(page)*/
+	   1.For a page, it is a wallpaper.??
+	   2.For other eboxes, it's an image backup for its holder(page)
+           3.For MOVABLE icons/txt boxes, the size should not be too large,!!!
+	   It will restore bkimg to fb and copy bkimg from fb everytime before you
+	   draw the moving ebox. It's sure not efficient when bkimg is very large, you would
+	   rather refresh the whole FB memory.
+      */
 	uint16_t *bkimg;
+
 	/* tracking box coordinates for image backup */
 	struct egi_box_coords bkbox;
 
@@ -145,7 +155,7 @@ struct egi_data_txt
 /* egi data for a botton type ebox */
 struct egi_data_btn
 {
-	char tag[32]; /* short description of the button */
+	//char tag[32]; /* short description of the button */
 	int id; /* unique id number for btn */
 	int offx; /* offset from ebox */
 	int offy;
@@ -192,6 +202,7 @@ void egi_free_ebox(struct egi_element_box *ebox);
 /* for txt ebox */
 int egi_txtbox_activate(struct egi_element_box *ebox);
 int egi_txtbox_refresh(struct egi_element_box *ebox);
+int egi_txtbox_sleep(struct egi_element_box *ebox);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
 
 /* for button ebox */

@@ -378,6 +378,13 @@ FBDEV   gv_fb_dev;
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
 
+	/* check buf */
+	if(buf==NULL)
+	{
+		printf("fb_cpyto_buf(): buf is NULL!\n");
+		return -1;
+	}
+
 	/* sort point coordinates */
 	if(x1>x2){
 		xr=x1;
@@ -481,6 +488,13 @@ FBDEV   gv_fb_dev;
 	int xres=fb_dev->vinfo.xres;
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
+
+	/* check buf */
+	if(buf==NULL)
+	{
+		printf("fb_cpyfrom_buf(): buf is NULL!\n");
+		return -1;
+	}
 
 	/* sort point coordinates */
 	if(x1>x2){
