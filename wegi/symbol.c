@@ -132,7 +132,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 {
 	int fd;
 	int datasize; /* memsize for all symbol data */
-	int i,j,k;
+	int i,j;
 	int x0,y0; /* origin position of a symbol in a image page, left top of a symbol */
 	int nr,no;
 	int offset=0; /* in pixel, offset of data mem for each symbol, NOT of img file */
@@ -388,7 +388,7 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 
 
 /*----------------------------------------------------------------------------------
-	write a symbol pixel data to FB device
+	write a symbol/font pixel data to FB device
 
 1. Write to FB in unit of symboy_width*pixel if no color treatment applied for symbols,
    or in pixel if color treatment is applied.
@@ -401,9 +401,12 @@ sym_page: 	symbol page
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 	     	<0	 no transparent pixel
 
-fontcolor:	font color
+fontcolor:	font color(symbol color for a symbol)
 		>= 0, use given font color.
 		<0   use default color in img data
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
 
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code: 	symbol code number
@@ -411,7 +414,7 @@ sym_code: 	symbol code number
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, int sym_code)
 {
-	int i,j,k;
+	int i,j;
 	FBDEV *dev = fb_dev;
 	long int pos; /* offset position in fb map */
 	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
@@ -449,7 +452,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			else
 				mapx=x0;
 			/* map Y */
-/* TODO: map whole symbol, skip whole symbol. however,we need only map line 
+/* OBSOLETE: map whole symbol, skip whole symbol.
 			if(y0<0)
 				mapy=yres-(-y0)%yres;
 			else if(y0>yres-1)
@@ -470,29 +473,11 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			mapx=x0;	mapy=y0;
 
 #endif
+
 			/*x0,y0 mapped to LCD(xy),
 				however, pos may also be out of FB screensize  */
 			pos=(mapy+i)*xres+mapx+j; /* in pixel, LCD fb mem position */
 			pcolor=*(data+offset+width*i+j);/* get symbol pixel in page data */
-
-
-#if 0 /* !!!!!!!!---------memcpy to fb is very slow -----------!!!!!!!!!! */
-			/* -----copy all data if no transp. pixel applied && no color flip ---- */
-			if(transpcolor<0 && TESTFONT_COLOR_FLIP==0 )
-			{
-				/* check available space for a 2bytes pixel color,  fb mem. boundary */
-			        if( pos*2 > (fb_dev->screensize-width*sizeof(uint16_t)) )
-        			{
-                			printf("WARNING: symbol row reach boundary of FB mem.!\n");
-                			return;
-        			}
-				/* memcpy a pixel row of the symbol to FB */
-				memcpy( (void *)(dev->map_fb+pos*2), (void *)(data+offset+width*i),width*sizeof(uint16_t));
-
-				break;
-			}
-#endif /* ---------------memcpy END ---------------*/
-
 
 			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
@@ -513,7 +498,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
                 			return;
         			}
 
-				/*  if use fontcolor  */
+				/*  if use given symbol/font color  */
 				if(fontcolor>=0)
 					pcolor=(uint16_t)fontcolor;
 
@@ -525,20 +510,25 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 
 /*------------------------------------------------------------------------------
-write a char string to FB device with a font symbol page.
-Write at the same line.
+1. write a symbol/font string to FB device.
+2. Write them at the same line.
+3. If write symbols, just use symbol codes[] for str[].
+4. If it's font, then use symbol bkcolor as transparent tunnel.
 
 fbdev: 		FB device
 sym_page: 	a font symbol page
-fontcolor:	font color
+fontcolor:	font color (or symbol color for a symbol)
 		>= 0, use given font color.
 		<0   use default color in img data
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 		    for fonts symbol,
 	     	<0	 --- no transparent pixel
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font 
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font 
 
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
-str:		pointer to a char string.
+str:		pointer to a char string(or symbol codes[]);
 -------------------------------------------------------------------------------*/
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, const char* str)
@@ -547,7 +537,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int x=x0;
 	int tspcolor=transpcolor;
 
-	/* if the symbol is font then use symbol back color as transparent tunnel */
+	/* if ----the symbol is font then use symbol back color as transparent tunnel */
 	if(tspcolor >0 && sym_page->symtype == type_font )
 		tspcolor=sym_page->bkcolor;
 

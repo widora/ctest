@@ -29,6 +29,48 @@ Midas Zhou
 #include "symbol.h"
 
 
+
+/*-----------------------------------------------------------------------
+allocate memory for ebox->bkimg with specified H and W, in 16bit color.
+!!! height/width and ebox->height/width MAY NOT be the same.
+
+ebox:	pointer to an ebox
+height: height of an image.
+width: width of an image.
+
+Return:
+	pointer to the mem.	OK
+	NULL			fail
+----------------------------------------------------------------------*/
+void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height)
+{
+	/* 1. check data */
+	if( height<=0 || width <=0 )
+	{
+		printf("egi_alloc_bkimg(): ebox height or width is <=0!\n");
+		return NULL;
+	}
+
+	/* 2. malloc exbo->bkimg for bk image storing */
+	if(ebox->bkimg != NULL)
+	{
+		printf("egi_alloc_bkimg(): ebox->bkimg is not NULL, fail to malloc!\n");
+		return NULL;
+	}
+
+	/* 3. alloc memory */
+	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
+	if(ebox->bkimg == NULL)
+	{
+		printf("egi_alloc_bkimg(): fail to malloc for ebox->bkimg!\n");
+		return NULL;
+	}
+
+	return ebox->bkimg;
+}
+
+
+
 /*----------obselete!!!, substitued by egi_getindex_ebox() now!!! ----------------
   check if (px,py) in the ebox
   return true or false
@@ -194,25 +236,26 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 //	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
 
-	/* confirm ebox type */
+	/* 1. confirm ebox type */
         if(ebox->type != type_txt)
         {
                 printf("egi_txtbox_activate(): Not txt type ebox!\n");
                 return -1;
         }
 
-	/* malloc exbo->bkimg for bk image storing */
+#if 1
+	/* 2. malloc exbo->bkimg for bk image storing */
 	if(ebox->bkimg != NULL)
 	{
 		printf("egi_txtbox_activat(): ebox->bkimg is not NULL, fail to malloc!\n");
 		return -2;
 	}
 
-        /* check ebox height and font lines, then adjust the height */
+        /* 3. check ebox height and font lines, then adjust the height */
         height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
         ebox->height=height;
 
-	// malloc more mem in case ebox size is enlarged later????? //
+	//TODO: malloc more mem in case ebox size is enlarged later????? //
 	//ebox->bkimg= malloc(240*320*2);
 	if( height<=0 || width <=0 )
 	{
@@ -220,30 +263,29 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 		return -3;
 	}
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
-
 	if(ebox->bkimg == NULL)
 	{
 		printf("egi_txtbox_activat(): fail to malloc for ebox->bkimg!\n");
 		return -4;
 	}
+#endif
 
+
+	/* 4. store bk image which will be restored when this ebox position/size changes */
 	/* define bkimg box */
 	ebox->bkbox.startxy.x=x0;
 	ebox->bkbox.startxy.y=y0;
 	ebox->bkbox.endxy.x=x0+width-1;
 	ebox->bkbox.endxy.y=y0+height-1;
-
-	printf("activate() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	printf("txt activate... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
-
-	/* store bk image which will be restored when this ebox position/size changes */
 	fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
 				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
 
-	/* change its status */
+	/* 5. change its status, if not, you can not refresh.  */
 	ebox->status=status_active;
 
-	/* refresh displaying the ebox */
+	/* 6. refresh displaying the ebox */
 	egi_txtbox_refresh(ebox);
 
 	return 0;
@@ -253,23 +295,37 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 
 /*-----------------------------------------------------------------------
 refresh a txt ebox.
-	0.refresh ebox image according to following parameter updates:
+	1.refresh ebox image according to following parameter updates:
 		---txt(offx,offy,nl,llen)
 		---size(height,width)
 		---positon(x0,y0)
 		---ebox color
-	1.refresh ebox color if ebox->prmcolor >0,
- 	2.update txt.
+	2.restore bkimg and store bkimg.
+	3.refresh ebox color if ebox->prmcolor >0,
+ 	4.update txt.
+
+Return
+	0	OK
+	<0	fail
 ------------------------------------------------------------------------*/
-void egi_txtbox_refresh(struct egi_element_box *ebox)
+int egi_txtbox_refresh(struct egi_element_box *ebox)
 {
+	int i;
+
+	/* 1. check data */
 	if(ebox->type != type_txt)
 	{
 		printf("egi_txtbox_refresh(): Not txt type ebox!\n");
-		return;
+		return -1;
+	}
+	/* 2. check the ebox status */
+	if( ebox->status != status_active )
+	{
+		printf("This ebox is not active! refresh action is ignored! \n");
+		return -2;
 	}
 
-	int i;
+	/* 3. get updated ebox parameters */
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 	int height=ebox->height;
@@ -282,12 +338,6 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
 
-	/* ---- 0 First check the ebox status ---- */
-	if( ebox->status != status_active )
-	{
-		printf("This ebox is not active! refresh action is ignored! \n");
-		return;
-	}
 
 #if 0
 	/* test--------------   print out box txt content */
@@ -295,14 +345,14 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
 #endif
 
-	/* ---- 1. restore bk image before refresh */
-	printf("refresh() fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	/* ---- 3. restore bk image before refresh */
+	printf("txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 
         fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
 
-        /* ---- 2. redefine bkimg box range, in case it may change */
+        /* ---- 5. redefine bkimg box range, in case it may change */
 	/* check ebox height and font lines in case it may changes, then adjust the height */
 	/* updata bkimg->bkbox according */
 	height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
@@ -315,11 +365,11 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 
-        /* ---- 3. store bk image which will be restored when this ebox position/size changes */
+        /* ---- 6. store bk image which will be restored when this ebox position/size changes */
         fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
 
-	/* ---- 2. refresh prime color under the symbol  before updating txt.  */
+	/* ---- 7. refresh prime color under the symbol  before updating txt.  */
 	if(ebox->prmcolor >= 0)
 	{
 		/* set color and draw filled rectangle */
@@ -327,7 +377,7 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 	}
 
-	/* --- 4. draw frame according to its type  --- */
+	/* --- 8. draw frame according to its type  --- */
 	if(ebox->frame == 0) /* 0: simple type */
 	{
 		fbset_color(0); /* use black as frame color  */
@@ -335,12 +385,14 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 	}
 	/* TODO: other type of frame .....*/
 
-	/* ---- 5. refresh TXT, write txt line to FB */
+	/* ---- 9. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
-					for font symbol: tranpcolor is its img symbol bkcolor!!! */
+					1, for font symbol: tranpcolor is its img symbol bkcolor!!! */
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
 						 y0+offy+font_height*i, txt[i]);
+
+	return 0;
 }
 
 
@@ -351,7 +403,9 @@ void egi_txtbox_refresh(struct egi_element_box *ebox)
 /*-----------------------------------------------------------------------
 activate a button type ebox:
 	1. get icon symbol information
-	2. draw the icon
+	2. malloc bkimg and store bkimg.
+	3. refresh the btnbox
+	4. set status, ebox as active, and botton assume to be released.
 TODO:
 
 Return:
@@ -360,26 +414,129 @@ Return:
 ------------------------------------------------------------------------*/
 int egi_btnbox_activate(struct egi_element_box *ebox)
 {
-	int i,j;
-
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
-	int symheight=data_btn->icon->symheight;
-	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
-	/* origin(left top): here we assume ebox->x0,y0 to be (0,0) in most case.*/
-	int x0=ebox->x0+data_btn->offx;
-	int y0=ebox->y0+data_btn->offy;
-
-	/* confirm ebox type */
+	/* 1. confirm ebox type */
         if(ebox->type != type_button)
         {
                 printf("egi_btnbox_activate(): Not button type ebox!\n");
                 return -1;
         }
 
+	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	int bkcolor=data_btn->icon->bkcolor;
+	int symheight=data_btn->icon->symheight;
+	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
+	/* origin(left top): here we assume ebox->x0,y0 to be (0,0) in most case.*/
+	int x0=ebox->x0+data_btn->offx;
+	int y0=ebox->y0+data_btn->offy;
+
+	/* 2. verify btn data if necessary. --No need here*/
+
+	/* 3. malloc bkimg for the icon, not ebox, so use symwidth and symheight */
+	if(egi_alloc_bkimg(ebox, symwidth, symheight)==NULL)
+	{
+		printf("egi_btnbox_activate(): fail to egi_alloc_bkimg()!\n");
+		return -1;
+	}
+
+	/* 4. update bkimg box */
+	ebox->bkbox.startxy.x=x0;
+	ebox->bkbox.startxy.y=y0;
+	ebox->bkbox.endxy.x=x0+symwidth-1;
+	ebox->bkbox.endxy.y=y0+symheight-1;
+	printf(" button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
+
+	/* 5. store bk image which will be restored when this ebox position/size changes */
+	fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+	/* 6. set button status */
+	ebox->status=status_active; /* if not, you can not refresh */
+	data_btn->status=released_hold;
+
+	/* 7. refresh btn ebox */
+	egi_btnbox_refresh(ebox);
 
 	return 0;
 }
 
+
+
+/*-----------------------------------------------------------------------
+refresh a button type ebox:
+	1.refresh button ebox according to updated parameters:
+		--- position x0,y0, offx,offy
+		--- symbol page, symbol code ...etc.
+		... ...
+	2. restore bkimg and store bkimg.
+	3. drawing the icon
+	4. take actions according to btn_status (released, pressed).
+
+TODO:
+
+Return:
+	0	OK
+	<0	fails!
+------------------------------------------------------------------------*/
+int egi_btnbox_refresh(struct egi_element_box *ebox)
+{
+
+	/* 0. confirm ebox type */
+        if(ebox->type != type_button)
+        {
+                printf("egi_btnbox_activate(): Not button type ebox!\n");
+                return -1;
+        }
+	/* 1. check the ebox status  */
+	if( ebox->status != status_active )
+	{
+		printf("This ebox is not active! refresh action is ignored! \n");
+		return -2;
+	}
+
+	/* 2. get updated parameters */
+	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	int bkcolor=data_btn->icon->bkcolor;
+	int symheight=data_btn->icon->symheight;
+	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
+	/* origin(left top): here we assume ebox->x0,y0 to be (0,0) in most case.*/
+	int x0=ebox->x0+data_btn->offx;
+	int y0=ebox->y0+data_btn->offy;
+
+	/* ---- 3. restore bk image before refresh */
+	printf("button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+        fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+        /* ---- 4. redefine bkimg box range, in case it may change */
+	/* check ebox height and font lines in case it may changes, then adjust the height */
+	/* updata bkimg->bkbox according */
+	ebox->height=symheight;
+        ebox->bkbox.startxy.x=x0;
+        ebox->bkbox.startxy.y=y0;
+        ebox->bkbox.endxy.x=x0+symwidth-1;
+        ebox->bkbox.endxy.y=y0+symheight-1;
+	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+        /* ---- 5. store bk image which will be restored when this ebox position/size changes */
+        fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg);
+
+	/* 6. draw the button */
+	symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor, x0, y0, data_btn->icon_code);
+
+	/* 5. take action according to status:
+		 void (* action)(enum egi_btn_status status);
+	*/
+
+	return 0;
+}
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
 
 /*----------------------------------------------------
 refresh exbox according to its type
@@ -441,7 +598,6 @@ Return:
 -------------------------------------------------------*/
 struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox) // enum egi_ebox type)
 {
-	int i,j;
 	struct egi_element_box *ret=NULL;
 
         switch(ebox->type)

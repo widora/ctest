@@ -13,6 +13,9 @@ Midas Zhou
 #include <stdbool.h>
 
 
+#define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
+
+
 struct egi_point_coord
 {
 	unsigned int x;
@@ -43,17 +46,24 @@ enum egi_ebox_status
 	status_active,
 };
 
-/* -----------button shape type */
+/*
+ 	button shape type
+	Not so necessary, you may use bkcolor of symbol to cut
+	out the shape you want. unless you want a frame.
+*/
 enum egi_btn_type
 {
 	square=0, /* default */
 	circle,
 };
+
 /* button status */
 enum egi_btn_status
 {
-	released=0,
-	pressed,
+	releasing=0,   /* status transforming from pressed_hold to released_hold */
+	pressing,      /* status transforming from released_hold to pressed_hold */
+	released_hold,
+	pressed_hold,
 };
 
 
@@ -91,7 +101,7 @@ struct egi_element_box
 
 	/* prime box color
 	   >=0 normal 16bits color;
-	   <0 transparent,will not draw the color. fonts floating on a page,for example.
+	   <0 no prime color, will not draw color. fonts floating on a page,for example.
 	  Usually it shall be transparet, except for an egi page, or an floating txtbox?
 	 */
 	int prmcolor;
@@ -114,7 +124,6 @@ struct egi_element_box
 	void (*refresh)(struct egi_element_box *);
 	void (*sleep)(struct egi_element_box *);
 	void (*destroy)(struct egi_element_box *);
-
 
 	/* child list */
 	struct egi_element_box *child;
@@ -140,7 +149,7 @@ struct egi_data_btn
 	int id; /* unique id number for btn */
 	int offx; /* offset from ebox */
 	int offy;
-	enum egi_btn_type type; /* button shape type, square or circle */
+	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
 	int icon_code; /* code number of the symbol in the symbol_page */ 
 	enum egi_btn_status status; /* button status, pressed or released */
@@ -168,21 +177,30 @@ struct egi_data_page
 
 
 /* ----------------  functions  ---------------- */
+void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, struct egi_element_box *ebox);
 int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num);
-
 
 struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
                  int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
 struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox);
-void egi_free_data_txt(struct egi_data_txt *data_txt);
+
+
 void egi_free_ebox(struct egi_element_box *ebox);
 
+/* for txt ebox */
 int egi_txtbox_activate(struct egi_element_box *ebox);
-void egi_txtbox_refresh(struct egi_element_box *ebox);
-void egi_refresh(struct egi_element_box *ebox);
+int egi_txtbox_refresh(struct egi_element_box *ebox);
+void egi_free_data_txt(struct egi_data_txt *data_txt);
 
+/* for button ebox */
+int egi_btnbox_activate(struct egi_element_box *ebox);
+int egi_btnbox_refresh(struct egi_element_box *ebox);
+
+
+
+void egi_refresh(struct egi_element_box *ebox);
 
 
 #endif

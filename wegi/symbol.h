@@ -20,6 +20,9 @@ Midas
 /*for symbol_writeFB(), roll back to start if symbol point reach boundary of FB mem */
 #define FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
 
+#define SYM_NOSUB_COLOR -1 /* no substitute color defined for a symbol or font */
+#define SYM_NOTRANSP_COLOR -1 /* no transparent color defined for a symbol or font */
+
 
 /* symbol type */
 enum symbol_type
@@ -74,6 +77,21 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page);
 void symbol_release_page(struct symbol_page *sym_page);
 int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
+
+
+/*-------------------------------------------------------
+transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       no transparent pixel
+
+fontcolor:      font color (or symbol color for a symbol)
+                >= 0, use given font color.
+                <0   use color in img data
+
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
+
+--------------------------------------------------------*/
 void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code);

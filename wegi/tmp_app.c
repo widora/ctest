@@ -125,27 +125,24 @@ int main(void)
 	};
 
 
-	/* ------------ BUTTON ebox ------------------ */
+	/* ------------  BUTTON ebox  ------------------ */
 	struct egi_element_box  ebox_buttons[9]={0};
-
 	struct egi_data_btn home_btns[9]={0};
 	for(i=0;i<3;i++) /* row of icon img */
 	{
 		for(j=0;j<3;j++) /* column of icon img */
 		{
-			home_btns[3*i+j].type=type_button;
+			home_btns[3*i+j].shape=square;
 			home_btns[3*i+j].id=3*i+j;
 			home_btns[3*i+j].offy=100+(15+60)*i;
 			home_btns[3*i+j].offx=15+(15+60)*j;
 			home_btns[3*i+j].icon=&sympg_icon;
 			home_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
 			/* hook to ebox model */
+			ebox_buttons[3*i+j].type=type_button;
 			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
 		}
 	}
-
-
-
 
 
 
@@ -158,7 +155,6 @@ int main(void)
         init_dev(&gv_fb_dev);
 
 	/* --- clear screen with BLACK --- */
-/* do NOT clear, to avoid flashing */
 #if 0
 	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
 	fbset_color(0xffff);
@@ -168,22 +164,20 @@ int main(void)
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
-	//show_jpg("m_1.jpg",&gv_fb_dev,1,0,0); /* black off */
-	//show_bmp("p2.bmp",&gv_fb_dev,1); /* black off */
 
 	/* --- load symbol dict --- */
 	//dict_display_img(&fb_dev,"dict.img");
-	if(dict_load_h20w15("/home/dict.img")==NULL)
-	{
-		printf("Fail to load home page!\n");
-		exit(-1);
-	}
+	//if(dict_load_h20w15("/home/dict.img")==NULL)
+	//{
+	//	printf("Fail to load home page!\n");
+	//	exit(-1);
+	//}
 
 	/* --- print and display symbols --- */
 #if 0
-	dict_print_symb20x15(dict_h20w15);
-	for(i=0;i<10;i++)
-		dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
+	//dict_print_symb20x15(dict_h20w15);
+	//for(i=0;i<10;i++)
+	//	dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 
 
@@ -199,7 +193,7 @@ int main(void)
 
 
 
-	/* print all symbols in the page */
+	/* --------- test:  print all symbols in the page --------*/
 #if 0
 	for(i=32;i<127;i++)
 	{
@@ -212,18 +206,11 @@ int main(void)
 		symbol_print_symbol(&sympg_numbfont,i,0x0);
 #endif
 
-	/* ------ display an icon ----- */
-	delt=130;
-	for(i=0;i<3;i++)
-	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,15,i*65+delt,i);
-	for(i=4;i<7;i++)
-	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,90,i*65+delt,i);
-	for(i=8;i<11;i++)
-	symbol_writeFB(&gv_fb_dev,&sympg_icon,-1,0,165,i*65+delt,i);
-exit(1);
 
 
-	/* ----- generate ebox parameters ----- */
+
+
+#if 0 	/* ------------- generate  and draw ebox -------- */
 	for(i=0;i<nrow;i++) /* row */
 	{
 		for(j=0;j<ncolumn;j++) /* column */
@@ -237,11 +224,7 @@ exit(1);
 		}
 	}
 
-	/* print box position for debug */
-	// for(i=0;i<nrow*ncolumn;i++)
-	//	printf("ebox[%d]: x0=%d, y0=%d\n",i,ebox[i].x0,ebox[i].y0);
-
-	/* ------------ draw the eboxes -------------- */
+     /* ------------ draw the eboxes -------------- */
 	for(i=0;i<nrow*ncolumn;i++)
 	{
 		/* color adjust for button */
@@ -257,36 +240,41 @@ exit(1);
                 if(i==4)fbset_color((0<<11)|(60<<5)|0);
                 if(i==5)fbset_color((30<<11)|(0<<5)|30);
 	    }
-		/*  draw filled rectangle */
-//		draw_filled_rect(&gv_fb_dev,ebox[i].x0,ebox[i].y0,
-//			ebox[i].x0+ebox[i].width-1,ebox[i].y0+ebox[i].height-1);
-		/* or, draw filled circle */
 		draw_filled_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
 			ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
 
 		fbset_color(0); //set black rim
 		draw_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
                         ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
-//		draw_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
-//                      ebox[i].y0+ebox[i].height/2, ebox[i].height/2-1);
 	}
+#endif /* end of draw ebox */
+
+
 
 #if 0 /* ----  test circle ----------*/
 	fbset_color(WEGI_COLOR_OCEAN);
 	draw_filled_circle(&gv_fb_dev,120,160,90);
 	fbset_color(0);
 	draw_circle(&gv_fb_dev,120,160,90);
-
 exit(1);
 #endif
 
 
-	/* ----------- activate eboxes ---------*/
+	/* ----------- activate txt and note eboxes ---------*/
+	/* note:
+	   Be careful to activate eboxes in the correct sequence.!!!
+	   activate static eboxes first(no bkimg), then mobile ones(with bkimg),
+	*/
+	/* ------ activate icons ----- */
+	for(i=0;i<9;i++)
+		egi_btnbox_activate(ebox_buttons+i);
 	egi_txtbox_activate(&ebox_clock);
 	egi_txtbox_activate(&ebox_note);
+	ebox_note.status=status_nobody; /* do not refresh note */
 	strncpy(memo_txt.txt[0],"MEMO:",12);
 	strncpy(memo_txt.txt[1],"Make Coffee!",12);
 	egi_txtbox_activate(&ebox_memo);
+
 
 
 	/* ---- set timer for time display ---- */
@@ -294,7 +282,6 @@ exit(1);
 	signal(SIGALRM, tm_sigroutine);
 	tm_tick_settimer(TM_TICK_INTERVAL);
 	signal(SIGALRM, tm_tick_sigroutine);
-
 
 
 	/* ----- set default color ----- */
@@ -319,14 +306,11 @@ exit(1);
 	//fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
 
 
-
-
 /* ===============----------(((  MAIN LOOP  )))----------================= */
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
 		usleep(3000); //3000
-
 
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
@@ -334,7 +318,6 @@ exit(1);
 		{
 			continue; /* continue to loop to finish reading touch data */
 		}
-
 
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
@@ -344,16 +327,19 @@ exit(1);
 			tm_get_strtime(tm_strbuf);
 
 			/* refresh NOTE eboxe according to tick */
-			if( tm_get_tickcount()%20 == 0 ) /* 10*TM_TICK_INTERVAL(10000)=100ms */
+			if( tm_get_tickcount()%30 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
 			{
 				printf("tick = %lld\n",tm_get_tickcount());
 				if(ebox_note.y0 <= 85 ) delt=5;
 				if(ebox_note.y0 >= 320-60 ) delt=-5;
 				ebox_note.y0 += delt; //85 - (320-60)
 				egi_txtbox_refresh(&ebox_note);
+
+				ebox_memo.x0 -= 10;
+				egi_txtbox_refresh(&ebox_memo);
 			}
 
-			/* -----ONLY if tm changes, put in txtbox and refresh displaying */
+			/* -----ONLY if tm changes, update txt and clock */
 			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
 				/* update NOTE ebox txt  */
@@ -378,16 +364,18 @@ exit(1);
 		else if(ret == XPT_READ_STATUS_COMPLETE)
 		{
 			printf("--- XPT_READ_STATUS_COMPLETE ---\n");
-
 			/* going on then to check and activate pressed button */
+
 		}
 
-		////////// -----------  Touch Event Handling  ----------- //////////
-
+	///////////////// -----------  Touch Event Handling  ----------- ///////////////
 		/*---  get index of pressed ebox and activate the button ----*/
-	    	index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
-
+	    	//index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
+	    	index=egi_get_boxindex(sx,sy,ebox_buttons,9);
 		printf("get box index=%d\n",index);
+		continue;
+
+#if 0
 		if(index>=0) /* if get meaningful index */
 		{
 			if(index==0)
@@ -424,7 +412,9 @@ exit(1);
 				egi_txtbox_refresh(&ebox_memo);
 			}
 			//usleep(200000); //this will make touch points scattered.
-		}
+		}/* end of if(index>=0) */
+#endif
+
 	} /* end of while() loop */
 
 	/* release symbol mem page */
