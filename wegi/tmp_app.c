@@ -70,13 +70,14 @@ int main(void)
 	 }
 	struct egi_element_box ebox_note=
 	{
+		.movable = true,
 		.type = type_txt,
 		.egi_data =(void *) &note_txt,
 		.height = 60, /* two line */
 		.width = 230,
 		.prmcolor = WEGI_COLOR_GRAY,/* <0, transparent */
-		.x0= 5,
-		.y0= 320-80,
+		.x0= 5,  //5
+		.y0= 80, //320-80,
 		.tag="note pad",
 	};
 
@@ -88,6 +89,7 @@ int main(void)
 	 }
 	struct egi_element_box ebox_clock=
 	{
+		.movable = true,
 		.type = type_txt,
 		.egi_data =(void *) &clock_txt,
 		.height = 20, /* ebox height */
@@ -101,19 +103,20 @@ int main(void)
 
 	/* ------------ MEMO ebox test ------------------ */
 	struct egi_data_txt memo_txt={0};
-	/* init txtbox data: txt offset(5,50) to box, 4_lines, 480bytes per txt line,font, font_color */
-	if( egi_init_data_txt(&memo_txt, 5, 5, 4, 160, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
+	/* init txtbox data: txt offset(5,5) to box, 4_lines, 480bytes per txt line,font, font_color */
+	if( egi_init_data_txt(&memo_txt, 5, 5, 5, 160, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
 		printf("init MEMO data txt fail!\n"); exit(1);
 	}
 	struct egi_element_box ebox_memo=
 	{
+		.movable=true,
 		.type = type_txt,
 		.egi_data =(void *)&memo_txt, /* try &note_txt.....you may use other txt data  */
-		.height = 30, /*box height, one line, will be ajusted according to numb of lines */
-		.width = 160,
-		.prmcolor = EGI_NOPRIM_COLOR,//WEGI_COLOR_ORANGE,
-		.x0= 0,
-		.y0= 25,
+		.height = 320, /*box height, one line, will be ajusted according to numb of lines */
+		.width = 240,
+		.prmcolor = WEGI_COLOR_ORANGE, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
+		.x0= 20,
+		.y0= 0, // 25 - 320,
 		.tag="memo stick",
 	};
 
@@ -127,12 +130,11 @@ int main(void)
 		{
 			home_btns[3*i+j].shape=square;
 			home_btns[3*i+j].id=3*i+j;
-			home_btns[3*i+j].offy=100+(15+60)*i;
-			home_btns[3*i+j].offx=15+(15+60)*j;
 			home_btns[3*i+j].icon=&sympg_icon;
 			home_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
 			/* hook to ebox model */
-			ebox_buttons[3*i+j].type=type_button;
+			ebox_buttons[3*i+j].y0=100+(15+60)*i;
+			ebox_buttons[3*i+j].x0=15+(15+60)*j;			ebox_buttons[3*i+j].type=type_button;
 			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
 			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
@@ -175,6 +177,7 @@ int main(void)
 #endif
 
 
+
 	/* --- load testfont ---- */
 	if(symbol_load_page(&sympg_testfont)==NULL)
 		exit(-2);
@@ -201,50 +204,6 @@ int main(void)
 #endif
 
 
-
-
-
-#if 0 	/* ------------- generate  and draw ebox -------- */
-	for(i=0;i<nrow;i++) /* row */
-	{
-		for(j=0;j<ncolumn;j++) /* column */
-		{
-			/* generate boxes */
-			ebox[ncolumn*i+j].type=type_button;
-			ebox[ncolumn*i+j].height=sbox;
-			ebox[ncolumn*i+j].width=sbox;
-			ebox[ncolumn*i+j].x0=startX+(j+1)*sgap+j*sbox;
-			ebox[ncolumn*i+j].y0=startY+i*(sgap+sbox);
-		}
-	}
-
-     /* ------------ draw the eboxes -------------- */
-	for(i=0;i<nrow*ncolumn;i++)
-	{
-		/* color adjust for button */
-		fbset_color( (30-i*5)<<11 | (50-i*8)<<5 | (i+1)*10 );/* R5-G6-B5 */
-//		fbset_color( (35-i*5)<<11 | (55-i*5)<<5 | (i+1)*10 );/* R5-G6-B5 */
-//		fbset_color( (15+i*5)<<11 | (55-i*5)<<5 | (i+1)*5 );/* R5-G6-B5 */
-	    if(1)
-	    {
-                if(i==0)fbset_color((0<<11)|(60<<5)|30);
-                if(i==1)fbset_color((30<<11)|(60<<5)|0);
-                if(i==2)fbset_color((0<<11)|(0<<5)|30);
-                if(i==3)fbset_color((30<<11)|(0<<5)|0);
-                if(i==4)fbset_color((0<<11)|(60<<5)|0);
-                if(i==5)fbset_color((30<<11)|(0<<5)|30);
-	    }
-		draw_filled_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
-			ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
-
-		fbset_color(0); //set black rim
-		draw_circle(&gv_fb_dev,ebox[i].x0+ebox[i].width/2,
-                        ebox[i].y0+ebox[i].height/2, ebox[i].height/2);
-	}
-#endif /* end of draw ebox */
-
-
-
 #if 0 /* ----  test circle ----------*/
 	fbset_color(WEGI_COLOR_OCEAN);
 	draw_filled_circle(&gv_fb_dev,120,160,90);
@@ -258,22 +217,23 @@ exit(1);
 	   Be careful to activate eboxes in the correct sequence.!!!
 	   activate static eboxes first(no bkimg), then mobile ones(with bkimg),
 	*/
-	/* ------ activate icons ----- */
+	/*  buttons  */
 	for(i=0;i<9;i++)
 		egi_btnbox_activate(ebox_buttons+i);
+	/* txt clock */
 	egi_txtbox_activate(&ebox_clock); /* no time string here...*/
-	egi_txtbox_sleep(&ebox_clock);/* put to sleep */
-
+	//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
+	/* txt note */
 	egi_txtbox_activate(&ebox_note);
         egi_txtbox_sleep(&ebox_note); /* put to sleep */
-	egi_txtbox_activate(&ebox_note);/* wake up */
-//exit(1);
+	//egi_txtbox_activate(&ebox_note);/* wake up */
+	/* txt memo */
 	strncpy(memo_txt.txt[0],"MEMO:",12);
 	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
 	strncpy(memo_txt.txt[2],"2. take a break.",20);
 	strncpy(memo_txt.txt[3],"3. write codes",20);
 	egi_txtbox_activate(&ebox_memo);
-
+	egi_txtbox_sleep(&ebox_memo);
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -324,7 +284,7 @@ exit(1);
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
-/* TODO: if NOTE and MEMO has the same interval value,then the later one will never be performed !!!
+/* TODO: if NOTE and MEMO has the same interval value,then the later one will never be performed !!! */
 			/* refresh timer NOTE eboxe according to tick */
 			if( tm_get_tickcount()%50 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
 			{
@@ -335,12 +295,13 @@ exit(1);
 				egi_txtbox_refresh(&ebox_note);
 			}
 			/* refresh MEMO eboxe according to tick */
+#if 0
 			if( tm_get_tickcount()%20 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
 			{
-				ebox_memo.x0 -= 10;
+				ebox_memo.y0 += 3;
 				egi_txtbox_refresh(&ebox_memo);
 			}
-
+#endif
 			/* -----ONLY if tm changes, update txt and clock */
 			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
 			{
@@ -355,7 +316,8 @@ exit(1);
 
 			/* get year-mon-day and display */
 			tm_get_strday(tm_strbuf);
-			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,WEGI_COLOR_SPRINGGREEN,1,12,2,tm_strbuf);//32,90
+//			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,WEGI_COLOR_SPRINGGREEN,
+//					SYM_FONT_DEFAULT_TRANSPCOLOR,32,90,tm_strbuf);//(32,90,12,2)
 			/* copy to note_txt */
 			strncpy(note_txt.txt[0],tm_strbuf,22);
 
@@ -374,9 +336,9 @@ exit(1);
 	    	//index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
 	    	index=egi_get_boxindex(sx,sy,ebox_buttons,9);
 		printf("get box index=%d\n",index);
-		continue;
+		//continue;
 
-#if 0
+#if 1
 		if(index>=0) /* if get meaningful index */
 		{
 			if(index==0)
@@ -397,20 +359,23 @@ exit(1);
 					case 1:
 						break;
 					case 2:
-						ebox_memo.y0 -= 10;
 						break;
 					case 3:
-						ebox_memo.x0 -= 10;
 						break;
 					case 4:
-						ebox_memo.x0 += 10;
 						break;
 					case 5:
-						ebox_memo.y0 += 10;
+						if(ebox_memo.status==status_sleep)
+							egi_txtbox_activate(&ebox_memo);
+						else if(ebox_memo.status==status_active)
+							egi_txtbox_sleep(&ebox_memo);
+						for(i=0;i<5;i++)
+							usleep(800000);
 						break;
+					case 6: break;
+					case 7: break;
+					case 8: break;
 				}
-				/* refresh ebox */
-				egi_txtbox_refresh(&ebox_memo);
 			}
 			//usleep(200000); //this will make touch points scattered.
 		}/* end of if(index>=0) */

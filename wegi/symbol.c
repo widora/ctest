@@ -419,7 +419,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	long int pos; /* offset position in fb map */
 	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
 	int yres=dev->vinfo.yres;
-	int mapx,mapy; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
+	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
 	int offset=sym_page->symoffset[sym_code];
@@ -435,7 +435,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 	/* check sym_code */
 	if( sym_code < 0 || sym_code > sym_page->maxnum )
+	{
+		printf("symbole code number out of range!\n");
 		return;
+	}
 
 
 	/* get symbol pixel and copy it to FB mem */
@@ -444,39 +447,39 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		for(j=0;j<width;j++)
 		{
 #ifdef FB_SYMOUT_ROLLBACK
-			/* map X */
-			if(x0<0)
-				mapx=xres-(-x0)%xres;
-			else if(x0>xres-1)
-				mapx=x0%xres;
+			/*--- map x for every (i,j) symbol pixel---*/
+			if( x0+j<0 )
+			{
+				mapx=xres-(-x0-j)%xres; /* here mapx=1-240 */
+				mapx=mapx%xres;
+			}
+			else if( x0+j>xres-1 )
+				mapx=(x0+j)%xres;
 			else
-				mapx=x0;
-			/* map Y */
-/* OBSOLETE: map whole symbol, skip whole symbol.
-			if(y0<0)
-				mapy=yres-(-y0)%yres;
-			else if(y0>yres-1)
-				mapy=y0%yres;
-			else
-				mapy=y0;
-*/
-			/* map Y, line by line, !!!NOT symbole by symbole */
-			if( (y0+i)<0 )
-				y0=yres-(-y0-i)%yres-i;//y0+i=yres-(-y0-i)%yres;
-			else if( (y0+i)>yres-1 )
-				y0=(y0+i)%yres-i;
-			else
-				mapy=y0;
+				mapx=x0+j;
 
+			/*--- map Y for every (i,j) symbol pixel---*/
+			if ( y0+i<0 )
+			{
+				/* in case y0=0 and i=0,then mapy=320!!!!, then function will returns 
+				and abort drawing the symbol., don't forget -1 */
+				mapy=yres-(-y0-i)%yres; /* here mapy=1-320 */
+				mapy=mapy%yres;
+			}
+			else if(y0+i>yres-1)
+				mapy=(y0+i)%yres;
+			else
+				mapy=y0+i;
 
 #else /*--- if  NO ROLLBACK ---*/
-			mapx=x0;	mapy=y0;
+			mapx=x0+j;
+			mapy=y0+x;
 
 #endif
 
-			/*x0,y0 mapped to LCD(xy),
+			/*x(i,j),y(i,j) mapped to LCD(xy),
 				however, pos may also be out of FB screensize  */
-			pos=(mapy+i)*xres+mapx+j; /* in pixel, LCD fb mem position */
+			pos=mapy*xres+mapx; /* in pixel, LCD fb mem position */
 			pcolor=*(data+offset+width*i+j);/* get symbol pixel in page data */
 
 			/* ------- assign color data one by one,faster then memcpy  --------
@@ -490,11 +493,14 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 					pcolor = ~pcolor;
 				}
 
-				/* check available space for a 2bytes pixel color,  fb mem. boundary */
+				/* check available space for a 2bytes pixel color fb memory boundary,
+				  !!! though FB has self roll back mechanism.  */
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
 			        if( pos > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
                 			printf("WARNING: symbol point reach boundary of FB mem.!\n");
+					printf("pos=%ld, screensize=%ld    mapx=%d,mapy=%d\n",
+						 pos, fb_dev->screensize, mapx, mapy);
                 			return;
         			}
 
@@ -537,7 +543,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int x=x0;
 	int tspcolor=transpcolor;
 
-	/* if ----the symbol is font then use symbol back color as transparent tunnel */
+	/* if the symbol is font then use symbol back color as transparent tunnel */
 	if(tspcolor >0 && sym_page->symtype == type_font )
 		tspcolor=sym_page->bkcolor;
 

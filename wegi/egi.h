@@ -28,7 +28,7 @@ struct egi_box_coords
 	struct egi_point_coord endxy;
 };
 
-/* ----------element box type */
+/* element box type */
 enum egi_ebox_type
 {
 	type_txt,
@@ -79,8 +79,12 @@ struct egi_element_box
 	/* ebox type */
 	enum egi_ebox_type type;
 
-	/* movable or stationary */
-	bool movale;
+	/*
+		--- movable or stationary ---
+	If an ebox is immovale, it cann't move or resize. if it does so, then its
+	image will be messed up after refeshing.
+	*/
+	bool movable;
 
 	/* ebox tag */
 	char tag[32];	/* a simple description of the ebox for later debug */
@@ -92,7 +96,10 @@ struct egi_element_box
 	unsigned int x0;
 	unsigned int y0;
 
-	/* box size, fit to different type */
+	/* box size, fit to different type
+	1. for txt box, H&W define the holding pad size.
+	2. for button, H&W is same as symbol H&W.
+	*/
 	int height;
 	int width;
 
@@ -117,6 +124,7 @@ struct egi_element_box
 	   It will restore bkimg to fb and copy bkimg from fb everytime before you
 	   draw the moving ebox. It's sure not efficient when bkimg is very large, you would
 	   rather refresh the whole FB memory.
+	   4.Not applicable for an immovable ebox.
       */
 	uint16_t *bkimg;
 
@@ -126,14 +134,41 @@ struct egi_element_box
 	/* data pointer to different types of struct egi_data_xxx */
 	void *egi_data;
 
-	/* pointer to icon image */
-//	uint16_t *picon;
-
-	/*  method */
+	/* --------- method ------- */
+	/*  --- activate:
+	   A._for a status_sleep ebox:
+	   	1. wake it up, refresh to  display it on screen.
+		2. reset status.
+	   B._for a status_no-body ebox:
+	   	1. initialization job for the ebox and ebox->egi_data.
+	   	2. malloc bkimg for an movable ebox,and save the backgroud img.
+	   	3. refresh to display the ebox on screen.
+	   	4. reset the status as active.
+	*/
 	void (*activate)(struct egi_element_box *);
+
+	/* --- refresh:
+		0. a sleep ebox will not be refreshed.
+		1. restore backgroud from bkimg and store new position backgroud to bkimg.
+		2. update ebox->egi_data and do some job here ---------.
+		3. redraw the ebox according to updated data.
+
+	*/
 	void (*refresh)(struct egi_element_box *);
+
+	/* --- sleep:
+	   1. Remove the ebox from the screen and restore the bkimg.
+	   2. and set status as sleep.
+	   3. if an immovale ebox sleeps, it will not dispear!
+	   4. sleeping ebox will not be targed for touching.
+	*/
 	void (*sleep)(struct egi_element_box *);
+
+	/* --- destroy:
+ 
+	*/
 	void (*destroy)(struct egi_element_box *);
+
 
 	/* child list */
 	struct egi_element_box *child;
@@ -157,8 +192,6 @@ struct egi_data_btn
 {
 	//char tag[32]; /* short description of the button */
 	int id; /* unique id number for btn */
-	int offx; /* offset from ebox */
-	int offy;
 	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
 	int icon_code; /* code number of the symbol in the symbol_page */ 

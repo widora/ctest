@@ -22,7 +22,8 @@ Midas
 
 #define SYM_NOSUB_COLOR -1 /* no substitute color defined for a symbol or font */
 #define SYM_NOTRANSP_COLOR -1 /* no transparent color defined for a symbol or font */
-
+#define SYM_FONT_DEFAULT_TRANSPCOLOR 1 /* >0 Ok, for symbol_string_writeFB(), if the symbol is font then
+					use symbol back color as transparent tunnel */
 
 /* symbol type */
 enum symbol_type

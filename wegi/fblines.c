@@ -125,34 +125,46 @@ FBDEV   gv_fb_dev;
 	int xres=fr_dev->vinfo.xres;
 	int yres=fr_dev->vinfo.yres;
 
-	//printf("x=%d,y=%d \n",fx,fy);
-
 #ifdef FB_DOTOUT_ROLLBACK
 	/* map to LCD(X,Y) */
 	if(fx>xres-1)
 		fx=fx%xres;
 	else if(fx<0)
+	{
 		fx=xres-(-fx)%xres;
-
+		fx=fx%xres; /* here fx=1-240 */
+	}
 	if( fy > yres-1) {
 		fy=fy%yres;
 	}
 	else if(fy<0) {
 		fy=yres-(-fy)%yres;
+		fy=fy%yres; /* here fy=1-320 */
 	}
-#endif
+#else /* NO ROLLBACK */
+	/* map to LCD(X,Y) */
+	if(fx>xres-1)
+		fx=xres-1;
+	else if(fx<0)
+		fx=0;
 
-        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+	if( fy > yres-1) {
+		fy=yres-1;
+	}
+	else if(fy<0) {
+		fy=0;
+	}
 
-
-#ifndef FB_DOTOUT_ROLLBACK
+	/* check if no space left for a 16bit_pixel in FB mem */
 	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) )
 	{
 		printf("WARNING: point location out of fb mem.!\n");
 		return -1;
 	}
 #endif
+
+        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
+                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
 
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 
@@ -413,14 +425,20 @@ FBDEV   gv_fb_dev;
 #ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
 			/* map i,j to LCD(Y,X) */
 			if(i<0) /* map Y */
-				tmpy=yres-(-i)%yres;
+			{
+				tmpy=yres-(-i)%yres; /* here tmpy=1-320 */
+				tmpy=tmpy%yres;
+			}
 			else if(i > yres-1)
 				tmpy=i%yres;
 			else
 				tmpy=i;
 
 			if(j<0) /* map X */
-				tmpx=xres-(-j)%xres;
+			{
+				tmpx=xres-(-j)%xres; /* here tmpx=1-240 */ 
+				tmpx=tmpx%xres;
+			}
 			else if(j > xres-1)
 				tmpx=j%xres;
 			else
@@ -524,18 +542,25 @@ FBDEV   gv_fb_dev;
 #ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
 			/* map i,j to LCD(Y,X) */
 			if(i<0) /* map Y */
-				tmpy=yres-(-i)%yres;
+			{
+				tmpy=yres-(-i)%yres; /* here tmpy=1-320 */
+				tmpy=tmpy%yres;
+			}
 			else if(i>yres-1)
 				tmpy=i%yres;
 			else
 				tmpy=i;
 
 			if(j<0) /* map X */
-				tmpx=xres-(-j)%xres;
+			{
+				tmpx=xres-(-j)%xres; /* here tmpx=1-240 */
+				tmpx=tmpx%xres;
+			}
 			else if(j>xres-1)
 				tmpx=j%xres;
 			else
 				tmpx=j;
+
 
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
@@ -569,7 +594,6 @@ FBDEV   gv_fb_dev;
 			buf++;
 		}
 	}
-	//printf(" fb_cpyto_buf = %d\n", ret);
 
 	return ret;
    }
