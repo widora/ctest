@@ -470,7 +470,10 @@ int egi_txtbox_sleep(struct egi_element_box *ebox)
 }
 
 /*------------------------------------------------------
-push a string to egi_data_txt->txt
+Read a txt file and push it to egi_data_txt->txt[]
+
+Max. char number per line =llen;
+Max. pixel number per line = bxwidth
 
 Return:
 	>=0	number of symbols stored.
@@ -478,58 +481,91 @@ Return:
 -------------------------------------------------------*/
 int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 {
-	FILE *fd;
+	FILE *fil;
+	int i;
 	char buf[32];
 	int nread;
 	int ret=0;
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
-	char **txt=data_->txt;
+	char **txt=data_txt->txt;
 	int nt;/* index, txt[][nt] */
 	int nl=data_txt->nl; /* number of txt line */
 	int nlw=0; /* current written line of txt */
-	int llen=data_txt->llen; /*in bytes, length for each line*/
-	int ncount=0; /*in pixel,per line, within bxwidth.*/
+	int llen=data_txt->llen; /*in bytes(chars), length for each line*/
+	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
 
 	/* check ebox data here */
 
 
-	fp=fopen(fpath,"rb");
-	if(fp==NULL)
+	fil=fopen(path,"rb");
+	if(fil==NULL)
 	{
 		perror("egi_txtbox_readfile()");
 		return -1;
 	}
+	printf("%s opened.",path);
 
-	while(!(feof(fp))
+	while( !feof(fil) )
 	{
-		nread=fread(buf,32,1,fp);
-		if(nread =< 0)break;
+		nread=fread(buf,1,32,fil);
+		if(nread <= 0)
+			break;
+
+		printf("readin buf[]: %s\n",buf);
+		ret+=nread;
 
 		/* here put char to egi_data_txt->txt */
-		for(i=0;i<32;i++)
+		for(i=0;i<nread;i++)
 		{
-			/* check available space in current txt line */
+			/* if it's a return code */
+			/* TODO: substitue buf[i] with space ..... */
+			if(buf[i]=='\n')
+			{
+				nlw +=1; /* new line */
+				/* MAX. number of lines = nl */
+				if(nlw>nl-1) /* no more line for txt ebox */
+					break; /* abort the job */
+				continue;
+			}
+
+			/* check available pixel space for current line
+			   Max. pixel number per line = bxwidth */
 			if( symwidth[ buf[i] ] > bxwidth-ncount )
 			{
 				nlw +=1; /* new line */
-				if(nlw>nl-1)
-					break; /* no space, abort the job */
-				/* retry then */
+				/* MAX. number of lines = nl */
+				if(nlw>nl-1) /* no more line for txt ebox */
+					break; /* abort the job */
+				/*else, retry then */
 				i--;
 				continue;
 			}
-			nt++;
-			if( nt > llen-1 )/* */
+
+			/* now push a char to txt[][] */
 			txt[nlw][nt]=buf[i];
+			nt++;
 
-
+			/* Max. char number per line =llen */
+			if( nt > llen-1 )/* txt buf end */
+			{
+				nlw +=1; /* new line */
+				/* MAX. number of lines = nl */
+				if(nlw>nl-1) /* no more line for txt ebox */
+					break;
+			}
+			/* else, */
 
 		}
 
-
 	}
+
+	/* DEBUG */
+	for(i=0;i<nl;i++)
+		printf("%s\n",txt[i]);
+
+	return ret;
 }
 
 
@@ -657,8 +693,8 @@ int egi_btnbox_refresh(struct egi_element_box *ebox)
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 
-        /* ---- 4. redefine bkimg box range, in case it may change */
-	/* check ebox height and font lines in case it may changes, then adjust the height */
+        /* ---- 4. redefine bkimg box range, in case it changes */
+	/* check ebox height and font lines in case it changes, then adjust the height */
 	/* updata bkimg->bkbox according */
 	ebox->height=symheight;
         ebox->bkbox.startxy.x=x0;
@@ -670,7 +706,8 @@ int egi_btnbox_refresh(struct egi_element_box *ebox)
 	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
-        /* ---- 5. store bk image which will be restored when this ebox position/size changes */
+        /* ---- 5. store bk image which will be restored when you refresh it later,
+		this ebox position/size changes */
         if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;

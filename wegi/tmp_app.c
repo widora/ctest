@@ -141,6 +141,10 @@ int main(void)
 	}
 
 
+#if 1 /* test ----- egi txtbox read file ---------- */
+	 egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
+//	 exit(1);
+#endif
 
 
 	/* --- open spi dev --- */
@@ -228,10 +232,10 @@ exit(1);
         egi_txtbox_sleep(&ebox_note); /* put to sleep */
 	//egi_txtbox_activate(&ebox_note);/* wake up */
 	/* txt memo */
-	strncpy(memo_txt.txt[0],"MEMO:",12);
-	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
-	strncpy(memo_txt.txt[2],"2. take a break.",20);
-	strncpy(memo_txt.txt[3],"3. write codes",20);
+//	strncpy(memo_txt.txt[0],"MEMO:",12);
+//	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
+//	strncpy(memo_txt.txt[2],"2. take a break.",20);
+//	strncpy(memo_txt.txt[3],"3. write codes",20);
 	egi_txtbox_activate(&ebox_memo);
 	egi_txtbox_sleep(&ebox_memo);
 

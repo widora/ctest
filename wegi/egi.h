@@ -237,6 +237,7 @@ int egi_txtbox_activate(struct egi_element_box *ebox);
 int egi_txtbox_refresh(struct egi_element_box *ebox);
 int egi_txtbox_sleep(struct egi_element_box *ebox);
 void egi_free_data_txt(struct egi_data_txt *data_txt);
+int egi_txtbox_readfile(struct egi_element_box *ebox, char *path);
 
 /* for button ebox */
 int egi_btnbox_activate(struct egi_element_box *ebox);
