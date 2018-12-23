@@ -151,8 +151,8 @@ struct egi_element_box
 		0. a sleep ebox will not be refreshed.
 		1. restore backgroud from bkimg and store new position backgroud to bkimg.
 		2. update ebox->egi_data and do some job here ---------.
-		3. redraw the ebox according to updated data.
-
+		3. re-read txt file into egi_data_txt.txt[][] if it applys.
+		4. redraw the ebox and txt content according to updated data.
 	*/
 	void (*refresh)(struct egi_element_box *);
 
@@ -185,6 +185,8 @@ struct egi_data_txt
 	struct symbol_page *font;
 	uint16_t color; /* txt color */
 	char **txt; /*multiline txt data */
+	char *fpath; /* txt file path if applys */
+	long foff; /* curret offset of the txt file if applys */
 };
 
 /* egi data for a botton type ebox */

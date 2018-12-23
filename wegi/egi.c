@@ -17,8 +17,6 @@ TODO:
 	2. egi_init_data_txt(): llen according to ebox->height and width.---not necessary if multiline auto. 		   adjusting.
 	3. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
-
-
 Midas Zhou
 ------------------------------------------------------------------------------*/
 #include <stdio.h>
@@ -313,17 +311,20 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	/* 6. change its status, if not, you can not refresh.  */
 	ebox->status=status_active;
 
+
+	/* 7. reset offset for txt file if fpath applys */
+	((struct egi_data_txt *)(ebox->egi_data))->foff=0;
+
 	/* 7. refresh displaying the ebox */
-	if( egi_txtbox_refresh(ebox) !=0);
-		return -6;
+//	if( egi_txtbox_refresh(ebox) !=0);
+//		return -6;
 
 	printf("egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
 
-
-/*-----------------------------------------------------------------------
+/*-------------------------------------------------------------------------------
 refresh a txt ebox.
 	1.refresh ebox image according to following parameter updates:
 		---txt(offx,offy,nl,llen)
@@ -335,10 +336,11 @@ refresh a txt ebox.
  	4.update txt.
 
 Return
+	2	fail to read txt file.
 	1	sleeping
 	0	OK
 	<0	fail
-------------------------------------------------------------------------*/
+-------------------------------------------------------------------------------*/
 int egi_txtbox_refresh(struct egi_element_box *ebox)
 {
 	int i;
@@ -369,7 +371,6 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 		return -3;
    }/* ebox->movable end */
 
-
 	/* 4. get updated ebox parameters */
 	int x0=ebox->x0;
 	int y0=ebox->y0;
@@ -383,13 +384,11 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	char **txt=data_txt->txt;
 	int font_height=data_txt->font->symheight;
 
-
 #if 0
 	/* test--------------   print out box txt content */
 	for(i=0;i<nl;i++)
 		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
 #endif
-
 
         /* 5. redefine bkimg box range, in case it may change */
 	/* check ebox height and font lines in case it may changes, then adjust the height */
@@ -400,7 +399,6 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
         ebox->bkbox.startxy.y=y0;
         ebox->bkbox.endxy.x=x0+width-1;
         ebox->bkbox.endxy.y=y0+height-1;
-
 
    if(ebox->movable) /* only if ebox is movale */
    {
@@ -413,7 +411,6 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;
    }
-
 
 	/* ---- 7. refresh prime color under the symbol  before updating txt.  */
 	if(ebox->prmcolor >= 0)
@@ -431,7 +428,17 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	}
 	/* TODO: other type of frame .....*/
 
-	/* ---- 9. refresh TXT, write txt line to FB */
+	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to txt[][] */
+	if(data_txt->fpath)
+	{
+		if(egi_txtbox_readfile(ebox,data_txt->fpath)<=0)
+		{
+			printf("egi_txtbox_refresh(): fail to read txt file: %s \n",data_txt->fpath);
+			return 2;
+		}
+	}
+
+	/* ---- 10. refresh TXT, write txt line to FB */
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					1, for font symbol: tranpcolor is its img symbol bkcolor!!! */
@@ -469,107 +476,153 @@ int egi_txtbox_sleep(struct egi_element_box *ebox)
 	return 0;
 }
 
-/*------------------------------------------------------
-Read a txt file and push it to egi_data_txt->txt[]
+
+/*-----------------------------------------------------------------
+Note:
+1. Read a txt file and try to push it to egi_data_txt->txt[]
+2. llen=data_txt->llen-1  one byte for string end 0.
 
 Max. char number per line =llen;
 Max. pixel number per line = bxwidth
 
 Return:
-	>=0	number of symbols stored.
-	<0	fail
--------------------------------------------------------*/
+	>0	number of chars read and stored to txt[].
+	<=0	fail
+---------------------------------------------------------------*/
 int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 {
 	FILE *fil;
 	int i;
-	char buf[32];
-	int nread;
+	char buf[32]={0};
+	int nread=0;
 	int ret=0;
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
 	char **txt=data_txt->txt;
-	int nt;/* index, txt[][nt] */
-	int nl=data_txt->nl; /* number of txt line */
+	int nt=0;/* index, txt[][nt] */
+	int nl=data_txt->nl; /* from 0, number of txt line */
 	int nlw=0; /* current written line of txt */
-	int llen=data_txt->llen; /*in bytes(chars), length for each line*/
+	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
 	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
+	int maxnum=data_txt->font->maxnum;
+	long foff=data_txt->foff; /* current file position */
 
 	/* check ebox data here */
+	if( txt==NULL )
+	{
+		printf("egi_txtbox_readfile(): data_txt->txt is NULL!\n");
+		return -1;
+	}
 
+	/* reset txt buf */
+	for(i=0;i<nl;i++)
+		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
 
+	/* open txt file */
 	fil=fopen(path,"rb");
 	if(fil==NULL)
 	{
 		perror("egi_txtbox_readfile()");
-		return -1;
+		return -2;
 	}
-	printf("%s opened.",path);
+	printf("succeed to open %s, current offset=%ld \n",path,foff);
+
+	/* restore file position */
+	fseek(fil,foff,SEEK_SET);
 
 	while( !feof(fil) )
 	{
-		nread=fread(buf,1,32,fil);
-		if(nread <= 0)
+		memset(buf,0,sizeof(buf));/* clear buf */
+
+		nread=fread(buf,1,sizeof(buf),fil);
+		if(nread <= 0) /* error */
 			break;
 
-		printf("readin buf[]: %s\n",buf);
 		ret+=nread;
 
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
 		{
-			/* if it's a return code */
+			//printf("buf[%d]='%c' ascii=%d\n",i,buf[i],buf[i]);
+
+			/*  ------ 1. if it's a return code */
 			/* TODO: substitue buf[i] with space ..... */
-			if(buf[i]=='\n')
+			if( buf[i]==10 )
 			{
-				nlw +=1; /* new line */
+				//printf(" ------get a return \n");
+				/* only if return code is NOT the first char of a line!!! */
+				if(nt != 0)
+					nlw +=1; /* new line */
+				nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 				/* MAX. number of lines = nl */
 				if(nlw>nl-1) /* no more line for txt ebox */
-					break; /* abort the job */
+					break;//return ret; /* abort the job */
 				continue;
 			}
 
-			/* check available pixel space for current line
+			/* ----- 2. if symbol code out of range */
+			if( (uint8_t)buf[i] > maxnum ) 
+			{
+				printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
+				continue;
+			}
+
+			/* ----- 3. check available pixel space for current line
 			   Max. pixel number per line = bxwidth */
-			if( symwidth[ buf[i] ] > bxwidth-ncount )
+			/* ----- . if symbol code out of range */
+			if( symwidth[ (uint8_t)buf[i] ] > bxwidth-ncount )
 			{
 				nlw +=1; /* new line */
+				nt=0;ncount=0; /*reset line char counter and pixel counter*/
 				/* MAX. number of lines = nl */
 				if(nlw>nl-1) /* no more line for txt ebox */
-					break; /* abort the job */
+					break;//return ret; /* abort the job */
 				/*else, retry then */
 				i--;
 				continue;
 			}
 
-			/* now push a char to txt[][] */
+			/* increase total number of pixels in a txt line*/
+			ncount+=symwidth[ (uint8_t)buf[i] ];
+			//printf("one line pixel counter: ncount=%d\n",ncount);
+
+			/* ----- 4.now push a char to txt[][] */
 			txt[nlw][nt]=buf[i];
 			nt++;
 
-			/* Max. char number per line =llen */
-			if( nt > llen-1 )/* txt buf end */
+			/* ----- 5. check remained space
+			check Max. char number per line =llen
+			*/
+			if( nt > llen-1 ) /* txt buf end */
 			{
 				nlw +=1; /* new line */
+				nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 				/* MAX. number of lines = nl */
 				if(nlw>nl-1) /* no more line for txt ebox */
-					break;
+					break; //return ret;
 			}
-			/* else, */
+		}/* END for() */
 
-		}
+		/* check if txt line is used up */
+		if(nlw>nl-1)
+			break; /* end while() */
 
-	}
+	} /* END while() */
 
 	/* DEBUG */
+#if 0
 	for(i=0;i<nl;i++)
 		printf("%s\n",txt[i]);
+#endif
 
+	/* save current file position */
+	printf("ftell(fil)=%ld\n",ftell(fil));
+	((struct egi_data_txt *)(ebox->egi_data))->foff +=ret; //ftell(fil);
+
+	fclose(fil);
 	return ret;
 }
-
-
-
 
 
 /*-----------------------------------------------------------------------
@@ -652,7 +705,6 @@ refresh a button type ebox:
 	2. restore bkimg and store bkimg.
 	3. drawing the icon
 	4. take actions according to btn_status (released, pressed).
-
 TODO:
 
 Return:
@@ -661,7 +713,6 @@ Return:
 ------------------------------------------------------------------------*/
 int egi_btnbox_refresh(struct egi_element_box *ebox)
 {
-
 	/* 0. confirm ebox type */
         if(ebox->type != type_button)
         {
@@ -723,13 +774,9 @@ int egi_btnbox_refresh(struct egi_element_box *ebox)
 }
 
 
-
-
 /////////////////////////////////////////////////////////////////////////////////////////
-
 /*----------------------------------------------------
 refresh exbox according to its type
-
 ------------------------------------------------------*/
 void egi_refresh(struct egi_element_box *ebox)
 {
@@ -756,7 +803,6 @@ void egi_refresh(struct egi_element_box *ebox)
 
 
 
-
 /*-------------------------------------------------
 release struct egi_data_txt
 --------------------------------------------------*/
@@ -778,13 +824,13 @@ void egi_free_data_txt(struct egi_data_txt *data_txt)
 }
 
 
-/*------------------------------------------------------
+/*------------------------------------------------------------------
 initialize an egi_element box according to its type
 
 Return:
         non-null        OK
         NULL            fails
--------------------------------------------------------*/
+-------------------------------------------------------------------*/
 struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox) // enum egi_ebox type)
 {
 	struct egi_element_box *ret=NULL;

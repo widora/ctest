@@ -96,17 +96,20 @@ int main(void)
 		.width = 120,
 		.prmcolor = EGI_NOPRIM_COLOR, /*-1, if<0,transparent */
 		.x0= 60,
-		.y0= 320-38,
+		.y0= 5,//320-38,
 		.frame=-1, /* <0, no frame */
 		.tag="timer txt",
 	};
 
 	/* ------------ MEMO ebox test ------------------ */
 	struct egi_data_txt memo_txt={0};
-	/* init txtbox data: txt offset(5,5) to box, 4_lines, 480bytes per txt line,font, font_color */
-	if( egi_init_data_txt(&memo_txt, 5, 5, 5, 160, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
+	/* init txtbox data: txt offset(5,5) to box, 12_lines, 20bytes char per line, font, font_color */
+	if( egi_init_data_txt(&memo_txt, 5, 5, 12, 25, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
 		printf("init MEMO data txt fail!\n"); exit(1);
 	}
+	/* indicate a txt file */
+	memo_txt.fpath="/home/memo.txt";
+	memo_txt.foff=0;
 	struct egi_element_box ebox_memo=
 	{
 		.movable=true,
@@ -115,7 +118,7 @@ int main(void)
 		.height = 320, /*box height, one line, will be ajusted according to numb of lines */
 		.width = 240,
 		.prmcolor = WEGI_COLOR_ORANGE, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
-		.x0= 20,
+		.x0= 12,
 		.y0= 0, // 25 - 320,
 		.tag="memo stick",
 	};
@@ -142,7 +145,8 @@ int main(void)
 
 
 #if 1 /* test ----- egi txtbox read file ---------- */
-	 egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
+	 ret=egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
+	 printf("%d chars read from file\n",ret);
 //	 exit(1);
 #endif
 
@@ -292,7 +296,7 @@ exit(1);
 			/* refresh timer NOTE eboxe according to tick */
 			if( tm_get_tickcount()%50 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
 			{
-				printf("tick = %lld\n",tm_get_tickcount());
+				//printf("tick = %lld\n",tm_get_tickcount());
 				if(ebox_note.x0 <=60  ) delt=10;
 				if(ebox_note.x0 >=300 ) delt=-10;
 				ebox_note.x0 += delt; //85 - (320-60)

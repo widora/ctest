@@ -37,13 +37,15 @@ Midas
 /*--------------------(  testfont  )------------------------
    ascii 0-127 symbol width,
 5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
+
 */
 static int testfont_width[16*8] =
 {
-	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
-	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
-//	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
-//	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	/* give return code a 0 width in a txt display  */
+//	5,5,5,5,5,5,5,5,5,5,0,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
+//	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	5,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
 	11,11,11,11,11,11,11,11,11,11,6,6,10,10,10,10, /* 0123456789:;<=>? */
 	19,12,11,11,13,10,10,13,13,5,7,11,9,18,14,14, /* @ABCDEFGHIJKLMNO */
