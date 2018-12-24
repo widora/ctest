@@ -61,12 +61,12 @@ int main(void)
 	printf("mag=%04x\n",mag);
 
 
-
 	/* ------------ NOTE ebox test ------------------ */
 	struct egi_data_txt note_txt={0};
 	/* init txtbox data: offset(10,10) 2_lines, 510bytes per txt line,font, font_color */
 	if( egi_init_data_txt(&note_txt, 5, 5, 2, 510, &sympg_testfont, WEGI_COLOR_BLACK) ==NULL ) {
-		printf("init NOTE data txt fail!\n"); exit(1);
+		printf("init NOTE data txt fail!\n"); 
+		exit(1);
 	 }
 	struct egi_element_box ebox_note=
 	{
@@ -101,15 +101,16 @@ int main(void)
 		.tag="timer txt",
 	};
 
+
 	/* ------------ MEMO ebox test ------------------ */
 	struct egi_data_txt memo_txt={0};
-	/* init txtbox data: txt offset(5,5) to box, 12_lines, 20bytes char per line, font, font_color */
-	if( egi_init_data_txt(&memo_txt, 5, 5, 12, 25, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
+	/* init txtbox data: txt offset(5,5) to box, 12_lines, 24bytes char per line, font, font_color */
+	if( egi_init_data_txt(&memo_txt, 5, 5, 12, 24, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
 		printf("init MEMO data txt fail!\n"); exit(1);
 	}
 	/* indicate a txt file */
 	memo_txt.fpath="/home/memo.txt";
-	memo_txt.foff=0;
+	//memo_txt.foff=0;
 	struct egi_element_box ebox_memo=
 	{
 		.movable=true,
@@ -120,6 +121,7 @@ int main(void)
 		.prmcolor = WEGI_COLOR_ORANGE, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
 		.x0= 12,
 		.y0= 0, // 25 - 320,
+		.frame=-1, //no frame
 		.tag="memo stick",
 	};
 
@@ -143,13 +145,11 @@ int main(void)
 		}
 	}
 
-
 #if 1 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
-	 printf("%d chars read from file\n",ret);
+	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
 //	 exit(1);
 #endif
-
 
 	/* --- open spi dev --- */
 	SPI_Open();
@@ -230,18 +230,21 @@ exit(1);
 		egi_btnbox_activate(ebox_buttons+i);
 	/* txt clock */
 	egi_txtbox_activate(&ebox_clock); /* no time string here...*/
-	//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
+	egi_txtbox_sleep(&ebox_clock);/* put to sleep */
 	/* txt note */
 	egi_txtbox_activate(&ebox_note);
         egi_txtbox_sleep(&ebox_note); /* put to sleep */
 	//egi_txtbox_activate(&ebox_note);/* wake up */
+
+
 	/* txt memo */
 //	strncpy(memo_txt.txt[0],"MEMO:",12);
 //	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
 //	strncpy(memo_txt.txt[2],"2. take a break.",20);
 //	strncpy(memo_txt.txt[3],"3. write codes",20);
-	egi_txtbox_activate(&ebox_memo);
-	egi_txtbox_sleep(&ebox_memo);
+	//egi_txtbox_activate(&ebox_memo);
+	//egi_txtbox_sleep(&ebox_memo);
+
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -373,7 +376,7 @@ exit(1);
 					case 4:
 						break;
 					case 5:
-						if(ebox_memo.status==status_sleep)
+						if(ebox_memo.status!=status_active)
 							egi_txtbox_activate(&ebox_memo);
 						else if(ebox_memo.status==status_active)
 							egi_txtbox_sleep(&ebox_memo);
@@ -381,7 +384,10 @@ exit(1);
 							usleep(800000);
 						break;
 					case 6: break;
-					case 7: break;
+					case 7: 
+						egi_txtbox_refresh(&ebox_memo);
+
+						break;
 					case 8: break;
 				}
 			}

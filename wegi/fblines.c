@@ -307,9 +307,9 @@ FBDEV   gv_fb_dev;
 		yd=y1;
 	}
 
-	for(i=yd;i<yu;i++)
+	for(i=yd;i<=yu;i++)
 	{
-		for(j=xl;j<xr;j++)
+		for(j=xl;j<=xr;j++)
 		{
                 	if(draw_dot(dev,j,i)<0)
 				return -1;

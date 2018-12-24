@@ -137,7 +137,9 @@ struct egi_element_box
 	/* --------- method ------- */
 	/*  --- activate:
 	   A._for a status_sleep ebox:
-	   	1. wake it up, refresh to  display it on screen.
+	   	1. re-activate(wake up) it:
+		   1.1 file offset value of egi_data_txt.foff will be reset.
+		   1.2 then refresh() to display it on screen.
 		2. reset status.
 	   B._for a status_no-body ebox:
 	   	1. initialization job for the ebox and ebox->egi_data.
@@ -151,7 +153,8 @@ struct egi_element_box
 		0. a sleep ebox will not be refreshed.
 		1. restore backgroud from bkimg and store new position backgroud to bkimg.
 		2. update ebox->egi_data and do some job here ---------.
-		3. re-read txt file into egi_data_txt.txt[][] if it applys.
+		3. read txt file into egi_data_txt.txt if it applys, file offset of egi_data_txt.foff
+		   will be applied and updated.
 		4. redraw the ebox and txt content according to updated data.
 	*/
 	void (*refresh)(struct egi_element_box *);
@@ -165,7 +168,7 @@ struct egi_element_box
 	void (*sleep)(struct egi_element_box *);
 
 	/* --- destroy:
- 
+
 	*/
 	void (*destroy)(struct egi_element_box *);
 

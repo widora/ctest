@@ -2,6 +2,7 @@
 embedded graphic interface based on frame buffer, 16bit color tft-LCD.
 
 Very simple concept:
+0. Basic philosophy: Loop and Roll-back.
 1. The basic elements of egi objects are egi_element boxes(ebox).
 2. All types of EGI objects are inherited from basic eboxes. so later it will be
    easy to orgnize and manage them.
@@ -211,12 +212,13 @@ struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
 }
 
 
-/*-----------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------
 activate a txt ebox:
-	0. adjust ebox height and width according to its font line set
- 	1. store back image of txtbox frame range.
-	2. refresh the ebox.
-	3. change status token to active,
+	0. if ebox is in a sleep_status, just refresh it, and reset txt file pos offset.
+	1. adjust ebox height and width according to its font line set
+ 	2. store back image covering txtbox frame range.
+	3. refresh the ebox.
+	4. change status token to active,
 
 TODO:
 	if ebox_size is re-sizable dynamically, bkimg mem size MUST adjusted.
@@ -225,7 +227,7 @@ Return:
 	0	OK
 	<0	fails!
 
-------------------------------------------------------------------------*/
+----------------------------------------------------------------------------------*/
 int egi_txtbox_activate(struct egi_element_box *ebox)
 {
 //	int i,j;
@@ -248,12 +250,16 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
                 return -1;
         }
 
-	/* 2. wake up a sleeping ebox */
+	/* 2. activate(or wake up) a sleeping ebox
+		not necessary to adjust ebox size and allocate bkimg memory for a slpeeping ebox
+	*/
 	if(ebox->status==status_sleep)
 	{
-		ebox->status=status_active;
-		if(egi_txtbox_refresh(ebox)!=0)
+		((struct egi_data_txt *)(ebox->egi_data))->foff=0; /* reset affliated file position */
+		ebox->status=status_active; /* reset status */
+		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
+			ebox->status=status_sleep; /* reset status */
 			printf("egi_txtbox_activate():fail to wake up sleeping ebox '%s'!\n",ebox->tag);
 			return -1;
 		}
@@ -313,11 +319,11 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 
 
 	/* 7. reset offset for txt file if fpath applys */
-	((struct egi_data_txt *)(ebox->egi_data))->foff=0;
+	//???? NOT activate ????? ((struct egi_data_txt *)(ebox->egi_data))->foff=0;
 
-	/* 7. refresh displaying the ebox */
-//	if( egi_txtbox_refresh(ebox) !=0);
-//		return -6;
+	/* 8. refresh displaying the ebox */
+	if( egi_txtbox_refresh(ebox) !=0);
+		return -6;
 
 	printf("egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
@@ -332,18 +338,19 @@ refresh a txt ebox.
 		---positon(x0,y0)
 		---ebox color
 	2.restore backgroud from bkimg and store new position backgroud to bkimg.
-	3.refresh ebox color if ebox->prmcolor >0,
- 	4.update txt.
+	3.refresh ebox color if ebox->prmcolor >0, and draw frame.
+ 	4.update txt, or read txt file to it.
+	5.write txt to FB and display it.
 
 Return
-	2	fail to read txt file.
-	1	sleeping
+	1	fail to read txt file.
 	0	OK
 	<0	fail
 -------------------------------------------------------------------------------*/
 int egi_txtbox_refresh(struct egi_element_box *ebox)
 {
 	int i;
+	int ret=0;
 
 	/* 1. check data */
 	if(ebox->type != type_txt)
@@ -359,17 +366,17 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 		return -2;
 	}
 
-	/* 3. restore bk image before refresh */
-   if(ebox->movable) /* only if ebox is movale */
-   {
-#if 0 /* DEBUG */
-	printf("txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
-			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
-#endif
-        if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
-		return -3;
-   }/* ebox->movable end */
+//	/* 3. restore bk image before refresh */
+//   if(ebox->movable) /* only if ebox is movale */
+//   {
+//#if 0 /* DEBUG */
+//	printf("txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+//			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+//#endif
+//       if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+//                              ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+//		return -3;
+//   }/* ebox->movable end */
 
 	/* 4. get updated ebox parameters */
 	int x0=ebox->x0;
@@ -390,18 +397,38 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
 #endif
 
-        /* 5. redefine bkimg box range, in case it may change */
-	/* check ebox height and font lines in case it may changes, then adjust the height */
-	/* updata bkimg->bkbox according */
+        /* redefine bkimg box range, in case it changes 
+	 check ebox height and font lines, then adjust the height */
 	height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
 	ebox->height=height;
+
+
+   /* ------ restore bkimg and buffer new bkimg 
+   ONLY IF:
+	1. the txt ebox is movable, 
+	   and ebox size and position is changed.
+	2. or data_txt->.prmcolor <0 , it's transparent. EGI_NOPRIM_COLOR
+   */
+   if ( ( ebox->movable && ( (ebox->bkbox.startxy.x!=x0) || (ebox->bkbox.startxy.y!=y0)
+			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )
+           || (ebox->prmcolor<0)  )
+   {
+#if 0 /* DEBUG */
+	printf("txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+#endif
+	/* restore bk image before refresh */
+        if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+		return -3;
+
+	/* store new coordinates of the ebox
+	    updata bkimg->bkbox according */
         ebox->bkbox.startxy.x=x0;
         ebox->bkbox.startxy.y=y0;
         ebox->bkbox.endxy.x=x0+width-1;
         ebox->bkbox.endxy.y=y0+height-1;
 
-   if(ebox->movable) /* only if ebox is movale */
-   {
 #if 0 /* DEBUG */
 	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
@@ -421,7 +448,7 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	}
 
 	/* --- 8. draw frame according to its type  --- */
-	if(ebox->frame == 0) /* 0: simple type */
+	if(ebox->frame >= 0) /* 0: simple type */
 	{
 		fbset_color(0); /* use black as frame color  */
 		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
@@ -431,10 +458,10 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to txt[][] */
 	if(data_txt->fpath)
 	{
-		if(egi_txtbox_readfile(ebox,data_txt->fpath)<=0)
+		if(egi_txtbox_readfile(ebox,data_txt->fpath)<0) /* not = 0 */
 		{
 			printf("egi_txtbox_refresh(): fail to read txt file: %s \n",data_txt->fpath);
-			return 2;
+			ret=1;
 		}
 	}
 
@@ -445,7 +472,7 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
 						 y0+offy+font_height*i, txt[i]);
 
-	return 0;
+	return ret;
 }
 
 
@@ -480,14 +507,17 @@ int egi_txtbox_sleep(struct egi_element_box *ebox)
 /*-----------------------------------------------------------------
 Note:
 1. Read a txt file and try to push it to egi_data_txt->txt[]
-2. llen=data_txt->llen-1  one byte for string end 0.
+2. If it reaches the end of file, then reset offset and roll back.
+3. llen=data_txt->llen-1  one byte for string end 0.
 
 Max. char number per line =llen;
 Max. pixel number per line = bxwidth
 
 Return:
 	>0	number of chars read and stored to txt[].
-	<=0	fail
+	0	get end of file.
+
+	<0	fail
 ---------------------------------------------------------------*/
 int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 {
@@ -526,17 +556,31 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 		perror("egi_txtbox_readfile()");
 		return -2;
 	}
-	printf("succeed to open %s, current offset=%ld \n",path,foff);
+	printf("egi_txtbox_readfile(): succeed to open %s, current offset=%ld \n",path,foff);
 
 	/* restore file position */
 	fseek(fil,foff,SEEK_SET);
+
+#if 0   /* WARNING:  feof() tests the end-of-file indicator for the stream pointed  to  by  stream,  returning
+       		nonzero if it is set. !!!!!! and only AFTER fread() operation can you get real stream buffer,
+		then you can use feof().
+	*/
+	if(feof(fil))
+	{
+		printf("egi_txtbox_readfile(): already reaches the end of the file '%s', offset=%ld, \
+			roll back now!\n", path,ftell(fil) );
+		rewind(fil); /* rewind the file offset */
+		//return 0;
+	}
+#endif
 
 	while( !feof(fil) )
 	{
 		memset(buf,0,sizeof(buf));/* clear buf */
 
 		nread=fread(buf,1,sizeof(buf),fil);
-		if(nread <= 0) /* error */
+		//printf("nread=%d\n",nread);
+		if(nread <= 0) /* error or end of file */
 			break;
 
 		ret+=nread;
@@ -551,9 +595,11 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 			if( buf[i]==10 )
 			{
 				//printf(" ------get a return \n");
-				/* only if return code is NOT the first char of a line!!! */
-				if(nt != 0)
-					nlw +=1; /* new line */
+				/* if return code is the first char of a line, ignore it then. */
+			/*	if(nt != 0)
+					nlw +=1; //new line
+			*/
+				nlw += 1; /* return to next line anyway */
 				nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 				/* MAX. number of lines = nl */
 				if(nlw>nl-1) /* no more line for txt ebox */
@@ -610,6 +656,7 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 
 	} /* END while() */
 
+
 	/* DEBUG */
 #if 0
 	for(i=0;i<nl;i++)
@@ -617,8 +664,16 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 #endif
 
 	/* save current file position */
-	printf("ftell(fil)=%ld\n",ftell(fil));
-	((struct egi_data_txt *)(ebox->egi_data))->foff +=ret; //ftell(fil);
+	if(feof(fil))
+	{
+		((struct egi_data_txt *)(ebox->egi_data))->foff=0; /* reset offset,if end of file */
+		ret=0; /* end of file */
+	}
+	else
+	{
+		printf("ftell(fil)=%ld\n",ftell(fil));
+		((struct egi_data_txt *)(ebox->egi_data))->foff +=ret; //ftell(fil);
+	}
 
 	fclose(fil);
 	return ret;
