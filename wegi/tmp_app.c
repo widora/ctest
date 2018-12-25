@@ -35,10 +35,11 @@ Midas Zhou
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
+#include "egi_timer.h"
+#include "egi_obj.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
 #include "dict.h"
-#include "egi_timer.h"
 #include "symbol.h"
 
 
@@ -59,6 +60,7 @@ int main(void)
 
 	uint16_t mag=COLOR_RGB_TO16BITS(255,0,255);
 	printf("mag=%04x\n",mag);
+
 
 
 	/* ------------ NOTE ebox test ------------------ */
@@ -102,6 +104,7 @@ int main(void)
 	};
 
 
+#if 0
 	/* ------------ MEMO ebox test ------------------ */
 	struct egi_data_txt memo_txt={0};
 	/* init txtbox data: txt offset(5,5) to box, 12_lines, 24bytes char per line, font, font_color */
@@ -125,6 +128,7 @@ int main(void)
 		.tag="memo stick",
 	};
 
+#endif
 
 	/* ------------  BUTTON ebox  ------------------ */
 	struct egi_element_box  ebox_buttons[9]={0};
@@ -145,7 +149,7 @@ int main(void)
 		}
 	}
 
-#if 1 /* test ----- egi txtbox read file ---------- */
+#if 0 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
 	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
 //	 exit(1);
@@ -169,13 +173,26 @@ int main(void)
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
-	/* --- load symbol dict --- */
-	//dict_display_img(&fb_dev,"dict.img");
-	//if(dict_load_h20w15("/home/dict.img")==NULL)
-	//{
-	//	printf("Fail to load home page!\n");
-	//	exit(-1);
-	//}
+
+	/* --- test image rotate ----- */
+        /* copy fb image to buf */
+        fb_cpyto_buf(&gv_fb_dev, 120-50, 120-50, 120+50, 120+50, buf);
+	/* for image rotation */
+	struct egi_point_coord	SQMat[101*101]={0}; /* 101=2*50+1 */
+	memset(SQMat,0,sizeof(SQMat));
+	struct egi_point_coord  centxy={120,120}; /* center of rotation */
+	struct egi_point_coord  x0y0={120-50,120-50};
+
+	for(i=0;i<1000;i++)
+	{
+		/* get rotation map */
+		mat_pointrotate_SQMap(101, 5*i, centxy, SQMat);/* side,angle,center, map matrix */
+		/* draw rotated image */
+		fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+	}
+
+exit(1);
+
 
 	/* --- print and display symbols --- */
 #if 0
@@ -183,8 +200,6 @@ int main(void)
 	//for(i=0;i<10;i++)
 	//	dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
-
-
 
 	/* --- load testfont ---- */
 	if(symbol_load_page(&sympg_testfont)==NULL)
@@ -238,13 +253,9 @@ exit(1);
 
 
 	/* txt memo */
-//	strncpy(memo_txt.txt[0],"MEMO:",12);
-//	strncpy(memo_txt.txt[1],"1. make Coffee.",20);
-//	strncpy(memo_txt.txt[2],"2. take a break.",20);
-//	strncpy(memo_txt.txt[3],"3. write codes",20);
 	//egi_txtbox_activate(&ebox_memo);
 	//egi_txtbox_sleep(&ebox_memo);
-
+	egi_obj_txtmemo_init();
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -306,10 +317,10 @@ exit(1);
 				egi_txtbox_refresh(&ebox_note);
 			}
 			/* refresh MEMO eboxe according to tick */
-#if 0
-			if( tm_get_tickcount()%20 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
+#if 1
+			if( tm_get_tickcount()%1500 == 0 ) /* 1000*TM_TICK_INTERVAL(10ms) */
 			{
-				ebox_memo.y0 += 3;
+				//ebox_memo.y0 += 3;
 				egi_txtbox_refresh(&ebox_memo);
 			}
 #endif
@@ -377,16 +388,18 @@ exit(1);
 						break;
 					case 5:
 						if(ebox_memo.status!=status_active)
+						{
+							printf("BEFORE: egi_txtbox_activate(&ebox_memo)\n");
 							egi_txtbox_activate(&ebox_memo);
+						}
 						else if(ebox_memo.status==status_active)
 							egi_txtbox_sleep(&ebox_memo);
 						for(i=0;i<5;i++)
 							usleep(800000);
 						break;
 					case 6: break;
-					case 7: 
+					case 7:
 						egi_txtbox_refresh(&ebox_memo);
-
 						break;
 					case 8: break;
 				}

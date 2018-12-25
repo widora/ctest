@@ -16,12 +16,16 @@ Modified by Midas-Zhou
 1. add
 -----------------------------------------------------------------------------*/
 #include "fblines.h"
+#include "egi.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <math.h>
+#include <stdlib.h>
 
+
+#define MATH_PI 3.1416
 
 #ifndef _TYPE_FBDEV_
 #define _TYPE_FBDEV_
@@ -273,8 +277,11 @@ FBDEV   gv_fb_dev;
     }
 
 
-    /*----------------------------------------------------------
-	Return:
+    /*-------------------------------------------------------------
+    Draw a filled rectangle defined by two end points of its
+    diagonal line. Both points are also part of the rectangle.
+
+    Return:
 		0	OK
 		-1	point out of FB mem
     Midas
@@ -597,3 +604,163 @@ FBDEV   gv_fb_dev;
 
 	return ret;
    }
+
+
+
+/*--------------------------------------------------------------------------------------------
+1. rotation center is the center of the square area.
+2. The square side length must be 2n+1, so the center can be located just in the middle of
+   the symmetric axis.
+
+
+n: 		pixel number for square side.
+angle: 		rotation angle. clockwise is positive.
+centxy 		the center point coordinate of the concerning square area of LCD(fb).
+SQMat_XRYR: 	after rotation
+	      square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
+
+
+Midas Zhou
+----------------------------------------------------------------------------------------------*/
+void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
+							struct egi_point_coord *SQMat_XRYR)
+{
+	int i,j;
+	double sinang,cosang;
+	double xr,yr;
+	struct egi_point_coord  x0y0; /* the left top point of the square */
+	struct egi_point_coord *SQMat_XY;
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("mat_pointrotate_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	return;
+	}
+
+	/* check SQMat_XRYR */
+/*
+	if( sizeof(SQMat_XRYR) < n*n*sizeof(struct egi_point_coord))
+	{
+		printf("mat_pointrotate_SQMap(): SQMat_XRYR size=%d is invalid!\n",sizeof(SQMat_XRYR));
+		return;
+	}
+*/
+
+	SQMat_XY=malloc(n*n*sizeof(struct egi_point_coord)); /* intermid matrix */
+	if(SQMat_XY==NULL)
+	{
+		printf("malloc SQMat_XY fails!\n");
+		return;
+	}
+	//printf("sizeof(SQMat_XY) =%d\n",n*n*sizeof(struct egi_point_coord));
+
+/* 1. generate matrix of point_coordinates for the concerning square area, origin LCD(fb) */
+	/* get left top coordinate */
+	x0y0.x=centxy.x-((n-1)>>1);
+	x0y0.y=centxy.y-((n-1)>>1);
+	/* */
+	for(i=0;i<n;i++) /* row index,Y */
+	{
+		for(j=0;j<n;j++) /* column index,X */
+		{
+			SQMat_XY[i*n+j].x=x0y0.x+j;
+			SQMat_XY[i*n+j].y=x0y0.y+i;
+			//printf("LCD origin: SQMat_XY[%d]=(%d,%d)\n",i*n+j,SQMat_XY[i*n+j].x, SQMat_XY[i*n+j].y);
+		}
+	}
+
+/* 2. transform coordinate origin from LCD(fb) origin to the center of the square*/
+	for(i=0;i<n*n;i++)
+	{
+		SQMat_XY[i].x -= x0y0.x+((n-1)>>1);
+		SQMat_XY[i].y -= x0y0.y+((n-1)>>1);
+//		printf("center origin: SQMat_XY[%d]=(%d,%d)\n",i, SQMat_XY[i].x, SQMat_XY[i].y);
+
+		/* !!! set SQMat_XRYR[] same as SQMat_XY */
+	        SQMat_XRYR[i].x=SQMat_XY[i].x;
+		SQMat_XRYR[i].y=SQMat_XY[i].y;
+
+	}
+
+/* 3. map coordinates of all points to a new matrix by rotation transformation */
+	sinang=sin(angle/180.0*MATH_PI);
+	cosang=cos(angle/180.0*MATH_PI);
+
+	//printf("sinang=%f,cosang=%f\n",sinang,cosang);
+
+	for(i=0;i<n*n;i++)
+	{
+		/* point rotation transformation .....round up ???? */
+		xr=(SQMat_XY[i].x)*cosang+(SQMat_XY[i].y)*sinang;
+		yr=(SQMat_XY[i].x)*(-sinang)+(SQMat_XY[i].y)*cosang;
+		//printf("i=%d,xr=%f,yr=%f,\n",i,xr,yr);
+		/* check if new piont coordinate is within the square */
+		if(  (xr >= -((n-1)/2)) && ( xr <= ((n-1)/2))
+					 && (yr >= -((n-1)/2)) && (yr <= ((n-1)/2))  )
+		{
+			SQMat_XRYR[i].x=round(xr);
+			SQMat_XRYR[i].y=round(yr);
+		/*
+			printf("JUST IN RANGE: xr=%f,yr=%f , origin point (%d,%d), new point (%d,%d)\n",
+				xr,yr,SQMat_XY[i].x,SQMat_XY[i].y,SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+		*/
+		}
+		/*else:	just keep old coordinate */
+		else
+		{
+			//printf("NOT IN RANGE: xr=%f,yr=%f , origin point (%d,%d)\n",xr,yr,SQMat_XY[i].x,SQMat_XY[i].y);
+		}
+	}
+
+/* 4. transform coordinate origin back to X0Y0 origin */
+	for(i=0;i<n*n;i++)
+	{
+                SQMat_XRYR[i].x += (n-1)>>1;
+                SQMat_XRYR[i].y += (n-1)>>1;
+		//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+	}
+
+	//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+
+
+	free(SQMat_XY);
+}
+
+
+/*---------------------------------------------------------------------------------------
+draw an image through a map of rotation.
+
+n:		side pixel number of a square image. to be 2*m+1;
+x0y0:		left top coordinate of the square.
+image:		16bit color buf of a square image
+SQMat_XRYR:	Rotation map matrix of the square.
+ 		point(i,j) map to egi_point_coord SQMat_XRYR[n*i+j]
+
+------------------------------------------------------------------------------------------*/
+void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
+						const struct egi_point_coord *SQMat_XRYR)
+{
+	int k,m,i,j;
+	int mapx,mapy;
+	uint16_t color;
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("fb_drawimg_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	return;
+	}
+
+
+	/* map each image point index k to get rotated position index m,
+		then draw the color to index m position */
+
+	for(k=0;k<n*n;k++)
+	{
+		/*  for current point index k, get mapped point index m, origin left top */
+		m=SQMat_XRYR[k].y*n+SQMat_XRYR[k].x; /* get point index after rotation */
+		fbset_color(image[k]);
+		draw_dot(&gv_fb_dev, x0y0.x+m%n, x0y0.y+m/n);
+	}
+}

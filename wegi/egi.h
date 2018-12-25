@@ -18,8 +18,8 @@ Midas Zhou
 
 struct egi_point_coord
 {
-	unsigned int x;
-	unsigned int y;
+	 int x;
+	 int y;
 };
 
 struct egi_box_coords
@@ -228,13 +228,10 @@ struct egi_data_page
 void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, struct egi_element_box *ebox);
 int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num);
-
+enum egi_ebox_status egi_get_ebox_status(const struct egi_element_box *ebox);
 struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
                  int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
-void egi_free_data_txt(struct egi_data_txt *data_txt);
 struct egi_element_box *egi_init_ebox(struct egi_element_box *ebox);
-
-
 void egi_free_ebox(struct egi_element_box *ebox);
 
 /* for txt ebox */

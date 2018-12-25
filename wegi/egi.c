@@ -135,6 +135,15 @@ int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num)
 	return -1;
 }
 
+/*------------------------------------------------
+OBSOLETE!!!
+all eboxes to be public !!!
+return ebox status
+-------------------------------------------------*/
+enum egi_ebox_status egi_get_ebox_status(const struct egi_element_box *ebox)
+{
+	return ebox->status;
+}
 
 
 /*--------------------------------------------------------------------------------
@@ -236,6 +245,14 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	int height=ebox->height;
 	int width=ebox->width;
 	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
+
+	/* 0. check data */
+	if(data_txt == NULL)
+	{
+                printf("egi_txtbox_activate(): data_txt is NULL in ebox '%s'!\n",ebox->tag);
+                return -1;
+	}
+
 	int nl=data_txt->nl;
 //	int llen=data_txt->llen;
 //	int offx=data_txt->offx;
@@ -247,7 +264,7 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
         if(ebox->type != type_txt)
         {
                 printf("egi_txtbox_activate(): '%s' is not a txt type ebox!\n",ebox->tag);
-                return -1;
+                return -2;
         }
 
 	/* 2. activate(or wake up) a sleeping ebox
@@ -261,7 +278,7 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 		{
 			ebox->status=status_sleep; /* reset status */
 			printf("egi_txtbox_activate():fail to wake up sleeping ebox '%s'!\n",ebox->tag);
-			return -1;
+			return -3;
 		}
 
 		printf("egi_txtbox_activate(): wake up a sleeping '%s' ebox.\n",ebox->tag);
@@ -279,25 +296,9 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 		if(egi_alloc_bkimg(ebox, width, height)==NULL)
         	{
                	 	printf("egi_txtbox_activate(): fail to egi_alloc_bkimg() for '%s' ebox!\n",ebox->tag);
-                	return -2;
+                	return -4;
         	}
 
-#if 0
-	/* 4. malloc exbo->bkimg for bk image storing */
-	if(ebox->bkimg != NULL)
-	{
-		printf("egi_txtbox_activat(): '%s' ebox->bkimg is not NULL, fail to malloc!\n",ebox->tag);
-		return -2;
-	}
-
-
-	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
-	if(ebox->bkimg == NULL)
-	{
-		printf("egi_txtbox_activat(): fail to malloc for '%s' ebox->bkimg!\n",ebox->tag);
-		return -4;
-	}
-#endif
 
 	/* 5. store bk image which will be restored when this ebox position/size changes */
 	/* define bkimg box */
@@ -362,7 +363,7 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	/* 2. check the ebox status */
 	if( ebox->status != status_active )
 	{
-//		printf("This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
+		printf("This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 
