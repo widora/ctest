@@ -39,7 +39,7 @@ Midas Zhou
 #include "egi_obj.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
-#include "dict.h"
+//#include "dict.h"
 #include "symbol.h"
 
 
@@ -54,12 +54,12 @@ int main(void)
 	int delt=5; /* incremental value*/
 	//char str_syscmd[100];
 	//char strf[100];
+	int disk_on=0;
+	int radio_on=0;
+	int kr=0;
 
 	uint16_t *buf;
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
-
-	uint16_t mag=COLOR_RGB_TO16BITS(255,0,255);
-	printf("mag=%04x\n",mag);
 
 
 
@@ -121,7 +121,7 @@ int main(void)
 		.egi_data =(void *)&memo_txt, /* try &note_txt.....you may use other txt data  */
 		.height = 320, /*box height, one line, will be ajusted according to numb of lines */
 		.width = 240,
-		.prmcolor = WEGI_COLOR_ORANGE, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
+		.prmcolor = WEGI_COLOR_GRAY, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
 		.x0= 12,
 		.y0= 0, // 25 - 320,
 		.frame=-1, //no frame
@@ -130,7 +130,7 @@ int main(void)
 
 #endif
 
-	/* ------------  BUTTON ebox  ------------------ */
+	/* ------------   home_button eboxes definition  ------------------ */
 	struct egi_element_box  ebox_buttons[9]={0};
 	struct egi_data_btn home_btns[9]={0};
 	for(i=0;i<3;i++) /* row of icon img */
@@ -142,8 +142,9 @@ int main(void)
 			home_btns[3*i+j].icon=&sympg_icon;
 			home_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
 			/* hook to ebox model */
-			ebox_buttons[3*i+j].y0=100+(15+60)*i;
-			ebox_buttons[3*i+j].x0=15+(15+60)*j;			ebox_buttons[3*i+j].type=type_button;
+			ebox_buttons[3*i+j].y0=105+(15+60)*i;
+			ebox_buttons[3*i+j].x0=15+(15+60)*j;
+			ebox_buttons[3*i+j].type=type_button;
 			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
 			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
@@ -152,7 +153,7 @@ int main(void)
 #if 0 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
 	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
-//	 exit(1);
+	 exit(1);
 #endif
 
 	/* --- open spi dev --- */
@@ -162,55 +163,64 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
+
 	/* --- clear screen with BLACK --- */
 #if 0
 	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
-	fbset_color(0xffff);
-	draw_filled_rect(&gv_fb_dev,0,0,20,20);
-	exit(1);
 #endif
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
 
-	/* --- test image rotate ----- */
+	/* --------- test image rotate ----------- */
+#if 1
         /* copy fb image to buf */
-        fb_cpyto_buf(&gv_fb_dev, 120-50, 120-50, 120+50, 120+50, buf);
+	int centx=120;
+	int centy=51;
+	int sq=101;
+        fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
 	/* for image rotation */
-	struct egi_point_coord	SQMat[101*101]={0}; /* 101=2*50+1 */
-	memset(SQMat,0,sizeof(SQMat));
-	struct egi_point_coord  centxy={120,120}; /* center of rotation */
-	struct egi_point_coord  x0y0={120-50,120-50};
+//	struct egi_point_coord	SQMat[101*101]={0}; /* 101=2*50+1 */
+	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
+	struct egi_point_coord  *SQMat_tmp; /* auxiliary matrix,just temp. use */
+	SQMat=malloc(101*101*sizeof(struct egi_point_coord));
+	SQMat_tmp=malloc(101*101*sizeof(struct egi_point_coord));
 
-	for(i=0;i<1000;i++)
+	memset(SQMat,0,sizeof(SQMat));
+	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
+	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
+#endif
+
+#if 0
+	while(1)
 	{
+		i++;
 		/* get rotation map */
 		mat_pointrotate_SQMap(101, 5*i, centxy, SQMat);/* side,angle,center, map matrix */
 		/* draw rotated image */
 		fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
 	}
+#endif
 
-exit(1);
 
 
 	/* --- print and display symbols --- */
 #if 0
-	//dict_print_symb20x15(dict_h20w15);
-	//for(i=0;i<10;i++)
-	//	dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
+	for(i=0;i<10;i++)
+		dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 
-	/* --- load testfont ---- */
+	/*------------------ Load Symbols ------------------*/
+	/* load testfont */
 	if(symbol_load_page(&sympg_testfont)==NULL)
 		exit(-2);
-	/* --- load numbfont ---- */
+	/* load numbfont */
 	if(symbol_load_page(&sympg_numbfont)==NULL)
 		exit(-2);
-	/* --- load icons ---- */
+	/* load icons */
 	if(symbol_load_page(&sympg_icon)==NULL)
 		exit(-2);
-
 
 
 	/* --------- test:  print all symbols in the page --------*/
@@ -225,6 +235,7 @@ exit(1);
 	for(i=48;i<58;i++)
 		symbol_print_symbol(&sympg_numbfont,i,0x0);
 #endif
+
 
 
 #if 0 /* ----  test circle ----------*/
@@ -260,14 +271,16 @@ exit(1);
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
-	tm_tick_settimer(TM_TICK_INTERVAL);
+
+	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 	signal(SIGALRM, tm_tick_sigroutine);
+
 
 
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
-	/*  test an array of circle */
+	/*  test an array of circles */
 #if 0
 	for(i=0;i<6;i++)
 	{
@@ -286,7 +299,7 @@ exit(1);
 	//fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
 
 
-/* ===============----------(((  MAIN LOOP  )))----------================= */
+/* ===============-------------(((  MAIN LOOP  )))-------------================= */
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
@@ -298,6 +311,7 @@ exit(1);
 		{
 			continue; /* continue to loop to finish reading touch data */
 		}
+
 
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
@@ -343,8 +357,21 @@ exit(1);
 			/* copy to note_txt */
 			strncpy(note_txt.txt[0],tm_strbuf,22);
 
+
+			/* ----------- test rotation map------------- */
+		    	if(disk_on)
+		    	{
+				kr++;
+				/* get rotation map */
+				mat_pointrotate_SQMap(101, 5*kr, centxy, SQMat_tmp, SQMat);/* side,angle,center, map matrix */
+				/* draw rotated image */
+				fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+		    	}
+
 			continue; /* continue to loop to read touch data */
 		}
+
+
 
 		else if(ret == XPT_READ_STATUS_COMPLETE)
 		{
@@ -353,57 +380,72 @@ exit(1);
 
 		}
 
-	///////////////// -----------  Touch Event Handling  ----------- ///////////////
+	/* -----------------------  Touch Event Handling  --------------------------*/
 		/*---  get index of pressed ebox and activate the button ----*/
-	    	//index=egi_get_boxindex(sx,sy,ebox,nrow*ncolumn);
 	    	index=egi_get_boxindex(sx,sy,ebox_buttons,9);
-		printf("get box index=%d\n",index);
-		//continue;
+		printf("get touched box index=%d\n",index);
 
 #if 1
-		if(index>=0) /* if get meaningful index */
+		if(index>=0) /* if get valid index */
 		{
-			if(index==0)
+			printf("button[%d] pressed!\n",index);
+			switch(index)
 			{
-				printf("refresh fb now.\n");
-				system("/tmp/tmp_app");
-				exit(1);
-			}
-			else
-			{
-				printf("button[%d] pressed!\n",index);
-				//sprintf(strf,"m_%d.jpg",index+1);
-				//show_jpg(strf, &gv_fb_dev, 1, 0, 0);/*black off*/
-				switch(index)
-				{
-					case 0:
-						break;
-					case 1:
-						break;
-					case 2:
-						break;
-					case 3:
-						break;
-					case 4:
-						break;
-					case 5:
-						if(ebox_memo.status!=status_active)
-						{
-							printf("BEFORE: egi_txtbox_activate(&ebox_memo)\n");
-							egi_txtbox_activate(&ebox_memo);
-						}
-						else if(ebox_memo.status==status_active)
-							egi_txtbox_sleep(&ebox_memo);
-						for(i=0;i<5;i++)
-							usleep(800000);
-						break;
-					case 6: break;
-					case 7:
-						egi_txtbox_refresh(&ebox_memo);
-						break;
-					case 8: break;
-				}
-			}
+				case 0: /* use */
+					printf("refresh fb now.\n");
+					system("/tmp/tmp_app");
+					exit(1);
+					break;
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
+				case 4: /*--------ON/OFF:  disk play ---------*/
+					if(disk_on)
+					{
+						disk_on=0;
+						system("killall mplayer");
+					}
+					else
+					{
+						disk_on=1;
+						system("mplayer -af volume=9:1 /mmc/friends.mp3 >/dev/null 2>&1 &");
+					}
+					tm_delayms(300);
+					break;
+				case 5: /*-------ON/OFF:  memo txt display -------*/
+					if(ebox_memo.status!=status_active)
+					{
+						printf("BEFORE: egi_txtbox_activate(&ebox_memo)\n");
+						egi_txtbox_activate(&ebox_memo);
+					}
+					else if(ebox_memo.status==status_active)
+						egi_txtbox_sleep(&ebox_memo);
+					tm_delayms(300);
+					//for(i=0;i<5;i++)
+					//	usleep(800000);
+					break;
+				case 6: break;
+				case 7: /*------ON/OFF:  memo txt refresh -------*/
+					egi_txtbox_refresh(&ebox_memo);
+					break;
+				case 8: 
+					if(radio_on)
+					{
+						radio_on=0;
+						system("killall mplayer");
+					}
+					else
+					{
+						radio_on=1;
+						system("/home/eradio.sh");
+					}
+					tm_delayms(300);
+					break;
+			}/* switch */
+		//}
 			//usleep(200000); //this will make touch points scattered.
 		}/* end of if(index>=0) */
 #endif
@@ -412,9 +454,6 @@ exit(1);
 
 	/* release symbol mem page */
 	symbol_release_page(&sympg_testfont);
-
-	/* release dict mem */
-	dict_release_h20w15();
 
 	/* close fb dev */
         munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

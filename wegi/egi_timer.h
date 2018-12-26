@@ -22,6 +22,6 @@ void tm_settimer(int us);
 void tm_tick_settimer(int us);
 void tm_tick_sigroutine(int signo);
 long long unsigned int tm_get_tickcount(void);
-
+void tm_delayms(int ms);
 
 #endif

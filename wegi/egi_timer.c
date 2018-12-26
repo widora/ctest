@@ -134,3 +134,20 @@ long long unsigned int tm_get_tickcount(void)
 {
 	return tm_tick_count;
 }
+
+
+/*---------------------------
+---------------------------*/
+void tm_delayms(int ms)
+{
+	int nticks=ms*1000/TM_TICK_INTERVAL;
+	int tm_now=tm_tick_count;
+
+	while(tm_tick_count-tm_now < nticks)
+	{
+		usleep(20000);
+	}
+
+
+}
+

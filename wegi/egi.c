@@ -11,6 +11,11 @@ Very simple concept:
 5. An egi_page hosts several type of egi_ebox, such as type_txt,type_button,...etc.
 6. First init egi_data_xxx for different type, then init the egi_element_box with it.
 
+7. some ideas about egi_page ....
+  7.1 Home egi_page (wallpaper, app buttons, head informations ...etc.)
+  7.2 Current active egi_page (current running/displaying egi_page, accept all pad-touch events)
+  7.3 Back Running egi_page (running in back groud, no pad-touch reaction. )
+
 
 TODO:
 	0. egi_txtbox_filltxt(),fill txt buffer of txt_data->txt.

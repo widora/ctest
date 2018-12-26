@@ -1,9 +1,9 @@
-/*------------------------------------------------------------------------------------
+/*-----------------------------------------------------------------------------
 embedded graphic interface based on frame buffer, 16bit color tft-LCD.
 
 
 Midas Zhou
-------------------------------------------------------------------------------------*/
+-----------------------------------------------------------------------------*/
 #ifndef __EGI_H__
 #define __EGI_H__
 
@@ -162,8 +162,8 @@ struct egi_element_box
 	/* --- sleep:
 	   1. Remove the ebox from the screen and restore the bkimg.
 	   2. and set status as sleep.
-	   3. if an immovale ebox sleeps, it will not dispear!
-	   4. sleeping ebox will not be targed for touching.
+	   3. if an immovale ebox sleeps, it should not dispear ??!!!
+	   4. sleeping ebox will not react to touching.
 	*/
 	void (*sleep)(struct egi_element_box *);
 
@@ -171,7 +171,6 @@ struct egi_element_box
 
 	*/
 	void (*destroy)(struct egi_element_box *);
-
 
 	/* child list */
 	struct egi_element_box *child;

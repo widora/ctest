@@ -25,6 +25,16 @@ Midas
 #define SYM_FONT_DEFAULT_TRANSPCOLOR 1 /* >0 Ok, for symbol_string_writeFB(), if the symbol is font then
 					use symbol back color as transparent tunnel */
 
+
+/* APP ICON Index of struct symbol_page sympg_icon  */
+#define ICON_DISKPLAY_INDEX	4
+#define ICON_NETRADIO_INDEX	8
+#define ICON_MEMOTXT_INDEX	5
+#define ICON_DIAGRAM_INDEX	6
+#define ICON_IOT_INDEX		1
+
+
+
 /* symbol type */
 enum symbol_type
 {

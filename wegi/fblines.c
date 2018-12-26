@@ -606,7 +606,7 @@ FBDEV   gv_fb_dev;
    }
 
 
-
+#if 0
 /*--------------------------------------------------------------------------------------------
 1. rotation center is the center of the square area.
 2. The square side length must be 2n+1, so the center can be located just in the middle of
@@ -638,22 +638,23 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 	 	return;
 	}
 
-	/* check SQMat_XRYR */
-/*
-	if( sizeof(SQMat_XRYR) < n*n*sizeof(struct egi_point_coord))
+	/* 0. check SQMat_XRYR */
+/*   1. sizeof() for static variables only
+     2. !!!!! for malloc() pointer, however you can use sizeof.
+	if( sizeof(*SQMat_XRYR) < n*n*sizeof(struct egi_point_coord))
 	{
-		printf("mat_pointrotate_SQMap(): SQMat_XRYR size=%d is invalid!\n",sizeof(SQMat_XRYR));
+		printf("mat_pointrotate_SQMap(): SQMat_XRYR size=%d is invalid!\n",sizeof(*SQMat_XRYR));
 		return;
 	}
 */
-
 	SQMat_XY=malloc(n*n*sizeof(struct egi_point_coord)); /* intermid matrix */
 	if(SQMat_XY==NULL)
 	{
 		printf("malloc SQMat_XY fails!\n");
 		return;
 	}
-	//printf("sizeof(SQMat_XY) =%d\n",n*n*sizeof(struct egi_point_coord));
+	printf("sizeof(SQMat_XY) =%d\n",n*n*sizeof(struct egi_point_coord));
+
 
 /* 1. generate matrix of point_coordinates for the concerning square area, origin LCD(fb) */
 	/* get left top coordinate */
@@ -726,6 +727,120 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 
 	free(SQMat_XY);
 }
+#endif
+
+#if 1
+/*-------------------------------------------------------------------------------------------
+ just another version of mat_pointrotate_SQMap(), here the caller is in charge of allocating
+ memory for the SQMat_XY.
+NOTE:
+	1. SQMat_XY and SQMat_XRYR are all allocated dynamically by the caller.
+
+
+-------------------------------------------------------------------------------------------*/
+void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
+                       struct egi_point_coord *SQMat_XY, struct egi_point_coord *SQMat_XRYR)
+{
+	int i,j;
+	float sinang,cosang;
+	float xr,yr;
+	struct egi_point_coord  x0y0; /* the left top point of the square */
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("mat_pointrotate_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	return;
+	}
+
+	/* check struct memory size, they are assumed to be allocated dynamically, that sizeof() 
+	 can be used to get its size */
+#if 0
+        if( sizeof(*SQMat_XY) < n*n*sizeof(struct egi_point_coord))
+        {
+                printf("mat_pointrotate_SQMap(): SQMat_XY size=%d is invalid!\n",sizeof(*SQMat_XY));
+                return;
+        }
+        if( sizeof(*SQMat_XRYR) < n*n*sizeof(struct egi_point_coord))
+        {
+                printf("mat_pointrotate_SQMap(): SQMat_XRYR size=%d is invalid!\n",sizeof(*SQMat_XRYR));
+                return;
+        }
+#endif
+
+/* 1. generate matrix of point_coordinates for the concerning square area, origin LCD(fb) */
+	/* get left top coordinate */
+	x0y0.x=centxy.x-((n-1)>>1);
+	x0y0.y=centxy.y-((n-1)>>1);
+	/* */
+	for(i=0;i<n;i++) /* row index,Y */
+	{
+		for(j=0;j<n;j++) /* column index,X */
+		{
+			SQMat_XY[i*n+j].x=x0y0.x+j;
+			SQMat_XY[i*n+j].y=x0y0.y+i;
+			//printf("LCD origin: SQMat_XY[%d]=(%d,%d)\n",i*n+j,SQMat_XY[i*n+j].x, SQMat_XY[i*n+j].y);
+		}
+	}
+
+/* 2. transform coordinate origin from LCD(fb) origin to the center of the square*/
+	for(i=0;i<n*n;i++)
+	{
+		SQMat_XY[i].x -= x0y0.x+((n-1)>>1);
+		SQMat_XY[i].y -= x0y0.y+((n-1)>>1);
+
+		/* !!! set SQMat_XRYR[] same as SQMat_XY default value, for those stationary points later. */
+	        SQMat_XRYR[i].x=SQMat_XY[i].x;
+		SQMat_XRYR[i].y=SQMat_XY[i].y;
+	}
+
+/* 3. map coordinates of all points to a new matrix by rotation transformation */
+	sinang=sin(angle/180.0*MATH_PI);
+	cosang=cos(angle/180.0*MATH_PI);
+	//printf("sinang=%f,cosang=%f\n",sinang,cosang);
+
+	for(i=0;i<n*n;i++)
+	{
+		/* point rotation transformation .....round up ???? */
+		xr=(SQMat_XY[i].x)*cosang+(SQMat_XY[i].y)*sinang;
+		yr=(SQMat_XY[i].x)*(-sinang)+(SQMat_XY[i].y)*cosang;
+		//printf("i=%d,xr=%f,yr=%f,\n",i,xr,yr);
+		/* check if new piont coordinate is within the square */
+		if(  (xr >= -((n-1)/2)) && ( xr <= ((n-1)/2))
+					 && (yr >= -((n-1)/2)) && (yr <= ((n-1)/2))  )
+		{
+			SQMat_XRYR[i].x=round(xr);
+			SQMat_XRYR[i].y=round(yr);
+		/*
+			printf("JUST IN RANGE: xr=%f,yr=%f , origin point (%d,%d), new point (%d,%d)\n",
+				xr,yr,SQMat_XY[i].x,SQMat_XY[i].y,SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+		*/
+		}
+		/*else:	just keep old coordinate */
+		else
+		{
+			//printf("NOT IN RANGE: xr=%f,yr=%f , origin point (%d,%d)\n",xr,yr,SQMat_XY[i].x,SQMat_XY[i].y);
+		}
+	}
+
+/* 4. transform coordinate origin back to X0Y0 origin */
+	for(i=0;i<n*n;i++)
+	{
+                SQMat_XRYR[i].x += (n-1)>>1;
+                SQMat_XRYR[i].y += (n-1)>>1;
+		//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+	}
+
+	//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+}
+#endif
+
+
+
+
+
+
+
 
 
 /*---------------------------------------------------------------------------------------
