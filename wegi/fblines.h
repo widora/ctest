@@ -55,7 +55,7 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
                                                         struct egi_point_coord *SQMat_XRYR);
 */
 void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
-                       struct egi_point_coord *SQMat_XY, struct egi_point_coord *SQMat_XRYR);
+                       					struct egi_point_coord *SQMat_XRYR);
 
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
    	                                           const struct egi_point_coord *SQMat_XRYR);

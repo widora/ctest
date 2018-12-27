@@ -608,10 +608,9 @@ FBDEV   gv_fb_dev;
 
 /*--------------------------------------------------------------------------------------------
 1. rotation center is the center of the square area.
-2. The square side length must be in form of 2n+1, so the center is just at the middle of
+2. The square side length must be 2n+1, so the center is located just in the middle of
    the symmetric axis.
-3. !!! If apply this to map a still picture to a serial of rotated pictures, then the smaller
-   the interval angel, the more precise the final motion picture you'll get.
+
 
 n: 		pixel number for square side.
 angle: 		rotation angle. clockwise is positive.
@@ -700,11 +699,12 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 }
 
 
-/*---------------------------------------------------------------------------------------
-1. draw an image through a map of rotation.
-2. 
 
-n:		side pixel number of a square image. to be inform of 2*m+1;
+
+/*---------------------------------------------------------------------------------------
+draw an image through a map of rotation.
+
+n:		side pixel number of a square image. to be 2*m+1;
 x0y0:		left top coordinate of the square.
 image:		16bit color buf of a square image
 SQMat_XRYR:	Rotation map matrix of the square.
@@ -714,9 +714,8 @@ SQMat_XRYR:	Rotation map matrix of the square.
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 						const struct egi_point_coord *SQMat_XRYR)
 {
-	int i,j,k,m;
-	int s;
-//	int mapx,mapy;
+	int k,m,i,j;
+	int mapx,mapy;
 	uint16_t color;
 
 	/* check if n can be resolved in form of 2*m+1 */
@@ -726,19 +725,15 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 	 	return;
 	}
 
+
 	/* map each image point index k to get rotated position index m,
-	   then draw the color to index m position
-	   only sort out points within the circle */
-	for(i=-n/2-1;i<n/2;i++) /* row index,from top to bottom, -1 to compensate precision loss */
+		then draw the color to index m position */
+
+	for(k=0;k<n*n;k++)
 	{
-		s=sqrt(n*n/4-i*i);
-		for(j=n/2+1-s;j<=n/2+s;j++) /* +1 to compensate precision loss */
-		{
-			k=(i+n/2)*n+j;
-			/*  for current point index k, get mapped point index m, origin left top */
-			m=SQMat_XRYR[k].y*n+SQMat_XRYR[k].x; /* get point index after rotation */
-			fbset_color(image[k]);
-			draw_dot(&gv_fb_dev, x0y0.x+m%n, x0y0.y+m/n);
-		}
+		/*  for current point index k, get mapped point index m, origin left top */
+		m=SQMat_XRYR[k].y*n+SQMat_XRYR[k].x; /* get point index after rotation */
+		fbset_color(image[k]);
+		draw_dot(&gv_fb_dev, x0y0.x+m%n, x0y0.y+m/n);
 	}
 }

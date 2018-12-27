@@ -6,7 +6,7 @@
 
 
 
-#define TM_TICK_INTERVAL	10000  /* us */
+#define TM_TICK_INTERVAL	2000 //5000  /* us */
 
 
 /* shared data */

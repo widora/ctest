@@ -177,16 +177,12 @@ int main(void)
 #if 1
         /* copy fb image to buf */
 	int centx=120;
-	int centy=51;
-	int sq=101;
+	int centy=120;
+	int sq=141;
         fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
 	/* for image rotation */
-//	struct egi_point_coord	SQMat[101*101]={0}; /* 101=2*50+1 */
 	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
-	struct egi_point_coord  *SQMat_tmp; /* auxiliary matrix,just temp. use */
-	SQMat=malloc(101*101*sizeof(struct egi_point_coord));
-	SQMat_tmp=malloc(101*101*sizeof(struct egi_point_coord));
-
+	SQMat=malloc(141*141*sizeof(struct egi_point_coord));
 	memset(SQMat,0,sizeof(SQMat));
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
@@ -201,6 +197,7 @@ int main(void)
 		/* draw rotated image */
 		fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
 	}
+	exit(1)
 #endif
 
 
@@ -276,7 +273,6 @@ exit(1);
 	signal(SIGALRM, tm_tick_sigroutine);
 
 
-
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
@@ -303,8 +299,8 @@ exit(1);
 	while(1)
 	{
 		/*------ relate with number of touch-read samples -----*/
-		usleep(3000); //3000
-
+		//usleep(6000); //3000
+		tm_delayms(2);
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 		if(ret == XPT_READ_STATUS_GOING )
@@ -322,7 +318,7 @@ exit(1);
 
 /* TODO: if NOTE and MEMO has the same interval value,then the later one will never be performed !!! */
 			/* refresh timer NOTE eboxe according to tick */
-			if( tm_get_tickcount()%50 == 0 ) /* 30*TM_TICK_INTERVAL(10000us) */
+			if( tm_get_tickcount()%100 == 0 ) /* 30*TM_TICK_INTERVAL(5000us) */
 			{
 				//printf("tick = %lld\n",tm_get_tickcount());
 				if(ebox_note.x0 <=60  ) delt=10;
@@ -332,7 +328,7 @@ exit(1);
 			}
 			/* refresh MEMO eboxe according to tick */
 #if 1
-			if( tm_get_tickcount()%1500 == 0 ) /* 1000*TM_TICK_INTERVAL(10ms) */
+			if( tm_get_tickcount()%3000 == 0 ) /* 1000*TM_TICK_INTERVAL(5ms) */
 			{
 				//ebox_memo.y0 += 3;
 				egi_txtbox_refresh(&ebox_memo);
@@ -363,14 +359,13 @@ exit(1);
 		    	{
 				kr++;
 				/* get rotation map */
-				mat_pointrotate_SQMap(101, 5*kr, centxy, SQMat_tmp, SQMat);/* side,angle,center, map matrix */
+				mat_pointrotate_SQMap(sq, 1*kr, centxy, SQMat);/* side,angle,center, map matrix */
 				/* draw rotated image */
-				fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+				fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
 		    	}
 
 			continue; /* continue to loop to read touch data */
 		}
-
 
 
 		else if(ret == XPT_READ_STATUS_COMPLETE)
@@ -423,7 +418,7 @@ exit(1);
 					}
 					else if(ebox_memo.status==status_active)
 						egi_txtbox_sleep(&ebox_memo);
-					tm_delayms(300);
+					tm_delayms(200);
 					//for(i=0;i<5;i++)
 					//	usleep(800000);
 					break;
@@ -431,7 +426,7 @@ exit(1);
 				case 7: /*------ON/OFF:  memo txt refresh -------*/
 					egi_txtbox_refresh(&ebox_memo);
 					break;
-				case 8: 
+				case 8:
 					if(radio_on)
 					{
 						radio_on=0;
@@ -442,7 +437,7 @@ exit(1);
 						radio_on=1;
 						system("/home/eradio.sh");
 					}
-					tm_delayms(300);
+					tm_delayms(200);
 					break;
 			}/* switch */
 		//}
