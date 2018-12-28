@@ -35,8 +35,9 @@ Midas Zhou
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
+#include "egi_txt.h"
 #include "egi_timer.h"
-#include "egi_obj.h"
+#include "egi_objtxt.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
 //#include "dict.h"
@@ -62,73 +63,15 @@ int main(void)
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 
+	/* ------  create txt type ebox objects -------*/
+	struct egi_element_box *ebox_note = create_ebox_note();
+	if(ebox_note == NULL)return -1;
+	struct egi_data_txt *note_txt=(struct egi_data_txt *)(ebox_note->egi_data);
 
-	/* ------------ NOTE ebox test ------------------ */
-	struct egi_data_txt note_txt={0};
-	/* init txtbox data: offset(10,10) 2_lines, 510bytes per txt line,font, font_color */
-	if( egi_init_data_txt(&note_txt, 5, 5, 2, 510, &sympg_testfont, WEGI_COLOR_BLACK) ==NULL ) {
-		printf("init NOTE data txt fail!\n"); 
-		exit(1);
-	 }
-	struct egi_element_box ebox_note=
-	{
-		.movable = true,
-		.type = type_txt,
-		.egi_data =(void *) &note_txt,
-		.height = 60, /* two line */
-		.width = 230,
-		.prmcolor = WEGI_COLOR_GRAY,/* <0, transparent */
-		.x0= 5,  //5
-		.y0= 80, //320-80,
-		.tag="note pad",
-	};
+	struct egi_element_box *ebox_clock = create_ebox_clock();
+	if(ebox_clock == NULL)return -2;
+	struct egi_data_txt *clock_txt=(struct egi_data_txt *)(ebox_note->egi_data);
 
-	/* ------------ CLOCK ebox test ------------------- */
-	struct egi_data_txt clock_txt={0};
-	/* init txtbox data: offset(x,y) 1_lines, 480bytes per txt line,font, font_color */
-	if( egi_init_data_txt(&clock_txt, 0, 0, 1, 120, &sympg_numbfont,WEGI_COLOR_BROWN) ==NULL ) {
-		printf("init CLOCK data txt fail!\n"); exit(1);
-	 }
-	struct egi_element_box ebox_clock=
-	{
-		.movable = true,
-		.type = type_txt,
-		.egi_data =(void *) &clock_txt,
-		.height = 20, /* ebox height */
-		.width = 120,
-		.prmcolor = EGI_NOPRIM_COLOR, /*-1, if<0,transparent */
-		.x0= 60,
-		.y0= 5,//320-38,
-		.frame=-1, /* <0, no frame */
-		.tag="timer txt",
-	};
-
-
-#if 0
-	/* ------------ MEMO ebox test ------------------ */
-	struct egi_data_txt memo_txt={0};
-	/* init txtbox data: txt offset(5,5) to box, 12_lines, 24bytes char per line, font, font_color */
-	if( egi_init_data_txt(&memo_txt, 5, 5, 12, 24, &sympg_testfont, WEGI_COLOR_BLACK) == NULL ) {
-		printf("init MEMO data txt fail!\n"); exit(1);
-	}
-	/* indicate a txt file */
-	memo_txt.fpath="/home/memo.txt";
-	//memo_txt.foff=0;
-	struct egi_element_box ebox_memo=
-	{
-		.movable=true,
-		.type = type_txt,
-		.egi_data =(void *)&memo_txt, /* try &note_txt.....you may use other txt data  */
-		.height = 320, /*box height, one line, will be ajusted according to numb of lines */
-		.width = 240,
-		.prmcolor = WEGI_COLOR_GRAY, //EGI_NOPRIM_COLOR, //WEGI_COLOR_ORANGE,
-		.x0= 12,
-		.y0= 0, // 25 - 320,
-		.frame=-1, //no frame
-		.tag="memo stick",
-	};
-
-#endif
 
 	/* ------------   home_button eboxes definition  ------------------ */
 	struct egi_element_box  ebox_buttons[9]={0};
@@ -146,12 +89,14 @@ int main(void)
 			ebox_buttons[3*i+j].x0=15+(15+60)*j;
 			ebox_buttons[3*i+j].type=type_button;
 			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
+			ebox_buttons[3*i+j].activate=egi_btnbox_activate;
+			ebox_buttons[3*i+j].refresh=egi_btnbox_refresh;
 			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
 	}
 
 #if 0 /* test ----- egi txtbox read file ---------- */
-	 ret=egi_txtbox_readfile(&ebox_memo, "/tmp/memo.txt");
+	 ret=egi_txtbox_readfile(ebox_memo, "/tmp/memo.txt");
 	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
 	 exit(1);
 #endif
@@ -183,7 +128,7 @@ int main(void)
 	/* for image rotation */
 	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
 	SQMat=malloc(141*141*sizeof(struct egi_point_coord));
-	memset(SQMat,0,sizeof(SQMat));
+	memset(SQMat,0,sizeof(*SQMat));
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
@@ -193,7 +138,7 @@ int main(void)
 	{
 		i++;
 		/* get rotation map */
-		mat_pointrotate_SQMap(101, 5*i, centxy, SQMat);/* side,angle,center, map matrix */
+		mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
 		/* draw rotated image */
 		fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
 	}
@@ -250,20 +195,23 @@ exit(1);
 	*/
 	/*  buttons  */
 	for(i=0;i<9;i++)
-		egi_btnbox_activate(ebox_buttons+i);
+		//egi_btnbox_activate(ebox_buttons+i);
+		ebox_buttons[i].activate(ebox_buttons+i);
+
 	/* txt clock */
-	egi_txtbox_activate(&ebox_clock); /* no time string here...*/
-	egi_txtbox_sleep(&ebox_clock);/* put to sleep */
+	ebox_clock->activate(ebox_clock);//egi_txtbox_activate(&ebox_clock); /* no time string here...*/
+	ebox_clock->sleep(ebox_clock);//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
 	/* txt note */
-	egi_txtbox_activate(&ebox_note);
-        egi_txtbox_sleep(&ebox_note); /* put to sleep */
+	ebox_note->activate(ebox_note);//egi_txtbox_activate(&ebox_note);
+        ebox_note->sleep(ebox_note);//egi_txtbox_sleep(&ebox_note); /* put to sleep */
 	//egi_txtbox_activate(&ebox_note);/* wake up */
 
 
 	/* txt memo */
 	//egi_txtbox_activate(&ebox_memo);
 	//egi_txtbox_sleep(&ebox_memo);
-	egi_obj_txtmemo_init();
+	//egi_obj_txtmemo_init();
+	struct egi_element_box *ebox_memo=create_ebox_memo();
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -316,34 +264,38 @@ exit(1);
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
 
-/* TODO: if NOTE and MEMO has the same interval value,then the later one will never be performed !!! */
+/* TODO:  use tickcount to (tickcount%N) set a routine jobs is NOT reliable !!!! the condition may NEVER
+	  appear if CPU is too busy to handle other things.
+*/
 			/* refresh timer NOTE eboxe according to tick */
 			if( tm_get_tickcount()%100 == 0 ) /* 30*TM_TICK_INTERVAL(5000us) */
 			{
 				//printf("tick = %lld\n",tm_get_tickcount());
-				if(ebox_note.x0 <=60  ) delt=10;
-				if(ebox_note.x0 >=300 ) delt=-10;
-				ebox_note.x0 += delt; //85 - (320-60)
-				egi_txtbox_refresh(&ebox_note);
+				if(ebox_note->x0 <=60  ) delt=10;
+				if(ebox_note->x0 >=300 ) delt=-10;
+				ebox_note->x0 += delt; //85 - (320-60)
+				ebox_note->refresh(ebox_note);
 			}
 			/* refresh MEMO eboxe according to tick */
 #if 1
-			if( tm_get_tickcount()%3000 == 0 ) /* 1000*TM_TICK_INTERVAL(5ms) */
+			//if( tm_get_tickcount()%400 == 0 ) /* 1000*TM_TICK_INTERVAL(2ms) */
+			if(tm_pulseus(800000))
 			{
-				//ebox_memo.y0 += 3;
-				egi_txtbox_refresh(&ebox_memo);
+				printf("tm pulseus!\n");
+				//ebox_memo->y0 += 3;
+				ebox_memo->refresh(ebox_memo);
 			}
 #endif
 			/* -----ONLY if tm changes, update txt and clock */
-			if( strcmp(note_txt.txt[1],tm_strbuf) !=0 )
+			if( strcmp(note_txt->txt[1],tm_strbuf) !=0 )
 			{
 				/* update NOTE ebox txt  */
-				strncpy(note_txt.txt[1],tm_strbuf,10);
+				strncpy(note_txt->txt[1],tm_strbuf,10);
 				/* -----refresh CLOCK ebox---- */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
-				strncpy(clock_txt.txt[0],tm_strbuf,10);
-				clock_txt.color += (6<<8 | 4<<5 | 2 );
-				egi_txtbox_refresh(&ebox_clock);
+				strncpy( clock_txt->txt[0],tm_strbuf,10);
+				clock_txt->color += (6<<8 | 4<<5 | 2 );
+				ebox_clock->refresh(ebox_clock);
 			}
 
 			/* get year-mon-day and display */
@@ -351,7 +303,7 @@ exit(1);
 //			symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,WEGI_COLOR_SPRINGGREEN,
 //					SYM_FONT_DEFAULT_TRANSPCOLOR,32,90,tm_strbuf);//(32,90,12,2)
 			/* copy to note_txt */
-			strncpy(note_txt.txt[0],tm_strbuf,22);
+			strncpy(note_txt->txt[0],tm_strbuf,22);
 
 
 			/* ----------- test rotation map------------- */
@@ -359,7 +311,7 @@ exit(1);
 		    	{
 				kr++;
 				/* get rotation map */
-				mat_pointrotate_SQMap(sq, 1*kr, centxy, SQMat);/* side,angle,center, map matrix */
+				mat_pointrotate_SQMap(sq, 2*kr, centxy, SQMat);/* side,angle,center, map matrix */
 				/* draw rotated image */
 				fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
 		    	}
@@ -406,25 +358,24 @@ exit(1);
 					else
 					{
 						disk_on=1;
-						system("mplayer -af volume=9:1 /mmc/friends.mp3 >/dev/null 2>&1 &");
+						system("mplayer /mmc/music/*.mp3 >/dev/null 2>&1 &");
 					}
 					tm_delayms(300);
 					break;
 				case 5: /*-------ON/OFF:  memo txt display -------*/
-					if(ebox_memo.status!=status_active)
+					if(ebox_memo->status!=status_active)
 					{
 						printf("BEFORE: egi_txtbox_activate(&ebox_memo)\n");
-						egi_txtbox_activate(&ebox_memo);
+						ebox_memo->activate(ebox_memo);
 					}
-					else if(ebox_memo.status==status_active)
-						egi_txtbox_sleep(&ebox_memo);
+					else if(ebox_memo->status==status_active)
+						ebox_memo->sleep(ebox_memo);
 					tm_delayms(200);
-					//for(i=0;i<5;i++)
-					//	usleep(800000);
 					break;
 				case 6: break;
-				case 7: /*------ON/OFF:  memo txt refresh -------*/
-					egi_txtbox_refresh(&ebox_memo);
+				case 7: /*------  memo txt refresh -------*/
+					//egi_txtbox_refresh(&ebox_memo);
+					ebox_memo->refresh(ebox_memo);
 					break;
 				case 8:
 					if(radio_on)

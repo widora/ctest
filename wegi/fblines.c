@@ -610,7 +610,7 @@ FBDEV   gv_fb_dev;
 1. rotation center is the center of the square area.
 2. The square side length must be in form of 2n+1, so the center is just at the middle of
    the symmetric axis.
-3. !!! If apply this to map a still picture to a serial of rotated pictures, then the smaller
+3. TODO !!!BUG:  If apply this to map a still picture to a serial of rotated pictures, then the smaller
    the interval angel, the more precise the final motion picture you'll get.
 
 n: 		pixel number for square side.
@@ -667,7 +667,7 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 
 	for(i=0;i<n*n;i++)
 	{
-		/* point rotation transformation .....round up ???? */
+		/* point rotation transformation ..... */
 		xr=(SQMat_XRYR[i].x)*cosang+(SQMat_XRYR[i].y)*sinang;
 		yr=(SQMat_XRYR[i].x)*(-sinang)+(SQMat_XRYR[i].y)*cosang;
 		//printf("i=%d,xr=%f,yr=%f,\n",i,xr,yr);

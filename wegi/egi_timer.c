@@ -2,6 +2,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <stdio.h>
+#include <unistd.h> /* usleep */
+#include <stdbool.h>
 #include "egi_timer.h"
 #include "symbol.h"
 #include "fblines.h"
@@ -124,6 +126,7 @@ void tm_tick_sigroutine(int signo)
 
 	/* restore tm_sigroutine */
 	signal(SIGALRM, tm_tick_sigroutine);
+
 }
 
 
@@ -134,7 +137,6 @@ long long unsigned int tm_get_tickcount(void)
 {
 	return tm_tick_count;
 }
-
 
 /*-----------------------------------------
 delay ms, at lease TM_TICK_INTERVAL/1000 ms
@@ -157,3 +159,30 @@ void tm_delayms(int ms)
 	}
 }
 
+
+/*--------------------------------------------------------
+return:
+    TRUE: in every preset time interval gap(us), or time
+interval exceeds gap(us).
+    FALSE: otherwise
+---------------------------------------------------------*/
+bool tm_pulseus(long long unsigned int gap) /* gap(us) */
+{
+	static struct timeval tmnew,tmold;
+
+	/* first init tmold */
+	if(tmold.tv_sec==0 && tmold.tv_usec==0)
+		gettimeofday(&tmold,NULL);
+
+	/* get current time value */
+	gettimeofday(&tmnew,NULL);
+
+	/* compare timers */
+	if(tmnew.tv_sec*1000000+tmnew.tv_usec >= tmold.tv_sec*1000000+tmold.tv_usec + gap)
+	{
+		tmold=tmnew;
+		return true;
+	}
+	else
+		return false;
+}

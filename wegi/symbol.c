@@ -4,14 +4,15 @@ For test only!
 1. Symbols may be icons,fonts, image, a serial motion picture.... etc.
 2. One img symbol page size is a 240x320x2Bytes data , 2Bytes for 16bit color.
    each row has 240 pixels. usually it is a pure color data file.
-3. One mem symbol page size is MAX.240X320X2Bytes, usually it will be smaller,
+3. One mem symbol page size is MAX.240X320X2Bytes, usually it is smaller because
+   its corresponding img symbol page has blank space.
    Mem symbol page is read and converted from img symbol page, mem symbol page
    stores symbol pixels data row by row consecutively for each symbol. and it
-   is more efficient.
+   is more efficient for storage and search.
    A mem symbol page may be saved as a file.
-5. All symbols in a page MUST have the same height, and each row has the same
-   number of total symbols.
-6. 
+5. All symbols in a page MUST have the same height, and each row MUST has the same
+   number of symbols.
+6.
 
 
 TODO:
@@ -35,9 +36,9 @@ Midas
 
 
 /*--------------------(  testfont  )------------------------
-   ascii 0-127 symbol width,
-5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
-
+  1.  ascii 0-127 symbol width,
+  2.  5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
+  3.  Please change the 'space' width according to your purpose.
 */
 static int testfont_width[16*8] =
 {
@@ -46,7 +47,7 @@ static int testfont_width[16*8] =
 //	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	5,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
+	8,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
 	11,11,11,11,11,11,11,11,11,11,6,6,10,10,10,10, /* 0123456789:;<=>? */
 	19,12,11,11,13,10,10,13,13,5,7,11,9,18,14,14, /* @ABCDEFGHIJKLMNO */
 	11,14,11,10,10,13,12,19,11,10,10,6,8,6,10,10, /* PQRSTUVWXYZ[\]^_ */

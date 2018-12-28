@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
 For test only!
 
-Midas
+Midas Zhou
 ----------------------------------------------------------------------------*/
 #ifndef __SYMBOL_H__
 #define __SYMBOL_H__
@@ -66,7 +66,7 @@ struct symbol_page
 	/* use symb_index to locate a symbol in mem, and get its width */
 	//struct symbol_index *symindex; /* symb_index[x], x is the corresponding code number of the symbol, like ASCII code */
 
-	/* use pstart to locate a symbole in a row */
+	/* use symoffset[] to locate a symbole in a row */
 	int *symoffset; /* in pixel, offset from uint16_t *data for each smybol!! */
 	int *symwidth; /* in pixel, symbol width may be different, while height MUST be the same */
 
@@ -74,7 +74,7 @@ struct symbol_page
 	 Each row has same number of symbols, so you can use code number to locate a row in a img page
 	 Code is a unique encoding number for each symbol in a page, like ASCII number.
 	*/
-//	int *symb_code;
+	int *symb_code; /*default NULL if not applicable */
 };
 
 
@@ -90,7 +90,7 @@ int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
 
 
-/*-------------------------------------------------------
+/*--------------------------------------------------------------------------------------------
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
                 <0       no transparent pixel
 
@@ -102,7 +102,7 @@ use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
 
---------------------------------------------------------*/
+----------------------------------------------------------------------------------------------*/
 void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code);

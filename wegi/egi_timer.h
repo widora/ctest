@@ -22,6 +22,7 @@ void tm_settimer(int us);
 void tm_tick_settimer(int us);
 void tm_tick_sigroutine(int signo);
 long long unsigned int tm_get_tickcount(void);
-void tm_delayms(int ms);
+void tm_delayms(int ms);/* !!! To be abandoned !!!! Not good! */
+bool tm_pulseus(long long unsigned int gap); /* gap(us) */
 
 #endif

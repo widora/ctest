@@ -5,3 +5,11 @@ NOTE:
 4. Black_and_While font images show sharply in contrasting color backgroud, while Gray font images show softly
    and smoothly in simlar color backgroup.  When replace default font color with a given one, the Gray img font may 
    getting worse. that because all non-zero color vaule will be replaced by the SAME given value.
+5. Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
+
+
+
+main source files:
+egi.c		concept ebox functions
+egi_txt.c	type_txt ebox functions
+egi_objtxt.c	type_txt objects creation functions
