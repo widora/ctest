@@ -112,6 +112,16 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
+	/* ---- set timer for time display ---- */
+	tm_settimer(500000);/* set timer interval interval */
+	signal(SIGALRM, tm_sigroutine);
+
+	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
+	signal(SIGALRM, tm_tick_sigroutine);
+
+
+
+
 	/* --- clear screen with BLACK --- */
 #if 0
 	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
@@ -201,8 +211,13 @@ exit(1);
 		//egi_btnbox_activate(ebox_buttons+i);
 		ebox_buttons[i].activate(ebox_buttons+i);
 
+	/* txt ebox demon */
+#if 0
+	egi_txtbox_demo();
+	exit(1);
+#endif
 	/* txt clock */
-	ebox_clock->activate(ebox_clock);//egi_txtbox_activate(&ebox_clock); /* no time string here...*/
+	//ebox_clock->activate(ebox_clock);//egi_txtbox_activate(&ebox_clock); /* no time string here...*/
 	//ebox_clock->sleep(ebox_clock);//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
 
 	/* txt note */
@@ -211,13 +226,6 @@ exit(1);
 
 
 
-
-	/* ---- set timer for time display ---- */
-	tm_settimer(500000);/* set timer interval interval */
-	signal(SIGALRM, tm_sigroutine);
-
-	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
-	signal(SIGALRM, tm_tick_sigroutine);
 
 
 	/* ----- set default color ----- */
@@ -296,6 +304,7 @@ exit(1);
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt->txt[1],tm_strbuf,10);
 				//clock_txt->color += (6<<8 | 4<<5 | 2 );
+				ebox_clock->prmcolor = egi_random_color();
 				ebox_clock->refresh(ebox_clock);
 			}
 
@@ -346,6 +355,7 @@ exit(1);
 				case 1:
 					break;
 				case 2:
+					egi_txtbox_demo();
 					break;
 				case 3:
 					break;

@@ -505,7 +505,10 @@ int egi_txtbox_sleep(struct egi_element_box *ebox)
 		/* restore bkimg */
        		if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+		{
+			printf("egi_txtbox_sleep(): fail to restor bkimg.\n");
                 	return -1;
+		}
    	}
 
 	/* reset status */

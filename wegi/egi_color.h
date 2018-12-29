@@ -1,9 +1,10 @@
-/*-----------------------------------------------
-Color definition
-With refrence to  http://www.jakesan.com
+/*-----------------------------------------------------
+Color classification method:
+	Douglas.R.Jacobs' RGB Hex Triplet Color Chart
+  	http://www.jakesan.com
 
-Midas
------------------------------------------------*/
+Midas Zhou
+-----------------------------------------------------*/
 #ifndef	__EGI_COLOR_H__
 #define __EGI_COLOR_H__
 
@@ -34,6 +35,11 @@ Midas
 #define WEGI_COLOR_GRAY2	 	 COLOR_RGB_TO16BITS(0x55,0x55,0x55)
 #define WEGI_COLOR_MAROON	 	 COLOR_RGB_TO16BITS(128,0,0)
 #define WEGI_COLOR_BROWN	 	 COLOR_RGB_TO16BITS(0xFF,0x66,0)
+
+
+/* functions */
+uint16_t egi_random_color(void);
+
 
 
 
