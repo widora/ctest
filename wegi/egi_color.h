@@ -1,10 +1,11 @@
 /*-----------------------------------------------
 Color definition
+With refrence to  http://www.jakesan.com
 
 Midas
 -----------------------------------------------*/
-#ifndef	__COLOR_H__
-#define __COLOR_H__
+#ifndef	__EGI_COLOR_H__
+#define __EGI_COLOR_H__
 
 #include <stdint.h>
 

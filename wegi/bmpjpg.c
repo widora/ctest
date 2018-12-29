@@ -27,7 +27,7 @@ Modified by Midas
 #include <jpeglib.h>
 #include <jerror.h>
 #include "bmpjpg.h"
-#include "color.h"
+#include "egi_color.h"
 
 BITMAPFILEHEADER FileHead;
 BITMAPINFOHEADER InfoHead;

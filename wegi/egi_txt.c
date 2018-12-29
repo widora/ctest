@@ -7,7 +7,7 @@ Midas Zhou
 #include <stdlib.h>
 //#include <signal.h>
 #include <string.h>
-#include "color.h"
+#include "egi_color.h"
 #include "egi.h"
 #include "egi_txt.h"
 //#include "egi_timer.h"

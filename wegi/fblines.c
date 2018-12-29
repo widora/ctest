@@ -18,6 +18,7 @@ Modified by Midas-Zhou
 #include "fblines.h"
 #include "egi.h"
 #include <unistd.h>
+#include <string.h> /*memset*/
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -25,7 +26,7 @@ Modified by Midas-Zhou
 #include <stdlib.h>
 
 
-#define MATH_PI 3.1416
+#define MATH_PI 3.1415926535897932
 
 #ifndef _TYPE_FBDEV_
 #define _TYPE_FBDEV_
@@ -606,12 +607,16 @@ FBDEV   gv_fb_dev;
    }
 
 
-/*--------------------------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------------
 1. rotation center is the center of the square area.
 2. The square side length must be in form of 2n+1, so the center is just at the middle of
    the symmetric axis.
-3. TODO !!!BUG:  If apply this to map a still picture to a serial of rotated pictures, then the smaller
-   the interval angel, the more precise the final motion picture you'll get.
+3. Method 1 (BUG!!!!): from input coordinates (x,y) to get rotated coordinate(i,j) matrix,
+   because of calculation precision limit, this is NOT a one to one mapping!!!  there are
+   points that may map to the same point!!! and also there are points in result matrix that
+   NOT have been mapped,they keep original coordinates.
+4. Method 2: from rotated coordinate (i,j) to get input coordinates (x,y), this can ensure
+   that the result points mastrix all be mapped.
 
 n: 		pixel number for square side.
 angle: 		rotation angle. clockwise is positive.
@@ -622,13 +627,18 @@ SQMat_XRYR: 	after rotation
 
 Midas Zhou
 -------------------------------------------------------------------------------------------*/
-void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
+/*------------------------------- Method 1 --------------------------------------------*/
+
+#if 0
+void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
                        					 struct egi_point_coord *SQMat_XRYR)
 {
 	int i,j;
-	float sinang,cosang;
-	float xr,yr;
+	double sinang,cosang;
+	double xr,yr;
 	struct egi_point_coord  x0y0; /* the left top point of the square */
+	double pi=3.1415926535897932;
+
 
 	/* check if n can be resolved in form of 2*m+1 */
 	if( (n-1)%2 != 0)
@@ -657,12 +667,11 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 	{
 		SQMat_XRYR[i].x -= x0y0.x+((n-1)>>1);
 		SQMat_XRYR[i].y -= x0y0.y+((n-1)>>1);
-
 	}
 
 /* 3. map coordinates of all points to a new matrix by rotation transformation */
-	sinang=sin(angle/180.0*MATH_PI);
-	cosang=cos(angle/180.0*MATH_PI);
+	sinang=sin(angle/180.0*pi);//MATH_PI);
+	cosang=cos(angle/180.0*pi);//MATH_PI);
 	//printf("sinang=%f,cosang=%f\n",sinang,cosang);
 
 	for(i=0;i<n*n;i++)
@@ -671,12 +680,13 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 		xr=(SQMat_XRYR[i].x)*cosang+(SQMat_XRYR[i].y)*sinang;
 		yr=(SQMat_XRYR[i].x)*(-sinang)+(SQMat_XRYR[i].y)*cosang;
 		//printf("i=%d,xr=%f,yr=%f,\n",i,xr,yr);
+
 		/* check if new piont coordinate is within the square */
 		if(  (xr >= -((n-1)/2)) && ( xr <= ((n-1)/2))
 					 && (yr >= -((n-1)/2)) && (yr <= ((n-1)/2))  )
 		{
-			SQMat_XRYR[i].x=round(xr);
-			SQMat_XRYR[i].y=round(yr);
+			SQMat_XRYR[i].x=nearbyint(xr);//round(xr);
+			SQMat_XRYR[i].y=nearbyint(yr);//round(yr);
 		/*
 			printf("JUST IN RANGE: xr=%f,yr=%f , origin point (%d,%d), new point (%d,%d)\n",
 				xr,yr,SQMat_XY[i].x,SQMat_XY[i].y,SQMat_XRYR[i].x, SQMat_XRYR[i].y);
@@ -689,6 +699,7 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 		}
 	}
 
+
 /* 4. transform coordinate origin back to X0Y0  */
 	for(i=0;i<n*n;i++)
 	{
@@ -698,19 +709,89 @@ void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
 	}
 	//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
 }
+#endif
+
+#if 1
+/*----------------------- Method 2: revert rotation  -------------------------*/
+void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
+                       					 struct egi_point_coord *SQMat_XRYR)
+{
+	int i,j;
+	double sinang,cosang;
+	double xr,yr;
+	struct egi_point_coord  x0y0; /* the left top point of the square */
+	struct egi_point_coord  *Mat_tmp;
+
+	sinang=sin(1.0*angle/180.0*MATH_PI);
+	cosang=cos(1.0*angle/180.0*MATH_PI);
+
+	/* malloc a tmp Matrix */
+	//Mat_tmp=malloc(n*n*sizeof(struct egi_point_coord));
+	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("mat_pointrotate_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	return;
+	}
+
+/* 1. generate matrix of point_coordinates for the square, result Matrix is centered at square center. */
+	/* */
+	for(i=-n/2;i<=n/2;i++) /* row index,Y */
+	{
+		for(j=-n/2;j<=n/2;j++) /* column index,X */
+		{
+			/*   get XRYR revert rotation matrix centered at SQMat_XRYU's center
+			this way can ensure all SQMat_XRYR[] points are filled!!!  */
+
+			xr = j*cosang+i*sinang;
+			yr = -j*sinang+i*cosang;
+
+                	/* check if new piont coordinate is within the square */
+                	if(  ( xr >= -((n-1)>>1)) && ( xr <= ((n-1)>>1))
+                                         && ( yr >= -((n-1)>>1)) && ( yr <= ((n-1)>>1))  )
+			{
+				SQMat_XRYR[((2*i+n)/2)*n+(2*j+n)/2].x= round(xr);
+				SQMat_XRYR[((2*i+n)/2)*n+(2*j+n)/2].y= round(yr);
+			}
+		}
+	}
 
 
-/*---------------------------------------------------------------------------------------
+/* 2. transform coordinate origin back to X0Y0  */
+	for(i=0;i<n*n;i++)
+	{
+//		if( SQMat_XRYR[i].x == 0 )
+//			printf(" ---- SQMat_XRYR[%d].x == %d\n",i,SQMat_XRYR[i].x );
+
+                SQMat_XRYR[i].x += ((n-1)>>1); //+centxy.x);
+                SQMat_XRYR[i].y += ((n-1)>>1); //+centxy.y);
+		//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+	}
+	//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
+
+
+
+//	free(Mat_tmp);
+}
+#endif
+
+
+
+/*--------------------------------------- Method 1 -------------------------------------------
 1. draw an image through a map of rotation.
-2. 
+2.
 
 n:		side pixel number of a square image. to be inform of 2*m+1;
 x0y0:		left top coordinate of the square.
 image:		16bit color buf of a square image
 SQMat_XRYR:	Rotation map matrix of the square.
  		point(i,j) map to egi_point_coord SQMat_XRYR[n*i+j]
-
+Midas
 ------------------------------------------------------------------------------------------*/
+/*----------------------- Drawing for method 1 : revert rotation  -------------------------*/
+#if 0
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 						const struct egi_point_coord *SQMat_XRYR)
 {
@@ -742,3 +823,30 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 		}
 	}
 }
+#endif
+
+/*----------------------- Drawing for Method: revert rotation  -------------------------*/
+void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
+						const struct egi_point_coord *SQMat_XRYR)
+{
+	int i,j,k;
+	int s;
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("fb_drawimg_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	return;
+	}
+
+	for(i=0;i<n;i++)
+		for(j=0;j<n;j++)
+		{
+			/* since index i point map to  SQMat_XRYR[i](x,y), so get its mapped index k */
+			k=SQMat_XRYR[i*n+j].y*n+SQMat_XRYR[i*n+j].x;
+			//printf("k=%d\n",k);
+			fbset_color(image[k]);
+			draw_dot(&gv_fb_dev, x0y0.x+j, x0y0.y+i); /* ???? n-j */
+		}
+}
+

@@ -1,11 +1,13 @@
 /*------------------------------------------------------------------------------
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
-
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
 但转载请保持文档的完整性，注明原作者及原链接，严禁用于任何商业用途。
 
 作者：yuweixian4230@163.com
 博客：yuweixian4230.blog.chinaunix.net
+
+
+Modified by: Midas Zhou
 -----------------------------------------------------------------------------*/
 #ifndef __FBLINES_H__
 #define __FBLINES_H__
@@ -54,7 +56,7 @@ int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
 void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
                                                         struct egi_point_coord *SQMat_XRYR);
 */
-void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
+void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
                        					struct egi_point_coord *SQMat_XRYR);
 
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,

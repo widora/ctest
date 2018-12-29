@@ -6,7 +6,7 @@ Midas Zhou
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include "color.h"
+#include "egi_color.h"
 #include "egi.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
@@ -81,12 +81,14 @@ struct egi_element_box *create_ebox_clock(void)
 
 	/* 1. create a data_txt */
 	struct egi_data_txt *clock_txt=egi_txtdata_new(
-		0,0, /* offset X,Y */
-      	  	1, /*int nl, lines  */
-       	 	32, /*int llen, chars per line */
+		20,0, /* offset X,Y */
+      	  	3, /*int nl, lines  */
+       	 	64, /*int llen, chars per line */
         	&sympg_testfont, /*struct symbol_page *font */
-        	WEGI_COLOR_BROWN /* uint16_t color */
+        	WEGI_COLOR_BLACK /* uint16_t color */
 	);
+
+	strncpy(clock_txt->txt[1],"abcdefg",5);
 
 	/* 2. create memo ebox */
 	struct egi_element_box  *ebox_clock= egi_txtbox_new(
@@ -97,8 +99,8 @@ struct egi_element_box *create_ebox_clock(void)
         	true, /* bool movable */
        	 	60,5, /* int x0, int y0 */
         	120,20, /* int width, int height */
-        	-1, /* int frame, -1=no frame */
-        	WEGI_COLOR_ORANGE /*int prmcolor*/
+        	0, /* int frame,0=simple frmae, -1=no frame */
+        	WEGI_COLOR_BROWN /*int prmcolor*/
 	);
 
 	return ebox_clock;

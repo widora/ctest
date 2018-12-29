@@ -31,7 +31,7 @@ Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
 #include <signal.h>
-#include "color.h"
+#include "egi_color.h"
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
@@ -64,13 +64,17 @@ int main(void)
 
 
 	/* ------  create txt type ebox objects -------*/
+	/* note */
 	struct egi_element_box *ebox_note = create_ebox_note();
 	if(ebox_note == NULL)return -1;
 	struct egi_data_txt *note_txt=(struct egi_data_txt *)(ebox_note->egi_data);
-
+	/* txt */
 	struct egi_element_box *ebox_clock = create_ebox_clock();
 	if(ebox_clock == NULL)return -2;
-	struct egi_data_txt *clock_txt=(struct egi_data_txt *)(ebox_note->egi_data);
+	struct egi_data_txt *clock_txt=(struct egi_data_txt *)(ebox_clock->egi_data);
+	/* memo */
+	struct egi_element_box *ebox_memo=create_ebox_memo();
+	if(ebox_memo == NULL)return -3;
 
 
 	/* ------------   home_button eboxes definition  ------------------ */
@@ -108,7 +112,6 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-
 	/* --- clear screen with BLACK --- */
 #if 0
 	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
@@ -127,11 +130,12 @@ int main(void)
         fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
 	/* for image rotation */
 	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
-	SQMat=malloc(141*141*sizeof(struct egi_point_coord));
+	SQMat=malloc(sq*sq*sizeof(struct egi_point_coord));
 	memset(SQMat,0,sizeof(*SQMat));
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
+
 
 #if 0
 	while(1)
@@ -179,7 +183,6 @@ int main(void)
 #endif
 
 
-
 #if 0 /* ----  test circle ----------*/
 	fbset_color(WEGI_COLOR_OCEAN);
 	draw_filled_circle(&gv_fb_dev,120,160,90);
@@ -200,18 +203,14 @@ exit(1);
 
 	/* txt clock */
 	ebox_clock->activate(ebox_clock);//egi_txtbox_activate(&ebox_clock); /* no time string here...*/
-	ebox_clock->sleep(ebox_clock);//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
+	//ebox_clock->sleep(ebox_clock);//egi_txtbox_sleep(&ebox_clock);/* put to sleep */
+
 	/* txt note */
-	ebox_note->activate(ebox_note);//egi_txtbox_activate(&ebox_note);
-        ebox_note->sleep(ebox_note);//egi_txtbox_sleep(&ebox_note); /* put to sleep */
-	//egi_txtbox_activate(&ebox_note);/* wake up */
+	//ebox_note->activate(ebox_note);//egi_txtbox_activate(&ebox_note);
+        //ebox_note->sleep(ebox_note);//egi_txtbox_sleep(&ebox_note); /* put to sleep */
 
 
-	/* txt memo */
-	//egi_txtbox_activate(&ebox_memo);
-	//egi_txtbox_sleep(&ebox_memo);
-	//egi_obj_txtmemo_init();
-	struct egi_element_box *ebox_memo=create_ebox_memo();
+
 
 	/* ---- set timer for time display ---- */
 	tm_settimer(500000);/* set timer interval interval */
@@ -268,7 +267,8 @@ exit(1);
 	  appear if CPU is too busy to handle other things.
 */
 			/* refresh timer NOTE eboxe according to tick */
-			if( tm_get_tickcount()%100 == 0 ) /* 30*TM_TICK_INTERVAL(5000us) */
+			//if( tm_get_tickcount()%100 == 0 ) /* 30*TM_TICK_INTERVAL(2ms) */
+			if(tm_pulseus(500000))
 			{
 				//printf("tick = %lld\n",tm_get_tickcount());
 				if(ebox_note->x0 <=60  ) delt=10;
@@ -283,18 +283,19 @@ exit(1);
 			{
 				printf("tm pulseus!\n");
 				//ebox_memo->y0 += 3;
-				ebox_memo->refresh(ebox_memo);
+				//ebox_memo->refresh(ebox_memo);
 			}
 #endif
 			/* -----ONLY if tm changes, update txt and clock */
 			if( strcmp(note_txt->txt[1],tm_strbuf) !=0 )
 			{
+				printf("time:%s\n",tm_strbuf);
 				/* update NOTE ebox txt  */
 				strncpy(note_txt->txt[1],tm_strbuf,10);
 				/* -----refresh CLOCK ebox---- */
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
-				strncpy( clock_txt->txt[0],tm_strbuf,10);
-				clock_txt->color += (6<<8 | 4<<5 | 2 );
+				strncpy(clock_txt->txt[1],tm_strbuf,10);
+				//clock_txt->color += (6<<8 | 4<<5 | 2 );
 				ebox_clock->refresh(ebox_clock);
 			}
 
@@ -305,15 +306,15 @@ exit(1);
 			/* copy to note_txt */
 			strncpy(note_txt->txt[0],tm_strbuf,22);
 
-
 			/* ----------- test rotation map------------- */
 		    	if(disk_on)
 		    	{
 				kr++;
 				/* get rotation map */
-				mat_pointrotate_SQMap(sq, 2*kr, centxy, SQMat);/* side,angle,center, map matrix */
+				mat_pointrotate_SQMap(sq, 5*kr, centxy, SQMat);/* side,angle,center, map matrix */
 				/* draw rotated image */
 				fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+				//tm_delayms(5000);
 		    	}
 
 			continue; /* continue to loop to read touch data */
@@ -324,7 +325,6 @@ exit(1);
 		{
 			printf("--- XPT_READ_STATUS_COMPLETE ---\n");
 			/* going on then to check and activate pressed button */
-
 		}
 
 	/* -----------------------  Touch Event Handling  --------------------------*/
@@ -370,6 +370,7 @@ exit(1);
 					}
 					else if(ebox_memo->status==status_active)
 						ebox_memo->sleep(ebox_memo);
+
 					tm_delayms(200);
 					break;
 				case 6: break;
