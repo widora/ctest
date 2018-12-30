@@ -267,6 +267,9 @@ exit(1);
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
+		       /* test ebox here */
+			egi_txtbox_demo();
+			continue;
 		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
@@ -289,7 +292,7 @@ exit(1);
 			//if( tm_get_tickcount()%400 == 0 ) /* 1000*TM_TICK_INTERVAL(2ms) */
 			if(tm_pulseus(800000))
 			{
-				printf("tm pulseus!\n");
+				//printf("tm pulseus!\n");
 				//ebox_memo->y0 += 3;
 				//ebox_memo->refresh(ebox_memo);
 			}
@@ -297,7 +300,7 @@ exit(1);
 			/* -----ONLY if tm changes, update txt and clock */
 			if( strcmp(note_txt->txt[1],tm_strbuf) !=0 )
 			{
-				printf("time:%s\n",tm_strbuf);
+				//printf("time:%s\n",tm_strbuf);
 				/* update NOTE ebox txt  */
 				strncpy(note_txt->txt[1],tm_strbuf,10);
 				/* -----refresh CLOCK ebox---- */
@@ -368,7 +371,7 @@ exit(1);
 					else
 					{
 						disk_on=1;
-						system("mplayer /mmc/music/*.mp3 >/dev/null 2>&1 &");
+						system("screen -dmS MP3 mplayer /mmc/music/*.mp3 ");
 					}
 					tm_delayms(300);
 					break;

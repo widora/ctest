@@ -50,6 +50,9 @@ APPS = tmp_app
 #### -----  编译标志 -----
 CFLAGS = -Wall
 CFLAGS += -I./ -I./include
+#### --- for debug, put before LDFLAGS!!!! ----
+CFLAGS += -O -g -DEGI_DEBUG
+
 LDFLAGS = -L./lib -ljpeg -lm
 
 

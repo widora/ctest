@@ -719,8 +719,6 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 	int i,j;
 	double sinang,cosang;
 	double xr,yr;
-	struct egi_point_coord  x0y0; /* the left top point of the square */
-	struct egi_point_coord  *Mat_tmp;
 
 	sinang=sin(1.0*angle/180.0*MATH_PI);
 	cosang=cos(1.0*angle/180.0*MATH_PI);
@@ -830,7 +828,6 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 						const struct egi_point_coord *SQMat_XRYR)
 {
 	int i,j,k;
-	int s;
 
 	/* check if n can be resolved in form of 2*m+1 */
 	if( (n-1)%2 != 0)

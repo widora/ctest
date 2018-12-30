@@ -30,6 +30,7 @@ Midas Zhou
 #include <string.h> /* memset */
 #include "egi.h"
 #include "egi_txt.h"
+#include "egi_debug.h"
 #include "symbol.h"
 
 
@@ -56,19 +57,24 @@ void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height)
 	}
 
 	/* 2. malloc exbo->bkimg for bk image storing */
-	if(ebox->bkimg != NULL)
+	if( ebox->bkimg != NULL)
 	{
 		printf("egi_alloc_bkimg(): ebox->bkimg is not NULL, fail to malloc!\n");
 		return NULL;
 	}
 
 	/* 3. alloc memory */
+
+	PDEBUG("egi_alloc_bkimg(): start to malloc() ....!\n");
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
+
 	if(ebox->bkimg == NULL)
 	{
 		printf("egi_alloc_bkimg(): fail to malloc for ebox->bkimg!\n");
 		return NULL;
 	}
+
+	PDEBUG("egi_alloc_bkimg(): finish!\n");
 
 	return ebox->bkimg;
 }
@@ -313,164 +319,6 @@ void egi_free_data_btn(struct egi_data_btn *data_btn)
 
 
 
-
-#if 0    /*///////////////////////////   OBSOLETE   /////////////////////////////////*/
-
-/*----------------------------------------------------
-refresh exbox according to its type
-
-reutrn:
-	0	OK
-	<0	fail
-	-100	ebox type fail
-------------------------------------------------------*/
-int egi_ebox_refresh(struct egi_element_box *ebox)
-{
-	/* 1. put default methods here ...*/
-	if(ebox->method.refresh == NULL)
-	{
-		printf("ebox '%s' has no defined method of refresh()!\n",ebox->tag);
-		return -100;
-	}
-
-	/* 2. put self-defined methods */
-        switch(ebox->type)
-        {
-                case type_txt:
-			return ebox->method.refresh(ebox);
-			//return egi_txtbox_refresh(ebox);
-                        break;
-                case type_button:
-			//return egi_btnbox_refresh(ebox);
-                        break;
-                case type_picture:
-                        break;
-                case type_chart:
-                        break;
-                case type_motion:
-                        break;
-
-                default:
-			printf("egi_refresh(): the type of ebox is undefined! fail to refresh.");
-			return -100;
-                        break;
-        }
-	return 0;
-}
-
-/*------------------------------------------------------------------
-initialize an egi_element box according to its type
-
-Return:
-        0        OK
-        <0       fails
-	-100	ebox type fail
--------------------------------------------------------------------*/
-int egi_ebox_activate(struct egi_element_box *ebox)
-{
-	if(ebox->method.activate == NULL)
-	{
-		printf("ebox '%s' has no defined method of activate()!\n",ebox->tag);
-		return -100;
-	}
-        switch(ebox->type)
-        {
-		/*--------------- type_txt ebox init ------------------*/
-                case type_txt:
-			return egi_txtbox_activate(ebox);
-                        break;
-                case type_button:
-			return egi_btnbox_activate(ebox);
-                        break;
-                case type_picture:
-                        break;
-                case type_chart:
-                        break;
-                case type_motion:
-                        break;
-                default:
-			printf("egi_activate_ebox(): the type of ebox is undefined! fail to activate.");
-			return -100;
-			 break;
-        }
-	return 0;
-}
-
-/*------------------------------------------------------------------
-initialize an egi_element box according to its type
-
-Return:
-        0       OK
-        <0      fails
-	-100	ebox type fail
--------------------------------------------------------------------*/
-int egi_ebox_sleep(struct egi_element_box *ebox)
-{
-	if(ebox->method.sleep == NULL)
-	{
-		printf("ebox '%s' has no defined method of sleep()!\n",ebox->tag);
-		return -100;
-	}
-        switch(ebox->type)
-        {
-		/*--------------- type_txt ebox init ------------------*/
-                case type_txt:
-			return egi_txtbox_sleep(ebox);
-                        break;
-                case type_button:
-                        break;
-                case type_picture:
-                        break;
-                case type_chart:
-                        break;
-                case type_motion:
-                        break;
-                default:
-			printf("egi_activate_sleep(): the type of ebox is undefined! fail to activate.");
-			return -100;
-			 break;
-        }
-	return 0;
-}
-
-/*------------------------------------------------------
-free an egi_element box according to its type
-
-Return:
-        0       OK
-        <0      fails
-	-100	ebox type fail or...
--------------------------------------------------------*/
-int egi_ebox_free(struct egi_element_box *ebox)
-{
-	if(ebox->method.free == NULL)
-	{
-		printf("ebox '%s' has no defined method of free()!\n",ebox->tag);
-		return -100;
-	}
-	switch(ebox->type)
-        {
-                case type_txt:
-                        break;
-                case type_picture:
-                        break;
-                case type_button:
-                        break;
-                case type_chart:
-                        break;
-                case type_motion:
-                        break;
-
-                default:
-			return -100;
-                        break;
-        }
-	return 0;
-}
-#endif
-
-
-
 ///xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  OK   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 /*----------------------------------------------------
@@ -560,7 +408,7 @@ int egi_ebox_free(struct egi_element_box *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.free == NULL)
 	{
-		printf("ebox '%s' has no defined method of sleep()!\n",ebox->tag);
+		printf("ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
 
 		/* 1.1 free ebox tyep data */
 		switch(ebox->type)
@@ -568,6 +416,8 @@ int egi_ebox_free(struct egi_element_box *ebox)
 			case type_txt:
 				if(ebox->egi_data != NULL)
 					egi_free_data_txt(ebox->egi_data);
+				if(ebox->egi_data != NULL)
+					free(ebox->egi_data);
 				break;
 			case type_button:
 				if(ebox->egi_data != NULL)
@@ -597,22 +447,28 @@ int egi_ebox_free(struct egi_element_box *ebox)
 
 	/* 2. else, use ebox object defined method */
 	else
+	{
+		printf("use ebox '%s' defined free method to free it ...!\n",ebox->tag);
 		return ebox->method.free(ebox);
-
+	}
 }
 
 
 /*----------------------------------------------------------------------------
 create a new ebox according to its type and parameters
+WARNING: Memory for egi_data NOT allocated her, it's caller's job to allocate
+	and assign it to the new ebox. they'll be freed all together in egi_ebox_free().
 
 return:
 	NULL		fail
 	pointer		OK
 ----------------------------------------------------------------------------*/
-struct egi_element_box * egi_ebox_new(enum egi_ebox_type type, void *egi_data)
+struct egi_element_box * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 {
 	/* malloc ebox */
+	PDEBUG("egi_ebox_new(): start to malloc for a new ebox....\n");
 	struct egi_element_box *ebox=malloc(sizeof(struct egi_element_box));
+
 	if(ebox==NULL)
 	{
 		printf("egi_ebox_new(): fail to malloc for a new ebox!\n");
@@ -620,7 +476,8 @@ struct egi_element_box * egi_ebox_new(enum egi_ebox_type type, void *egi_data)
 	}
 	memset(ebox,0,sizeof(struct egi_element_box)); /* clear data */
 
-	/* malloc ebox type data */
+
+#if 0 	/* Not necessary, the egi_data to be allocated and assigned to ebox by the caller!!!!  malloc ebox type data */
 	switch(type)
 	{
 		case type_txt:
@@ -643,8 +500,11 @@ struct egi_element_box * egi_ebox_new(enum egi_ebox_type type, void *egi_data)
 		return NULL;
 	}
 	memset(ebox,0,sizeof(struct egi_data_txt)); /* clear data */
+#endif
+
 
 	/* assign default method for new ebox */
+	PDEBUG("egi_ebox_new(): assing default method to ebox ....\n");
 	ebox->activate=egi_ebox_activate;
 	ebox->refresh=egi_ebox_refresh;
 	ebox->sleep=egi_ebox_sleep;

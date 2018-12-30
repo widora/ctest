@@ -1,8 +1,9 @@
 #include "egi_color.h"
 #include <stdlib.h>
 #include <stdint.h>
-#include <time.h>
-
+//#include <time.h>
+#include <stdio.h>
+#include <sys/time.h> /*gettimeofday*/
 
 /*-------------------------------------------------------------------------
 get a random 16bit color from Douglas.R.Jacobs' RGB Hex Triplet Color Chart
@@ -21,6 +22,7 @@ uint16_t egi_random_color(void)
 	int i,j;
 	uint8_t color[3]; /*RGB*/
 	struct timeval tmval;
+	uint16_t ret;
 
         gettimeofday(&tmval,NULL);
         srand(tmval.tv_usec);
@@ -41,6 +43,7 @@ uint16_t egi_random_color(void)
 		//printf(" ----- color j=%d\n",j);
 	}
 
-
-	return COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
+	ret=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
+	printf("egi random color: 0X%04X \n",ret);
+	return ret;
 }

@@ -17,12 +17,12 @@ Midas Zhou
 
 
 /* ----- common -----  txt ebox self_defined methods */
-static struct egi_ebox_method txtbox_method=
+struct egi_ebox_method txtbox_method=
 {
 	.activate=egi_txtbox_activate,
 	.refresh=egi_txtbox_refresh,
 	.sleep=egi_txtbox_sleep,
-	.free=NULL,
+	.free=NULL, //egi_ebox_free,
 };
 
 
@@ -172,6 +172,7 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
 {
 
 	/* 1. create a data_txt */
+	printf("start to egi_txtdata_new()...\n");
 	struct egi_data_txt *clock_txt=egi_txtdata_new(
 		10,0, /* offset X,Y */
       	  	3, /*int nl, lines  */
@@ -180,9 +181,21 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
-	sprintf(clock_txt->txt[1],"Note NO. %d", num);
+	if(clock_txt == NULL)
+	{
+		printf("create_ebox_notes(): clock_txt==NULL, fails!\n");
+		return NULL;
+	}
+	else if (clock_txt->txt[0]==NULL)
+	{
+		printf("create_ebox_notes(): clock_txt->[0]==NULL, fails!\n");
+		return NULL;
+	}
+
+        sprintf(clock_txt->txt[1],"Note NO. %d", num);
 
 	/* 2. create memo ebox */
+	printf("create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	struct egi_element_box  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
@@ -204,27 +217,39 @@ A simple demo for txt type ebox
 -------------------------------------*/
 void egi_txtbox_demo(void)
 {
-	int total=100;
+	int total=50;
 	int i;
-	struct egi_element_box *txtebox[100];
-
+	struct egi_element_box *txtebox[50];
+	int ret;
 
 	for(i=0;i<total;i++)
 	{
+	      printf("create ebox notes txtebox[%d].\n",i);
 	      txtebox[i]=create_ebox_notes(i, egi_random_max(120), egi_random_max(240), egi_random_color());
-	      txtebox[i]->activate(txtebox[i]);
-	      tm_delayms(20);
+	      if(txtebox[i]==NULL)
+	      {
+			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
+			return;
+	      }
+	      printf("egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
+	      ret=txtebox[i]->activate(txtebox[i]);
+	      if(ret != 0)
+			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
+	      tm_delayms(10);
 //	      usleep(200000);
 	}
-
-	tm_delayms(2000);
+	tm_delayms(2000); /* hold on SHOW */
 
 	for(i=total-1;i>=0;i--)
 	{
 		      txtebox[i]->sleep(txtebox[i]);
-		      tm_delayms(20);
+		      txtebox[i]->free(txtebox[i]);
+		      tm_delayms(10);
 	      // --- free ---
 	}
+	tm_delayms(2000); /* hold on CLEAR */
+
+	//getchar();
 
 	printf("--------- txtebox demon over END ---------\n");
 }

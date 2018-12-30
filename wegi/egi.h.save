@@ -11,7 +11,7 @@ Midas Zhou
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
-#include "list.h"
+
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30
@@ -145,7 +145,7 @@ struct egi_element_box
 	/* data pointer to different types of struct egi_data_xxx */
 	void *egi_data;
 
-	/* child defined method, or use default method */
+	/* SELF DEFINED METHODS */
 	struct egi_ebox_method method;
 
 	/* --- DEFAULT METHODS --- */
@@ -186,15 +186,8 @@ struct egi_element_box
 	*/
 	int (*free)(struct egi_element_box *);
 
-	/* --- child list:
-	maintain a list for all child ebox, there should also be layer information
-	multi_layer operation is applied.
-	*/
-	struct list_head node; /* list node to a father ebox */
-	struct list_head list_head; /* list head for child eboxes */
-
-	//struct egi_element_box *child;
-
+	/* child list */
+	struct egi_element_box *child;
 };
 
 
@@ -246,7 +239,7 @@ bool egi_point_inbox(int px,int py, struct egi_element_box *ebox);
 int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num);
 enum egi_ebox_status egi_get_ebox_status(const struct egi_element_box *ebox);
 
-struct egi_element_box * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
+struct egi_element_box * egi_ebox_new(enum egi_ebox_type type, void *egi_data);
 
 int egi_ebox_activate(struct egi_element_box *ebox);
 int egi_ebox_refresh(struct egi_element_box *ebox);
