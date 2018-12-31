@@ -219,9 +219,9 @@ A simple demo for txt type ebox
 -------------------------------------*/
 void egi_txtbox_demo(void)
 {
-	int total=10;
+	int total=500;
 	int i;
-	struct egi_element_box *txtebox[10];
+	struct egi_element_box *txtebox[500];
 	int ret;
 
 	for(i=0;i<total;i++)

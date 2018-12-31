@@ -33,7 +33,7 @@ struct egi_data_txt *egi_txtdata_new(int offx, int offy,
 	int i,j;
 
 	/* malloc a egi_data_txt struct */
-	PDEBUG("---------------------------egi_txtdata_new(): malloc data_txt ...\n");
+	PDEBUG("egi_txtdata_new(): malloc data_txt ...\n");
 	struct egi_data_txt *data_txt=malloc(sizeof(struct egi_data_txt));
 	if(data_txt==NULL)
 	{
@@ -726,7 +726,7 @@ void egi_free_data_txt(struct egi_data_txt *data_txt)
 	int i;
 	int nl=data_txt->nl;
 
-	if(data_txt->txt != NULL)
+	if(data_txt != NULL && data_txt->txt != NULL)
 	{
 		for(i=0;i<nl;i++)
 		{
@@ -736,8 +736,12 @@ void egi_free_data_txt(struct egi_data_txt *data_txt)
 				data_txt->txt[i]=NULL;
 			}
 		}
+		free(data_txt->txt);
+		data_txt->txt=NULL;
+
 		free(data_txt);
 		data_txt=NULL;
 	}
+
 }
 
