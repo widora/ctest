@@ -1,4 +1,5 @@
 #include "egi_color.h"
+#include "egi_debug.h"
 #include <stdlib.h>
 #include <stdint.h>
 //#include <time.h>
@@ -44,6 +45,6 @@ uint16_t egi_random_color(void)
 	}
 
 	ret=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
-	printf("egi random color: 0X%04X \n",ret);
+	PDEBUG("egi random color: 0X%04X \n",ret);
 	return ret;
 }

@@ -89,6 +89,7 @@ us: time interval in us.
 void tm_settimer(int us)
 {
 	/* time left before next expiration  */
+
 	tm_val.it_value.tv_sec=0;
 	tm_val.it_value.tv_usec=us;
 	/* time interval for periodic timer */
@@ -96,6 +97,7 @@ void tm_settimer(int us)
 	tm_val.it_interval.tv_usec=us;
 
 	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
+
 }
 
 /*-------------------------------------
@@ -142,20 +144,21 @@ long long unsigned int tm_get_tickcount(void)
 delay ms, at lease TM_TICK_INTERVAL/1000 ms
 
 -------------------------------------------*/
-void tm_delayms(int ms)
+void tm_delayms(long ms)
 {
-	int nticks;
+	unsigned int nticks;
 
 	if(ms < TM_TICK_INTERVAL/1000)
 		nticks=TM_TICK_INTERVAL/1000;
 	else
 		nticks=ms*1000/TM_TICK_INTERVAL;
 
-	int tm_now=tm_tick_count;
+	long tm_now=tm_tick_count;
 
 	while(tm_tick_count-tm_now < nticks)
 	{
 		usleep(1000);
+
 	}
 }
 
@@ -186,3 +189,4 @@ bool tm_pulseus(long long unsigned int gap) /* gap(us) */
 	else
 		return false;
 }
+

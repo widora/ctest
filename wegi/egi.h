@@ -66,7 +66,6 @@ enum egi_btn_status
 	pressed_hold,
 };
 
-
 /* ebox actions */
 struct egi_element_box;
 
@@ -188,6 +187,12 @@ struct egi_element_box
 	*/
 	int (*free)(struct egi_element_box *);
 
+
+	/* --- decorate:
+	    additional drawing/imgs decoration function for the ebox
+	*/
+	int (*decorate)(struct egi_element_box *);
+
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
 	multi_layer operation is applied.
@@ -198,6 +203,7 @@ struct egi_element_box
 	//struct egi_element_box *child;
 
 };
+typedef struct egi_element_box EGI_EBOX;
 
 
 /* egi data for a txt type ebox */

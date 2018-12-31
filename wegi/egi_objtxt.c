@@ -14,6 +14,7 @@ Midas Zhou
 #include "egi_txt.h"
 #include "egi_objtxt.h"
 #include "egi_timer.h"
+#include "egi_debug.h"
 //#include "egi_timer.h"
 #include "symbol.h"
 
@@ -158,7 +159,6 @@ struct egi_element_box *create_ebox_note(void)
 }
 
 
-
 /*-------------------------------------------------
 Create an  txt note ebox with parameters
 
@@ -194,10 +194,12 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
 		return NULL;
 	}
 
-        sprintf(clock_txt->txt[1],"Note NO. %d", num);
+        sprintf(clock_txt->txt[0],"        2019 ");
+        sprintf(clock_txt->txt[1],"Happy New Year!");
+        sprintf(clock_txt->txt[2],"Note NO. %d", num);
 
 	/* 2. create memo ebox */
-	printf("create_ebox_notes(): strat to egi_txtbox_new().....\n");
+	PDEBUG("create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	struct egi_element_box  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
@@ -205,7 +207,7 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
         	txtbox_method, /*struct egi_ebox_method method */
         	true, /* bool movable */
        	 	x0,y0, /* int x0, int y0 */
-        	120,80, /* int width, int height */
+        	160,80, /* int width, int height */
         	0, /* int frame,0=simple frmae, -1=no frame */
         	bkcolor /*int prmcolor*/
 	);
@@ -214,44 +216,42 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
 }
 
 
-/*-------------------------------------
-A simple demo for txt type ebox
--------------------------------------*/
+/*----------------------------------------------
+	A simple demo for txt type ebox
+----------------------------------------------*/
 void egi_txtbox_demo(void)
 {
-	int total=500;
+	int total=1000;
 	int i;
-	struct egi_element_box *txtebox[500];
+	struct egi_element_box *txtebox[1000];
 	int ret;
 
 	for(i=0;i<total;i++)
 	{
-	      printf("create ebox notes txtebox[%d].\n",i);
-	      txtebox[i]=create_ebox_notes(i, egi_random_max(120), egi_random_max(240), egi_random_color());
+	      PDEBUG("create ebox notes txtebox[%d].\n",i);
+	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(240), egi_random_color());
 	      if(txtebox[i]==NULL)
 	      {
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
 			return;
 	      }
-	      printf("egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
+	      PDEBUG("egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
 	      ret=txtebox[i]->activate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
-	      //tm_delayms(10);
+	      tm_delayms(5);
 //	      usleep(200000);
 	}
-	tm_delayms(2000); /* hold on SHOW */
+	tm_delayms(3000); /* hold on SHOW */
 
 	for(i=total-1;i>=0;i--)
 	{
-		      txtebox[i]->sleep(txtebox[i]);
+		      txtebox[i]->sleep(txtebox[i]); /* dispare from LCD */
 		      txtebox[i]->free(txtebox[i]);
-		      //tm_delayms(10);
+		      tm_delayms(5);
 	      // --- free ---
 	}
-	tm_delayms(2000); /* hold on CLEAR */
-
+//	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
-
 	printf("--------- txtebox demon over END ---------\n");
 }

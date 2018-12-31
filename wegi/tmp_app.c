@@ -1,21 +1,17 @@
 /*-----------------------  touch_home.c ------------------------------
 1. Only first byte read from XPT is meaningful !!!??
-
 2. Keep enough time-gap for XPT to prepare data in each read-session,
 usleep 3000us seems OK, or the data will be too scattered.
-
 3. Hold LCD-Touch module carefully, it may influence touch-read data.
-
 4. TOUCH Y edge doesn't have good homogeneous property along X,
    try to draw a horizontal line and check visually, it will bend.
-
 5. if sx0=sy0=0, it means that last TOUCH coordinate is invalid or pen-up.
-
 6. Linear piont to piont mapping from TOUCH to LCD. There are
    unmapped points on LCD.
-
 7. point to an oval area mapping form TOUCH to LCD.
-
+8. system() may never return and cause the process dead.
+9. stop timer before call execl(), or it the process will get 'Alarm clock' error
+   then abort.
 
 TODO:
 0. Cancel extern vars in all head file, add xx_get_xxVAR() functions.
@@ -30,6 +26,7 @@ TODO:
 Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
+#include <unistd.h>
 #include <signal.h>
 #include "egi_color.h"
 #include "spi.h"
@@ -76,7 +73,6 @@ int main(void)
 	struct egi_element_box *ebox_memo=create_ebox_memo();
 	if(ebox_memo == NULL)return -3;
 
-
 	/* ------------   home_button eboxes definition  ------------------ */
 	struct egi_element_box  ebox_buttons[9]={0};
 	struct egi_data_btn home_btns[9]={0};
@@ -118,7 +114,6 @@ int main(void)
 
 	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 	signal(SIGALRM, tm_tick_sigroutine);
-
 
 
 
@@ -226,8 +221,6 @@ exit(1);
 
 
 
-
-
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
@@ -255,21 +248,25 @@ exit(1);
 	{
 		/*------ relate with number of touch-read samples -----*/
 		//usleep(6000); //3000
+		printf(" while() loop start....\n");
 		tm_delayms(2);
+
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
+		printf("start xpt_getavt_xy() \n");
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 		if(ret == XPT_READ_STATUS_GOING )
 		{
+			printf("XPT READ STATUS GOING ON....\n");
 			continue; /* continue to loop to finish reading touch data */
 		}
-
 
 		/* -------  put PEN-UP status events here !!!! ------- */
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
-		       /* test ebox here */
+		       /* continous test ebox here */
+			printf("start egi_txtbox_demo() ... \n");
 			egi_txtbox_demo();
-			continue;
+			//continue;
 		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
@@ -300,7 +297,7 @@ exit(1);
 			/* -----ONLY if tm changes, update txt and clock */
 			if( strcmp(note_txt->txt[1],tm_strbuf) !=0 )
 			{
-				//printf("time:%s\n",tm_strbuf);
+				// printf("time:%s\n",tm_strbuf);
 				/* update NOTE ebox txt  */
 				strncpy(note_txt->txt[1],tm_strbuf,10);
 				/* -----refresh CLOCK ebox---- */
@@ -352,8 +349,11 @@ exit(1);
 			{
 				case 0: /* use */
 					printf("refresh fb now.\n");
-					system("/tmp/tmp_app");
-					exit(1);
+					//system("killall mplayer");
+					//system("/tmp/tmp_app");
+					setitimer(0,0,NULL);
+					execl("/tmp/tmp_app","tmp_app"," ",NULL);
+					//exit(1);
 					break;
 				case 1:
 					break;
@@ -366,14 +366,18 @@ exit(1);
 					if(disk_on)
 					{
 						disk_on=0;
-						system("killall mplayer");
+						printf("disk off.\n");
+						//system("killall mplayer");
 					}
 					else
 					{
 						disk_on=1;
-						system("screen -dmS MP3 mplayer /mmc/music/*.mp3 ");
+						printf("disk on. ----- \n");
+						//system("killall mplayer");
+						//system("mplayer /tmp/year.mp3 >/dev/null 2>&1 &");
 					}
-					tm_delayms(300);
+					printf("case 4: start tm_delayms(300)\n");
+					tm_delayms(300); /* jitting */
 					break;
 				case 5: /*-------ON/OFF:  memo txt display -------*/
 					if(ebox_memo->status!=status_active)
@@ -400,17 +404,22 @@ exit(1);
 					else
 					{
 						radio_on=1;
-						system("/home/eradio.sh");
+						system("/home/radio.sh");
 					}
 					tm_delayms(200);
 					break;
 			}/* switch */
-		//}
+
 			//usleep(200000); //this will make touch points scattered.
 		}/* end of if(index>=0) */
 #endif
 
 	} /* end of while() loop */
+
+
+	/* relese egi objects */
+
+
 
 	/* release symbol mem page */
 	symbol_release_page(&sympg_testfont);
