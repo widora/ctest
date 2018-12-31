@@ -1,5 +1,7 @@
 /*----------------------- egi_obj.c ------------------------------
 
+1. All txt type ebox are to be allocated/freeed dynamically.
+
 Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
@@ -217,9 +219,9 @@ A simple demo for txt type ebox
 -------------------------------------*/
 void egi_txtbox_demo(void)
 {
-	int total=50;
+	int total=10;
 	int i;
-	struct egi_element_box *txtebox[50];
+	struct egi_element_box *txtebox[10];
 	int ret;
 
 	for(i=0;i<total;i++)
@@ -235,7 +237,7 @@ void egi_txtbox_demo(void)
 	      ret=txtebox[i]->activate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
-	      tm_delayms(10);
+	      //tm_delayms(10);
 //	      usleep(200000);
 	}
 	tm_delayms(2000); /* hold on SHOW */
@@ -244,7 +246,7 @@ void egi_txtbox_demo(void)
 	{
 		      txtebox[i]->sleep(txtebox[i]);
 		      txtebox[i]->free(txtebox[i]);
-		      tm_delayms(10);
+		      //tm_delayms(10);
 	      // --- free ---
 	}
 	tm_delayms(2000); /* hold on CLEAR */

@@ -14,7 +14,7 @@ Midas Zhou
 #include "list.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
-#define EGI_TAG_LENGTH 30
+#define EGI_TAG_LENGTH 30 /* ebox tag string length */
 
 struct egi_point_coord
 {
@@ -107,7 +107,9 @@ struct egi_element_box
 	unsigned int y0;
 
 	/* box size, fit to different type
-	1. for txt box, H&W define the holding pad size.
+	1. for txt box, H&W define the holding pad size. and if txt string extend out of
+	   the ebox pad, it will not be updated/refreshed by the ebox, so keep box size bigger 
+	   enough to hold all text inside.
 	2. for button, H&W is same as symbol H&W.
 	*/
 	int height;

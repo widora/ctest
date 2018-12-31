@@ -415,9 +415,12 @@ int egi_ebox_free(struct egi_element_box *ebox)
 		{
 			case type_txt:
 				if(ebox->egi_data != NULL)
+				{
+					PDEBUG("egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
+						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_txt(ebox->egi_data);
-				if(ebox->egi_data != NULL)
-					free(ebox->egi_data);
+					ebox->egi_data=NULL;
+				 }
 				break;
 			case type_button:
 				if(ebox->egi_data != NULL)
@@ -438,6 +441,7 @@ int egi_ebox_free(struct egi_element_box *ebox)
 			free(ebox->bkimg);
 			ebox->bkimg=NULL;
 		}
+
 		/* 1.3 free ebox */
 		free(ebox);
 		ebox=NULL;

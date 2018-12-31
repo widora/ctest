@@ -257,6 +257,7 @@ Return:
 int egi_txtbox_activate(struct egi_element_box *ebox)
 {
 //	int i,j;
+	int ret;
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 	int height=ebox->height;
@@ -348,9 +349,12 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	//???? NOT activate ????? ((struct egi_data_txt *)(ebox->egi_data))->foff=0;
 
 	/* 8. refresh displaying the ebox */
-	if( egi_txtbox_refresh(ebox) !=0);
+	ret=egi_txtbox_refresh(ebox);
+	if(ret != 0)
+	{
+		printf("egi_txtbox_activate(): WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", ret);
 		return -6;
-
+	}
 	PDEBUG("egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
