@@ -58,7 +58,8 @@ int main(void)
 
 	uint16_t *buf;
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
-
+	uint16_t *nbuf;
+	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 	/* ------  create txt type ebox objects -------*/
 	/* note */
@@ -124,6 +125,28 @@ int main(void)
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
+
+
+
+	/* -------- test image scale --------- */
+#if 1
+	int wid,hgt;
+	printf("start fb_cpyto_buf\n");
+       	fb_cpyto_buf(&gv_fb_dev, 0, 0, 240-1, 320-1, buf);
+	printf("start for...\n");
+     while(1)
+     {
+	for(wid=240;wid>1;wid-=2)
+	{
+		hgt=wid*4/3;
+		//printf("wid=%d, hgt=%d \n",wid,hgt);
+		fb_scale_pixbuf(240,320,wid,hgt,buf,nbuf);
+		fb_cpyfrom_buf(&gv_fb_dev,0,0,wid-1,hgt-1,nbuf);
+		//usleep(10000);
+	}
+    }
+	exit(1);
+#endif
 
 
 	/* --------- test image rotate ----------- */

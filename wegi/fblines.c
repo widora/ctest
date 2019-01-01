@@ -17,6 +17,7 @@ Modified by Midas-Zhou
 -----------------------------------------------------------------------------*/
 #include "fblines.h"
 #include "egi.h"
+#include "egi_debug.h"
 #include <unistd.h>
 #include <string.h> /*memset*/
 #include <fcntl.h>
@@ -847,3 +848,54 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 		}
 }
 
+
+
+
+/*-----------------------------------------------------------------------------
+scale a block of pixel buffer.
+ owid,ohgt:	old/original width and height of the pixel area
+ nwid,nhgt:   new width and height
+ obuf:        old data buffer for 16bit color pixels
+ nbuf;	scaled data buffer for 16bit color pixels
+
+Return
+	1	partial area out of FB mem boundary
+	0	OK
+	-1	fails
+------------------------------------------------------------------------------*/
+int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
+			uint16_t *obuf, uint16_t *nbuf)
+{
+	int i,j;
+	int imap,jmap;
+
+	/* 1. check data */
+	if(owid==0 || ohgt==0 || nwid==0 || nhgt==0)
+	{
+		printf("fb_scale_pixbuf(): pixel area is 0! fail to scale.\n");
+		return -1;
+	}
+	if(obuf==NULL || nbuf==NULL)
+	{
+		printf("fb_scale_pixbuf(): old or new pixel buffer is NULL! fail to scale.\n");
+		return -2;
+	}
+
+	/* 2. map pixel from old area to new area */
+	for(i=1;i<nhgt+1;i++) /* pixel row index */
+	{
+		for(j=1;j<nwid+1;j++) /* pixel column index */
+		{
+			/* map i,j to old buf index imap,jmap */
+			//imap= round( (float)i/(float)nhgt*(float)ohgt );
+			//jmap= round( (float)j/(float)nwid*(float)owid );
+			imap= i*ohgt/nhgt;
+			jmap= j*owid/nwid;
+			//PDEBUG("fb_scale_pixbuf(): imap=%d, jmap=%d\n",imap,jmap);
+			/* get mapped pixel color */
+			nbuf[ (i-1)*nwid+(j-1) ] = obuf[ (imap-1)*owid+(jmap-1) ];
+		}
+	}
+
+	return 0;
+}
