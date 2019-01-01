@@ -62,20 +62,20 @@ int main(void)
 
 	/* ------  create txt type ebox objects -------*/
 	/* note */
-	struct egi_element_box *ebox_note = create_ebox_note();
+	EGI_EBOX *ebox_note = create_ebox_note();
 	if(ebox_note == NULL)return -1;
-	struct egi_data_txt *note_txt=(struct egi_data_txt *)(ebox_note->egi_data);
+	EGI_DATA_TXT *note_txt=(EGI_DATA_TXT *)(ebox_note->egi_data);
 	/* txt */
-	struct egi_element_box *ebox_clock = create_ebox_clock();
+	EGI_EBOX *ebox_clock = create_ebox_clock();
 	if(ebox_clock == NULL)return -2;
-	struct egi_data_txt *clock_txt=(struct egi_data_txt *)(ebox_clock->egi_data);
+	EGI_DATA_TXT *clock_txt=(EGI_DATA_TXT *)(ebox_clock->egi_data);
 	/* memo */
-	struct egi_element_box *ebox_memo=create_ebox_memo();
+	EGI_EBOX *ebox_memo=create_ebox_memo();
 	if(ebox_memo == NULL)return -3;
 
 	/* ------------   home_button eboxes definition  ------------------ */
-	struct egi_element_box  ebox_buttons[9]={0};
-	struct egi_data_btn home_btns[9]={0};
+	EGI_EBOX  ebox_buttons[9]={0};
+	EGI_DATA_BTN home_btns[9]={0};
 	for(i=0;i<3;i++) /* row of icon img */
 	{
 		for(j=0;j<3;j++) /* column of icon img */
@@ -193,7 +193,7 @@ int main(void)
 	draw_filled_circle(&gv_fb_dev,120,160,90);
 	fbset_color(0);
 	draw_circle(&gv_fb_dev,120,160,90);
-exit(1);
+//exit(1);
 #endif
 
 	/* ----------- activate txt and note eboxes ---------*/
@@ -264,9 +264,10 @@ exit(1);
 		else if(ret == XPT_READ_STATUS_PENUP )
 		{
 		       /* continous test ebox here */
-			printf("start egi_txtbox_demo() ... \n");
-			egi_txtbox_demo();
+		//	printf("start egi_txtbox_demo() ... \n");
+			//egi_txtbox_demo();
 			//continue;
+
 		  /*  Heavy load task MUST NOT put here ??? */
 			/* get hour-min-sec and display */
 			tm_get_strtime(tm_strbuf);
@@ -406,7 +407,7 @@ exit(1);
 						radio_on=1;
 						system("/home/radio.sh");
 					}
-					tm_delayms(200);
+					tm_delayms(500);
 					break;
 			}/* switch */
 

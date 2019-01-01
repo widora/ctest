@@ -65,6 +65,10 @@ typedef struct
 //	unsigned char reserved; // for 32bit pix only
 }__attribute__((packed)) PIXEL;//颜色模式RGB
 
+
+#define SHOW_BLACK_TRANSP	1
+#define SHOW_BLACK_NOTRANSP	0
+
 /*  ----- functions --------  */
 int show_bmp(char* fpath,FBDEV *fb_dev, int blackoff);
 int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);

@@ -47,7 +47,7 @@ Return:
 	pointer to the mem.	OK
 	NULL			fail
 ----------------------------------------------------------------------*/
-void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height)
+void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 {
 	/* 1. check data */
 	if( height<=0 || width <=0 )
@@ -86,7 +86,7 @@ void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height)
   return true or false
   !!!--- ebox local coordinate original is NOT sensitive in this function ---!!!
 --------------------------------------------------------------------------------*/
-bool egi_point_inbox(int px,int py, struct egi_element_box *ebox)
+bool egi_point_inbox(int px,int py, EGI_EBOX *ebox)
 {
         int xl,xh,yl,yh;
         int x1=ebox->x0;
@@ -127,7 +127,7 @@ return:
 	>=0   Ok, as ebox pointer index
 	<0    not in eboxes
 -------------------------------------------------------------------*/
-int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num)
+int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 {
 	int i=num;
 
@@ -152,7 +152,7 @@ OBSOLETE!!!
 all eboxes to be public !!!
 return ebox status
 -------------------------------------------------*/
-enum egi_ebox_status egi_get_ebox_status(const struct egi_element_box *ebox)
+enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox)
 {
 	return ebox->status;
 }
@@ -170,7 +170,7 @@ Return:
 	0	OK
 	<0	fails!
 ------------------------------------------------------------------------*/
-int egi_btnbox_activate(struct egi_element_box *ebox)
+int egi_btnbox_activate(EGI_EBOX *ebox)
 {
 	/* 1. confirm ebox type */
         if(ebox->type != type_button)
@@ -179,7 +179,7 @@ int egi_btnbox_activate(struct egi_element_box *ebox)
                 return -1;
         }
 
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
 	//int bkcolor=data_btn->icon->bkcolor;
 	int symheight=data_btn->icon->symheight;
 	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
@@ -244,7 +244,7 @@ Return:
 	0	OK
 	<0	fails!
 ------------------------------------------------------------------------*/
-int egi_btnbox_refresh(struct egi_element_box *ebox)
+int egi_btnbox_refresh(EGI_EBOX *ebox)
 {
 	/* 0. confirm ebox type */
         if(ebox->type != type_button)
@@ -269,7 +269,7 @@ int egi_btnbox_refresh(struct egi_element_box *ebox)
 		return -3;
 
 	/* 3. get updated parameters */
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
 	int bkcolor=data_btn->icon->bkcolor;
 	int symheight=data_btn->icon->symheight;
 	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
@@ -310,12 +310,14 @@ int egi_btnbox_refresh(struct egi_element_box *ebox)
 /*-------------------------------------------------
 release struct egi_btn_txt
 --------------------------------------------------*/
-void egi_free_data_btn(struct egi_data_btn *data_btn)
+void egi_free_data_btn(EGI_DATA_BTN *data_btn)
 {
 
 
 
 }
+
+
 
 
 
@@ -329,7 +331,7 @@ reutrn:
 	0	OK
 	<0	fail
 ------------------------------------------------------*/
-int egi_ebox_refresh(struct egi_element_box *ebox)
+int egi_ebox_refresh(EGI_EBOX *ebox)
 {
 	/* 1. put default methods here ...*/
 	if(ebox->method.refresh == NULL)
@@ -351,7 +353,7 @@ reutrn:
 	0	OK
 	<0	fail
 ------------------------------------------------------*/
-int egi_ebox_activate(struct egi_element_box *ebox)
+int egi_ebox_activate(EGI_EBOX *ebox)
 {
 	/* 1. put default methods here ...*/
 	if(ebox->method.activate == NULL)
@@ -373,7 +375,7 @@ reutrn:
 	0	OK
 	<0	fail
 ------------------------------------------------------*/
-int egi_ebox_sleep(struct egi_element_box *ebox)
+int egi_ebox_sleep(EGI_EBOX *ebox)
 {
 	/* 1. put default methods here ...*/
 	if(ebox->method.sleep == NULL)
@@ -387,6 +389,31 @@ int egi_ebox_sleep(struct egi_element_box *ebox)
 		return ebox->method.sleep(ebox);
 }
 
+/*----------------------------------------------------
+ebox decorate: default method
+
+reutrn:
+	1	use default method
+	0	OK
+	<0	fail
+------------------------------------------------------*/
+int egi_ebox_decorate(EGI_EBOX *ebox)
+{
+	/* 1. put default methods here ...*/
+	if(ebox->method.decorate == NULL)
+	{
+		printf("ebox '%s' has no defined method of decorate()!\n",ebox->tag);
+		return 1;
+	}
+
+	/* 2. ebox object defined method */
+	else
+	{
+		PDEBUG("egi_ebox_decorate(): start ebox->method.decorate(ebox)...\n");
+		return ebox->method.decorate(ebox);
+	}
+}
+
 
 /*----------------------------------------------------
 ebox refresh: default method
@@ -396,7 +423,7 @@ reutrn:
 	0	OK
 	<0	fail
 ------------------------------------------------------*/
-int egi_ebox_free(struct egi_element_box *ebox)
+int egi_ebox_free(EGI_EBOX *ebox)
 {
 	/* check ebox */
 	if(ebox == NULL)
@@ -467,28 +494,28 @@ return:
 	NULL		fail
 	pointer		OK
 ----------------------------------------------------------------------------*/
-struct egi_element_box * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
+EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 {
 	/* malloc ebox */
 	PDEBUG("egi_ebox_new(): start to malloc for a new ebox....\n");
-	struct egi_element_box *ebox=malloc(sizeof(struct egi_element_box));
+	EGI_EBOX *ebox=malloc(sizeof(EGI_EBOX));
 
 	if(ebox==NULL)
 	{
 		printf("egi_ebox_new(): fail to malloc for a new ebox!\n");
 		return NULL;
 	}
-	memset(ebox,0,sizeof(struct egi_element_box)); /* clear data */
+	memset(ebox,0,sizeof(EGI_EBOX)); /* clear data */
 
 
 #if 0 	/* Not necessary, the egi_data to be allocated and assigned to ebox by the caller!!!!  malloc ebox type data */
 	switch(type)
 	{
 		case type_txt:
-			ebox->egi_data = malloc(sizeof(struct egi_data_txt));
+			ebox->egi_data = malloc(sizeof(EGI_DATA_TXT));
 			break;
 		case type_button:
-			ebox->egi_data = malloc(sizeof(struct egi_data_btn));
+			ebox->egi_data = malloc(sizeof(EGI_DATA_BTN));
 			break;
 		case type_chart:
 			break;
@@ -503,7 +530,7 @@ struct egi_element_box * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_da
 		ebox=NULL;
 		return NULL;
 	}
-	memset(ebox,0,sizeof(struct egi_data_txt)); /* clear data */
+	memset(ebox,0,sizeof(EGI_DATA_TXT)); /* clear data */
 #endif
 
 
@@ -511,6 +538,7 @@ struct egi_element_box * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_da
 	PDEBUG("egi_ebox_new(): assing default method to ebox ....\n");
 	ebox->activate=egi_ebox_activate;
 	ebox->refresh=egi_ebox_refresh;
+	ebox->decorate=egi_ebox_decorate;
 	ebox->sleep=egi_ebox_sleep;
 	ebox->free=egi_ebox_free;
 

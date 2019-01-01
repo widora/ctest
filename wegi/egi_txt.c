@@ -13,6 +13,20 @@ Midas Zhou
 #include "egi_debug.h"
 //#include "egi_timer.h"
 #include "symbol.h"
+#include "bmpjpg.h"
+
+
+/*-------------------------------------
+      txt ebox self_defined methods
+--------------------------------------*/
+static EGI_METHOD txtbox_method=
+{
+        .activate=egi_txtbox_activate,
+        .refresh=egi_txtbox_refresh,
+        .decorate=egi_txtbox_decorate,
+        .sleep=egi_txtbox_sleep,
+        .free=NULL, //egi_ebox_free,
+};
 
 
 /*-----------------------------------------------------------------------------
@@ -22,7 +36,7 @@ return:
 	poiter 		OK
 	NULL		fail
 -----------------------------------------------------------------------------*/
-struct egi_data_txt *egi_txtdata_new(int offx, int offy,
+EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	int nl,
 	int llen,
 	struct symbol_page *font,
@@ -34,14 +48,14 @@ struct egi_data_txt *egi_txtdata_new(int offx, int offy,
 
 	/* malloc a egi_data_txt struct */
 	PDEBUG("egi_txtdata_new(): malloc data_txt ...\n");
-	struct egi_data_txt *data_txt=malloc(sizeof(struct egi_data_txt));
+	EGI_DATA_TXT *data_txt=malloc(sizeof(EGI_DATA_TXT));
 	if(data_txt==NULL)
 	{
 		printf("egi_txtdata_new(): fail to malloc egi_data_txt.\n");
 		return NULL;
 	}
 	/* clear up data */
-	memset(data_txt,0,sizeof(struct egi_data_txt));
+	memset(data_txt,0,sizeof(EGI_DATA_TXT));
 
 	/* assign parameters */
         data_txt->nl=nl;
@@ -100,10 +114,10 @@ return:
 	poiter 		OK
 	NULL		fail
 -----------------------------------------------------------------------------*/
-struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
+EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
 	/* 1. parameters for concept ebox */
-	struct egi_data_txt *egi_data,
-	struct egi_ebox_method method,
+	EGI_DATA_TXT *egi_data,
+//	EGI_METHOD method,
 	bool movable,
 	int x0, int y0,
 	int width, int height,
@@ -112,7 +126,7 @@ struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
 )
 
 {
-	struct egi_element_box *ebox;
+	EGI_EBOX *ebox;
 
 	/* 0. check egi_data */
 	if(egi_data==NULL)
@@ -136,7 +150,7 @@ struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
 */
 	/* 3. txt ebox object method */
 	PDEBUG("egi_txtbox_new(): assign defined mehtod ebox->method=methd...\n");
-	ebox->method=method;
+	ebox->method=txtbox_method;
 
 	/* 4. fill in elements  */
 	strncpy(ebox->tag,tag,EGI_TAG_LENGTH); /* addtion EGI_TAG_LENGTH+1 for end token here */
@@ -157,7 +171,7 @@ struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
 
 
 /*--------------------------------------------------------------------------------
-initialize struct egi_data_txt according
+initialize EGI_DATA_TXT according
 
 offx,offy:			offset from prime ebox
 int nl:   			number of txt lines
@@ -171,7 +185,7 @@ Return:
         non-null        OK
         NULL            fails
 ---------------------------------------------------------------------------------*/
-struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt,
+EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt,
 			int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color)
 {
 	int i,j;
@@ -254,7 +268,7 @@ Return:
 	<0	fails!
 
 ----------------------------------------------------------------------------------*/
-int egi_txtbox_activate(struct egi_element_box *ebox)
+int egi_txtbox_activate(EGI_EBOX *ebox)
 {
 //	int i,j;
 	int ret;
@@ -262,7 +276,7 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
-	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 
 	/* 0. check data */
 	if(data_txt == NULL)
@@ -292,7 +306,7 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	*/
 	if(ebox->status==status_sleep)
 	{
-		((struct egi_data_txt *)(ebox->egi_data))->foff=0; /* reset affliated file position */
+		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset affliated file position */
 		ebox->status=status_active; /* reset status */
 		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
@@ -344,9 +358,8 @@ int egi_txtbox_activate(struct egi_element_box *ebox)
 	/* 6. change its status, if not, you can not refresh.  */
 	ebox->status=status_active;
 
-
 	/* 7. reset offset for txt file if fpath applys */
-	//???? NOT activate ????? ((struct egi_data_txt *)(ebox->egi_data))->foff=0;
+	//???? NOT activate ????? ((EGI_DATA_TXT *)(ebox->egi_data))->foff=0;
 
 	/* 8. refresh displaying the ebox */
 	ret=egi_txtbox_refresh(ebox);
@@ -378,7 +391,7 @@ Return
 	0	OK
 	<0	fail
 -------------------------------------------------------------------------------*/
-int egi_txtbox_refresh(struct egi_element_box *ebox)
+int egi_txtbox_refresh(EGI_EBOX *ebox)
 {
 	int i;
 	int ret=0;
@@ -414,8 +427,8 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
-	PDEBUG("egi_txtbox_refresh():start to assign data_txt=(struct egi_data_txt *)(ebox->egi_data)\n");
-	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
+	PDEBUG("egi_txtbox_refresh():start to assign data_txt=(EGI_DATA_TXT *)(ebox->egi_data)\n");
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int nl=data_txt->nl;
 //	int llen=data_txt->llen;
 	int offx=data_txt->offx;
@@ -486,6 +499,8 @@ int egi_txtbox_refresh(struct egi_element_box *ebox)
 	{
 		fbset_color(0); /* use black as frame color  */
 		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+		draw_rect(&gv_fb_dev,x0+1,y0+1,x0+width-2,y0+height-2);
+
 	}
 	/* TODO: other type of frame .....*/
 
@@ -521,7 +536,7 @@ return
 	<0 	fail
 
 ------------------------------------------------------*/
-int egi_txtbox_sleep(struct egi_element_box *ebox)
+int egi_txtbox_sleep(EGI_EBOX *ebox)
 {
    	if(ebox->movable) /* only for movable ebox */
    	{
@@ -557,14 +572,14 @@ Return:
 
 	<0	fail
 ---------------------------------------------------------------*/
-int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
+int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 {
 	FILE *fil;
 	int i;
 	char buf[32]={0};
 	int nread=0;
 	int ret=0;
-	struct egi_data_txt *data_txt=(struct egi_data_txt *)(ebox->egi_data);
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
 	char **txt=data_txt->txt;
 	int nt=0;/* index, txt[][nt] */
@@ -704,13 +719,13 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 	/* save current file position */
 	if(feof(fil))
 	{
-		((struct egi_data_txt *)(ebox->egi_data))->foff=0; /* reset offset,if end of file */
+		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset offset,if end of file */
 		ret=0; /* end of file */
 	}
 	else
 	{
 		//PDEBUG("ftell(fil)=%ld\n",ftell(fil));
-		((struct egi_data_txt *)(ebox->egi_data))->foff +=ret; //ftell(fil);
+		((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; //ftell(fil);
 	}
 
 	fclose(fil);
@@ -719,9 +734,9 @@ int egi_txtbox_readfile(struct egi_element_box *ebox, char *path)
 
 
 /*--------------------------------------------------
-	release struct egi_data_txt
+	release EGI_DATA_TXT
 ---------------------------------------------------*/
-void egi_free_data_txt(struct egi_data_txt *data_txt)
+void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 {
 	int i;
 	int nl=data_txt->nl;
@@ -745,3 +760,17 @@ void egi_free_data_txt(struct egi_data_txt *data_txt)
 
 }
 
+
+/*--------------------------------------------------
+txtbox decorationg function
+
+---------------------------------------------------*/
+int egi_txtbox_decorate(EGI_EBOX *ebox)
+{
+	int ret=0;
+
+	PDEBUG("egi_txtbox_decorate(): start to show_jpg()...\n");
+	ret=show_jpg("/tmp/openwrt.jpg", &gv_fb_dev, SHOW_BLACK_NOTRANSP, ebox->x0+2, ebox->y0+2); /* blackoff<0, show black */
+
+	return ret;
+}

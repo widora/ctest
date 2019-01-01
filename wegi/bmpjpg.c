@@ -146,7 +146,8 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 
 
 /*------------------------------------------------------
-    blackoff: if balckoff>0, then make black transparent
+    blackoff:
+	if balckoff>0, then make black transparent
     (x0,y0): original coordinate of picture in LCD
 --------------------------------------------------------*/
 int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
@@ -211,7 +212,7 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
    	        	// ---- dat(R8G8B8) converting to format R5G6B5(as for framebuffer) -----
 			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
 			/*if blockoff>0, don't write black to fb, so make it transparent to back color */
-			if(  !blackoff || color )
+			if(  blackoff<=0 || color )
 			{
 				*(uint16_t *)(fbp+location)=color;
 			}

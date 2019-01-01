@@ -19,15 +19,17 @@ Midas Zhou
 #include "symbol.h"
 
 
-/* ----- common -----  txt ebox self_defined methods */
-struct egi_ebox_method txtbox_method=
+#if 0
+/* txt ebox self_defined methods */
+static EGI_METHOD txtbox_method=
 {
 	.activate=egi_txtbox_activate,
 	.refresh=egi_txtbox_refresh,
+	.decorate=egi_txtbox_decorate,
 	.sleep=egi_txtbox_sleep,
 	.free=NULL, //egi_ebox_free,
 };
-
+#endif 
 
 /*---------------------------------------
 return a random value not great than max
@@ -58,11 +60,11 @@ return:
 	txt ebox pointer 	OK
 	NULL			fai.
 --------------------------------------------*/
-struct egi_element_box *create_ebox_memo(void)
+EGI_EBOX *create_ebox_memo(void)
 {
 
 	/* 1. create memo_txt */
-	struct egi_data_txt *memo_txt=egi_txtdata_new(
+	EGI_DATA_TXT *memo_txt=egi_txtdata_new(
 		5,5, /* offset X,Y */
       	  	12, /*int nl, lines  */
        	 	24, /*int llen, chars per line */
@@ -74,11 +76,11 @@ struct egi_element_box *create_ebox_memo(void)
 	memo_txt->fpath="/home/memo.txt";
 
 	/* 3. create memo ebox */
-	struct egi_element_box  *ebox_memo= egi_txtbox_new(
+	EGI_EBOX  *ebox_memo= egi_txtbox_new(
 		"memo stick", /* tag */
 		type_txt, /*enum egi_ebox_type type */
-        	memo_txt,  /* struct egi_data_txt pointer */
-        	txtbox_method, /*struct egi_ebox_method method */
+        	memo_txt,  /* EGI_DATA_TXT pointer */
+//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	12,0, /* int x0, int y0 */
         	240,320, /* int width, int height */
@@ -98,11 +100,11 @@ return:
 	txt ebox pointer 	OK
 	NULL			fai.
 --------------------------------------------*/
-struct egi_element_box *create_ebox_clock(void)
+EGI_EBOX *create_ebox_clock(void)
 {
 
 	/* 1. create a data_txt */
-	struct egi_data_txt *clock_txt=egi_txtdata_new(
+	EGI_DATA_TXT *clock_txt=egi_txtdata_new(
 		20,0, /* offset X,Y */
       	  	3, /*int nl, lines  */
        	 	64, /*int llen, chars per line */
@@ -113,11 +115,11 @@ struct egi_element_box *create_ebox_clock(void)
 	strncpy(clock_txt->txt[1],"abcdefg",5);
 
 	/* 2. create memo ebox */
-	struct egi_element_box  *ebox_clock= egi_txtbox_new(
+	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
-        	clock_txt,  /* struct egi_data_txt pointer */
-        	txtbox_method, /*struct egi_ebox_method method */
+        	clock_txt,  /* EGI_DATA_TXT pointer */
+//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	60,5, /* int x0, int y0 */
         	120,20, /* int width, int height */
@@ -130,11 +132,11 @@ struct egi_element_box *create_ebox_clock(void)
 
 
 /* ---------------------------  ebox note --------------------------------*/
-struct egi_element_box *create_ebox_note(void)
+EGI_EBOX *create_ebox_note(void)
 {
 
 	/* 1. create a data_txt */
-	struct egi_data_txt *note_txt=egi_txtdata_new(
+	EGI_DATA_TXT *note_txt=egi_txtdata_new(
 		5,5, /* offset X,Y */
       	  	2, /*int nl, lines  */
        	 	32, /*int llen, chars per line */
@@ -143,11 +145,11 @@ struct egi_element_box *create_ebox_note(void)
 	);
 
 	/* 2. create memo ebox */
-	struct egi_element_box  *ebox_clock= egi_txtbox_new(
+	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"note pad", /* tag */
 		type_txt, /*enum egi_ebox_type type */
-        	note_txt,  /* struct egi_data_txt pointer */
-        	txtbox_method, /*struct egi_ebox_method method */
+        	note_txt,  /* EGI_DATA_TXT pointer */
+//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	5,80, /* int x0, int y0 */
         	230,60, /* int width, int height */
@@ -170,13 +172,13 @@ return:
 	txt ebox pointer 	OK
 	NULL			fai.
 ------------------------------------------------*/
-struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
+EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 {
 
 	/* 1. create a data_txt */
 	printf("start to egi_txtdata_new()...\n");
-	struct egi_data_txt *clock_txt=egi_txtdata_new(
-		10,0, /* offset X,Y */
+	EGI_DATA_TXT *clock_txt=egi_txtdata_new(
+		10,30, /* offset X,Y */
       	  	3, /*int nl, lines  */
        	 	64, /*int llen, chars per line */
         	&sympg_testfont, /*struct symbol_page *font */
@@ -200,14 +202,14 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
 
 	/* 2. create memo ebox */
 	PDEBUG("create_ebox_notes(): strat to egi_txtbox_new().....\n");
-	struct egi_element_box  *ebox_clock= egi_txtbox_new(
+	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
-        	clock_txt,  /* struct egi_data_txt pointer */
-        	txtbox_method, /*struct egi_ebox_method method */
+        	clock_txt,  /* EGI_DATA_TXT pointer */
+//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	x0,y0, /* int x0, int y0 */
-        	160,80, /* int width, int height */
+        	160,66, /* int width, int height */
         	0, /* int frame,0=simple frmae, -1=no frame */
         	bkcolor /*int prmcolor*/
 	);
@@ -221,24 +223,33 @@ struct egi_element_box *create_ebox_notes(int num, int x0, int y0, uint16_t bkco
 ----------------------------------------------*/
 void egi_txtbox_demo(void)
 {
-	int total=1000;
+	int total=56;
 	int i;
-	struct egi_element_box *txtebox[1000];
+	EGI_EBOX *txtebox[56];
 	int ret;
 
 	for(i=0;i<total;i++)
 	{
 	      PDEBUG("create ebox notes txtebox[%d].\n",i);
-	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(240), egi_random_color());
+	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_random_color());
 	      if(txtebox[i]==NULL)
 	      {
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
 			return;
 	      }
+
 	      PDEBUG("egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
 	      ret=txtebox[i]->activate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
+
+	      /* apply decoration method */
+	      PDEBUG("egi_txtbox_demon(): start to decorate txtebox[%d]\n",i);
+	      ret=txtebox[i]->decorate(txtebox[i]);
+	      if(ret != 0)
+			printf(" egi_txtbox_demo() txtebox decorate fails with ret=%d\n",ret);
+
+
 	      tm_delayms(5);
 //	      usleep(200000);
 	}

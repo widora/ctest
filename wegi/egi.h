@@ -16,6 +16,8 @@ Midas Zhou
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
 
+typedef struct egi_element_box EGI_EBOX;
+
 struct egi_point_coord
 {
 	 int x;
@@ -33,6 +35,7 @@ enum egi_ebox_type
 {
 	type_txt,
 	type_button,
+	type_list,
 	type_chart,
 	type_picture,
 	type_motion,
@@ -66,16 +69,29 @@ enum egi_btn_status
 	pressed_hold,
 };
 
-/* ebox actions */
-struct egi_element_box;
-
+/*  ebox action methods */
+/*
+ if you want add a new method, follow steps:
+ 	0. add a new method in this structure.
+	1. egi.c:
+		1.1 write a default method funciton for this new one: egi_ebox_(method_name) (EGI_EBOX *ebox).
+		1.2 in egi_ebox_new(): assign default method for this new one.
+	2. egi_objXXX.c:	EGI_METHOD XXXbox_method=
+ 	3. egi_XXX.c:
+		3.1 write a self-defined method function: egi_XXXbox_decorate(EGI_EBOX *ebox).
+		3.2 in egi_XXXbox_new(): assign self-defined method to new XXX_type ebox.
+ 	4. modify relevant head files according.
+ */
+typedef struct egi_ebox_method EGI_METHOD;
 struct egi_ebox_method
 {
-	int (*activate)(struct egi_element_box *);
-	int (*refresh)(struct egi_element_box *);
-	int (*sleep)(struct egi_element_box *);
-	int (*free)(struct egi_element_box *);
+	int (*activate)(EGI_EBOX *);
+	int (*refresh)(EGI_EBOX *);
+	int (*decorate)(EGI_EBOX *);
+	int (*sleep)(EGI_EBOX *);
+	int (*free)(EGI_EBOX *);
 };
+
 
 /*
 	-----  structs ebox, is basic element of egi. -----
@@ -147,7 +163,7 @@ struct egi_element_box
 	void *egi_data;
 
 	/* child defined method, or use default method */
-	struct egi_ebox_method method;
+	EGI_METHOD method;
 
 	/* --- DEFAULT METHODS --- */
 	/*  --- activate:
@@ -162,7 +178,7 @@ struct egi_element_box
 	   	3. refresh to display the ebox on screen.
 	   	4. reset the status as active.
 	*/
-	int (*activate)(struct egi_element_box *);
+	int (*activate)(EGI_EBOX *);
 
 	/* --- refresh:
 		0. a sleep ebox will not be refreshed.
@@ -172,7 +188,7 @@ struct egi_element_box
 		   will be applied and updated.
 		4. redraw the ebox and txt content according to updated data.
 	*/
-	int (*refresh)(struct egi_element_box *);
+	int (*refresh)(EGI_EBOX *);
 
 	/* --- sleep:
 	   1. Remove the ebox from the screen and restore the bkimg.
@@ -180,18 +196,18 @@ struct egi_element_box
 	   3. if an immovale ebox sleeps, it should not dispear ??!!!
 	   4. sleeping ebox will not react to touching.
 	*/
-	int (*sleep)(struct egi_element_box *);
+	int (*sleep)(EGI_EBOX *);
 
 	/* --- free:
 
 	*/
-	int (*free)(struct egi_element_box *);
+	int (*free)(EGI_EBOX *);
 
 
 	/* --- decorate:
 	    additional drawing/imgs decoration function for the ebox
 	*/
-	int (*decorate)(struct egi_element_box *);
+	int (*decorate)(EGI_EBOX *);
 
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
@@ -200,13 +216,13 @@ struct egi_element_box
 	struct list_head node; /* list node to a father ebox */
 	struct list_head list_head; /* list head for child eboxes */
 
-	//struct egi_element_box *child;
+	//EGI_EBOX *child;
 
 };
-typedef struct egi_element_box EGI_EBOX;
 
 
 /* egi data for a txt type ebox */
+typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
 	int offx; /* offset from ebox x0,y0 */
@@ -222,7 +238,9 @@ struct egi_data_txt
 	long foff; /* curret offset of the txt file if applys */
 };
 
+
 /* egi data for a botton type ebox */
+typedef struct egi_data_btn EGI_DATA_BTN;
 struct egi_data_btn
 {
 	//char tag[32]; /* short description of the button */
@@ -234,6 +252,7 @@ struct egi_data_btn
 	void (* action)(enum egi_btn_status status); /* triggered action */
 };
 
+
 /* egi data for a picture type ebox */
 struct egi_data_chart
 {
@@ -244,55 +263,56 @@ struct egi_data_chart
 struct egi_data_page
 {
 	/* eboxes */
-	struct egi_element_box *boxlist;
+	EGI_EBOX *boxlist;
 };
 
 
 /* for common ebox */
-void *egi_alloc_bkimg(struct egi_element_box *ebox, int width, int height);
-bool egi_point_inbox(int px,int py, struct egi_element_box *ebox);
-int egi_get_boxindex(int x,int y, struct egi_element_box *ebox, int num);
-enum egi_ebox_status egi_get_ebox_status(const struct egi_element_box *ebox);
+void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
+bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
+int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
+enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
-struct egi_element_box * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
+EGI_EBOX * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
 
-int egi_ebox_activate(struct egi_element_box *ebox);
-int egi_ebox_refresh(struct egi_element_box *ebox);
-int egi_ebox_sleep(struct egi_element_box *ebox);
-int egi_ebox_free(struct egi_element_box *ebox);
+int egi_ebox_activate(EGI_EBOX *ebox);
+int egi_ebox_refresh(EGI_EBOX *ebox);
+int egi_ebox_decorate(EGI_EBOX *ebox);
+int egi_ebox_sleep(EGI_EBOX *ebox);
+int egi_ebox_free(EGI_EBOX *ebox);
 
 
 /* for txt ebox referring to egi_txt.h  */
 #if 0
-extern struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt, /* ----- OBSOLETE ----- */
+extern EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt, /* ----- OBSOLETE ----- */
                  int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
 
-extern struct egi_data_txt *egi_txtdata_new(int offx, int offy, /* create new txt data */
+extern EGI_DATA_TXT *egi_txtdata_new(int offx, int offy, /* create new txt data */
         int nl,
         int llen,
         struct symbol_page *font,
         uint16_t color );
 
-extern struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
-        struct egi_data_txt *egi_data,
-        struct egi_ebox_method method,
+extern EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
+        EGI_DATA_TXT *egi_data,
+        EGI_METHOD method,
         bool movable,
         int x0, int y0,
         int width, int height,
         int frame,
         int prmcolor );
 
-extern int egi_txtbox_activate(struct egi_element_box *ebox);
-extern int egi_txtbox_refresh(struct egi_element_box *ebox);
-extern int egi_txtbox_sleep(struct egi_element_box *ebox);
-extern int egi_txtbox_readfile(struct egi_element_box *ebox, char *path);
-extern void egi_free_data_txt(struct egi_data_txt *data_txt);
+extern int egi_txtbox_activate(EGI_EBOX *ebox);
+extern int egi_txtbox_refresh(EGI_EBOX *ebox);
+extern int egi_txtbox_sleep(EGI_EBOX *ebox);
+extern int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
+extern void egi_free_data_txt(EGI_DATA_TXT *data_txt);
 #endif
 
 /* for button ebox */
-int egi_btnbox_activate(struct egi_element_box *ebox);
-int egi_btnbox_refresh(struct egi_element_box *ebox);
-void egi_free_data_btn(struct egi_data_btn *data_btn);
+int egi_btnbox_activate(EGI_EBOX *ebox);
+int egi_btnbox_refresh(EGI_EBOX *ebox);
+void egi_free_data_btn(EGI_DATA_BTN *data_btn);
 
 
 

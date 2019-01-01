@@ -13,30 +13,31 @@ Midas Zhou
 
 
 /* for txt ebox */
-struct egi_data_txt *egi_init_data_txt(struct egi_data_txt *data_txt, /* ----- OBSOLETE ----- */
+EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt, /* ----- OBSOLETE ----- */
                  int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
 
 
-struct egi_data_txt *egi_txtdata_new(int offx, int offy, /* create new txt data */
+EGI_DATA_TXT *egi_txtdata_new(int offx, int offy, /* create new txt data */
         int nl,
         int llen,
         struct symbol_page *font,
         uint16_t color );
 
-struct egi_element_box * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
-        struct egi_data_txt *egi_data,
-        struct egi_ebox_method method,
+EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
+        EGI_DATA_TXT *egi_data,
+//        EGI_METHOD method,
         bool movable,
         int x0, int y0,
         int width, int height,
         int frame,
         int prmcolor );
 
-int egi_txtbox_activate(struct egi_element_box *ebox);
-int egi_txtbox_refresh(struct egi_element_box *ebox);
-int egi_txtbox_sleep(struct egi_element_box *ebox);
-int egi_txtbox_readfile(struct egi_element_box *ebox, char *path);
-void egi_free_data_txt(struct egi_data_txt *data_txt);
+int egi_txtbox_activate(EGI_EBOX *ebox);
+int egi_txtbox_refresh(EGI_EBOX *ebox);
+int egi_txtbox_decorate(EGI_EBOX *ebox);
+int egi_txtbox_sleep(EGI_EBOX *ebox);
+int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
+void egi_free_data_txt(EGI_DATA_TXT *data_txt);
 
 
 #endif

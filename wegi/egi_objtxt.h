@@ -9,9 +9,9 @@ All EGI OBJ Initializations
 
 /*  ------------ MEMO: txt ebox  ----------- */
 int egi_random_max(int max);
-struct egi_element_box *create_ebox_memo(void);
-struct egi_element_box *create_ebox_clock(void);
-struct egi_element_box *create_ebox_note(void);
+EGI_EBOX *create_ebox_memo(void);
+EGI_EBOX *create_ebox_clock(void);
+EGI_EBOX *create_ebox_note(void);
 
 void egi_txtbox_demo(void);
 

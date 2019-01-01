@@ -41,7 +41,7 @@ Modified by Midas-Zhou
 
 
 /* global variale, Frame buffer device */
-FBDEV   gv_fb_dev;
+FBDEV  gv_fb_dev;
 
 
  /* default color set */
