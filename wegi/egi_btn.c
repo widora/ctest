@@ -69,9 +69,9 @@ EGI_EBOX * egi_btnbox_new( char *tag,
         EGI_DATA_BTN *egi_data,
         bool movable,
         int x0, int y0,
-        int width, int height,
+        int width, int height, /* for frame drawing and prmcolor filled_rectangle */
         int frame,
-        int prmcolor
+        int prmcolor /* applys only if prmcolor>=0 and egi_data->icon != NULL */
 )
 {
         EGI_EBOX *ebox;
@@ -251,10 +251,47 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;
 
-	/* 6. draw the button */
+        /* ---- 6. set color and drawing shape ----- */
+        if(ebox->prmcolor >= 0 && data_btn->icon != NULL )
+        {
+		int height=ebox->height;
+		int width=ebox->width;
+
+                /* set color */
+           	fbset_color(ebox->prmcolor);
+		switch(data_btn->shape)
+		{
+			case square:
+			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+        			/* --- draw frame --- */
+       			        if(ebox->frame >= 0) /* 0: simple type */
+       				{
+                			fbset_color(0); /* use black as frame color  */
+                			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+			        }
+				break;
+			case circle:
+				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
+								width>height?height/2:width/2);
+        			/* --- draw frame --- */
+       			        if(ebox->frame >= 0) /* 0: simple type */
+       				{
+                			fbset_color(0); /* use black as frame color  */
+					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
+								width>height?height/2:width/2);
+			        }
+				break;
+
+			default:
+				printf("egi_btnbox_refresh(): shape not defined! \n");
+				break;
+		}
+        }
+
+	/* 7. draw the button symbol */
 	symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor, x0, y0, data_btn->icon_code);
 
-	/* 5. take action according to status:
+	/* 8. take action according to status:
 		 void (* action)(enum egi_btn_status status);
 	*/
 

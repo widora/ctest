@@ -76,6 +76,7 @@ int main(void)
 	if(ebox_memo == NULL)return -3;
 
 	/* ------------   home_button eboxes definition  ------------------ */
+#if 0
 	EGI_EBOX  ebox_buttons[9]={0};
 	EGI_DATA_BTN data_btns[9]={0};
 	for(i=0;i<3;i++) /* row of icon img */
@@ -96,6 +97,35 @@ int main(void)
 			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
 	}
+#endif
+
+	EGI_EBOX *ebox_buttons[9];
+	EGI_DATA_BTN *data_btns[9];
+	char strtag[30]={0};
+        for(i=0;i<3;i++) /* row of icon img */
+        {
+                for(j=0;j<3;j++) /* column of icon img */
+                {
+			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
+							square, /* enum egi_btn_type shape */
+							&sympg_icon, /* struct symbol_page *icon */
+							3*i+j /* int icon_code */
+						);
+
+			sprintf(strtag,"home_button_%d",3*i+j);
+			ebox_buttons[3*i+j]=egi_btnbox_new( strtag, /* tag */
+							data_btns[3*i+j], /* EGI_DATA_BTN *egi_data */
+				        		0, /* bool movable */
+						        15+(15+60)*j, 105+(15+60)*i, /* int x0, int y0 */
+							60,60, /* int width, int height */
+				       			1, /* int frame */
+		       					-1 /*int prmcolor */
+						   );
+		}
+	}
+
+
+
 
 
 	/* test ---- egi page list ----- */
@@ -104,7 +134,7 @@ int main(void)
 	EGI_PAGE *page_home=egi_page_new("page_home");
 	/* add ebox to a page */
 	for(i=0;i<9;i++)
-		egi_page_addlist(page_home, ebox_buttons+i);
+		egi_page_addlist(page_home, ebox_buttons[i]);
 	/* traverse a page to get listed ebox */
 	egi_page_travlist(page_home);
 
@@ -249,7 +279,8 @@ exit(1);
 	/*  buttons  */
 	for(i=0;i<9;i++)
 		//egi_btnbox_activate(ebox_buttons+i);
-		ebox_buttons[i].activate(ebox_buttons+i);
+		ebox_buttons[i]->activate(ebox_buttons[i]);
+
 
 	/* txt ebox demon */
 #if 0
@@ -384,7 +415,7 @@ exit(1);
 
 	/* -----------------------  Touch Event Handling  --------------------------*/
 		/*---  get index of pressed ebox and activate the button ----*/
-	    	index=egi_get_boxindex(sx,sy,ebox_buttons,9);
+	    	index=egi_get_boxindex(sx,sy,ebox_buttons[0],9);
 		printf("get touched box index=%d\n",index);
 
 #if 1
