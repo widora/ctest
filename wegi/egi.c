@@ -15,7 +15,7 @@ Very simple concept:
   7.1 Home egi_page (wallpaper, app buttons, head informations ...etc.)
   7.2 Current active egi_page (current running/displaying egi_page, accept all pad-touch events)
   7.3 Back Running egi_page (running in back groud, no pad-touch reaction. )
-
+  7.4 A egi page
 
 TODO:
 	0. egi_txtbox_filltxt(),fill txt buffer of txt_data->txt.
@@ -27,7 +27,8 @@ Midas Zhou
 ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h> /*malloc*/
-#include <string.h> /* memset */
+#include <string.h> /*memset*/
+#include <unistd.h> /*usleep*/
 #include "egi.h"
 #include "egi_txt.h"
 #include "egi_debug.h"
@@ -321,7 +322,7 @@ void egi_free_data_btn(EGI_DATA_BTN *data_btn)
 
 
 
-///xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  OK   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+///xxxxxxxxxxxxxxxxxxxxxxxxxx(((   OK   )))xxxxxxxxxxxxxxxxxxxxxxxxx
 
 /*----------------------------------------------------
 ebox refresh: default method
@@ -453,7 +454,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 				if(ebox->egi_data != NULL)
 					egi_free_data_btn(ebox->egi_data);
 				break;
-			case type_chart:
+			case type_page:
 				break;
 			default:
 				printf("egi_ebox_free(): ebox '%s' type %d has not been created yet!\n",
@@ -507,6 +508,8 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	}
 	memset(ebox,0,sizeof(EGI_EBOX)); /* clear data */
 
+	ebox->type=type;
+
 
 #if 0 	/* Not necessary, the egi_data to be allocated and assigned to ebox by the caller!!!!  malloc ebox type data */
 	switch(type)
@@ -550,4 +553,82 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	 */
 
 	return ebox;
+}
+
+
+/*------------------------------------------------------------------
+dispearing effect for a full egi page, zoom out the page image to the top
+left point
+
+return:
+	0		OK
+	<0		fail
+--------------------------------------------------------------------*/
+int egi_page_dispear(EGI_EBOX *ebox)
+{
+        int wid,hgt;
+	int bkwid,bkhgt; /* wid and hgt for backup */
+	int screensize=gv_fb_dev.screensize;
+	int xres=gv_fb_dev.vinfo.xres;
+	int yres=gv_fb_dev.vinfo.yres;
+	uint16_t *buf;
+	uint16_t *sbuf; /* for scaled image */
+	uint16_t *bkimg; /* bkimg for scaled area */
+
+	/* check ebox is a full egi page */
+
+	/* malloc buf */
+	buf=malloc(screensize);
+	if(buf==NULL)
+	{
+		printf("egi_page_dispear(): fail to malloc buf.\n");
+		return -1;
+	}
+	sbuf=malloc(screensize);
+	if(sbuf==NULL)
+	{
+		printf("egi_page_dispear(): fail to malloc sbuf.\n");
+		return -2;
+	}
+	bkimg=malloc(screensize);
+	if(bkimg==NULL)
+	{
+		printf("egi_page_dispear(): fail to malloc bkimg.\n");
+		return -3;
+	}
+
+        /* 1. grap current page image */
+        printf("start fb_cpyto_buf\n");
+        fb_cpyto_buf(&gv_fb_dev, 0, 0, xres-1, yres-1, buf);
+        printf("start for...\n");
+
+	/* 2. restore original page image */
+    	fb_cpyfrom_buf(&gv_fb_dev,ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+				ebox->bkbox.endxy.x,ebox->bkbox.endxy.y,ebox->bkimg);
+        fb_cpyto_buf(&gv_fb_dev,0,0,xres-1,yres-1,bkimg);
+	bkwid=xres;bkhgt=yres;
+
+        /* 3. zoom out to left top point */
+        for(wid=xres;wid>0;wid-=2)
+        {
+		/* 2.1 scale the image */
+                hgt=wid*yres/xres; //4/3;
+                fb_scale_pixbuf(xres,yres,wid,hgt,buf,sbuf);
+                /* 2.2 restore ebox bk image */
+                fb_cpyfrom_buf(&gv_fb_dev,0,0,bkwid-1,bkhgt-1,bkimg);
+           //     fb_cpyfrom_buf(&gv_fb_dev,ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	//					ebox->bkbox.endxy.x,ebox->bkbox.endxy.y,ebox->bkimg);
+                /* 2.3 store the area which will be replaced by scaled image */
+                fb_cpyto_buf(&gv_fb_dev,0,0,wid-1,hgt-1,bkimg);
+		bkwid=wid;bkhgt=hgt;
+                /* 2.3 put scaled image */
+                fb_cpyfrom_buf(&gv_fb_dev,0,0,wid-1,hgt-1,sbuf);
+                usleep(100000);
+        }
+
+        /* 3. */
+	free(buf);
+	free(sbuf);
+
+	return 0;
 }

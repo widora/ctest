@@ -33,6 +33,7 @@ struct egi_box_coords
 /* element box type */
 enum egi_ebox_type
 {
+	type_page,
 	type_txt,
 	type_button,
 	type_list,
@@ -203,21 +204,15 @@ struct egi_element_box
 	*/
 	int (*free)(EGI_EBOX *);
 
-
 	/* --- decorate:
 	    additional drawing/imgs decoration function for the ebox
 	*/
 	int (*decorate)(EGI_EBOX *);
 
-	/* --- child list:
-	maintain a list for all child ebox, there should also be layer information
-	multi_layer operation is applied.
-	*/
+
 	struct list_head node; /* list node to a father ebox */
-	struct list_head list_head; /* list head for child eboxes */
 
 	//EGI_EBOX *child;
-
 };
 
 
@@ -259,12 +254,30 @@ struct egi_data_chart
 
 };
 
+
 /* an egi_page takes hold of whole tft-LCD screen */
 struct egi_data_page
 {
 	/* eboxes */
 	EGI_EBOX *boxlist;
 };
+
+
+typedef struct egi_page EGI_PAGE;
+struct egi_page
+{
+	/* egi page is based on egi_ebox */
+	EGI_EBOX *ebox;
+
+	/* --- child list:
+	maintain a list for all child ebox, there should also be layer information
+	multi_layer operation is applied.
+	*/
+	struct list_head list_head; /* list head for child eboxes */
+
+};
+
+
 
 
 /* for common ebox */
@@ -281,39 +294,13 @@ int egi_ebox_decorate(EGI_EBOX *ebox);
 int egi_ebox_sleep(EGI_EBOX *ebox);
 int egi_ebox_free(EGI_EBOX *ebox);
 
-
-/* for txt ebox referring to egi_txt.h  */
-#if 0
-extern EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt, /* ----- OBSOLETE ----- */
-                 int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
-
-extern EGI_DATA_TXT *egi_txtdata_new(int offx, int offy, /* create new txt data */
-        int nl,
-        int llen,
-        struct symbol_page *font,
-        uint16_t color );
-
-extern EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
-        EGI_DATA_TXT *egi_data,
-        EGI_METHOD method,
-        bool movable,
-        int x0, int y0,
-        int width, int height,
-        int frame,
-        int prmcolor );
-
-extern int egi_txtbox_activate(EGI_EBOX *ebox);
-extern int egi_txtbox_refresh(EGI_EBOX *ebox);
-extern int egi_txtbox_sleep(EGI_EBOX *ebox);
-extern int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
-extern void egi_free_data_txt(EGI_DATA_TXT *data_txt);
-#endif
+/* for egi page */
+int egi_page_dispear(EGI_EBOX *ebox);
 
 /* for button ebox */
 int egi_btnbox_activate(EGI_EBOX *ebox);
 int egi_btnbox_refresh(EGI_EBOX *ebox);
 void egi_free_data_btn(EGI_DATA_BTN *data_btn);
-
 
 
 #endif

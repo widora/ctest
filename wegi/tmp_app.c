@@ -32,6 +32,7 @@ Midas Zhou
 #include "spi.h"
 #include "fblines.h"
 #include "egi.h"
+#include "egi_page.h"
 #include "egi_txt.h"
 #include "egi_timer.h"
 #include "egi_objtxt.h"
@@ -39,7 +40,6 @@ Midas Zhou
 #include "bmpjpg.h"
 //#include "dict.h"
 #include "symbol.h"
-
 
 /*  ---------------------  MAIN  ---------------------  */
 int main(void)
@@ -76,25 +76,43 @@ int main(void)
 
 	/* ------------   home_button eboxes definition  ------------------ */
 	EGI_EBOX  ebox_buttons[9]={0};
-	EGI_DATA_BTN home_btns[9]={0};
+	EGI_DATA_BTN data_btns[9]={0};
 	for(i=0;i<3;i++) /* row of icon img */
 	{
 		for(j=0;j<3;j++) /* column of icon img */
 		{
-			home_btns[3*i+j].shape=square;
-			home_btns[3*i+j].id=3*i+j;
-			home_btns[3*i+j].icon=&sympg_icon;
-			home_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
+			data_btns[3*i+j].shape=square;
+			data_btns[3*i+j].id=3*i+j;
+			data_btns[3*i+j].icon=&sympg_icon;
+			data_btns[3*i+j].icon_code=3*i+j;	/* symbol code number */
 			/* hook to ebox model */
 			ebox_buttons[3*i+j].y0=105+(15+60)*i;
 			ebox_buttons[3*i+j].x0=15+(15+60)*j;
 			ebox_buttons[3*i+j].type=type_button;
-			ebox_buttons[3*i+j].egi_data=(void *)(home_btns+3*i+j);
+			ebox_buttons[3*i+j].egi_data=(void *)(data_btns+3*i+j);
 			ebox_buttons[3*i+j].activate=egi_btnbox_activate;
 			ebox_buttons[3*i+j].refresh=egi_btnbox_refresh;
 			sprintf(ebox_buttons[3*i+j].tag,"button_%d",3*i+j);
 		}
 	}
+
+
+	/* test ---- egi page list ----- */
+#if 1
+	printf("----------- egi page test ------------\n");
+	EGI_PAGE *page_home=egi_page_new("page_home");
+	/* add ebox to a page */
+	for(i=0;i<9;i++)
+		egi_page_addlist(page_home, ebox_buttons+i);
+	/* traverse a page to get listed ebox */
+	egi_page_travlist(page_home);
+
+	/* free a page, but not its listed eboxes */
+	egi_page_free(page_home);
+
+exit(1);
+#endif
+
 
 #if 0 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(ebox_memo, "/tmp/memo.txt");
@@ -128,23 +146,26 @@ int main(void)
 
 
 
-	/* -------- test image scale --------- */
-#if 1
+	/* ---- test image scale,page dispearing effect ---- */
+#if 0
 	int wid,hgt;
 	printf("start fb_cpyto_buf\n");
+	/* 1. grap page image */
        	fb_cpyto_buf(&gv_fb_dev, 0, 0, 240-1, 320-1, buf);
 	printf("start for...\n");
-     while(1)
-     {
-	for(wid=240;wid>1;wid-=2)
+	/* 2. zoom out to left top point */
+	for(wid=240;wid>1;wid-=1)
 	{
 		hgt=wid*4/3;
-		//printf("wid=%d, hgt=%d \n",wid,hgt);
 		fb_scale_pixbuf(240,320,wid,hgt,buf,nbuf);
+		/* restore previous page image */
+
+		/* put scaled  dispearing image */
 		fb_cpyfrom_buf(&gv_fb_dev,0,0,wid-1,hgt-1,nbuf);
-		//usleep(10000);
+		usleep(100000);
 	}
-    }
+	/* 3. */
+
 	exit(1);
 #endif
 
@@ -271,11 +292,11 @@ int main(void)
 	{
 		/*------ relate with number of touch-read samples -----*/
 		//usleep(6000); //3000
-		printf(" while() loop start....\n");
+		//printf(" while() loop start....\n");
 		tm_delayms(2);
 
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
-		printf("start xpt_getavt_xy() \n");
+		//printf("start xpt_getavt_xy() \n");
 		ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 		if(ret == XPT_READ_STATUS_GOING )
 		{
@@ -380,6 +401,8 @@ int main(void)
 					//exit(1);
 					break;
 				case 1:
+					/* test dispear */
+					egi_page_dispear(ebox_memo);
 					break;
 				case 2:
 					egi_txtbox_demo();

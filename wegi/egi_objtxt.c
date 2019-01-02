@@ -19,17 +19,6 @@ Midas Zhou
 #include "symbol.h"
 
 
-#if 0
-/* txt ebox self_defined methods */
-static EGI_METHOD txtbox_method=
-{
-	.activate=egi_txtbox_activate,
-	.refresh=egi_txtbox_refresh,
-	.decorate=egi_txtbox_decorate,
-	.sleep=egi_txtbox_sleep,
-	.free=NULL, //egi_ebox_free,
-};
-#endif 
 
 /*---------------------------------------
 return a random value not great than max
@@ -47,9 +36,6 @@ int egi_random_max(int max)
 
 	return ret;
 }
-
-
-
 
 
 /* ---------------------------  ebox memo --------------------------------*/
@@ -80,7 +66,6 @@ EGI_EBOX *create_ebox_memo(void)
 		"memo stick", /* tag */
 		type_txt, /*enum egi_ebox_type type */
         	memo_txt,  /* EGI_DATA_TXT pointer */
-//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	12,0, /* int x0, int y0 */
         	240,320, /* int width, int height */
@@ -119,7 +104,6 @@ EGI_EBOX *create_ebox_clock(void)
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
         	clock_txt,  /* EGI_DATA_TXT pointer */
-//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	60,5, /* int x0, int y0 */
         	120,20, /* int width, int height */
@@ -149,7 +133,6 @@ EGI_EBOX *create_ebox_note(void)
 		"note pad", /* tag */
 		type_txt, /*enum egi_ebox_type type */
         	note_txt,  /* EGI_DATA_TXT pointer */
-//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	5,80, /* int x0, int y0 */
         	230,60, /* int width, int height */
@@ -206,7 +189,6 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 		"timer txt", /* tag */
 		type_txt, /*enum egi_ebox_type type */
         	clock_txt,  /* EGI_DATA_TXT pointer */
-//        	txtbox_method, /*EGI_METHOD method */
         	true, /* bool movable */
        	 	x0,y0, /* int x0, int y0 */
         	160,66, /* int width, int height */
