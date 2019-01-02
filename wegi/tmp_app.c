@@ -34,6 +34,7 @@ Midas Zhou
 #include "egi.h"
 #include "egi_page.h"
 #include "egi_txt.h"
+#include "egi_btn.h"
 #include "egi_timer.h"
 #include "egi_objtxt.h"
 #include "xpt2046.h"
@@ -88,7 +89,7 @@ int main(void)
 			/* hook to ebox model */
 			ebox_buttons[3*i+j].y0=105+(15+60)*i;
 			ebox_buttons[3*i+j].x0=15+(15+60)*j;
-			ebox_buttons[3*i+j].type=type_button;
+			ebox_buttons[3*i+j].type=type_btn;
 			ebox_buttons[3*i+j].egi_data=(void *)(data_btns+3*i+j);
 			ebox_buttons[3*i+j].activate=egi_btnbox_activate;
 			ebox_buttons[3*i+j].refresh=egi_btnbox_refresh;
@@ -98,7 +99,7 @@ int main(void)
 
 
 	/* test ---- egi page list ----- */
-#if 1
+#if 0
 	printf("----------- egi page test ------------\n");
 	EGI_PAGE *page_home=egi_page_new("page_home");
 	/* add ebox to a page */

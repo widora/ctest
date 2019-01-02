@@ -30,7 +30,7 @@ static EGI_METHOD txtbox_method=
 
 
 /*-----------------------------------------------------------------------------
-Dynamically create txt_data struct 
+Dynamically create txt_data struct
 
 return:
 	poiter 		OK
@@ -114,10 +114,9 @@ return:
 	poiter 		OK
 	NULL		fail
 -----------------------------------------------------------------------------*/
-EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
-	/* 1. parameters for concept ebox */
+EGI_EBOX * egi_txtbox_new( char *tag,
+	/* parameters for concept ebox */
 	EGI_DATA_TXT *egi_data,
-//	EGI_METHOD method,
 	bool movable,
 	int x0, int y0,
 	int width, int height,
@@ -136,18 +135,16 @@ EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type,
 	}
 
 	/* 1. create a new common ebox */
-	PDEBUG("egi_txtbox_new(): start to egi_ebox_new(type)...\n");
-	ebox=egi_ebox_new(type);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
+	PDEBUG("egi_txtbox_new(): start to egi_ebox_new(type_txt)...\n");
+	ebox=egi_ebox_new(type_txt);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
 	if(ebox==NULL)
+	{
+		printf("egi_txtbox_new(): fail to execute egi_ebox_new(type_btn). \n");
 		return NULL;
+	}
 
-	/* 2. default method */
-/* already assigned in egi_ebox_new()
-	ebox->activate=egi_ebox_activate;
-	ebox->refresh=egi_ebox_refresh;
-	ebox->sleep=egi_ebox_sleep;
-	ebox->free=egi_ebox_free;
-*/
+	/* 2. default method assigned in egi_ebox_new() */
+
 	/* 3. txt ebox object method */
 	PDEBUG("egi_txtbox_new(): assign defined mehtod ebox->method=methd...\n");
 	ebox->method=txtbox_method;

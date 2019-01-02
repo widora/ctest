@@ -35,10 +35,10 @@ enum egi_ebox_type
 {
 	type_page,
 	type_txt,
-	type_button,
+	type_btn, /* button */
 	type_list,
 	type_chart,
-	type_picture,
+	type_pic,
 	type_motion,
 };
 
@@ -281,6 +281,7 @@ struct egi_page
 
 
 /* for common ebox */
+int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);

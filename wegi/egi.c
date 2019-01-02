@@ -30,9 +30,30 @@ Midas Zhou
 #include <string.h> /*memset*/
 #include <unistd.h> /*usleep*/
 #include "egi.h"
+#include "egi_timer.h"
 #include "egi_txt.h"
 #include "egi_debug.h"
 #include "symbol.h"
+
+
+
+/*---------------------------------------
+return a random value not great than max
+---------------------------------------*/
+int egi_random_max(int max)
+{
+        int ret;
+        struct timeval tmval;
+
+        gettimeofday(&tmval,NULL);
+
+        srand(tmval.tv_usec);
+        ret = 1+(int)((float)max*rand()/(RAND_MAX+1.0));
+        printf("random max ret=%d\n",ret);
+
+        return ret;
+}
+
 
 
 
@@ -133,7 +154,7 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 	int i=num;
 
 	/* Now we only consider button ebox*/
-	if(ebox->type==type_button)
+	if(ebox->type==type_btn)
 	{
 		for(i=0;i<num;i++)
 		{
@@ -159,164 +180,6 @@ enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox)
 }
 
 
-/*-----------------------------------------------------------------------
-activate a button type ebox:
-	1. get icon symbol information
-	2. malloc bkimg and store bkimg.
-	3. refresh the btnbox
-	4. set status, ebox as active, and botton assume to be released.
-TODO:
-
-Return:
-	0	OK
-	<0	fails!
-------------------------------------------------------------------------*/
-int egi_btnbox_activate(EGI_EBOX *ebox)
-{
-	/* 1. confirm ebox type */
-        if(ebox->type != type_button)
-        {
-                printf("egi_btnbox_activate(): Not button type ebox!\n");
-                return -1;
-        }
-
-	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
-	//int bkcolor=data_btn->icon->bkcolor;
-	int symheight=data_btn->icon->symheight;
-	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
-	/* for button,ebox H&W is same as symbol H&W */
-	ebox->height=symheight;
-	ebox->width=symwidth;
-
-	/* origin(left top), for btn H&W x0,y0 is same as ebox */
-	int x0=ebox->x0;
-	int y0=ebox->y0;
-
-
-	/* 2. verify btn data if necessary. --No need here*/
-
-	/* 3. malloc bkimg for the icon, not ebox, so use symwidth and symheight */
-	if(egi_alloc_bkimg(ebox, symwidth, symheight)==NULL)
-	{
-		printf("egi_btnbox_activate(): fail to egi_alloc_bkimg()!\n");
-		return -2;
-	}
-
-	/* 4. update bkimg box */
-	ebox->bkbox.startxy.x=x0;
-	ebox->bkbox.startxy.y=y0;
-	ebox->bkbox.endxy.x=x0+symwidth-1;
-	ebox->bkbox.endxy.y=y0+symheight-1;
-
-#if 0 /* DEBUG */
-	printf(" button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
-			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
-#endif
-	/* 5. store bk image which will be restored when this ebox position/size changes */
-	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)
-		return -3;
-
-	/* 6. set button status */
-	ebox->status=status_active; /* if not, you can not refresh */
-	data_btn->status=released_hold;
-
-	/* 7. refresh btn ebox */
-	if( egi_btnbox_refresh(ebox) != 0)
-		return -4;
-
-	printf("egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
-	return 0;
-}
-
-
-/*-----------------------------------------------------------------------
-refresh a button type ebox:
-	1.refresh button ebox according to updated parameters:
-		--- position x0,y0, offx,offy
-		--- symbol page, symbol code ...etc.
-		... ...
-	2. restore bkimg and store bkimg.
-	3. drawing the icon
-	4. take actions according to btn_status (released, pressed).
-TODO:
-
-Return:
-	0	OK
-	<0	fails!
-------------------------------------------------------------------------*/
-int egi_btnbox_refresh(EGI_EBOX *ebox)
-{
-	/* 0. confirm ebox type */
-        if(ebox->type != type_button)
-        {
-                printf("egi_btnbox_activate(): Not button type ebox!\n");
-                return -1;
-        }
-	/* 1. check the ebox status  */
-	if( ebox->status != status_active )
-	{
-//		printf("ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
-		return -2;
-	}
-
-	/* 2. restore bk image before refresh */
-#if 0 /* DEBUG */
-	printf("button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
-			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
-#endif
-        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-		return -3;
-
-	/* 3. get updated parameters */
-	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
-	int bkcolor=data_btn->icon->bkcolor;
-	int symheight=data_btn->icon->symheight;
-	int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
-	/* origin(left top) for btn H&W x0,y0 is same as ebox */
-	int x0=ebox->x0;
-	int y0=ebox->y0;
-
-        /* ---- 4. redefine bkimg box range, in case it changes */
-	/* check ebox height and font lines in case it changes, then adjust the height */
-	/* updata bkimg->bkbox according */
-	ebox->height=symheight;
-        ebox->bkbox.startxy.x=x0;
-        ebox->bkbox.startxy.y=y0;
-        ebox->bkbox.endxy.x=x0+symwidth-1;
-        ebox->bkbox.endxy.y=y0+symheight-1;
-
-#if 0 /* DEBUG */
-	printf("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
-			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
-#endif
-        /* ---- 5. store bk image which will be restored when you refresh it later,
-		this ebox position/size changes */
-        if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-		return -4;
-
-	/* 6. draw the button */
-	symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor, x0, y0, data_btn->icon_code);
-
-	/* 5. take action according to status:
-		 void (* action)(enum egi_btn_status status);
-	*/
-
-	return 0;
-}
-
-
-/*-------------------------------------------------
-release struct egi_btn_txt
---------------------------------------------------*/
-void egi_free_data_btn(EGI_DATA_BTN *data_btn)
-{
-
-
-
-}
 
 
 
@@ -447,10 +310,9 @@ int egi_ebox_free(EGI_EBOX *ebox)
 					PDEBUG("egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_txt(ebox->egi_data);
-					ebox->egi_data=NULL;
 				 }
 				break;
-			case type_button:
+			case type_btn:
 				if(ebox->egi_data != NULL)
 					egi_free_data_btn(ebox->egi_data);
 				break;
@@ -470,7 +332,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			ebox->bkimg=NULL;
 		}
 
-		/* 1.3 free ebox */
+		/* 1.3 free concept ebox */
 		free(ebox);
 		ebox=NULL;
 
@@ -609,7 +471,7 @@ int egi_page_dispear(EGI_EBOX *ebox)
 	bkwid=xres;bkhgt=yres;
 
         /* 3. zoom out to left top point */
-        for(wid=xres;wid>0;wid-=2)
+        for(wid=xres*3/4;wid>0;wid-=4)
         {
 		/* 2.1 scale the image */
                 hgt=wid*yres/xres; //4/3;
@@ -623,7 +485,7 @@ int egi_page_dispear(EGI_EBOX *ebox)
 		bkwid=wid;bkhgt=hgt;
                 /* 2.3 put scaled image */
                 fb_cpyfrom_buf(&gv_fb_dev,0,0,wid-1,hgt-1,sbuf);
-                usleep(100000);
+//		usleep(100000);
         }
 
         /* 3. */

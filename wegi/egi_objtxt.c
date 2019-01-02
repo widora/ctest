@@ -20,24 +20,6 @@ Midas Zhou
 
 
 
-/*---------------------------------------
-return a random value not great than max
----------------------------------------*/
-int egi_random_max(int max)
-{
-	int ret;
-	struct timeval tmval;
-
-	gettimeofday(&tmval,NULL);
-
-        srand(tmval.tv_usec);
-        ret = 1+(int)((float)max*rand()/(RAND_MAX+1.0));
-	printf("random max ret=%d\n",ret);
-
-	return ret;
-}
-
-
 /* ---------------------------  ebox memo --------------------------------*/
 
 /*-------------------------------------------
@@ -64,7 +46,7 @@ EGI_EBOX *create_ebox_memo(void)
 	/* 3. create memo ebox */
 	EGI_EBOX  *ebox_memo= egi_txtbox_new(
 		"memo stick", /* tag */
-		type_txt, /*enum egi_ebox_type type */
+//		type_txt, /*enum egi_ebox_type type */
         	memo_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	12,0, /* int x0, int y0 */
@@ -102,7 +84,7 @@ EGI_EBOX *create_ebox_clock(void)
 	/* 2. create memo ebox */
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
-		type_txt, /*enum egi_ebox_type type */
+//		type_txt, /*enum egi_ebox_type type */
         	clock_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	60,5, /* int x0, int y0 */
@@ -131,7 +113,7 @@ EGI_EBOX *create_ebox_note(void)
 	/* 2. create memo ebox */
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"note pad", /* tag */
-		type_txt, /*enum egi_ebox_type type */
+//		type_txt, /*enum egi_ebox_type type */
         	note_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	5,80, /* int x0, int y0 */
@@ -187,7 +169,7 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 	PDEBUG("create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
-		type_txt, /*enum egi_ebox_type type */
+//		type_txt, /*enum egi_ebox_type type */
         	clock_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	x0,y0, /* int x0, int y0 */

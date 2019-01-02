@@ -8,7 +8,6 @@ All EGI OBJ Initializations
 #define __EGI_OBJTXT_H__
 
 /*  ------------ MEMO: txt ebox  ----------- */
-int egi_random_max(int max);
 EGI_EBOX *create_ebox_memo(void);
 EGI_EBOX *create_ebox_clock(void);
 EGI_EBOX *create_ebox_note(void);

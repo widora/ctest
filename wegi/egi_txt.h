@@ -23,7 +23,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy, /* create new txt data */
         struct symbol_page *font,
         uint16_t color );
 
-EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new txt ebox */
+EGI_EBOX * egi_txtbox_new( char *tag,/* create new txt ebox */
         EGI_DATA_TXT *egi_data,
 //        EGI_METHOD method,
         bool movable,
@@ -31,6 +31,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,  enum egi_ebox_type type, /* create new tx
         int width, int height,
         int frame,
         int prmcolor );
+
 
 int egi_txtbox_activate(EGI_EBOX *ebox);
 int egi_txtbox_refresh(EGI_EBOX *ebox);
