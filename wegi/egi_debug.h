@@ -3,6 +3,10 @@
 
 #include <stdio.h>
 
+
+#define DEGI_DEBUG
+
+
 #ifdef EGI_DEBUG
 
 	#define PDEBUG(fmt, args...)   fprintf(stderr,fmt, ## args)

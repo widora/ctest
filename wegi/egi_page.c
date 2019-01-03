@@ -164,6 +164,7 @@ int egi_page_activate(EGI_PAGE *page)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
+	int ret;
 
 	/* check data */
 	if(page==NULL)
@@ -182,8 +183,48 @@ int egi_page_activate(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		printf("egi_page_activate(): page list item --- ebox: '%s' --- \n",ebox->tag);
-		ebox->activate(ebox);
+		ret=ebox->activate(ebox);
+		printf("egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+	}
+
+
+	return 0;
+}
+
+
+/*--------------------------------------------------
+refresh a page and its eboxes in its list.
+
+return:
+	0	OK
+	<0	fails
+---------------------------------------------------*/
+int egi_page_refresh(EGI_PAGE *page)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+	int ret;
+
+	/* check data */
+	if(page==NULL)
+	{
+		printf("egi_page_refresh(): input EGI_PAGE *page is NULL!\n");
+		return -1;
+	}
+
+	/* check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_page_refresh(): page '%s' has an empty list_head .\n",page->ebox->tag);
+		return -2;
+	}
+
+	/* traverse the list and activate list eboxes, not safe */
+	list_for_each(tnode, &page->list_head)
+	{
+		ebox=list_entry(tnode, EGI_EBOX, node);
+		ret=ebox->refresh(ebox);
+		printf("egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
 

@@ -77,10 +77,10 @@ enum egi_btn_status
 	1. egi.c:
 		1.1 write a default method funciton for this new one: egi_ebox_(method_name) (EGI_EBOX *ebox).
 		1.2 in egi_ebox_new(): assign default method for this new one.
-	2. egi_objXXX.c:	EGI_METHOD XXXbox_method=
+	2. egi_XXX.c: 	EGI_METHOD XXXbox_method={}
  	3. egi_XXX.c:
-		3.1 write a self-defined method function: egi_XXXbox_decorate(EGI_EBOX *ebox).
-		3.2 in egi_XXXbox_new(): assign self-defined method to new XXX_type ebox.
+		3.1 write an object-defined method function: egi_XXXbox_decorate(EGI_EBOX *ebox).
+		3.2 in egi_XXXbox_new(): assign object-defined method to new XXX_type ebox.
  	4. modify relevant head files according.
  */
 typedef struct egi_ebox_method EGI_METHOD;

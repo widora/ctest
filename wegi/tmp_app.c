@@ -80,11 +80,12 @@ int main(void)
 	if(ebox_memo == NULL)return -3;
 
 	/* ------------   home_button eboxes definition  ------------------ */
-	printf("----------- egi page test ------------\n");
+	printf("----------- egi page HOME ------------\n");
 	EGI_PAGE *page_home=egi_create_homepage();
-
 	/* traverse a page to get listed ebox */
 	egi_page_travlist(page_home);
+
+	EGI_PAGE *page_mplay;
 
 
 
@@ -215,7 +216,7 @@ int main(void)
 #endif
 
 	/* ----------- activate pages and its listed eboxes ---------*/
-	egi_page_activate(page_home);
+	//egi_page_activate(page_home);
 
 
 	/* txt ebox demon */
@@ -254,6 +255,17 @@ int main(void)
 		//usleep(6000); //3000
 		//printf(" while() loop start....\n");
 		tm_delayms(2);
+
+		//printf("----------- egi page MPLAY ------------\n");
+		page_mplay=egi_create_mplaypage();
+		/* traverse a page to get listed ebox */
+		//egi_page_travlist(page_mplay);
+		egi_page_activate(page_mplay);
+		egi_page_refresh(page_mplay);
+		//usleep(300000);
+		tm_delayms(300);
+		egi_page_free(page_mplay);
+		continue;
 
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/
 		//printf("start xpt_getavt_xy() \n");
@@ -434,6 +446,7 @@ int main(void)
 
 	/* relese egi objects */
 	egi_page_free(page_home);
+	egi_page_free(page_mplay);
 
 	/* release symbol mem page */
 	symbol_release_page(&sympg_testfont);

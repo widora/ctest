@@ -282,6 +282,11 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
                 printf("egi_txtbox_activate(): data_txt is NULL in ebox '%s'!\n",ebox->tag);
                 return -1;
 	}
+	if(height==0 || width==0)
+	{
+                printf("egi_txtbox_activate(): height or width is 0 in ebox '%s'!\n",ebox->tag);
+                return -1;
+	}
 
 	int nl=data_txt->nl;
 //	int llen=data_txt->llen;
