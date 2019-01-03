@@ -65,7 +65,7 @@ return:
         poiter          OK
         NULL            fail
 -----------------------------------------------------------------------------*/
-EGI_EBOX * egi_btnbox_new( char *tag,
+EGI_EBOX * egi_btnbox_new( char *tag, /* or NULL to ignore */
         EGI_DATA_BTN *egi_data,
         bool movable,
         int x0, int y0,
@@ -99,7 +99,8 @@ EGI_EBOX * egi_btnbox_new( char *tag,
         ebox->method=btnbox_method;
 
         /* 4. fill in elements for concept ebox */
-        strncpy(ebox->tag,tag,EGI_TAG_LENGTH); /* addtion EGI_TAG_LENGTH+1 for end token here */
+	//strncpy(ebox->tag,tag,EGI_TAG_LENGTH); /* addtion EGI_TAG_LENGTH+1 for end token here */
+	egi_ebox_settag(ebox,tag);
         ebox->egi_data=egi_data; /* ----- assign egi data here !!!!! */
         ebox->movable=movable;
         ebox->x0=x0;    ebox->y0=y0;

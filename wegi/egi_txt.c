@@ -150,7 +150,8 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox->method=txtbox_method;
 
 	/* 4. fill in elements  */
-	strncpy(ebox->tag,tag,EGI_TAG_LENGTH); /* addtion EGI_TAG_LENGTH+1 for end token here */
+	egi_ebox_settag(ebox,tag);
+	//strncpy(ebox->tag,tag,EGI_TAG_LENGTH); /* addtion EGI_TAG_LENGTH+1 for end token here */
 	ebox->egi_data=egi_data; /* ----- assign egi data here !!!!! */
 	ebox->movable=movable;
 	ebox->x0=x0;	ebox->y0=y0;
@@ -403,7 +404,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* 2. check the ebox status */
 	if( ebox->status != status_active )
 	{
-		printf("This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
+		PDEBUG("This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 

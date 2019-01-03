@@ -285,8 +285,6 @@ int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
-EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page);
-void egi_ebox_settag(EGI_EBOX *ebox, char *tag);
 enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);

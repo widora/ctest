@@ -6,7 +6,7 @@ Midas Zhou
 #include <stdio.h>
 #include "spi.h"
 #include "xpt2046.h"
-
+#include "egi_debug.h"
 
 int xpt_nsample; /* sample index for XPT touch point coordinate */
 
@@ -164,7 +164,7 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
 
         	/* convert to LCD coordinate, and pass to avsx,avsy */
         	xpt_maplcd_xy(xp, yp, avgsx, avgsy);
-        	printf("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],*avgsx,*avgsy);
+        	PDEBUG("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],*avgsx,*avgsy);
 
 
 		ret=XPT_READ_STATUS_COMPLETE; /* mission complete */

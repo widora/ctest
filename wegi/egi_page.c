@@ -38,7 +38,8 @@ EGI_PAGE * egi_page_new(char *tag)
 	}
 
 	/* 4. put tag here */
-	strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
+	egi_ebox_settag(page->ebox,tag);
+	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
 	/* 5. init list */
         INIT_LIST_HEAD(&page->list_head);
@@ -129,13 +130,13 @@ int egi_page_travlist(EGI_PAGE *page)
 	/* check data */
 	if(page==NULL)
 	{
-		printf("egi_page_travlist(): page or ebox is NULL!\n");
+		printf("egi_page_travlist(): input EGI_PAGE *page is NULL!\n");
 		return -1;
 	}
 	/* check list */
 	if(list_empty(&page->list_head))
 	{
-		printf("egi_page_travlist(): page '%s' has no child ebox.\n",page->ebox->tag);
+		printf("egi_page_travlist(): page '%s' has an empty list_head.\n",page->ebox->tag);
 		return -2;
 	}
 
@@ -151,3 +152,40 @@ int egi_page_travlist(EGI_PAGE *page)
 }
 
 
+
+/*--------------------------------------------------
+activate a page and its eboxes in its list.
+
+return:
+	0	OK
+	<0	fails
+---------------------------------------------------*/
+int egi_page_activate(EGI_PAGE *page)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+
+	/* check data */
+	if(page==NULL)
+	{
+		printf("egi_page_activate(): input EGI_PAGE *page is NULL!\n");
+		return -1;
+	}
+	/* check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_page_activate(): page '%s' has an empty list_head .\n",page->ebox->tag);
+		return -2;
+	}
+
+	/* traverse the list and activate list eboxes, not safe */
+	list_for_each(tnode, &page->list_head)
+	{
+		ebox=list_entry(tnode, EGI_EBOX, node);
+		printf("egi_page_activate(): page list item --- ebox: '%s' --- \n",ebox->tag);
+		ebox->activate(ebox);
+	}
+
+
+	return 0;
+}

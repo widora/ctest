@@ -33,6 +33,7 @@ Midas Zhou
 #include "egi_timer.h"
 #include "egi_txt.h"
 #include "egi_debug.h"
+#include "list.h"
 #include "symbol.h"
 
 
@@ -158,7 +159,7 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 	{
 		for(i=0;i<num;i++)
 		{
-			if(ebox->status==status_sleep)continue; /* ignore sleeping ebox */
+			if(ebox[i].status==status_sleep)continue; /* ignore sleeping ebox */
 
 			if( x>=ebox[i].x0 && x<=ebox[i].x0+ebox[i].width \
 				&& y>=ebox[i].y0 && y<=ebox[i].y0+ebox[i].height )
@@ -168,6 +169,59 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 
 	return -1;
 }
+
+
+
+/*------------------------------------------------------------------
+1. in a page, find the ebox index according to given x,y
+2. a sleeping ebox will be ignored.
+
+x,y: point at request
+page:  a egi page containing eboxes
+
+return:
+	pointer to a ebox  	Ok
+	NULL			fail
+-------------------------------------------------------------------*/
+EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+
+        /* check page */
+        if(page==NULL)
+        {
+                printf("egi_get_pagebtn(): page is NULL!\n");
+                return NULL;
+        }
+
+        /* check list */
+        if(list_empty(&page->list_head))
+        {
+                printf("egi_get_pagebtn(): page '%s' has no child ebox.\n",page->ebox->tag);
+                return NULL;
+        }
+
+        /* traverse the list, not safe */
+        list_for_each(tnode, &page->list_head)
+        {
+                ebox=list_entry(tnode, EGI_EBOX, node);
+                //PDEBUG("egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
+
+	         if(ebox->status==status_sleep)
+			continue; /* ignore sleeping ebox */
+
+		 /* check whether the ebox is hit */
+                 if( x>=ebox->x0 && x<=ebox->x0+ebox->width \
+                                && y>=ebox->y0 && y<=ebox->y0+ebox->height )
+                  return ebox;
+	}
+
+	return NULL;
+}
+
+
+
 
 /*------------------------------------------------
 OBSOLETE!!!
@@ -186,6 +240,34 @@ enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox)
 
 
 ///xxxxxxxxxxxxxxxxxxxxxxxxxx(((   OK   )))xxxxxxxxxxxxxxxxxxxxxxxxx
+
+/*-------------------------------------------
+put tag for an ebox
+--------------------------------------------*/
+void egi_ebox_settag(EGI_EBOX *ebox, char *tag)
+{
+	/* 1. clear tag */
+	memset(ebox->tag,0,EGI_TAG_LENGTH+1);
+
+	/* 2. check data */
+	if(ebox == NULL)
+	{
+		printf("egi_ebox_settag(): EGI_EBOX *ebox is NULL, fail to set tag.\n");
+		return;
+	}
+
+	/* 3. set NULL */
+	if(tag == NULL)
+	{
+		// OK, set NULL, printf("egi_ebox_settag(): char *tag is NULL, fail to set tag.\n");
+		return;
+	}
+
+	/* 4. copy string to tag */
+	strncpy(ebox->tag,tag,EGI_TAG_LENGTH);
+}
+
+
 
 /*----------------------------------------------------
 ebox refresh: default method
