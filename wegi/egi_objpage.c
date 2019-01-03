@@ -87,9 +87,14 @@ EGI_PAGE *egi_create_homepage(void)
 			usleep(100000);
 	}
 
+	/* set wallpaper */
+	page_home->fpath="/tmp/home.jpg";
+
 	/* add ebox to home page */
 	for(i=0;i<9;i++)
 		egi_page_addlist(page_home, home_btns[i]);
+
+
 
 	return page_home;
 }
@@ -168,6 +173,10 @@ EGI_PAGE *egi_create_mplaypage(void)
 			page_mplay=egi_page_new("page_home");
 			usleep(100000);
 	}
+
+
+	/* set wallpaper */
+	page_mplay->fpath="/tmp/mplay.jpg";
 
 	/* add ebox to home page */
 	for(i=0;i<6;i++)

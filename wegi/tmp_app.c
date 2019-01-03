@@ -81,9 +81,7 @@ int main(void)
 
 	/* ------------   home_button eboxes definition  ------------------ */
 	printf("----------- egi page HOME ------------\n");
-	EGI_PAGE *page_home=egi_create_homepage();
-	/* traverse a page to get listed ebox */
-	egi_page_travlist(page_home);
+	EGI_PAGE *page_home;
 
 	EGI_PAGE *page_mplay;
 
@@ -258,13 +256,19 @@ int main(void)
 
 		//printf("----------- egi page MPLAY ------------\n");
 		page_mplay=egi_create_mplaypage();
-		/* traverse a page to get listed ebox */
-		//egi_page_travlist(page_mplay);
 		egi_page_activate(page_mplay);
 		egi_page_refresh(page_mplay);
-		//usleep(300000);
-		tm_delayms(300);
+		tm_delayms(700);
+
+	        page_home=egi_create_homepage();
+		egi_page_activate(page_home);
+		egi_page_refresh(page_home);
+		tm_delayms(700);
+
 		egi_page_free(page_mplay);
+		egi_page_free(page_home);
+
+
 		continue;
 
 		/*--------- read XPT to get avg tft-LCD coordinate --------*/

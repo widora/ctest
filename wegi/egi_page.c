@@ -4,6 +4,7 @@
 #include "list.h"
 #include "egi.h"
 #include "egi_page.h"
+#include "bmpjpg.h"
 
 /*
 
@@ -81,14 +82,9 @@ int egi_page_free(EGI_PAGE *page)
         	}
 	}
 
-	/* free inner ebox */
-//	if(page->ebox != NULL)
-//		ret=(page->ebox)->free(page->ebox);
-
-	/* free page->ebox data if any */
-
-
-	/* free self */
+	/* free self ebox */
+	free(page->ebox);
+	/* free page */
 	free(page);
 
 	return ret;
@@ -211,6 +207,12 @@ int egi_page_refresh(EGI_PAGE *page)
 		printf("egi_page_refresh(): input EGI_PAGE *page is NULL!\n");
 		return -1;
 	}
+
+	/* load wallpaper*/
+	if(page->fpath != NULL)
+		show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+
+
 
 	/* check list */
 	if(list_empty(&page->list_head))

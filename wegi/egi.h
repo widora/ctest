@@ -269,12 +269,14 @@ struct egi_page
 	/* egi page is based on egi_ebox */
 	EGI_EBOX *ebox;
 
+	/* wallpaper for the page */
+	char *fpath;
+
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
 	multi_layer operation is applied.
 	*/
 	struct list_head list_head; /* list head for child eboxes */
-
 };
 
 

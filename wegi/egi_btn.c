@@ -120,7 +120,9 @@ activate a button type ebox:
 	2. malloc bkimg and store bkimg.
 	3. refresh the btnbox
 	4. set status, ebox as active, and botton assume to be released.
+
 TODO:
+	1. if ebox size changes(enlarged), how to deal with bkimg!!??
 
 Return:
 	0	OK
@@ -150,7 +152,7 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
         }
 
 
-	/* only if it has an icon */
+	/* only if it has an icon, get symheight and symwidth */
 	if(data_btn->icon != NULL)
 	{
 		//int bkcolor=data_btn->icon->bkcolor;
@@ -163,7 +165,8 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 			ebox->width=symwidth;
 	 	}
 	}
-	/* else if no icon, use prime shape */
+
+	/* else if no icon, use prime shape and size */
 
 
 	/* origin(left top), for btn H&W x0,y0 is same as ebox */
@@ -178,6 +181,8 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
         }
 
 
+   if(ebox->movable) /* only if ebox is movale */
+   {
 	/* 3. malloc bkimg for the icon, not ebox, so use symwidth and symheight */
 	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
 	{
@@ -191,14 +196,17 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	ebox->bkbox.endxy.x=x0+ebox->width-1;
 	ebox->bkbox.endxy.y=y0+ebox->height-1;
 
-#if 0 /* DEBUG */
+	#if 0 /* DEBUG */
 	PDEBUG(" button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
-#endif
+	#endif
 	/* 5. store bk image which will be restored when this ebox position/size changes */
 	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
 				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)
 		return -3;
+
+    } /* end of movable codes */
+
 
 	/* 6. set button status */
 	ebox->status=status_active; /* if not, you can not refresh */
@@ -222,15 +230,16 @@ refresh a button type ebox:
 	2. restore bkimg and store bkimg.
 	3. drawing the icon
 	4. take actions according to btn_status (released, pressed).
-TODO:
 
+TODO:
+	1. if ebox size changes(enlarged), how to deal with bkimg!!??
 Return:
 	0	OK
 	<0	fails!
 ------------------------------------------------------------------------*/
 int egi_btnbox_refresh(EGI_EBOX *ebox)
 {
-	int bkcolor;
+	int bkcolor=0;
 	int symheight;
 	int symwidth;
 
@@ -256,14 +265,17 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	}
 
 
+   if(ebox->movable) /* only if ebox is movale */
+   {
 	/* 2. restore bk image use old bkbox data, before refresh */
-#if 0 /* DEBUG */
+	#if 0 /* DEBUG */
 	PDEBUG("button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
-#endif
+	#endif
         if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -3;
+   } /* end of movable codes */
 
 
 	/* 3. get updated data */
@@ -301,7 +313,9 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 
-        /* ---- 4. redefine bkimg box range, in case it changes */
+   if(ebox->movable) /* only if ebox is movale */
+   {
+       /* ---- 4. redefine bkimg box range, in case it changes */
 	/* check ebox height and font lines in case it changes, then adjust the height */
 	/* updata bkimg->bkbox according */
         ebox->bkbox.startxy.x=x0;
@@ -309,10 +323,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.x=x0+ebox->width-1;
         ebox->bkbox.endxy.y=y0+ebox->height-1;
 
-#if 1 /* DEBUG */
+	#if 1 /* DEBUG */
 	PDEBUG("egi_btnbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
-#endif
+	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
 		this ebox position/size changes */
         if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
@@ -321,6 +335,8 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		printf("egi_btnbox_refresh(): fb_cpyto_buf() fails.\n");
 		return -4;
 	}
+   } /* end of movable codes */
+
 
         /* ---- 6. set color and drawing shape ----- */
         if(ebox->prmcolor >= 0 && data_btn->icon == NULL )

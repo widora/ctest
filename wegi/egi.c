@@ -396,6 +396,8 @@ int egi_ebox_free(EGI_EBOX *ebox)
 				break;
 			case type_btn:
 				if(ebox->egi_data != NULL)
+					PDEBUG("egi_ebox_free():start to egi_free_data_btn(ebox->egi_data)  \
+						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_btn(ebox->egi_data);
 				break;
 			case type_page:
