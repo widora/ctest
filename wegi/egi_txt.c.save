@@ -328,6 +328,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 
 	//TODO: malloc more mem in case ebox size is enlarged later????? //
 	/* 4. malloc exbo->bkimg for bk image storing */   
+
    if(ebox->movable) /* only if ebox is movale */
    {
 	PDEBUG("egi_txtbox_activate(): start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
@@ -664,7 +665,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			}
 
 			/* ----- 2. if symbol code out of range */
-			if( (uint8_t)buf[i] > maxnum )
+			if( (uint8_t)buf[i] > maxnum ) 
 			{
 				printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
 				continue;
@@ -776,34 +777,4 @@ int egi_txtbox_decorate(EGI_EBOX *ebox)
 	ret=show_jpg("/tmp/openwrt.jpg", &gv_fb_dev, SHOW_BLACK_NOTRANSP, ebox->x0+2, ebox->y0+2); /* blackoff<0, show black */
 
 	return ret;
-}
-
-
-
-/*------------------------------------------------
- set string for first line of data_txt->txt[0]
--------------------------------------------------*/
-void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
-{
-        /* 1. check data */
-        if( ebox==NULL || ebox->type != type_txt )
-        {
-                printf("egi_txtbox_settitle(): ebox=NULL or not a txt type ebox! fail to set title!\n");
-                return;
-        }
-
-	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
-
-	if( data_txt == NULL || data_txt->txt[0]==NULL)
-        {
-                printf("egi_txtbox_settitle(): data_txt=NULL or data_txt->txt[0]=NULL! fail to set title!\n");
-                return;
-        }
-
-	/* 2. clear data */
-	int llen=data_txt->llen;
-	memset(data_txt->txt[0],0,llen);
-
-	/* 3. set title string */
-	strncpy(data_txt->txt[0],title,llen-1);
 }

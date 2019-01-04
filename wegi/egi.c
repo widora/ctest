@@ -282,7 +282,7 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.refresh == NULL)
 	{
-		printf("ebox '%s' has no defined method of refresh()!\n",ebox->tag);
+		PDEBUG("ebox '%s' has no defined method of refresh()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -381,7 +381,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.free == NULL)
 	{
-		printf("ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
+		PDEBUG("ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
 
 		/* 1.1 free ebox tyep data */
 		switch(ebox->type)

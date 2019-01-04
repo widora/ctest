@@ -216,7 +216,7 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	if( egi_btnbox_refresh(ebox) != 0)
 		return -4;
 
-	printf("egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+	PDEBUG("egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 

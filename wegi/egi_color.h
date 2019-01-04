@@ -37,8 +37,21 @@ Midas Zhou
 #define WEGI_COLOR_BROWN	 	 COLOR_RGB_TO16BITS(0xFF,0x66,0)
 
 
+
+/* color range */
+enum egi_color_range
+{
+	light=3,
+	medium=2,
+	deep=1,
+	all=0,
+};
+
+
 /* functions */
-uint16_t egi_random_color(void);
+uint16_t egi_color_random(enum egi_color_range range);
+
+
 
 
 

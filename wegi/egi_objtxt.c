@@ -139,7 +139,6 @@ return:
 ------------------------------------------------*/
 EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 {
-
 	/* 1. create a data_txt */
 	printf("start to egi_txtdata_new()...\n");
 	EGI_DATA_TXT *clock_txt=egi_txtdata_new(
@@ -168,8 +167,7 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 	/* 2. create memo ebox */
 	PDEBUG("create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
-		"timer txt", /* tag */
-//		type_txt, /*enum egi_ebox_type type */
+		NULL, /* tag, put later */
         	clock_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	x0,y0, /* int x0, int y0 */
@@ -195,7 +193,7 @@ void egi_txtbox_demo(void)
 	for(i=0;i<total;i++)
 	{
 	      PDEBUG("create ebox notes txtebox[%d].\n",i);
-	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_random_color());
+	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_color_random(light));
 	      if(txtebox[i]==NULL)
 	      {
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
@@ -229,4 +227,76 @@ void egi_txtbox_demo(void)
 //	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
 	printf("--------- txtebox demon over END ---------\n");
+}
+
+
+
+
+/////////////////////// <<<<<    EGI PATTERNS    >>>>> ////////////////////////
+
+/*-----------   EGI_PATTERN :  TITLE BAR  -----------------
+Create an txt_ebox  for a title bar.
+standard tag "title_bar"
+
+x0,y0:		left top cooordinate
+offx,offy:	offset of txt
+bkcolor:	ebox color, bkcolor
+
+return:
+	txt ebox pointer 	OK
+	NULL			fai.
+---------------------------------------------------------*/
+EGI_EBOX *create_ebox_titlebar(
+	int x0, int y0,
+	int offx, int offy,
+	uint16_t bkcolor,
+	char *title
+)
+{
+	/* 1. create a data_txt */
+	printf("start to egi_txtdata_new()...\n");
+	EGI_DATA_TXT *title_txt=egi_txtdata_new(
+		offx,offy, /* offset X,Y */
+      	  	1, /*int nl, lines  */
+       	 	64, /*int llen, chars per line, however also limited by width */
+        	&sympg_testfont, /*struct symbol_page *font */
+        	WEGI_COLOR_BLACK /* uint16_t color */
+	);
+
+	if(title_txt == NULL)
+	{
+		printf("create_ebox_titlebar(): title_txt=egi_txtdata_new()=NULL, fails!\n");
+		return NULL;
+	}
+	else if (title_txt->txt[0]==NULL)
+	{
+		printf("create_ebox_titlebar(): title_txt->[0]==NULL, fails!\n");
+		return NULL;
+	}
+
+	/* 2. put title string */
+	if(title==NULL)
+	{
+		PDEBUG("create_ebox_titlebar(): title==NULL, use default title\n");
+	        strncpy(title_txt->txt[0], "--- title bar ---", title_txt->llen-1); /* default */
+	}
+	else
+	{
+	        strncpy(title_txt->txt[0], title, title_txt->llen-1); /* default */
+	}
+
+
+	/* 3. create memo ebox */
+	PDEBUG("create_ebox_titlebar(): start egi_txtbox_new().....\n");
+	EGI_EBOX  *ebox_title= egi_txtbox_new(
+		"title_bar", /* tag, or put later */
+        	title_txt,  /* EGI_DATA_TXT pointer */
+        	true, /* bool movable */
+       	 	x0,y0, /* int x0, int y0 */
+        	240,30, /* int width;  int height,which also related with symheight and offy */
+        	0, /* int frame, 0=simple frmae, -1=no frame */
+        	bkcolor /*int prmcolor*/
+	);
+
+	return ebox_title;
 }

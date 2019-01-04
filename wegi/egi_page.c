@@ -4,6 +4,7 @@
 #include "list.h"
 #include "egi.h"
 #include "egi_page.h"
+#include "egi_debug.h"
 #include "bmpjpg.h"
 
 /*
@@ -75,7 +76,7 @@ int egi_page_free(EGI_PAGE *page)
 		list_for_each_safe(tnode, tmpnode, &page->list_head)
         	{
                	 	ebox=list_entry(tnode,EGI_EBOX,node);
-			printf("egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n"
+			PDEBUG("egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n"
 									,ebox->tag,page->ebox->tag);
                 	list_del(tnode);
                 	ebox->free(ebox);
@@ -107,7 +108,7 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 	}
 
 	list_add_tail(&ebox->node, &page->list_head);
-	printf("egi_page_addlist(): ebox '%s' is added to page '%s' \n",ebox->tag, page->ebox->tag); 
+	PDEBUG("egi_page_addlist(): ebox '%s' is added to page '%s' \n",ebox->tag, page->ebox->tag); 
 
 	return 0;
 }
@@ -140,7 +141,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		printf("egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
+		PDEBUG("egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 
@@ -180,7 +181,7 @@ int egi_page_activate(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->activate(ebox);
-		printf("egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		PDEBUG("egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
 
@@ -226,7 +227,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-		printf("egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		PDEBUG("egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
 

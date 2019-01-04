@@ -4,6 +4,7 @@
 #include "egi.h"
 #include "egi_color.h"
 #include "egi_txt.h"
+#include "egi_objtxt.h"
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "symbol.h"
@@ -116,6 +117,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *mplay_btns[6];
 	EGI_DATA_BTN *data_btns[6];
 
+	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
         {
                 for(j=0;j<3;j++) /* column of buttons */
@@ -141,7 +143,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 						        15+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							70,70, /* int width, int height */
 				       			-1, /* int frame,<0 no frame */
-		       					egi_random_color() /*int prmcolor */
+		       					egi_color_random(medium) /*int prmcolor */
 						   );
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)
@@ -164,7 +166,18 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[4], "btn_home");
 	egi_ebox_settag(mplay_btns[5], "btn_minimize");
 
-	/* create home page */
+
+	/* --------- 2. create title bar --------- */
+	EGI_EBOX *title_bar= create_ebox_titlebar(
+	        0, 0, /* int x0, int y0 */
+        	0, 2,  /* int offx, int offy */
+		egi_color_random(light),  /* uint16_t bkcolor */
+       		NULL	/* char *title */
+	);
+	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3");
+
+
+	/* --------- 3. create home page ------- */
 	EGI_PAGE *page_mplay=NULL;
 	page_mplay=egi_page_new("page_mplayer");
 	while(page_mplay==NULL)
@@ -179,8 +192,10 @@ EGI_PAGE *egi_create_mplaypage(void)
 	page_mplay->fpath="/tmp/mplay.jpg";
 
 	/* add ebox to home page */
-	for(i=0;i<6;i++)
+	for(i=0;i<6;i++) /* buttons */
 		egi_page_addlist(page_mplay, mplay_btns[i]);
+	egi_page_addlist(page_mplay, title_bar); /* title bar */
+
 
 	return page_mplay;
 }

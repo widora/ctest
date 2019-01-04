@@ -38,6 +38,8 @@
 #
 #---------------------------------------------------------------------------------------------------------------
 
+STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
+
 CC=/home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
 
@@ -51,7 +53,7 @@ APPS = tmp_app
 CFLAGS = -Wall
 CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
-CFLAGS += -O -g -DEGI_DEBUG
+#CFLAGS += -O -g -DEGI_DEBUG
 
 LDFLAGS = -L./lib -ljpeg -lm
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 
-#define DEGI_DEBUG
+/* #define EGI_DEBUG */
 
 
 #ifdef EGI_DEBUG
