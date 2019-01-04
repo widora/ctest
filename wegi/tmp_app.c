@@ -80,10 +80,9 @@ int main(void)
 	if(ebox_memo == NULL)return -3;
 
 	/* ------------   home_button eboxes definition  ------------------ */
-	printf("----------- egi page HOME ------------\n");
 	EGI_PAGE *page_home;
-
 	EGI_PAGE *page_mplay;
+	EGI_PAGE *page_openwrt;
 
 
 
@@ -254,20 +253,26 @@ int main(void)
 		//printf(" while() loop start....\n");
 		tm_delayms(2);
 
-		//printf("----------- egi page MPLAY ------------\n");
-		page_mplay=egi_create_mplaypage();
-		egi_page_activate(page_mplay);
-		egi_page_refresh(page_mplay);
-		tm_delayms(700);
-
+		/* page home */
 	        page_home=egi_create_homepage();
 		egi_page_activate(page_home);
 		egi_page_refresh(page_home);
-		tm_delayms(700);
+		tm_delayms(1000);
+		/* page mplayer */
+		page_mplay=egi_create_mplaypage();
+		egi_page_activate(page_mplay);
+		egi_page_refresh(page_mplay);
+		tm_delayms(1000);
+		/* page openwrt system */
+		page_openwrt=egi_create_openwrtpage();
+		egi_page_activate(page_openwrt);
+		egi_page_refresh(page_openwrt);
+		tm_delayms(1000);
 
-		egi_page_free(page_mplay);
+		/* free all pages */
 		egi_page_free(page_home);
-
+		egi_page_free(page_mplay);
+		egi_page_free(page_openwrt);
 
 		continue;
 
@@ -325,7 +330,7 @@ int main(void)
 				//wirteFB_str20x15(&gv_fb_dev, 1, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
 				strncpy(clock_txt->txt[1],tm_strbuf,10);
 				//clock_txt->color += (6<<8 | 4<<5 | 2 );
-				ebox_clock->prmcolor = egi_random_color();
+				ebox_clock->prmcolor = egi_color_random(all);
 				ebox_clock->refresh(ebox_clock);
 			}
 

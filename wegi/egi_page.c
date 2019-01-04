@@ -5,6 +5,7 @@
 #include "egi.h"
 #include "egi_page.h"
 #include "egi_debug.h"
+#include "egi_color.h"
 #include "bmpjpg.h"
 
 /*
@@ -161,7 +162,7 @@ int egi_page_activate(EGI_PAGE *page)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
-	int ret;
+	int ret=0;
 
 	/* check data */
 	if(page==NULL)
@@ -203,16 +204,20 @@ int egi_page_refresh(EGI_PAGE *page)
 	int ret;
 
 	/* check data */
-	if(page==NULL)
+	if(page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_refresh(): input EGI_PAGE *page is NULL!\n");
+		printf("egi_page_refresh(): input EGI_PAGE * page or page->ebox is NULL!\n");
 		return -1;
 	}
 
-	/* load wallpaper*/
+	/* load a picture or use prime color as wallpaper*/
 	if(page->fpath != NULL)
 		show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-
+	else /* use ebox prime color to clear(fill) screen */
+	{
+		if(page->ebox->prmcolor >= 0)
+			 clear_screen(&gv_fb_dev, egi_colorgray_random(medium));
+	}
 
 
 	/* check list */

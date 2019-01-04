@@ -50,7 +50,7 @@ enum egi_color_range
 
 /* functions */
 uint16_t egi_color_random(enum egi_color_range range);
-
+uint16_t egi_colorgray_random(enum egi_color_range range);
 
 
 
