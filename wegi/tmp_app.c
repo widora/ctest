@@ -44,6 +44,9 @@ Midas Zhou
 //#include "dict.h"
 #include "egi_symbol.h"
 
+char mvicon_load[16]={0};
+
+
 /*  ---------------------  MAIN  ---------------------  */
 int main(void)
 {
@@ -84,6 +87,13 @@ int main(void)
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
 
+
+	/* ------ set motion symbol ---------- */
+//global var:	char mvicon_load[16]={0};
+//	for(i=0;i<16;i++)
+//		mvicon_load[i]=48+i;
+	for(i=0;i<4;i++)
+		mvicon_load[i]=8+48+i;
 
 
 #if 0 /* test ----- egi txtbox read file ---------- */
@@ -251,8 +261,11 @@ int main(void)
 	}
 #endif
 
-	/* --- copy partial fb mem to buf -----*/
-	//fb_cpyto_buf(&gv_fb_dev, 100,0,150,320-1, buf);
+		/* loop string symbol */
+	        page_home=egi_create_homepage();
+		egi_page_activate(page_home);
+		symbol_loop_string(&gv_fb_dev, 60, &sympg_icons,-1, 1, 150,0, mvicon_load);
+
 
 
 /* ===============-------------(((  MAIN LOOP  )))-------------================= */
@@ -268,6 +281,7 @@ int main(void)
 		egi_page_activate(page_home);
 		//egi_page_refresh(page_home);
 		tm_delayms(1000);
+
 #if 1
 		/* page mplayer */
 		page_mplay=egi_create_mplaypage();

@@ -260,7 +260,7 @@ EGI_EBOX *create_ebox_titlebar(
       	  	1, /*int nl, lines  */
        	 	64, /*int llen, chars per line, however also limited by width */
         	&sympg_testfont, /*struct symbol_page *font */
-        	WEGI_COLOR_BLACK /* uint16_t color */
+        	WEGI_COLOR_BLACK /* int16_t color */
 	);
 
 	if(title_txt == NULL)

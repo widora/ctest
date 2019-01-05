@@ -35,6 +35,7 @@ Midas Zhou
 #include <string.h>
 #include "egi_symbol.h"
 #include "egi_debug.h"
+#include "egi_timer.h"
 
 /*--------------------(  testfont  )------------------------
   1.  ascii 0-127 symbol width,
@@ -116,10 +117,16 @@ struct symbol_page sympg_buttons=
 };
 
 /*--------------------------(  30x30 icons  )-----------------------------------*/
-static int icons_width[5*10] =
+static int icons_width[8*10] =
 {
-        30,30,30,30,30,
-        30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
 };
 /* symbole page struct for testfont */
 struct symbol_page sympg_icons=
@@ -128,8 +135,8 @@ struct symbol_page sympg_icons=
         .path="/home/icons.img",
         .bkcolor=0x0000,
         .data=NULL,
-        .maxnum=5*2-1, /* 2 rows of ioncs */
-        .sqrow=5, /* 4 icons per row */
+        .maxnum=8*8-1, /* 8 rows of ioncs */
+        .sqrow=8, /* 4 icons per row */
         .symheight=30,
         .symwidth=icons_width, /* width list */
 };
@@ -508,7 +515,9 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 #else /*--- if  NO ROLLBACK ---*/
 			mapx=x0+j;
-			mapy=y0+x;
+			if(mapx>xres)mapx=xres-1;
+			mapy=y0+i;
+			if(mapy>yres)mapy=yres-1;
 
 #endif
 
@@ -562,7 +571,7 @@ fontcolor:	font color (or symbol color for a symbol)
 		>= 0, use given font color.
 		<0   use default color in img data
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
-		    for fonts symbol,
+		    for fonts and icons,
 	     	<0	 --- no transparent pixel
 use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font 
@@ -593,5 +602,124 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
+	}
+}
+
+
+
+/*-------------------------------------------------------------------------------
+ loop in showing each symbol in a string
+
+dt:		interval delay time for each symbol in (ms)
+sym_page:       a font symbol page
+fontcolor:      font color (or symbol color for a symbol)
+                >= 0, use given font color.
+                <0   use default color in img data
+transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       --- no transparent pixel
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font 
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font 
+
+x0,y0:          start position coordinate in screen, left top point of a symbol.
+str:            pointer to a char string(or symbol codes[]);
+
+-------------------------------------------------------------------------------*/
+void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+                int fontcolor, int transpcolor, int x0, int y0, const char* str)
+{
+        const char *p;
+
+        /* check page data */
+        if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
+                return;
+
+        /* if the symbol is font then use symbol back color as transparent tunnel */
+        //if(tspcolor >0 && sym_page->symtype == type_font )
+
+        /* use bkcolor for both font and icon anyway!!! */
+        if(transpcolor>=0)
+                transpcolor=sym_page->bkcolor;
+
+	while(1)
+	{
+		p=str;
+	        while(*p) /* code '0' will be deemed as end token here !!! */
+        	{
+                	symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x0,y0,*p);
+			tm_delayms(dt);
+               		 p++;
+        	}
+	}
+}
+
+
+
+/*--------------------------------------------------------------------------
+Rotate a symbol, use its bkcolor as transcolor
+
+sym_page: 	symbol page
+x0,y0: 		start position coordinate in screen, left top point of a symbol.
+sym_code:	symbole code
+------------------------------------------------------------------------------*/
+void symbol_rotate(const struct symbol_page *sym_page,
+						 int x0, int y0, int sym_code)
+{
+        /* check page data */
+        if(symbol_check_page(sym_page, "symbol_rotate") != 0)
+                return;
+
+	int i,j;
+        uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
+        int offset=sym_page->symoffset[sym_code];
+        int height=sym_page->symheight;
+        int width=sym_page->symwidth[sym_code];
+	int max= height>width ? height : width;
+	int n=((max/2)<<1)+1;/*  as form of 2*m+1  */
+	uint16_t *symbuf;
+
+	/* malloc symbuf */
+	symbuf=malloc(n*n*sizeof(uint16_t));
+	if(symbuf==NULL)
+	{
+		printf("symbol_rotate(): fail to malloc() symbuf.\n");
+		return;
+	}
+        memset(symbuf,0,sizeof(n*n*sizeof(uint16_t)));
+
+	/* copy data to fill symbuf with pixel number n*n */
+        for(i=0;i<height;i++)
+        {
+                for(j=0;j<width;j++)
+                {
+			/* for n >= height and widt */
+			symbuf[i*n+j]=*(data+offset+width*i+j);
+		}
+	}
+
+
+        /* for image rotation matrix */
+        struct egi_point_coord  *SQMat; /* the map matrix*/
+        SQMat=malloc(n*n*sizeof(struct egi_point_coord));
+	if(SQMat==NULL)
+	{
+		printf("symbol_rotate(): fail to malloc() SQMat.\n");
+		return;
+	}
+        memset(SQMat,0,sizeof(*SQMat));
+
+	/* rotation center */
+        struct egi_point_coord  centxy={x0+n/2,y0+n/2}; /* center of rotation */
+        struct egi_point_coord  x0y0={x0,y0};
+
+	i=0;
+	while(1)
+	{
+		i++;
+              	/* get rotation map */
+                mat_pointrotate_SQMap(n, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
+                /* draw rotated image */
+                fb_drawimg_SQMap(n, x0y0, symbuf, SQMat); /* side,center,image buf, map matrix */
+		tm_delayms(20);
 	}
 }

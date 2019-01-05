@@ -87,30 +87,31 @@ EGI_PAGE *egi_create_homepage(void)
         head_txt=egi_txtdata_new(
                 0,0, /* offset X,Y */
                 1, /*int nl, lines  */
-                8, /*int llen, chars per line */
+                9, /*int llen, chars per line, 1 for end token! */
                 &sympg_icons, /*struct symbol_page *font */
-                -1  /* < 0,use default color in img, uint16_t color */
+                -1  /* < 0, use default symbol color in img, int16_t color */
         );
         /* fpath == NULL */
         /* create head ebox */
         ebox_headbar= egi_txtbox_new(
                 "home_headbar", /* tag */
                 head_txt,  /* EGI_DATA_TXT pointer */
-                false, /* bool movable */
+                true, /* bool movable */
                 0,0, /* int x0, int y0 */
                 240,30, /* int width, int height */
                 -1, /* int frame, -1=no frame */
-                -1 /*int prmcolor, -1 transparent*/
+                egi_colorgray_random(medium)/*int prmcolor, -1 transparent*/
         );
-	/* set symbols in txt */
-	head_txt->txt[0][0]=1;
-	head_txt->txt[0][1]=2;
-	head_txt->txt[0][2]=3;
-	head_txt->txt[0][3]=4;
-	head_txt->txt[0][4]=5;
-	head_txt->txt[0][5]=6;
-	head_txt->txt[0][6]=7;
-	head_txt->txt[0][7]=8;
+	/* set symbols in home head bar */
+	head_txt->txt[0][0]=4;
+	head_txt->txt[0][1]=6;
+	head_txt->txt[0][2]=11;
+	head_txt->txt[0][3]=6; /* 6 is space */
+	head_txt->txt[0][4]=33;
+	head_txt->txt[0][5]=6;//36;
+	head_txt->txt[0][6]=6;
+	head_txt->txt[0][7]=28;
+	/* !!! the last  MUST end with /0 */
 
 	/* ----- 3.create home page ----- */
 	EGI_PAGE *page_home=NULL;
@@ -206,11 +207,10 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
-		//egi_color_random(light),  /* uint16_t bkcolor */
-		egi_colorgray_random(light),  /* uint16_t bkcolor */
+		egi_colorgray_random(light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
-	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3");
+	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3 --------");
 
 
 	/* --------- 3. create home page ------- */
@@ -324,7 +324,6 @@ EGI_PAGE *egi_create_openwrtpage(void)
 	}
 	/* set prmcolor */
 	page_openwrt->ebox->prmcolor=egi_colorgray_random(deep);
-
 
 	/* set wallpaper */
 	//page_openwrt->fpath="/tmp/mplay.jpg";

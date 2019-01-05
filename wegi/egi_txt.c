@@ -75,6 +75,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 		data_txt=NULL; /* :( */
                 return NULL;
         }
+	memset(data_txt->txt,0,nl*sizeof(char *));
 
 	/* malloc data->txt[] */
         for(i=0;i<nl;i++)

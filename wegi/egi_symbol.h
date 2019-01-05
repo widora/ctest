@@ -18,7 +18,7 @@ Midas Zhou
 #define TESTFONT_COLOR_FLIP 0 /* 1 use complementary color */
 
 /*for symbol_writeFB(), roll back to start if symbol point reach boundary of FB mem */
-#define FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
+//#define FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
 
 #define SYM_NOSUB_COLOR -1 /* no substitute color defined for a symbol or font */
 #define SYM_NOTRANSP_COLOR -1 /* no transparent color defined for a symbol or font */
@@ -109,6 +109,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code);
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str);
+void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+                int fontcolor, int transpcolor, int x0, int y0, const char* str);
+void symbol_rotate(const struct symbol_page *sym_page,	\
+                                                 int x0, int y0, int sym_code);
 
 
 
