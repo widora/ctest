@@ -5,7 +5,7 @@
 #include <unistd.h> /* usleep */
 #include <stdbool.h>
 #include "egi_timer.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 #include "fblines.h"
 #include "dict.h"
 

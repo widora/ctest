@@ -7,7 +7,7 @@
 #include "egi_objtxt.h"
 #include "egi_btn.h"
 #include "egi_page.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 #include "egi_objpage.h"
 
 
@@ -26,7 +26,10 @@ EGI_PAGE *egi_create_homepage(void)
 
 	EGI_EBOX *home_btns[9];
 	EGI_DATA_BTN *data_btns[9];
+	EGI_DATA_TXT *head_txt;
+	EGI_EBOX  *ebox_headbar;
 
+	/* ----- 1. create button eboxes ----- */
         for(i=0;i<3;i++) /* row of buttons*/
         {
                 for(j=0;j<3;j++) /* column of buttons */
@@ -34,7 +37,7 @@ EGI_PAGE *egi_create_homepage(void)
 			/* 1. create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
 							square, /* enum egi_btn_type shape */
-							&sympg_icon, /* struct symbol_page *icon */
+							&sympg_buttons, /* struct symbol_page *icon */
 							3*i+j /* int icon_code */
 						);
 			/* if fail, try again ... */
@@ -78,7 +81,38 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[7], "btn_mp2");
 	egi_ebox_settag(home_btns[8], "btn_radop");
 
-	/* create home page */
+
+	/* --------- 2. create home-head bar --------- */
+        /* create head_txt */
+        head_txt=egi_txtdata_new(
+                0,0, /* offset X,Y */
+                1, /*int nl, lines  */
+                8, /*int llen, chars per line */
+                &sympg_icons, /*struct symbol_page *font */
+                -1  /* < 0,use default color in img, uint16_t color */
+        );
+        /* fpath == NULL */
+        /* create head ebox */
+        ebox_headbar= egi_txtbox_new(
+                "home_headbar", /* tag */
+                head_txt,  /* EGI_DATA_TXT pointer */
+                false, /* bool movable */
+                0,0, /* int x0, int y0 */
+                240,30, /* int width, int height */
+                -1, /* int frame, -1=no frame */
+                -1 /*int prmcolor, -1 transparent*/
+        );
+	/* set symbols in txt */
+	head_txt->txt[0][0]=1;
+	head_txt->txt[0][1]=2;
+	head_txt->txt[0][2]=3;
+	head_txt->txt[0][3]=4;
+	head_txt->txt[0][4]=5;
+	head_txt->txt[0][5]=6;
+	head_txt->txt[0][6]=7;
+	head_txt->txt[0][7]=8;
+
+	/* ----- 3.create home page ----- */
 	EGI_PAGE *page_home=NULL;
 	page_home=egi_page_new("page_home");
 	while(page_home==NULL)
@@ -92,9 +126,10 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->fpath="/tmp/home.jpg";
 
 	/* add ebox to home page */
+	/* beware of the sequence of the ebox list */
 	for(i=0;i<9;i++)
 		egi_page_addlist(page_home, home_btns[i]);
-
+	egi_page_addlist(page_home,ebox_headbar);
 
 
 	return page_home;
@@ -287,10 +322,12 @@ EGI_PAGE *egi_create_openwrtpage(void)
 			page_openwrt=egi_page_new("page_openwrt");
 			usleep(100000);
 	}
+	/* set prmcolor */
+	page_openwrt->ebox->prmcolor=egi_colorgray_random(deep);
 
 
 	/* set wallpaper */
-	page_openwrt->fpath="/tmp/mplay.jpg";
+	//page_openwrt->fpath="/tmp/mplay.jpg";
 
 	/* add ebox to home page */
 	for(i=0;i<6;i++) /* buttons */

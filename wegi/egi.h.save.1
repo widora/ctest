@@ -227,7 +227,7 @@ struct egi_data_txt
 	   of those chars should not exceeds ebox->width, or it may display in a roll-back way.
 	 */
 	struct symbol_page *font;
-	int16_t color; /* txt color */
+	uint16_t color; /* txt color, */
 	char **txt; /*multiline txt data */
 	char *fpath; /* txt file path if applys */
 	long foff; /* curret offset of the txt file if applys */

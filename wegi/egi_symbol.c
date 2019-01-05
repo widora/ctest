@@ -12,7 +12,8 @@ For test only!
    A mem symbol page may be saved as a file.
 5. All symbols in a page MUST have the same height, and each row MUST has the same
    number of symbols.
-6.
+6. The first symbol in a img page shuld not be used, code '0' usually will be treated
+   as and end token for a char string.
 
 
 TODO:
@@ -24,7 +25,7 @@ TODO:
 4.  symbol linear enlarge and shrink.
 5. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
-Midas
+Midas Zhou
 ----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,8 +33,8 @@ Midas
 #include <stdint.h>
 #include <fcntl.h>
 #include <string.h>
-#include "symbol.h"
-
+#include "egi_symbol.h"
+#include "egi_debug.h"
 
 /*--------------------(  testfont  )------------------------
   1.  ascii 0-127 symbol width,
@@ -68,6 +69,7 @@ struct symbol_page sympg_testfont=
 };
 
 
+
 /*--------------------------(  numbfont  )-----------------------------------
  	big number font 0123456789:
 */
@@ -78,6 +80,7 @@ static int numbfont_width[16*8] =
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	15,15,15,15,15,15,15,15,15,15,15,0,0,0,0,0, /* 0123456789: */
 };
+
 /* symbole page struct for testfont */
 struct symbol_page sympg_numbfont=
 {
@@ -92,25 +95,47 @@ struct symbol_page sympg_numbfont=
 };
 
 
-/*--------------------------(  icon  )-----------------------------------*/
-static int icon_width[60*2] =
+/*--------------------------(  buttons  )-----------------------------------*/
+static int buttons_width[4*5] =
 {
 	60,60,60,60,
 	60,60,60,60,
 	60,60,60,60,
 };
 /* symbole page struct for testfont */
-struct symbol_page sympg_icon=
+struct symbol_page sympg_buttons=
 {
 	.symtype=type_icon,
-	.path="/home/icon.img",
+	.path="/home/buttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
-	.maxnum=4*3-1, /* 2 rows of ioncs */
+	.maxnum=4*3-1, /* 3 rows of ioncs */
 	.sqrow=4, /* 4 icons per row */
 	.symheight=60,
-	.symwidth=icon_width, /* width list */
+	.symwidth=buttons_width, /* width list */
 };
+
+/*--------------------------(  30x30 icons  )-----------------------------------*/
+static int icons_width[5*10] =
+{
+        30,30,30,30,30,
+        30,30,30,30,30,
+};
+/* symbole page struct for testfont */
+struct symbol_page sympg_icons=
+{
+        .symtype=type_font,
+        .path="/home/icons.img",
+        .bkcolor=0x0000,
+        .data=NULL,
+        .maxnum=5*2-1, /* 2 rows of ioncs */
+        .sqrow=5, /* 4 icons per row */
+        .symheight=30,
+        .symwidth=icons_width, /* width list */
+};
+
+
+
 
 
 
@@ -319,23 +344,29 @@ return:
 int symbol_check_page(const struct symbol_page *sym_page, char *func)
 {
 
+	/* check sym_page */
+	if(sym_page==NULL)
+        {
+                printf("%s(): symbol_page is NULL! .\n",func);
+                return -1;
+        }
         /* check for maxnum */
         if(sym_page->maxnum < 0 )
         {
                 printf("%s(): symbol number less than 1! fail to load page.\n",func);
-                return -1;
+                return -2;
         }
         /* check for data */
         if(sym_page->data == NULL)
         {
                 printf("%s(): sym_page->data is NULL! the symbol page has not been loaded?!\n",func);
-	                return -2;
+	                return -3;
         }
         /* check for symb_index */
         if(sym_page->symwidth == NULL)
         {
                 printf("%s(): symbol width list is empty!\n",func);
-                return -3;
+                return -4;
         }
 
 	return 0;
@@ -397,6 +428,7 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
    or in pixel if color treatment is applied.
 2. So the method of checking FB left space is different, depending on above mentioned
    writing methods.
+3. Note: put page check in symbol_string_writeFB()!!!
 
 fbdev: 		FB device
 sym_page: 	symbol page
@@ -431,7 +463,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	//long int screensize=fb_dev->screensize;
 
 	/* check page */
-#if 1 /* It wastes time. NO need here,we shall move this to .... */
+#if 0  /* not here, put page check in symbol_string_writeFB() */
 	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
 		return;
 #endif
@@ -501,7 +533,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
 			        if( pos > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
-                			printf("WARNING: symbol point reach boundary of FB mem.!\n");
+	                			printf("WARNING: symbol point reach boundary of FB mem.!\n");
 					printf("pos=%ld, screensize=%ld    mapx=%d,mapy=%d\n",
 						 pos, fb_dev->screensize, mapx, mapy);
                 			return;
@@ -544,15 +576,21 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 {
 	const char *p=str;
 	int x=x0;
-	int tspcolor=transpcolor;
+
+	/* check page data */
+	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
+		return;
 
 	/* if the symbol is font then use symbol back color as transparent tunnel */
-	if(tspcolor >0 && sym_page->symtype == type_font )
-		tspcolor=sym_page->bkcolor;
+	//if(tspcolor >0 && sym_page->symtype == type_font )
 
-	while(*p)
+	/* use bkcolor for both font and icon anyway!!! */
+	if(transpcolor>=0)
+		transpcolor=sym_page->bkcolor;
+
+	while(*p) /* code '0' will be deemed as end token here !!! */
 	{
-		symbol_writeFB(fb_dev,sym_page,fontcolor,tspcolor,x,y0,*p);/* at same line, so y=y0 */
+		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
 	}

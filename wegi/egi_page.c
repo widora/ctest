@@ -31,6 +31,8 @@ EGI_PAGE * egi_page_new(char *tag)
 		printf("egi_page_init(): fail to malloc page.\n");
 		return NULL;
 	}
+	/* clear data */
+	memset(page,0,sizeof(struct egi_page));
 
 	/* 3. malloc page->ebox */
 	page->ebox=egi_ebox_new(type_page);
@@ -142,7 +144,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		PDEBUG("egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
+		printf("egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 
@@ -177,6 +179,20 @@ int egi_page_activate(EGI_PAGE *page)
 		return -2;
 	}
 
+	/* set page status */
+	page->ebox->status=status_active;
+
+        /* !!!!! in page->ebox.refresh(), the page->fpath will NOT be seen and handled, it's a page method.
+	load a picture or use prime color as wallpaper*/
+        if(page->fpath != NULL)
+                show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+        else /* use ebox prime color to clear(fill) screen */
+        {
+                if(page->ebox->prmcolor >= 0)
+                         clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+        }
+
+
 	/* traverse the list and activate list eboxes, not safe */
 	list_for_each(tnode, &page->list_head)
 	{
@@ -184,7 +200,6 @@ int egi_page_activate(EGI_PAGE *page)
 		ret=ebox->activate(ebox);
 		PDEBUG("egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
-
 
 	return 0;
 }
@@ -216,7 +231,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	else /* use ebox prime color to clear(fill) screen */
 	{
 		if(page->ebox->prmcolor >= 0)
-			 clear_screen(&gv_fb_dev, egi_colorgray_random(medium));
+			 clear_screen(&gv_fb_dev, page->ebox->prmcolor);
 	}
 
 

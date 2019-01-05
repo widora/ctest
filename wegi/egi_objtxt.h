@@ -2,10 +2,11 @@
 All EGI OBJ Initializations
 
 ------------------------------------------*/
-
-
 #ifndef __EGI_OBJTXT_H__
 #define __EGI_OBJTXT_H__
+
+#include <stdint.h>
+
 
 /*  ------------ MEMO: txt ebox  ----------- */
 EGI_EBOX *create_ebox_memo(void);

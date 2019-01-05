@@ -42,7 +42,7 @@ Midas Zhou
 #include "xpt2046.h"
 #include "bmpjpg.h"
 //#include "dict.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 
 /*  ---------------------  MAIN  ---------------------  */
 int main(void)
@@ -80,9 +80,9 @@ int main(void)
 	if(ebox_memo == NULL)return -3;
 
 	/* ------------   home_button eboxes definition  ------------------ */
-	EGI_PAGE *page_home;
-	EGI_PAGE *page_mplay;
-	EGI_PAGE *page_openwrt;
+	EGI_PAGE *page_home=NULL;
+	EGI_PAGE *page_mplay=NULL;
+	EGI_PAGE *page_openwrt=NULL;
 
 
 
@@ -109,9 +109,10 @@ int main(void)
 
 
 	/* --- clear screen with BLACK --- */
-#if 0
-	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
+#if 1
+	//clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
 #endif
+
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
@@ -185,10 +186,12 @@ int main(void)
 	/* load numbfont */
 	if(symbol_load_page(&sympg_numbfont)==NULL)
 		exit(-2);
-	/* load icons */
-	if(symbol_load_page(&sympg_icon)==NULL)
+	/* load buttons icons */
+	if(symbol_load_page(&sympg_buttons)==NULL)
 		exit(-2);
-
+	/* load icons */
+	if(symbol_load_page(&sympg_icons)==NULL)
+		exit(-2);
 
 	/* --------- test:  print all symbols in the page --------*/
 #if 0
@@ -201,6 +204,13 @@ int main(void)
 #if 0
 	for(i=48;i<58;i++)
 		symbol_print_symbol(&sympg_numbfont,i,0x0);
+#endif
+
+#if 0
+        /* BDEV *fb_dev, sym_page, fontcolor, transpcolo, x0, y0, sym_code */
+	for(i=1;i<5;i++)
+	        symbol_writeFB(&gv_fb_dev,&sympg_icons, -1, 0 , 30*i, 0, i);
+	exit(1);
 #endif
 
 
@@ -256,17 +266,19 @@ int main(void)
 		/* page home */
 	        page_home=egi_create_homepage();
 		egi_page_activate(page_home);
-		egi_page_refresh(page_home);
+		//egi_page_refresh(page_home);
 		tm_delayms(1000);
+#if 1
 		/* page mplayer */
 		page_mplay=egi_create_mplaypage();
 		egi_page_activate(page_mplay);
-		egi_page_refresh(page_mplay);
+		//egi_page_refresh(page_mplay);
 		tm_delayms(1000);
+#endif
 		/* page openwrt system */
 		page_openwrt=egi_create_openwrtpage();
 		egi_page_activate(page_openwrt);
-		egi_page_refresh(page_openwrt);
+		//egi_page_refresh(page_openwrt);
 		tm_delayms(1000);
 
 		/* free all pages */

@@ -16,7 +16,7 @@ Midas Zhou
 #include "egi_timer.h"
 #include "egi_debug.h"
 //#include "egi_timer.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 
 
 

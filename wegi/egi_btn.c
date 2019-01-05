@@ -10,7 +10,7 @@ Midas Zhou
 #include "egi.h"
 #include "egi_btn.h"
 #include "egi_debug.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 //#include "bmpjpg.h"
 
 
@@ -260,7 +260,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	/* 1. check the ebox status  */
 	if( ebox->status != status_active )
 	{
-//		printf("ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
+		PDEBUG("ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 

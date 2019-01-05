@@ -34,7 +34,7 @@ Midas Zhou
 #include "egi_txt.h"
 #include "egi_debug.h"
 #include "list.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 
 
 

@@ -12,7 +12,7 @@ Midas Zhou
 #include "egi_txt.h"
 #include "egi_debug.h"
 //#include "egi_timer.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 #include "bmpjpg.h"
 
 
@@ -327,8 +327,8 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
         ebox->height=height;
 
 	//TODO: malloc more mem in case ebox size is enlarged later????? //
-	/* 4. malloc exbo->bkimg for bk image storing */   
-   if(ebox->movable) /* only if ebox is movale */
+	/* 4. malloc exbo->bkimg for bk image storing */
+   if( ebox->movable || (ebox->prmcolor<0) ) /* only if ebox is movale or it's transparent */
    {
 	PDEBUG("egi_txtbox_activate(): start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
 											ebox->tag,height,width);
@@ -440,7 +440,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	int font_height=data_txt->font->symheight;
 
 #if 0
-	/* test--------------   print out box txt content */
+	/* test WARNING!!!! fonts only !!!--------------   print out box txt content */
 	for(i=0;i<nl;i++)
 		printf("egi_txtbox_refresh(): txt[%d]:%s\n",i,txt[i]);
 #endif
@@ -478,7 +478,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.x=x0+width-1;
         ebox->bkbox.endxy.y=y0+height-1;
 
-#if 0 /* DEBUG */
+#if 1 /* DEBUG */
 	PDEBUG("refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
@@ -487,7 +487,8 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;
-   }
+
+   } /* end of movable code */
 
 	/* ---- 7. refresh prime color under the symbol  before updating txt.  */
 	if(ebox->prmcolor >= 0)
@@ -519,9 +520,10 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	}
 
 	/* ---- 10. refresh TXT, write txt line to FB */
+	PDEBUG("egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
 	for(i=0;i<nl;i++)
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
-					1, for font symbol: tranpcolor is its img symbol bkcolor!!! */
+					1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
 						 y0+offy+font_height*i, txt[i]);
 

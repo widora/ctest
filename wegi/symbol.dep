@@ -1,0 +1,1 @@
+symbol : symbol.c symbol.h fblines.h egi.h list.h

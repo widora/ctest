@@ -8,7 +8,7 @@ Midas Zhou
 
 
 #include "egi.h"
-#include "symbol.h"
+#include "egi_symbol.h"
 
 EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
                                         struct symbol_page *icon, int icon_code);
