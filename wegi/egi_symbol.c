@@ -141,6 +141,15 @@ struct symbol_page sympg_icons=
         .symwidth=icons_width, /* width list */
 };
 
+/* put load motion icon array for CPU load*/
+char symmic_cpuload[4][5]= /* sym for motion icon */
+{
+	{48,49,50,51,0}, /* light */
+	{52,53,54,55,0}, /* medium */
+	{56,57,58,59,0}, /* heavy */
+	{60,61,62,63,0}  /* alarm */
+};
+
 
 
 
@@ -612,9 +621,6 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 dt:		interval delay time for each symbol in (ms)
 sym_page:       a font symbol page
-fontcolor:      font color (or symbol color for a symbol)
-                >= 0, use given font color.
-                <0   use default color in img data
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
                 <0       --- no transparent pixel
 use following COLOR:
@@ -626,31 +632,24 @@ str:            pointer to a char string(or symbol codes[]);
 
 -------------------------------------------------------------------------------*/
 void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
-                int fontcolor, int transpcolor, int x0, int y0, const char* str)
+                			int transpcolor, int x0, int y0, const char* str)
 {
-        const char *p;
+        const char *p=str;
 
         /* check page data */
         if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
                 return;
 
-        /* if the symbol is font then use symbol back color as transparent tunnel */
-        //if(tspcolor >0 && sym_page->symtype == type_font )
-
         /* use bkcolor for both font and icon anyway!!! */
         if(transpcolor>=0)
                 transpcolor=sym_page->bkcolor;
 
-	while(1)
-	{
-		p=str;
-	        while(*p) /* code '0' will be deemed as end token here !!! */
-        	{
-                	symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x0,y0,*p);
-			tm_delayms(dt);
-               		 p++;
-        	}
-	}
+        while(*p) /* code '0' will be deemed as end token here !!! */
+       	{
+               	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p); /* -1, default font color */
+		tm_delayms(dt);
+           	p++;
+       	}
 }
 
 

@@ -39,6 +39,7 @@ Midas Zhou
 #include "egi_timer.h"
 #include "egi_objtxt.h"
 #include "egi_objpage.h"
+#include "egi_pagehome.h"
 #include "xpt2046.h"
 #include "bmpjpg.h"
 //#include "dict.h"
@@ -92,8 +93,8 @@ int main(void)
 //global var:	char mvicon_load[16]={0};
 //	for(i=0;i<16;i++)
 //		mvicon_load[i]=48+i;
-	for(i=0;i<4;i++)
-		mvicon_load[i]=8+48+i;
+//	for(i=0;i<4;i++)
+//		mvicon_load[i]=8+48+i;
 
 
 #if 0 /* test ----- egi txtbox read file ---------- */
@@ -261,12 +262,24 @@ int main(void)
 	}
 #endif
 
+
 		/* loop string symbol */
 	        page_home=egi_create_homepage();
 		egi_page_activate(page_home);
-		symbol_loop_string(&gv_fb_dev, 60, &sympg_icons,-1, 1, 150,0, mvicon_load);
+		page_home->routine(page_home);
 
 
+		while(1)
+		{
+			for(i=0;i<4;i++)
+			{
+				for(j=0;j<5;j++)
+				{
+					symbol_loop_string(&gv_fb_dev, 155-i*30, &sympg_icons,
+								1, 150,0, &symmic_cpuload[i][0]);
+				}
+			}
+		}
 
 /* ===============-------------(((  MAIN LOOP  )))-------------================= */
 	while(1)

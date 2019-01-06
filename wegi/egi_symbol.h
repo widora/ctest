@@ -78,10 +78,16 @@ struct symbol_page
 };
 
 
+
+
+/*--------------  shared symbol data  -------------*/
 extern struct symbol_page sympg_testfont;
 extern struct symbol_page sympg_numbfont;
 extern struct symbol_page sympg_buttons;
 extern struct symbol_page sympg_icons;
+extern char symmic_cpuload[4][5];
+
+
 
 
 /*------------------- functions ---------------------*/
@@ -110,7 +116,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str);
 void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
-                int fontcolor, int transpcolor, int x0, int y0, const char* str);
+                	 		int transpcolor, int x0, int y0, const char* str);
 void symbol_rotate(const struct symbol_page *sym_page,	\
                                                  int x0, int y0, int sym_code);
 

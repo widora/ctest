@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "list.h"
+#include "xpt2046.h"
 #include "egi.h"
+#include "egi_timer.h"
 #include "egi_page.h"
 #include "egi_debug.h"
 #include "egi_color.h"
@@ -250,6 +253,82 @@ int egi_page_refresh(EGI_PAGE *page)
 		PDEBUG("egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
+
+	return 0;
+}
+
+
+/*--------------------------------------
+default page routine job
+
+return:
+	loop or >=0  	OK
+	<0		fails
+----------------------------------------*/
+int egi_page_routine(EGI_PAGE *page)
+{
+	int ret;
+	uint16_t sx,sy;
+	EGI_EBOX  *hitbtn; /* hit button_ebox */
+
+	/* check data */
+	if(page==NULL)
+	{
+		printf("egi_page_routine(): input EGI_PAGE *page is NULL!\n");
+		return -1;
+	}
+
+	/* check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
+	}
+
+	/* loop in touch checking */
+	while(1)
+	{
+		/* necessary wait for XPT */
+	 	tm_delayms(2);
+
+		/* read XPT to get avg tft-LCD coordinate */
+                //printf("start xpt_getavt_xy() \n");
+                ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
+
+		/* touch reading is going on... */
+                if(ret == XPT_READ_STATUS_GOING )
+                {
+                        //printf("XPT READ STATUS GOING ON....\n");
+                        continue; /* continue to loop to finish reading touch data */
+                }
+
+                /* put PEN-UP status events here */
+                else if(ret == XPT_READ_STATUS_PENUP )
+                {
+                        //PDEBUG("egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
+
+
+		}
+
+		/* get touch coordinates and trigger actions for hit button if any */
+                else if(ret == XPT_READ_STATUS_COMPLETE)
+                {
+                        //PDEBUG("egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
+
+	 /* ----------------    Touch Event Handling   ----------------  */
+
+	                hitbtn=egi_hit_pagebox(sx, sy, page);
+	      	        if(hitbtn != NULL)
+				printf("egi_page_routine(): button '%s' of page '%s' is touched!\n",
+										hitbtn->tag,page->ebox->tag);
+
+
+	                continue;
+
+			/* loop in refreshing listed eboxes */
+
+		}
+
+	}
 
 	return 0;
 }

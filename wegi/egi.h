@@ -272,6 +272,13 @@ struct egi_page
 	/* wallpaper for the page */
 	char *fpath;
 
+	/* routine job
+	   1. touch and trigger buttons
+	   2. refresh ebox in list if necessary
+
+	*/
+	int (*routine)(EGI_PAGE *page);
+
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
 	multi_layer operation is applied.
