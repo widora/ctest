@@ -88,7 +88,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 
 	/* 3. alloc memory */
 
-	PDEBUG("egi_alloc_bkimg(): start to malloc() ....!\n");
+	egi_pdebug(DBG_EGI,"egi_alloc_bkimg(): start to malloc() ....!\n");
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
 
 	if(ebox->bkimg == NULL)
@@ -97,7 +97,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 		return NULL;
 	}
 
-	PDEBUG("egi_alloc_bkimg(): finish!\n");
+	egi_pdebug(DBG_EGI,"egi_alloc_bkimg(): finish!\n");
 
 	return ebox->bkimg;
 }
@@ -206,7 +206,7 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page)
         list_for_each(tnode, &page->list_head)
         {
                 ebox=list_entry(tnode, EGI_EBOX, node);
-                //PDEBUG("egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
+                //egi_pdebug(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
 
 	         if(ebox->status==status_sleep)
 			continue; /* ignore sleeping ebox */
@@ -279,16 +279,20 @@ reutrn:
 ------------------------------------------------------*/
 int egi_ebox_refresh(EGI_EBOX *ebox)
 {
+	int ret;
+
 	/* 1. put default methods here ...*/
 	if(ebox->method.refresh == NULL)
 	{
-		PDEBUG("ebox '%s' has no defined method of refresh()!\n",ebox->tag);
+		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of refresh()!\n",ebox->tag);
 		return 1;
 	}
 
 	/* 2. ebox object defined method */
 	else
-		return ebox->method.refresh(ebox);
+	{
+			return ebox->method.refresh(ebox);
+	}
 }
 
 /*----------------------------------------------------
@@ -355,7 +359,7 @@ int egi_ebox_decorate(EGI_EBOX *ebox)
 	/* 2. ebox object defined method */
 	else
 	{
-		PDEBUG("egi_ebox_decorate(): start ebox->method.decorate(ebox)...\n");
+		egi_pdebug(DBG_EGI,"egi_ebox_decorate(): start ebox->method.decorate(ebox)...\n");
 		return ebox->method.decorate(ebox);
 	}
 }
@@ -381,7 +385,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.free == NULL)
 	{
-		PDEBUG("ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
+		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
 
 		/* 1.1 free ebox tyep data */
 		switch(ebox->type)
@@ -389,14 +393,14 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			case type_txt:
 				if(ebox->egi_data != NULL)
 				{
-					PDEBUG("egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
+					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_txt(ebox->egi_data);
 				 }
 				break;
 			case type_btn:
 				if(ebox->egi_data != NULL)
-					PDEBUG("egi_ebox_free():start to egi_free_data_btn(ebox->egi_data)  \
+					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_data_btn(ebox->egi_data)  \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_btn(ebox->egi_data);
 				break;
@@ -444,7 +448,7 @@ return:
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 {
 	/* malloc ebox */
-	PDEBUG("egi_ebox_new(): start to malloc for a new ebox....\n");
+	egi_pdebug(DBG_EGI,"egi_ebox_new(): start to malloc for a new ebox....\n");
 	EGI_EBOX *ebox=malloc(sizeof(EGI_EBOX));
 
 	if(ebox==NULL)
@@ -484,7 +488,7 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 
 
 	/* assign default method for new ebox */
-	PDEBUG("egi_ebox_new(): assing default method to ebox ....\n");
+	egi_pdebug(DBG_EGI,"egi_ebox_new(): assing default method to ebox ....\n");
 	ebox->activate=egi_ebox_activate;
 	ebox->refresh=egi_ebox_refresh;
 	ebox->decorate=egi_ebox_decorate;

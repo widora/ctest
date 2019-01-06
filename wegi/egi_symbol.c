@@ -617,7 +617,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 
 /*-------------------------------------------------------------------------------
- loop in showing each symbol in a string
+display each symbol in a char string to form a motion picture.
 
 dt:		interval delay time for each symbol in (ms)
 sym_page:       a font symbol page
@@ -631,7 +631,7 @@ x0,y0:          start position coordinate in screen, left top point of a symbol.
 str:            pointer to a char string(or symbol codes[]);
 
 -------------------------------------------------------------------------------*/
-void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
                 			int transpcolor, int x0, int y0, const char* str)
 {
         const char *p=str;

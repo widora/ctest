@@ -11,10 +11,13 @@ Midas Zhou
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include "list.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
+#define EGI_PAGE_MAXTHREADS 5 /* MAX. number of threads in a page routine job */
+
 
 typedef struct egi_element_box EGI_EBOX;
 
@@ -104,6 +107,9 @@ struct egi_element_box
 {
 	/* ebox type */
 	enum egi_ebox_type type;
+
+	/* anything changes that need to carry out refresh method */
+	bool need_refresh;
 
 	/*
 		--- movable or stationary ---
@@ -272,20 +278,26 @@ struct egi_page
 	/* wallpaper for the page */
 	char *fpath;
 
-	/* routine job
-	   1. touch and trigger buttons
-	   2. refresh ebox in list if necessary
-
-	*/
-	int (*routine)(EGI_PAGE *page);
-
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
 	multi_layer operation is applied.
 	*/
 	struct list_head list_head; /* list head for child eboxes */
-};
 
+	/* --- !!! page routine function : threads pusher and job pusher ----
+	   1. detect pen_touch and trigger buttons.
+	   2. refresh page (wallpaper and ebox in list).
+	*/
+	int (*routine)(EGI_PAGE *page);
+
+	/* --- following jobs carried out in routine(),  not in page_refresh() method
+	   pthread runner
+	   thread jobs to be loaded in routine().
+	*/
+	pthread_t threadID[EGI_PAGE_MAXTHREADS];
+	bool thread_running[EGI_PAGE_MAXTHREADS]; /* indicating whether the thread is running */
+	void (*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);
+};
 
 
 

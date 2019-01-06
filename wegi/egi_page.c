@@ -9,6 +9,7 @@
 #include "egi_page.h"
 #include "egi_debug.h"
 #include "egi_color.h"
+#include "egi_symbol.h"
 #include "bmpjpg.h"
 
 /*
@@ -25,6 +26,7 @@ Return
 --------------------------------------------*/
 EGI_PAGE * egi_page_new(char *tag)
 {
+	int i;
 	EGI_PAGE *page;
 
 	/* 2. malloc page */
@@ -49,7 +51,15 @@ EGI_PAGE * egi_page_new(char *tag)
 	egi_ebox_settag(page->ebox,tag);
 	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
-	/* 5. init list */
+
+	/* 5. init pthreads. ??? Not necessary. since alread memset() in above ??? */
+	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
+	{
+		page->thread_running[i]=false;
+		page->runner[i]=NULL; /* thread functions */
+	}
+
+	/* 6. init list */
         INIT_LIST_HEAD(&page->list_head);
 
 	return page;
@@ -82,7 +92,7 @@ int egi_page_free(EGI_PAGE *page)
 		list_for_each_safe(tnode, tmpnode, &page->list_head)
         	{
                	 	ebox=list_entry(tnode,EGI_EBOX,node);
-			PDEBUG("egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n"
+			egi_pdebug(DBG_PAGE,"egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n" 
 									,ebox->tag,page->ebox->tag);
                 	list_del(tnode);
                 	ebox->free(ebox);
@@ -114,7 +124,8 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 	}
 
 	list_add_tail(&ebox->node, &page->list_head);
-	PDEBUG("egi_page_addlist(): ebox '%s' is added to page '%s' \n",ebox->tag, page->ebox->tag); 
+	egi_pdebug(DBG_PAGE,"egi_page_addlist(): ebox '%s' is added to page '%s' \n",
+								ebox->tag, page->ebox->tag);
 
 	return 0;
 }
@@ -133,7 +144,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	/* check data */
 	if(page==NULL)
 	{
-		printf("egi_page_travlist(): input EGI_PAGE *page is NULL!\n");
+		printf("egi_page_travlist(): input egi_page *page is NULL!\n");
 		return -1;
 	}
 	/* check list */
@@ -172,7 +183,7 @@ int egi_page_activate(EGI_PAGE *page)
 	/* check data */
 	if(page==NULL)
 	{
-		printf("egi_page_activate(): input EGI_PAGE *page is NULL!\n");
+		printf("egi_page_activate(): input egi_page *page is NULL!\n");
 		return -1;
 	}
 	/* check list */
@@ -201,8 +212,9 @@ int egi_page_activate(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->activate(ebox);
-		PDEBUG("egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		egi_pdebug(DBG_PAGE,"egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
+
 
 	return 0;
 }
@@ -212,6 +224,7 @@ int egi_page_activate(EGI_PAGE *page)
 refresh a page and its eboxes in its list.
 
 return:
+	1	need_refresh=false
 	0	OK
 	<0	fails
 ---------------------------------------------------*/
@@ -224,20 +237,28 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* check data */
 	if(page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_refresh(): input EGI_PAGE * page or page->ebox is NULL!\n");
+		printf("egi_page_refresh(): input egi_page * page or page->ebox is NULL!\n");
 		return -1;
 	}
 
-	/* load a picture or use prime color as wallpaper*/
-	if(page->fpath != NULL)
-		show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-	else /* use ebox prime color to clear(fill) screen */
+	/* --------------- ***** FOR PAGE REFRESH ***** ------------ */
+	/* only if need_refresh */
+	if(page->ebox->need_refresh)
 	{
-		if(page->ebox->prmcolor >= 0)
-			 clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+		/* load a picture or use prime color as wallpaper*/
+		if(page->fpath != NULL)
+			show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+		else /* use ebox prime color to clear(fill) screen */
+		{
+			if(page->ebox->prmcolor >= 0)
+				 clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+		}
+
+		/* reset need_refresh */
+		page->ebox->need_refresh=false;
 	}
 
-
+	/* --------------- ***** FOR PAGE CHILD REFRESH ***** ------------*/
 	/* check list */
 	if(list_empty(&page->list_head))
 	{
@@ -250,8 +271,11 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-		PDEBUG("egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
+
+	/* reset need_refresh */
+	page->ebox->need_refresh=false;
 
 
 	return 0;
@@ -267,61 +291,86 @@ return:
 ----------------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
+	int i,j;
 	int ret;
 	uint16_t sx,sy;
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
-	/* check data */
+	/* 1. check data */
 	if(page==NULL)
 	{
-		printf("egi_page_routine(): input EGI_PAGE *page is NULL!\n");
+		printf("egi_page_routine(): input egi_page *page is NULL!\n");
 		return -1;
 	}
 
-	/* check list */
+	/* 2. check list */
 	if(list_empty(&page->list_head))
 	{
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
 	}
 
-	/* loop in touch checking */
+
+	/* 3. load threads */
+	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
+	{
+		if( page->runner[i] !=0 )
+		{
+			if( pthread_create(&page->threadID[i],NULL,page->runner[i],(void *)page)==0)
+			{
+				page->thread_running[i]=true;
+				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",
+								i, (unsigned int)page->threadID[i]);
+			}
+			else
+				printf("egi_page_routine(): fail to create pthread ID=%d \n",i);
+		}
+	}
+
+	/* 4. loop in touch checking and other routines.... */
 	while(1)
 	{
-		/* necessary wait for XPT */
+		/* 4.1. necessary wait for XPT */
 	 	tm_delayms(2);
 
-		/* read XPT to get avg tft-LCD coordinate */
+		/* 4.2. read XPT to get avg tft-LCD coordinate */
                 //printf("start xpt_getavt_xy() \n");
                 ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
 
-		/* touch reading is going on... */
+		/* 4.3. touch reading is going on... */
                 if(ret == XPT_READ_STATUS_GOING )
                 {
                         //printf("XPT READ STATUS GOING ON....\n");
                         continue; /* continue to loop to finish reading touch data */
                 }
 
-                /* put PEN-UP status events here */
+                /* 4.4. put PEN-UP status events here */
                 else if(ret == XPT_READ_STATUS_PENUP )
                 {
-                        //PDEBUG("egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
+                        //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
+			//egi_page_refresh(page);
+			tm_delayms(100);/* hold on for a while, or the screen will be  */
 
+			/* load cpuload motion icons */
+#if 0
+			i++;
+			if(i>3)i=0;
+                        symbol_motion_string(&gv_fb_dev, 155-i*30, &sympg_icons,
+      		                               	       1, 150,0, &symmic_cpuload[i][0]);
+#endif
 
 		}
 
-		/* get touch coordinates and trigger actions for hit button if any */
+		/* 4.5. get touch coordinates and trigger actions for hit button if any */
                 else if(ret == XPT_READ_STATUS_COMPLETE)
                 {
-                        //PDEBUG("egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
+                        //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
 	 /* ----------------    Touch Event Handling   ----------------  */
 
 	                hitbtn=egi_hit_pagebox(sx, sy, page);
 	      	        if(hitbtn != NULL)
-				printf("egi_page_routine(): button '%s' of page '%s' is touched!\n",
+				egi_pdebug(DBG_PAGE,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 										hitbtn->tag,page->ebox->tag);
-
-
 	                continue;
 
 			/* loop in refreshing listed eboxes */

@@ -58,7 +58,7 @@ uint16_t egi_color_random(enum egi_color_range range)
         }
 
         ret=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
-        PDEBUG("egi random color: 0X%04X \n",ret);
+        egi_pdebug(DBG_COLOR,"egi random color: 0X%04X \n",ret);
         return ret;
 }
 
@@ -110,6 +110,6 @@ uint16_t egi_colorgray_random(enum egi_color_range range)
 
         ret=COLOR_RGB_TO16BITS(color,color,color);
 
-        PDEBUG("egi random color GRAY: 0X%02X%02X%02X \n",color,color,color);
+        egi_pdebug(DBG_COLOR,"egi random color GRAY: 0X%02X%02X%02X \n",color,color,color);
         return ret;
 }

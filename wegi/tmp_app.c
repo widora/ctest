@@ -89,13 +89,6 @@ int main(void)
 	EGI_PAGE *page_openwrt=NULL;
 
 
-	/* ------ set motion symbol ---------- */
-//global var:	char mvicon_load[16]={0};
-//	for(i=0;i<16;i++)
-//		mvicon_load[i]=48+i;
-//	for(i=0;i<4;i++)
-//		mvicon_load[i]=8+48+i;
-
 
 #if 0 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(ebox_memo, "/tmp/memo.txt");
@@ -120,8 +113,8 @@ int main(void)
 
 
 	/* --- clear screen with BLACK --- */
-#if 1
-	//clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
+#if 0
+	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
 #endif
 
 
@@ -168,8 +161,6 @@ int main(void)
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
-
-
 #if 0
 	while(1)
 	{
@@ -225,13 +216,6 @@ int main(void)
 #endif
 
 
-#if 0 /* ----  test circle ----------*/
-	fbset_color(WEGI_COLOR_OCEAN);
-	draw_filled_circle(&gv_fb_dev,120,160,90);
-	fbset_color(0);
-	draw_circle(&gv_fb_dev,120,160,90);
-//exit(1);
-#endif
 
 	/* ----------- activate pages and its listed eboxes ---------*/
 	//egi_page_activate(page_home);
@@ -247,40 +231,14 @@ int main(void)
 	/* ----- set default color ----- */
         fbset_color((30<<11)|(10<<5)|10);/* R5-G6-B5 */
 
-	/*  test an array of circles */
-#if 0
-	for(i=0;i<6;i++)
-	{
-		if(i==0)fbset_color((0<<11)|(60<<5)|30);
-		if(i==1)fbset_color((30<<11)|(60<<5)|0);
-		if(i==2)fbset_color((0<<11)|(0<<5)|30);
-		if(i==3)fbset_color((30<<11)|(0<<5)|0);
-		if(i==4)fbset_color((0<<11)|(60<<5)|0);
-		if(i==5)fbset_color((30<<11)|(0<<5)|30);
-
-		draw_filled_circle(&gv_fb_dev,20+i*i*7,70,10+i*4);
-	}
-#endif
+	/* ----- test:  home page ----- */
+        page_home=egi_create_homepage();
+	egi_page_activate(page_home);
+	page_home->routine(page_home); /* get into routine loop */
 
 
-		/* loop string symbol */
-	        page_home=egi_create_homepage();
-		egi_page_activate(page_home);
-		page_home->routine(page_home);
 
-
-		while(1)
-		{
-			for(i=0;i<4;i++)
-			{
-				for(j=0;j<5;j++)
-				{
-					symbol_loop_string(&gv_fb_dev, 155-i*30, &sympg_icons,
-								1, 150,0, &symmic_cpuload[i][0]);
-				}
-			}
-		}
-
+#if 0 /* if loop */
 /* ===============-------------(((  MAIN LOOP  )))-------------================= */
 	while(1)
 	{
@@ -488,8 +446,9 @@ int main(void)
 			//usleep(200000); //this will make touch points scattered.
 		}/* end of if(index>=0) */
 #endif
-
 	} /* end of while() loop */
+
+#endif /*end loop if */
 
 
 	/* relese egi objects */

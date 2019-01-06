@@ -39,7 +39,7 @@ EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
 				        struct symbol_page *icon, int icon_code)
 {
         /* malloc a egi_data_btn struct */
-        PDEBUG("egi_btndata_new(): malloc data_btn ...\n");
+        egi_pdebug(DBG_BTN,"egi_btndata_new(): malloc data_btn ...\n");
         EGI_DATA_BTN *data_btn=malloc(sizeof(EGI_DATA_BTN));
         if(data_btn==NULL)
         {
@@ -84,7 +84,7 @@ EGI_EBOX * egi_btnbox_new( char *tag, /* or NULL to ignore */
         }
 
         /* 1. create a new common ebox */
-        PDEBUG("egi_btnbox_new(): start to egi_ebox_new(type_btn)...\n");
+        egi_pdebug(DBG_BTN,"egi_btnbox_new(): start to egi_ebox_new(type_btn)...\n");
         ebox=egi_ebox_new(type_btn);// egi_data NOT allocated in egi_ebox_new()!!!
         if(ebox==NULL)
 	{
@@ -95,7 +95,7 @@ EGI_EBOX * egi_btnbox_new( char *tag, /* or NULL to ignore */
         /* 2. default method assigned in egi_ebox_new() */
 
         /* 3. btn ebox object method */
-        PDEBUG("egi_btnbox_new(): assign defined mehtod ebox->method=methd...\n");
+        egi_pdebug(DBG_BTN,"egi_btnbox_new(): assign defined mehtod ebox->method=methd...\n");
         ebox->method=btnbox_method;
 
         /* 4. fill in elements for concept ebox */
@@ -197,7 +197,7 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	ebox->bkbox.endxy.y=y0+ebox->height-1;
 
 	#if 0 /* DEBUG */
-	PDEBUG(" button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	egi_pdebug(DBG_BTN," button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 	#endif
 	/* 5. store bk image which will be restored when this ebox position/size changes */
@@ -212,11 +212,15 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	ebox->status=status_active; /* if not, you can not refresh */
 	data_btn->status=released_hold;
 
-	/* 7. refresh btn ebox */
+	/* 7. set need_refresh */
+	ebox->need_refresh=true;
+
+	/* 8. refresh btn ebox */
 	if( egi_btnbox_refresh(ebox) != 0)
 		return -4;
 
-	PDEBUG("egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+
+	egi_pdebug(DBG_BTN,"egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
@@ -234,6 +238,7 @@ refresh a button type ebox:
 TODO:
 	1. if ebox size changes(enlarged), how to deal with bkimg!!??
 Return:
+	1	need_refresh=false
 	0	OK
 	<0	fails!
 ------------------------------------------------------------------------*/
@@ -242,6 +247,8 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int bkcolor=0;
 	int symheight;
 	int symwidth;
+
+
 
 	/* check data */
         if( ebox == NULL)
@@ -257,19 +264,28 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
                 return -1;
         }
 
-	/* 1. check the ebox status  */
+	/*  check the ebox status  */
 	if( ebox->status != status_active )
 	{
-		PDEBUG("ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
+		egi_pdebug(DBG_BTN,"ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
+
+
+	/* only if need_refresh is true */
+	if(!ebox->need_refresh)
+	{
+		egi_pdebug(DBG_BTN,"egi_btnbox_refresh(): need_refresh=false, abort refresh.\n");
+		return 1;
+	}
+
 
 
    if(ebox->movable) /* only if ebox is movale */
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
-	PDEBUG("button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	egi_pdebug(DBG_BTN,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
@@ -324,7 +340,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.y=y0+ebox->height-1;
 
 	#if 1 /* DEBUG */
-	PDEBUG("egi_btnbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	egi_pdebug(DBG_BTN,"egi_btnbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
@@ -382,6 +398,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	/* 8. take action according to status:
 		 void (* action)(enum egi_btn_status status);
 	*/
+
+
+	/* reset need_refresh */
+	ebox->need_refresh=false;
 
 	return 0;
 }

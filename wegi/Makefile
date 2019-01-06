@@ -55,7 +55,7 @@ CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -O -g -DEGI_DEBUG
 
-LDFLAGS = -L./lib -ljpeg -lm
+LDFLAGS = -L./lib -ljpeg -lm -lpthread
 
 
 #----- 打印依赖文件  include $(DEP_FILES)

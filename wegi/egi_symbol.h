@@ -115,7 +115,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code);
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str);
-void symbol_loop_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
                 	 		int transpcolor, int x0, int y0, const char* str);
 void symbol_rotate(const struct symbol_page *sym_page,	\
                                                  int x0, int y0, int sym_code);

@@ -9,7 +9,7 @@
 #include "egi_page.h"
 #include "egi_symbol.h"
 #include "egi_objpage.h"
-
+#include "egi_pagehome.h"
 
 
 /*------------- [  PAGE ::   Home Page  ] -------------
@@ -79,7 +79,7 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[5], "btn_book");
 	egi_ebox_settag(home_btns[6], "btn_chart");
 	egi_ebox_settag(home_btns[7], "btn_mp2");
-	egi_ebox_settag(home_btns[8], "btn_radop");
+	egi_ebox_settag(home_btns[8], "btn_radio");
 
 
 	/* --------- 2. create home-head bar --------- */
@@ -115,6 +115,7 @@ EGI_PAGE *egi_create_homepage(void)
 
 
 	/* ---------- 3.create home page -------- */
+	/* 3.1 create page */
 	EGI_PAGE *page_home=NULL;
 	page_home=egi_page_new("page_home");
 	while(page_home==NULL)
@@ -123,10 +124,14 @@ EGI_PAGE *egi_create_homepage(void)
 			page_home=egi_page_new("page_home");
 			usleep(100000);
 	}
-	/* set default routine job */
+	/* 3.2 put pthread runner */
+	page_home->runner[0]=egi_display_cpuload;
+
+	/* 3.3 set default routine job */
 	page_home->routine=egi_page_routine;
 
-	/* set wallpaper */
+
+	/* 3.4 set wallpaper */
 	page_home->fpath="/tmp/home.jpg";
 
 
@@ -140,10 +145,27 @@ EGI_PAGE *egi_create_homepage(void)
 	return page_home;
 }
 
+/*-----------------------------------------------------
+display cpu load in home head-bar with motion icons
+-------------------------------------------------------*/
+void egi_display_cpuload(EGI_PAGE *page)
+{
+	int load=2; /* 0-3 */
+
+	while(1)
+	{
+		/* load cpuload motion icons
+			  symbol_motion_string() is with sleep function */
+  	 	symbol_motion_string(&gv_fb_dev, 155-load*30, &sympg_icons,
+	 					1, 150,0, &symmic_cpuload[load][0]);
+	}
+}
+
+
 /*----------------------------------------------
 objet defined routine jobs of home page
 
-1. see default egi_page_routine() in egi.c
+1. see default egi_page_routine() in egi_page.c
 -----------------------------------------------*/
 void egi_home_routine(void)
 {
@@ -161,9 +183,5 @@ void egi_home_routine(void)
 
 
 	/* 4. update home_page head-bar icons */
-
-
-
-
 
 }
