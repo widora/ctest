@@ -113,7 +113,7 @@ use following COLOR:
 ----------------------------------------------------------------------------------------------*/
 void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
-                int fontcolor, int transpcolor, int x0, int y0, int sym_code);
+                int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque);
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str);
 void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \

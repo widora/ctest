@@ -86,8 +86,6 @@ EGI_PAGE *egi_create_openwrtpage(void)
 
 	/* ----- 1.1 add tags and button reaction function here ------ */
 	egi_ebox_settag(open_btns[0], "btn_openwrt 0");
-	open_btns[0]->reaction=egi_pageopen_exit;
-
 	egi_ebox_settag(open_btns[1], "btn_openwrt 1");
 	egi_ebox_settag(open_btns[2], "btn_openwrt 2");
 	egi_ebox_settag(open_btns[3], "btn_openwrt 3");

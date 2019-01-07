@@ -393,7 +393,8 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
 	/* 7. draw the button symbol if it has an icon */
 	if(data_btn->icon != NULL)
-		symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor, x0, y0, data_btn->icon_code);
+		symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
+								x0, y0, data_btn->icon_code,data_btn->opaque);
 
 	/* 8. take action according to status:
 		 void (* action)(enum egi_btn_status status);

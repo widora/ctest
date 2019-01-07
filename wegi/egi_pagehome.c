@@ -75,6 +75,10 @@ EGI_PAGE *egi_create_homepage(void)
 				continue;
 			}
 
+			/* test opaque */
+			data_btns[0]->opaque=2;
+
+
 			/* 2. create new btn eboxes */
 			home_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
 							data_btns[3*i+j], /* EGI_DATA_BTN *egi_data */
@@ -84,6 +88,7 @@ EGI_PAGE *egi_create_homepage(void)
 				       			1, /* int frame */
 		       					-1 /*int prmcolor */
 						   );
+
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)
 			{
@@ -112,9 +117,6 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[6], "btn_chart");
 	egi_ebox_settag(home_btns[7], "btn_mp2");
 	egi_ebox_settag(home_btns[8], "btn_radio");
-
-
-
 
 
 	/* --------- 2. create home-head bar --------- */
@@ -147,7 +149,6 @@ EGI_PAGE *egi_create_homepage(void)
 	head_txt->txt[0][6]=6;
 	head_txt->txt[0][7]=28;
 	/* !!! the last  MUST end with /0 */
-
 
 
 

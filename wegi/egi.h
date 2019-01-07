@@ -255,6 +255,7 @@ struct egi_data_btn
 	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
 	int icon_code; /* code number of the symbol in the symbol_page */
+	int opaque; /* opaque value for the icon, default 0, totally not transparent */
 	enum egi_btn_status status; /* button status, pressed or released */
 };
 

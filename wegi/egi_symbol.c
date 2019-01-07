@@ -469,9 +469,13 @@ use following COLOR:
 
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code: 	symbol code number
+
+opaque:		set opaque value
+	0 	no effect
+	other	currently only 2.
 -------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
-		int fontcolor, int transpcolor, int x0, int y0, int sym_code)
+		int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque)
 {
 	int i,j;
 	FBDEV *dev = fb_dev;
@@ -505,6 +509,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	{
 		for(j=0;j<width;j++)
 		{
+			/*  according to opaque value,skip this to be traspare to the back group */
+			if(opaque>0)
+			{
+				if( ((i%2)*(opaque/2)+j)%(opaque) != 0 ) /* make these points transparent */
+					continue;
+			}
+
 #ifdef FB_SYMOUT_ROLLBACK
 			/*--- map x for every (i,j) symbol pixel---*/
 			if( x0+j<0 )
@@ -616,7 +627,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 	while(*p) /* code '0' will be deemed as end token here !!! */
 	{
-		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p);/* at same line, so y=y0 */
+		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p,0);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
 	}
@@ -655,8 +666,8 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
 
         while(*p) /* code '0' will be deemed as end token here !!! */
        	{
-               	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p); /* -1, default font color */
-		tm_delayms(dt);
+               	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p,0); /* -1, default font color */
+		tm_delayms(dt);	
            	p++;
        	}
 }
