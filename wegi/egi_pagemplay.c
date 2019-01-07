@@ -22,10 +22,9 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
-#include "egi_objpage.h"
 
 
-static int egi_mplaypage_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_pagemplay_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
 1. create eboxes for 6 buttons and 1 title bar
@@ -89,7 +88,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[2], "btn_forward");
 
 	egi_ebox_settag(mplay_btns[3], "btn_close");
-	mplay_btns[3]->reaction=egi_mplaypage_exit;
+	mplay_btns[3]->reaction=egi_pagemplay_exit;
 
 	egi_ebox_settag(mplay_btns[4], "btn_home");
 	egi_ebox_settag(mplay_btns[5], "btn_minimize");
@@ -138,7 +137,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 /*-----------------  RUNNER 1 --------------------------
 
 -------------------------------------------------------*/
-void egi_pagemplay_runner(EGI_PAGE *page)
+static void egi_pagemplay_runner(EGI_PAGE *page)
 {
 
 }
@@ -147,7 +146,7 @@ void egi_pagemplay_runner(EGI_PAGE *page)
 btn_close function:
 return
 -----------------------------------*/
-int egi_mplaypage_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+static int egi_pagemplay_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 {
 	return -1;
 }

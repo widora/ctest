@@ -67,10 +67,11 @@ enum egi_btn_type
 /* button status */
 enum egi_btn_status
 {
+	unkown=-1,  /* during reading or fails */
 	releasing=0,   /* status transforming from pressed_hold to released_hold */
-	pressing,      /* status transforming from released_hold to pressed_hold */
-	released_hold,
-	pressed_hold,
+	pressing=1,      /* status transforming from released_hold to pressed_hold */
+	released_hold=2,
+	pressed_hold=3,
 };
 
 /*  ebox action methods */

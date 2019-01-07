@@ -4,8 +4,7 @@
 #include "egi.h"
 
 EGI_PAGE *egi_create_homepage(void);
-void egi_display_cpuload(EGI_PAGE *page);
-void egi_display_iotload(EGI_PAGE *page);
-int egi_homepage_mplay(EGI_EBOX *, enum egi_btn_status);
+//void egi_display_cpuload(EGI_PAGE *page);
+//void egi_display_iotload(EGI_PAGE *page);
 
 #endif

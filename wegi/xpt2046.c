@@ -98,7 +98,7 @@ Return:
 	XPT_READ_STATUS_COMPLETE      0		OK, reading session just finished, (avgsx,avgsy) is ready.
 	XPT_READ_STATUS_GOING 	1		during reading session, avgsx,avgsy is NOT ready.
 	XPT_READ_STATUS_PENUP	2		pen-up
-	XPT_READ_STATUS_HOLDON  3		pressed and hold on
+	XPT_READ_STATUS_HOLDON  3		pressed and hold on, but may be moving...
 
 	else		fail !!!!! no quit until get enough consecutive samples !!!!!
 
@@ -117,6 +117,7 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
         static int yp_accum; /* accumulator of yp */
         static int nsample=0; /* samples index */
 	static int nfail=0; /* xpt_read_xy() fail counter, use to detect pen-up */
+	static int last_status=XPT_READ_STATUS_PENUP; /* record last time XPT_READ_STATUS....*/
 
         /* LCD coordinate value */
         //uint16_t sx,sy;  //current coordinate, it's a LCD screen coordinates derived from TOUCH coo$
@@ -137,6 +138,7 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
 		/* do not change the XPT statu, until a touch is read */
 		/* do not reset nfail here, it will reset when a touch is read in flowing else{} */
 			//touch nfail=0;/* reset nfail */
+			last_status=XPT_READ_STATUS_PENUP;
 			return XPT_READ_STATUS_PENUP;
 		}
         }
@@ -167,10 +169,19 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
         	PDEBUG("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],*avgsx,*avgsy);
 
 
-		ret=XPT_READ_STATUS_COMPLETE; /* mission complete */
+		if(last_status==XPT_READ_STATUS_COMPLETE)
+		{
+			ret=XPT_READ_STATUS_HOLDON; /* mission complete */
+		}
+		else
+		{
+			last_status=XPT_READ_STATUS_COMPLETE;
+			ret=XPT_READ_STATUS_COMPLETE;   /* mission complete */
+		}
 	}
 	else
 	{
+		last_status=XPT_READ_STATUS_GOING;
 		ret=XPT_READ_STATUS_GOING; /* session is going on  */
 	}
 

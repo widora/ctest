@@ -7,11 +7,15 @@ page creation jobs:
    1.4 assign button functions to corresponding eboxes in page.
 2. thread-runner functions.
 3. egi_XXX_routine() function if not use default egi_page_routine().
-4. button reaction functins
+4. add button reaction functins, mainly for creating pages.
+
+TODO:
+	1. different values for button return, and page return,
+	   that egi_page_routine() can distinguish.
+	2. pack page activate and free action.
 
 Midas Zhou
 ---------------------------------------------------------------------------*/
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,9 +28,16 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
-#include "egi_objpage.h"
 #include "egi_pagehome.h"
 #include "egi_pagemplay.h"
+#include "egi_pageopenwrt.h"
+
+
+static void egi_display_cpuload(EGI_PAGE *page);
+static void egi_display_iotload(EGI_PAGE *page);
+static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+
 
 /*------------- [  PAGE ::   Home Page  ] -------------
 create home page
@@ -92,7 +103,10 @@ EGI_PAGE *egi_create_homepage(void)
 
 	egi_ebox_settag(home_btns[1], "btn_iot");
 	egi_ebox_settag(home_btns[2], "btn_alarm");
-	egi_ebox_settag(home_btns[3], "btn_mp1");
+
+	egi_ebox_settag(home_btns[3], "btn_openwrt");
+	home_btns[3]->reaction=egi_homepage_openwrt;
+
 	egi_ebox_settag(home_btns[4], "btn_key");
 	egi_ebox_settag(home_btns[5], "btn_book");
 	egi_ebox_settag(home_btns[6], "btn_chart");
@@ -172,7 +186,7 @@ EGI_PAGE *egi_create_homepage(void)
 /*-----------------  RUNNER 1 --------------------------
 display cpu load in home head-bar with motion icons
 -------------------------------------------------------*/
-void egi_display_cpuload(EGI_PAGE *page)
+static void egi_display_cpuload(EGI_PAGE *page)
 {
 	int load=3; /* 0-3 */
 
@@ -190,7 +204,7 @@ void egi_display_cpuload(EGI_PAGE *page)
 /*-----------------  RUNNER 2 --------------------------
 display IoT load in home head-bar with motion icons
 -------------------------------------------------------*/
-void egi_display_iotload(EGI_PAGE *page)
+static void egi_display_iotload(EGI_PAGE *page)
 {
 	egi_pdebug(DBG_PAGE,"page '%s':  runner thread egi_display_iotload() is activated!.\n"
 										,page->ebox->tag);
@@ -235,7 +249,7 @@ void egi_home_routine(void)
 button_mplay function:
 mplayer
 -----------------------------------*/
-int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 {
         EGI_PAGE *page_mplay=egi_create_mplaypage();
 
@@ -246,4 +260,21 @@ int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 	egi_page_free(page_mplay);
 
 	return 0;
+}
+
+/*-----------------------------------
+button_openwrt function:
+openwrt
+-----------------------------------*/
+static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+{
+        EGI_PAGE *page_openwrt=egi_create_openwrtpage();
+
+        egi_page_activate(page_openwrt);
+	/* get into routine loop */
+        page_openwrt->routine(page_openwrt);
+	/* get out of routine loop */
+	egi_page_free(page_openwrt);
+
+	return 0; /* as for page exit, instead of <0 ????? */
 }

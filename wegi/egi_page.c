@@ -52,14 +52,19 @@ EGI_PAGE * egi_page_new(char *tag)
 	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
 
-	/* 5. init pthreads. ??? Not necessary. since alread memset() in above ??? */
+	/* 5. put default routine method here */
+	page->routine=egi_page_routine;
+
+
+	/* 6. init pthreads. ??? Not necessary. since alread memset() in above ??? */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		page->thread_running[i]=false;
 		page->runner[i]=NULL; /* thread functions */
 	}
 
-	/* 6. init list */
+
+	/* 7. init list */
         INIT_LIST_HEAD(&page->list_head);
 
 	return page;
@@ -245,7 +250,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
-		printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
 		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
 
 		/* load a picture or use prime color as wallpaper*/
@@ -320,7 +325,7 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ebox->need_refresh=true;
-		printf("egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
+		egi_pdebug(DBG_PAGE,"egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 	return 0;
@@ -340,6 +345,8 @@ int egi_page_routine(EGI_PAGE *page)
 	int i,j;
 	int ret;
 	uint16_t sx,sy;
+	enum egi_btn_status last_status=released_hold;
+
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
 	/* 1. check data */
@@ -389,21 +396,52 @@ int egi_page_routine(EGI_PAGE *page)
                 if(ret == XPT_READ_STATUS_GOING )
                 {
                         //printf("XPT READ STATUS GOING ON....\n");
+			/* DO NOT assign last_status=unkown here!!! because it'll always happen!!!
+			   and you will never get pressed_hold status if you do so. */
+
                         continue; /* continue to loop to finish reading touch data */
                 }
 
                 /* 4.4. put PEN-UP status events here */
                 else if(ret == XPT_READ_STATUS_PENUP )
                 {
+			if(last_status==pressing || last_status==pressed_hold)
+			{
+				last_status=releasing;
+				printf("egi_page_routine(4.5): ... ... ... pen releasing ... ... ...\n");
+			}
+			else
+				last_status=released_hold;
+
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
 			egi_page_refresh(page);
 			tm_delayms(100);/* hold on for a while, or the screen will be  */
 
 		}
 
-		/* 4.5. get touch coordinates and trigger actions for hit button if any */
+		/* 4.5. holdon(down) status events here, !!!!???? seems never happen !!???  */
+		else if(ret == XPT_READ_STATUS_HOLDON)
+		{
+			last_status=pressed_hold;
+			printf("egi_page_routine(4.5): ... ... ... pen hold down ... ... ...\n");
+
+		}
+
+		/* 4.6. get touch coordinates and trigger actions for hit button if any */
                 else if(ret == XPT_READ_STATUS_COMPLETE)
                 {
+			/* update button last_status */
+			if( last_status==pressing || last_status==pressed_hold 	)
+			{
+				last_status=pressed_hold;
+				printf("egi_page_routine(4.6): ... ... ... pen hold down ... ... ...\n");
+			}
+			else
+			{
+				last_status=pressing;
+				printf("egi_page_routine(4.6): ... ... ... pen pressing ... ... ...\n");
+			}
+
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
 	 /* ----------------    Touch Event Handling   ----------------  */
@@ -418,7 +456,7 @@ int egi_page_routine(EGI_PAGE *page)
 				/* trigger button-hit action
 				   return <0 to exit this rountine, roll back to forward rountine then ...
 				*/
-	 			if(hitbtn->reaction != NULL)
+	 			if(hitbtn->reaction != NULL && last_status==pressing)
 				{
 					if(hitbtn->reaction(hitbtn,pressing)<0) /* reat_ret<0, button reaction exit */
 					{

@@ -1,3 +1,16 @@
+/*-------------------------------------------------------------------------
+page creation jobs:
+1. egi_create_XXXpage() function.
+   1.1 creating eboxes and page.
+   1.2 assign thread-runner to the page.
+   1.3 assign routine to the page.
+   1.4 assign button functions to corresponding eboxes in page.
+2. thread-runner functions.
+3. egi_XXX_routine() function if not use default egi_page_routine().
+4. button reaction functins
+
+Midas Zhou
+---------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h> /* usleep */
@@ -8,7 +21,11 @@
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
-#include "egi_objpage.h"
+#include "egi_pageopenwrt.h"
+
+
+
+static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -67,13 +84,17 @@ EGI_PAGE *egi_create_openwrtpage(void)
 		}
 	}
 
-	/* add tags  here */
+	/* ----- 1.1 add tags and button reaction function here ------ */
 	egi_ebox_settag(open_btns[0], "btn_openwrt 0");
+	open_btns[0]->reaction=egi_pageopen_exit;
+
 	egi_ebox_settag(open_btns[1], "btn_openwrt 1");
 	egi_ebox_settag(open_btns[2], "btn_openwrt 2");
 	egi_ebox_settag(open_btns[3], "btn_openwrt 3");
 	egi_ebox_settag(open_btns[4], "btn_openwrt 4");
+
 	egi_ebox_settag(open_btns[5], "btn_openwrt 5");
+	open_btns[5]->reaction=egi_pageopen_exit;
 
 
 	/* --------- 2. create title bar --------- */
@@ -108,5 +129,24 @@ EGI_PAGE *egi_create_openwrtpage(void)
 	egi_page_addlist(page_openwrt, title_bar); /* title bar */
 
 	return page_openwrt;
+}
+
+
+
+/*-----------------  RUNNER 1 --------------------------
+
+-------------------------------------------------------*/
+static void egi_pageop_runner(EGI_PAGE *page)
+{
+
+}
+
+/*-----------------------------------
+btn_close function:
+return
+-----------------------------------*/
+static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+{
+        return -1;
 }
 
