@@ -441,11 +441,9 @@ int egi_page_routine(EGI_PAGE *page)
 				last_status=pressing;
 				printf("egi_page_routine(4.6): ... ... ... pen pressing ... ... ...\n");
 			}
-
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
 	 /* ----------------    Touch Event Handling   ----------------  */
-
 	                hitbtn=egi_hit_pagebox(sx, sy, page);
 
 			/* trap into button reaction functions */
@@ -458,28 +456,29 @@ int egi_page_routine(EGI_PAGE *page)
 				*/
 	 			if(hitbtn->reaction != NULL && last_status==pressing)
 				{
-					if(hitbtn->reaction(hitbtn,pressing)<0) /* reat_ret<0, button reaction exit */
+					/* reat_ret<0, button pressed to exit current page
+					   usually fall back to its page's rountine caller to release page...
+					*/
+					if(hitbtn->reaction(hitbtn,pressing)<0)
 					{
-						/* when fall back we need refresh the current page */
-						printf("get out of hitbtn !\n");
+						printf("reaction of page '%s' button '%s' complete!\n",
+										page->ebox->tag, hitbtn->tag);
 						return -1;
 					}
-					else /* react_ret=0, page exit! */
+					/* react_ret=0, page exit!
+					   the page activated in above reaction is released */
+					else
 					{
 						/* refresh page and its eboxes */
 						egi_page_needrefresh(page);
 					}
 				}
 
-
 			} /* end of button reaction */
-
 	                continue;
 
 			/* loop in refreshing listed eboxes */
 		}
-
 	}
-
 	return 0;
 }

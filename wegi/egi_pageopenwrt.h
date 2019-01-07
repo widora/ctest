@@ -1,5 +1,5 @@
-#ifndef __EGI_OBJPAGE__
-#define __EGI_OBJPAGE__
+#ifndef __EGI_PAGEOPENWRT_H__
+#define __EGI_PAGEOPENWRT_H__
 
 #include "egi.h"
 

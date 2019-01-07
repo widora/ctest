@@ -31,12 +31,13 @@ Midas Zhou
 #include "egi_pagehome.h"
 #include "egi_pagemplay.h"
 #include "egi_pageopenwrt.h"
-
+#include "egi_pagebook.h"
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
 static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 
 
 /*------------- [  PAGE ::   Home Page  ] -------------
@@ -113,7 +114,10 @@ EGI_PAGE *egi_create_homepage(void)
 	home_btns[3]->reaction=egi_homepage_openwrt;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
+
 	egi_ebox_settag(home_btns[5], "btn_book");
+	home_btns[5]->reaction=egi_homepage_book;
+
 	egi_ebox_settag(home_btns[6], "btn_chart");
 	egi_ebox_settag(home_btns[7], "btn_mp2");
 	egi_ebox_settag(home_btns[8], "btn_radio");
@@ -279,3 +283,21 @@ static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 
 	return 0; /* as for page exit, instead of <0 ????? */
 }
+
+/*-----------------------------------
+button_openwrt function:
+book
+-----------------------------------*/
+static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+{
+        EGI_PAGE *page_book=egi_create_bookpage();
+
+        egi_page_activate(page_book);
+	/* get into routine loop */
+        page_book->routine(page_book);
+	/* get out of routine loop */
+	egi_page_free(page_book);
+
+	return 0; /* as for page exit, instead of <0 ????? */
+}
+
