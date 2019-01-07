@@ -11,5 +11,6 @@ int egi_page_travlist(EGI_PAGE *page);
 int egi_page_activate(EGI_PAGE *page);
 int egi_page_refresh(EGI_PAGE *page);
 int egi_page_routine(EGI_PAGE *page);
+int egi_page_needrefresh(EGI_PAGE *page);
 
 #endif

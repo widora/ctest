@@ -245,9 +245,13 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
+		printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+
 		/* load a picture or use prime color as wallpaper*/
 		if(page->fpath != NULL)
 			show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+
 		else /* use ebox prime color to clear(fill) screen */
 		{
 			if(page->ebox->prmcolor >= 0)
@@ -257,6 +261,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
 	}
+
 
 	/* --------------- ***** FOR PAGE CHILD REFRESH ***** ------------*/
 	/* check list */
@@ -271,24 +276,65 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
+			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 	}
 
 	/* reset need_refresh */
 	page->ebox->need_refresh=false;
 
+	return 0;
+}
+
+
+/*--------------------------------------------------------------
+set all eboxes in a page to be need_refresh=true
+return:
+	0	OK
+	<0	fails
+----------------------------------------------------------------*/
+int egi_page_needrefresh(EGI_PAGE *page)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+
+	/* 1. check data */
+	if(page==NULL)
+	{
+		printf("egi_page_needrefresh(): input egi_page *page is NULL!\n");
+		return -1;
+	}
+
+	/* 2. check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_page_needrefresh(): page '%s' has an empty list_head.\n",page->ebox->tag);
+		return -2;
+	}
+
+	/* 3. set page->ebox */
+	page->ebox->need_refresh=true;
+
+	/* 4. traverse the list and set page need_refresh, not safe */
+	list_for_each(tnode, &page->list_head)
+	{
+		ebox=list_entry(tnode, EGI_EBOX, node);
+		ebox->need_refresh=true;
+		printf("egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
+	}
 
 	return 0;
 }
 
 
-/*--------------------------------------
+
+/*-----------------------------------------------------
 default page routine job
 
 return:
 	loop or >=0  	OK
 	<0		fails
-----------------------------------------*/
+-----------------------------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
 	int i,j;
@@ -308,6 +354,9 @@ int egi_page_routine(EGI_PAGE *page)
 	{
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
 	}
+
+
+	egi_pdebug(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
 
 
 	/* 3. load threads */
@@ -347,16 +396,8 @@ int egi_page_routine(EGI_PAGE *page)
                 else if(ret == XPT_READ_STATUS_PENUP )
                 {
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
-			//egi_page_refresh(page);
+			egi_page_refresh(page);
 			tm_delayms(100);/* hold on for a while, or the screen will be  */
-
-			/* load cpuload motion icons */
-#if 0
-			i++;
-			if(i>3)i=0;
-                        symbol_motion_string(&gv_fb_dev, 155-i*30, &sympg_icons,
-      		                               	       1, 150,0, &symmic_cpuload[i][0]);
-#endif
 
 		}
 
@@ -368,13 +409,36 @@ int egi_page_routine(EGI_PAGE *page)
 	 /* ----------------    Touch Event Handling   ----------------  */
 
 	                hitbtn=egi_hit_pagebox(sx, sy, page);
+
+			/* trap into button reaction functions */
 	      	        if(hitbtn != NULL)
+			{
 				egi_pdebug(DBG_PAGE,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 										hitbtn->tag,page->ebox->tag);
+				/* trigger button-hit action
+				   return <0 to exit this rountine, roll back to forward rountine then ...
+				*/
+	 			if(hitbtn->reaction != NULL)
+				{
+					if(hitbtn->reaction(hitbtn,pressing)<0) /* reat_ret<0, button reaction exit */
+					{
+						/* when fall back we need refresh the current page */
+						printf("get out of hitbtn !\n");
+						return -1;
+					}
+					else /* react_ret=0, page exit! */
+					{
+						/* refresh page and its eboxes */
+						egi_page_needrefresh(page);
+					}
+				}
+
+
+			} /* end of button reaction */
+
 	                continue;
 
 			/* loop in refreshing listed eboxes */
-
 		}
 
 	}

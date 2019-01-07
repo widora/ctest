@@ -14,8 +14,10 @@ For test only!
    number of symbols.
 6. The first symbol in a img page shuld not be used, code '0' usually will be treated
    as and end token for a char string.
-
-
+7. when you edit a symbol image, don't forget to update:
+	7.1 sympg->maxnum;
+	7.2 xxx_width[N] >= sympg->maxnu;
+	7.3 modify symbol structre in egi_symbol.h accordingly.
 TODO:
 0.  different type symbol now use same writeFB function !!!!! font and icon different writeFB func????
 0.  if image file is not complete.
@@ -117,7 +119,7 @@ struct symbol_page sympg_buttons=
 };
 
 /*--------------------------(  30x30 icons  )-----------------------------------*/
-static int icons_width[8*10] =
+static int icons_width[8*12] =  /* element number MUST >= maxnum */
 {
         30,30,30,30,30,30,30,30,
         30,30,30,30,30,30,30,30,
@@ -127,7 +129,10 @@ static int icons_width[8*10] =
         30,30,30,30,30,30,30,30,
         30,30,30,30,30,30,30,30,
         30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
+        30,30,30,30,30,30,30,30,
 };
+
 /* symbole page struct for testfont */
 struct symbol_page sympg_icons=
 {
@@ -135,26 +140,27 @@ struct symbol_page sympg_icons=
         .path="/home/icons.img",
         .bkcolor=0x0000,
         .data=NULL,
-        .maxnum=8*8-1, /* 8 rows of ioncs */
-        .sqrow=8, /* 4 icons per row */
+        .maxnum=11*8-1, /* 11 rows of ioncs */
+        .sqrow=8, /* 8 icons per row */
         .symheight=30,
         .symwidth=icons_width, /* width list */
 };
 
-/* put load motion icon array for CPU load*/
-char symmic_cpuload[4][5]= /* sym for motion icon */
+/* put load motion icon array for CPU load
+   !!! put code 0 as end of string */
+char symmic_cpuload[6][5]= /* sym for motion icon */
 {
-	{48,49,50,51,0}, /* light */
-	{52,53,54,55,0}, /* medium */
-	{56,57,58,59,0}, /* heavy */
-	{60,61,62,63,0}  /* alarm */
+	{40,41,42,43,0}, /* very light */
+	{44,45,46,47,0}, /* light */
+	{48,49,50,51,0}, /* moderate */
+	{52,53,54,55,0}, /* heavy */
+	{56,57,58,59,0}, /* very heavy */
+	{60,61,62,63,0},  /* red alarm */
 };
 
-
-
-
-
-
+/* IoT mmic */
+char symmic_iotload[8]=
+{ 16,17,18,19,20,21,22,23 };
 
 
 
@@ -193,6 +199,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	}
 
 #if 1   /*------------  check an ((unloaded)) page structure -----------*/
+
 	/* check for maxnum */
 	if(sym_page->maxnum < 0 )
 	{
@@ -212,6 +219,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		printf("symbol_load_page(): symbol width list is empty! fail to load symbole page.\n");
 		return NULL;
 	}
+
 #endif
 
 	/* get height for all symbols */
@@ -241,7 +249,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	{
 		if(sym_page->data == NULL)
 		{
-			printf("symbol_load_page():fail to malloc sym_page->data!\n");
+			printf("symbol_load_page(): fail to malloc sym_page->data! ???Maybe element number of symwidth[] is less than symbol_page.maxnum \n");
 			symbol_release_page(sym_page);
 			return NULL;
 		}
@@ -629,6 +637,7 @@ use following COLOR:
 
 x0,y0:          start position coordinate in screen, left top point of a symbol.
 str:            pointer to a char string(or symbol codes[]);
+		!!! code /0 as the end token of the string.
 
 -------------------------------------------------------------------------------*/
 void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \

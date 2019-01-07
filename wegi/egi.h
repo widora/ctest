@@ -210,6 +210,11 @@ struct egi_element_box
 	*/
 	int (*free)(EGI_EBOX *);
 
+	/* --- reaction to touch pattern
+
+	*/
+	int (*reaction)(EGI_EBOX *, enum egi_btn_status);
+
 	/* --- decorate:
 	    additional drawing/imgs decoration function for the ebox
 	*/
@@ -250,7 +255,6 @@ struct egi_data_btn
 	struct symbol_page *icon; /* button icon */
 	int icon_code; /* code number of the symbol in the symbol_page */
 	enum egi_btn_status status; /* button status, pressed or released */
-	void (* action)(enum egi_btn_status status); /* triggered action */
 };
 
 

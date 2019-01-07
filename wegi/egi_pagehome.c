@@ -1,7 +1,23 @@
+/*-------------------------------------------------------------------------
+page creation jobs:
+1. egi_create_XXXpage() function.
+   1.1 creating eboxes and page.
+   1.2 assign thread-runner to the page.
+   1.3 assign routine to the page.
+   1.4 assign button functions to corresponding eboxes in page.
+2. thread-runner functions.
+3. egi_XXX_routine() function if not use default egi_page_routine().
+4. button reaction functins
+
+Midas Zhou
+---------------------------------------------------------------------------*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h> /* usleep */
 #include "egi.h"
+#include "egi_debug.h"
 #include "egi_color.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
@@ -10,7 +26,7 @@
 #include "egi_symbol.h"
 #include "egi_objpage.h"
 #include "egi_pagehome.h"
-
+#include "egi_pagemplay.h"
 
 /*------------- [  PAGE ::   Home Page  ] -------------
 create home page
@@ -70,8 +86,10 @@ EGI_PAGE *egi_create_homepage(void)
 		}
 	}
 
-	/* add tags  here */
+	/* add tags and reactions here */
 	egi_ebox_settag(home_btns[0], "btn_mplayer");
+	home_btns[0]->reaction=egi_homepage_mplay;
+
 	egi_ebox_settag(home_btns[1], "btn_iot");
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 	egi_ebox_settag(home_btns[3], "btn_mp1");
@@ -80,6 +98,9 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[6], "btn_chart");
 	egi_ebox_settag(home_btns[7], "btn_mp2");
 	egi_ebox_settag(home_btns[8], "btn_radio");
+
+
+
 
 
 	/* --------- 2. create home-head bar --------- */
@@ -114,6 +135,8 @@ EGI_PAGE *egi_create_homepage(void)
 	/* !!! the last  MUST end with /0 */
 
 
+
+
 	/* ---------- 3.create home page -------- */
 	/* 3.1 create page */
 	EGI_PAGE *page_home=NULL;
@@ -126,13 +149,14 @@ EGI_PAGE *egi_create_homepage(void)
 	}
 	/* 3.2 put pthread runner */
 	page_home->runner[0]=egi_display_cpuload;
+	page_home->runner[1]=egi_display_iotload;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_page_routine;
 
-
 	/* 3.4 set wallpaper */
 	page_home->fpath="/tmp/home.jpg";
+
 
 
 	/* add ebox to home page */
@@ -145,21 +169,41 @@ EGI_PAGE *egi_create_homepage(void)
 	return page_home;
 }
 
-/*-----------------------------------------------------
+/*-----------------  RUNNER 1 --------------------------
 display cpu load in home head-bar with motion icons
 -------------------------------------------------------*/
 void egi_display_cpuload(EGI_PAGE *page)
 {
-	int load=2; /* 0-3 */
+	int load=3; /* 0-3 */
+
+	egi_pdebug(DBG_PAGE,"page '%s':  runner thread egi_display_cpuload() is activated!.\n",page->ebox->tag);
 
 	while(1)
 	{
 		/* load cpuload motion icons
 			  symbol_motion_string() is with sleep function */
-  	 	symbol_motion_string(&gv_fb_dev, 155-load*30, &sympg_icons,
-	 					1, 150,0, &symmic_cpuload[load][0]);
+  	 	symbol_motion_string(&gv_fb_dev, 155-load*15, &sympg_icons,
+		 					1, 150,0, &symmic_cpuload[load][0]);
 	}
 }
+
+/*-----------------  RUNNER 2 --------------------------
+display IoT load in home head-bar with motion icons
+-------------------------------------------------------*/
+void egi_display_iotload(EGI_PAGE *page)
+{
+	egi_pdebug(DBG_PAGE,"page '%s':  runner thread egi_display_iotload() is activated!.\n"
+										,page->ebox->tag);
+	while(1)
+	{
+		/* load IoT motion icons
+			  symbol_motion_string() is with sleep function */
+  	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 120,0, symmic_iotload);
+	}
+}
+
+
+
 
 
 /*----------------------------------------------
@@ -184,4 +228,22 @@ void egi_home_routine(void)
 
 	/* 4. update home_page head-bar icons */
 
+}
+
+
+/*-----------------------------------
+button_mplay function:
+mplayer
+-----------------------------------*/
+int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+{
+        EGI_PAGE *page_mplay=egi_create_mplaypage();
+
+        egi_page_activate(page_mplay);
+	/* get into routine loop */
+        page_mplay->routine(page_mplay);
+	/* get out of routine loop */
+	egi_page_free(page_mplay);
+
+	return 0;
 }
