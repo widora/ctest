@@ -12,5 +12,6 @@ int egi_page_activate(EGI_PAGE *page);
 int egi_page_refresh(EGI_PAGE *page);
 int egi_page_routine(EGI_PAGE *page);
 int egi_page_needrefresh(EGI_PAGE *page);
+EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page, enum egi_ebox_type type, unsigned int id);
 
 #endif

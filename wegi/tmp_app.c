@@ -191,8 +191,11 @@ int main(void)
 	/* load buttons icons */
 	if(symbol_load_page(&sympg_buttons)==NULL)
 		exit(-2);
-	/* load icons */
+	/* load icons for home head-bar*/
 	if(symbol_load_page(&sympg_icons)==NULL)
+		exit(-2);
+	/* load icons for PLAYERs */
+	if(symbol_load_page(&sympg_icons_2)==NULL)
 		exit(-2);
 
 	/* --------- test:  print all symbols in the page --------*/

@@ -39,6 +39,7 @@ EGI_PAGE * egi_page_new(char *tag)
 	/* clear data */
 	memset(page,0,sizeof(struct egi_page));
 
+
 	/* 3. malloc page->ebox */
 	page->ebox=egi_ebox_new(type_page);
 	if( page == NULL)
@@ -52,11 +53,15 @@ EGI_PAGE * egi_page_new(char *tag)
 	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
 
-	/* 5. put default routine method here */
+	/* 5. set prmcolor<0, so it will NOT  draw prmcolor in page refresh()
+	   !!!! 0 will be deemed as pure black in refresh()  */
+	page->ebox->prmcolor=-1;
+
+	/* 6. put default routine method here */
 	page->routine=egi_page_routine;
 
 
-	/* 6. init pthreads. ??? Not necessary. since alread memset() in above ??? */
+	/* 7. init pthreads. ??? Not necessary. since alread memset() in above ??? */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		page->thread_running[i]=false;
@@ -64,7 +69,7 @@ EGI_PAGE * egi_page_new(char *tag)
 	}
 
 
-	/* 7. init list */
+	/* 8. init list */
         INIT_LIST_HEAD(&page->list_head);
 
 	return page;
@@ -281,7 +286,8 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
+		if(ret==0)
+		    egi_pdebug(DBG_TEST,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
 			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 	}
 
@@ -329,6 +335,50 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	}
 
 	return 0;
+}
+
+
+/*----------------------------------------------------------------------------------
+pick an ebox pointer by its type and id number
+
+return:
+	pointer 	OK
+	NULL		fails not no match
+-----------------------------------------------------------------------------------*/
+EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+
+	/* 1. check data */
+	if(page==NULL)
+	{
+		printf("egi_page_pickbtn(): input egi_page *page is NULL!\n");
+		return NULL;
+	}
+
+	/* 2. check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_page_pickbtn(): page '%s' has an empty list_head.\n",page->ebox->tag);
+		return NULL;
+	}
+
+	/* 3. traverse the list to find ebox that matches the given id */
+	list_for_each(tnode, &page->list_head)
+	{
+		ebox=list_entry(tnode, EGI_EBOX, node);
+		if( ebox->type==type && ((EGI_DATA_BTN *)(ebox->egi_data))->id == id )
+		{
+		   egi_pdebug(DBG_PAGE,"egi_page_pickbtn(): find an ebox '%s' with id=%d in page '%s'. \n",
+										ebox->tag,id,page->ebox->tag);
+			return ebox;
+		}
+	}
+
+	egi_pdebug(DBG_PAGE,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+										ebox->tag,id,page->ebox->tag);
+	return NULL;
 }
 
 
@@ -408,7 +458,8 @@ int egi_page_routine(EGI_PAGE *page)
 			if(last_status==pressing || last_status==pressed_hold)
 			{
 				last_status=releasing;
-				printf("egi_page_routine(4.5): ... ... ... pen releasing ... ... ...\n");
+				printf("egi page-'%s' routine(4.4): ... ... ... pen releasing ... ... ...\n",
+											page->ebox->tag);
 			}
 			else
 				last_status=released_hold;
@@ -423,7 +474,8 @@ int egi_page_routine(EGI_PAGE *page)
 		else if(ret == XPT_READ_STATUS_HOLDON)
 		{
 			last_status=pressed_hold;
-			printf("egi_page_routine(4.5): ... ... ... pen hold down ... ... ...\n");
+			printf("egi page-'%s' routine(4.5): ... ... ... pen hold down ... ... ...\n",
+											page->ebox->tag);
 
 		}
 
@@ -434,17 +486,19 @@ int egi_page_routine(EGI_PAGE *page)
 			if( last_status==pressing || last_status==pressed_hold 	)
 			{
 				last_status=pressed_hold;
-				printf("egi_page_routine(4.6): ... ... ... pen hold down ... ... ...\n");
+				printf("egi page-'%s' routine(4.6): ... ... ... pen hold down ... ... ...\n",
+											page->ebox->tag);
 			}
 			else
 			{
 				last_status=pressing;
-				printf("egi_page_routine(4.6): ... ... ... pen pressing ... ... ...\n");
+				printf("egi page-'%s' routine(4.6): ... ... ... pen pressing ... ... ...\n",
+											page->ebox->tag);
 			}
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
 	 /* ----------------    Touch Event Handling   ----------------  */
-	                hitbtn=egi_hit_pagebox(sx, sy, page);
+	                hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
 
 			/* trap into button reaction functions */
 	      	        if(hitbtn != NULL)

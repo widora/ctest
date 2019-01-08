@@ -118,7 +118,8 @@ struct symbol_page sympg_buttons=
 	.symwidth=buttons_width, /* width list */
 };
 
-/*--------------------------(  30x30 icons  )-----------------------------------*/
+
+/*--------------------------(  30x30 icons for Home Head-Bar )-----------------------------------*/
 static int icons_width[8*12] =  /* element number MUST >= maxnum */
 {
         30,30,30,30,30,30,30,30,
@@ -159,8 +160,33 @@ char symmic_cpuload[6][5]= /* sym for motion icon */
 };
 
 /* IoT mmic */
-char symmic_iotload[8]=
-{ 16,17,18,19,20,21,22,23 };
+char symmic_iotload[9]=
+{ 16,17,18,19,20,21,22,23,0}; /* with end token /0 */
+
+
+
+/*------------------(  60x60 icons for PLAYS and ARROWS )-----------------*/
+static int icons_2_width[4*6] =  /* element number MUST >= maxnum */
+{
+	60,60,60,60,
+	60,60,60,60,
+	60,60,60,60,
+	60,60,60,60,
+	60,60,60,60,
+};
+/* symbole page struct for testfont */
+struct symbol_page sympg_icons_2=
+{
+        .symtype=type_icon,
+        .path="/home/icons_2.img",
+        .bkcolor=0x0000,
+        .data=NULL,
+        .maxnum=4*5-1, /* 11 rows of ioncs */
+        .sqrow=4, /* 8 icons per row */
+        .symheight=60,
+        .symwidth=icons_2_width, /* width list */
+};
+
 
 
 

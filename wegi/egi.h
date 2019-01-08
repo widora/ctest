@@ -18,7 +18,7 @@ Midas Zhou
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
 #define EGI_PAGE_MAXTHREADS 5 /* MAX. number of threads in a page routine job */
 
-
+typedef struct egi_page EGI_PAGE;
 typedef struct egi_element_box EGI_EBOX;
 
 struct egi_point_coord
@@ -224,6 +224,9 @@ struct egi_element_box
 
 	struct list_head node; /* list node to a father ebox */
 
+	/* its container, an EGI_PAGE usually */
+	EGI_PAGE *container;
+
 	//EGI_EBOX *child;
 };
 
@@ -232,6 +235,7 @@ struct egi_element_box
 typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
+	unsigned int id; /* unique id number for txt, MUST=0, default 0 for ignored  */
 	int offx; /* offset from ebox x0,y0 */
 	int offy;
 	int nl;  /* number of txt lines, make it as big as possible?? */
@@ -251,7 +255,7 @@ typedef struct egi_data_btn EGI_DATA_BTN;
 struct egi_data_btn
 {
 	//char tag[32]; /* short description of the button */
-	int id; /* unique id number for btn */
+	unsigned int id; /* unique id number for btn, MUST >0, default 0 for ignored  */
 	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
 	int icon_code; /* code number of the symbol in the symbol_page */
@@ -275,7 +279,6 @@ struct egi_data_page
 };
 
 
-typedef struct egi_page EGI_PAGE;
 struct egi_page
 {
 	/* egi page is based on egi_ebox */
@@ -312,7 +315,7 @@ int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
-EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page);
+EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
 void egi_ebox_settag(EGI_EBOX *ebox, char *tag);
 enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 

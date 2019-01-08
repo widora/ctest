@@ -62,7 +62,7 @@ EGI_PAGE *egi_create_homepage(void)
         {
                 for(j=0;j<3;j++) /* column of buttons */
                 {
-			/* 1. create new data_btns */
+			/* 1.1 create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
 							square, /* enum egi_btn_type shape */
 							&sympg_buttons, /* struct symbol_page *icon */
@@ -80,7 +80,7 @@ EGI_PAGE *egi_create_homepage(void)
 			data_btns[0]->opaque=2;
 
 
-			/* 2. create new btn eboxes */
+			/* 2.2 create new btn eboxes */
 			home_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
 							data_btns[3*i+j], /* EGI_DATA_BTN *egi_data */
 				        		0, /* bool movable */
@@ -103,7 +103,7 @@ EGI_PAGE *egi_create_homepage(void)
 		}
 	}
 
-	/* add tags and reactions here */
+	/* 1.3 add button tags and reactions here */
 	egi_ebox_settag(home_btns[0], "btn_mplayer");
 	home_btns[0]->reaction=egi_homepage_mplay;
 
@@ -123,7 +123,7 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[8], "btn_radio");
 
 
-	/* --------- 2. create home-head bar --------- */
+	/* --------- 2. create home head-bar --------- */
         /* create head_txt */
         head_txt=egi_txtdata_new(
                 0,0, /* offset X,Y */
@@ -147,11 +147,11 @@ EGI_PAGE *egi_create_homepage(void)
 	head_txt->txt[0][0]=4;
 	head_txt->txt[0][1]=6;
 	head_txt->txt[0][2]=10;
-	head_txt->txt[0][3]=6; /* 6 is space */
+	head_txt->txt[0][3]=28; /* 6 is space */
 	head_txt->txt[0][4]=6;//33;
 	head_txt->txt[0][5]=6;//36;
 	head_txt->txt[0][6]=6;
-	head_txt->txt[0][7]=28;
+	head_txt->txt[0][7]=6;
 	/* !!! the last  MUST end with /0 */
 
 
@@ -202,7 +202,7 @@ static void egi_display_cpuload(EGI_PAGE *page)
 		/* load cpuload motion icons
 			  symbol_motion_string() is with sleep function */
   	 	symbol_motion_string(&gv_fb_dev, 155-load*15, &sympg_icons,
-		 					1, 150,0, &symmic_cpuload[load][0]);
+		 					1, 210,0, &symmic_cpuload[load][0]);
 	}
 }
 
@@ -217,7 +217,7 @@ static void egi_display_iotload(EGI_PAGE *page)
 	{
 		/* load IoT motion icons
 			  symbol_motion_string() is with sleep function */
-  	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 120,0, symmic_iotload);
+  	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 180,0, symmic_iotload);
 	}
 }
 

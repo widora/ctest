@@ -183,7 +183,7 @@ return:
 	pointer to a ebox  	Ok
 	NULL			fail
 -------------------------------------------------------------------*/
-EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page)
+EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
@@ -208,13 +208,16 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page)
                 ebox=list_entry(tnode, EGI_EBOX, node);
                 //egi_pdebug(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
 
-	         if(ebox->status==status_sleep)
-			continue; /* ignore sleeping ebox */
+		if(ebox->type == type)
+		{
+	        	 if(ebox->status==status_sleep)
+				continue; /* ignore sleeping ebox */
 
-		 /* check whether the ebox is hit */
-                 if( x>=ebox->x0 && x<=ebox->x0+ebox->width \
-                                && y>=ebox->y0 && y<=ebox->y0+ebox->height )
-                  return ebox;
+			 /* check whether the ebox is hit */
+        	         if( x>=ebox->x0 && x<=ebox->x0+ebox->width \
+                	                && y>=ebox->y0 && y<=ebox->y0+ebox->height )
+                  	return ebox;
+		}
 	}
 
 	return NULL;

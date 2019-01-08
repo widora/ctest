@@ -140,7 +140,7 @@ return:
 EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 {
 	/* 1. create a data_txt */
-	printf("start to egi_txtdata_new()...\n");
+	egi_pdebug(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
 	EGI_DATA_TXT *clock_txt=egi_txtdata_new(
 		10,30, /* offset X,Y */
       	  	3, /*int nl, lines  */
@@ -165,7 +165,7 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
         sprintf(clock_txt->txt[2],"Note NO. %d", num);
 
 	/* 2. create memo ebox */
-	PDEBUG("create_ebox_notes(): strat to egi_txtbox_new().....\n");
+	egi_pdebug(DBG_OBJTXT,"create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		NULL, /* tag, put later */
         	clock_txt,  /* EGI_DATA_TXT pointer */
@@ -192,7 +192,7 @@ void egi_txtbox_demo(void)
 
 	for(i=0;i<total;i++)
 	{
-	      PDEBUG("create ebox notes txtebox[%d].\n",i);
+	      egi_pdebug(DBG_OBJTXT,"create ebox notes txtebox[%d].\n",i);
 	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_color_random(light));
 	      if(txtebox[i]==NULL)
 	      {
@@ -200,13 +200,13 @@ void egi_txtbox_demo(void)
 			return;
 	      }
 
-	      PDEBUG("egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
+	      egi_pdebug(DBG_OBJTXT,"egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
 	      ret=txtebox[i]->activate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
 
 	      /* apply decoration method */
-	      PDEBUG("egi_txtbox_demon(): start to decorate txtebox[%d]\n",i);
+	      egi_pdebug(DBG_OBJTXT,"egi_txtbox_demon(): start to decorate txtebox[%d]\n",i);
 	      ret=txtebox[i]->decorate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox decorate fails with ret=%d\n",ret);
@@ -254,7 +254,7 @@ EGI_EBOX *create_ebox_titlebar(
 )
 {
 	/* 1. create a data_txt */
-	printf("start to egi_txtdata_new()...\n");
+	egi_pdebug(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
 	EGI_DATA_TXT *title_txt=egi_txtdata_new(
 		offx,offy, /* offset X,Y */
       	  	1, /*int nl, lines  */
@@ -277,7 +277,7 @@ EGI_EBOX *create_ebox_titlebar(
 	/* 2. put title string */
 	if(title==NULL)
 	{
-		PDEBUG("create_ebox_titlebar(): title==NULL, use default title\n");
+		egi_pdebug(DBG_OBJTXT,"create_ebox_titlebar(): title==NULL, use default title\n");
 	        strncpy(title_txt->txt[0], "--- title bar ---", title_txt->llen-1); /* default */
 	}
 	else
