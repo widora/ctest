@@ -576,6 +576,7 @@ Note:
 	4.1 Max. char number per line   =  llen;
 	4.2 Max. pixel number per line  =  bxwidth
 
+
 Return:
 	>0	number of chars read and stored to txt[].
 	0	get end of file.
@@ -591,6 +592,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	int ret=0;
 	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
+	int bxheight=ebox->height;
 	char **txt=data_txt->txt;
 	int nt=0;/* index, txt[][nt] */
 	int nl=data_txt->nl; /* from 0, number of txt line */
@@ -598,8 +600,13 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
 	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
+	int symheight=data_txt->font->symheight;
 	int maxnum=data_txt->font->maxnum;
 	long foff=data_txt->foff; /* current file position */
+
+	/* WOWOO,NOPE!  bxheight already enlarged to fit for nl in egi_txtbox_activate()...
+	 reset llen here, to consider ebox height
+	 nl = nl < (bxheight/symheight) ? nl : (bxheight/symheight);  */
 
 	/* check ebox data here */
 	if( txt==NULL )

@@ -535,7 +535,8 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	{
 		for(j=0;j<width;j++)
 		{
-			/*  according to opaque value,skip this to be traspare to the back group */
+			/*  skip pixels according to opaque value, skipped pixels
+							make trasparent area to the background */
 			if(opaque>0)
 			{
 				if( ((i%2)*(opaque/2)+j)%(opaque) != 0 ) /* make these points transparent */

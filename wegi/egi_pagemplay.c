@@ -85,7 +85,9 @@ EGI_PAGE *egi_create_mplaypage(void)
 	/* add tags and reaction function here */
 	egi_ebox_settag(mplay_btns[0], "btn_backward");
 	egi_ebox_settag(mplay_btns[1], "btn_play&pause");
+
 	egi_ebox_settag(mplay_btns[2], "btn_forward");
+	mplay_btns[2]->reaction=egi_txtbox_demo;
 
 	egi_ebox_settag(mplay_btns[3], "btn_close");
 	mplay_btns[3]->reaction=egi_pagemplay_exit;

@@ -250,10 +250,10 @@ void egi_home_routine(void)
 }
 
 
-/*-----------------------------------
+/*--------------------------------------------------------
 button_mplay function:
 mplayer
------------------------------------*/
+--------------------------------------------------------*/
 static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 {
         EGI_PAGE *page_mplay=egi_create_mplaypage();
@@ -267,10 +267,10 @@ static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 	return 0;
 }
 
-/*-----------------------------------
+/*------------------------------------------------------
 button_openwrt function:
 openwrt
------------------------------------*/
+------------------------------------------------------*/
 static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 {
         EGI_PAGE *page_openwrt=egi_create_openwrtpage();
@@ -284,10 +284,10 @@ static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 	return 0; /* as for page exit, instead of <0 ????? */
 }
 
-/*-----------------------------------
+/*----------------------------------------------------
 button_openwrt function:
 book
------------------------------------*/
+----------------------------------------------------*/
 static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 {
         EGI_PAGE *page_book=egi_create_bookpage();

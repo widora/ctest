@@ -61,13 +61,12 @@ EGI_PAGE *egi_create_bookpage(void)
 	/* 1. create book_txt */
 	book_txt=egi_txtdata_new(
 		5,5, /* offset X,Y */
-      	  	12, /*int nl, lines  */
+      	  	11, /*int nl, lines  */
        	 	24, /*int llen, chars per line */
         	&sympg_testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 	book_txt->id=1; /* set unique id */
-
 
 	/* 2. set book txt fpath */
 	book_txt->fpath="/home/memo.txt";
@@ -77,8 +76,9 @@ EGI_PAGE *egi_create_bookpage(void)
 		"book", /* tag */
         	book_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
-       	 	12,0, /* int x0, int y0 */
-        	240,320, /* int width, int height */
+       	 	12,30, /* int x0, int y0 */
+		/* tricky, here create a roll-back seam */
+        	240,320-30, /* int width, int height */
         	-1, /* int frame, -1=no frame */
         	WEGI_COLOR_ORANGE /*int prmcolor*/
 	);

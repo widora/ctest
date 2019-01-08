@@ -23,7 +23,7 @@ Midas Zhou
 /* ---------------------------  ebox memo --------------------------------*/
 
 /*-------------------------------------------
-Create an 240x320 size txt ebox
+Create an 240x30 size txt ebox
 return:
 	txt ebox pointer 	OK
 	NULL			fai.
