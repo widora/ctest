@@ -11,7 +11,7 @@ Midas Zhou
 #include <stdint.h>
 
 /* convert 24bit rgb to 16bit LCD rgb */
-#define COLOR_RGB_TO16BITS(r,g,b)	 (uint16_t)( (r>>3)<<11 | (g>>2)<<5 | b>>3 )
+#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( (r>>3)<<11 | (g>>2)<<5 | b>>3  ))
 
 /* color definition */
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)

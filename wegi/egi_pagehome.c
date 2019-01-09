@@ -38,6 +38,7 @@ static void egi_display_iotload(EGI_PAGE *page);
 static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_homepage_test(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 
 
 /*------------- [  PAGE ::   Home Page  ] -------------
@@ -108,7 +109,9 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[0], "btn_mplayer");
 	home_btns[0]->reaction=egi_homepage_mplay;
 
-	egi_ebox_settag(home_btns[1], "btn_iot");
+	egi_ebox_settag(home_btns[1], "btn_test");
+	home_btns[1]->reaction=egi_homepage_test;
+
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 
 	egi_ebox_settag(home_btns[3], "btn_openwrt");
@@ -302,3 +305,19 @@ static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status)
 	return 0; /* as for page exit, instead of <0 ????? */
 }
 
+/*----------------------------------------------------
+button_test function:
+for test functions
+----------------------------------------------------*/
+static int egi_homepage_test(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+{
+        EGI_PAGE *page_test=egi_create_testpage();
+
+        egi_page_activate(page_test);
+	/* get into routine loop */
+        page_test->routine(page_test);
+	/* get out of routine loop */
+	egi_page_free(page_test);
+
+	return 0; /* as for page exit, instead of <0 ????? */
+}

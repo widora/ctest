@@ -23,12 +23,14 @@ TODO:
 5. systme()... sh -c ...
 6. btn-press and btn-release signal
 7. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
+8. after set tm_timer(), usleep() and slee() will disfunction!!???? 
 
 Midas Zhou
 ----------------------------------------------------------------*/
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 #include "egi_color.h"
 #include "spi.h"
 #include "fblines.h"
@@ -104,23 +106,30 @@ int main(void)
         init_dev(&gv_fb_dev);
 
 	/* ---- set timer for time display ---- */
-	tm_settimer(500000);/* set timer interval interval */
+		tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
 
 	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 	signal(SIGALRM, tm_tick_sigroutine);
 
 
-
 	/* --- clear screen with BLACK --- */
 #if 0
-	clear_screen(&gv_fb_dev,(0<<11|0<<5|0));
+	//fbset_color(COLOR_RGB_TO16BITS(0X44,0x44,0X88));
+	//(r>>3)<<11 | (g>>2)<<5 | b>>3
+//	uint16_t color= ( (0xAA>>3)<<11 | (0xAA>>2)<<5 | 0xAA>>3 );
+	uint16_t color = egi_colorgray_random(light);
+	printf("color=0x%04X \n",color);
+	fbset_color(color);
+	draw_filled_rect(&gv_fb_dev,0,0,240-1,320-1);
+	tm_delayms(1000);
+	clear_screen(&gv_fb_dev, 0xAD55) ;
+	tm_delayms(1000);
 #endif
 
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
-
 
 
 	/* ---- test image scale,page dispearing effect ---- */

@@ -120,7 +120,7 @@ EGI_PAGE *egi_create_openwrtpage(void)
 			usleep(100000);
 	}
 	/* set prmcolor */
-	page_openwrt->ebox->prmcolor=egi_colorgray_random(deep);
+	page_openwrt->ebox->prmcolor=(int)egi_colorgray_random(medium);
 
 	/* set wallpaper */
 	//page_openwrt->fpath="/tmp/mplay.jpg";

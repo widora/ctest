@@ -59,6 +59,14 @@ FBDEV  gv_fb_dev;
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
         fr_dev->map_fb=(char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,fr_dev->fdfd,0);
 //        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
+
+	printf(" \n------- FB Parameters -------:\n");
+	printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
+	printf(" line_length: %d bytes\n",fr_dev->finfo.line_length);
+	printf(" xres: %d pixels, yres: %d pixels \n", fr_dev->vinfo.xres, fr_dev->vinfo.yres);
+	printf(" xoffset: %d,  yoffset: %d \n", fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
+	printf(" screensize: %ld bytes\n", fr_dev->screensize);
+	printf(" ----------------------------\n\n");
   }
 
     void release_dev(FBDEV *dev)
@@ -105,16 +113,39 @@ FBDEV  gv_fb_dev;
 	fb_color=color;
     }
 
-    /* clear screen with given color */
+    /* -------------------------------------------
+      clear screen with given color
+
+      BUG:
+		!!!!call egi_colorxxxx_randmon() error
+     --------------------------------------------*/
     void clear_screen(FBDEV *dev, uint16_t color)
     {
+	int i,j;
 	FBDEV *fr_dev=dev;
+	int xres=dev->vinfo.xres;
+	int yres=dev->vinfo.yres;
+	int bytes_per_pixel=fr_dev->vinfo.bits_per_pixel/8;
 	long int location=0;
 
-	for(location=0; location < (fr_dev->screensize); location++)
-	        *((unsigned short int *)(fr_dev->map_fb+location))=color;
-    }
+	for(location=0; location < (fr_dev->screensize/bytes_per_pixel); location++)
+	        *((unsigned short int *)(fr_dev->map_fb+location*bytes_per_pixel))=color;//color;
 
+/*   ---------------following is more accurate!?!?  ///
+	for(i=0;i<yres;i++)
+	{
+		for(j=0;j<xres;j++)
+		{
+
+		        location=(j+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
+                	     (i+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+       			 *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
+		}
+	}
+
+*/
+
+    }
 
     /*-----------------------------------------------------
 

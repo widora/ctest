@@ -104,7 +104,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
-		egi_colorgray_random(light),  /* int16_t bkcolor */
+		egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
 	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3 --------");
@@ -120,6 +120,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 			page_mplay=egi_page_new("page_mplay");
 			usleep(100000);
 	}
+	page_mplay->ebox->prmcolor=egi_colorgray_random(light);
+
         /* 3.2 put pthread runner */
         //page_mplay->runner[0]= ;
 

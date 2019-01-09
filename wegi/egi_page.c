@@ -189,6 +189,8 @@ int egi_page_activate(EGI_PAGE *page)
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
 	int ret=0;
+	int xres=gv_fb_dev.vinfo.xres;
+	int yres=gv_fb_dev.vinfo.yres;
 
 	/* check data */
 	if(page==NULL)
@@ -210,10 +212,17 @@ int egi_page_activate(EGI_PAGE *page)
 	load a picture or use prime color as wallpaper*/
         if(page->fpath != NULL)
                 show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+
         else /* use ebox prime color to clear(fill) screen */
         {
-                if(page->ebox->prmcolor >= 0)
-                         clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+#if 0
+		if( page->ebox->prmcolor >= 0)
+		{
+			fbset_color( page->ebox->prmcolor );
+			draw_filled_rect(&gv_fb_dev,0,0,xres-1,yres-1); /* full screen */
+		}
+#endif
+		clear_screen(&gv_fb_dev, page->ebox->prmcolor);
         }
 
 
@@ -243,6 +252,8 @@ int egi_page_refresh(EGI_PAGE *page)
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
 	int ret;
+	int xres=gv_fb_dev.vinfo.xres;
+	int yres=gv_fb_dev.vinfo.yres;
 
 	/* check data */
 	if(page==NULL || page->ebox==NULL )
@@ -264,8 +275,14 @@ int egi_page_refresh(EGI_PAGE *page)
 
 		else /* use ebox prime color to clear(fill) screen */
 		{
-			if(page->ebox->prmcolor >= 0)
-				 clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+#if 0
+			if( page->ebox->prmcolor >= 0)
+			{
+				fbset_color( page->ebox->prmcolor );
+				draw_filled_rect(&gv_fb_dev,0,0,xres-1,yres-1); /* full screen */
+			}
+#endif
+			clear_screen(&gv_fb_dev, page->ebox->prmcolor);
 		}
 
 		/* reset need_refresh */
@@ -503,7 +520,7 @@ int egi_page_routine(EGI_PAGE *page)
 			/* trap into button reaction functions */
 	      	        if(hitbtn != NULL)
 			{
-				egi_pdebug(DBG_PAGE,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
+				egi_pdebug(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 										hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
 				   return <0 to exit this rountine, roll back to forward rountine then ...

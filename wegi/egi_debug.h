@@ -18,7 +18,7 @@
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_TEST)  //  (DBG_PAGE | DBG_PAGE)  //(DBG_EGI | DBG_TXT | DBG_BTN | DBG_PAGE)
+#define DEFAULT_DBG_FLAGS   (DBG_TEST|DBG_COLOR)  //  (DBG_PAGE | DBG_PAGE)  //(DBG_EGI | DBG_TXT | DBG_BTN | DBG_PAGE)
 
 
 #ifdef EGI_DEBUG
