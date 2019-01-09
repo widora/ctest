@@ -46,7 +46,7 @@ uint16_t egi_color_random(enum egi_color_range range)
 			/* to select G range, so as to select color range */
                         if( color[i]==0x33*(2*range-2) || color[i]==0x33*(2*range-1) )
                         {
-		                printf(" ----------- color G =0X%02X\n",color[i]);
+		                egi_pdebug(DBG_COLOR," ----------- color G =0X%02X\n",color[i]);
 				continue;
 			}
 			else /* retry */

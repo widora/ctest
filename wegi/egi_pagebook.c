@@ -104,7 +104,8 @@ EGI_PAGE *egi_create_bookpage(void)
         	data_btns[i]=egi_btndata_new(i, /* int id */
  	      		square, /* enum egi_btn_type shape */
        			&sympg_icons_2, /* struct symbol_page *icon */
-       			sym_code[i] /* int icon_code for sympg_icons_2 */
+       			sym_code[i], /* int icon_code for sympg_icons_2 */
+			&sympg_testfont /* for ebox->tag font */
         	);
         	/* if fail, try again ... */
                 if(data_btns[i]==NULL)

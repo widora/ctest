@@ -31,12 +31,19 @@ static EGI_METHOD btnbox_method=
 /*-----------------------------------------------------------------------------
 Dynamically create btn_data struct
 
+id: 		id number of the button
+shape: 		shape of the button
+icon: 		symbol page for the icon
+icon_code:	code of the symbol
+font:		symbol page for the ebox->tag font
+
 return:
         poiter          OK
         NULL            fail
 -----------------------------------------------------------------------------*/
 EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
-				        struct symbol_page *icon, int icon_code)
+			      struct symbol_page *icon, int icon_code,
+			      struct symbol_page *font )
 {
         /* malloc a egi_data_btn struct */
         egi_pdebug(DBG_BTN,"egi_btndata_new(): malloc data_btn ...\n");
@@ -54,9 +61,11 @@ EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
 	data_btn->shape=shape;
 	data_btn->icon=icon;
 	data_btn->icon_code=icon_code;
+	data_btn->font=font;
 
 	return data_btn;
 }
+
 
 /*-----------------------------------------------------------------------------
 Dynamically create a new btnbox
@@ -237,6 +246,7 @@ refresh a button type ebox:
 
 TODO:
 	1. if ebox size changes(enlarged), how to deal with bkimg!!??
+
 Return:
 	1	need_refresh=false
 	0	OK
@@ -244,10 +254,10 @@ Return:
 ------------------------------------------------------------------------*/
 int egi_btnbox_refresh(EGI_EBOX *ebox)
 {
+	int i;
 	int bkcolor=0;
 	int symheight;
 	int symwidth;
-
 
 
 	/* check data */
@@ -271,14 +281,12 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		return -2;
 	}
 
-
 	/* only if need_refresh is true */
 	if(!ebox->need_refresh)
 	{
 		egi_pdebug(DBG_BTN,"egi_btnbox_refresh(): need_refresh=false, abort refresh.\n");
 		return 1;
 	}
-
 
 
    if(ebox->movable) /* only if ebox is movale */
@@ -396,12 +404,58 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
 								x0, y0, data_btn->icon_code,data_btn->opaque);
 
-	/* 8. take action according to status:
-		 void (* action)(enum egi_btn_status status);
-	*/
 
+	/* 8. draw ebox->tag on the button if necessary */
 
-	/* reset need_refresh */
+   /* 8.1 check whether sympg is set */
+   if(data_btn->font == NULL)
+		printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
+
+   else if(data_btn->showtag==true)
+   {
+	/* 8.2 get length of tag */
+	int taglen=0;
+	while( ebox->tag[taglen] )
+	{
+		taglen++;
+	}
+	//printf("egi_btnbox_refresh(): length of ebox->tag:'%s' is %d (chars).\n", ebox->tag, taglen);
+
+	/* only if tag has content */
+	if(taglen>0)
+	{
+		int strwidth=0; /* total number of pixels of all char in ebox->tag */
+		// int symheight=data_btn->icon->symheight; already above assigned.
+		int shx=0, shy=0; /* shift x,y to fit the tag just in middle of ebox shape */
+		/* WARNIGN: Do not mess up with sympg icon!  sympy font is right here! */
+		int *wdata=data_btn->font->symwidth; /*symwidth data */
+		int  fontheight=data_btn->font->symheight;
+
+		for(i=0;i<taglen;i++)
+		{
+			/* only if in code range */
+			if( (ebox->tag[i]) <= (data_btn->font->maxnum) )
+				strwidth += wdata[ (unsigned int)ebox->tag[i] ];
+		}
+		shx = (ebox->width - strwidth)/2;
+		shx = shx>0 ? shx:0;
+		shy = (ebox->height - fontheight)/2;
+		shy = shy>0 ? shy:0;
+/*
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
+void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+                int fontcolor, int transpcolor, int x0, int y0, const char* str)
+*/
+		symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
+ 							ebox->x0+shx, ebox->y0+shy, ebox->tag);
+
+	} /* endif: taglen>0 */
+
+   }/* endif: data_btn->font != NULL */
+
+	/* 9. finally, reset need_refresh */
 	ebox->need_refresh=false;
 
 	return 0;

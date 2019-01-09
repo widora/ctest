@@ -66,7 +66,8 @@ EGI_PAGE *egi_create_homepage(void)
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
 							square, /* enum egi_btn_type shape */
 							&sympg_buttons, /* struct symbol_page *icon */
-							3*i+j /* int icon_code */
+							3*i+j, /* int icon_code */
+							&sympg_testfont /* for ebox->tag font */
 						);
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)

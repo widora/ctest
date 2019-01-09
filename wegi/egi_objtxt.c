@@ -190,6 +190,8 @@ void egi_txtbox_demo(void)
 	EGI_EBOX *txtebox[56];
 	int ret;
 
+	printf("--------- txtebox demon --- START ---------\n");
+
 	for(i=0;i<total;i++)
 	{
 	      egi_pdebug(DBG_OBJTXT,"create ebox notes txtebox[%d].\n",i);
@@ -226,7 +228,7 @@ void egi_txtbox_demo(void)
 	}
 //	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
-	printf("--------- txtebox demon over END ---------\n");
+	printf("--------- txtebox demon --- END ---------\n");
 }
 
 

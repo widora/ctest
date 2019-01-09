@@ -51,8 +51,9 @@ EGI_PAGE *egi_create_openwrtpage(void)
 			/* 1. create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
 							square, /* enum egi_btn_type shape */
-							NULL, /* struct symbol_page *icon */
-							0 /* int icon_code */
+							NULL, /* for icon, struct symbol_page *icon */
+							0, /* int icon_code */
+							&sympg_testfont /* for ebox->tag font */
 						);
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)
@@ -61,6 +62,9 @@ EGI_PAGE *egi_create_openwrtpage(void)
 				i--;
 				continue;
 			}
+
+                        /* to show tag on the button */
+                        data_btns[3*i+j]->showtag=true;
 
 			/* 2. create new btn eboxes */
 			open_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
@@ -85,13 +89,13 @@ EGI_PAGE *egi_create_openwrtpage(void)
 	}
 
 	/* ----- 1.1 add tags and button reaction function here ------ */
-	egi_ebox_settag(open_btns[0], "btn_openwrt 0");
-	egi_ebox_settag(open_btns[1], "btn_openwrt 1");
-	egi_ebox_settag(open_btns[2], "btn_openwrt 2");
-	egi_ebox_settag(open_btns[3], "btn_openwrt 3");
-	egi_ebox_settag(open_btns[4], "btn_openwrt 4");
+	egi_ebox_settag(open_btns[0], "BTN_0");
+	egi_ebox_settag(open_btns[1], "BTN_1");
+	egi_ebox_settag(open_btns[2], "BTN_2");
+	egi_ebox_settag(open_btns[3], "BTN_3");
+	egi_ebox_settag(open_btns[4], "BTN_4");
 
-	egi_ebox_settag(open_btns[5], "btn_openwrt 5");
+	egi_ebox_settag(open_btns[5], "EXIT");
 	open_btns[5]->reaction=egi_pageopen_exit;
 
 

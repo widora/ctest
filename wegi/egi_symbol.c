@@ -497,8 +497,8 @@ x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code: 	symbol code number
 
 opaque:		set opaque value
-	0 	no effect
-	other	currently only 2.
+	0 	display no effect
+	other	...OK.  the greater the value, the vaguer the image.
 -------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque)

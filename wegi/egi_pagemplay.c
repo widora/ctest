@@ -50,7 +50,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
 							circle, /* enum egi_btn_type shape */
 							NULL, /* struct symbol_page *icon */
-							0 /* int icon_code */
+							0, /* int icon_code */
+							&sympg_testfont /* for ebox->tag font */
 						);
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)
@@ -59,6 +60,9 @@ EGI_PAGE *egi_create_mplaypage(void)
 				i--;
 				continue;
 			}
+
+			/* to show tag on the button */
+			data_btns[3*i+j]->showtag=true;
 
 			/* 2. create new btn eboxes */
 			mplay_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
@@ -83,17 +87,17 @@ EGI_PAGE *egi_create_mplaypage(void)
 	}
 
 	/* add tags and reaction function here */
-	egi_ebox_settag(mplay_btns[0], "btn_backward");
-	egi_ebox_settag(mplay_btns[1], "btn_play&pause");
+	egi_ebox_settag(mplay_btns[0], "Back");
+	egi_ebox_settag(mplay_btns[1], "Play");
 
-	egi_ebox_settag(mplay_btns[2], "btn_forward");
-	mplay_btns[2]->reaction=egi_txtbox_demo;
+	egi_ebox_settag(mplay_btns[2], "TEST!");
+	mplay_btns[2]->reaction=egi_txtbox_demo; /* txtbox demo */
 
-	egi_ebox_settag(mplay_btns[3], "btn_close");
+	egi_ebox_settag(mplay_btns[3], "Close");
 	mplay_btns[3]->reaction=egi_pagemplay_exit;
 
-	egi_ebox_settag(mplay_btns[4], "btn_home");
-	egi_ebox_settag(mplay_btns[5], "btn_minimize");
+	egi_ebox_settag(mplay_btns[4], "HOME");
+	egi_ebox_settag(mplay_btns[5], "Mini.");
 
 
 	/* --------- 2. create title bar --------- */
