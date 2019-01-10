@@ -1,2 +1,0 @@
-egi_btn : egi_btn.c egi_color.h egi.h list.h egi_btn.h egi_symbol.h \
- fblines.h egi_debug.h

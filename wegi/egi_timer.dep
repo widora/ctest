@@ -1,2 +1,0 @@
-egi_timer : egi_timer.c egi_timer.h egi_symbol.h fblines.h egi.h list.h \
- dict.h

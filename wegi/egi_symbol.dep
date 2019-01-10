@@ -1,2 +1,0 @@
-egi_symbol : egi_symbol.c egi_symbol.h fblines.h egi.h list.h \
- egi_debug.h egi_timer.h

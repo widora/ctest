@@ -1,2 +1,0 @@
-egi_objbtn : egi_objbtn.c egi.h list.h egi_debug.h egi_btn.h \
- egi_symbol.h fblines.h
