@@ -41,6 +41,7 @@ static int egi_homepage_book(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 static int egi_homepage_test(EGI_EBOX * ebox, enum egi_btn_status btn_status);
 
 
+
 /*------------- [  PAGE ::   Home Page  ] -------------
 create home page
 write tag corresponding to each button.
@@ -77,10 +78,6 @@ EGI_PAGE *egi_create_homepage(void)
 				i--;
 				continue;
 			}
-
-			/* test opaque */
-			data_btns[0]->opaque=2;
-
 
 			/* 2.2 create new btn eboxes */
 			home_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */

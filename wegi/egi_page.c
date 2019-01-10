@@ -215,14 +215,14 @@ int egi_page_activate(EGI_PAGE *page)
 
         else /* use ebox prime color to clear(fill) screen */
         {
-#if 0
 		if( page->ebox->prmcolor >= 0)
 		{
+#if 0
 			fbset_color( page->ebox->prmcolor );
 			draw_filled_rect(&gv_fb_dev,0,0,xres-1,yres-1); /* full screen */
-		}
 #endif
-		clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+			clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+		}
         }
 
 
@@ -275,14 +275,14 @@ int egi_page_refresh(EGI_PAGE *page)
 
 		else /* use ebox prime color to clear(fill) screen */
 		{
-#if 0
 			if( page->ebox->prmcolor >= 0)
 			{
+#if 0
 				fbset_color( page->ebox->prmcolor );
 				draw_filled_rect(&gv_fb_dev,0,0,xres-1,yres-1); /* full screen */
-			}
 #endif
-			clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+				clear_screen(&gv_fb_dev, page->ebox->prmcolor);
+			}
 		}
 
 		/* reset need_refresh */

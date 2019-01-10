@@ -1,0 +1,2 @@
+egi : egi.c egi.h list.h egi_timer.h egi_txt.h egi_debug.h egi_symbol.h \
+ fblines.h

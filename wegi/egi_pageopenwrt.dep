@@ -1,0 +1,3 @@
+egi_pageopenwrt : egi_pageopenwrt.c egi.h list.h egi_color.h egi_txt.h \
+ egi_objtxt.h egi_btn.h egi_symbol.h fblines.h egi_page.h \
+ egi_pageopenwrt.h

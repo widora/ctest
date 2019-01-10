@@ -10,10 +10,11 @@
 #define	DBG_EGI 	(1<<0)
 #define	DBG_TXT		(1<<1)
 #define DBG_BTN		(1<<2)
-#define DBG_PAGE	(1<<3)
-#define DBG_COLOR	(1<<4)
-#define DBG_SYMBOL	(1<<5)
-#define DBG_OBJTXT	(1<<6)
+#define DBG_LIST        (1<<3)
+#define DBG_PAGE	(1<<4)
+#define DBG_COLOR	(1<<5)
+#define DBG_SYMBOL	(1<<6)
+#define DBG_OBJTXT	(1<<7)
 
 #define DBG_TEST	(1<<15)
 

@@ -1,0 +1,4 @@
+tmp_app : tmp_app.c egi_color.h spi.h fblines.h egi.h list.h egi_page.h \
+ egi_txt.h egi_btn.h egi_symbol.h egi_timer.h egi_objtxt.h egi_pagehome.h \
+ xpt2046.h bmpjpg.h include/jpeglib.h include/jconfig.h \
+ include/jmorecfg.h include/jerror.h
