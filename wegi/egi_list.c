@@ -95,6 +95,16 @@ printf("egi_list_new(): malloc txtboxes end...\n");
 	memset(icons,0,inum*sizeof(struct symbol_page));
 printf("egi_list_new(): malloc icons end...\n");
 
+	/* 3. init *icon_code */
+	int *icon_code =malloc(inum*sizeof(int));
+	if( icon_code == NULL )
+	{
+		printf("egi_list_new(): fail to malloc *icon_code.\n");
+		return NULL;
+	}
+	memset(icon_code,0,inum*sizeof(int));
+printf("egi_list_new(): malloc icon_code end...\n");
+
 
 	/* 4. init bkcolor */
 	uint16_t *prmcolor=malloc(inum*sizeof(uint16_t));
@@ -116,7 +126,9 @@ printf("egi_list_new(): malloc prmcolor end...\n");
 	list->iconoffy=iconoffy;
 
 	list->icons=icons;
+	list->icon_code=icon_code;
 	list->prmcolor=prmcolor;
+
 
 	/* 6. create txt_type eboxes  */
 	for(i=0;i<inum;i++)
@@ -220,9 +232,11 @@ int egi_list_free(EGI_LIST *list)
 		free(list->txt_boxes);
 	}
 
-	/* 5. free icon pointers */
+	/* 5. free icon pointers and icon_code */
 	if(list->icons != NULL)
 		free(list->icons);
+	if(list->icon_code != NULL)
+		free(list->icon_code);
 
 	/* 6. free bkcolor */
 	if(list->prmcolor != NULL)
@@ -267,10 +281,20 @@ int egi_list_activate(EGI_LIST *list)
 	/* 3. activate each txt_ebox in the list */
 	for(i=0; i<inum; i++)
 	{
+
+		/* 3.1 activate txt ebox */
 		if( egi_txtbox_activate(list->txt_boxes[i]) < 0)
 		{
 			printf("egi_list_activate(): fail to activate list->txt_boxes[%d].\n",i);
 			return -3;
+		}
+
+		/* 3.2 FB write icon */
+		if(list->icons[i])
+		{
+			symbol_writeFB(&gv_fb_dev, list->icons[i], SYM_NOSUB_COLOR, list->icons[i]->bkcolor,
+ 					list->txt_boxes[i]->x0, list->txt_boxes[i]->y0,
+					list->icon_code[i], 0 );
 		}
 	}
 
@@ -318,11 +342,21 @@ int egi_list_refresh(EGI_LIST *list)
 	/* 4. refresh each txt eboxe */
 	for(i=0; i<inum; i++)
 	{
+
+		/* 4.1 refresh txt */
 		if( egi_txtbox_refresh(list->txt_boxes[i]) < 0 )
 		{
 			printf("egi_list_refresh(): fail to refresh list->txt_boxes[%d].\n",i);
 			return -3;
 		}
+		/* 4.2 FB write icon */
+		if(list->icons[i])
+		{
+			symbol_writeFB(&gv_fb_dev, list->icons[i], SYM_NOSUB_COLOR, list->icons[i]->bkcolor,
+ 					list->txt_boxes[i]->x0, list->txt_boxes[i]->y0,
+					list->icon_code[i], 0 );
+		}
+
 	}
 
 

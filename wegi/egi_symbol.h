@@ -18,7 +18,8 @@ Midas Zhou
 #define TESTFONT_COLOR_FLIP 0 /* 1 use complementary color */
 
 /*for symbol_writeFB(), roll back to start if symbol point reach boundary of FB mem */
-//#define FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
+
+#define no_FB_SYMOUT_ROLLBACK /* also check FB_DOTOUT_ROLLBACK in fblines.h */
 
 #define SYM_NOSUB_COLOR -1 /* no substitute color defined for a symbol or font */
 #define SYM_NOTRANSP_COLOR -1 /* no transparent color defined for a symbol or font */

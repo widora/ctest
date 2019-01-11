@@ -1,5 +1,5 @@
-#ifndef __EGI_PAGEHOME_H__
-#define __EGI_PAGEHOME_H__
+#ifndef __EGI_PAGETEST_H__
+#define __EGI_PAGETEST_H__
 
 #include "egi.h"
 

@@ -236,7 +236,7 @@ void egi_txtbox_demo(void)
 
 /////////////////////// <<<<<    EGI PATTERNS    >>>>> ////////////////////////
 
-/*-----------   EGI_PATTERN :  TITLE BAR  -----------------
+/*-----------   EGI_PATTERN :  TITLE BAR 240x30 -----------------
 Create an txt_ebox  for a title bar.
 standard tag "title_bar"
 

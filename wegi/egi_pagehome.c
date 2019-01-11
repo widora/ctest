@@ -28,6 +28,7 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
+#include "egi_pagetest.h"
 #include "egi_pagehome.h"
 #include "egi_pagemplay.h"
 #include "egi_pageopenwrt.h"

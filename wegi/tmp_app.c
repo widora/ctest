@@ -233,7 +233,7 @@ int main(void)
 
 
 
-#if 1
+#if 0
 	/* ------------------ test list --------------------- */
 	egi_list_test();
 

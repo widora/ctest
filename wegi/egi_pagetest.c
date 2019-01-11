@@ -22,6 +22,7 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_symbol.h"
 #include "egi_pageopenwrt.h"
+#include "egi_objlist.h"
 
 
 static void egi_pagetest_runner(EGI_PAGE *page);
@@ -89,7 +90,9 @@ EGI_PAGE *egi_create_testpage(void)
 	egi_ebox_settag(test_btns[0], "Ebox_TXT Demon");
 	test_btns[0]->reaction=egi_txtbox_demo;
 
-	egi_ebox_settag(test_btns[1], "BTN_1");
+	egi_ebox_settag(test_btns[1], "List Demon");
+	test_btns[1]->reaction=egi_list_test;
+
 	egi_ebox_settag(test_btns[2], "BTN_2");
 	egi_ebox_settag(test_btns[3], "BTN_3");
 

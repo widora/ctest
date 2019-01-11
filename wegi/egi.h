@@ -221,7 +221,6 @@ struct egi_element_box
 	*/
 	int (*decorate)(EGI_EBOX *);
 
-
 	struct list_head node; /* list node to a father ebox */
 
 	/* its container, an EGI_PAGE usually */

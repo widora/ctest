@@ -1,3 +1,6 @@
+#ifndef __EGI_LIST_H__
+#define __EGI_LIST_H__
+
 #include "egi.h"
 
 
@@ -52,6 +55,7 @@ struct egi_list
 	  NULL means no icon
 	*/
 	struct symbol_page **icons;
+	int *icon_code;
 
 	/*  offset of icon from the ebox */
 	int iconoffx;
@@ -93,3 +97,6 @@ int egi_list_free(EGI_LIST *list);
 int egi_list_activate(EGI_LIST *list);
 int egi_list_refresh(EGI_LIST *list);
 int egi_list_updateitem(EGI_LIST *list, int n, uint16_t prmcolor, char **data);
+
+
+#endif
