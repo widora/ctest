@@ -505,6 +505,8 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	 prmcolor=BLACK
 	 */
 
+	egi_pdebug(DBG_EGI,"egi_ebox_new(): end the call. \n");
+
 	return ebox;
 }
 

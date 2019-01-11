@@ -46,6 +46,7 @@ Midas Zhou
 #include "bmpjpg.h"
 //#include "dict.h"
 #include "egi_symbol.h"
+#include "egi_objlist.h"
 
 char mvicon_load[16]={0};
 
@@ -130,6 +131,9 @@ int main(void)
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
+
+
+
 
 
 	/* ---- test image scale,page dispearing effect ---- */
@@ -227,6 +231,14 @@ int main(void)
 	exit(1);
 #endif
 
+
+
+#if 1
+	/* ------------------ test list --------------------- */
+	egi_list_test();
+
+	exit(1);
+#endif
 
 
 	/* ----------- activate pages and its listed eboxes ---------*/

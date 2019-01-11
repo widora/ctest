@@ -15,34 +15,37 @@ struct egi_list
 	/* total number of items in a list */
 	int inum;
 
-	/*
+	/* ----- for all txt ebox --------
 	  in pixel,
 	  width and height for each list item
 	  the height also may be adjusted according to number of txt lines and icon later
 	*/
-	int width;
-	int height;
+//	int width;
+//	int height;
 
-	/*in byte,  length of each txt line */
-	int llen;
+	/* ----- for all txt ebox --------
+	in byte,  length of each txt line */
+//	int llen;
 
 	/* a list of type_txt ebox */
 	EGI_EBOX **txt_boxes;
 
-	/*
+	/* ----- for all txt ebox --------
 	 frame type, to see egi_ebox.c
 	 -1  no frame
 	  0  simple
 	 ....
 	*/
-	int frame;
+//	int frame;
 
-	/* sympg font for the txt ebox */
-	struct symbol_page *font;
+	/* ----- for all txt ebox --------
+	  sympg font for the txt ebox */
+//	struct symbol_page *font;
 
-	/*  offset of txt from the ebox */
-	int txtoffx;
-	int txtoffy;
+	/* ----- for all txt ebox --------
+	  offset of txt from the ebox */
+//	int txtoffx;
+//	int txtoffy;
 
 	/*
 	  sympg icon for each list item
@@ -55,11 +58,11 @@ struct egi_list
 	int iconoffy;
 
 	/*
-	   back color for each list item,
+	   prime_color/back_color for each list item,
 	   or use first bkcolor as default color
 	  init default color in egi_list_new()
 	*/
-	uint16_t *bkcolor;
+	uint16_t *prmcolor;
 
 	/*
 	   color for each txt line in a list item.
@@ -68,21 +71,25 @@ struct egi_list
 	*/
 	//uint16_t (*txtcolor)[LIST_ITEM_MAXLINES];
 
-
 };
 
 
+/* functions for list */
 EGI_LIST *egi_list_new (
         int x0, int y0, /* left top point */
-        int inum,  /* item number of a list */
-        int width, /* h/w for each list item */
+        int inum,       /* item number of a list */
+        int width,      /* h/w for each list item - ebox */
         int height,
-        int frame, /* -1 no frame for ebox, 0 simple .. */
-        int llen, /* in byte, length for each txt line */
+        int frame,      /* -1 no frame for ebox, 0 simple .. */
+        int nl,         /* number of txt lines for each txt ebox */
+        int llen,       /* in byte, length for each txt line */
         struct symbol_page *font, /* txt font */
-        int txtoffx, /* offset of txt from the ebox */
+        int txtoffx,     /* offset of txt from the ebox, all the same */
         int txtoffy,
-        int iconoffx,
+        int iconoffx,   /* offset of icon from the ebox, all the same */
         int iconoffy
 );
-
+int egi_list_free(EGI_LIST *list);
+int egi_list_activate(EGI_LIST *list);
+int egi_list_refresh(EGI_LIST *list);
+int egi_list_updateitem(EGI_LIST *list, int n, uint16_t prmcolor, char **data);

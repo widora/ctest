@@ -194,7 +194,7 @@ EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt,
 		printf("egi_init_data_txt(): data_txt is NULL!\n");
 		return NULL;
 	}
-	if(data_txt->txt !=NULL) /* if data_txt defined statically, txt may NOT be NULL !!! */
+	if(data_txt->txt != NULL) /* if data_txt defined statically, txt may NOT be NULL !!! */
 	{
 		printf("egi_init_data_txt(): ---WARNING!!!--- data_txt->txt is NOT NULL!\n");
 		return NULL;
@@ -522,10 +522,14 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* ---- 10. refresh TXT, write txt line to FB */
 	egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
 	for(i=0;i<nl;i++)
+	{
+		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
 						 y0+offy+font_height*i, txt[i]);
+
+	}
 
 	/* ---- 4. reset need_refresh */
 	ebox->need_refresh=false;
