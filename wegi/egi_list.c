@@ -74,7 +74,18 @@ EGI_LIST *egi_list_new (
 	memset(list,0,sizeof(EGI_LIST));
 printf("egi_list_new(): malloc list end...\n");
 
-	/* 2. init **txtbox  */
+	/* 2.1 malloc data_txt */
+	EGI_DATA_TXT **data_txt=malloc(inum*sizeof(EGI_DATA_TXT *));
+	if( data_txt == NULL )
+	{
+		printf("egi_list_new(): fail to malloc  **data_txt.\n");
+		return NULL;
+	}
+	memset(data_txt,0,inum*sizeof(EGI_DATA_TXT *));
+printf("egi_list_new(): malloc **data_txt end...\n");
+
+
+	/* 2.2 malloc **txtbox  */
 	EGI_EBOX **txt_boxes=malloc(inum*sizeof(EGI_EBOX *));
 	if( txt_boxes == NULL )
 	{
@@ -92,7 +103,7 @@ printf("egi_list_new(): malloc txtboxes end...\n");
 		printf("egi_list_new(): fail to malloc a symbol_page **icon.\n");
 		return NULL;
 	}
-	memset(icons,0,inum*sizeof(struct symbol_page));
+	memset(icons,0,inum*sizeof(struct symbol_page *));
 printf("egi_list_new(): malloc icons end...\n");
 
 	/* 3. init *icon_code */
@@ -111,7 +122,7 @@ printf("egi_list_new(): malloc icon_code end...\n");
 	/* init prmcolor with default bkcolor */
 	memset(prmcolor,0,inum*sizeof(uint16_t));
 	for(i=0;i<inum;i++)
-		prmcolor[i]=WEGI_COLOR_GRAY;
+		prmcolor[i]=LIST_DEFAULT_BKCOLOR;
 printf("egi_list_new(): malloc prmcolor end...\n");
 
 
@@ -135,14 +146,14 @@ printf("egi_list_new(): malloc prmcolor end...\n");
 	{
 		/* 6.1  create a data_txt */
 		egi_pdebug(DBG_LIST,"egi_list_new(): start to egi_txtdata_new()...\n");
-		EGI_DATA_TXT *data_txt=egi_txtdata_new(
+		data_txt[i]=egi_txtdata_new(
 				txtoffx,txtoffy, /* offset X,Y */
       	 		 	nl, /*int nl, lines  */
        	 			llen, /*int llen, chars per line, however also limited by width */
         			font, /*struct symbol_page *font */
         			WEGI_COLOR_BLACK /* int16_t color */
 			     );
-		if(data_txt == NULL) /* if fail retry...*/
+		if(data_txt[i] == NULL) /* if fail retry...*/
 		{
 			printf("egi_list_new(): data_txt=egi_txtdata_new()=NULL,  retry... \n");
 			i--;
@@ -155,7 +166,7 @@ printf("egi_list_new(): %d_th data_txt=egi_txtdata_new() end...\n",i);
 	        egi_pdebug(DBG_LIST,"egi_list_new(): start egi_list_new().....\n");
        		(list->txt_boxes)[i] = egi_txtbox_new(
                 			"----", /* tag, or put later */
-		                	data_txt, /* EGI_DATA_TXT pointer */
+		                	data_txt[i], /* EGI_DATA_TXT pointer */
                				true, /* bool movable */
 			                x0, y0+i*height, /* int x0, int y0 */
                 			width, height, /* int width;  int height,which also related with symheight and offy */
@@ -167,7 +178,7 @@ printf("egi_list_new(): txt_boxes[%d]=egi_txtbox_new() end before test NULL ...\
 		if( (list->txt_boxes)[i] == NULL )
 		{
 			printf("egi_list_new(): txt_eboxes[%d]=NULL,  retry... \n",i);
-			free(data_txt);
+			free(data_txt[i]);
 			i--;
 			continue;
 		}
@@ -179,6 +190,9 @@ printf("egi_list_new(): txt_boxes[%d]=egi_txtbox_new() end...\n",i);
 printf("egi_list_new(): txt_boxes[%d] set_tag  end...\n",i);
 
 	}
+
+	/* free data_txt */
+	free(data_txt);
 
 	return list;
 }
@@ -243,7 +257,8 @@ int egi_list_free(EGI_LIST *list)
 		free(list->prmcolor);
 
 	/* 7. finally, free the list */
-	free(list);
+	if(list !=NULL)
+		free(list);
 
 	return ret;
 }

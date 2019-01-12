@@ -8,13 +8,13 @@
 
 
 
-
 int egi_list_test(EGI_EBOX *ebox, enum egi_btn_status status)
 {
 	int i,j;
 	int inum=5;
 	int nl=2;
 
+	printf("egi_list_test(): egi_list_new()... \n");
 	/* 1. create a list */
 	EGI_LIST *list=egi_list_new (
         	0,30,  	//int x0, int y0, /* left top point */
@@ -73,10 +73,12 @@ printf("egi_list_test(): finish egi_list_new(). \n");
 	egi_list_activate(list);
 	printf("egi_list_test(): finish egi_list_activate(). \n");
 
-	tm_delayms(3000);
+	tm_delayms(200);
 
+	printf("egi_list_test(): start egi_list_free(list)... \n");
 	egi_list_free(list);
-
+	printf("egi_list_test(): start free(pdata)... \n");
+	free(pdata);
 
 	return 0;
 }

@@ -233,10 +233,18 @@ int main(void)
 
 
 
-#if 0
+#if 1
 	/* ------------------ test list --------------------- */
-	egi_list_test();
-
+	EGI_EBOX *ebox;
+	enum egi_btn_status status;
+	while(1)
+	{
+		egi_list_test(ebox, status);
+		
+		clear_screen(&gv_fb_dev,0);
+		tm_delayms(300);
+//		show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
+	}
 	exit(1);
 #endif
 
