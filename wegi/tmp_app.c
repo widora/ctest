@@ -240,9 +240,9 @@ int main(void)
 	while(1)
 	{
 		egi_list_test(ebox, status);
-		
-		clear_screen(&gv_fb_dev,0);
-		tm_delayms(300);
+		//tm_delayms(100);
+		//clear_screen(&gv_fb_dev,0);
+		//tm_delayms(50);
 //		show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 	}
 	exit(1);

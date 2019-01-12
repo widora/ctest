@@ -264,6 +264,39 @@ struct egi_data_btn
 	bool showtag; /* to show tag on button or not, default 0, */
 };
 
+/* egi data for a list type ebox */
+typedef struct egi_data_list EGI_DATA_LIST;
+struct egi_data_list
+{
+
+        /* total number of items in a list */
+        int inum;
+
+        /* a list of type_txt ebox
+	  each one is for one item of the list
+	*/
+        EGI_EBOX **txt_boxes;
+
+	/*
+          sympg icon for each list item
+          NULL means no icon
+        */
+        struct symbol_page **icons;
+        int *icon_code;
+
+        /* ----- for all icons -------
+	offset of icon from each item ebox */
+        int iconoffx;
+        int iconoffy;
+
+
+        /*
+           color for each txt line in a list item.
+	  to be decided on egi_data_txt .....
+	*/
+};
+
+
 
 /* egi data for a picture type ebox */
 struct egi_data_chart

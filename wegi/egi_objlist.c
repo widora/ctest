@@ -13,6 +13,7 @@ int egi_list_test(EGI_EBOX *ebox, enum egi_btn_status status)
 	int i,j;
 	int inum=5;
 	int nl=2;
+	static int count=0; /* test counter */
 
 	printf("egi_list_test(): egi_list_new()... \n");
 	/* 1. create a list */
@@ -45,12 +46,18 @@ printf("egi_list_test(): finish egi_list_new(). \n");
 		{"Widora-BIT     48433","mt7688AN"},
 		{"Widora-Ting    496049999","SX1278"}
 	};
+
+	/* test counter */
+	sprintf(&data[0][1][0],"count: %d", count++);
+
 	char **pdata;
 	pdata=malloc(2*sizeof(char *));
 
 	// 0xCFF9,0xFE73,0x07FF,0xFE73,0xFE7F
 //	uint16_t color[]= {0xDEFB, 0xFE73, 0x07FF, 0xFE73, 0xFE7F};
 	uint16_t color[]= {0x67F9, 0xFFE6, 0x0679, 0xFE79, 0x9E6C};
+
+
 
 	for(i=0; i<inum; i++)
 	{
@@ -60,6 +67,8 @@ printf("egi_list_test(): finish egi_list_new(). \n");
 			pdata[j]=&data[i][j][0];
 			printf("pdata[%d]: %s \n",j,pdata[j]);
 		}
+
+
 
 		/* set icon */
 		list->icons[i]=&sympg_icons;
@@ -73,7 +82,7 @@ printf("egi_list_test(): finish egi_list_new(). \n");
 	egi_list_activate(list);
 	printf("egi_list_test(): finish egi_list_activate(). \n");
 
-	tm_delayms(200);
+	tm_delayms(10);
 
 	printf("egi_list_test(): start egi_list_free(list)... \n");
 	egi_list_free(list);

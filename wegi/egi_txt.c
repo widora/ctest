@@ -34,7 +34,7 @@ Dynamically create txt_data struct
 
 return:
 	poiter 		OK
-YY	NULL		fail
+Y	NULL		fail
 -----------------------------------------------------------------------------*/
 EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	int nl,
@@ -140,7 +140,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox=egi_ebox_new(type_txt);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
 	if(ebox==NULL)
 	{
-		printf("egi_txtbox_new(): fail to execute egi_ebox_new(type_btn). \n");
+		printf("egi_txtbox_new(): fail to execute egi_ebox_new(type_txt). \n");
 		return NULL;
 	}
 
@@ -785,10 +785,13 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 ---------------------------------------------------*/
 void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 {
+	if(data_txt == NULL)
+		return;
+
 	int i;
 	int nl=data_txt->nl;
 
-	if(data_txt != NULL && data_txt->txt != NULL)
+	if( data_txt->txt != NULL)
 	{
 		for(i=0;i<nl;i++)
 		{
