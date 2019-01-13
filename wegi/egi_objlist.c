@@ -8,16 +8,21 @@
 
 
 
-int egi_list_test(EGI_EBOX *ebox, enum egi_btn_status status)
+/*----------------------------------------------------------------
+
+int reaction(EGI_EBOX *ebox, enum egi_touch_status status)
+
+----------------------------------------------------------------*/
+int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 {
 	int i,j;
 	int inum=5;
 	int nl=2;
 	static int count=0; /* test counter */
 
-	printf("egi_list_test(): egi_list_new()... \n");
-	/* 1. create a list */
-	EGI_LIST *list=egi_list_new (
+	printf("egi_listbox_test(): egi_list_new()... \n");
+	/* 1. create a list ebox */
+	EGI_EBOX *list=egi_listbox_new (
         	0,30,  	//int x0, int y0, /* left top point */
 	        inum,	//int inum,       /* item number of a list */
 	       	240,	//int width,      /* h/w for each list item - ebox */
@@ -31,10 +36,10 @@ int egi_list_test(EGI_EBOX *ebox, enum egi_btn_status status)
 	        0,	//int iconoffx,   /* offset of icon from the ebox, all the same */
 	        0	//int iconoffy
 	);
-printf("egi_list_test(): finish egi_list_new(). \n");
+	EGI_DATA_LIST *data_list=(EGI_DATA_LIST *)(list->egi_data);
+printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 
 	/* 2. icons to be loaded later */
-
 
 
 	/* 3. update item */
@@ -71,22 +76,22 @@ printf("egi_list_test(): finish egi_list_new(). \n");
 
 
 		/* set icon */
-		list->icons[i]=&sympg_icons;
-		list->icon_code[i]=31;
+		data_list->icons[i]=&sympg_icons;
+		data_list->icon_code[i]=31;
 
 		/* update items */
-		egi_list_updateitem(list, i, color[i], pdata);
+		egi_listbox_updateitem(list, i, color[i], pdata);
 	}
 
 	/* 4. activate the list	*/
-	egi_list_activate(list);
-	printf("egi_list_test(): finish egi_list_activate(). \n");
+	egi_listbox_activate(list);
+	printf("egi_listbox_test(): finish egi_list_activate(). \n");
 
-	tm_delayms(10);
+	//tm_delayms(10);
 
-	printf("egi_list_test(): start egi_list_free(list)... \n");
-	egi_list_free(list);
-	printf("egi_list_test(): start free(pdata)... \n");
+	printf("egi_listbox_test(): start list->free(list)... \n");
+	list->free(list);
+	printf("egi_listbox_test(): start free(pdata)... \n");
 	free(pdata);
 
 	return 0;

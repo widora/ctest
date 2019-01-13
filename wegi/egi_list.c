@@ -51,7 +51,7 @@ return:
 EGI_EBOX *egi_listbox_new (
 	int x0, int y0, /* left top point */
         int inum,  	/* item number of a list */
-        int width, 	/* h/w for each list item - ebox */
+        int width, 	/* H/W for each list item ebox, W/H of the hosting ebox depends on it */
         int height,
 	int frame, 	/* -1 no frame for ebox, 0 simple .. */
 	int nl,		/* number of txt lines for each txt ebox */
@@ -97,7 +97,8 @@ EGI_EBOX *egi_listbox_new (
 	/* to assign ebox->egi_data latter ......*/
 
 
-	/* 5 malloc data_txt for list item eboxes */
+	/* 5 malloc data_txt for list item eboxes,
+	   Temprary this function only, to be released   */
 	EGI_DATA_TXT **data_txt=malloc(inum*sizeof(EGI_DATA_TXT *));
 	if( data_txt == NULL )
 	{
@@ -138,7 +139,8 @@ printf("egi_listbox_new(): malloc icons end...\n");
 printf("egi_listbox_new(): malloc icon_code end...\n");
 
 
-	/* 9. init bkcolor */
+	/* 9. init bkcolor
+	   Temprary this function only, to be released   */
 	uint16_t *prmcolor=malloc(inum*sizeof(uint16_t));
 	/* init prmcolor with default bkcolor */
 	memset(prmcolor,0,inum*sizeof(uint16_t));
@@ -246,6 +248,8 @@ void egi_free_data_list(EGI_DATA_LIST *data_list)
 		if( data_list->txt_boxes[i] != NULL )
 			(data_list->txt_boxes[i])->free(data_list->txt_boxes[i]);
 	}
+	/* free **txt_boxes */
+	free(data_list->txt_boxes);
 
 	/* free icons and icon_code */
 	if(data_list->icons != NULL)

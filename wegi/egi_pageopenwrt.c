@@ -25,7 +25,7 @@ Midas Zhou
 
 
 
-static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -147,7 +147,7 @@ static void egi_pageop_runner(EGI_PAGE *page)
 btn_close function:
 return
 -----------------------------------*/
-static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+static int egi_pageopen_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 {
         return -1;
 }

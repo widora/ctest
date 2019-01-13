@@ -7,6 +7,7 @@
 //#define EGI_DEBUG
 
 /* debug flags */
+#define DBG_NONE	(0<<0)
 #define	DBG_EGI 	(1<<0)
 #define	DBG_TXT		(1<<1)
 #define DBG_BTN		(1<<2)
@@ -16,11 +17,11 @@
 #define DBG_SYMBOL	(1<<6)
 #define DBG_OBJTXT	(1<<7)
 
+
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_SYMBOL|DBG_COLOR|DBG_LIST)  //  (DBG_PAGE | DBG_PAGE)  //(DBG_EGI | DBG_TXT | DBG_BTN | DBG_PAGE)
-
+#define DEFAULT_DBG_FLAGS   (DBG_NONE)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)  
 
 #ifdef EGI_DEBUG
 

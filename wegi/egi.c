@@ -32,6 +32,8 @@ Midas Zhou
 #include "egi.h"
 #include "egi_timer.h"
 #include "egi_txt.h"
+#include "egi_btn.h"
+#include "egi_list.h"
 #include "egi_debug.h"
 #include "list.h"
 #include "egi_symbol.h"
@@ -282,7 +284,7 @@ reutrn:
 ------------------------------------------------------*/
 int egi_ebox_refresh(EGI_EBOX *ebox)
 {
-	int ret;
+//	int ret;
 
 	/* 1. put default methods here ...*/
 	if(ebox->method.refresh == NULL)

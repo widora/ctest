@@ -13,7 +13,7 @@
 EGI_EBOX *egi_listbox_new (
         int x0, int y0, /* left top point */
         int inum,       /* item number of a list */
-        int width,      /* h/w for each list item - ebox */
+        int width,      /* H/W for each list item ebox, the hosting_ebox's H/W depends on it */
         int height,
         int frame,      /* -1 no frame for ebox, 0 simple .. */
         int nl,         /* number of txt lines for each txt ebox */

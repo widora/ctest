@@ -412,7 +412,7 @@ int egi_page_routine(EGI_PAGE *page)
 	int i,j;
 	int ret;
 	uint16_t sx,sy;
-	enum egi_btn_status last_status=released_hold;
+	enum egi_touch_status last_status=released_hold;
 
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
@@ -438,7 +438,7 @@ int egi_page_routine(EGI_PAGE *page)
 	{
 		if( page->runner[i] !=0 )
 		{
-			if( pthread_create(&page->threadID[i],NULL,page->runner[i],(void *)page)==0)
+			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
 				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",

@@ -233,13 +233,13 @@ int main(void)
 
 
 
-#if 1
+#if 0
 	/* ------------------ test list --------------------- */
 	EGI_EBOX *ebox;
-	enum egi_btn_status status;
+	enum egi_touch_status status;
 	while(1)
 	{
-		egi_list_test(ebox, status);
+		egi_listbox_test(ebox, status);
 		//tm_delayms(100);
 		//clear_screen(&gv_fb_dev,0);
 		//tm_delayms(50);

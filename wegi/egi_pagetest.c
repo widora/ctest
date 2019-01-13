@@ -26,7 +26,7 @@ Midas Zhou
 
 
 static void egi_pagetest_runner(EGI_PAGE *page);
-static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status);
+static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -91,7 +91,7 @@ EGI_PAGE *egi_create_testpage(void)
 	test_btns[0]->reaction=egi_txtbox_demo;
 
 	egi_ebox_settag(test_btns[1], "List Demon");
-	test_btns[1]->reaction=egi_list_test;
+	test_btns[1]->reaction=egi_listbox_test;
 
 	egi_ebox_settag(test_btns[2], "BTN_2");
 	egi_ebox_settag(test_btns[3], "BTN_3");
@@ -148,7 +148,7 @@ static void egi_pagetest_runner(EGI_PAGE *page)
 btn_close function:
 return
 -----------------------------------*/
-static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_btn_status btn_status)
+static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 {
         return -1;
 }

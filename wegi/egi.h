@@ -65,7 +65,7 @@ enum egi_btn_type
 };
 
 /* button status */
-enum egi_btn_status
+enum egi_touch_status
 {
 	unkown=-1,  /* during reading or fails */
 	releasing=0,   /* status transforming from pressed_hold to released_hold */
@@ -195,14 +195,19 @@ struct egi_element_box
 		3. read txt file into egi_data_txt.txt if it applys, file offset of egi_data_txt.foff
 		   will be applied and updated.
 		4. redraw the ebox and txt content according to updated data.
+
+		5. each type of ebox may have its own refresh method?  type_list ebox, 
 	*/
 	int (*refresh)(EGI_EBOX *);
+
+
 
 	/* --- sleep:
 	   1. Remove the ebox from the screen and restore the bkimg.
 	   2. and set status as sleep.
 	   3. if an immovale ebox sleeps, it should not dispear ??!!!
 	   4. sleeping ebox will not react to touching.
+
 	*/
 	int (*sleep)(EGI_EBOX *);
 
@@ -214,7 +219,7 @@ struct egi_element_box
 	/* --- reaction to touch pattern
 
 	*/
-	int (*reaction)(EGI_EBOX *, enum egi_btn_status);
+	int (*reaction)(EGI_EBOX *, enum egi_touch_status);
 
 	/* --- decorate:
 	    additional drawing/imgs decoration function for the ebox
@@ -260,7 +265,7 @@ struct egi_data_btn
 	int icon_code; /* code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
 	int opaque; /* opaque value for the icon, default 0, totally not transparent */
-	enum egi_btn_status status; /* button status, pressed or released */
+	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag; /* to show tag on button or not, default 0, */
 };
 
