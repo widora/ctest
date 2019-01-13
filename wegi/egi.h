@@ -200,8 +200,6 @@ struct egi_element_box
 	*/
 	int (*refresh)(EGI_EBOX *);
 
-
-
 	/* --- sleep:
 	   1. Remove the ebox from the screen and restore the bkimg.
 	   2. and set status as sleep.
@@ -231,7 +229,8 @@ struct egi_element_box
 	/* its container, an EGI_PAGE usually */
 	EGI_PAGE *container;
 
-	//EGI_EBOX *child;
+	/* the father ebox */
+	EGI_EBOX *father;
 };
 
 
@@ -239,7 +238,7 @@ struct egi_element_box
 typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
-	unsigned int id; /* unique id number for txt, MUST=0, default 0 for ignored  */
+	unsigned int id; /* unique id number for txt, MUST>0, default 0 for ignored  */
 	int offx; /* offset from ebox x0,y0 */
 	int offy;
 	int nl;  /* number of txt lines, make it as big as possible?? */
@@ -273,7 +272,6 @@ struct egi_data_btn
 typedef struct egi_data_list EGI_DATA_LIST;
 struct egi_data_list
 {
-
         /* total number of items in a list */
         int inum;
 
@@ -293,7 +291,6 @@ struct egi_data_list
 	offset of icon from each item ebox */
         int iconoffx;
         int iconoffy;
-
 
         /*
            color for each txt line in a list item.

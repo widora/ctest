@@ -16,6 +16,8 @@ Midas Zhou
 #include "bmpjpg.h"
 
 
+//static int egi_txtbox_decorate(EGI_EBOX *ebox);
+
 /*-------------------------------------
       txt ebox self_defined methods
 --------------------------------------*/
@@ -23,7 +25,7 @@ static EGI_METHOD txtbox_method=
 {
         .activate=egi_txtbox_activate,
         .refresh=egi_txtbox_refresh,
-        .decorate=egi_txtbox_decorate,
+        .decorate=NULL, /* define in object source file if necessary.  egi_txtbox_decorate,*/
         .sleep=egi_txtbox_sleep,
         .free=NULL, //egi_ebox_free,
 };
@@ -532,6 +534,10 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
 	}
 
+	/* ---- 11. run decorate if necessary */
+	if(ebox->decorate !=  NULL)
+		ebox->decorate(ebox);
+
 	/* ---- 4. reset need_refresh */
 	ebox->need_refresh=false;
 
@@ -810,12 +816,12 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 
 }
 
-
+#if 0
 /*--------------------------------------------------
 txtbox decorationg function
 
 ---------------------------------------------------*/
-int egi_txtbox_decorate(EGI_EBOX *ebox)
+static int egi_txtbox_decorate(EGI_EBOX *ebox)
 {
 	int ret=0;
 
@@ -825,6 +831,7 @@ int egi_txtbox_decorate(EGI_EBOX *ebox)
 	return ret;
 }
 
+#endif
 
 
 /*------------------------------------------------

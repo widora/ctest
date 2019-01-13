@@ -35,7 +35,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,/* create new txt ebox */
 
 int egi_txtbox_activate(EGI_EBOX *ebox);
 int egi_txtbox_refresh(EGI_EBOX *ebox);
-int egi_txtbox_decorate(EGI_EBOX *ebox);
+//static int egi_txtbox_decorate(EGI_EBOX *ebox);
 int egi_txtbox_sleep(EGI_EBOX *ebox);
 int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
 void egi_txtbox_settitle(EGI_EBOX *ebox, char *title);

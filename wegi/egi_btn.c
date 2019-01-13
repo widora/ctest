@@ -455,7 +455,13 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   
 
    }/* endif: data_btn->font != NULL */
 
-	/* 9. finally, reset need_refresh */
+
+	/* 9. decorate functoins
+	*/
+	if(ebox->decorate)
+		ebox->decorate(ebox);
+
+	/* 10. finally, reset need_refresh */
 	ebox->need_refresh=false;
 
 	return 0;

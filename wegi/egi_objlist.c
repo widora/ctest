@@ -7,11 +7,8 @@
 #include "egi_color.h"
 
 
-
 /*----------------------------------------------------------------
-
 int reaction(EGI_EBOX *ebox, enum egi_touch_status status)
-
 ----------------------------------------------------------------*/
 int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 {
@@ -56,24 +53,20 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	sprintf(&data[0][1][0],"count: %d", count++);
 
 	char **pdata;
-	pdata=malloc(2*sizeof(char *));
+	pdata=malloc(nl*sizeof(char *)); //nl=2;
 
 	// 0xCFF9,0xFE73,0x07FF,0xFE73,0xFE7F
 //	uint16_t color[]= {0xDEFB, 0xFE73, 0x07FF, 0xFE73, 0xFE7F};
 	uint16_t color[]= {0x67F9, 0xFFE6, 0x0679, 0xFE79, 0x9E6C};
 
-
-
 	for(i=0; i<inum; i++)
 	{
 		/* set data */
-		for(j=0;j<nl;j++)
+		for(j=0;j<nl;j++) //nl=2
 		{
 			pdata[j]=&data[i][j][0];
 			printf("pdata[%d]: %s \n",j,pdata[j]);
 		}
-
-
 
 		/* set icon */
 		data_list->icons[i]=&sympg_icons;
@@ -87,7 +80,23 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	egi_listbox_activate(list);
 	printf("egi_listbox_test(): finish egi_list_activate(). \n");
 
-	//tm_delayms(10);
+	/* 5. loop refresh */
+	i=0;
+	pdata[0]="Hello! NEO world!";
+
+	while(1)
+	{
+		/* update item 0  */
+		sprintf(pdata[1],"count: %d", i++);
+		egi_listbox_updateitem(list, 0, -1, pdata); /* -1, keep old color */
+		/* update item 3 */
+		sprintf(pdata[1],"count: %d", i++);
+		egi_listbox_updateitem(list, 3, -1, pdata); /* -1, keep old color */
+
+		egi_listbox_refresh(list);
+		tm_delayms(55);
+	}
+
 
 	printf("egi_listbox_test(): start list->free(list)... \n");
 	list->free(list);

@@ -22,6 +22,9 @@ Midas Zhou
 #include "egi_list.h"
 
 
+/* decoration function */
+static int egi_itembox_decorate(EGI_EBOX *ebox);
+
 
 /*-------------------------------------
       list ebox self_defined methods
@@ -37,7 +40,7 @@ static EGI_METHOD listbox_method=
 
 
 
-/*-------------------------------------------------
+/*------------------------------------------------------
 Create an list ebox.
 standard tag "list"
 
@@ -47,7 +50,7 @@ default font color: 	WEGI_COLOR_BLACK
 return:
 	txt ebox pointer 	OK
 	NULL			fai.
------------------------------------------------------*/
+-------------------------------------------------------*/
 EGI_EBOX *egi_listbox_new (
 	int x0, int y0, /* left top point */
         int inum,  	/* item number of a list */
@@ -93,6 +96,8 @@ EGI_EBOX *egi_listbox_new (
 	ebox->height=height*inum;
         ebox->frame=-1; /* no frame, let item ebox prevail */
 	ebox->prmcolor=-1; /* no prmcolor, let item ebox prevail */
+	ebox->need_refresh=true; /* the hosting_ebox need not to be refreshed,
+	the token should always be true */
 
 	/* to assign ebox->egi_data latter ......*/
 
@@ -168,7 +173,6 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 	data_list->iconoffy=iconoffy;
 
 
-
 	/* 12. create txt_type eboxes for item txt_ebox->egi_data  */
 	for(i=0;i<inum;i++)
 	{
@@ -189,8 +193,7 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 		}
 printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
 
-
-		/* 12.2 creates all those txt eboxes */
+		/* 12.2  creates all those txt eboxes */
 	        egi_pdebug(DBG_LIST,"egi_listbox_new(): start egi_txtbox_new().....\n");
        		(data_list->txt_boxes)[i] = egi_txtbox_new(
                 			"----", /* tag, or put later */
@@ -201,7 +204,6 @@ printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
                 			frame, /* int frame, 0=simple frmae, -1=no frame */
                 			prmcolor[i] /*int prmcolor*/
   		    		  );
-
 		if( (data_list->txt_boxes)[i] == NULL )
 		{
 			printf("egi_listbox_new(): data_list->txt_eboxes[%d]=NULL,  retry... \n",i);
@@ -211,8 +213,16 @@ printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
 		}
 printf("egi_listbox_new(): data_list->txt_boxes[%d]=egi_txtbox_new() end...\n",i);
 
+		/* 12.3 set father or hosting ebox */
+		data_list->txt_boxes[i]->father = ebox;
 
-		/* 12.3 set-tag */
+		/* 12.4  set decorate functions for draw icons for each item txt_ebox */
+		data_list->txt_boxes[i]->decorate=egi_itembox_decorate;
+
+		/* 12.5  set id for data_txt */
+		( (EGI_DATA_TXT *)(data_list->txt_boxes[i]->egi_data) )->id = i+1; /* id start from 1 */
+
+		/* 12.6 set-tag */
 		sprintf(data_list->txt_boxes[i]->tag,"item_%d",i);
 printf("egi_list_new(): data_list->txt_boxes[%d] set_tag  end...\n",i);
 
@@ -325,16 +335,19 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 }
 
 
-/*---------------------------------------------------------
+/*---------------------------------------------------------------
 to refresh a list ebox:
-0. TODO: update/push data to fill list
-1. refresh each txt ebox in the data_list.
-2. update and draw icon for each item.
+
+1. TODO: update/push data to fill list
+2. the hosting_ebox need not to be refreshed, so its need_refresh
+   token should always be true.
+3. refresh each txt ebox in the data_list.
+4. update and draw icon for each item.
 
 Retrun:
 	0	OK
 	<0	fail
-----------------------------------------------------------*/
+-----------------------------------------------------------------*/
 int egi_listbox_refresh(EGI_EBOX *ebox)
 {
 	int  i;
@@ -367,7 +380,7 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
         if(data_list->txt_boxes==NULL)
         {
                 printf("egi_listbox_refresh(): input data_list->txt_boxes is NULL! fail to refresh.");
-                return -3;
+                return -4;
         }
 
 	/* 3. update and push data to the list */
@@ -376,13 +389,14 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 	/* 4. refresh each txt eboxe */
 	for(i=0; i<inum; i++)
 	{
-
 		/* 4.1 refresh txt */
 		if( egi_txtbox_refresh(data_list->txt_boxes[i]) < 0 )
 		{
 			printf("egi_listbox_refresh(): fail to refresh data_list->txt_boxes[%d].\n",i);
-			return -4;
+			return -5;
 		}
+
+#if 0 /* already put in txt_boxes[i]->decorate() */
 		/* 4.2 FB write icon */
 		if(data_list->icons[i])
 		{
@@ -390,6 +404,7 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
  					data_list->txt_boxes[i]->x0, data_list->txt_boxes[i]->y0,
 					data_list->icon_code[i], 0 );
 		}
+#endif
 
 	}
 
@@ -406,12 +421,14 @@ n:		number of the list's item considered
 txt:		txt to push to:
 		data_list->txt_boxes[i]->egi_data->txt
 prmcolor:	prime color for item ebox
+		<0;  do not update
+		>=0:  uint16_t color
 
 Retrun:
 	0	OK
 	<0	fail
 -------------------------------------------------------------------------*/
-int egi_listbox_updateitem(EGI_EBOX *ebox, int n, uint16_t prmcolor, char **txt)
+int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
 {
 	int i;
 	int inum;
@@ -470,15 +487,17 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, uint16_t prmcolor, char **txt)
         }
 
 	/* 6. check data txt */
-	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(data_list->txt_boxes[n]->egi_data);
+	EGI_EBOX *item_txtbox=data_list->txt_boxes[n];
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(item_txtbox->egi_data);
 	if(data_txt == NULL)
 	{
                 printf("egi_listbox_updateitem(): input data_list->txt_boxes->data_txt is NULL! fail to update item.");
                 return -6;
 	}
 
-	/* 7. update prmcolor of the item ebox */
-	data_list->txt_boxes[n]->prmcolor=prmcolor;
+	/* 7. update prmcolor of the item ebox, only if >=0  */
+	if(prmcolor>=0)
+		data_list->txt_boxes[n]->prmcolor=prmcolor;
 
 	/* 8. push txt into data_txt->txt */
 	for(i=0; i<(data_txt->nl); i++)
@@ -488,6 +507,37 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, uint16_t prmcolor, char **txt)
 										n,i,data_txt->txt[i]);
 	}
 
+
+	/* 9. set need_refresh flag */
+	item_txtbox->need_refresh=true;
+
 	return 0;
 
+}
+
+/*---------------------------------------------
+decoration:
+draw icon in the item txt_ebox
+
+----------------------------------------------*/
+static int egi_itembox_decorate(EGI_EBOX *ebox)
+{
+	/* 1. suppose that ebox has already been checked and verified by the caller egi_listbox_refresh() */
+
+	/* 2. get EGI_DATA_LIST */
+	EGI_EBOX *father=ebox->father;
+	EGI_DATA_LIST *data_list=(EGI_DATA_LIST *)(father->egi_data);
+
+	/* 3. draw icons for each item txt_ebox */
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
+	int id=data_txt->id;
+	if( data_list->icons[id-1] ) /* data_txt->id starts from 1, icons index from 0  */
+	{
+		symbol_writeFB(&gv_fb_dev, data_list->icons[id-1], SYM_NOSUB_COLOR,
+				data_list->icons[id-1]->bkcolor,
+				data_list->txt_boxes[id-1]->x0, data_list->txt_boxes[id-1]->y0,
+				data_list->icon_code[id-1], 0 );
+	}
+
+	return 0;
 }

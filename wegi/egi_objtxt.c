@@ -9,6 +9,7 @@ Midas Zhou
 #include <signal.h>
 #include <string.h>
 #include <time.h>
+#include "bmpjpg.h"
 #include "egi_color.h"
 #include "egi.h"
 #include "egi_txt.h"
@@ -18,6 +19,8 @@ Midas Zhou
 //#include "egi_timer.h"
 #include "egi_symbol.h"
 
+
+static int egi_txtbox_decorate(EGI_EBOX *ebox);
 
 
 /* ---------------------------  ebox memo --------------------------------*/
@@ -30,7 +33,6 @@ return:
 --------------------------------------------*/
 EGI_EBOX *create_ebox_memo(void)
 {
-
 	/* 1. create memo_txt */
 	EGI_DATA_TXT *memo_txt=egi_txtdata_new(
 		5,5, /* offset X,Y */
@@ -46,7 +48,6 @@ EGI_EBOX *create_ebox_memo(void)
 	/* 3. create memo ebox */
 	EGI_EBOX  *ebox_memo= egi_txtbox_new(
 		"memo stick", /* tag */
-//		type_txt, /*enum egi_ebox_type type */
         	memo_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	12,0, /* int x0, int y0 */
@@ -84,7 +85,6 @@ EGI_EBOX *create_ebox_clock(void)
 	/* 2. create memo ebox */
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"timer txt", /* tag */
-//		type_txt, /*enum egi_ebox_type type */
         	clock_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	60,5, /* int x0, int y0 */
@@ -113,7 +113,6 @@ EGI_EBOX *create_ebox_note(void)
 	/* 2. create memo ebox */
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		"note pad", /* tag */
-//		type_txt, /*enum egi_ebox_type type */
         	note_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
        	 	5,80, /* int x0, int y0 */
@@ -201,6 +200,8 @@ void egi_txtbox_demo(void)
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
 			return;
 	      }
+	      /* put decorate */
+	      txtebox[i]->decorate=egi_txtbox_decorate;
 
 	      egi_pdebug(DBG_OBJTXT,"egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
 	      ret=txtebox[i]->activate(txtebox[i]);
@@ -302,3 +303,20 @@ EGI_EBOX *create_ebox_titlebar(
 
 	return ebox_title;
 }
+
+
+/*--------------------------------------------------
+txtbox decorationg function
+
+---------------------------------------------------*/
+static int egi_txtbox_decorate(EGI_EBOX *ebox)
+{
+        int ret=0;
+
+        egi_pdebug(DBG_TXT,"egi_txtbox_decorate(): start to show_jpg()...\n");
+        ret=show_jpg("/tmp/openwrt.jpg", &gv_fb_dev, SHOW_BLACK_NOTRANSP, ebox->x0+2, ebox->y0+2);
+
+        return ret;
+}
+
+

@@ -28,7 +28,7 @@ EGI_EBOX *egi_listbox_new (
 void egi_free_data_list(EGI_DATA_LIST *data_list);
 int egi_listbox_activate(EGI_EBOX *ebox);
 int egi_listbox_refresh(EGI_EBOX *ebox);
-int egi_listbox_updateitem(EGI_EBOX *ebox, int n, uint16_t prmcolor, char **txt);
-
+int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt);
+// static int egi_itembox_decorate(EGI_EBOX *ebox);
 
 #endif
