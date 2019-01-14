@@ -506,8 +506,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		fbset_color(0); /* use black as frame color  */
 		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 
-		if(ebox->frame >0) /* draw double line */
+		if(ebox->frame == 1) /* draw double line */
 			draw_rect(&gv_fb_dev,x0+1,y0+1,x0+width-2,y0+height-2);
+
+		if(ebox->frame == 2) /* draw inner double line */
+			draw_rect(&gv_fb_dev,x0+3,y0+3,x0+width-3,y0+height-3);
 	}
 	/* TODO: other type of frame .....*/
 

@@ -22,5 +22,5 @@ EGI_EBOX *create_ebox_titlebar(
         char *title
 );
 
-
+void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor);
 #endif

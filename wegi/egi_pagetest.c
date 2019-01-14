@@ -27,6 +27,7 @@ Midas Zhou
 
 static void egi_pagetest_runner(EGI_PAGE *page);
 static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int egi_dbclick_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -93,7 +94,9 @@ EGI_PAGE *egi_create_testpage(void)
 	egi_ebox_settag(test_btns[1], "List Demon");
 	test_btns[1]->reaction=egi_listbox_test;
 
-	egi_ebox_settag(test_btns[2], "BTN_2");
+	egi_ebox_settag(test_btns[2], "Double Click");
+	test_btns[2]->reaction=egi_dbclick_test;
+
 	egi_ebox_settag(test_btns[3], "BTN_3");
 
 	egi_ebox_settag(test_btns[4], "EXIT");
@@ -108,7 +111,7 @@ EGI_PAGE *egi_create_testpage(void)
 		egi_colorgray_random(light),  /* uint16_t bkcolor */
     		NULL	/* char *title */
 	);
-	egi_txtbox_settitle(title_bar, "   Test Functions");
+	egi_txtbox_settitle(title_bar, "      Test Functions");
 
 
 	/* --------- 3. create test page ------- */
@@ -153,3 +156,18 @@ static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
         return -1;
 }
 
+
+/*-----------------------------------------------------------
+int (*reaction)(EGI_EBOX *, enum egi_touch_status);
+egi_dbclick_test()
+-----------------------------------------------------------*/
+static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
+{
+	if(btn_status==db_pressing)
+	{
+		egi_display_msgbox("Double Click!", 1000, WEGI_COLOR_ORANGE);
+		return 1; /* >=00 return to routine; <0 exit this routine */
+	}
+	else
+		return 1; /* return 0 to refresh whole page */
+}

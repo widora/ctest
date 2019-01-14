@@ -306,8 +306,7 @@ EGI_EBOX *create_ebox_titlebar(
 
 
 /*--------------------------------------------------
-txtbox decorationg function
-
+	txtbox decorationg function
 ---------------------------------------------------*/
 static int egi_txtbox_decorate(EGI_EBOX *ebox)
 {
@@ -320,3 +319,65 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 }
 
 
+/*------------------------------------------------------------
+Create Message Box, Size:240x50
+display for a while, then release.
+
+long ms: msg displaying time, in ms.
+------------------------------------------------------------*/
+void egi_display_msgbox (char *msg, long ms, uint16_t bkcolor)
+{
+	printf("---------- len(msg)=%d ----------\n",strlen(msg));
+
+	/* 1. create a data_txt */
+	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start to egi_txtdata_new()...\n");
+	EGI_DATA_TXT *msg_txt=egi_txtdata_new(
+		30,12, /* offset X,Y */
+      	  	1, /*int nl, lines  */
+       	 	64, /*int llen, chars per line, however also limited by width */
+        	&sympg_testfont, /*struct symbol_page *font */
+        	WEGI_COLOR_BLACK /* int16_t color */
+	);
+
+	if(msg_txt == NULL)
+	{
+		printf("egi_display_msgbox(): msg_txt=egi_txtdata_new()=NULL, fails!\n");
+		return;
+	}
+	else if (msg_txt->txt[0]==NULL)
+	{
+		printf("egi_display_msgbox(): msg_txt->[0]==NULL, fails!\n");
+		return;
+	}
+
+	/* 2. put msg string */
+	if(msg==NULL)
+	{
+		egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): msg==NULL, use default MSG\n");
+	        strncpy(msg_txt->txt[0], "--- Message Box ---", msg_txt->llen-1); /* default */
+	}
+	else
+	{
+	        strncpy(msg_txt->txt[0], msg, msg_txt->llen-1); /* default */
+	}
+
+
+	/* 3. create msg ebox */
+	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start egi_txtbox_new().....\n");
+	EGI_EBOX  *msgbox= egi_txtbox_new(
+		"msg_box", /* tag, or put later */
+        	msg_txt,  /* EGI_DATA_TXT pointer */
+        	true, /* bool movable */
+       	 	0,50, /* int x0, int y0 */
+        	240,50, /* int width;  int height,which also related with symheight and offy */
+        	2, /* int frame, 0=simple frmae, -1=no frame */
+        	bkcolor /*int prmcolor*/
+	);
+
+	/* 4. display msg box */
+	msgbox->activate(msgbox);/* activate to display */
+	tm_delayms(ms);
+	msgbox->sleep(msgbox); /* erase the image */
+	msgbox->free(msgbox); /* release */
+
+}

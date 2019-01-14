@@ -414,6 +414,10 @@ int egi_page_routine(EGI_PAGE *page)
 	uint16_t sx,sy;
 	enum egi_touch_status last_status=released_hold;
 
+	/* for time struct */
+	struct timeval t_start,t_end; /* record two pressing_down time */
+	long tus; 
+
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
 	/* 1. check data */
@@ -433,7 +437,7 @@ int egi_page_routine(EGI_PAGE *page)
 	egi_pdebug(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
 
 
-	/* 3. load threads */
+	/* 3. load page runner threads */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		if( page->runner[i] !=0 )
@@ -497,10 +501,10 @@ int egi_page_routine(EGI_PAGE *page)
 		}
 
 		/* 4.6. get touch coordinates and trigger actions for hit button if any */
-                else if(ret == XPT_READ_STATUS_COMPLETE)
+                else if(ret == XPT_READ_STATUS_COMPLETE) /* touch action detected */
                 {
 			/* update button last_status */
-			if( last_status==pressing || last_status==pressed_hold 	)
+			if( last_status==pressing || last_status==db_pressing || last_status==pressed_hold )
 			{
 				last_status=pressed_hold;
 				printf("egi page-'%s' routine(4.6): ... ... ... pen hold down ... ... ...\n",
@@ -510,11 +514,22 @@ int egi_page_routine(EGI_PAGE *page)
 			{
 				last_status=pressing;
 				printf("egi page-'%s' routine(4.6): ... ... ... pen pressing ... ... ...\n",
-											page->ebox->tag);
+							page->ebox->tag);
+
+				/* check if it's a double-click   */
+				t_start=t_end;
+				gettimeofday(&t_end,NULL);
+				tus=tm_diffus(t_end,t_start);
+				//printf("------- diff us=%ld  ---------\n",tus);
+				if( tus < TM_DBCLICK_INTERVAL )
+				{
+					printf("------- double click,tus=%ld ---------\n",tus);
+					last_status=db_pressing;
+				}
 			}
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
-	 /* ----------------    Touch Event Handling   ----------------  */
+		  /* ----------------    Touch Event Handling   ----------------  */
 	                hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
 
 			/* trap into button reaction functions */
@@ -524,13 +539,17 @@ int egi_page_routine(EGI_PAGE *page)
 										hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
 				   return <0 to exit this rountine, roll back to forward rountine then ...
+				   NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
+					'pressing' will prevail  ---
 				*/
-	 			if(hitbtn->reaction != NULL && last_status==pressing)
+	 			if(hitbtn->reaction != NULL &&
+						(last_status==pressing || last_status==db_pressing ) )
 				{
 					/* reat_ret<0, button pressed to exit current page
 					   usually fall back to its page's rountine caller to release page...
 					*/
-					if(hitbtn->reaction(hitbtn,pressing)<0)
+					ret=hitbtn->reaction(hitbtn, last_status);
+					if(ret<0)
 					{
 						printf("reaction of page '%s' button '%s' complete!\n",
 										page->ebox->tag, hitbtn->tag);
@@ -540,8 +559,11 @@ int egi_page_routine(EGI_PAGE *page)
 					   the page activated in above reaction is released */
 					else
 					{
-						/* refresh page and its eboxes */
-						egi_page_needrefresh(page);
+						if(ret==0)/* ret=0: refresh page and its eboxes */
+						{
+							egi_page_needrefresh(page);
+						}
+
 					}
 				}
 

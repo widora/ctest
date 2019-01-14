@@ -143,6 +143,7 @@ long long unsigned int tm_get_tickcount(void)
 /*-----------------------------------------
 delay ms, at lease TM_TICK_INTERVAL/1000 ms
 
+if ms<0, return.
 -------------------------------------------*/
 void tm_delayms(long ms)
 {
@@ -190,3 +191,18 @@ bool tm_pulseus(long long unsigned int gap) /* gap(us) */
 		return false;
 }
 
+
+/*---------------------------------------------------------
+return time difference in us
+t_start:	start time
+t_end:		end time
+-----------------------------------------------------------*/
+long tm_diffus(struct timeval t_start, struct timeval t_end)
+{
+	int ds=t_end.tv_sec-t_start.tv_sec;
+	int dus=t_end.tv_usec-t_start.tv_usec;
+
+	int td=ds*1000000+dus;
+
+	return ( td>0 ? td : -td );
+}

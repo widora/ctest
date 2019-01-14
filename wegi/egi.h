@@ -72,6 +72,8 @@ enum egi_touch_status
 	pressing=1,      /* status transforming from released_hold to pressed_hold */
 	released_hold=2,
 	pressed_hold=3,
+	db_releasing=4, /* double click, the last releasing */
+	db_pressing=5, /* double click, the last pressing */
 };
 
 /*  ebox action methods */
@@ -95,6 +97,7 @@ struct egi_ebox_method
 	int (*decorate)(EGI_EBOX *);
 	int (*sleep)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
+	int (*reaction)(EGI_EBOX *, enum egi_touch_status);
 };
 
 
