@@ -47,6 +47,7 @@ Midas Zhou
 //#include "dict.h"
 #include "egi_symbol.h"
 #include "egi_objlist.h"
+#include "egi_iwinfo.h"
 
 char mvicon_load[16]={0};
 
@@ -91,7 +92,15 @@ int main(void)
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
 
-
+	/* test ---- IW RSSI ------ */
+#if 0
+	while(1)
+	{
+		//tm_delayms(1000) will crash get_iw_rssi() !!!?
+//		usleep(900000);
+		get_iw_rssi();
+	}
+#endif
 
 #if 0 /* test ----- egi txtbox read file ---------- */
 	 ret=egi_txtbox_readfile(ebox_memo, "/tmp/memo.txt");
@@ -133,9 +142,6 @@ int main(void)
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
 
-
-
-
 	/* ---- test image scale,page dispearing effect ---- */
 #if 0
 	int wid,hgt;
@@ -174,6 +180,7 @@ int main(void)
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
+
 #if 0
 	while(1)
 	{
@@ -233,7 +240,7 @@ int main(void)
 
 
 
-#if 1
+#if 0
 	/* ------------------ test list --------------------- */
 	EGI_EBOX *ebox;
 	enum egi_touch_status status;

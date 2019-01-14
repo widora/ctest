@@ -16,9 +16,9 @@ TODO:
 
 Midas Zhou
 ---------------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <unistd.h> /* usleep */
 #include "egi.h"
 #include "egi_debug.h"
@@ -33,6 +33,7 @@ Midas Zhou
 #include "egi_pagemplay.h"
 #include "egi_pageopenwrt.h"
 #include "egi_pagebook.h"
+#include "egi_iwinfo.h"
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
@@ -178,8 +179,6 @@ EGI_PAGE *egi_create_homepage(void)
 	/* 3.4 set wallpaper */
 	page_home->fpath="/tmp/home.jpg";
 
-
-
 	/* add ebox to home page */
 	/* beware of the sequence of the ebox list */
 	for(i=0;i<9;i++)
@@ -192,20 +191,45 @@ EGI_PAGE *egi_create_homepage(void)
 
 /*-----------------  RUNNER 1 --------------------------
 display cpu load in home head-bar with motion icons
+
+1. read /proc/loadavg to get the value
+	loadavg 1-6,  >5 alarm
+
+2. corresponding symmic_cpuload[] index from 0-5.
+
 -------------------------------------------------------*/
 static void egi_display_cpuload(EGI_PAGE *page)
 {
-	int load=3; /* 0-3 */
+	int load=0; 
+	int fd;
+	char strload[5]={0}; /* read in 4 byte */
+
+        /* open symbol image file */
+        fd=open("/proc/loadavg", O_RDONLY);
+        if(fd<0)
+        {
+                printf("egi_display_cpuload(): fail to open /proc/loadavg!\n");
+                perror("egi_display_cpuload()");
+                return;
+        }
 
 	egi_pdebug(DBG_PAGE,"page '%s':  runner thread egi_display_cpuload() is activated!.\n",page->ebox->tag);
-
 	while(1)
 	{
+		lseek(fd,0,SEEK_SET);
+		read(fd,strload,4);
+		//printf("----------------- strload: %s -----------------\n",strload);
+		load=atoi(strload);/* for symmic_cpuload[], index from 0 to 5 */
+		if(load>5)
+			load=5;
+		//printf("----------------- load: %d -----------------\n",load);
 		/* load cpuload motion icons
-			  symbol_motion_string() is with sleep function */
+			  symbol_motion_string() is with---sleep---function inside */
   	 	symbol_motion_string(&gv_fb_dev, 155-load*15, &sympg_icons,
 		 					1, 210,0, &symmic_cpuload[load][0]);
+
 	}
+
 }
 
 /*-----------------  RUNNER 2 --------------------------
@@ -213,6 +237,9 @@ display IoT load in home head-bar with motion icons
 -------------------------------------------------------*/
 static void egi_display_iotload(EGI_PAGE *page)
 {
+	int rssi;
+	int index; /* index for RSSI of  sympg_icons[index]  */
+
 	egi_pdebug(DBG_PAGE,"page '%s':  runner thread egi_display_iotload() is activated!.\n"
 										,page->ebox->tag);
 	while(1)
@@ -220,10 +247,20 @@ static void egi_display_iotload(EGI_PAGE *page)
 		/* load IoT motion icons
 			  symbol_motion_string() is with sleep function */
   	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 180,0, symmic_iotload);
+
+		/* get RSSI value */
+		rssi=get_iw_rssi();
+		if(rssi > -65) index=5;
+		else if(rssi > -73) index=4;
+		else if(rssi > -80) index=3;
+		else if(rssi > -94) index=2;
+		else 	index=1;
+		printf("egi_display_itoload(): rssi=%d; index=%d \n",rssi,index);
+		/* draw RSSI symbol */
+		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
 	}
+
 }
-
-
 
 
 
@@ -252,10 +289,10 @@ void egi_home_routine(void)
 }
 
 
-/*--------------------------------------------------------
+/*-----------------------------------------------------------------------------
 button_mplay function:
 mplayer
---------------------------------------------------------*/
+------------------------------------------------------------------------------*/
 static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 {
         EGI_PAGE *page_mplay=egi_create_mplaypage();
@@ -286,10 +323,10 @@ static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_touch_status btn_statu
 	return 0; /* as for page exit, instead of <0 ????? */
 }
 
-/*----------------------------------------------------
+/*--------------------------------------------------------------------------
 button_openwrt function:
 book
-----------------------------------------------------*/
+----------------------------------------------------------------------------*/
 static int egi_homepage_book(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 {
         EGI_PAGE *page_book=egi_create_bookpage();
@@ -303,10 +340,10 @@ static int egi_homepage_book(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 	return 0; /* as for page exit, instead of <0 ????? */
 }
 
-/*----------------------------------------------------
+/*----------------------------------------------------------------------------
 button_test function:
 for test functions
-----------------------------------------------------*/
+-----------------------------------------------------------------------------*/
 static int egi_homepage_test(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 {
         EGI_PAGE *page_test=egi_create_testpage();

@@ -23,7 +23,7 @@ static EGI_METHOD btnbox_method=
         .refresh=egi_btnbox_refresh,
         .decorate=NULL,
         .sleep=NULL,
-        .free=NULL, //egi_ebox_free,
+        .free=NULL, /* to see egi_ebox_free() in egi.c */
 };
 
 
@@ -404,16 +404,19 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
 								x0, y0, data_btn->icon_code,data_btn->opaque);
 
+	/* 8. decorate functoins  */
+	if(ebox->decorate)
+		ebox->decorate(ebox);
 
-	/* 8. draw ebox->tag on the button if necessary */
 
-   /* 8.1 check whether sympg is set */
+  /* 9. draw ebox->tag on the button if necessary */
+   /* 9.1 check whether sympg is set */
    if(data_btn->font == NULL)
 		printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
 
    else if(data_btn->showtag==true)
    {
-	/* 8.2 get length of tag */
+	/* 9.2 get length of tag */
 	int taglen=0;
 	while( ebox->tag[taglen] )
 	{
@@ -455,11 +458,6 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   
 
    }/* endif: data_btn->font != NULL */
 
-
-	/* 9. decorate functoins
-	*/
-	if(ebox->decorate)
-		ebox->decorate(ebox);
 
 	/* 10. finally, reset need_refresh */
 	ebox->need_refresh=false;

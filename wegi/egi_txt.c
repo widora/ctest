@@ -27,7 +27,7 @@ static EGI_METHOD txtbox_method=
         .refresh=egi_txtbox_refresh,
         .decorate=NULL, /* define in object source file if necessary.  egi_txtbox_decorate,*/
         .sleep=egi_txtbox_sleep,
-        .free=NULL, //egi_ebox_free,
+        .free=NULL, /* to see egi_ebox_free() in egi.c */
 };
 
 
@@ -522,7 +522,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		}
 	}
 
-	/* ---- 10. refresh TXT, write txt line to FB */
+	/* ---- 10. run decorate if necessary */
+	if(ebox->decorate !=  NULL)
+		ebox->decorate(ebox);
+
+	/* ---- 11. refresh TXT, write txt line to FB */
 	egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
 	for(i=0;i<nl;i++)
 	{
@@ -534,11 +538,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
 	}
 
-	/* ---- 11. run decorate if necessary */
-	if(ebox->decorate !=  NULL)
-		ebox->decorate(ebox);
-
-	/* ---- 4. reset need_refresh */
+	/* ---- 12. reset need_refresh */
 	ebox->need_refresh=false;
 
 	return ret;

@@ -1,4 +1,7 @@
 /*----------------------- egi_list.c -------------------------------
+1. a list ebox consists of item txt_eboxes set in egi_data.
+2. Icon of a list item is drawed by calling its txt_eboxe decorate function.
+
 
 TODO:
 1. Color set for each line of txt to be fixed later in egi_txt.c.
@@ -35,7 +38,7 @@ static EGI_METHOD listbox_method=
         .refresh=egi_listbox_refresh,
         .decorate=NULL,
         .sleep=NULL,
-        .free=NULL, //see egi_ebox_free() in egi.c
+        .free=NULL, /* to see egi_ebox_free() in egi.c */
 };
 
 
@@ -395,16 +398,6 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 			printf("egi_listbox_refresh(): fail to refresh data_list->txt_boxes[%d].\n",i);
 			return -5;
 		}
-
-#if 0 /* already put in txt_boxes[i]->decorate() */
-		/* 4.2 FB write icon */
-		if(data_list->icons[i])
-		{
-			symbol_writeFB(&gv_fb_dev, data_list->icons[i], SYM_NOSUB_COLOR, data_list->icons[i]->bkcolor,
- 					data_list->txt_boxes[i]->x0, data_list->txt_boxes[i]->y0,
-					data_list->icon_code[i], 0 );
-		}
-#endif
 
 	}
 

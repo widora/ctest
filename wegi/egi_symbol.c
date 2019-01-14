@@ -151,12 +151,12 @@ struct symbol_page sympg_icons=
    !!! put code 0 as end of string */
 char symmic_cpuload[6][5]= /* sym for motion icon */
 {
-	{40,41,42,43,0}, /* very light */
-	{44,45,46,47,0}, /* light */
-	{48,49,50,51,0}, /* moderate */
-	{52,53,54,55,0}, /* heavy */
-	{56,57,58,59,0}, /* very heavy */
-	{60,61,62,63,0},  /* red alarm */
+	{40,41,42,43,0}, /* very light loadavg 1 */
+	{44,45,46,47,0}, /* light  loadavg 2 */
+	{48,49,50,51,0}, /* moderate  loadavg 3 */
+	{52,53,54,55,0}, /* heavy loadavg 4 */
+	{56,57,58,59,0}, /* very heavy loadavg 5 */
+	{60,61,62,63,0},  /* red alarm loadavg 6 >5 overload*/
 };
 
 /* IoT mmic */
