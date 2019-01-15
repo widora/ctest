@@ -420,7 +420,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): need_refresh is false!\n");
+		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -979,7 +979,7 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	//printf("egi_push_datatxt(): finish pushing %d of total %d bytes of txt.\n", i, nread);
 
 	/* feed back number of lined used */
-	if(nlw != NULL)
+	if(pnl != NULL)
 		*pnl=nlw+1; /*  nlw  index from 0  */
 
 	return i;

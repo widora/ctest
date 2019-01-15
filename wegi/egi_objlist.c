@@ -14,6 +14,7 @@ int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 {
 	int i,j;
 	int inum=5;
+	int nwin=3; /* window size in items */
 	int nl=2;
 	static int count=0; /* test counter */
 
@@ -22,6 +23,7 @@ int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 	EGI_EBOX *list=egi_listbox_new (
         	0,30,  	//int x0, int y0, /* left top point */
 	        inum,	//int inum,       /* item number of a list */
+        	nwin,   /* number of items in displaying window */
 	       	240,	//int width,      /* h/w for each list item - ebox */
 	        56,	//int height,
 	        0,      //frame, 	  /* -1 no frame for ebox, 0 simple .. */
@@ -33,6 +35,8 @@ int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 	        0,	//int iconoffx,   /* offset of icon from the ebox, all the same */
 	        0	//int iconoffy
 	);
+
+
 	EGI_DATA_LIST *data_list=(EGI_DATA_LIST *)(list->egi_data);
 printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 
@@ -42,11 +46,11 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	/* 3. update item */
 	char data[5][2][30] =  /* inum=5; nl=2; llen=30 */
 	{
-		{"Widora-NEO     12345","mt7688"},
-		{"Widora-BIT5     23233","mt7628dan"},
-		{"Widora-AIR     43534","ESP32"},
-		{"Widora-BIT     48433","mt7688AN"},
-		{"Widora-Ting    496049999","SX1278"}
+		{"Widora-NEO     11111","mt7688"},
+		{"Widora-BIT5    22222","mt7628dan"},
+		{"Widora-AIR     33333","ESP32"},
+		{"Widora-BIT     44444","mt7688AN"},
+		{"Widora-Ting    55555555","SX1278"}
 	};
 
 	/* test counter */
@@ -80,21 +84,49 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	egi_listbox_activate(list);
 	printf("egi_listbox_test(): finish egi_list_activate(). \n");
 
+
+	char *txt="Widora-NEO     12345	\
+		   \n mt7688	\
+		\n Widora-BIT5     23233	\
+		\n mt7628dan	\
+		\n Widora-AIR    43534	\
+		\n ESP32	\
+		\n Widora-BIT     48433	\
+		\n mt7688AN	\
+		\n Widora-Ting    496049999	\
+		\n SX1278";
+
+
 	/* 5. loop refresh */
 	i=0;
 	pdata[0]="Hello! NEO world!";
+
+	/* set start pw */
+	data_list->pw=2;
 
 	while(1)
 	{
 		/* update item 0  */
 		sprintf(pdata[1],"count: %d", i++);
-		egi_listbox_updateitem(list, 0, -1, pdata); /* -1, keep old color */
+		egi_listbox_updateitem(list, 0, -1, NULL); /* -1, keep old color */
+		/* update item 1 */
+		egi_listbox_updateitem(list, 1, -1, NULL); /* -1, keep old color and txt  */
+		/* update item 2 */
+		egi_listbox_updateitem(list, 2, -1, NULL); /* -1, keep old color and txt */
 		/* update item 3 */
+		egi_listbox_updateitem(list, 3, -1, NULL); /* -1, keep old color and txt */
+		/* update item 4 */
 		sprintf(pdata[1],"count: %d", i++);
-		egi_listbox_updateitem(list, 3, -1, pdata); /* -1, keep old color */
+		egi_listbox_updateitem(list, 4, -1, NULL); /* -1, keep old color */
 
 		egi_listbox_refresh(list);
-		tm_delayms(55);
+
+		tm_delayms(2000);
+
+		/* slide displaying window by adjust pw */
+		data_list->pw++;
+		if(data_list->pw > data_list->inum-1 )
+			data_list->pw=0;
 	}
 
 

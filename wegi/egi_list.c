@@ -57,6 +57,7 @@ return:
 EGI_EBOX *egi_listbox_new (
 	int x0, int y0, /* left top point */
         int inum,  	/* item number of a list */
+	int nwin,	/* number of items in displaying window */
         int width, 	/* H/W for each list item ebox, W/H of the hosting ebox depends on it */
         int height,
 	int frame, 	/* -1 no frame for ebox, 0 simple .. */
@@ -94,9 +95,9 @@ EGI_EBOX *egi_listbox_new (
 
         ebox->x0=x0;
     	ebox->y0=y0;
-        ebox->movable=false; /* fixed type */
+        ebox->movable=false; /* fixed type, however item txt_ebox to be movale */
         ebox->width=width;
-	ebox->height=height*inum;
+	ebox->height=height*nwin; /* for displaying window height */
         ebox->frame=-1; /* no frame, let item ebox prevail */
 	ebox->prmcolor=-1; /* no prmcolor, let item ebox prevail */
 	ebox->need_refresh=true; /* the hosting_ebox need not to be refreshed,
@@ -169,6 +170,8 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 
 	/* 11. assign to data_list */
 	data_list->inum=inum;
+	data_list->nwin=nwin;
+	data_list->pw=0; /* default first item in displaying window */
 	data_list->txt_boxes=txt_boxes;
 	data_list->icons=icons;
 	data_list->icon_code=icon_code;
@@ -177,6 +180,7 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 
 
 	/* 12. create txt_type eboxes for item txt_ebox->egi_data  */
+	printf("egi_listbox_new(): total list item number inum=%d \n",inum);
 	for(i=0;i<inum;i++)
 	{
 		/* 12.1  create a data_txt */
@@ -206,7 +210,7 @@ printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
                 			width, height, /* int width;  int height,which also related with symheight and offy */
                 			frame, /* int frame, 0=simple frmae, -1=no frame */
                 			prmcolor[i] /*int prmcolor*/
-  		    		  );
+  		    	     );
 		if( (data_list->txt_boxes)[i] == NULL )
 		{
 			printf("egi_listbox_new(): data_list->txt_eboxes[%d]=NULL,  retry... \n",i);
@@ -275,19 +279,24 @@ void egi_free_data_list(EGI_DATA_LIST *data_list)
 }
 
 
-/*----------------------------------------------
-to activate a list:
+/*--------------------------------------------------------------
+0.to activate a list, activate items in displaying windows only!!!
 1. activate each txt ebox in the list.
 2. draw icon for drawing item.
+
 
 Retrun:
 	0	OK
 	<0	fail
-----------------------------------------------*/
+--------------------------------------------------------------*/
 int egi_listbox_activate(EGI_EBOX *ebox)
 {
 	int i;
-	int inum;
+	int inum; /* total number of items in the list */
+	int nwin; /* number of itmes in displaying window */
+	int pw;	/* first item number in the displaying window */
+	int itnum; /* tmp item number */
+
 	EGI_DATA_LIST *data_list;
 
 	/* 1. check list  */
@@ -313,24 +322,51 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 
 	data_list=(EGI_DATA_LIST *)ebox->egi_data;
 	inum=data_list->inum;
+	pw=data_list->pw;
+	nwin=data_list->nwin;
 
-	/* 4. activate each txt_ebox in the data_list */
-	for(i=0; i<inum; i++)
+	/* 4. activate those txt_eboxes that are in the displaying window only */
+	/* awake all, but do not refresh them */
+	//for(i=0; i<inum; i++)
+	//{
+	//	(data_list->txt_boxes[i])->status=status_active;
+	//	(data_list->txt_boxes[i])->need_refresh=false;
+	//}
+
+	/* activate those in displaying windows only */
+	for(i=0; i<nwin; i++)
 	{
+		itnum=pw+i;	/* displaying from first item pw */
+		if(itnum >= inum)
+			itnum=itnum%inum; /* roll back then */
 
-		/* 4.1 activate txt ebox */
-		if( egi_txtbox_activate(data_list->txt_boxes[i]) < 0)
+		printf("egi_listbox_activate():----------itnum=%d----------\n",itnum);
+
+		/* 4.1 activate it first, or bkimg=NULL will fail refresh */
+//		if( (data_list->txt_boxes[itnum])->status != status_active)
+//		{
+//			egi_txtbox_activate(data_list->txt_boxes[itnum]);
+//
+//		}
+
+		/* 4.1 update position, within displaying window */
+		data_list->txt_boxes[itnum]->y0=ebox->y0	\
+						+i*(data_list->txt_boxes[itnum]->height);/* update postion */
+
+		/* 4.2 activate it */
+		if( egi_txtbox_activate(data_list->txt_boxes[itnum]) < 0)
 		{
-			printf("egi_listbox_activate(): fail to activate data_list->txt_boxes[%d].\n",i);
+			printf("egi_listbox_activate(): fail to activate data_list->txt_boxes[%d].\n",itnum);
 			return -4;
 		}
 
-		/* 4.2 FB write icon */
-		if(data_list->icons[i])
+		/* 4.3 FB write icon */
+		if(data_list->icons[itnum])
 		{
-			symbol_writeFB(&gv_fb_dev, data_list->icons[i], SYM_NOSUB_COLOR, data_list->icons[i]->bkcolor,
- 					data_list->txt_boxes[i]->x0, data_list->txt_boxes[i]->y0,
-					data_list->icon_code[i], 0 ); /* opaque 0 */
+			symbol_writeFB(&gv_fb_dev, data_list->icons[itnum], SYM_NOSUB_COLOR,
+					data_list->icons[itnum]->bkcolor,
+ 					data_list->txt_boxes[itnum]->x0, data_list->txt_boxes[itnum]->y0,
+					data_list->icon_code[itnum], 0 ); /* opaque 0 */
 		}
 	}
 
@@ -338,23 +374,34 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 }
 
 
-/*---------------------------------------------------------------
-to refresh a list ebox:
+/*---------------------------------------------------------------------------------------------
+to refresh item txt_eboxes in the displaying window, with item index from pw to pw+nwin-1 only.
 
 1. TODO: update/push data to fill list
 2. the hosting_ebox need not to be refreshed, so its need_refresh
    token should always be true.
 3. refresh each txt ebox in the data_list.
 4. update and draw icon for each item.
+5. before refresh a list display-window:
+   5,1 set starting item index data_list->pw.
+   5.2 awake the txt_ebox.
+   5.3 set need_refresh flag.
+
+6. !!!!activate the txt_ebox if it's not active! or bkimg will not allocated, which will fail refresh. !!!!
+
 
 Retrun:
 	0	OK
 	<0	fail
------------------------------------------------------------------*/
+-----------------------------------------------------------------------------------------*/
 int egi_listbox_refresh(EGI_EBOX *ebox)
 {
 	int  i;
+	int nwin; /* number of itmes in displaying window */
+	int pw;	/* first item number in the displaying window */
 	int inum;
+	int itnum; /* tmp item number */
+
 	EGI_DATA_LIST *data_list;
 
         /* 1. check list ebox  */
@@ -373,6 +420,8 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 
         data_list=(EGI_DATA_LIST *)ebox->egi_data;
         inum=data_list->inum;
+	pw=data_list->pw;
+	nwin=data_list->nwin;
 
         /* 2. check data_list->txt_boxes */
 	if(data_list == NULL )
@@ -389,35 +438,76 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 	/* 3. update and push data to the list */
 	//TODO
 
-	/* 4. refresh each txt eboxe */
-	for(i=0; i<inum; i++)
+	/* 4. refresh those txt_eboxe in displaying window only */
+	/*  seems no need to put all to sleep first ???
+	   since need_refresh not set, and sleep already set in activate() */
+	//for(i=0; i<inum; i++)
+	//	egi_txtbox_sleep(data_list->txt_boxes[i]);
+
+	/* activate those in displaying windows only */
+	for(i=0; i<nwin; i++)
 	{
-		/* 4.1 refresh txt */
-		if( egi_txtbox_refresh(data_list->txt_boxes[i]) < 0 )
+		itnum=pw+i;	/* displaying from first item index pw */
+		if(itnum >= inum)
+			itnum=itnum%inum; /* roll back then */
+
+		printf("egi_listbox_refresh():----------itnum=%d----------\n",itnum);
+
+		/* test */
+//		data_list->txt_boxes[itnum]->need_refresh=true;
+
+		/* 4.1 update position, within displaying window */
+		data_list->txt_boxes[itnum]->y0=ebox->y0	\
+						+i*(data_list->txt_boxes[itnum]->height);/* update postion */
+
+		/* 4.2 activate it first, or bkimg=NULL will fail refresh 
+		   to activate an txt_ebox also will refresh it */
+		if( (data_list->txt_boxes[itnum])->status != status_active)
 		{
-			printf("egi_listbox_refresh(): fail to refresh data_list->txt_boxes[%d].\n",i);
-			return -5;
+			egi_txtbox_activate(data_list->txt_boxes[itnum]);
+
+		}
+		else
+		{
+			/* 4.3 refresh txtbox if do not take activation above */
+			if( egi_txtbox_refresh(data_list->txt_boxes[itnum]) < 0 )
+			{
+				printf("egi_listbox_refresh(): fail to refresh data_list->txt_boxes[%d].\n",itnum);
+				return -5;
+			}
+		}
+
+		/* 4.4 refresh icon */
+		if(data_list->icons[itnum])
+		{
+			symbol_writeFB(&gv_fb_dev, data_list->icons[itnum], SYM_NOSUB_COLOR,
+					data_list->icons[itnum]->bkcolor,
+ 					data_list->txt_boxes[itnum]->x0, data_list->txt_boxes[itnum]->y0,
+					data_list->icon_code[itnum], 0 ); /* opaque 0 */
 		}
 
 	}
-
 
 	return 0;
 }
 
 
 /*-------------------------------------------------------------------------
-to update prmcolor and data for items in a list type ebox:
+1. to update prmcolor and data for item's data_txt in a list type ebox:
 
 EGI_EBOX: 	list ebox to be updated
 n:		number of the list's item considered
-txt:		txt to push to:
+txt[nl][llen]:	txt to push to:
 		data_list->txt_boxes[i]->egi_data->txt
+		dimension numbers (nl and llen) MUST coincide with item data_txt 
+		definition.
+		NULL -- keep unchanged.
 prmcolor:	prime color for item ebox
 		<0;  do not update
 		>=0:  uint16_t color
 
 Retrun:
+	1	data_txt keep unchanged
 	0	OK
 	<0	fail
 -------------------------------------------------------------------------*/
@@ -427,13 +517,6 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
 	int inum;
 	EGI_DATA_LIST *data_list;
 
-
-	/* 0. check data */
-	if(txt==NULL || txt[0]==NULL)
-	{
-                printf("egi_listbox_updateitem(): input txt is NULL! fail to push data to list item.");
-                return -1;
-	}
 
         /* 1. check list ebox */
         if(ebox==NULL)
@@ -488,11 +571,25 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
                 return -6;
 	}
 
+
 	/* 7. update prmcolor of the item ebox, only if >=0  */
 	if(prmcolor>=0)
 		data_list->txt_boxes[n]->prmcolor=prmcolor;
 
-	/* 8. push txt into data_txt->txt */
+
+	/* 8. check txt */
+	if(txt==NULL || txt[0]==NULL)
+	{
+                printf("egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
+
+		/* !!! put need_refresh flag before quit */
+		item_txtbox->need_refresh=true;
+
+                return 1;
+	}
+
+
+	/* 9. push txt into data_txt->txt */
 	for(i=0; i<(data_txt->nl); i++)
 	{
 		strncpy(data_txt->txt[i], txt[i], data_txt->llen-1);/* 1 byte for end token */
@@ -500,18 +597,15 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
 										n,i,data_txt->txt[i]);
 	}
 
-
 	/* 9. set need_refresh flag */
 	item_txtbox->need_refresh=true;
 
 	return 0;
-
 }
 
 /*---------------------------------------------
 decoration:
-draw icon in the item txt_ebox
-
+draw icon in the list item txt_ebox
 ----------------------------------------------*/
 static int egi_itembox_decorate(EGI_EBOX *ebox)
 {

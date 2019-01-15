@@ -248,14 +248,22 @@ int main(void)
 
 
 
-	/* test -----  egi_push_datatxt( ) ----- */
-#if 1
+	/* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */
+#if 0
 	int  nl;
 	char *msg="test egi_push_datatxt() \
-	hello	\
-	helloDF DFDFD 	\
-	KSKFSDK -----dffsdfsgdsgfgdfhfdh-	\
-	hello";
+	\n	\
+	\n	\
+	-----hello--- \
+	\n	\
+	\n	\
+	-----hello--- \
+	\n	\
+	\n	\
+	-----hello--- \
+	\n	\
+	\n	\
+	-----hello---";
 
     while(1)
     {
@@ -264,8 +272,6 @@ int main(void)
     }
 	exit(1);
 #endif
-
-
 
 
 #if 0

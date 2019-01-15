@@ -9,11 +9,11 @@
 
 
 /* functions for list */
-
 EGI_EBOX *egi_listbox_new (
         int x0, int y0, /* left top point */
         int inum,       /* item number of a list */
-        int width,      /* H/W for each list item ebox, the hosting_ebox's H/W depends on it */
+        int nwin,       /* number of items in displaying window */
+        int width,      /* H/W for each list item ebox, W/H of the hosting ebox depends on it */
         int height,
         int frame,      /* -1 no frame for ebox, 0 simple .. */
         int nl,         /* number of txt lines for each txt ebox */
@@ -24,6 +24,8 @@ EGI_EBOX *egi_listbox_new (
         int iconoffx,   /* offset of icon from the ebox, all the same */
         int iconoffy
 );
+
+
 
 void egi_free_data_list(EGI_DATA_LIST *data_list);
 int egi_listbox_activate(EGI_EBOX *ebox);

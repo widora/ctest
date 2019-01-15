@@ -275,8 +275,15 @@ struct egi_data_btn
 typedef struct egi_data_list EGI_DATA_LIST;
 struct egi_data_list
 {
-        /* total number of items in a list */
+        /* total number of items in a list, part of them may displayed */
         int inum;
+
+	/* the displaying_window size, or number of items displayed in the ebox.*/
+	int nwin;
+
+	/* item index for the starting item in displaying_window
+	  diplaying item index: pw, pw+1, pw+2,....pw+nwin-1 */
+	int pw;
 
         /* a list of type_txt ebox
 	  each one is for one item of the list

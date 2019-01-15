@@ -12,7 +12,7 @@ All EGI OBJ Initializations
 EGI_EBOX *create_ebox_memo(void);
 EGI_EBOX *create_ebox_clock(void);
 EGI_EBOX *create_ebox_note(void);
-void egi_txtbox_demo(void);
+int egi_txtbox_demo(EGI_EBOX *ebox, enum egi_touch_status status);
 
 /*  -------- egi pattern  ----- */
 EGI_EBOX *create_ebox_titlebar(

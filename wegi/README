@@ -13,3 +13,6 @@ main source files:
 egi.c		concept ebox functions
 egi_txt.c	type_txt ebox functions
 egi_objtxt.c	type_txt objects creation functions
+egi_btn.
+egi_list.c
+egi_objlist.c

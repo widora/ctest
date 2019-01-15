@@ -180,9 +180,12 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 
 
 /*----------------------------------------------
-	A simple demo for txt type ebox
+A simple demo for txt type ebox
+as a reaction function for button.
+
+int (*reaction)(EGI_EBOX *, enum egi_touch_status);
 ----------------------------------------------*/
-void egi_txtbox_demo(void)
+int egi_txtbox_demo(EGI_EBOX *ebox, enum egi_touch_status status)
 {
 	int total=56;
 	int i;
@@ -332,14 +335,16 @@ void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor)
 	int width=240; /* ebox W/H */
 	int height=50;
 	int yres=(&gv_fb_dev)->vinfo.yres;
-	int offx=30;
-	int offy=12;	/* offset x,y of txt */
+	int offx=10;
+	int offy=8;	/* offset x,y of txt */
 	int nl=(yres-offy*2)/(&sympg_testfont)->symheight; /* first, set nl as MAX value for txt. */
 	int llen=64; /* max. chars for each line,also limited by ebox width */
-	int pnl; /* number of pushed txt lines */
+	int pnl=0; /* number of pushed txt lines */
 
 	EGI_DATA_TXT *msg_txt=NULL;
 	EGI_EBOX *msgbox=NULL;
+
+
 
    while(1)
    {
@@ -381,9 +386,10 @@ void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor)
 	egi_push_datatxt(msgbox, msg, &pnl);
 
 	/* 5. adjust nl then release and loop back and re-create msg ebox */
-	if(pnl<nl)
+	printf("egi_display_msgbox(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
+	if(nl>pnl) /* if nl great than number of pushed lines */
 	{
-		nl=pnl;
+		nl=pnl; /* adjust nl and retry */
 		msgbox->free(msgbox);
 		msg_txt=NULL;
 		msgbox=NULL;

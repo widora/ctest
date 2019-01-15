@@ -58,7 +58,8 @@ EGI_PAGE *egi_create_testpage(void)
 		/* if fail, try again ... */
 		if(data_btns[j]==NULL)
 		{
-			printf("egi_create_mplaypage(): fail to call egi_btndata_new() for data_btns[%d]. retry...\n", 3*i+j);
+			printf("egi_create_mplaypage(): fail to call egi_btndata_new() for	\
+									data_btns[%d]. retry...\n", j);
 			j--;
 			continue;
 		}
@@ -165,7 +166,7 @@ static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
 {
 	if(btn_status==db_pressing)
 	{
-		egi_display_msgbox("Double Click!", 1000, WEGI_COLOR_ORANGE);
+		egi_display_msgbox("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
 		return 1; /* >=00 return to routine; <0 exit this routine */
 	}
 	else
