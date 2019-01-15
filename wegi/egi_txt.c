@@ -265,7 +265,6 @@ TODO:
 Return:
 	0	OK
 	<0	fails!
-
 ----------------------------------------------------------------------------------*/
 int egi_txtbox_activate(EGI_EBOX *ebox)
 {
@@ -302,7 +301,6 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
                 printf("egi_txtbox_activate(): '%s' is not a txt type ebox!\n",ebox->tag);
                 return -2;
         }
-
 
         egi_pdebug(DBG_TXT,"egi_txtbox_activate(): start to activate '%s' txt type ebox!\n",ebox->tag);
 	/* 2. activate(or wake up) a sleeping ebox
@@ -584,7 +582,7 @@ Note:
 1. Read a txt file and try to push it to egi_data_txt->txt[]
 2. If it reaches the end of file, then reset offset and roll back.
 3. llen=data_txt->llen-1  one byte for string end /0.
-4. conditions for line return:
+4. Limit conditions for line return:
 	4.1 Max. char number per line   =  llen;
 	4.2 Max. pixel number per line  =  bxwidth
 
@@ -665,9 +663,10 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		if(nread <= 0) /* error or end of file */
 			break;
 
-//		ret+=nread;
 		printf("-------- finish fread():  nread=fread()=%d ------- \n",nread);
 
+
+		 /*TODO: for() session to be replaced by egi_push_datatxt() if possible  */
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
 		{
@@ -734,7 +733,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 
 			}
 
-			/* -----  5. check number of lines used  ------- */
+			/* -----  5. check whether total number of lines used up  ------- */
 			if(nlw>nl-1) /* no more line for txt ebox */
 			{
 				//ret+=i+1; /* count total chars, plus pushed in this for() */
@@ -747,6 +746,8 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 
 		}/* END for() */
 
+
+
 		/* check if txt line is used up, end this file-read session */
 		if(nlw>nl-1)
 		{
@@ -754,7 +755,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			break; /* end while() of fread */
 		}
 		else
-		/* or if just used up */
+		/* or if just finish pushing nread (may not be sizeof(buf)) to txt */
 		{
 			ret+=nread;
 		}
@@ -866,4 +867,120 @@ void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
 
 	/* 4. set need_refresh */
 	ebox->need_refresh=true;
+}
+
+
+
+/*----------------------------------------------------------
+push txt to ebox->data_txt->txt[]
+
+data_txt:	the target txt data
+buf:		the source buffer
+*pnlw:		return number of lines used for written.
+		<=nl, OK.
+		>nl, not enough space for char *buf.
+
+1. llen=data_txt->llen-1  one byte for string end /0.
+2. limit conditions for line return:
+        2.1 Max. char number per line   =  llen;
+        2.2 Max. pixel number per line  =  bxwidth
+
+
+return:
+	>0	bytes of char pushed
+	<0	fails
+----------------------------------------------------------*/
+int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
+{
+	/* check ebox type first */
+	if(ebox->type != type_txt)
+	{
+		printf("egi_push_datatxt(): ebox is not of type_txt, fail to push data_txt.\n");
+		return 0;
+	}
+
+	int i;
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
+	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
+	int offx=data_txt->offx;
+	char **txt=data_txt->txt;
+	int nt=0; /* index, txt[][nt] */
+	int nl=data_txt->nl; /* from 0, number of txt line */
+	int nlw=0; /* current written line of txt */
+	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
+	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
+	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
+	int symheight=data_txt->font->symheight;
+	int maxnum=data_txt->font->maxnum;
+
+	int nread=strlen(buf); /* total bytes of chars */
+
+	/* put char to data_txt->txt one by one*/
+	for(i=0;i<nread;i++)
+	{
+		/*  ------ 1. if it's a return code */
+		/* TODO: substitue buf[i] with space ..... */
+		if( buf[i]==10 )
+		{
+			//egi_pdebug(DBG_TXT," ------get a return \n");
+			nlw += 1; /* return to next line anyway */
+			nt=0;ncount=0; /*reset one line char counter and pixel counter*/
+
+		}
+
+		/* ----- 2. if symbol code out of range */
+		else if( (uint8_t)buf[i] > maxnum )
+		{
+			//printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
+			continue;
+		}
+
+		/* ----- 3. check available pixel space for current line
+		   Max. pixel number per line = bxwidth 	*/
+		else if( symwidth[ (uint8_t)buf[i] ] > (bxwidth-ncount - 2*offx) )
+		{
+			nlw +=1; /* new line */
+			nt=0;ncount=0; /*reset line char counter and pixel counter*/
+			/*else, retry then with the new empty line */
+			i--;
+
+		}
+
+		/* ----- 4. OK, now push a char to txt[][] */
+		else
+		{
+			ncount+=symwidth[ (uint8_t)buf[i] ]; /*increase total number of pixels for current txt line*/
+			txt[nlw][nt]=buf[i];
+			//printf("egi_push_datatxt(): buf[%d]='%c'. \n", i, (char)buf[i]);
+			nt++;
+
+			/* ----- . check remained space
+			check Max. char number per line =llen
+				*/
+			if( nt > llen-1 ) /* txt buf end */
+			{
+				nlw +=1; /* new line */
+				nt=0;ncount=0; /*reset one line char counter and pixel counter*/
+			}
+
+		}
+
+		/* -----  5. finally,check whether total number of data_txt lines used up  ------- */
+		if(nlw>nl-1) /* no more line for txt ebox */
+		{
+			//ret+=i+1; /* count total chars, plus pushed in this for() */
+			//printf("egi_push_datatxt(): push i=%d of total nread=%d bytes of txt.\n", i, nread);
+			break; /* end for() session */
+		}
+		/* if else, go on for() to push next char */
+
+	}/* END for() */
+
+	//printf("egi_push_datatxt(): finish pushing %d of total %d bytes of txt.\n", i, nread);
+
+	/* feed back number of lined used */
+	if(nlw != NULL)
+		*pnl=nlw+1; /*  nlw  index from 0  */
+
+	return i;
 }

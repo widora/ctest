@@ -538,7 +538,7 @@ int egi_page_routine(EGI_PAGE *page)
 				egi_pdebug(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 										hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
-				   return <0 to exit this rountine, roll back to forward rountine then ...
+				   return <0 to exit this rountine, roll back to forward routine then ...
 				   NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
 					'pressing' will prevail  ---
 				*/
@@ -546,7 +546,7 @@ int egi_page_routine(EGI_PAGE *page)
 						(last_status==pressing || last_status==db_pressing ) )
 				{
 					/* reat_ret<0, button pressed to exit current page
-					   usually fall back to its page's rountine caller to release page...
+					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, last_status);
 					if(ret<0)
@@ -563,6 +563,8 @@ int egi_page_routine(EGI_PAGE *page)
 						{
 							egi_page_needrefresh(page);
 						}
+
+						else ; /* will not refresh the page */
 
 					}
 				}

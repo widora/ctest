@@ -320,21 +320,35 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 
 
 /*------------------------------------------------------------
-Create Message Box, Size:240x50
+Message Box, Size:240x50
 display for a while, then release.
 
 long ms: msg displaying time, in ms.
 ------------------------------------------------------------*/
-void egi_display_msgbox (char *msg, long ms, uint16_t bkcolor)
+void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor)
 {
-	printf("---------- len(msg)=%d ----------\n",strlen(msg));
+	int x0=0; /* ebox top left point */
+	int y0=50;
+	int width=240; /* ebox W/H */
+	int height=50;
+	int yres=(&gv_fb_dev)->vinfo.yres;
+	int offx=30;
+	int offy=12;	/* offset x,y of txt */
+	int nl=(yres-offy*2)/(&sympg_testfont)->symheight; /* first, set nl as MAX value for txt. */
+	int llen=64; /* max. chars for each line,also limited by ebox width */
+	int pnl; /* number of pushed txt lines */
 
+	EGI_DATA_TXT *msg_txt=NULL;
+	EGI_EBOX *msgbox=NULL;
+
+   while(1)
+   {
 	/* 1. create a data_txt */
 	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start to egi_txtdata_new()...\n");
-	EGI_DATA_TXT *msg_txt=egi_txtdata_new(
-		30,12, /* offset X,Y */
-      	  	1, /*int nl, lines  */
-       	 	64, /*int llen, chars per line, however also limited by width */
+	msg_txt=egi_txtdata_new(
+		offx,offy, /* offset X,Y */
+      	  	nl, /*int nl, lines  */
+       	 	llen, /*int llen, chars per line, however also limited by ebox width */
         	&sympg_testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* int16_t color */
 	);
@@ -350,34 +364,38 @@ void egi_display_msgbox (char *msg, long ms, uint16_t bkcolor)
 		return;
 	}
 
-	/* 2. put msg string */
-	if(msg==NULL)
-	{
-		egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): msg==NULL, use default MSG\n");
-	        strncpy(msg_txt->txt[0], "--- Message Box ---", msg_txt->llen-1); /* default */
-	}
-	else
-	{
-	        strncpy(msg_txt->txt[0], msg, msg_txt->llen-1); /* default */
-	}
-
-
 	/* 3. create msg ebox */
 	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start egi_txtbox_new().....\n");
-	EGI_EBOX  *msgbox= egi_txtbox_new(
+	height=nl*((&sympg_testfont)->symheight)+2*offy; /*adjust ebox height */
+	msgbox= egi_txtbox_new(
 		"msg_box", /* tag, or put later */
         	msg_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
-       	 	0,50, /* int x0, int y0 */
-        	240,50, /* int width;  int height,which also related with symheight and offy */
+       	 	x0,y0, /* int x0, int y0 */
+        	width,height, /* int width;  int height,which also related with symheight,nl and offy */
         	2, /* int frame, 0=simple frmae, -1=no frame */
         	bkcolor /*int prmcolor*/
 	);
 
-	/* 4. display msg box */
+	/* 4. push txt to ebox */
+	egi_push_datatxt(msgbox, msg, &pnl);
+
+	/* 5. adjust nl then release and loop back and re-create msg ebox */
+	if(pnl<nl)
+	{
+		nl=pnl;
+		msgbox->free(msgbox);
+		msg_txt=NULL;
+		msgbox=NULL;
+	}
+	else
+		break;
+
+  } /* end of while() */
+
+	/* 6. display msg box */
 	msgbox->activate(msgbox);/* activate to display */
 	tm_delayms(ms);
 	msgbox->sleep(msgbox); /* erase the image */
 	msgbox->free(msgbox); /* release */
-
 }

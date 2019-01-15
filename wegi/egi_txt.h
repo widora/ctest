@@ -40,6 +40,6 @@ int egi_txtbox_sleep(EGI_EBOX *ebox);
 int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
 void egi_txtbox_settitle(EGI_EBOX *ebox, char *title);
 void egi_free_data_txt(EGI_DATA_TXT *data_txt);
-
+int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl);
 
 #endif

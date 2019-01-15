@@ -72,6 +72,7 @@ int main(void)
 	uint16_t *nbuf;
 	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
+
 	EGI_EBOX  *hitbtn;
 
 	/* ------  create txt type ebox objects -------*/
@@ -91,6 +92,9 @@ int main(void)
 	EGI_PAGE *page_home=NULL;
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
+
+
+
 
 	/* test ---- IW RSSI ------ */
 #if 0
@@ -123,6 +127,8 @@ int main(void)
 	signal(SIGALRM, tm_tick_sigroutine);
 
 
+
+
 	/* --- clear screen with BLACK --- */
 #if 0
 	//fbset_color(COLOR_RGB_TO16BITS(0X44,0x44,0X88));
@@ -142,7 +148,7 @@ int main(void)
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
 
-	/* ---- test image scale,page dispearing effect ---- */
+	/* test: ----- image scale,page dispearing effect ---- */
 #if 0
 	int wid,hgt;
 	printf("start fb_cpyto_buf\n");
@@ -166,7 +172,7 @@ int main(void)
 #endif
 
 
-	/* --------- test image rotate ----------- */
+	/* test: --------- image rotate ----------- */
 #if 1
         /* copy fb image to buf */
 	int centx=120;
@@ -237,6 +243,28 @@ int main(void)
 	        symbol_writeFB(&gv_fb_dev,&sympg_icons, -1, 0 , 30*i, 0, i);
 	exit(1);
 #endif
+
+
+
+
+
+	/* test -----  egi_push_datatxt( ) ----- */
+#if 1
+	int  nl;
+	char *msg="test egi_push_datatxt() \
+	hello	\
+	helloDF DFDFD 	\
+	KSKFSDK -----dffsdfsgdsgfgdfhfdh-	\
+	hello";
+
+    while(1)
+    {
+	egi_display_msgbox(msg, 55, WEGI_COLOR_ORANGE);
+	tm_delayms(55);
+    }
+	exit(1);
+#endif
+
 
 
 
