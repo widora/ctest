@@ -21,7 +21,7 @@
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_TXT)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)  
+#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_LIST)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)  
 
 #ifdef EGI_DEBUG
 

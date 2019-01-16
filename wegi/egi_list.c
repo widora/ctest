@@ -43,17 +43,23 @@ static EGI_METHOD listbox_method=
 
 
 
-/*------------------------------------------------------
+/*-------------------------------------------------------------
 Create an list ebox.
 standard tag "list"
 
 default ebox prmcolor: 	WEGI_COLOR_GRAY
 default font color: 	WEGI_COLOR_BLACK
 
+NOTE:
+    1.  THe hosting ebox is movable, while item txt_eboxes
+	are fixed. If items are movable,  their images
+	will be messed up during sliding show refresh.
+	here movable/fixed means that ebox's bkimag is ON/OFF.
+
 return:
 	txt ebox pointer 	OK
 	NULL			fai.
--------------------------------------------------------*/
+-----------------------------------------------------------------*/
 EGI_EBOX *egi_listbox_new (
 	int x0, int y0, /* left top point */
         int inum,  	/* item number of a list */
@@ -95,7 +101,7 @@ EGI_EBOX *egi_listbox_new (
 
         ebox->x0=x0;
     	ebox->y0=y0;
-        ebox->movable=false; /* fixed type, however item txt_ebox to be movale */
+        ebox->movable=true; /*  however item txt_ebox to be fixed */
         ebox->width=width;
 	ebox->height=height*nwin; /* for displaying window height */
         ebox->frame=-1; /* no frame, let item ebox prevail */
@@ -205,7 +211,8 @@ printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
        		(data_list->txt_boxes)[i] = egi_txtbox_new(
                 			"----", /* tag, or put later */
 		                	data_txt[i], /* EGI_DATA_TXT pointer */
-               				true, /* bool movable, for txt changing/transparent... */
+               				false, /* (bool movable) fixed type. to provent refreshing images
+						from messing up during sliding show */
 			                x0, y0+i*height, /* int x0, int y0 */
                 			width, height, /* int width;  int height,which also related with symheight and offy */
                 			frame, /* int frame, 0=simple frmae, -1=no frame */
@@ -218,7 +225,7 @@ printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
 			i--;
 			continue;
 		}
-printf("egi_listbox_new(): data_list->txt_boxes[%d]=egi_txtbox_new() end...\n",i);
+//printf("egi_listbox_new(): data_list->txt_boxes[%d]=egi_txtbox_new() end...\n",i);
 
 		/* 12.3 set father or hosting ebox */
 		data_list->txt_boxes[i]->father = ebox;
@@ -231,7 +238,7 @@ printf("egi_listbox_new(): data_list->txt_boxes[%d]=egi_txtbox_new() end...\n",i
 
 		/* 12.6 set-tag */
 		sprintf(data_list->txt_boxes[i]->tag,"item_%d",i);
-printf("egi_list_new(): data_list->txt_boxes[%d] set_tag  end...\n",i);
+//printf("egi_list_new(): data_list->txt_boxes[%d] set_tag  end...\n",i);
 
 	}
 
@@ -325,14 +332,6 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 	pw=data_list->pw;
 	nwin=data_list->nwin;
 
-	/* 4. activate those txt_eboxes that are in the displaying window only */
-	/* awake all, but do not refresh them */
-	//for(i=0; i<inum; i++)
-	//{
-	//	(data_list->txt_boxes[i])->status=status_active;
-	//	(data_list->txt_boxes[i])->need_refresh=false;
-	//}
-
 	/* activate those in displaying windows only */
 	for(i=0; i<nwin; i++)
 	{
@@ -340,14 +339,7 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 		if(itnum >= inum)
 			itnum=itnum%inum; /* roll back then */
 
-		printf("egi_listbox_activate():----------itnum=%d----------\n",itnum);
-
-		/* 4.1 activate it first, or bkimg=NULL will fail refresh */
-//		if( (data_list->txt_boxes[itnum])->status != status_active)
-//		{
-//			egi_txtbox_activate(data_list->txt_boxes[itnum]);
-//
-//		}
+		egi_pdebug(DBG_LIST,"egi_listbox_activate():----------itnum=%d----------\n",itnum);
 
 		/* 4.1 update position, within displaying window */
 		data_list->txt_boxes[itnum]->y0=ebox->y0	\
@@ -451,10 +443,7 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 		if(itnum >= inum)
 			itnum=itnum%inum; /* roll back then */
 
-		printf("egi_listbox_refresh():----------itnum=%d----------\n",itnum);
-
-		/* test */
-//		data_list->txt_boxes[itnum]->need_refresh=true;
+		egi_pdebug(DBG_LIST,"egi_listbox_refresh():----------itnum=%d----------\n",itnum);
 
 		/* 4.1 update position, within displaying window */
 		data_list->txt_boxes[itnum]->y0=ebox->y0	\
@@ -580,7 +569,7 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
 	/* 8. check txt */
 	if(txt==NULL || txt[0]==NULL)
 	{
-                printf("egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
+                egi_pdebug(DBG_LIST,"egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
 
 		/* !!! put need_refresh flag before quit */
 		item_txtbox->need_refresh=true;
