@@ -450,12 +450,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
 	ebox->height=height;
 
-
    /* ------ restore bkimg and buffer new bkimg
-   ONLY IF:
-	1. the txt ebox is movable,
-	   and ebox size and position is changed.
-	2. or data_txt->.prmcolor <0 , it's transparent. EGI_NOPRIM_COLOR
+     ONLY IF:
+	 1. the txt ebox is movable,
+	    and ebox size and position is changed.
+	 2. or data_txt->.prmcolor <0 , it's transparent. EGI_NOPRIM_COLOR
    */
    if ( ( ebox->movable && ( (ebox->bkbox.startxy.x!=x0) || (ebox->bkbox.startxy.y!=y0)
 			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )

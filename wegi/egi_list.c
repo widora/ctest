@@ -369,6 +369,7 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 /*---------------------------------------------------------------------------------------------
 to refresh item txt_eboxes in the displaying window, with item index from pw to pw+nwin-1 only.
 
+
 1. TODO: update/push data to fill list
 2. the hosting_ebox need not to be refreshed, so its need_refresh
    token should always be true.
@@ -379,7 +380,9 @@ to refresh item txt_eboxes in the displaying window, with item index from pw to 
    5.2 awake the txt_ebox.
    5.3 set need_refresh flag.
 
-6. !!!!activate the txt_ebox if it's not active! or bkimg will not allocated, which will fail refresh. !!!!
+6. !!!! Because of drawing sequence, bkimg refresh will mess up the image, so all txt_ebox to 
+   shall set to be fixed type.!!!!
+7. you may select the refresh sliding type. 
 
 
 Retrun:
@@ -388,7 +391,7 @@ Retrun:
 -----------------------------------------------------------------------------------------*/
 int egi_listbox_refresh(EGI_EBOX *ebox)
 {
-	int  i;
+	int  i,j;
 	int nwin; /* number of itmes in displaying window */
 	int pw;	/* first item number in the displaying window */
 	int inum;
@@ -449,6 +452,10 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 		data_list->txt_boxes[itnum]->y0=ebox->y0	\
 						+i*(data_list->txt_boxes[itnum]->height);/* update postion */
 
+/* ----- motion default: */
+           if(data_list->motion == 0 ) /* no motion,default */
+	   {
+
 		/* 4.2 activate it first, or bkimg=NULL will fail refresh 
 		   to activate an txt_ebox also will refresh it */
 		if( (data_list->txt_boxes[itnum])->status != status_active)
@@ -475,8 +482,52 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 					data_list->icon_code[itnum], 0 ); /* opaque 0 */
 		}
 
-	}
+	   }/*end motion type 0 */
 
+/* ----- motion sliding: */
+	   else if(data_list->motion) /* motion type 1 or other ... *,sliding from left */
+	   {
+ 	    /* sliding for() */
+	    for(j=0;j<10;j++)
+	    {
+		data_list->txt_boxes[itnum]->x0=240-240/10*(j+1);
+
+		/* set reflresh flag */
+		data_list->txt_boxes[itnum]->need_refresh=true;
+
+		if( (data_list->txt_boxes[itnum])->status != status_active)
+		{
+			egi_txtbox_activate(data_list->txt_boxes[itnum]);
+
+		}
+		else
+		{
+			/* 4.3 refresh txtbox if do not take activation above */
+			if( egi_txtbox_refresh(data_list->txt_boxes[itnum]) < 0 )
+			{
+				printf("egi_listbox_refresh(): fail to refresh data_list->txt_boxes[%d].\n",itnum);
+				return -5;
+			}
+		}
+
+		/* 4.4 refresh icon */
+		if(data_list->icons[itnum])
+		{
+			symbol_writeFB(&gv_fb_dev, data_list->icons[itnum], SYM_NOSUB_COLOR,
+					data_list->icons[itnum]->bkcolor,
+ 					data_list->txt_boxes[itnum]->x0, data_list->txt_boxes[itnum]->y0,
+					data_list->icon_code[itnum], 0 ); /* opaque 0 */
+		}
+
+		/* hold on for a while */
+		tm_delayms(100);
+
+	    } /* end for(), end sliding_refresh one txt_ebox */
+	    tm_delayms(500);
+
+	   }/*end of motion type 1 sliding */
+
+	}/* end of refresh for */
 	return 0;
 }
 
@@ -500,7 +551,7 @@ Retrun:
 	0	OK
 	<0	fail
 -------------------------------------------------------------------------*/
-int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, char **txt)
+int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt)
 {
 	int i;
 	int inum;

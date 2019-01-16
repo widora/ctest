@@ -231,7 +231,7 @@ static int book_forward(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 	//egi_page_needrefresh(page);
 	//egi_page_refresh(page);
 
-        return 1;
+        return 0; /*return 0 page refresh */
 }
 
 /*------------------------------------------------------------------

@@ -306,6 +306,12 @@ struct egi_data_list
            color for each txt line in a list item.
 	  to be decided on egi_data_txt .....
 	*/
+
+	/* refresh motion type
+	   0:	not motion
+	   1:	sliding from left
+	*/
+	int motion;
 };
 
 

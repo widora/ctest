@@ -570,9 +570,9 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 #else /*--- if  NO ROLLBACK ---*/
 			mapx=x0+j;
-			if(mapx>xres)mapx=xres-1;
+			if(mapx>(xres-1))mapx=xres-1;
 			mapy=y0+i;
-			if(mapy>yres)mapy=yres-1;
+			if(mapy>(yres-1))mapy=yres-1;
 
 #endif
 

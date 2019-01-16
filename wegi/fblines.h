@@ -19,7 +19,7 @@ Modified by: Midas Zhou
 #include "egi.h"
 
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
-#define FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
+#define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
 
 
 #ifndef _TYPE_FBDEV_

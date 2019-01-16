@@ -15,7 +15,7 @@ int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status)
 {
 	int i,j;
 	int inum=13;
-	int nwin=4; /* window size in items */
+	int nwin=5; /* window size in items */
 	int nl=2;
 	static int count=0; /* test counter */
 
@@ -69,6 +69,10 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	};
 
 
+	egi_display_msgbox("Message: \n\n   Start list test ... \n\n",1000, WEGI_COLOR_ORANGE);
+
+
+
 	char **pdata;
 	pdata=malloc(nl*sizeof(char *)); //nl=2;
 
@@ -98,7 +102,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	}
 
 	/* 4. activate the list	*/
-	egi_listbox_activate(list);
+//	egi_listbox_activate(list);
 	printf("egi_listbox_test(): finish egi_list_activate(). \n");
 
 
@@ -116,10 +120,12 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 
 	/* 5. loop refresh */
 	i=0;
+	j=0;
 	pdata[0]="Hello! NEO world!";
-
 	/* set start pw */
 	data_list->pw=0;
+	/* set refresh motion type */
+	data_list->motion=1;/* sliding from left */
 
 	while(1)
 	{
@@ -143,24 +149,34 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 		{
 			egi_listbox_updateitem(list, i, -1, NULL); /* -1, keep old color and txt */
 		}
-
 		egi_listbox_refresh(list);
-
 		tm_delayms(1000);
+
 
 		/* slide displaying window by adjust pw */
 		data_list->pw++;
 		if(data_list->pw > data_list->inum-1 )
 			data_list->pw=0;
+
+
+		/* end loop */
+		j++;
+		if(j>3)
+		{
+			egi_display_msgbox("Message: \n\n End of list test. Thanks! \n\n",1000, WEGI_COLOR_ORANGE);
+			break;
+		}
+
 	}
 
-
+	list->sleep(list);
 	printf("egi_listbox_test(): start list->free(list)... \n");
 	list->free(list);
 	printf("egi_listbox_test(): start free(pdata)... \n");
 	free(pdata);
 
-	return 0;
+
+	return 0; /* return 0 to inform page to refresh itself */
 }
 
 
