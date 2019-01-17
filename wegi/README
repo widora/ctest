@@ -9,10 +9,26 @@ NOTE:
 
 
 
-main source files:
+	----- main source files -----
+
+egi_fbgeom.c	fb and basic geometry functions
+xtp2046.c	touch controller interface funcs
 egi.c		concept ebox functions
+egi_color.c	color definition and conversion functions
+egi_symbol.c	fonts/icons/symbols...definition and functions
+egi_bmpjpg.c	funcs for processing bmp and jpg files
+egi_timer.c	timer and delay 
+egi_debug.c	for debug
+
 egi_txt.c	type_txt ebox functions
+egi_btn.c	type_btn ebox	
+egi_list.c	type_list ebox
+egi_iwinfo.c	wifi info. extraction
+
+sys_list.h	from kernel list operation func. 
+
 egi_objtxt.c	type_txt objects creation functions
-egi_btn.
-egi_list.c
-egi_objlist.c
+egi_objlist.c   list objects 
+
+
+egi_pageXXX.c	finally, page codes....

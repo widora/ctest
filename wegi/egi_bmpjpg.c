@@ -26,7 +26,7 @@ Modified by Midas
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
-#include "bmpjpg.h"
+#include "egi_bmpjpg.h"
 #include "egi_color.h"
 
 BITMAPFILEHEADER FileHead;

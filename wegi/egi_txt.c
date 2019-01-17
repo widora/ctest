@@ -13,7 +13,7 @@ Midas Zhou
 #include "egi_debug.h"
 //#include "egi_timer.h"
 #include "egi_symbol.h"
-#include "bmpjpg.h"
+#include "egi_bmpjpg.h"
 
 
 //static int egi_txtbox_decorate(EGI_EBOX *ebox);

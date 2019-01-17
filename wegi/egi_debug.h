@@ -16,12 +16,12 @@
 #define DBG_COLOR	(1<<5)
 #define DBG_SYMBOL	(1<<6)
 #define DBG_OBJTXT	(1<<7)
-
+#define DBG_FBGEOM	(1<<8)
 
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_LIST)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)  
+#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_LIST)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
 
 #ifdef EGI_DEBUG
 

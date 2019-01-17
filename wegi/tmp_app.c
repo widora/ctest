@@ -33,7 +33,7 @@ Midas Zhou
 #include <time.h>
 #include "egi_color.h"
 #include "spi.h"
-#include "fblines.h"
+#include "egi_fbgeom.h"
 #include "egi.h"
 #include "egi_page.h"
 #include "egi_txt.h"
@@ -43,7 +43,7 @@ Midas Zhou
 #include "egi_pagehome.h"
 //#include "egi_pagemplay.h"
 #include "xpt2046.h"
-#include "bmpjpg.h"
+#include "egi_bmpjpg.h"
 //#include "dict.h"
 #include "egi_symbol.h"
 #include "egi_objlist.h"

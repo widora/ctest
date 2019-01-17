@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "egi_timer.h"
 #include "egi_symbol.h"
-#include "fblines.h"
+#include "egi_fbgeom.h"
 #include "dict.h"
 
 struct itimerval tm_val, tm_oval;

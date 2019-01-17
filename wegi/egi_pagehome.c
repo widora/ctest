@@ -255,7 +255,7 @@ static void egi_display_iotload(EGI_PAGE *page)
 		else if(rssi > -80) index=3;
 		else if(rssi > -94) index=2;
 		else 	index=1;
-		printf("egi_display_itoload(): rssi=%d; index=%d \n",rssi,index);
+		egi_pdebug(DBG_PAGE,"egi_display_itoload(): rssi=%d; index=%d \n",rssi,index);
 		/* draw RSSI symbol */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
 	}

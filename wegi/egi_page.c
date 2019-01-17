@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "list.h"
+#include "sys_list.h"
 #include "xpt2046.h"
 #include "egi.h"
 #include "egi_timer.h"
@@ -10,7 +10,7 @@
 #include "egi_debug.h"
 #include "egi_color.h"
 #include "egi_symbol.h"
-#include "bmpjpg.h"
+#include "egi_bmpjpg.h"
 
 /*
 
@@ -456,7 +456,7 @@ int egi_page_routine(EGI_PAGE *page)
 	/* 4. loop in touch checking and other routines.... */
 	while(1)
 	{
-		/* 4.1. necessary wait for XPT */
+		/* 4.1. necessary wait,just for XPT to prepare data */
 	 	tm_delayms(2);
 
 		/* 4.2. read XPT to get avg tft-LCD coordinate */
@@ -485,9 +485,10 @@ int egi_page_routine(EGI_PAGE *page)
 			else
 				last_status=released_hold;
 
+			/* run egi_page_refresh() only at pen-up status here */
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
 			egi_page_refresh(page);
-			tm_delayms(100);/* hold on for a while, or the screen will be  */
+			tm_delayms(100);/* hold on for a while, or the screen will be ...heheheheheh... */
 
 		}
 
@@ -500,7 +501,7 @@ int egi_page_routine(EGI_PAGE *page)
 
 		}
 
-		/* 4.6. get touch coordinates and trigger actions for hit button if any */
+		/* 4.6. get touch coordinates and trigger actions for the hit button if any */
                 else if(ret == XPT_READ_STATUS_COMPLETE) /* touch action detected */
                 {
 			/* update button last_status */
@@ -542,10 +543,10 @@ int egi_page_routine(EGI_PAGE *page)
 				   NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
 					'pressing' will prevail  ---
 				*/
-	 			if(hitbtn->reaction != NULL &&
+	 			if( hitbtn->reaction != NULL &&
 						(last_status==pressing || last_status==db_pressing ) )
 				{
-					/* reat_ret<0, button pressed to exit current page
+					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, last_status);
@@ -555,8 +556,8 @@ int egi_page_routine(EGI_PAGE *page)
 										page->ebox->tag, hitbtn->tag);
 						return -1;
 					}
-					/* react_ret=0, page exit!
-					   the page activated in above reaction is released */
+					/* else, react_ret=0, page exit!
+					   the page that activated in above reaction() is released */
 					else
 					{
 						if(ret==0)/* ret=0: refresh page and its eboxes */
@@ -565,13 +566,11 @@ int egi_page_routine(EGI_PAGE *page)
 						}
 
 						else ; /* will not refresh the page */
-
 					}
 				}
 
 			} /* end of button reaction */
 	                continue;
-
 			/* loop in refreshing listed eboxes */
 		}
 	}

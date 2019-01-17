@@ -28,7 +28,7 @@ Midas
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
-#include "fblines.h"
+#include "egi_fbgeom.h"
 
 
 //14byte文件头

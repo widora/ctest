@@ -11,7 +11,6 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_debug.h"
 #include "egi_symbol.h"
-//#include "bmpjpg.h"
 
 
 /*-------------------------------------

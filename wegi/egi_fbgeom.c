@@ -13,9 +13,9 @@ TODO:
 
 
 Modified by Midas-Zhou
-1. add
+
 -----------------------------------------------------------------------------*/
-#include "fblines.h"
+#include "egi_fbgeom.h"
 #include "egi.h"
 #include "egi_debug.h"
 #include <unistd.h>
@@ -491,7 +491,7 @@ FBDEV  gv_fb_dev;
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				printf("WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				egi_pdebug(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
 			/* map i,j to LCD(Y,X) */
@@ -878,7 +878,6 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 			draw_dot(&gv_fb_dev, x0y0.x+j, x0y0.y+i); /* ???? n-j */
 		}
 }
-
 
 
 

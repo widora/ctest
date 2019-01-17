@@ -12,7 +12,7 @@ Midas Zhou
 #include <math.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include "list.h"
+#include "sys_list.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */

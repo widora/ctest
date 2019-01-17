@@ -60,7 +60,7 @@ EGI_PAGE *egi_create_bookpage(void)
 
 	/* 1. create book_txt */
 	book_txt=egi_txtdata_new(
-		5,5, /* offset X,Y */
+		15,5, /* offset X,Y */
       	  	11, /*int nl, lines  */
        	 	24, /*int llen, chars per line */
         	&sympg_testfont, /*struct symbol_page *font */
@@ -76,7 +76,7 @@ EGI_PAGE *egi_create_bookpage(void)
 		"book", /* tag */
         	book_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
-       	 	12,30, /* int x0, int y0 */
+       	 	0,30, /* int x0, int y0 */
 		/* tricky, here create a roll-back seam */
         	240,320-30, /* int width, int height */
         	-1, /* int frame, -1=no frame */

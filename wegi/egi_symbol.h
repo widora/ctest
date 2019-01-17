@@ -7,7 +7,7 @@ Midas Zhou
 #define __SYMBOL_H__
 
 
-#include "fblines.h"
+#include "egi_fbgeom.h"
 
 
 

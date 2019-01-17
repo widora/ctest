@@ -620,7 +620,7 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt
 	/* 8. check txt */
 	if(txt==NULL || txt[0]==NULL)
 	{
-                egi_pdebug(DBG_LIST,"egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
+//                egi_pdebug(DBG_LIST,"egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
 
 		/* !!! put need_refresh flag before quit */
 		item_txtbox->need_refresh=true;

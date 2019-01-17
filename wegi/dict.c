@@ -21,7 +21,7 @@ Midas Zhou
 #include <stdint.h>
 #include <fcntl.h> /* open */
 #include <linux/fb.h>
-#include "fblines.h"
+#include "egi_fbgeom.h"
 #include "dict.h"
 
 /* symbols dict data  */

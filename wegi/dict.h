@@ -7,7 +7,7 @@ Midas Zhou
 --------------------------------------------------------------------*/
 #include <stdint.h>
 #include <linux/fb.h>
-#include "fblines.h"
+#include "egi_fbgeom.h"
 
 #define DICT_IMG_WIDTH 240
 #define DICT_IMG_HEIGHT 320

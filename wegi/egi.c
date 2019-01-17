@@ -35,7 +35,7 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_list.h"
 #include "egi_debug.h"
-#include "list.h"
+#include "sys_list.h"
 #include "egi_symbol.h"
 
 
@@ -52,7 +52,7 @@ int egi_random_max(int max)
 
         srand(tmval.tv_usec);
         ret = 1+(int)((float)max*rand()/(RAND_MAX+1.0));
-        printf("random max ret=%d\n",ret);
+        //printf("random max ret=%d\n",ret);
 
         return ret;
 }
