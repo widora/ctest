@@ -44,14 +44,14 @@ Midas Zhou
 #define XPT_PENUP_READCOUNT 5 /* use to detect pen-up scenario */
 
 /* status for XPT touch data reading */
-#define XPT_READ_STATUS_COMPLETE      0   /* OK, reading session is just finished, data is ready.*/
-#define XPT_READ_STATUS_GOING    1        /* session is going on,  data is NOT ready.*/
-#define XPT_READ_STATUS_PENUP    2       /* pen-up status, pen untouched */
-#define XPT_READ_STATUS_HOLDON   3	/* pressed and hold on */
+#define XPT_READ_STATUS_COMPLETE      0   /* touched!! OK, reading session is just finished, data is ready.*/
+#define XPT_READ_STATUS_GOING    1        /* touched!! session is going on,  data is NOT ready.*/
+#define XPT_READ_STATUS_PENUP    2       /* no-touch!! pen-up status, pen untouched */
+//#define XPT_READ_STATUS_HOLDON   3	/* NOT APPLICABLE!!!!  pressed and hold on */
 
 /* -------------------------- functions ------------------------ */
-int xpt_read_xy(uint8_t *xp, uint8_t *yp);
-void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t *ys);
+//static int xpt_read_xy(uint8_t *xp, uint8_t *yp);
+//static void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t *ys);
 int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy);
 
 #endif

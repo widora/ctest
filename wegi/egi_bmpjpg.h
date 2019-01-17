@@ -13,8 +13,8 @@ TODO:
 
 Midas
 ---------------------------------------------------------------------------*/
-#ifndef __BMPJPG_H__
-#define __BMPJPG_H__
+#ifndef __EGI_BMPJPG_H__
+#define __EGI_BMPJPG_H__
 
 
 #include <unistd.h>

@@ -9,14 +9,13 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
 Modified by: Midas Zhou
 -----------------------------------------------------------------------------*/
-#ifndef __FBLINES_H__
-#define __FBLINES_H__
+#ifndef __EGI_FBGEOM_H__
+#define __EGI_FBGEOM_H__
 
 #include <stdio.h>
 #include <linux/fb.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "egi.h"
 
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
@@ -24,6 +23,7 @@ Modified by: Midas Zhou
 
 #ifndef _TYPE_FBDEV_
 #define _TYPE_FBDEV_
+
     typedef struct fbdev{
         int fdfd; //open "dev/fb0"
         struct fb_var_screeninfo vinfo;
@@ -31,7 +31,22 @@ Modified by: Midas Zhou
         long int screensize;
         char *map_fb;
     }FBDEV;
+
 #endif
+
+
+struct egi_point_coord
+{
+         int x;
+         int y;
+};
+struct egi_box_coords
+{
+        struct egi_point_coord startxy;
+        struct egi_point_coord endxy;
+};
+
+#include "egi.h"
 
 
 /* global variale, Frame buffer device */

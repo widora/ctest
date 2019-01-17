@@ -3,12 +3,12 @@ For test only!
 
 Midas Zhou
 ----------------------------------------------------------------------------*/
-#ifndef __SYMBOL_H__
-#define __SYMBOL_H__
+#ifndef __EGI_SYMBOL_H__
+#define __EGI_SYMBOL_H__
 
 
 #include "egi_fbgeom.h"
-
+#include "egi.h"
 
 
 /* symbol image size */

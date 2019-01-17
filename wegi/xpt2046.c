@@ -8,12 +8,12 @@ Midas Zhou
 #include "xpt2046.h"
 #include "egi_debug.h"
 
-int xpt_nsample; /* sample index for XPT touch point coordinate */
+//static int xpt_nsample; /* sample index for XPT touch point coordinate */
 
 /*---------------------------------------------------------------
 read XPT touching coordinates, and normalize it.
-*x --- 2bytes value
-*y --- 2bytes value
+*xp --- 2bytes value
+*yp --- 2bytes value
 return:
 	0 	Ok
 	<0 	pad untouched or invalid value
@@ -21,7 +21,7 @@ return:
 Note:
 	1. Only first byte read from XPT is meaningful !!!??
 ---------------------------------------------------------------*/
-int xpt_read_xy(uint8_t *xp, uint8_t *yp)
+static int xpt_read_xy(uint8_t *xp, uint8_t *yp)
 {
 	uint8_t cmd;
 
@@ -66,7 +66,7 @@ NOTE:
 actually not one to one, but one to several points. however, we still keep one to
 one mapping here.
 --------------------------------------------------------------------------------*/
-void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t *ys)
+static void xpt_maplcd_xy(const uint8_t *xp, const uint8_t *yp, uint16_t *xs, uint16_t *ys)
 {
 	*xs=LCD_SIZE_X*(xp[0]-XPT_XP_MIN)/(XPT_XP_MAX-XPT_XP_MIN+1);
 	*ys=LCD_SIZE_Y*(yp[0]-XPT_YP_MIN)/(XPT_YP_MAX-XPT_YP_MIN+1);
@@ -98,9 +98,9 @@ Return:
 	XPT_READ_STATUS_COMPLETE      0		OK, reading session just finished, (avgsx,avgsy) is ready.
 	XPT_READ_STATUS_GOING 	1		during reading session, avgsx,avgsy is NOT ready.
 	XPT_READ_STATUS_PENUP	2		pen-up
-	XPT_READ_STATUS_HOLDON  3		pressed and hold on, but may be moving...
+	( !!!! INVALID )  XPT_READ_STATUS_HOLDON  3		pressed and hold on, but may be moving...
 
-	else		fail !!!!! no quit until get enough consecutive samples !!!!!
+	else		fail !!!!! no quit, until get enough consecutive samples !!!!!
 
 TODO:
 
@@ -144,7 +144,7 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
         }
         else
         {
-		/* if not consecutive read fail, reset nfail */
+		/* else, reset nfail */
 		nfail=0;
 		/* accumulate xp yp */
                 xp_accum += xp[0];
@@ -168,12 +168,15 @@ int xpt_getavg_xy(uint16_t *avgsx, uint16_t *avgsy)
         	xpt_maplcd_xy(xp, yp, avgsx, avgsy);
         	PDEBUG("xp=%d, yp=%d;  sx=%d, sy=%d\n",xp[0],yp[0],*avgsx,*avgsy);
 
-
+#if 0 /* since status COMPLETE will always be breaked by XPT_READ_STATUS_GOING,
+	 status HOLDON will never happen.!!!!! */
 		if(last_status==XPT_READ_STATUS_COMPLETE)
 		{
 			ret=XPT_READ_STATUS_HOLDON; /* mission complete */
+			/* keep last_status as COMPLETE */
 		}
 		else
+#endif
 		{
 			last_status=XPT_READ_STATUS_COMPLETE;
 			ret=XPT_READ_STATUS_COMPLETE;   /* mission complete */

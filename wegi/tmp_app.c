@@ -31,6 +31,7 @@ Midas Zhou
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
 #include "egi_color.h"
 #include "spi.h"
 #include "egi_fbgeom.h"
@@ -48,6 +49,7 @@ Midas Zhou
 #include "egi_symbol.h"
 #include "egi_objlist.h"
 #include "egi_iwinfo.h"
+#include "egi_touch.h"
 
 char mvicon_load[16]={0};
 
@@ -72,6 +74,25 @@ int main(void)
 	uint16_t *nbuf;
 	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
+	pthread_t   thread_loopread;
+
+
+
+	/* --- open spi dev --- */
+	SPI_Open();
+
+	/* --- prepare fb device --- */
+        gv_fb_dev.fdfd=-1;
+        init_dev(&gv_fb_dev);
+
+	/* ---- set timer for time display ---- */
+		tm_settimer(500000);/* set timer interval interval */
+	signal(SIGALRM, tm_sigroutine);
+
+	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
+	signal(SIGALRM, tm_tick_sigroutine);
+
+///////////////////////////////////////////////////////////////////////////////
 
 	EGI_EBOX  *hitbtn;
 
@@ -94,8 +115,67 @@ int main(void)
 	EGI_PAGE *page_openwrt=NULL;
 
 
+#if 1
+	/* test ------- touch loopread ------- */
+	int dy;
+	int mark=280; /* */
+	int hvol=mark;
+	int setvol;
+	int strcmd[50];
 
+	EGI_TOUCH_DATA touch_data;
 
+	show_jpg("/tmp/lights.jpg",&gv_fb_dev,0,0,0); /*black on*/
+	fb_cpyto_buf(&gv_fb_dev, 50, 0, 50+50-1, 320-1, buf);
+
+	if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
+	{
+		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
+		exit(1);
+	}
+
+	while(1)
+    	{
+		if( !egi_touch_getdata(&touch_data) )
+		{
+			//printf("touch data NOT ready!\n");
+			//usleep(2000);
+			tm_delayms(10);
+
+		}
+		else
+		{
+			/* reset mark when releasing */
+			if( touch_data.status==releasing )
+			{
+				printf("------- touch_data: releaseing -------\n");
+				mark=hvol;
+				continue;
+			}
+
+			dy=touch_data.dely;
+
+			if(dy>0)
+				hvol=mark+dy/4*4;
+			else if(dy<0)
+				hvol=mark+dy/4*4;
+			/* set limit */
+			if(hvol<20)hvol=30;
+			if(hvol>280)hvol=280;
+			printf("dy=%d, mark=%d, hvol=%d\n",dy,mark,hvol);
+
+			/* PCM 0-999 */
+			 setvol=(280-hvol)*1000/(280-30);
+			sprintf(strcmd,"amixer set PCM %d",setvol);
+			system(strcmd);
+
+			fb_cpyfrom_buf(&gv_fb_dev, 50, 0, 50+50-1, 320-1, buf);
+			draw_filled_rect(&gv_fb_dev,50,280,50+50-1,hvol);
+
+			tm_delayms(55);
+		}
+    	}
+#endif
 	/* test ---- IW RSSI ------ */
 #if 0
 	while(1)
@@ -112,19 +192,12 @@ int main(void)
 	 exit(1);
 #endif
 
-	/* --- open spi dev --- */
-	SPI_Open();
 
-	/* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
 
-	/* ---- set timer for time display ---- */
-		tm_settimer(500000);/* set timer interval interval */
-	signal(SIGALRM, tm_sigroutine);
 
-	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
-	signal(SIGALRM, tm_tick_sigroutine);
+
+
+
 
 
 

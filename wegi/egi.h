@@ -13,6 +13,8 @@ Midas Zhou
 #include <stdbool.h>
 #include <pthread.h>
 #include "sys_list.h"
+#include "egi_fbgeom.h"
+
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
@@ -21,17 +23,6 @@ Midas Zhou
 typedef struct egi_page EGI_PAGE;
 typedef struct egi_element_box EGI_EBOX;
 
-struct egi_point_coord
-{
-	 int x;
-	 int y;
-};
-
-struct egi_box_coords
-{
-	struct egi_point_coord startxy;
-	struct egi_point_coord endxy;
-};
 
 /* element box type */
 enum egi_ebox_type
@@ -63,6 +54,7 @@ enum egi_btn_type
 	square=0, /* default */
 	circle,
 };
+
 
 /* button status */
 enum egi_touch_status

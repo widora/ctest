@@ -493,6 +493,8 @@ int egi_page_routine(EGI_PAGE *page)
 		}
 
 		/* 4.5. holdon(down) status events here, !!!!???? seems never happen !!???  */
+#if 0 /* since status COMPLETE will always be breaked by status GOING....,
+	 status HOLDON will never happens!!! see xpt2046.c */
 		else if(ret == XPT_READ_STATUS_HOLDON)
 		{
 			last_status=pressed_hold;
@@ -500,7 +502,7 @@ int egi_page_routine(EGI_PAGE *page)
 											page->ebox->tag);
 
 		}
-
+#endif
 		/* 4.6. get touch coordinates and trigger actions for the hit button if any */
                 else if(ret == XPT_READ_STATUS_COMPLETE) /* touch action detected */
                 {
