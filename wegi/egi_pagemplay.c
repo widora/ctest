@@ -24,7 +24,7 @@ Midas Zhou
 #include "egi_symbol.h"
 
 
-static int egi_pagemplay_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
 1. create eboxes for 6 buttons and 1 title bar
@@ -154,7 +154,7 @@ static void egi_pagemplay_runner(EGI_PAGE *page)
 btn_close function:
 return
 -----------------------------------*/
-static int egi_pagemplay_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	return -1;
 }

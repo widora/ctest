@@ -179,29 +179,24 @@ FBDEV  gv_fb_dev;
 		fy=fy%yres; /* here fy=1-320 */
 	}
 #else /* NO ROLLBACK */
-	/* map to LCD(X,Y) */
-	if(fx>xres-1)
-		fx=xres-1;
-	else if(fx<0)
-		fx=0;
-
-	if( fy > yres-1) {
-		fy=yres-1;
+	/* ignore out_ranged points */
+	if( fx>(xres-1) || fx<0) {
+		return -1;
 	}
-	else if(fy<0) {
-		fy=0;
-	}
-
-	/* check if no space left for a 16bit_pixel in FB mem */
-	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) )
-	{
-		printf("WARNING: point location out of fb mem.!\n");
+	if( fy>(yres-1) || fy<0 ) {
 		return -1;
 	}
 #endif
 
         location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+
+	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
+	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) )
+	{
+		printf("WARNING: point location out of fb mem.!\n");
+		return -1;
+	}
 
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 
@@ -240,9 +235,6 @@ FBDEV  gv_fb_dev;
         int tekyy=*yy2-*yy1;
 
 
-
-// draw_line(&fr_dev,240,318,240,246);
-
         //if((*xx2>=*xx1)&&(*yy2>=*yy1))
         if(*xx2>*xx1)
         {
@@ -250,9 +242,6 @@ FBDEV  gv_fb_dev;
             {
                 j=(i-*xx1)*tekyy/tekxx+*yy1;
                 draw_dot(fr_dev,i,j);
-//		draw_dot(fr_dev,i+1,j);
-//		draw_dot(fr_dev,i,j+1);
-//		draw_dot(fr_dev,i+1,j+1);
             }
         }
 	else if(*xx2 == *xx1)
@@ -316,7 +305,7 @@ FBDEV  gv_fb_dev;
 
     Return:
 		0	OK
-		-1	point out of FB mem
+		//ignore -1	point out of FB mem
     Midas
     ------------------------------------------------------------*/
     int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
@@ -351,8 +340,7 @@ FBDEV  gv_fb_dev;
 	{
 		for(j=xl;j<=xr;j++)
 		{
-                	if(draw_dot(dev,j,i)<0)
-				return -1;
+                	draw_dot(dev,j,i); /* ignore range check */
 		}
 	}
 
@@ -374,7 +362,7 @@ FBDEV  gv_fb_dev;
 
 	for(i=0;i<r;i++)
 	{
-		s=sqrt(r*r-i*i);
+		s=sqrt(r*r*1.0-i*i*1.0);
 		if(i==0)s-=1; /* erase four tips */
 		draw_dot(dev,x-s,y+i);
 		draw_dot(dev,x+s,y+i);
@@ -608,7 +596,7 @@ FBDEV  gv_fb_dev;
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				printf("WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				egi_pdebug(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
 			/* map i,j to LCD(Y,X) */

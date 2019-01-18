@@ -92,6 +92,15 @@ int main(void)
 	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 	signal(SIGALRM, tm_tick_sigroutine);
 
+	/* ---- start touch thread ---- */
+	if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
+	{
+		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
+		exit(1);
+	}
+
+
+
 ///////////////////////////////////////////////////////////////////////////////
 
 	EGI_EBOX  *hitbtn;
@@ -115,7 +124,7 @@ int main(void)
 	EGI_PAGE *page_openwrt=NULL;
 
 
-#if 1
+#if 0
 	/* test ------- touch loopread ------- */
 	int dy;
 	int mark=280; /* */
@@ -128,11 +137,6 @@ int main(void)
 	show_jpg("/tmp/lights.jpg",&gv_fb_dev,0,0,0); /*black on*/
 	fb_cpyto_buf(&gv_fb_dev, 50, 0, 50+50-1, 320-1, buf);
 
-	if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
-	{
-		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
-		exit(1);
-	}
 
 	while(1)
     	{

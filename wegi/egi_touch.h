@@ -5,26 +5,12 @@
 #include "egi_fbgeom.h"
 #include <stdbool.h>
 
-
-/*
-enum egi_touch_status
-{
-        unkown=-1,   during reading or fails
-        releasing=0,   status transforming from pressed_hold to released_hold
-        pressing=1,     status transforming from released_hold to pressed_hold
-        released_hold=2,
-        pressed_hold=3,
-        db_releasing=4, double click, the last releasing
-        db_pressing=5,  double click, the last pressing
-};
-*/
-
-
+#if 0
 typedef struct egi_touch_data EGI_TOUCH_DATA;
 struct egi_touch_data
 {
-	/* need semaphore lock ????? */
-
+	/* need semaphore lock ?????
+	TODO:         */
 
 	/* flag, whether the data is updated after read out */
 	bool updated;
@@ -40,11 +26,10 @@ struct egi_touch_data
 	int	delx;
 	int	dely;
 };
-
+#endif
 
 bool egi_touch_getdata(EGI_TOUCH_DATA *data);
-void egi_touch_loopread(void);
-
+void egi_touch_loopread(void); /* for thread func */
 
 
 #endif

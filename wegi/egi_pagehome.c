@@ -37,10 +37,10 @@ Midas Zhou
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
-static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int egi_homepage_book(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int egi_homepage_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int egi_homepage_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homepage_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homepage_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homepage_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
 
@@ -293,7 +293,7 @@ void egi_home_routine(void)
 button_mplay function:
 mplayer
 ------------------------------------------------------------------------------*/
-static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_homepage_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_mplay=egi_create_mplaypage();
 
@@ -310,7 +310,7 @@ static int egi_homepage_mplay(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 button_openwrt function:
 openwrt
 ------------------------------------------------------*/
-static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_homepage_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_openwrt=egi_create_openwrtpage();
 
@@ -327,7 +327,7 @@ static int egi_homepage_openwrt(EGI_EBOX * ebox, enum egi_touch_status btn_statu
 button_openwrt function:
 book
 ----------------------------------------------------------------------------*/
-static int egi_homepage_book(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_homepage_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_book=egi_create_bookpage();
 
@@ -344,7 +344,7 @@ static int egi_homepage_book(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 button_test function:
 for test functions
 -----------------------------------------------------------------------------*/
-static int egi_homepage_test(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_homepage_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_test=egi_create_testpage();
 

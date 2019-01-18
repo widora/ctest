@@ -11,11 +11,7 @@
 #include "egi_color.h"
 #include "egi_symbol.h"
 #include "egi_bmpjpg.h"
-
-/*
-
-
-*/
+#include "egi_touch.h"
 
 /*---------------------------------------------
 init a egi page
@@ -39,7 +35,6 @@ EGI_PAGE * egi_page_new(char *tag)
 	/* clear data */
 	memset(page,0,sizeof(struct egi_page));
 
-
 	/* 3. malloc page->ebox */
 	page->ebox=egi_ebox_new(type_page);
 	if( page == NULL)
@@ -60,14 +55,12 @@ EGI_PAGE * egi_page_new(char *tag)
 	/* 6. put default routine method here */
 	page->routine=egi_page_routine;
 
-
 	/* 7. init pthreads. ??? Not necessary. since alread memset() in above ??? */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		page->thread_running[i]=false;
 		page->runner[i]=NULL; /* thread functions */
 	}
-
 
 	/* 8. init list */
         INIT_LIST_HEAD(&page->list_head);
@@ -239,14 +232,15 @@ int egi_page_activate(EGI_PAGE *page)
 }
 
 
-/*--------------------------------------------------
-refresh a page and its eboxes in its list.
+/*---------------------------------------------------------
+1. check need_refresh flag for page and refresh it if true.
+2. refresh page's child eboxes.
 
 return:
 	1	need_refresh=false
 	0	OK
 	<0	fails
----------------------------------------------------*/
+--------------------------------------------------------*/
 int egi_page_refresh(EGI_PAGE *page)
 {
 	struct list_head *tnode;
@@ -262,7 +256,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		return -1;
 	}
 
-	/* --------------- ***** FOR PAGE REFRESH ***** ------------ */
+	/* --------------- ***** FOR 'PAGE' REFRESH ***** ------------ */
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
@@ -413,10 +407,15 @@ int egi_page_routine(EGI_PAGE *page)
 	int ret;
 	uint16_t sx,sy;
 	enum egi_touch_status last_status=released_hold;
+	EGI_TOUCH_DATA touch_data;
+
+	/* delay a while, to avoid pen-jittering  */
+	tm_delayms(100);
+
 
 	/* for time struct */
 	struct timeval t_start,t_end; /* record two pressing_down time */
-	long tus; 
+	long tus;
 
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
@@ -433,9 +432,7 @@ int egi_page_routine(EGI_PAGE *page)
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
 	}
 
-
 	egi_pdebug(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
-
 
 	/* 3. load page runner threads */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
@@ -453,6 +450,9 @@ int egi_page_routine(EGI_PAGE *page)
 		}
 	}
 
+
+
+#if 0
 	/* 4. loop in touch checking and other routines.... */
 	while(1)
 	{
@@ -489,20 +489,8 @@ int egi_page_routine(EGI_PAGE *page)
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
 			egi_page_refresh(page);
 			tm_delayms(100);/* hold on for a while, or the screen will be ...heheheheheh... */
-
 		}
-
-		/* 4.5. holdon(down) status events here, !!!!???? seems never happen !!???  */
-#if 0 /* since status COMPLETE will always be breaked by status GOING....,
-	 status HOLDON will never happens!!! see xpt2046.c */
-		else if(ret == XPT_READ_STATUS_HOLDON)
-		{
-			last_status=pressed_hold;
-			printf("egi page-'%s' routine(4.5): ... ... ... pen hold down ... ... ...\n",
-											page->ebox->tag);
-
-		}
-#endif
+		/* 4.5  STATUS_HOLD will never happen! It will be breaked by STATUS_GOING always */
 		/* 4.6. get touch coordinates and trigger actions for the hit button if any */
                 else if(ret == XPT_READ_STATUS_COMPLETE) /* touch action detected */
                 {
@@ -532,30 +520,52 @@ int egi_page_routine(EGI_PAGE *page)
 			}
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
 
+#endif
+
 		  /* ----------------    Touch Event Handling   ----------------  */
-	                hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
+	/* to discard obsolete data */
+	egi_touch_getdata(&touch_data);
+
+	while(1)
+	{
+		/* read touch data */
+		if(!egi_touch_getdata(&touch_data) )
+		{
+			egi_pdebug(DBG_PAGE,"egi_page_routine(): egi_touch_getdata()	\
+							no updated touch data found, retry...\n");
+			continue;
+		}
+		sx=touch_data.coord.x;
+		sy=touch_data.coord.y;
+		last_status=touch_data.status;
+
+		if(last_status !=released_hold ) //==pressing)
+		{
+			/* check if any ebox was hit */
+		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
 
 			/* trap into button reaction functions */
-	      	        if(hitbtn != NULL)
+	       	 	if(hitbtn != NULL)
 			{
 				egi_pdebug(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
-										hitbtn->tag,page->ebox->tag);
+									hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
 				   return <0 to exit this rountine, roll back to forward routine then ...
-				   NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
+			  	 NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
 					'pressing' will prevail  ---
 				*/
-	 			if( hitbtn->reaction != NULL &&
-						(last_status==pressing || last_status==db_pressing ) )
+ 				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
+								   last_status==pressing ||
+								   last_status==db_pressing  )  )
 				{
 					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...
 					*/
-					ret=hitbtn->reaction(hitbtn, last_status);
+					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
 					if(ret<0)
 					{
 						printf("reaction of page '%s' button '%s' complete!\n",
-										page->ebox->tag, hitbtn->tag);
+									page->ebox->tag, hitbtn->tag);
 						return -1;
 					}
 					/* else, react_ret=0, page exit!
@@ -567,14 +577,23 @@ int egi_page_routine(EGI_PAGE *page)
 							egi_page_needrefresh(page);
 						}
 
-						else ; /* will not refresh the page */
+						else ; /* ret!=0, will not refresh the page */
 					}
 				}
 
-			} /* end of button reaction */
-	                continue;
+			 } /* end of hitbtn reaction */
+		}
+		else /* last_status == released_hold */
+		{
+			/* else, do other routine jobs */
+                        //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
+			egi_page_refresh(page);
+			tm_delayms(100);/* hold on for a while, or the screen will be ...heheheheheh... */
+
 			/* loop in refreshing listed eboxes */
 		}
-	}
+
+	}/* end while() */
+
 	return 0;
 }

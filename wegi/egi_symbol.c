@@ -569,10 +569,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				mapy=y0+i;
 
 #else /*--- if  NO ROLLBACK ---*/
+			/* ignore out ranged points */
 			mapx=x0+j;
-			if(mapx>(xres-1))mapx=xres-1;
+			if(mapx>(xres-1))
+				continue;
 			mapy=y0+i;
-			if(mapy>(yres-1))mapy=yres-1;
+			if(mapy>(yres-1))
+				continue;
 
 #endif
 

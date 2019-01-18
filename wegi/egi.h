@@ -15,14 +15,13 @@ Midas Zhou
 #include "sys_list.h"
 #include "egi_fbgeom.h"
 
-
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
 #define EGI_PAGE_MAXTHREADS 5 /* MAX. number of threads in a page routine job */
 
 typedef struct egi_page EGI_PAGE;
 typedef struct egi_element_box EGI_EBOX;
-
+typedef struct egi_touch_data EGI_TOUCH_DATA;
 
 /* element box type */
 enum egi_ebox_type
@@ -89,7 +88,7 @@ struct egi_ebox_method
 	int (*decorate)(EGI_EBOX *);
 	int (*sleep)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
-	int (*reaction)(EGI_EBOX *, enum egi_touch_status);
+	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); //enum egi_touch_status);
 };
 
 
@@ -212,7 +211,7 @@ struct egi_element_box
 	/* --- reaction to touch pattern
 
 	*/
-	int (*reaction)(EGI_EBOX *, enum egi_touch_status);
+	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * );
 
 	/* --- decorate:
 	    additional drawing/imgs decoration function for the ebox
@@ -227,6 +226,29 @@ struct egi_element_box
 	/* the father ebox */
 	EGI_EBOX *father;
 };
+
+
+/* egi touch data structure */
+struct egi_touch_data
+{
+        /* need semaphore lock ?????
+        TODO:         */
+
+        /* flag, whether the data is updated after read out */
+        bool updated;
+
+        /* the last touch status */
+        enum egi_touch_status   status;
+
+        /* the latest touched point coordinate */
+        struct egi_point_coord coord;
+
+        /* the sliding deviation of coordXY from the beginnig touch point,
+        in LCD coordinate */
+        int     delx;
+        int     dely;
+};
+
 
 
 /* egi data for a txt type ebox */

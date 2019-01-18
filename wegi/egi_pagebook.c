@@ -34,9 +34,9 @@ Midas Zhou
 
 
 static void egi_pagebook_runner(EGI_PAGE *page);
-static int book_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int book_forward(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int book_backward(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int book_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
 #define BOOK_TXT_ID 	1
@@ -203,7 +203,7 @@ return to routine -1 (<0 for button exit,while =0 for rountine exit
 other  >0 OK
        <0 fails
 ------------------------------------------------------------------*/
-static int book_forward(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 
 	egi_pdebug(DBG_TEST,"book_forward() triggered. \n");
@@ -240,7 +240,7 @@ return to routine -1, (<0 for button exit,while =0 for rountine exit
 other  >0 OK
        <0 fails
 ------------------------------------------------------------------*/
-static int book_backward(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 
         return 3;
@@ -252,7 +252,7 @@ return to routine -1,  (while =0 for rountine exit)
 other  >0 OK
        <0 fails
 ---------------------------------------------------------*/
-static int book_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int book_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 
         return -1;

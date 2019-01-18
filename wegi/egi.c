@@ -313,7 +313,7 @@ int egi_ebox_activate(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.activate == NULL)
 	{
-		printf("ebox '%s' has no defined method of activate()!\n",ebox->tag);
+		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of activate()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -335,7 +335,7 @@ int egi_ebox_sleep(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.sleep == NULL)
 	{
-		printf("ebox '%s' has no defined method of sleep()!\n",ebox->tag);
+		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of sleep()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -357,7 +357,7 @@ int egi_ebox_decorate(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.decorate == NULL)
 	{
-		printf("ebox '%s' has no defined method of decorate()!\n",ebox->tag);
+		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of decorate()!\n",ebox->tag);
 		return 1;
 	}
 

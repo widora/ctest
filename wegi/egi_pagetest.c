@@ -5,6 +5,9 @@ page creation jobs:
    1.2 assign thread-runner to the page.
    1.3 assign routine to the page.
    1.4 assign button functions to corresponding eboxes in page.
+   1.5 if the function needs to hook to an ebox(btn etc), the arguments to
+	be inform of  int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA touch_data).
+
 2. thread-runner functions.
 3. egi_XXX_routine() function if not use default egi_page_routine().
 4. button reaction functins
@@ -19,15 +22,17 @@ Midas Zhou
 #include "egi_txt.h"
 #include "egi_objtxt.h"
 #include "egi_btn.h"
+#include "egi_touch.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
 #include "egi_pageopenwrt.h"
 #include "egi_objlist.h"
-
+#include "egi_pageslide.h"
 
 static void egi_pagetest_runner(EGI_PAGE *page);
 static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
 static int egi_dbclick_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int egi_slidebar_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -38,7 +43,7 @@ Return
 	pointer to a page	OK
 	NULL			fail
 --------------------------------------------------------*/
-EGI_PAGE *egi_create_testpage(void)
+EGI_PAGE *egi_create_testpage(EGI_EBOX * ebox, EGI_TOUCH_DATA *touch_data)
 {
 	int i,j;
 
@@ -98,7 +103,8 @@ EGI_PAGE *egi_create_testpage(void)
 	egi_ebox_settag(test_btns[2], "Double Click");
 	test_btns[2]->reaction=egi_dbclick_test;
 
-	egi_ebox_settag(test_btns[3], "BTN_3");
+	egi_ebox_settag(test_btns[3], "Sliding Bar Test");
+	test_btns[3]->reaction=egi_slidebar_test;
 
 	egi_ebox_settag(test_btns[4], "EXIT");
 	test_btns[4]->reaction=egi_pagetest_exit;
@@ -172,3 +178,23 @@ static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
 	else
 		return 1; /* return 0 to refresh whole page */
 }
+
+
+/*-----------------------------------------------------------------------------
+button 'sliding bar test' function:
+
+------------------------------------------------------------------------------*/
+static int egi_slidebar_test(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+{
+        EGI_PAGE *page_slide=egi_create_slidepage();
+
+	/* activate page, refresh image */
+        egi_page_activate(page_slide);
+        /* get into routine loop */
+        page_slide->routine(page_slide);
+        /* get out of routine loop */
+        egi_page_free(page_slide);
+
+        return 0; /* return 0 will fall back to previous page and refresh screen*/
+}
+

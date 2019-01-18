@@ -9,7 +9,7 @@ NOTE:
 
 
 
-	----- main source files -----
+	----- main source files ( GPL if applicable ) -----
 
 egi_fbgeom.c	fb and basic geometry functions
 xtp2046.c	touch controller interface funcs
@@ -32,3 +32,6 @@ egi_objlist.c   list objects
 
 
 egi_pageXXX.c	finally, page codes....
+
+
+Midas Zhou

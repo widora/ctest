@@ -1,4 +1,20 @@
+/* ------------------------------------------------------------------------
+NOTE:
+1. egi_touch_loopread() will wait until live_touch_data.updated is fals,
+   so discard first egi_touch_getdata() before loop call it.
+
+
+TODO:
+1. The speed of updating live_touch_data depends on gi_touch_loopread()
+   however, other threads may not be able to keep up with it.
+   try adjusting tm_delayms()...
+
+
+Midas
+-----------------------------------------------------------------------*/
+
 #include "egi.h"
+#include "egi_debug.h"
 #include "egi_timer.h"
 #include "xpt2046.h"
 #include "egi_touch.h"
@@ -11,7 +27,7 @@ pass touch data to the caller
 
 return:
 	true	pass updated data
-	false	ingore data
+	false	ingore obsolet data
 ------------------------------------------*/
 bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 {
@@ -26,7 +42,7 @@ bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 	/* reset update flag */
 	live_touch_data.updated=false;
 
-	printf("--------- touch get data -----------\n");
+	//printf("--------- touch get data -----------\n");
 
 	return true;
 }
@@ -44,7 +60,6 @@ void egi_touch_loopread(void)
 	uint16_t sx,sy; /* last x,y */
 	struct egi_point_coord sxy;
 	int last_x,last_y; /* last recorded x,y */
-//	static int delx,dely;
 
         /* for time struct */
         struct timeval t_start,t_end; /* record two pressing_down time */
@@ -77,7 +92,11 @@ enum egi_touch_status
 */
 	        /* 1. necessary wait,just for XPT to prepare data */
 //
-        	tm_delayms(2);
+        	tm_delayms(3);
+
+		/* wait .... until read out */
+		if(live_touch_data.updated==true)
+			continue;
 
 		/* 2. read XPT to get avg tft-LCD coordinate */
         	//printf("start xpt_getavt_xy() \n");
@@ -99,8 +118,8 @@ enum egi_touch_status
                 {
                         if(last_status==pressing || last_status==db_pressing || last_status==pressed_hold)
                         {
-                                last_status=releasing;
-                                printf(": ... ... ... pen releasing ... ... ...\n");
+                                last_status=releasing; /* or db_releasing */
+                                egi_pdebug(DBG_TOUCH,": ... ... ... pen releasing ... ... ...\n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy; /* record the last point coord */
@@ -133,7 +152,7 @@ enum egi_touch_status
                         if( last_status==pressing || last_status==db_pressing || last_status==pressed_hold )
                         {
                                 last_status=pressed_hold;
-                                printf(" ... ... ... pen hold down ... ... ...\n");
+                                egi_pdebug(DBG_TOUCH," ... ... ... pen hold down ... ... ...\n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy;
@@ -144,7 +163,7 @@ enum egi_touch_status
 				last_x=sx;
 				live_touch_data.dely += (sy-last_y);
 				last_y=sy;
-				printf("egi_touch_loopread(): ...... delX=%d, delY=%d ......\n",
+				egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ...... delX=%d, delY=%d ......\n",
 								live_touch_data.delx,live_touch_data.dely );
 
                         }
@@ -159,7 +178,7 @@ enum egi_touch_status
 				live_touch_data.status=pressing;
 				last_x=sx;
 				last_y=sy;
-                      		printf("egi_touch_loopread(): ... ... ... pen pressing ... ... ...\n");
+                      		egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ... ... ... pen pressing ... ... ...\n");
 
                                 /* check if it's a double-click   */
                                 t_start=t_end;
@@ -168,7 +187,7 @@ enum egi_touch_status
                                 //printf("------- diff us=%ld  ---------\n",tus);
                                 if( tus < TM_DBCLICK_INTERVAL )
                                 {
-                                        printf("egi_touch_loopread(): ... ... ... double click,tus=%ld    \
+                                        egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ... ... ... double click,tus=%ld    \
 											  ... ... ...\n",tus);
                                         last_status=db_pressing;
                                 }
