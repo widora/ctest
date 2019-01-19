@@ -1,4 +1,7 @@
-/*-------------------------------------------------------------------------
+/*----------------------------------------------------------------------
+Note: Do not slide the button too fast,
+
+
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 creating eboxes and page.
@@ -10,7 +13,7 @@ page creation jobs:
 4. button reaction functins
 
 Midas Zhou
----------------------------------------------------------------------------*/
+----------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +25,7 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
+#include "egi_fbgeom.h"
 
 
 static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA *	touch_data);
@@ -69,9 +73,9 @@ EGI_PAGE *egi_create_slidepage(void)
 			btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
 							data_btns[3*i+j], /* EGI_DATA_BTN *egi_data */
 				        		true, /* bool movable */
-						        10+(15+60)*j, 240+(20+60)*i, /* int x0, int y0 */
+						        15+(15+60)*j, 210+(20+60)*i, /* int x0, int y0 */
 							60,120, /* int width, int height */
-				       			-1, /* int frame,<0 no frame */
+				       			0, /* int frame,<0 no frame */
 		       					egi_color_random(medium) /*int prmcolor */
 						   );
 			/* if fail, try again ... */
@@ -109,7 +113,6 @@ EGI_PAGE *egi_create_slidepage(void)
 	/* hide 4,5 btns */
 	draw_line(&gv_fb_dev,19,319,61,319);
 
-
 	/* --------- 2. create title bar --------- */
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
@@ -130,7 +133,8 @@ EGI_PAGE *egi_create_slidepage(void)
 			page_slide=egi_page_new("page_slide");
 			usleep(100000);
 	}
-	page_slide->ebox->prmcolor=egi_colorgray_random(deep);
+	page_slide->ebox->prmcolor=egi_colorgray_random(light);
+	page_slide->fpath="/tmp/slide.jpg";
 
         /* 3.2 put pthread runner */
         //page_mplay->runner[0]= ;
@@ -141,13 +145,11 @@ EGI_PAGE *egi_create_slidepage(void)
         /* 3.4 set wallpaper */
         //page_slide->fpath="/tmp/mplay.jpg";
 
-
 	/* add ebox to home page */
 	for(i=0;i<6;i++) /* buttons */
 		egi_page_addlist(page_slide, btns[i]);
 
 	egi_page_addlist(page_slide, title_bar); /* title bar */
-
 
 	return page_slide;
 }
@@ -179,43 +181,80 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         int ty=0;
 	int dy=0;
 	int nbt; /* nbt=0: RED,  nbt=1: GREE   nbt=2: BLUE */
+	char string[50]={0};
+	uint16_t color;
 
 	EGI_DATA_TXT *data_txt=ebox->egi_data;
 	nbt=data_txt->id;
+
 	if(nbt>2)
 	{
 		printf("colorbtn_react(): nbt>2 --------\n");
 		return 1;
 	}
+	static int mark[3];//={220,220,220};
+	static uint8_t r,g,b;
 
-	static int mark[3]={240,240,240};
-
-//	static int mark_red=240;
-//	static int mark_green=240;
-//	static int mark_blue=240;
-
+	if(touch_data->status==db_pressing)
+	{
+		printf("colorbtn_react(): double click, end the test!\n");
+		egi_display_msgbox("Message:\n\n    End sliding bar test.", 500, WEGI_COLOR_ORANGE);
+		return -1;/* exit the page  */
+	}
 
 	/* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
 	if(touch_data->status==pressing)
 	{
-		printf("redbtn_react(): redbtn is pressing ....\n");
+		printf("colorbtn_react(): redbtn is pressing ....\n");
 		mark[nbt]=ebox->y0;
 	}
 	else if(touch_data->status==pressed_hold)
 	{
-		printf("redbtn_react(): touch_data->dely=%d \n", touch_data->dely);
-                dy=touch_data->dely;
-                ty = mark[nbt]+dy;
-                // set limit
-                if(ty<75)ty=75;
-                if(ty>240)ty=240;
-                printf("ty=%d \n",ty);
+		printf("colorbtn_react(): touch_data->dy=%d \n", touch_data->dy);
+                //dy=touch_data->dy;
+                ty = mark[nbt]+touch_data->dy;
+                // set limit, range 220-75=145
+                if(ty<95)ty=95;
+                if(ty>210)ty=210;
+
+		if(nbt==0) /*red btn ebox:  adjust 5bits red value */
+		{
+			r=(210-ty+1)*(32-1)/115;
+			r=31/3+r*2/3; /* set Mini. value,so it will not be too dark */
+			//printf("ty=%d, r=%d\n",ty,r);
+			ebox->prmcolor=r<<11;
+		}
+		if(nbt==1) /*green btn ebox: adjust 6bits green value */
+		{
+			g=(210-ty+1)*(64-1)/115;
+			g=63/3+g*2/3; /* set Mini. value */
+			//printf("ty=%d, g=%d\n",ty,g);
+			ebox->prmcolor=g<<5;
+		}
+		if(nbt==2) /*blue btn ebox:  adjust 5bits blue value */
+		{
+			b=(210-ty+1)*(32-1)/115;
+			b=31/3+b*2/3; /* set Mini. value */
+			//printf("ty=%d, b=%d\n",ty,b);
+			ebox->prmcolor=b;
+		}
+		//printf("r, g, b = %d, %d, %d \n",r,g,b);
+		/* draw block*/
+		color=COLOR_RGB_TO16BITS( r<<3,g<<2,b<<3 );
+		fbset_color(color);
+		draw_filled_rect(&gv_fb_dev,0,30,240-1,30+60-1);
+		fbset_color(0);
+		draw_rect(&gv_fb_dev,0,30,240-1,30+60-1);
+		/* write color value */
+		sprintf(string,"16bit_RGB: 0x%X",color);
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, 0, 1, 5, 32, string);
+
+
 
 		ebox->y0 = ty;
 		ebox->need_refresh=true;
 		ebox->refresh(ebox);
 	}
-
 
 	return 1 ; /* 0 refresh container page */
 }

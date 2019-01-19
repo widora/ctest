@@ -71,8 +71,8 @@ void egi_touch_loopread(void)
 	last_status=released_hold;
 	live_touch_data.coord.x=0;
 	live_touch_data.coord.y=0;
-	live_touch_data.delx=0;
-	live_touch_data.dely=0;
+	live_touch_data.dx=0;
+	live_touch_data.dy=0;
 	live_touch_data.status=released_hold;
 
 
@@ -126,9 +126,9 @@ enum egi_touch_status
 				live_touch_data.status=releasing;
 				live_touch_data.updated=true;
 				/* reset sliding deviation */
-				live_touch_data.delx=0;
+				live_touch_data.dx=0;
 				last_x=sx;
-				live_touch_data.dely=0;
+				live_touch_data.dy=0;
 				last_y=sy;
 
                         }
@@ -159,20 +159,20 @@ enum egi_touch_status
 				live_touch_data.updated=true;
 				live_touch_data.status=pressed_hold;
 				/* sliding deviation */
-				live_touch_data.delx += (sx-last_x);
+				live_touch_data.dx += (sx-last_x);
 				last_x=sx;
-				live_touch_data.dely += (sy-last_y);
+				live_touch_data.dy += (sy-last_y);
 				last_y=sy;
-				egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ...... delX=%d, delY=%d ......\n",
-								live_touch_data.delx,live_touch_data.dely );
+				egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
+								live_touch_data.dx,live_touch_data.dy );
 
                         }
                         else /* CASE PRESSING: it's a pressing action */
                         {
                                 last_status=pressing;
 				/* update touch data */
-				live_touch_data.delx = 0;
-				live_touch_data.dely = 0;
+				live_touch_data.dx = 0;
+				live_touch_data.dy = 0;
 				live_touch_data.coord=sxy;
 				live_touch_data.updated=true;
 				live_touch_data.status=pressing;
@@ -189,7 +189,7 @@ enum egi_touch_status
                                 {
                                         egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ... ... ... double click,tus=%ld    \
 											  ... ... ...\n",tus);
-                                        last_status=db_pressing;
+                                        live_touch_data.status=db_pressing;
                                 }
                         }
                         //eig_pdebug(DBG_TOUCH,"egi_touch_loopread(): --- XPT_READ_STATUS_COMPLETE ---\n");

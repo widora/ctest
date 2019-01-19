@@ -31,7 +31,12 @@ egi_objtxt.c	type_txt objects creation functions
 egi_objlist.c   list objects 
 
 
-egi_pageXXX.c	finally, page codes....
+egi_pagehome.c		PAGE home
+egi_pagemplay.c	        PAGE mplayer
+egi_pageopenwrt.c	PAGE openwrt info.
+egi_pagetest.c		PAGE test
+egi_pageslide.c		PAGE sliding bar test
+
 
 
 Midas Zhou

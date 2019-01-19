@@ -10,7 +10,7 @@ Midas Zhou
 
 #include <stdint.h>
 
-/* convert 24bit rgb to 16bit LCD rgb */
+/* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( (r>>3)<<11 | (g>>2)<<5 | b>>3  ))
 #define COLOR_24TO16BITS(rgb)	( COLOR_RGB_TO16BITS(rgb>>16, (rgb&0xff00)>>8, rgb&0xff) )
 

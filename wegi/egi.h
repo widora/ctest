@@ -245,8 +245,8 @@ struct egi_touch_data
 
         /* the sliding deviation of coordXY from the beginnig touch point,
         in LCD coordinate */
-        int     delx;
-        int     dely;
+        int     dx;
+        int     dy;
 };
 
 
