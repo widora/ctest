@@ -237,6 +237,8 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 //	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
 	printf("--------- txtebox demon --- END ---------\n");
+	
+	return 0;
 }
 
 
@@ -407,7 +409,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 		egi_push_datatxt(msgbox, msg, &pnl);
 
 		/* 5. adjust nl then release and loop back and re-create msg ebox */
-		printf("egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
+		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
 		if(ms<0) pnl+=1; /* one more line for progress information */
 		if(nl>pnl) /* if nl great than number of pushed lines */
 		{

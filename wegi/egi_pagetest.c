@@ -30,9 +30,9 @@ Midas Zhou
 #include "egi_pageslide.h"
 
 static void egi_pagetest_runner(EGI_PAGE *page);
-static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int egi_dbclick_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
-static int egi_slidebar_test(EGI_EBOX * ebox, enum egi_touch_status btn_status);
+static int egi_pagetest_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA *touch_data);
+static int egi_dbclick_test(EGI_EBOX * ebox, EGI_TOUCH_DATA *touch_data);
+static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA *touch_data);
 
 
 /*------ [  PAGE  ::  OpenWRT System Information ] ------
@@ -158,7 +158,7 @@ static void egi_pagetest_runner(EGI_PAGE *page)
 btn_close function:
 return
 -----------------------------------*/
-static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_pagetest_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)// enum egi_touch_status btn_status)
 {
         return -1;
 }
@@ -168,9 +168,9 @@ static int egi_pagetest_exit(EGI_EBOX * ebox, enum egi_touch_status btn_status)
 int (*reaction)(EGI_EBOX *, enum egi_touch_status);
 egi_dbclick_test()
 -----------------------------------------------------------*/
-static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
+static int egi_dbclick_test(EGI_EBOX * ebox , EGI_TOUCH_DATA * touch_data)//enum egi_touch_status btn_status)
 {
-	if(btn_status==db_pressing)
+	if(touch_data->status==db_pressing)
 	{
 		egi_msgbox_create("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
 		return 1; /* >=00 return to routine; <0 exit this routine */
@@ -184,7 +184,7 @@ static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
 button 'sliding bar test' function:
 
 ------------------------------------------------------------------------------*/
-static int egi_slidebar_test(EGI_EBOX * ebox, enum egi_touch_status btn_status)
+static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_slide=egi_create_slidepage();
 

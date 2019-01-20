@@ -3,7 +3,7 @@
 
 #include "egi.h"
 
-int egi_listbox_test(EGI_EBOX *ebox, enum egi_touch_status status);
+int egi_listbox_test(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data);
 
 
 #endif

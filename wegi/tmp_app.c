@@ -36,6 +36,7 @@ Midas Zhou
 #include "spi.h"
 #include "egi_fbgeom.h"
 #include "egi.h"
+#include "egi_math.h"
 #include "egi_page.h"
 #include "egi_txt.h"
 #include "egi_btn.h"
@@ -100,6 +101,10 @@ int main(void)
 	}
 
 
+	mat_create_fptrigontab();
+
+	printf(" -3%%100=%d \n",(-3)%100);
+	printf(" -203%%100=%d \n",(-203)%100);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -199,8 +204,6 @@ int main(void)
 
 
 
-
-
 	/* --- clear screen with BLACK --- */
 #if 0
 	//fbset_color(COLOR_RGB_TO16BITS(0X44,0x44,0X88));
@@ -245,11 +248,11 @@ int main(void)
 
 
 	/* test: --------- image rotate ----------- */
-#if 0
+#if 1
         /* copy fb image to buf */
 	int centx=120;
 	int centy=120;
-	int sq=141;
+	int sq=237;
         fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
 	/* for image rotation */
 	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
@@ -259,16 +262,18 @@ int main(void)
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
 
-#if 0
+#if 1
 	while(1)
 	{
 		i++;
 		/* get rotation map */
-		mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
+  	        //float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
+		mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */
 		/* draw rotated image */
-		fb_drawimg_SQMap(101, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+		fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+		tm_delayms(55);
 	}
-	exit(1)
+	exit(1);
 #endif
 
 
@@ -321,7 +326,7 @@ int main(void)
 
 
 	/* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */
-#if 1
+#if 0
 	int  nl;
 	char *msg="test egi_push_datatxt() \
 	\n	...\
@@ -349,7 +354,7 @@ while(1)
     while(1)
     {
 //	egi_msgbox_create(msg, 55, WEGI_COLOR_ORANGE);
-	tm_delayms(25);
+	tm_delayms(55);
 	pv +=20;
 	if(pv==100)break;
 	egi_msgbox_pvupdate(pvmsgbox,pv);
