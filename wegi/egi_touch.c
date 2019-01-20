@@ -92,7 +92,7 @@ enum egi_touch_status
 */
 	        /* 1. necessary wait,just for XPT to prepare data */
 //
-        	tm_delayms(3);
+        	tm_delayms(2);
 
 		/* wait .... until read out */
 		if(live_touch_data.updated==true)

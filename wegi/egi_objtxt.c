@@ -185,8 +185,12 @@ as a reaction function for button.
 
 int (*reaction)(EGI_EBOX *, enum egi_touch_status);
 ----------------------------------------------*/
-int egi_txtbox_demo(EGI_EBOX *ebox, enum egi_touch_status status)
+int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 {
+
+	if(touch_data->status != pressing)
+	   return 1; /* no refresh */
+
 	int total=56;
 	int i;
 	EGI_EBOX *txtebox[56];
@@ -201,7 +205,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, enum egi_touch_status status)
 	      if(txtebox[i]==NULL)
 	      {
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);
-			return;
+			return -1;
 	      }
 	      /* put decorate */
 	      txtebox[i]->decorate=egi_txtbox_decorate;
@@ -322,14 +326,32 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 }
 
 
-/*------------------------------------------------------------
+/*---------------------------------------------------------------------------
 Message Box, Size:240x50
 display for a while, then release.
 
+msg: 		message string
+ms:  	>0	It's an instant msgbox, delay/display in ms time, then destroy it.
+
+	=0	Just keep the msgbox, to destroy it later.
+
+     	<0 	1. It's a progress indicator/messages box,
+		2. Do not release it until the indicated progress is finished.
+		3. data_txt.foff then will be used as progress value. MAX.100
+
+bkcolor:	back colour
+
 long ms: msg displaying time, in ms.
-------------------------------------------------------------*/
-void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor)
+
+Return:
+	ms>0	NULL
+	ms=<0	pointer to an txt_type ebox
+
+---------------------------------------------------------------------------*/
+EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 {
+	if(msg==NULL)return NULL;
+
 	int x0=0; /* ebox top left point */
 	int y0=50;
 	int width=240; /* ebox W/H */
@@ -337,71 +359,129 @@ void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor)
 	int yres=(&gv_fb_dev)->vinfo.yres;
 	int offx=10;
 	int offy=8;	/* offset x,y of txt */
-	int nl=(yres-offy*2)/(&sympg_testfont)->symheight; /* first, set nl as MAX value for txt. */
+	int maxnl=(yres-offy*2)/(&sympg_testfont)->symheight;
+	int nl=maxnl;  /* first, set nl as MAX line number for a full screen. */
 	int llen=64; /* max. chars for each line,also limited by ebox width */
 	int pnl=0; /* number of pushed txt lines */
 
 	EGI_DATA_TXT *msg_txt=NULL;
 	EGI_EBOX *msgbox=NULL;
 
+   	while(1) /* repeat 1 more time  to adjust size of the ebox to fit with the message */
+   	{
+		/* 1. create a data_txt */
+		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): start to egi_txtdata_new()...\n");
+		msg_txt=egi_txtdata_new(
+			offx,offy, /* offset X,Y */
+      		  	nl, /*int nl, lines  */
+       	 		llen, /*int llen, chars per line, however also limited by ebox width */
+        		&sympg_testfont, /*struct symbol_page *font */
+        		WEGI_COLOR_BLACK /* int16_t color */
+		);
 
+		if(msg_txt == NULL)
+		{
+			printf("egi_msgbox_create(): msg_txt=egi_txtdata_new()=NULL, fails!\n");
+			return NULL;
+		}
+		else if (msg_txt->txt[0]==NULL)
+		{
+			printf("egi_msgbox_create(): msg_txt->[0]==NULL, fails!\n");
+			return NULL;
+		}
 
-   while(1)
-   {
-	/* 1. create a data_txt */
-	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start to egi_txtdata_new()...\n");
-	msg_txt=egi_txtdata_new(
-		offx,offy, /* offset X,Y */
-      	  	nl, /*int nl, lines  */
-       	 	llen, /*int llen, chars per line, however also limited by ebox width */
-        	&sympg_testfont, /*struct symbol_page *font */
-        	WEGI_COLOR_BLACK /* int16_t color */
-	);
+		/* 3. create msg ebox */
+		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): start egi_txtbox_new().....\n");
+		height=nl*((&sympg_testfont)->symheight)+2*offy; /*adjust ebox height */
+		msgbox= egi_txtbox_new(
+			"msg_box", /* tag, or put later */
+        		msg_txt,  /* EGI_DATA_TXT pointer */
+        		true, /* bool movable */
+       	 		x0,y0, /* int x0, int y0 */
+        		width,height, /* int width;  int height,which also related with symheight,nl and offy */
+        		2, /* int frame, 0=simple frmae, -1=no frame */
+        		bkcolor /*int prmcolor*/
+		);
 
-	if(msg_txt == NULL)
+		/* 4. push txt to ebox */
+		egi_push_datatxt(msgbox, msg, &pnl);
+
+		/* 5. adjust nl then release and loop back and re-create msg ebox */
+		printf("egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
+		if(ms<0) pnl+=1; /* one more line for progress information */
+		if(nl>pnl) /* if nl great than number of pushed lines */
+		{
+			//if(ms<0) nl=pnl+1;/* adjust nl and retry, 1 more line for progress info. */
+			//else nl=pnl;
+			nl=pnl;
+			msgbox->free(msgbox);
+			msg_txt=NULL;
+			msgbox=NULL;
+		}
+		else
+			break;
+
+ 	 } /* end of while() */
+
+	/*.7 put progress information txt */
+	if(ms<0)
 	{
-		printf("egi_display_msgbox(): msg_txt=egi_txtdata_new()=NULL, fails!\n");
-		return;
+		int np=nl<maxnl?nl:maxnl; /* get progress info line number */
+		strncpy(msg_txt->txt[np-1],"	rocessing...  0/100",llen-1);
 	}
-	else if (msg_txt->txt[0]==NULL)
-	{
-		printf("egi_display_msgbox(): msg_txt->[0]==NULL, fails!\n");
-		return;
-	}
-
-	/* 3. create msg ebox */
-	egi_pdebug(DBG_OBJTXT,"egi_display_msgbox(): start egi_txtbox_new().....\n");
-	height=nl*((&sympg_testfont)->symheight)+2*offy; /*adjust ebox height */
-	msgbox= egi_txtbox_new(
-		"msg_box", /* tag, or put later */
-        	msg_txt,  /* EGI_DATA_TXT pointer */
-        	true, /* bool movable */
-       	 	x0,y0, /* int x0, int y0 */
-        	width,height, /* int width;  int height,which also related with symheight,nl and offy */
-        	2, /* int frame, 0=simple frmae, -1=no frame */
-        	bkcolor /*int prmcolor*/
-	);
-
-	/* 4. push txt to ebox */
-	egi_push_datatxt(msgbox, msg, &pnl);
-
-	/* 5. adjust nl then release and loop back and re-create msg ebox */
-	printf("egi_display_msgbox(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
-	if(nl>pnl) /* if nl great than number of pushed lines */
-	{
-		nl=pnl; /* adjust nl and retry */
-		msgbox->free(msgbox);
-		msg_txt=NULL;
-		msgbox=NULL;
-	}
-	else
-		break;
-
-  } /* end of while() */
 
 	/* 6. display msg box */
 	msgbox->activate(msgbox);/* activate to display */
-	tm_delayms(ms);
-	msgbox->sleep(msgbox); /* erase the image */
-	msgbox->free(msgbox); /* release */
+
+	/* 7. return or destroy the msg */
+	if(ms<=0) /* It's a progress info. msgbox or keep it */
+	{
+		return msgbox;
+	}
+	else /* It's an instant instance msgbox */
+	{
+		tm_delayms(ms);/* displaying for a while */
+		msgbox->sleep(msgbox); /* erase the image */
+		msgbox->free(msgbox); /* release */
+		return NULL;
+	}
+}
+
+/*-----------------------------------------------
+Update progress value for a msgbox
+
+msgbox:		message ebox
+pv:		progress indicating value (0-100)
+------------------------------------------------*/
+void egi_msgbox_pvupdate(EGI_EBOX *msgbox, int pv)
+{
+	/* check data */
+	if(msgbox==NULL)return;
+
+	/* set limit */
+	if(pv<0)pv=0;
+	else if(pv>100)pv=100;
+
+	EGI_DATA_TXT *msg_txt=msgbox->egi_data;
+	if(msg_txt==NULL) return;
+
+	int nl=msg_txt->nl;
+	/* WARNING:: string to be the same as of in egi_display_msgbox() */
+	sprintf(msg_txt->txt[nl-1],"	processing...  %d/100", pv);
+
+	/* refresh the msgbox */
+	msgbox->need_refresh=true;
+	msgbox->refresh(msgbox);
+}
+
+/*-----------------------------------------------
+destroy/release the msgbox
+
+msgbox:		message ebox
+------------------------------------------------*/
+void egi_msgbox_destroy(EGI_EBOX *msgbox)
+{
+	if(msgbox == NULL) return;
+	msgbox->sleep(msgbox); /* erase image */
+	msgbox->free(msgbox); /* release it */
 }

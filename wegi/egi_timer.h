@@ -7,7 +7,7 @@
 
 
 #define TM_TICK_INTERVAL	2000 //5000  /* us */
-#define TM_DBCLICK_INTERVAL	300000 /*in us,  Max for double click   */
+#define TM_DBCLICK_INTERVAL	400000 /*in us,  Max for double click   */
 
 /* shared data */
 extern struct itimerval tm_val, tm_oval;

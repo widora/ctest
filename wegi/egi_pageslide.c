@@ -1,6 +1,10 @@
-/*----------------------------------------------------------------------
-Note: Do not slide the button too fast,
-
+/*--------------------------------------------------------------------------------------
+Note:
+1. Do not slide the button too fast,
+2. A button may be insensitive to a double click !!!!
+   Suppose that it has single-click reaction method defined, and it takes long enough time.
+   After that, the second pressing event usually passes away when the routine process turns
+   back to receive the touch data.
 
 page creation jobs:
 1. egi_create_XXXpage() function.
@@ -13,8 +17,7 @@ page creation jobs:
 4. button reaction functins
 
 Midas Zhou
-----------------------------------------------------------------------*/
-
+------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h> /* usleep */
@@ -28,7 +31,7 @@ Midas Zhou
 #include "egi_fbgeom.h"
 
 
-static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA *	touch_data);
+static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA *  touch_data);
 static int pageslide_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 /*---------- [  PAGE ::  Test Slide Bar ] ---------
@@ -198,7 +201,7 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	if(touch_data->status==db_pressing)
 	{
 		printf("colorbtn_react(): double click, end the test!\n");
-		egi_display_msgbox("Message:\n\n    End sliding bar test.", 500, WEGI_COLOR_ORANGE);
+		egi_msgbox_create("Message:\n\n    End sliding bar test.", 1000, WEGI_COLOR_ORANGE);
 		return -1;/* exit the page  */
 	}
 
@@ -210,8 +213,7 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	}
 	else if(touch_data->status==pressed_hold)
 	{
-		printf("colorbtn_react(): touch_data->dy=%d \n", touch_data->dy);
-                //dy=touch_data->dy;
+		//printf("colorbtn_react(): touch_data->dy=%d \n", touch_data->dy);
                 ty = mark[nbt]+touch_data->dy;
                 // set limit, range 220-75=145
                 if(ty<95)ty=95;
@@ -249,8 +251,7 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		sprintf(string,"16bit_RGB: 0x%X",color);
 		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, 0, 1, 5, 32, string);
 
-
-
+		/* update ebox parameters */
 		ebox->y0 = ty;
 		ebox->need_refresh=true;
 		ebox->refresh(ebox);

@@ -172,7 +172,7 @@ static int egi_dbclick_test(EGI_EBOX * ebox ,enum egi_touch_status btn_status)
 {
 	if(btn_status==db_pressing)
 	{
-		egi_display_msgbox("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
+		egi_msgbox_create("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
 		return 1; /* >=00 return to routine; <0 exit this routine */
 	}
 	else

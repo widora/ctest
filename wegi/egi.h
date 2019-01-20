@@ -30,6 +30,7 @@ enum egi_ebox_type
 	type_txt,
 	type_btn, /* button */
 	type_list,
+	type_slider, /* sliding bar */
 	type_chart,
 	type_pic,
 	type_motion,
@@ -220,7 +221,7 @@ struct egi_element_box
 
 	struct list_head node; /* list node to a father ebox */
 
-	/* its container, an EGI_PAGE usually */
+	/* its PAGE container, an EGI_PAGE usually */
 	EGI_PAGE *container;
 
 	/* the father ebox */
@@ -289,7 +290,7 @@ struct egi_data_btn
 typedef struct egi_data_list EGI_DATA_LIST;
 struct egi_data_list
 {
-        /* total number of items in a list, part of them may displayed */
+        /* total number of items in a list, part of them may be shown in the displaying_window */
         int inum;
 
 	/* the displaying_window size, or number of items displayed in the ebox.*/
@@ -327,6 +328,45 @@ struct egi_data_list
 	*/
 	int motion;
 };
+
+
+/* egi data for a slider type ebox
+  0.  Adjusting range to be  0 - maxval; 
+  1.  The hosting ebox's W/H defines the MAX. outline of a sliding bar,
+      It covers/surrounds all geometries, it's all the limit size for the slot.
+      Usually the Height of hosting ebox and slider to be the same.
+
+  2.  The egi_data_slider.slider  defines the the sliding button on the bar.
+      It should have reaction methods for EGI_TOUCH_DATA.
+
+  3.  The geometry of the slot bar and/or the slider will be replaced by icons,
+      if they'are defined as so.
+
+*/
+typedef struct egi_data_slider EGI_DATA_SLIDER;
+struct egi_data_slider
+{
+	/* adjusting range: 0 - maxval  */
+	int	maxval; /* Max. of the slider value,  */
+
+	/* width of bar slot */
+	int	ws; /* at least>0 */
+
+	/* offset of slider ebox from the left top of the hosting ebox */
+	int	offx;
+	int	offy; /* to be <=0, so the slider will be inside the hosting ebox */
+
+	/* icon for the slot bar, if not NULL */
+	struct symbol_page *slot_icon;
+
+	/* slider is also an ebox */
+	EGI_EBOX    *slider;
+
+	/* icon for the slider block, if not NULL */
+	struct symbol_page *slider_icon;
+
+};
+
 
 
 

@@ -201,11 +201,6 @@ int main(void)
 
 
 
-
-
-
-
-
 	/* --- clear screen with BLACK --- */
 #if 0
 	//fbset_color(COLOR_RGB_TO16BITS(0X44,0x44,0X88));
@@ -250,7 +245,7 @@ int main(void)
 
 
 	/* test: --------- image rotate ----------- */
-#if 1
+#if 0
         /* copy fb image to buf */
 	int centx=120;
 	int centy=120;
@@ -326,13 +321,12 @@ int main(void)
 
 
 	/* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */
-#if 0
+#if 1
 	int  nl;
 	char *msg="test egi_push_datatxt() \
-	\n	\
-	\n	\
-	-----hello--- \
-	\n	\
+	\n	...\
+	\n		...\
+	\n			...\
 	\n	\
 	-----hello--- \
 	\n	\
@@ -342,11 +336,28 @@ int main(void)
 	\n	\
 	-----hello---";
 
+	EGI_EBOX *pvmsgbox=NULL;
+	char *pvmsg="Generating matrix, please wait.";
+	int pv=0;
+
+while(1)
+{
+    pvmsgbox=egi_msgbox_create(pvmsg, -1, WEGI_COLOR_ORANGE);
+    if(pvmsgbox==NULL)exit(-1);
+
+    pv=0;
     while(1)
     {
-	egi_display_msgbox(msg, 55, WEGI_COLOR_ORANGE);
-	tm_delayms(55);
+//	egi_msgbox_create(msg, 55, WEGI_COLOR_ORANGE);
+	tm_delayms(25);
+	pv +=20;
+	if(pv==100)break;
+	egi_msgbox_pvupdate(pvmsgbox,pv);
     }
+    egi_msgbox_destroy(pvmsgbox);
+    pvmsgbox=NULL;
+}
+
 	exit(1);
 #endif
 

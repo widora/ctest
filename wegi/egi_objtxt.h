@@ -12,7 +12,7 @@ All EGI OBJ Initializations
 EGI_EBOX *create_ebox_memo(void);
 EGI_EBOX *create_ebox_clock(void);
 EGI_EBOX *create_ebox_note(void);
-int egi_txtbox_demo(EGI_EBOX *ebox, enum egi_touch_status status);
+int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touc_data);
 
 /*  -------- egi pattern  ----- */
 EGI_EBOX *create_ebox_titlebar(
@@ -22,5 +22,8 @@ EGI_EBOX *create_ebox_titlebar(
         char *title
 );
 
-void egi_display_msgbox(char *msg, long ms, uint16_t bkcolor);
+EGI_EBOX *egi_msgbox_create(char *msg, long ms, uint16_t bkcolor);
+void egi_msgbox_pvupdate(EGI_EBOX *msgbox, int pv);
+void egi_msgbox_destroy(EGI_EBOX *msgbox);
+
 #endif

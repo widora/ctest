@@ -451,84 +451,14 @@ int egi_page_routine(EGI_PAGE *page)
 	}
 
 
+ 	 /* ----------------    Touch Event Handling   ----------------  */
 
-#if 0
-	/* 4. loop in touch checking and other routines.... */
-	while(1)
-	{
-		/* 4.1. necessary wait,just for XPT to prepare data */
-	 	tm_delayms(2);
-
-		/* 4.2. read XPT to get avg tft-LCD coordinate */
-                //printf("start xpt_getavt_xy() \n");
-                ret=xpt_getavg_xy(&sx,&sy); /* if fail to get touched tft-LCD xy */
-
-		/* 4.3. touch reading is going on... */
-                if(ret == XPT_READ_STATUS_GOING )
-                {
-                        //printf("XPT READ STATUS GOING ON....\n");
-			/* DO NOT assign last_status=unkown here!!! because it'll always happen!!!
-			   and you will never get pressed_hold status if you do so. */
-
-                        continue; /* continue to loop to finish reading touch data */
-                }
-
-                /* 4.4. put PEN-UP status events here */
-                else if(ret == XPT_READ_STATUS_PENUP )
-                {
-			if(last_status==pressing || last_status==pressed_hold)
-			{
-				last_status=releasing;
-				printf("egi page-'%s' routine(4.4): ... ... ... pen releasing ... ... ...\n",
-											page->ebox->tag);
-			}
-			else
-				last_status=released_hold;
-
-			/* run egi_page_refresh() only at pen-up status here */
-                        //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
-			egi_page_refresh(page);
-			tm_delayms(100);/* hold on for a while, or the screen will be ...heheheheheh... */
-		}
-		/* 4.5  STATUS_HOLD will never happen! It will be breaked by STATUS_GOING always */
-		/* 4.6. get touch coordinates and trigger actions for the hit button if any */
-                else if(ret == XPT_READ_STATUS_COMPLETE) /* touch action detected */
-                {
-			/* update button last_status */
-			if( last_status==pressing || last_status==db_pressing || last_status==pressed_hold )
-			{
-				last_status=pressed_hold;
-				printf("egi page-'%s' routine(4.6): ... ... ... pen hold down ... ... ...\n",
-											page->ebox->tag);
-			}
-			else
-			{
-				last_status=pressing;
-				printf("egi page-'%s' routine(4.6): ... ... ... pen pressing ... ... ...\n",
-							page->ebox->tag);
-
-				/* check if it's a double-click   */
-				t_start=t_end;
-				gettimeofday(&t_end,NULL);
-				tus=tm_diffus(t_end,t_start);
-				//printf("------- diff us=%ld  ---------\n",tus);
-				if( tus < TM_DBCLICK_INTERVAL )
-				{
-					printf("------- double click,tus=%ld ---------\n",tus);
-					last_status=db_pressing;
-				}
-			}
-                        //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_COMPLETE ---\n");
-
-#endif
-
-		  /* ----------------    Touch Event Handling   ----------------  */
-	/* to discard obsolete data */
+	/* discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
 	egi_touch_getdata(&touch_data);
 
 	while(1)
 	{
-		/* read touch data */
+		/* 1. read touch data */
 		if(!egi_touch_getdata(&touch_data) )
 		{
 			egi_pdebug(DBG_PAGE,"egi_page_routine(): egi_touch_getdata()	\
@@ -539,7 +469,8 @@ int egi_page_routine(EGI_PAGE *page)
 		sy=touch_data.coord.y;
 		last_status=touch_data.status;
 
-		if(last_status !=released_hold ) //==pressing)
+		/* 2. trigger touch handling process then */
+		if(last_status !=released_hold )
 		{
 			/* check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
@@ -550,7 +481,7 @@ int egi_page_routine(EGI_PAGE *page)
 				egi_pdebug(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 									hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
-				   return <0 to exit this rountine, roll back to forward routine then ...
+				   return <0 to exit this rountine, fall back to previous routine then ...
 			  	 NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
 					'pressing' will prevail  ---
 				*/

@@ -69,7 +69,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	};
 
 
-	egi_display_msgbox("Message: \n\n   Start list test ... \n\n",1000, WEGI_COLOR_ORANGE);
+	egi_msgbox_create("Message: \n\n   Start list test ... \n\n",1000, WEGI_COLOR_ORANGE);
 
 
 
@@ -163,7 +163,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 		j++;
 		if(j>3)
 		{
-			egi_display_msgbox("Message: \n\n End of list test. Thanks! \n\n",1000, WEGI_COLOR_ORANGE);
+			egi_msgbox_create("Message: \n\n End of list test. Thanks! \n\n",1000, WEGI_COLOR_ORANGE);
 			break;
 		}
 

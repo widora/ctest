@@ -49,7 +49,7 @@ static int testfont_width[16*8] =
 	/* give return code a 0 width in a txt display  */
 //	5,5,5,5,5,5,5,5,5,5,0,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
 //	5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
+	0,0,0,0,0,0,0,0,0,30,0,0,0,0,0,0, /* 9-TAB 50pixels,  unprintable symbol */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	5,7,8,10,11,15,14,5,6,6,10,10,5,6,5,8, /* space,!"#$%&'()*+,-./ */
 	11,11,11,11,11,11,11,11,11,11,6,6,10,10,10,10, /* 0123456789:;<=>? */
