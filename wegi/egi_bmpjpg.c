@@ -32,20 +32,108 @@ Modified by Midas
 BITMAPFILEHEADER FileHead;
 BITMAPINFOHEADER InfoHead;
 
-static int xres = 240;
+//static int xres = 240;
 //static int yres = 320;
-static int bits_per_pixel = 16; //tft lcd
+//static int bits_per_pixel = 16; //tft lcd
 
+/*--------------------------------------------------------------
+ open jpg file and return decompressed image buffer pointer
+ int *w,*h:   with and height of the image
+ int *components:  out color components
+ return:
+	=NULL fail
+	>0 decompressed image buffer pointer
+--------------------------------------------------------------*/
+unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FILE **fil)
+{
+        struct jpeg_decompress_struct cinfo;
+        struct jpeg_error_mgr jerr;
+        FILE *infile;
+        unsigned char *buffer;
+        unsigned char *temp;
+
+        if (( infile = fopen(filename, "rb")) == NULL) {
+                fprintf(stderr, "open %s failed\n", filename);
+                return NULL;
+        }
+
+	/* return FILE */
+	*fil = infile;
+
+        cinfo.err = jpeg_std_error(&jerr);
+        jpeg_create_decompress(&cinfo);
+
+        jpeg_stdio_src(&cinfo, infile);
+
+        jpeg_read_header(&cinfo, TRUE);
+
+        jpeg_start_decompress(&cinfo);
+        *w = cinfo.output_width;
+        *h = cinfo.output_height;
+	*components=cinfo.out_color_components;
+
+//	printf("output color components=%d\n",cinfo.out_color_components);
+//        printf("output_width====%d\n",cinfo.output_width);
+//        printf("output_height====%d\n",cinfo.output_height);
+
+	/* --- check size ----*/
+/*
+        if ((cinfo.output_width > 240) ||
+                   (cinfo.output_height > 320)) {
+                printf("too large size JPEG file,cannot display\n");
+                return NULL;
+        }
+*/
+        buffer = (unsigned char *) malloc(cinfo.output_width *
+                        cinfo.output_components * cinfo.output_height);
+        temp = buffer;
+
+        while (cinfo.output_scanline < cinfo.output_height) {
+                jpeg_read_scanlines(&cinfo, &buffer, 1);
+                buffer += cinfo.output_width * cinfo.output_components;
+        }
+
+        jpeg_finish_decompress(&cinfo);
+        jpeg_destroy_decompress(&cinfo);
+
+        return temp;
+
+        fclose(infile);
+}
+
+/*    release mem for decompressed jpeg image buffer */
+void close_jpgImg(unsigned char *imgbuf)
+{
+	if(imgbuf != NULL)
+		free(imgbuf);
+}
+
+
+/*----------------------------------------------------
+open a BMP file and write image data to FB.
+image size limit: 320x240
+
+blackoff:   1	 Do NOT wirte black pixels to FB.
+		 (keep original data in FB)
+	    0	 Wrtie  black pixels to FB.
+
+Return:
+	    0	OK
+	   <0   fails
+-----------------------------------------------------*/
 int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 {
 	FILE *fp;
+	int xres=fb_dev->vinfo.xres;
+	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
 	int rc;
 	int line_x, line_y;
 	long int location = 0;
 	uint16_t color;
 
+
 	/* get fb map */
-	char *fbp =fb_dev->map_fb;
+	unsigned char *fbp =fb_dev->map_fb;
 
 	printf("fpath=%s\n",fpath);
 	fp = fopen( fpath, "rb" );
@@ -145,13 +233,23 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 }
 
 
-/*------------------------------------------------------
-    blackoff:
-	if balckoff>0, then make black transparent
-    (x0,y0): original coordinate of picture in LCD
---------------------------------------------------------*/
+/*-------------------------------------------------------------------------
+open a BMP file and write image data to FB.
+image size limit: 320x240
+
+blackoff:   1   Do NOT wirte black pixels to FB.
+		 (keep original data in FB,make black a transparent tunnel)
+	    0	 Wrtie  black pixels to FB.
+(x0,y0): 	original coordinate of picture in LCD
+
+Return:
+	    0	OK
+	    <0  fails
+-------------------------------------------------------------------------*/
 int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
+	int xres=fb_dev->vinfo.xres;
+	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
 	int width,height;
 	int components; 
 	unsigned char *imgbuf;
@@ -163,7 +261,7 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	FILE *infile=NULL;
 
 	/* get fb map */
-	char *fbp =fb_dev->map_fb;
+	unsigned char *fbp =fb_dev->map_fb;
 
 	imgbuf=open_jpgImg(fpath,&width,&height,&components, &infile);
 
@@ -225,72 +323,141 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	return 0;
 }
 
-/*--------------------------------------------------------------
- open jpg file and return decompressed image buffer pointer
- int *w,*h:   with and height of the image
- int *components:  out color components
- return:
-	=NULL fail
-	>0 decompressed image buffer pointer
---------------------------------------------------------------*/
-unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FILE **fil)
+
+/*------------------------------------------------------------------------
+load a jpg image to imgbuf.
+
+fpath:		jpg file path
+imgbuf:		buf to hold the image data, in 16bits color
+
+Return
+		0	OK
+		<0	fails
+-------------------------------------------------------------------------*/
+int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
 {
-        struct jpeg_decompress_struct cinfo;
-        struct jpeg_error_mgr jerr;
-        FILE *infile;
-        unsigned char *buffer;
-        unsigned char *temp;
+	int xres=fb_dev->vinfo.xres;
+	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
+	int width,height;
+	int components;
+	unsigned char *imgbuf;
+	unsigned char *dat;
+	uint16_t color;
+	long int location = 0;
+	int btypp=2; /* bytes per pixel */
+	int line_x,line_y;
+	int i,j;
+	FILE *infile=NULL;
 
-        if (( infile = fopen(filename, "rb")) == NULL) {
-                fprintf(stderr, "open %s failed\n", filename);
-                return NULL;
-        }
+	/* open jpg and get parameters */
+	imgbuf=open_jpgImg(fpath,&width,&height,&components, &infile);
+	if(imgbuf==NULL) {
+		printf("egi_imgbuf_loadjpg(): open_jpgImg() fails!\n");
+		return -1;
+	}
 
-	/* return FILE */
-	*fil = infile;
+	/* prepare image buffer */
+	egi_imgbuf->height=height;
+	egi_imgbuf->width=width;
+	printf("egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
+								fpath,egi_imgbuf->width,egi_imgbuf->height);
+	/* alloc imgbuf */
+	egi_imgbuf->imgbuf=malloc(width*height*btypp);
+	if(egi_imgbuf->imgbuf==NULL)
+	{
+		printf("egi_imgbuf_loadjpg(): fail to malloc imgbuf.\n");
+		return -2;
+	}
+	memset(egi_imgbuf->imgbuf,0,width*height*btypp);
 
-        cinfo.err = jpeg_std_error(&jerr);
-        jpeg_create_decompress(&cinfo);
+	/* TODO: WARNING: need to be improve here: converting 8bit to 24bit color*/
+	if(components==1) /* 8bit color */
+	{
+		printf(" egi_imgbuf_loadjpg(): WARNING!!!! components is 1. \n");
+		height=height/3; /* force to be 24bit pic, however shorten the height */
+	}
 
-        jpeg_stdio_src(&cinfo, infile);
+	/* flip picture to be same data sequence of BMP file */
+	dat=imgbuf;
 
-        jpeg_read_header(&cinfo, TRUE);
+	for(i=height-1;i>=0;i--) /* row */
+	{
+		for(j=0;j<width;j++)
+		{
+			location= (height-i-1)*width*btypp + j*btypp;
+			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
+			*(uint16_t *)(egi_imgbuf->imgbuf+location/btypp )=color;
+			dat +=3;
+		}
+	}
 
-        jpeg_start_decompress(&cinfo);
-        *w = cinfo.output_width;
-        *h = cinfo.output_height;
-	*components=cinfo.out_color_components;
 
-//	printf("output color components=%d\n",cinfo.out_color_components);
-//        printf("output_width====%d\n",cinfo.output_width);
-//        printf("output_height====%d\n",cinfo.output_height);
-
-	/* --- check size ----*/
-        if ((cinfo.output_width > 240) ||
-                   (cinfo.output_height > 320)) {
-                printf("too large size JPEG file,cannot display\n");
-                return NULL;
-        }
-        buffer = (unsigned char *) malloc(cinfo.output_width *
-                        cinfo.output_components * cinfo.output_height);
-        temp = buffer;
-
-        while (cinfo.output_scanline < cinfo.output_height) {
-                jpeg_read_scanlines(&cinfo, &buffer, 1);
-                buffer += cinfo.output_width * cinfo.output_components;
-        }
-
-        jpeg_finish_decompress(&cinfo);
-        jpeg_destroy_decompress(&cinfo);
-
-        return temp;
-
-        fclose(infile);
+	close_jpgImg(imgbuf);
+	fclose(infile);
+	return 0;
 }
 
-/*    release mem for decompressed jpeg image buffer */
-void close_jpgImg(unsigned char *imgbuf)
+/*------------------------------------------------------------------------
+release imgbuf of an EGI_IMGBUf struct.
+-------------------------------------------------------------------------*/
+void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 {
-	if(imgbuf != NULL)
-		free(imgbuf);
+	if(egi_imgbuf != NULL && egi_imgbuf->imgbuf != NULL)
+		free(egi_imgbuf->imgbuf);
+}
+
+/*---------------------------------------------------------------------------
+For 16bits color only!!!!
+
+Write image data of an EGI_IMGBUF to FB to display it.
+
+egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
+(xp,yp):	coodinate of the origin(left top) point of LCD relative to
+		the coordinate system of the picture(also origin at left top).
+(x0,y0):	displaying origin relate to the 
+---------------------------------------------------------------------------------------*/
+int egi_imgbuf_display(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
+{
+	/* check data */
+	if(egi_imgbuf == NULL)
+	{
+		printf("egi_imgbuf_display(): egi_imgbuf is NULL. fail to display.\n");
+		return -1;
+	}
+
+	int i,j;
+	int xres=fb_dev->vinfo.xres;
+	int yres=fb_dev->vinfo.yres;
+	int imgw=egi_imgbuf->width;	/* image Width and Height */
+	int imgh=egi_imgbuf->height;
+	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
+	unsigned char *fbp =fb_dev->map_fb;
+	uint16_t *imgbuf = egi_imgbuf->imgbuf;
+	long int locfb=0; /* location of FB mmap, in byte */
+	long int locimg=0; /* location of image buf, in byte */
+	int btypp=2; /* bytes per pixel */
+
+
+	for(i=0;i<yres;i++) /* FB row */
+	{
+		for(j=0;j<xres;j++) /* FB column */
+		{
+			/* FB location */
+			locfb = i*xres*btypp+j*btypp;
+
+			/* check if exceed image boundary */
+			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
+			{
+				*(uint16_t *)(fbp+locfb)=0; /* black for outside */
+			}
+			else
+			{
+				locimg= (i+yp)*imgw*btypp+(j+xp)*btypp; /* image location */
+				/*  FB from EGI_IMGBUF */
+				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+			}
+		}
+	}
+
+	return 0;
 }

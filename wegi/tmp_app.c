@@ -56,7 +56,7 @@ char mvicon_load[16]={0};
 
 
 /*  ---------------------  MAIN  ---------------------  */
-int main(void)
+int main(int argc, char **argv)
 {
 	int i,j;
 	int index;
@@ -101,11 +101,15 @@ int main(void)
 	}
 
 
-	mat_create_fptrigontab();
-
-	printf(" -3%%100=%d \n",(-3)%100);
-	printf(" -203%%100=%d \n",(-203)%100);
-
+/*	mat_create_fptrigontab();
+	//printf(" -3%%100=%d \n",(-3)%100);
+	//printf(" -203%%100=%d \n",(-203)%100);
+ for(i=0;i<20;i++)
+ {
+	printf("egi_random_max(10)=%d \n",egi_random_max(10));
+	printf("egi_random_max(-10)=%d \n",egi_random_max(-10));
+ }
+*/
 ///////////////////////////////////////////////////////////////////////////////
 
 	EGI_EBOX  *hitbtn;
@@ -127,6 +131,68 @@ int main(void)
 	EGI_PAGE *page_home=NULL;
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
+
+
+#if 1  /* test -------- imgbuf funcs-------- */
+	if(argc<2)
+	{
+		printf("please enter jpg file path.\n");
+		return -1;
+	}
+
+	EGI_POINT pa,pb;
+	EGI_POINT pn; /* roaming point */
+
+	EGI_IMGBUF	imgbuf={0};
+	egi_imgbuf_loadjpg( argv[1], &gv_fb_dev, &imgbuf);
+
+	/* left top  and right bottom point of the pic */
+	pa.x=0;
+	pa.y=0;
+	pb.x=imgbuf.width-1;
+	pb.y=imgbuf.height-1;
+
+	int digonal=sqrt(pb.x*pb.x+pb.y*pb.y);
+
+	EGI_BOX box={pa,{pb.x-240, pb.y-320} };
+
+	/* roam the picture with step=5 */
+	i=0;
+	int step=5;
+        int stepnum;
+	int sign=1; /* or -1 */
+
+	egi_randp_inbox(&pb, &box);
+
+  while(1)
+  {
+	/* pick a random point in box for pn */
+	egi_randp_inbox(&pn, &box);
+	printf("random point: pn.x=%d, pn.y=%d\n",pn.x,pn.y);
+
+	/* shift pa pb */
+	pa=pb;
+	pb=pn;
+
+	/* count step number from pa to pb */
+        stepnum=egi_numstep_btw2p(step,&pa,&pb);
+	/* walk through those steps */
+	for(i=0;i<stepnum;i++)
+	{
+		/* get interpolate point */
+		egi_getpoit_interpol2p(&pn, step*i, &pa, &pb);
+		/* display the image origin at pn */
+		egi_imgbuf_display( &imgbuf, &gv_fb_dev, pn.x, pn.y );
+		tm_delayms(55);
+	}
+
+
+  }
+
+	egi_imgbuf_release( &imgbuf );
+	exit(1);
+#endif
+
 
 
 #if 0
@@ -248,7 +314,7 @@ int main(void)
 
 
 	/* test: --------- image rotate ----------- */
-#if 1
+#if 0
         /* copy fb image to buf */
 	int centx=120;
 	int centy=120;
@@ -262,10 +328,18 @@ int main(void)
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
 #endif
 
-#if 1
+#if 0
+	i=0;
+	int sign=1;
 	while(1)
 	{
-		i++;
+		i += 2*sign;
+		printf("%d%%360=%d\n",i,i%360);
+		if(i%360==0)
+		{
+			sign=-sign;
+			printf("sign=-sign=%d\n",sign);
+		}
 		/* get rotation map */
   	        //float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
 		mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */

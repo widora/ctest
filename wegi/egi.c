@@ -42,6 +42,11 @@ Midas Zhou
 
 /*---------------------------------------
 return a random value not great than max
+
+max>0: 	1<< ret <<max
+max=0:  1
+max<0:  max+2 << ret << 1
+
 ---------------------------------------*/
 int egi_random_max(int max)
 {

@@ -747,3 +747,92 @@ int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, uns
 
 	return 0;
 }
+
+/*-------------------------------------------------------------------
+to get a new EGI_POINT by interpolation of 2 points
+
+interpolation direction: from pa to pb
+pn:	interpolate point.
+pa,pb:	2 points defines the interpolation line.
+off:	distance form pa to pn.
+	>0  directing from pa to pb.
+	<0  directiong from pb to pa.
+
+return:
+	2	pn extend from pa
+	1	pn extend from pb
+	0	ok
+	<0	fails, or get end of
+--------------------------------------------------------------------*/
+int egi_getpoit_interpol2p(EGI_POINT *pn, int off, EGI_POINT *pa, EGI_POINT *pb)
+{
+	int ret=0;
+	float cosang,sinang;
+
+	/* distance from pa to pb */
+	float s=sqrt( (pb->x-pa->x)*(pb->x-pa->x)+(pb->y-pa->y)*(pb->y-pa->y) );
+	/* cosine and sine of the slop angle */
+	if(s==0)
+		return -1;
+	else
+	{
+		cosang=(pb->x-pa->x)/s;
+		sinang=(pb->y-pa->y)/s;
+	}
+	/* check if out of range */
+	if(off>s)ret=1;
+	if(off<0)ret=2;
+
+	/* interpolate point */
+	pn->x=pa->x+off*cosang;
+	pn->y=pa->y+off*sinang;
+
+	return ret;
+}
+
+/*--------------------------------------------------------
+calculate number of steps between 2 points
+step:	length of each step
+pa,pb	two points
+
+return:
+	>0 	number of steps
+	=0 	if pa==pb or s<step
+---------------------------------------------------------*/
+int egi_numstep_btw2p(int step, EGI_POINT *pa, EGI_POINT *pb)
+{
+        /* distance from pa to pb */
+        float s=sqrt( (pb->x-pa->x)*(pb->x-pa->x)+(pb->y-pa->y)*(pb->y-pa->y) );
+
+	if(step <= 0)
+	{
+		printf("egi_numstep_btw2p(): step must be greater than zero!\n");
+		return -1;
+	}
+
+	if(s==0)
+	{
+		printf("egi_numstep_btw2p(): WARNING!!! point A and B is the same! \n");
+		return 0;
+	}
+
+	return s/step;
+}
+
+
+/*--------------------------------------------------------
+pick a random point within a box
+
+pr:	pointer to a point wihin the box.
+box:
+
+return:
+---------------------------------------------------------*/
+int egi_randp_inbox(EGI_POINT *pr, EGI_BOX *box)
+{
+	EGI_POINT pa=box->startxy;
+	EGI_POINT pb=box->endxy;
+
+	pr->x=pa.x+(egi_random_max(pb.x-pa.x)-1);  /* if x=-10, -8<= egi_random_max(x) <=1 */
+	pr->y=pa.y+(egi_random_max(pb.y-pa.y)-1); /* if x=10,  1<= egi_random_max(x) <=10 */
+}

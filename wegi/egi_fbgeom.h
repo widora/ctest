@@ -29,17 +29,20 @@ Modified by: Midas Zhou
         struct fb_var_screeninfo vinfo;
         struct fb_fix_screeninfo finfo;
         long int screensize;
-        char *map_fb;
+        unsigned char *map_fb;
     }FBDEV;
 
 #endif
 
 
+typedef struct egi_point_coord EGI_POINT;
 struct egi_point_coord
 {
          int x;
          int y;
 };
+
+typedef struct egi_box_coords EGI_BOX;
 struct egi_box_coords
 {
         struct egi_point_coord startxy;
@@ -74,5 +77,7 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
                         uint16_t *obuf, uint16_t *nbuf);
 
-
+int egi_getpoit_interpol2p(EGI_POINT *pn, int off, EGI_POINT *pa, EGI_POINT *pb);
+int egi_numstep_btw2p(int step, EGI_POINT *pa, EGI_POINT *pb);
+int egi_randp_inbox(EGI_POINT *pr, EGI_BOX *box);
 #endif

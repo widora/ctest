@@ -226,7 +226,8 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 
 	/* normalize angle to be within 0-360 */
 	int ang=angle%360;
-	ang=ang>0 ? ang:-ang ;
+	int asign=ang >= 0 ? 1:-1; /* angle sign */
+	ang=ang>=0 ? ang:-ang ;
 
 	//sinang=sin(1.0*angle/180.0*MATH_PI);
 	//cosang=cos(1.0*angle/180.0*MATH_PI);
@@ -258,9 +259,9 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 			this way can ensure all SQMat_XRYR[] points are filled!!!  */
 
 			//xr = j*cosang+i*sinang;
-			xr = (j*fp16_cos[ang]+i*fp16_sin[ang])>>16;
+			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;
 			//yr = -j*sinang+i*cosang;
-			yr = (-j*fp16_sin[ang]+i*fp16_cos[ang])>>16;
+			yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
 
                 	/* check if new piont coordinate is within the square */
                 	if(  ( xr >= -((n-1)>>1)) && ( xr <= ((n-1)>>1))
