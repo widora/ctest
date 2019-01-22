@@ -81,4 +81,5 @@ int egi_getpoit_interpol2p(EGI_POINT *pn, int off, EGI_POINT *pa, EGI_POINT *pb)
 int egi_numstep_btw2p(int step, EGI_POINT *pa, EGI_POINT *pb);
 int egi_randp_inbox(EGI_POINT *pr, EGI_BOX *box);
 int egi_randp_boxsides(EGI_POINT *pr, EGI_BOX *box);
+
 #endif

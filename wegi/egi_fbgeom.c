@@ -824,15 +824,68 @@ int egi_numstep_btw2p(int step, EGI_POINT *pa, EGI_POINT *pb)
 pick a random point within a box
 
 pr:	pointer to a point wihin the box.
-box:
+box:	the box.
 
 return:
+	0	OK
+	<0	fail
 ---------------------------------------------------------*/
 int egi_randp_inbox(EGI_POINT *pr, EGI_BOX *box)
 {
+	if(pr==NULL || box==NULL)
+	{
+		printf("egi_randp_inbox(): pr or box is NULL! \n");
+		return -1;
+	}
+
 	EGI_POINT pa=box->startxy;
 	EGI_POINT pb=box->endxy;
 
 	pr->x=pa.x+(egi_random_max(pb.x-pa.x)-1);  /* if x=-10, -8<= egi_random_max(x) <=1 */
 	pr->y=pa.y+(egi_random_max(pb.y-pa.y)-1); /* if x=10,  1<= egi_random_max(x) <=10 */
+
+	return 0;
 }
+
+
+/*--------------------------------------------------------
+pick a random point on a box's sides.
+
+pr:	pointer to a point wihin the box.
+box:	the box.
+
+return:
+	0	OK
+	<0	fail
+---------------------------------------------------------*/
+int egi_randp_boxsides(EGI_POINT *pr, EGI_BOX *box)
+{
+	if(pr==NULL || box==NULL)
+	{
+		printf("egi_randp_boxsides(): pr or box is NULL! \n");
+		return -1;
+	}
+
+	EGI_POINT pa=box->startxy;
+	EGI_POINT pb=box->endxy;
+
+	if( egi_random_max(2) -1 ) /* on Width sides */
+	{
+		pr->x=pa.x+(egi_random_max(pb.x-pa.x)-1);  /* if x=-10, -8<= egi_random_max(x) <=1 */
+		if( egi_random_max(2) -1 ) /* up or down side */
+			pr->y=pa.y;
+		else
+			pr->y=pb.y;
+	}
+	else /* on Heigh sides */
+	{
+		pr->y=pa.y+(egi_random_max(pb.y-pa.y)-1);  /* if x=-10, -8<= egi_random_max(x) <=1 */
+		if( egi_random_max(2) -1 ) /* left or right side */
+			pr->x=pa.x;
+		else
+			pr->x=pb.x;
+	}
+
+	return 0;
+}
+

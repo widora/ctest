@@ -28,6 +28,7 @@ Modified by Midas
 #include <jerror.h>
 #include "egi_bmpjpg.h"
 #include "egi_color.h"
+#include "egi_timer.h"
 
 BITMAPFILEHEADER FileHead;
 BITMAPINFOHEADER InfoHead;
@@ -84,6 +85,7 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FI
                 return NULL;
         }
 */
+
         buffer = (unsigned char *) malloc(cinfo.output_width *
                         cinfo.output_components * cinfo.output_height);
         temp = buffer;
@@ -280,7 +282,6 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 
 
 //       printf("open_jpgImg() succeed, width=%d, height=%d\n",width,height);
-
 #if 0	//---- normal data sequence ------
 	/* WARNING: blackoff not apply here */
 	line_x = line_y = 0;
@@ -336,8 +337,8 @@ Return
 -------------------------------------------------------------------------*/
 int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
 {
-	int xres=fb_dev->vinfo.xres;
-	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
+	//int xres=fb_dev->vinfo.xres;
+	//int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
 	int width,height;
 	int components;
 	unsigned char *imgbuf;
@@ -345,7 +346,6 @@ int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
 	uint16_t color;
 	long int location = 0;
 	int btypp=2; /* bytes per pixel */
-	int line_x,line_y;
 	int i,j;
 	FILE *infile=NULL;
 
@@ -398,7 +398,7 @@ int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
 }
 
 /*------------------------------------------------------------------------
-release imgbuf of an EGI_IMGBUf struct.
+	Release imgbuf of an EGI_IMGBUf struct.
 -------------------------------------------------------------------------*/
 void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 {
@@ -406,7 +406,7 @@ void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 		free(egi_imgbuf->imgbuf);
 }
 
-/*---------------------------------------------------------------------------
+/*-------------------------------- FULL SCREEN ------------------------------------
 For 16bits color only!!!!
 
 Write image data of an EGI_IMGBUF to FB to display it.
@@ -437,7 +437,6 @@ int egi_imgbuf_display(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
 	long int locimg=0; /* location of image buf, in byte */
 	int btypp=2; /* bytes per pixel */
 
-
 	for(i=0;i<yres;i++) /* FB row */
 	{
 		for(j=0;j<xres;j++) /* FB column */
@@ -461,3 +460,130 @@ int egi_imgbuf_display(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
 
 	return 0;
 }
+
+
+/*-------------------------     SCREEN WINDOW   -----------------------------------------
+For 16bits color only!!!!
+
+1. Write image data of an EGI_IMGBUF to a windown of FB to display it.
+2. Set outside color as black.
+
+egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
+(xp,yp):	coodinate of the displaying window origin(left top) point, relative to
+		the coordinate system of the picture(also origin at left top).
+(xw,yw):	displaying window origin, relate to the LCD coord system.
+winw,winh:		width and height of the displaying window.
+---------------------------------------------------------------------------------------*/
+int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
+				int xw, int yw, int winw, int winh)
+{
+	/* check data */
+	if(egi_imgbuf == NULL)
+	{
+		printf("egi_imgbuf_display(): egi_imgbuf is NULL. fail to display.\n");
+		return -1;
+	}
+
+	int i,j;
+	int xres=fb_dev->vinfo.xres;
+	//int yres=fb_dev->vinfo.yres;
+	int imgw=egi_imgbuf->width;	/* image Width and Height */
+	int imgh=egi_imgbuf->height;
+	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
+	unsigned char *fbp =fb_dev->map_fb;
+	uint16_t *imgbuf = egi_imgbuf->imgbuf;
+	long int locfb=0; /* location of FB mmap, in byte */
+	long int locimg=0; /* location of image buf, in byte */
+	int btypp=2; /* bytes per pixel */
+
+	//for(i=0;i<yres;i++) /* FB row */
+	for(i=0;i<winh;i++) /* row of the displaying window */
+	{
+		//for(j=0;j<xres;j++) /* FB column */
+		for(j=0;j<winw;j++)
+		{
+			/* FB data location */
+			locfb = (i+yw)*xres*btypp+(j*btypp+xw);
+
+			/* check if exceed image boundary */
+			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
+			{
+				*(uint16_t *)(fbp+locfb)=0; /* black for outside */
+			}
+			else
+			{
+				/* image data location */
+				locimg= (i+yp)*imgw*btypp+(j+xp)*btypp;
+				/*  FB from EGI_IMGBUF */
+				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+			}
+		}
+	}
+
+	return 0;
+}
+
+
+/*--------------------------------------------------------------------------------
+Roam a picture in a displaying window
+
+path:		jpg file path
+step:		roaming step length, in pixel
+ntrip:		number of trips for roaming.
+(xw,yw):	displaying window origin, relate to the LCD coord system.
+winw,winh:		width and height of the displaying window.
+---------------------------------------------------------------------------------*/
+int egi_roampic_inwind(char *path, FBDEV *fb_dev, int step, int ntrip,
+						int xw, int yw, int winw, int winh)
+{
+	int i,k;
+        int stepnum;
+
+        EGI_POINT pa,pb; /* 2 points define a picture image box */
+        EGI_POINT pn; /* origin point of displaying window */
+        EGI_IMGBUF  imgbuf={0}; /* u16 color image buffer */
+
+	/* load jpg image to the image buffer */
+        egi_imgbuf_loadjpg(path, &gv_fb_dev, &imgbuf);
+
+        /* define left_top and right_bottom point of the picture */
+        pa.x=0;
+        pa.y=0;
+        pb.x=imgbuf.width-1;
+        pb.y=imgbuf.height-1;
+
+        /* define a box, within which the displaying origin(xp,yp) related to the picture is limited */
+        EGI_BOX box={ pa, {pb.x-winw,pb.y-winh}};
+
+	/* set  start point */
+        egi_randp_inbox(&pb, &box);
+
+        for(k=0;k<ntrip;k++)
+        {
+                /* METHOD 1:  pick a random point in box for pn, as end point of this trip */
+                //egi_randp_inbox(&pn, &box);
+
+                /* METHOD 2: pick a random point on box sides for pn, as end point of this trip */
+                egi_randp_boxsides(&pn, &box);
+                printf("random point: pn.x=%d, pn.y=%d\n",pn.x,pn.y);
+
+                /* shift pa pb */
+                pa=pb; /* now pb is starting point */
+                pb=pn;
+
+                /* count steps from pa to pb */
+                stepnum=egi_numstep_btw2p(step,&pa,&pb);
+                /* walk through those steps, displaying each step */
+                for(i=0;i<stepnum;i++)
+                {
+                        /* get interpolate point */
+                        egi_getpoit_interpol2p(&pn, step*i, &pa, &pb);
+			/* display in the window */
+                        egi_imgbuf_windisplay( &imgbuf, &gv_fb_dev, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
+                        tm_delayms(55);
+                }
+        }
+
+        egi_imgbuf_release( &imgbuf );
+}
+

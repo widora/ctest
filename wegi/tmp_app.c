@@ -55,6 +55,29 @@ Midas Zhou
 char mvicon_load[16]={0};
 
 
+void roam_pic1(void)
+{
+	pthread_detach(pthread_self());
+
+        /* roaming 100 trips, step len=3, offset orign (40,60), in a 160x80 widonw */
+        egi_roampic_inwind("/tmp/lights.jpg", &gv_fb_dev, 3, 100, 60, 40, 160, 80);
+
+	pthread_exit(0);
+}
+
+
+void roam_pic2(void)
+{
+	pthread_detach(pthread_self());
+
+        /* roaming 100 trips, step len=3, offset orign (40,60), in a 160x80 widonw */
+        egi_roampic_inwind("/tmp/dance.jpg", &gv_fb_dev, 3, 100, 30, 180, 200, 100);
+
+	pthread_exit(0);
+}
+
+
+
 /*  ---------------------  MAIN  ---------------------  */
 int main(int argc, char **argv)
 {
@@ -133,63 +156,32 @@ int main(int argc, char **argv)
 	EGI_PAGE *page_openwrt=NULL;
 
 
-#if 1  /* test -------- imgbuf funcs-------- */
-	if(argc<2)
+  /* test -------- imgbuf funcs-------- */
+#if 1
+
+
+	show_jpg("/tmp/home.jpg",&gv_fb_dev,0,0,0); /*black on*/
+
+	pthread_t thread_roampic1;
+	pthread_t thread_roampic2;
+
+	/* ---- start roaming threads ---- */
+	if( pthread_create(&thread_roampic1, NULL, (void *)roam_pic1, NULL) !=0 )
 	{
-		printf("please enter jpg file path.\n");
-		return -1;
+		printf(" pthread_create(... thread_roampic1() ... ) fails!\n");
+		exit(1);
 	}
 
-	EGI_POINT pa,pb;
-	EGI_POINT pn; /* roaming point */
-
-	EGI_IMGBUF	imgbuf={0};
-	egi_imgbuf_loadjpg( argv[1], &gv_fb_dev, &imgbuf);
-
-	/* left top  and right bottom point of the pic */
-	pa.x=0;
-	pa.y=0;
-	pb.x=imgbuf.width-1;
-	pb.y=imgbuf.height-1;
-
-	int digonal=sqrt(pb.x*pb.x+pb.y*pb.y);
-
-	EGI_BOX box={pa,{pb.x-240, pb.y-320} };
-
-	/* roam the picture with step=5 */
-	i=0;
-	int step=5;
-        int stepnum;
-	int sign=1; /* or -1 */
-
-	egi_randp_inbox(&pb, &box);
-
-  while(1)
-  {
-	/* pick a random point in box for pn */
-	egi_randp_inbox(&pn, &box);
-	printf("random point: pn.x=%d, pn.y=%d\n",pn.x,pn.y);
-
-	/* shift pa pb */
-	pa=pb;
-	pb=pn;
-
-	/* count step number from pa to pb */
-        stepnum=egi_numstep_btw2p(step,&pa,&pb);
-	/* walk through those steps */
-	for(i=0;i<stepnum;i++)
+	if( pthread_create(&thread_roampic2, NULL, (void *)roam_pic2, NULL) !=0 )
 	{
-		/* get interpolate point */
-		egi_getpoit_interpol2p(&pn, step*i, &pa, &pb);
-		/* display the image origin at pn */
-		egi_imgbuf_display( &imgbuf, &gv_fb_dev, pn.x, pn.y );
-		tm_delayms(55);
+		printf(" pthread_create(... thread_roampic2() ... ) fails!\n");
+		exit(1);
 	}
 
+	/* wait thread */
+	pthread_join(thread_roampic1,NULL);
+	pthread_join(thread_roampic2,NULL);
 
-  }
-
-	egi_imgbuf_release( &imgbuf );
 	exit(1);
 #endif
 
@@ -207,7 +199,6 @@ int main(int argc, char **argv)
 
 	show_jpg("/tmp/lights.jpg",&gv_fb_dev,0,0,0); /*black on*/
 	fb_cpyto_buf(&gv_fb_dev, 50, 0, 50+50-1, 320-1, buf);
-
 
 	while(1)
     	{
@@ -251,6 +242,7 @@ int main(int argc, char **argv)
 		}
     	}
 #endif
+
 	/* test ---- IW RSSI ------ */
 #if 0
 	while(1)
@@ -283,7 +275,6 @@ int main(int argc, char **argv)
 	clear_screen(&gv_fb_dev, 0xAD55) ;
 	tm_delayms(1000);
 #endif
-
 
 	/* --- load screen paper --- */
 	show_jpg("home.jpg",&gv_fb_dev,0,0,0); /*black on*/
