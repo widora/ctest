@@ -69,16 +69,16 @@ int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 void draw_circle(FBDEV *dev, int x, int y, int r);
 void draw_filled_circle(FBDEV *dev, int x, int y, int r);
 int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
-int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
+int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf);
 
-void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
+void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,
    	                                           const struct egi_point_coord *SQMat_XRYR);
 
 int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
-                        uint16_t *obuf, uint16_t *nbuf);
+                       const uint16_t *obuf, uint16_t *nbuf);
 
-int egi_getpoit_interpol2p(EGI_POINT *pn, int off, EGI_POINT *pa, EGI_POINT *pb);
-int egi_numstep_btw2p(int step, EGI_POINT *pa, EGI_POINT *pb);
-int egi_randp_inbox(EGI_POINT *pr, EGI_BOX *box);
-int egi_randp_boxsides(EGI_POINT *pr, EGI_BOX *box);
+int egi_getpoit_interpol2p(EGI_POINT *pn, int off, const EGI_POINT *pa, const EGI_POINT *pb);
+int egi_numstep_btw2p(int step, const EGI_POINT *pa, const EGI_POINT *pb);
+int egi_randp_inbox(EGI_POINT *pr, const EGI_BOX *box);
+int egi_randp_boxsides(EGI_POINT *pr, const EGI_BOX *box);
 #endif

@@ -111,19 +111,22 @@ void close_jpgImg(unsigned char *imgbuf)
 }
 
 
-/*----------------------------------------------------
+/*------------------------------------------------------------------
 open a BMP file and write image data to FB.
 image size limit: 320x240
 
 blackoff:   1	 Do NOT wirte black pixels to FB.
 		 (keep original data in FB)
+
 	    0	 Wrtie  black pixels to FB.
+x0,y0:		start point in LCD coordinate system
 
 Return:
+	    1   file size too big
 	    0	OK
 	   <0   fails
------------------------------------------------------*/
-int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
+--------------------------------------------------------------------*/
+int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
 	FILE *fp;
 	int xres=fb_dev->vinfo.xres;
@@ -174,6 +177,8 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 		printf("It's not 24bit_color BMP!\n");
 		return -1;
 	}
+
+#if 0 /* check picture size */
 	//检查宽度是否240x320
 	if(InfoHead.ciWidth > 240 ){
 		printf("The width is great than 240!\n");
@@ -184,40 +189,45 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff)
 		return -1;
 	}
 
-	//跳转的数据区
-	fseek(fp, FileHead.cfoffBits, SEEK_SET);
-
-	int x0=0,y0=0; //set original coodinate
 	if( InfoHead.ciHeight+y0 > 320 || InfoHead.ciWidth+x0 > 240 )
 	{
 		printf("The origin of picture (x0,y0) is too big for a 240x320 LCD.\n");
 		return -1;
 	}
+#endif
 
 	line_x = line_y = 0;
 	//向framebuffer中写BMP图片
 
+	//跳转的数据区
+	fseek(fp, FileHead.cfoffBits, SEEK_SET);
+
 	while(!feof(fp))
 	{
 		PIXEL pix;
-		//unsigned short int tmp;
 		rc = fread( (char *)&pix, 1, sizeof(PIXEL), fp);
 		if (rc != sizeof(PIXEL))
 			break;
 
-		// frame buffer location
+		/* frame buffer location */
 		location = line_x * bits_per_pixel / 8 +x0 + (InfoHead.ciHeight - line_y - 1 +y0) * xres * bits_per_pixel / 8;
+
+        	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
+        	if( location<0 || location>(fb_dev->screensize-bits_per_pixel/8) )
+        	{
+               			 printf("show_bmp(): WARNING: point location out of fb mem.!\n");
+  		                 return 1;
+        	}
 
 		//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .
 		// little endian is noticed.
-		// ---- converting to format R5G6B5(as for framebuffer) -----
+		/* converting to format R5G6B5(as for framebuffer) */
 		color=COLOR_RGB_TO16BITS(pix.red,pix.green,pix.blue);
 		/*if blockoff>0, don't write black to fb, so make it transparent to back color */
 		if(  !blackoff || color )
 		{
 			*(uint16_t *)(fbp+location)=color;
 		}
-
 
 		line_x++;
 		if (line_x == InfoHead.ciWidth )
@@ -416,7 +426,7 @@ egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 		the coordinate system of the picture(also origin at left top).
 (x0,y0):	displaying origin relate to the 
 ---------------------------------------------------------------------------------------*/
-int egi_imgbuf_display(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
+int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
 {
 	/* check data */
 	if(egi_imgbuf == NULL)
@@ -474,7 +484,7 @@ egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 (xw,yw):	displaying window origin, relate to the LCD coord system.
 winw,winh:		width and height of the displaying window.
 ---------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
+int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 				int xw, int yw, int winw, int winh)
 {
 	/* check data */
