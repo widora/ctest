@@ -4,8 +4,8 @@ Based on:
         Author: lzy
 
 -------------------------------------------------*/
-#ifndef __SPI_H_
-#define __SPI_H_
+#ifndef __SPI_H__
+#define __SPI_H__
 
 #include <stdint.h>
 #include <unistd.h>
@@ -30,16 +30,16 @@ extern uint16_t delay;
 extern int g_SPI_Fd; //SPI device file descriptor
 
 //----- FUCNTION DECLARATION -----
-void pabort(const char *s);
-int SPI_Transfer( const uint8_t *TxBuf,  uint8_t *RxBuf, int len,int ns);
-int SPI_Write(const uint8_t *TxBuf, int len);
-int SPI_Write_Command_Data(const uint8_t *cmd, int ncmd, const uint8_t *dat, int ndat);
-int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx);
-int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2);
-int SPI_Read(uint8_t *RxBuf, int len);
-int SPI_Open(void);
-int SPI_Close(void);
-int SPI_LookBackTest(void);
+extern void pabort(const char *s);
+extern int SPI_Transfer( const uint8_t *TxBuf,  uint8_t *RxBuf, int len,int ns);
+extern int SPI_Write(const uint8_t *TxBuf, int len);
+extern int SPI_Write_Command_Data(const uint8_t *cmd, int ncmd, const uint8_t *dat, int ndat);
+extern int SPI_Write_then_Read(const uint8_t *TxBuf, int n_tx, uint8_t *RxBuf, int n_rx);
+extern int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int n_tx2);
+extern int SPI_Read(uint8_t *RxBuf, int len);
+extern int SPI_Open(void);
+extern int SPI_Close(void);
+extern int SPI_LookBackTest(void);
 
 
 #endif

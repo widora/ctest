@@ -424,7 +424,6 @@ Write image data of an EGI_IMGBUF to FB to display it.
 egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 (xp,yp):	coodinate of the origin(left top) point of LCD relative to
 		the coordinate system of the picture(also origin at left top).
-(x0,y0):	displaying origin relate to the 
 ---------------------------------------------------------------------------------------*/
 int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
 {

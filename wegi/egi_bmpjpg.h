@@ -77,7 +77,6 @@ typedef struct
 
 
 
-
 #define SHOW_BLACK_TRANSP	1
 #define SHOW_BLACK_NOTRANSP	0
 
@@ -90,7 +89,7 @@ int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf);
 void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf);
 
-/* display picture buffer with full scree */
+/* display picture buffer with full screen */
 int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp);
 
 /* display picture buffer in a window */
@@ -99,6 +98,5 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 /* roaming picture in a window */
 int egi_roampic_inwind(char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
-
 
 #endif
