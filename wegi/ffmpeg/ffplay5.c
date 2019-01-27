@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------
+/*----------------------------------------------------------------------------------------------------------
 Based on: dranger.com/ffmpeg/tutorialxx.c
  				       ---  by Martin Bohme
 	  muroa.org/?q=node/11
@@ -14,26 +14,25 @@ NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
    Files without audio stream can also be played.
 2. Decode audio frames and playback by alsa PCM.
-3. DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,DivX is nearly perfect.
-4. It plays video files smoothly with format of 480*320*24bit FP20, encoded by DivX. 
+3. DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,
+   DivX is nearly perfect.
+4. It plays video files smoothly with format of 480*320*24bit FP20, encoded by DivX.
    Decoding speed also depends on AVstream data rate of the file.
-5. The speed of whole procedure depends on ffmpeg decoding speed, USB transfer speed, FT232 fanout(baudrate) speed, and
-   LCD display speed.  USB speed control is improtant.
+5. The speed of whole procedure depends on ffmpeg decoding speed, FB wirte speed and LCD display speed.
 6. Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
-   Adjust baudrate for FT232 accordingly, otherwise the color will be distorted.
 7. Cost_time test codes will slow down processing and cause choppy.
 
 
 The data flow of a 480*320 movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
-  (thread)  pPICBuff ---->USB transfer (~30-35ms per frame) ----> FT232 baudrate ----> ILI9488 Write Speed Limit ---> Display
+  (thread)  pPICBuff ----> FB (~xxxms per frame) ---> Display
   (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
 	ffplay3  video_file
 
-Midas
----------------------------------------------------------------*/
+Midas Zhou
+-------------------------------------------------------------------------------------------------*/
 #include "ffplay.h"
 #include "spi.h"
 #include "egi_timer.h"
@@ -77,9 +76,12 @@ int main(int argc, char *argv[])
 	int64_t			channel_layout;
 	int 			bytes_used;
 	int			got_frame;
-	SwrContext		*swr; /* AV_SAMPLE_FMT_FLTP format conversion */
+//	SwrContext		**pswr=malloc(sizeof(SwrContext *));
+	struct SwrContext		*swr=NULL; /* AV_SAMPLE_FMT_FLTP format conversion */
 	uint8_t			*outputBuffer;/* for converted data */
 	int 			outsamples;
+
+
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -102,17 +104,20 @@ int main(int argc, char *argv[])
         init_dev(&gv_fb_dev);
 
         /* ---- set timer for time display ---- */
+#if 0
         tm_settimer(500000);/* set timer interval interval */
         signal(SIGALRM, tm_sigroutine);
 
         tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
         signal(SIGALRM, tm_tick_sigroutine);
+#endif
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
 	/* Register all formats and codecs */
 	av_register_all();
+
+	avformat_network_init();
 
 	/* Open video file */
 	printf("open video file... \n");
@@ -132,7 +137,6 @@ int main(int argc, char *argv[])
 	/* Dump information about file onto standard error */
 	printf("try to dump file information... \n");
 	av_dump_format(pFormatCtx, 0, argv[1], 0);
-
 
 	/* Find the first video stream and audio stream */
 	printf("try to find the first video stream... \n");
@@ -157,77 +161,95 @@ int main(int argc, char *argv[])
 //go on   	return -1;
 	}
 
-
-  if(audioStream != -1) // only if audioStream exists
-  {
-	/* Get a pointer to the codec context for the audio stream */
-	aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
-	/* Find the decoder for the audio stream */
-	printf("try to find the decoder for the audio stream... \n");
-	aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
-	if(aCodec == NULL) {
-		fprintf(stderr, "Unsupported audio codec!\n");
-		return -1;
-	}
-	/* copy audio codec context */
-	aCodecCtx=avcodec_alloc_context3(aCodec);
-	if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
-		fprintf(stderr, "Couldn't copy audio code context!\n");
-		return -1;
-	}
-	/* open audio codec */
-	if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
-		fprintf(stderr, "Cound not open audio codec!\n");
-		return -1;
-	}
-	/* get audio stream parameters */
-	frame_size = aCodecCtx->frame_size;
-	sample_rate = aCodecCtx->sample_rate;
-	sample_fmt  = aCodecCtx->sample_fmt;
-	bytes_per_sample = av_get_bytes_per_sample(sample_fmt);
-	nb_channels = aCodecCtx->channels;
-	channel_layout = aCodecCtx->channel_layout;
-	printf("	frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
-	printf("	channel_layout=%lld\n",channel_layout);//long long int type
-	printf("	nb_channels=%d\n",nb_channels);
-	printf("	sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
-	printf("	bytes_per_sample: %d\n",bytes_per_sample);
-	printf("	sample_rate=%d\n",sample_rate);
-
-	/* prepare SWR context for FLTP format conversion */
-	if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
-		/* set out sample rate for ffplaypcm */
-		out_sample_rate=44100;
-
-		printf("prepare swr for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
-		swr=swr_alloc();
-		av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
-		av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
-		av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
-		av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
-		av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
-		av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
-		swr_init(swr);
-
-		/* alloc outputBuffer */
-		outputBuffer=malloc(2*frame_size * bytes_per_sample);
-		if(outputBuffer == NULL)
-	        {
-			printf("malloc() outputBuffer failed!\n");
+	/* proceed audio stream */
+	if(audioStream != -1) /* only if audioStream exists */
+  	{
+		/* Get a pointer to the codec context for the audio stream */
+		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
+		/* Find the decoder for the audio stream */
+		printf("try to find the decoder for the audio stream... \n");
+		aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
+		if(aCodec == NULL) {
+			fprintf(stderr, "Unsupported audio codec!\n");
 			return -1;
 		}
-		/* open pcm play device and set parameters */
- 		prepare_ffpcm_device(nb_channels,out_sample_rate,true); //true for interleaved access
-	}
-	else
-	{
-		/* open pcm play device and set parameters */
- 		prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
-	}
+		/* copy audio codec context */
+		aCodecCtx=avcodec_alloc_context3(aCodec);
+		if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
+			fprintf(stderr, "Couldn't copy audio code context!\n");
+			return -1;
+		}
+		/* open audio codec */
+		if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
+			fprintf(stderr, "Cound not open audio codec!\n");
+			return -1;
+		}
+		/* get audio stream parameters */
+		frame_size = aCodecCtx->frame_size;
+		sample_rate = aCodecCtx->sample_rate;
+		sample_fmt  = aCodecCtx->sample_fmt;
+		bytes_per_sample = av_get_bytes_per_sample(sample_fmt);
+		nb_channels = aCodecCtx->channels;
+		channel_layout = aCodecCtx->channel_layout;
+		printf("	frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
+		printf("	channel_layout=%lld\n",channel_layout);//long long int type
+		printf("	nb_channels=%d\n",nb_channels);
+		printf("	sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
+		printf("	bytes_per_sample: %d\n",bytes_per_sample);
+		printf("	sample_rate=%d\n",sample_rate);
 
-  } /* end of if(audioStream =! -1) */
+		/* prepare SWR context for FLTP format conversion */
+		if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
+			/* set out sample rate for ffplaypcm */
+			out_sample_rate=44100;
+
+			printf("alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
+			swr=swr_alloc();
+#if 0 /*----- to be replaced by swr_alloc_set_opts() */
+			//*pswr=swr;
+			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
+			av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
+			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
+			av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
+			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
+			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+#endif
+
+/*
+struct SwrContext *swr_alloc_set_opts( swr ,
+                                      int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
+                                      int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
+                                      int log_offset, void *log_ctx);
+*/
+			/* allocate and set opts for swr */
+			swr=swr_alloc_set_opts( swr,
+						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
+						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
+						0, NULL );
+			av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
+
+			swr_init(swr);
+
+			/* alloc outputBuffer */
+			outputBuffer=malloc(2*frame_size * bytes_per_sample);
+			if(outputBuffer == NULL)
+	       	 	{
+				printf("malloc() outputBuffer failed!\n");
+				return -1;
+			}
+			/* open pcm play device and set parameters */
+ 			prepare_ffpcm_device(nb_channels,out_sample_rate,true); //true for interleaved access
+		}
+		else
+		{
+			/* open pcm play device and set parameters */
+ 			prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
+		}
+
+	} /* end of if(audioStream =! -1) */
 
 
+	/* proceed video stream */
 	/* Get a pointer to the codec context for the video stream */
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
 	/* Find the decoder for the video stream */
@@ -315,14 +337,15 @@ int main(int argc, char *argv[])
 				  NULL
 				);
 
+	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
+
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
 		printf("----- Fails to create the thread for displaying pictures! \n");
 		return -1;
 	}
 
-
-/*  --------   Read packets and process data  --------   */
+/*  --------  LOOP  ::  Read packets and process data  --------   */
 	printf("----- start loop of reading AV frames and decoding:\n");
 	printf("	 converting video frame to RGB and then send to display...\n");
 	printf("	 sending audio frame data to playback ... \n");
@@ -361,7 +384,6 @@ int main(int argc, char *argv[])
 				fflush(stdout);
 				//gettimeofday(&tm_end,NULL);
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 			}
 		}//----- end  of vidoStream process  ------
 
@@ -414,43 +436,45 @@ int main(int argc, char *argv[])
 
 	}//end of while()
 
-
-	//------ wait display_thread ------
+	/* wait display_thread */
 	tok_QuitFFplay = true;
 	pthread_join(pthd_displayPic,NULL);
 
-	//-----free PICbuffs
-	printf("----- free PICbuffs[]...\n");
+	/* free PICbuffs */
+	printf("free PICbuffs[]...\n");
         free_PicBuffs();
 
-	//----Free the RGB image
+	/* Free the RGB image */
 	av_free(buffer);
 	av_frame_free(&pFrameRGB);
 
-	//-----Free the YUV frame
+	/* Free the YUV frame */
 	av_frame_free(&pFrame);
 
-	//-----close pcm device
-	printf("----- close PCM device...\n");
+	/* close pcm device */
+	printf("close PCM device...\n");
 	close_ffpcm_device();
 
-	//----- free swr
-	printf("---- free swr...\n");
-	swr_free(&swr);
-
+	/* free outputBuffer */
 	if(outputBuffer != NULL)
+	{
+		printf("free outputBuffer for pcm...\n");
 		free(outputBuffer);
+	}
 
-	//----Close the codecs
-	printf("----- close the codecs...\n");
+	/* Close the codecs */
+	printf("close the codecs...\n");
 	avcodec_close(pCodecCtx);
 	avcodec_close(pCodecCtxOrig);
 	avcodec_close(aCodecCtx);
 	avcodec_close(aCodecCtxOrig);
 
-	//----Close the video file
-	printf("----- close the video file...\n");
+	/* Close the video file */
+	printf("close the video file...\n");
 	avformat_close_input(&pFormatCtx);
+
+	printf("free swr at last...\n");
+	swr_free(&swr);
 
 /*  <<<<<<<<<   finish: clean up   >>>>>>>>>>>> */
 	/* close fb dev */
