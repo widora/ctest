@@ -34,6 +34,7 @@ Midas Zhou
 #include "egi_txt.h"
 #include "egi_btn.h"
 #include "egi_list.h"
+#include "egi_pic.h"
 #include "egi_debug.h"
 #include "sys_list.h"
 #include "egi_symbol.h"
@@ -424,6 +425,14 @@ int egi_ebox_free(EGI_EBOX *ebox)
 					egi_free_data_list(ebox->egi_data);
 				}
 				break;
+			case type_pic:
+				if(ebox->egi_data != NULL)
+				{
+					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_date_pic(ebox->egi_data) \
+						 for '%s' ebox\n", ebox->tag);
+					egi_free_data_pic(ebox->egi_data);
+				}
+				break;
 			case type_page:
 				break;
 			default:
@@ -450,7 +459,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 	/* 2. else, use ebox object defined method */
 	else
 	{
-		printf("use ebox '%s' defined free method to free it ...!\n",ebox->tag);
+		printf("use ebox '%s' selfe_defined free method to free it ...!\n",ebox->tag);
 		return ebox->method.free(ebox);
 	}
 }
@@ -480,34 +489,7 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 
 	ebox->type=type;
 
-
-#if 0 	/* Not necessary, the egi_data to be allocated and assigned to ebox by the caller!!!!  malloc ebox type data */
-	switch(type)
-	{
-		case type_txt:
-			ebox->egi_data = malloc(sizeof(EGI_DATA_TXT));
-			break;
-		case type_button:
-			ebox->egi_data = malloc(sizeof(EGI_DATA_BTN));
-			break;
-		case type_chart:
-			break;
-		default:
-			printf("egi_ebox_new(): ebox type %d has not been created yet!\n",type);
-			break;
-	}
-	if(ebox->egi_data==NULL)
-	{
-		printf("egi_ebox_new(): fail to malloc ebox->egi_data for a new ebox!\n");
-		free(ebox);
-		ebox=NULL;
-		return NULL;
-	}
-	memset(ebox,0,sizeof(EGI_DATA_TXT)); /* clear data */
-#endif
-
-
-	/* assign default method for new ebox */
+	/* assign default methods for new ebox */
 	egi_pdebug(DBG_EGI,"egi_ebox_new(): assing default method to ebox ....\n");
 	ebox->activate=egi_ebox_activate;
 	ebox->refresh=egi_ebox_refresh;
@@ -520,6 +502,7 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	 status=no_body
 	 frame=simple type
 	 prmcolor=BLACK
+	 bkimg=NULL
 	 */
 
 	egi_pdebug(DBG_EGI,"egi_ebox_new(): end the call. \n");

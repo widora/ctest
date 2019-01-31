@@ -22,6 +22,8 @@ NOTE:
 6. Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
 7. Cost_time test codes will slow down processing and cause choppy.
 
+TODO:
+1. TO exit main() from a thread.
 
 The data flow of a 480*320 movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
@@ -356,15 +358,15 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		if(packet.stream_index==videoStream)
 		{
 			//decode video frame
-//			printf("...decoding video frame\n");
+			printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 			/* if we get a complete video frame */
 			if(frameFinished) {
-				//convert the image from its native format to RGB
-//				printf("...converting image to RGB\n");
+				//convert the image from its native format to RG
+				printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -373,6 +375,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 				/* push data to pic buff for SPI LCD displaying */
 				//gettimeofday(&tm_start,NULL);
+				printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
 				//---- get play time

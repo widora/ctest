@@ -123,10 +123,16 @@ void* thdf_Display_Pic(void * argv)
    int i;
    struct PicInfo *ppic =(struct PicInfo *) argv;
 
-  EGI_IMGBUF imgbuf;
-  imgbuf.width=ppic->He - ppic->Hs +1;
-  imgbuf.height=ppic->Ve - ppic->Vs +1;
+   EGI_IMGBUF imgbuf;
+   imgbuf.width=ppic->He - ppic->Hs +1;
+   imgbuf.height=ppic->Ve - ppic->Vs +1;
 
+   /* check size limit */
+   if(imgbuf.width>PIC_MAX_WIDTH || imgbuf.height>PIC_MAX_HEIGHT)
+   {
+	printf("thdf_Display_Pic(): movie size is too big to display.\n");
+	exit(-1);
+   }
 
    while(1)
    {

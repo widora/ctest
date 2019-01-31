@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------------------------------------
+/*-------------------- -----------------------------------------------------------------------------------
 run all sizes of 24bit_color BMP pic
 usage:
 	./runmovie path    (use ramfs!!!)
@@ -8,9 +8,13 @@ Midas Zhou
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
+#include <time.h>
+#include "spi.h"
 #include "fbmp_op.h" /* for bmp file operations */
 #include "egi_bmpjpg.h"
-
+#include "egi_fbgeom.h"
+#include "egi_timer.h"
 
 /*===================== MAIN   ======================*/
 int main(int argc, char **argv)
@@ -35,6 +39,22 @@ int main(int argc, char **argv)
     }
 
 
+    /* --- open spi dev --- */
+    SPI_Open();
+
+    /* --- prepare fb device --- */
+    gv_fb_dev.fdfd=-1;
+    init_dev(&gv_fb_dev);
+
+    /* ---- set timer for time display ---- */
+    tm_settimer(500000);/* set timer interval interval */
+    signal(SIGALRM, tm_sigroutine);
+
+    tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
+    signal(SIGALRM, tm_tick_sigroutine);
+
+
+
 /* <<<<<<<<<<<<<<<<<  BMP FILE TEST >>>>>>>>>>>>>>>>>> */
 strcpy(str_bmpf_path,argv[1]);
 while(1) /* loop showing BMP files in a directory */
@@ -51,7 +71,7 @@ while(1) /* loop showing BMP files in a directory */
 	     usleep(100000);
              continue; //continue loop
 	  }
-          printf("\n\n==========  reload BMP file, totally  %d BMP-files found.   ============\n",g_BMP_file_total);
+          printf("\n\n ----  reload BMP file, totally  %d BMP-files found. ---- \n",g_BMP_file_total);
           Ncount=g_BMP_file_total-1; //---reset Ncount, [Nount] starting from 0
       }
 
@@ -64,11 +84,12 @@ while(1) /* loop showing BMP files in a directory */
      gettimeofday(&tm_start,NULL);
 
      /* int show_bmp(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0) */
-     if( show_bmp(str_bmpf_file,&gv_fb_dev, 0, 0,70) < 0 )
+     if( show_bmp(str_bmpf_file,&gv_fb_dev, 0, 40, 80) < 0 )
      {
 	/* if show bmp fails, then skip to continue, will NOT delete the file then */
 	continue;
      }
+     tm_delayms(45);
 
      gettimeofday(&tm_end,NULL);
      time_use=(tm_end.tv_sec-tm_start.tv_sec)*1000+(tm_end.tv_usec-tm_start.tv_usec)/1000;

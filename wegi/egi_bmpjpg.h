@@ -28,8 +28,9 @@ Midas
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
+#include "egi.h"
+#include "egi_image.h"
 #include "egi_fbgeom.h"
-
 
 //14byte文件头
 typedef struct
@@ -67,14 +68,14 @@ typedef struct
 
 
 /* struct for 16bits_color image buffer */
+/*
 typedef struct
 {
 	int height;
 	int width;
 	uint16_t *imgbuf;
 } EGI_IMGBUF;
-
-
+*/
 
 
 #define SHOW_BLACK_TRANSP	1
@@ -96,7 +97,7 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 			                          int xw, int yw, int winw, int winh);
 /* roaming picture in a window */
-int egi_roampic_inwind(char *path, FBDEV *fb_dev, int step, int ntrip,
+int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
 
 #endif

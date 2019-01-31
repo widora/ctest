@@ -13,7 +13,8 @@ Midas Zhou
 #include <stdbool.h>
 #include <pthread.h>
 #include "sys_list.h"
-#include "egi_fbgeom.h"
+//#include "egi_fbgeom.h"
+#include "egi_image.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
@@ -22,6 +23,32 @@ Midas Zhou
 typedef struct egi_page EGI_PAGE;
 typedef struct egi_element_box EGI_EBOX;
 typedef struct egi_touch_data EGI_TOUCH_DATA;
+
+//typedef struct egi_imgbuf EGI_IMGBUF;
+
+/*
+typedef struct
+{
+        int height;
+        int width;
+        uint16_t *imgbuf;
+} EGI_IMGBUF;
+*/
+
+typedef struct egi_point_coord EGI_POINT;
+struct egi_point_coord
+{
+         int x;
+         int y;
+};
+
+typedef struct egi_box_coords EGI_BOX;
+struct egi_box_coords
+{
+        struct egi_point_coord startxy;
+        struct egi_point_coord endxy;
+};
+
 
 /* element box type */
 enum egi_ebox_type
@@ -32,8 +59,7 @@ enum egi_ebox_type
 	type_list,
 	type_slider, /* sliding bar */
 	type_chart,
-	type_pic,
-	type_motion,
+	type_pic, /* still picture or motion picture */
 };
 
 /* element box status */
@@ -331,7 +357,7 @@ struct egi_data_list
 
 
 /* egi data for a slider type ebox
-  0.  Adjusting range to be  0 - maxval; 
+  0.  Adjusting range to be  0 - maxval;
   1.  The hosting ebox's W/H defines the MAX. outline of a sliding bar,
       It covers/surrounds all geometries, it's all the limit size for the slot.
       Usually the Height of hosting ebox and slider to be the same.
@@ -358,13 +384,49 @@ struct egi_data_slider
 
 	/* icon for the slot bar, if not NULL */
 	struct symbol_page *slot_icon;
+	int slot_code;
 
 	/* slider is also an ebox */
 	EGI_EBOX    *slider;
 
 	/* icon for the slider block, if not NULL */
 	struct symbol_page *slider_icon;
+	int slider_code;
+};
 
+/*
+  egi data for a picture displaying ebox
+   also for a motion picture(movie)
+*/
+typedef struct egi_data_pic EGI_DATA_PIC;
+struct egi_data_pic
+{
+	/* image data for a picture, in R5G6B5 pixel format */
+	EGI_IMGBUF *imgbuf;
+
+	/* window origin coordinate relating to the image coord system*/
+	int imgpx;
+	int imgpy;
+
+	/* offset from host ebox
+	   offy will be auto. adjusted according to title font height if applys.
+	*/
+	int offx; /* for left and right side space between host ebox*/
+	int offy; /* for up and down side space between host ebox */
+
+	/* height an width of picture displaying area*/
+//	int height;
+//	int width;
+
+	/* title of the picture,
+	   1. for only one line!
+	 */
+	char *title;
+	/* font of the title */
+	struct symbol_page *font;
+
+	/* file path for a picture if applys */
+	char *fpath;
 };
 
 

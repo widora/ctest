@@ -4,7 +4,9 @@ CC = mipsel-openwrt-linux-gcc
 APP = ffplay5
 SOURCE = $(APP).c
 DEPS = ffplay.h
-OBJ = $(APP).o play_ffpcm.o egi_timer.o egi.o egi_math.o egi_symbol.o egi_txt.o egi_btn.o egi_list.o egi_bmpjpg.o egi_fbgeom.o spi.o
+OBJ = $(APP).o play_ffpcm.o
+EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	\
+		../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c
@@ -29,7 +31,7 @@ LIBS	 += -lpthread
 
 #----------------  APP  --------------------
 $(APP): $(OBJ) $(DEPS)
-	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ)
+	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ) $(EGI_OBJ)
 $(APP).o: $(SOURCE)
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
 play_ffpcm.o: play_ffpcm.c

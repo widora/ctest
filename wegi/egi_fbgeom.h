@@ -16,6 +16,7 @@ Modified by: Midas Zhou
 #include <linux/fb.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "egi.h"
 
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
@@ -33,23 +34,6 @@ Modified by: Midas Zhou
     }FBDEV;
 
 #endif
-
-
-typedef struct egi_point_coord EGI_POINT;
-struct egi_point_coord
-{
-         int x;
-         int y;
-};
-
-typedef struct egi_box_coords EGI_BOX;
-struct egi_box_coords
-{
-        struct egi_point_coord startxy;
-        struct egi_point_coord endxy;
-};
-
-#include "egi.h"
 
 
 /* global variale, Frame buffer device */

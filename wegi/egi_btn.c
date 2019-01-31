@@ -1,5 +1,5 @@
 /*----------------------- egi_btn.c ------------------------------
-egi btn tyep ebox functions
+egi btn type ebox functions
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -254,7 +254,7 @@ Return:
 int egi_btnbox_refresh(EGI_EBOX *ebox)
 {
 	int i;
-	int bkcolor=0;
+	int bkcolor=SYM_FONT_DEFAULT_TRANSPCOLOR;
 	int symheight;
 	int symwidth;
 

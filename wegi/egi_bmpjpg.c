@@ -26,9 +26,11 @@ Modified by Midas
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
+#include "egi_image.h"
 #include "egi_bmpjpg.h"
 #include "egi_color.h"
 #include "egi_timer.h"
+
 
 BITMAPFILEHEADER FileHead;
 BITMAPINFOHEADER InfoHead;
@@ -336,10 +338,12 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 
 
 /*------------------------------------------------------------------------
-load a jpg image to imgbuf.
+allocate memory for egi_imgbuf, and then load a jpg image to it.
 
 fpath:		jpg file path
 imgbuf:		buf to hold the image data, in 16bits color
+		input: a NULL pointer 
+		output: a pointer to the image data
 
 Return
 		0	OK
@@ -395,6 +399,7 @@ int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
 		for(j=0;j<width;j++)
 		{
 			location= (height-i-1)*width*btypp + j*btypp;
+
 			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
 			*(uint16_t *)(egi_imgbuf->imgbuf+location/btypp )=color;
 			dat +=3;
@@ -424,6 +429,9 @@ Write image data of an EGI_IMGBUF to FB to display it.
 egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 (xp,yp):	coodinate of the origin(left top) point of LCD relative to
 		the coordinate system of the picture(also origin at left top).
+Return:
+		0 	ok
+		<0	fails
 ---------------------------------------------------------------------------------------*/
 int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
 {
@@ -452,6 +460,12 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 		{
 			/* FB location */
 			locfb = i*xres*btypp+j*btypp;
+			/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
+                	if( locfb<0 || locfb>(fb_dev->screensize-btypp) )
+                	{
+                                 printf("show_bmp(): WARNING: point location out of fb mem.!\n");
+                                 return -2;
+                	}
 
 			/* check if exceed image boundary */
 			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
@@ -474,7 +488,7 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 /*-------------------------     SCREEN WINDOW   -----------------------------------------
 For 16bits color only!!!!
 
-1. Write image data of an EGI_IMGBUF to a windown of FB to display it.
+1. Write image data of an EGI_IMGBUF to a window of FB to display it.
 2. Set outside color as black.
 
 egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
@@ -486,6 +500,8 @@ winw,winh:		width and height of the displaying window.
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 				int xw, int yw, int winw, int winh)
 {
+
+
 	/* check data */
 	if(egi_imgbuf == NULL)
 	{
@@ -512,7 +528,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 		for(j=0;j<winw;j++)
 		{
 			/* FB data location */
-			locfb = (i+yw)*xres*btypp+(j*btypp+xw);
+			locfb = (i+yw)*xres*btypp+(j+xw)*btypp;
 
 			/* check if exceed image boundary */
 			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
@@ -542,7 +558,7 @@ ntrip:		number of trips for roaming.
 (xw,yw):	displaying window origin, relate to the LCD coord system.
 winw,winh:		width and height of the displaying window.
 ---------------------------------------------------------------------------------*/
-int egi_roampic_inwind(char *path, FBDEV *fb_dev, int step, int ntrip,
+int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
 						int xw, int yw, int winw, int winh)
 {
 	int i,k;
