@@ -341,15 +341,18 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 allocate memory for egi_imgbuf, and then load a jpg image to it.
 
 fpath:		jpg file path
+
+//fb_dev:		if not NULL, then write to FB,
+
 imgbuf:		buf to hold the image data, in 16bits color
-		input: a NULL pointer 
+		input:  an EGI_IMGBUF 
 		output: a pointer to the image data
 
 Return
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------*/
-int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf)
+int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 {
 	//int xres=fb_dev->vinfo.xres;
 	//int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
@@ -420,6 +423,7 @@ void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 	if(egi_imgbuf != NULL && egi_imgbuf->imgbuf != NULL)
 		free(egi_imgbuf->imgbuf);
 }
+
 
 /*-------------------------------- FULL SCREEN ------------------------------------
 For 16bits color only!!!!
@@ -569,7 +573,7 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
         EGI_IMGBUF  imgbuf={0}; /* u16 color image buffer */
 
 	/* load jpg image to the image buffer */
-        egi_imgbuf_loadjpg(path, &gv_fb_dev, &imgbuf);
+        egi_imgbuf_loadjpg(path, &imgbuf);
 
         /* define left_top and right_bottom point of the picture */
         pa.x=0;
@@ -610,5 +614,7 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
         }
 
         egi_imgbuf_release( &imgbuf );
+
+	return 0;
 }
 

@@ -279,6 +279,17 @@ void egi_ebox_settag(EGI_EBOX *ebox, char *tag)
 }
 
 
+/*-----------------------------------
+put need_refresh flag true
+------------------------------------*/
+void egi_ebox_needrefresh(EGI_EBOX *ebox)
+{
+    if(ebox != NULL)
+	ebox->need_refresh=true;
+
+}
+
+
 
 /*----------------------------------------------------
 ebox refresh: default method

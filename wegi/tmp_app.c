@@ -40,6 +40,7 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_txt.h"
 #include "egi_btn.h"
+#include "egi_pic.h"
 #include "egi_timer.h"
 #include "egi_objtxt.h"
 #include "egi_pagehome.h"
@@ -388,28 +389,63 @@ int main(int argc, char **argv)
 
 
 #if 1 /* test  ----------- egi_pic ------------ */
+	int pich=100;
+	int picw=150;
+	int poffx=4;
+	int poffy=4;
+	int symh=26;
+	EGI_DATA_PIC *data_pic=NULL;
+	EGI_EBOX *pic_box=NULL;
 
-	EGI_DATA_PIC *data_pic= egi_picdata_new( 4,4,    /* int offx, int offy */
- 	                              		 100, 150, /* heigth,width of displaying window */
-                  	              		 0,0,	   /* int imgpx, int imgpy */
- 		          	                 &sympg_testfont  /* struct symbol_page *font */
-		                             );
+	EGI_IMGBUF imgbuf;
+	uint16_t  *picbuf=NULL;
+
+	EGI_POINT  pxy;
+	EGI_BOX	 box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
+  while(1)
+  {
+
+
+
+        data_pic= egi_picdata_new( poffx, poffy,    /* int offx, int offy */
+ 	               		 pich, picw, /* heigth,width of displaying window */
+                       		 0,0,	   /* int imgpx, int imgpy */
+ 	       	                 &sympg_testfont  /* struct symbol_page *font */
+	                        );
 	/* set title */
 	data_pic->title="Pictrue ebox";
 
+	/* get a random point */
+	egi_randp_inbox(&pxy, &box);
 
-	EGI_EBOX *pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
-        				  data_pic,  /* EGI_DATA_PIC *egi_data */
-				          1,	     /* bool movable */
-				   	  10,100,    /*  x0, y0 for host ebox*/
-	        			  1,	     /* int frame */
-       					  WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
+	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
+       				  data_pic,  /* EGI_DATA_PIC *egi_data */
+			          1,	     /* bool movable */
+			   	  pxy.x,pxy.y,//10,100,    /*  x0, y0 for host ebox*/
+        			  1,	     /* int frame */
+				  WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
 	);
-
+	printf("egi_picbox_activate()...\n");
 	egi_picbox_activate(pic_box);
+
+	printf("egi_imgbuf_loadjpg()...\n");
+	egi_imgbuf_loadjpg("/tmp/dance.jpg", &imgbuf); /* load jpg file to buf */
+	/* scale pic to data_pic */
+	printf("egi_scale_pixbuf()...\n");
+	fb_scale_pixbuf(imgbuf.width, imgbuf.height, data_pic->imgbuf->width, data_pic->imgbuf->height,
+				imgbuf.imgbuf, data_pic->imgbuf->imgbuf);
+
+	egi_imgbuf_release(&imgbuf); /* release old buf */
+
+	/* refresh picbox to show the picture */
+	egi_ebox_needrefresh(pic_box);
+	printf("egi_picbox_refresh()...\n");
 	egi_picbox_refresh(pic_box);
 
 	pic_box->free(pic_box);
+
+	tm_delayms(100);
+  }
 
 	exit(1);
 
