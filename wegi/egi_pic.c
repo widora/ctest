@@ -448,16 +448,28 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	1---------------------------------------------------------------------------------------*/
 	if( data_pic->imgbuf != NULL && data_pic->imgbuf->imgbuf != NULL )
 	{
-		printf("egi_picbox_refresh(): egi_imgbuf_windisplay() wx0=%d \n", wx0);
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev,
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
+	}
+	/* else if fpath != 0, load jpg file */
+	else if(data_pic->fpath != NULL)
+	{
+		/* scale image to fit to the displaying window */
+
+
+		/* keep original picture size */
+
 	}
 	else /* draw a black window if imgbuf is NULL */
 	{
                	fbset_color(0); /* use black as frame color  */
                	draw_filled_rect(&gv_fb_dev,wx0,wy0,wx0+imgw-1,wy0+imgh-1);
 	}
+
+
+
+
 
 	/* 9. decorate functoins */
 	if(ebox->decorate)
@@ -467,6 +479,42 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	ebox->need_refresh=false;
 
 	return 0;
+}
+
+
+/*-----------------------------------------------------
+put a txt ebox to sleep
+1. restore bkimg
+2. reset status
+
+return
+        0       OK
+        <0      fail
+------------------------------------------------------*/
+int egi_picbox_sleep(EGI_EBOX *ebox)
+{
+	if(ebox==NULL)
+	{
+		printf("egi_picbox_sleep(): ebox is NULL, fail to make it sleep.\n");
+		return -1;
+	}
+
+        if(ebox->movable) /* only for movable ebox */
+        {
+                /* restore bkimg */
+                if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+                {
+                        printf("egi_picbox_sleep(): fail to restor bkimg for a '%s' ebox.\n",ebox->tag);
+                        return -2;
+                }
+        }
+
+        /* reset status */
+        ebox->status=status_sleep;
+
+        egi_pdebug(DBG_PIC,"egi_picbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
+        return 0;
 }
 
 

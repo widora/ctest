@@ -397,6 +397,12 @@ struct egi_data_slider
 /*
   egi data for a picture displaying ebox
    also for a motion picture(movie)
+  1. first priority: imgbuf, if imgbuf is not NULL.
+  2. then fpath file: load jpg file to imgbuf, if fpath is not NULL.
+  3. method refresh() only reload imgbuf, not fpath file.
+  4. use egi_picbox_loadfjpg() to load/reload jpg file to imgbuf.
+     It also frees and reallocates memory for imgbuf according to pic size.
+
 */
 typedef struct egi_data_pic EGI_DATA_PIC;
 struct egi_data_pic
@@ -414,10 +420,6 @@ struct egi_data_pic
 	int offx; /* for left and right side space between host ebox*/
 	int offy; /* for up and down side space between host ebox */
 
-	/* height an width of picture displaying area*/
-//	int height;
-//	int width;
-
 	/* title of the picture,
 	   1. for only one line!
 	 */
@@ -427,6 +429,7 @@ struct egi_data_pic
 
 	/* file path for a picture if applys */
 	char *fpath;
+
 };
 
 

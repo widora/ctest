@@ -93,7 +93,7 @@ int egi_imgbuf_loadjpg(char* fpath, EGI_IMGBUF *egi_imgbuf);
 void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf);
 
 /* display picture buffer with full screen */
-int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp);
+//int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp);
 
 /* display picture buffer in a window */
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
@@ -101,5 +101,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 /* roaming picture in a window */
 int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
+/* find all jpg files in a path */
+int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, int maxflen);
 
 #endif

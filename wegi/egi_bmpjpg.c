@@ -26,7 +26,9 @@ Modified by Midas
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
+#include <dirent.h>
 #include "egi_image.h"
+#include "egi_debug.h"
 #include "egi_bmpjpg.h"
 #include "egi_color.h"
 #include "egi_timer.h"
@@ -376,7 +378,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	/* prepare image buffer */
 	egi_imgbuf->height=height;
 	egi_imgbuf->width=width;
-	printf("egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
+	egi_pdebug(DBG_BMPJPG,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
 								fpath,egi_imgbuf->width,egi_imgbuf->height);
 	/* alloc imgbuf */
 	egi_imgbuf->imgbuf=malloc(width*height*btypp);
@@ -425,7 +427,9 @@ void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 }
 
 
-/*-------------------------------- FULL SCREEN ------------------------------------
+
+#if 0
+/*---------------------- FULL SCREEN : OBSELET!!! ------------------------------------
 For 16bits color only!!!!
 
 Write image data of an EGI_IMGBUF to FB to display it.
@@ -487,6 +491,7 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 
 	return 0;
 }
+#endif
 
 
 /*-------------------------     SCREEN WINDOW   -----------------------------------------
@@ -532,19 +537,25 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 		for(j=0;j<winw;j++)
 		{
 			/* FB data location */
-			locfb = (i+yw)*xres*btypp+(j+xw)*btypp;
+//replaced by draw_dot()	locfb = (i+yw)*xres*btypp+(j+xw)*btypp;
 
 			/* check if exceed image boundary */
 			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
 			{
-				*(uint16_t *)(fbp+locfb)=0; /* black for outside */
+//replaced by draw_dot()	*(uint16_t *)(fbp+locfb)=0; /* black for outside */
+				fbset_color(0); /* black for outside */
+				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
 			}
 			else
 			{
 				/* image data location */
 				locimg= (i+yp)*imgw*btypp+(j+xp)*btypp;
 				/*  FB from EGI_IMGBUF */
-				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+
+				/*  ---- draw_dot() here ---- */
+				fbset_color(*(uint16_t *)(imgbuf+locimg/btypp));
+				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
 			}
 		}
 	}
@@ -616,5 +627,55 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
         egi_imgbuf_release( &imgbuf );
 
 	return 0;
+}
+
+
+/* ----------------------------------------------------------------------------------------
+ find out all jpg files in a specified directory
+
+path:	 	path for file searching
+count:	 	total number of jpg files found
+fpaths:  	file path list
+maxfnum:	max items of fpaths
+maxflen:	max file name length
+
+return value:
+         0 --- OK
+        <0 --- fails
+------------------------------------------------------------------------------------------*/
+int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, int maxflen)
+{
+        DIR *dir;
+        struct dirent *file;
+        int fn_len;
+	int num=0;
+
+        /* open dir */
+        if(!(dir=opendir(path)))
+        {
+                printf("egi_find_jpgfs(): error open dir: %s !\n",path);
+                return -1;
+        }
+
+	/* get jpg files */
+        while((file=readdir(dir))!=NULL)
+        {
+                /* find out all jpg files */
+                fn_len=strlen(file->d_name);
+		if(fn_len>maxflen-1)/* file name length limit */
+			continue;
+                if(strncmp(file->d_name+fn_len-4,".jpg",4)!=0 )
+                         continue;
+		sprintf(fpaths[num],"%s/%s",path,file->d_name);
+                //strncpy(fpaths[num++],file->d_name,fn_len);
+		num++;
+		if(num==maxfnum)/* break if fpaths is full */
+			break;
+        }
+
+	*count=num; /* return count */
+
+         closedir(dir);
+         return 0;
 }
 

@@ -571,10 +571,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 #else /*--- if  NO ROLLBACK ---*/
 			/* ignore out ranged points */
 			mapx=x0+j;
-			if(mapx>(xres-1))
+			if(mapx>(xres-1) || mapx<0 )
 				continue;
 			mapy=y0+i;
-			if(mapy>(yres-1))
+			if(mapy>(yres-1) || mapy<0 )
 				continue;
 
 #endif
@@ -600,7 +600,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
 			        if( pos > (fb_dev->screensize-sizeof(uint16_t)) )
         			{
-	                			printf("WARNING: symbol point reach boundary of FB mem.!\n");
+	                		printf("symbol_writeFB(): WARNING!!! symbol point reach boundary of FB mem.!\n");
 					printf("pos=%ld, screensize=%ld    mapx=%d,mapy=%d\n",
 						 pos, fb_dev->screensize, mapx, mapy);
                 			return;

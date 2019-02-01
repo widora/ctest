@@ -28,6 +28,7 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
 
 int egi_picbox_activate(EGI_EBOX *ebox);
 int egi_picbox_refresh(EGI_EBOX *ebox);
+int egi_picbox_sleep(EGI_EBOX *ebox);
 void egi_free_data_pic(EGI_DATA_PIC *data_pic);
 
 

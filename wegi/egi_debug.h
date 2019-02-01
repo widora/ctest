@@ -19,6 +19,7 @@
 #define DBG_OBJTXT	(1<<8)
 #define DBG_FBGEOM	(1<<9)
 #define DBG_TOUCH	(1<<10)
+#define DBG_BMPJPG	(1<<11)
 
 #define DBG_TEST	(1<<15)
 

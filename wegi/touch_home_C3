@@ -386,26 +386,8 @@ int main(int argc, char **argv)
 #endif
 
 
+
 #if 1 /* test  ----------- egi_pic ------------ */
-
-	/* -------- to search jpg files ------ */
-	char path[]="/mmc/photos";
-	int maxflen=100; /* max jpg file name length */
-	int maxfnum=20; /* max number of items in fpaths */
-	char **fpaths=NULL; /* jpg file paths */
-	fpaths=malloc(maxfnum*sizeof(char *));
-	memset(fpaths,0,maxfnum*sizeof(char *));
-	for(i=0;i<maxfnum;i++)
-	{
-		fpaths[i]=malloc(maxflen*sizeof(char));
-		memset(fpaths[i], 0, maxflen*sizeof(char));
-	}
-	int count=0;
-	/* search all jpg files in a path */
-	egi_find_jpgfiles(path, &count, fpaths, maxfnum, maxflen);
-	printf("Totally %d jpg files are found.\n",count);
-
-	/* ------- display jpg files ------- */
 	int pich=130;
 	int picw=230;
 	int poffx=4;
@@ -418,21 +400,12 @@ int main(int argc, char **argv)
 	uint16_t  *picbuf=NULL;
 
 	EGI_POINT  pxy;
-	/* set x0y0 of pic in box */
-	EGI_BOX	 box={ {0,0},{240-230-1,320-130/2-1} };
-	//EGI_BOX  box={ {0-100,0-150},{240-1-100,320-1-150} };
-	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
+	EGI_BOX	 box={ {0-100,0-150},{240-1-100,320-1-150} };//box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
+  while(1)
+  {
 
 
-for(i=0;i<count+1;i++)
-{
-	if(i==count)
-	{
-	   	i=0;
-		continue;
-	}
 
-	/* allocate data_pic */
         data_pic= egi_picdata_new( poffx, poffy,    /* int offx, int offy */
  	               		 pich, picw, /* heigth,width of displaying window */
                        		 0,0,	   /* int imgpx, int imgpy */
@@ -443,6 +416,7 @@ for(i=0;i<count+1;i++)
 
 	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
+
 	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
        				  data_pic,  /* EGI_DATA_PIC *egi_data */
 			          1,	     /* bool movable */
@@ -453,12 +427,10 @@ for(i=0;i<count+1;i++)
 	//printf("egi_picbox_activate()...\n");
 	egi_picbox_activate(pic_box);
 
-	//system("date");
-	printf("egi_imgbuf_loadjpg(): %s...\n", fpaths[i]);
+	system("date");
+	printf("egi_imgbuf_loadjpg()...\n");
 	/* load jpg file to buf */
-	if(egi_imgbuf_loadjpg(fpaths[i], &imgbuf) != 0 )
-	   exit(-1);
-
+	egi_imgbuf_loadjpg("/tmp/dance.jpg", &imgbuf); 
 	/* scale pic to data_pic */
 	printf("start egi_scale_pixbuf()...\n");
 	fb_scale_pixbuf(imgbuf.width, imgbuf.height, data_pic->imgbuf->width, data_pic->imgbuf->height,
@@ -467,34 +439,20 @@ for(i=0;i<count+1;i++)
 	/* release useless imgbuf then */
 	egi_imgbuf_release(&imgbuf);
 
- for(j=0;j<5;j++)
- {
-	/* get a random point */
-	egi_randp_inbox(&pxy, &box);
-	pic_box->x0=pxy.x;
-	pic_box->y0=pxy.y;
-
 	/* refresh picbox to show the picture */
 	printf("start egi_picbox_refresh()...\n");
 	egi_ebox_needrefresh(pic_box);
 	//printf("egi_picbox_refresh()...\n");
 	egi_picbox_refresh(pic_box);
 	tm_delayms(1000);
-  }
 
 	/* sleep to erase the image */
 	egi_picbox_sleep(pic_box);
 
 	/* release it */
 	pic_box->free(pic_box);
-}
 
-	/* free fpaths */
-	for(i=0;i<maxfnum;i++)
-	{
-		free(fpaths[i]);
-	}
-	free(fpaths);
+  }
 
 	exit(1);
 

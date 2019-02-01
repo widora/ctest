@@ -557,13 +557,19 @@ return
 ------------------------------------------------------*/
 int egi_txtbox_sleep(EGI_EBOX *ebox)
 {
+        if(ebox==NULL)
+        {
+                printf("egi_txtbox_sleep(): ebox is NULL, fail to make it sleep.\n");
+                return -1;
+        }
+
    	if(ebox->movable) /* only for movable ebox */
    	{
 		/* restore bkimg */
        		if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
 		{
-			printf("egi_txtbox_sleep(): fail to restor bkimg.\n");
+			printf("egi_txtbox_sleep(): fail to restor bkimg for a '%s' ebox.\n",ebox->tag);
                 	return -1;
 		}
    	}
