@@ -96,6 +96,10 @@ int main(int argc, char **argv)
 
 	uint16_t *buf;
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+
+	uint16_t *buf2;
+	buf2=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+
 	uint16_t *nbuf;
 	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
@@ -304,41 +308,68 @@ int main(int argc, char **argv)
 
 
 	/* test: --------- image rotate ----------- */
-#if 0
+#if 1
         /* copy fb image to buf */
 	int centx=120;
-	int centy=120;
+	int centy=140;
 	int sq=237;
-        fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
+	int sq2=105;
+        fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf); /* buf */
+        fb_cpyto_buf(&gv_fb_dev, centx-sq2/2, centy-sq2/2, centx+sq2/2, centy+sq2/2, buf2); /* buf2 */
+
 	/* for image rotation */
-	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
+	struct egi_point_coord	*SQMat; /* the map matrix, */
 	SQMat=malloc(sq*sq*sizeof(struct egi_point_coord));
 	memset(SQMat,0,sizeof(*SQMat));
+
+	struct egi_point_coord	*SQMat2; /* the map matrix,  */
+	SQMat2=malloc(sq2*sq2*sizeof(struct egi_point_coord));
+	memset(SQMat2,0,sizeof(*SQMat2));
+
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
+	struct egi_point_coord  x0y02={centx-sq2/2,centy-sq2/2};
 #endif
 
-#if 0
+#if 1
 	i=0;
+	j=0;
 	int sign=1;
 	while(1)
 	{
 		i += 2*sign;
+		j += 8*sign;
 		printf("%d%%360=%d\n",i,i%360);
+/* // reverse after one circle
 		if(i%360==0)
 		{
 			sign=-sign;
 			printf("sign=-sign=%d\n",sign);
 		}
-		/* get rotation map */
-  	        //float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
-		mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */
-		/* draw rotated image */
-		fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+*/
+		/* --- get square rotation map ---- */
+  	        // float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
+		//  mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */
+
+		/* --- get  annulus rotaton map --- */
+		mat_pointrotate_fpAnnulusMap(sq, 105, i, centxy, SQMat); /* ANMat = SQMat */
+		mat_pointrotate_fpAnnulusMap(sq2, 1, -j, centxy, SQMat2); /* ANMat = SQMat */
+
+		/* draw rotated square image */
+		// fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* square:  side,center,image buf, map matrix */
+
+		/* draw rotated annulus image */
+		fb_drawimg_ANMap(sq, 105, x0y0, buf, SQMat); /* annulus: ANMat = SQMat */
+		fb_drawimg_ANMap(sq2, 1, x0y02, buf2, SQMat2); /* annulus: ANMat = SQMat */
+
 		tm_delayms(55);
 	}
 	exit(1);
 #endif
+
+
+
+
 
 
 
@@ -386,7 +417,7 @@ int main(int argc, char **argv)
 #endif
 
 
-#if 1 /* test  ----------- egi_pic ------------ */
+#if 1 /* test  ----------------- egi_pic --------------- */
 
 	/* -------- to search jpg files ------ */
 	char path[]="/mmc/photos";
@@ -498,7 +529,7 @@ for(i=0;i<count+1;i++)
 
 	exit(1);
 
-#endif
+#endif /* end of test: egi_pic */
 
 
 	/* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */

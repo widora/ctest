@@ -164,8 +164,7 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 	sinang=sin(1.0*angle/180.0*MATH_PI);
 	cosang=cos(1.0*angle/180.0*MATH_PI);
 
-	/* malloc a tmp Matrix */
-	//Mat_tmp=malloc(n*n*sizeof(struct egi_point_coord));
+	/* clear the result matrix  */
 	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
 
 	/* check if n can be resolved in form of 2*m+1 */
@@ -221,7 +220,7 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
                        					 struct egi_point_coord *SQMat_XRYR)
 {
 	int i,j;
-	int sinang,cosang;
+//	int sinang,cosang;
 	int xr,yr;
 
 	/* normalize angle to be within 0-360 */
@@ -229,17 +228,14 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 	int asign=ang >= 0 ? 1:-1; /* angle sign */
 	ang=ang>=0 ? ang:-ang ;
 
-	//sinang=sin(1.0*angle/180.0*MATH_PI);
-	//cosang=cos(1.0*angle/180.0*MATH_PI);
 
-	/* malloc a tmp Matrix */
-	//Mat_tmp=malloc(n*n*sizeof(struct egi_point_coord));
+	/* clear the result matrix */
 	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
 
 	/* check if n can be resolved in form of 2*m+1 */
 	if( (n-1)%2 != 0)
 	{
-		printf("!!! WARNING !!! mat_pointrotate_SQMap(): the number of pixels on	\
+		printf("!!! WARNING !!! mat_pointrotate_fpSQMap(): the number of pixels on	\
 							the square side is NOT in form of n=2*m+1.\n");
 	}
 
@@ -288,5 +284,102 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 
 
 //	free(Mat_tmp);
+}
+
+
+/*----------------------- Annulus Mapping: revert rotation (fixed point)  ------------------
+generate a rotation lookup map for a annulus shape image block
+
+1. rotation center is the center of the square area.
+2. The square side length must be in form of 2n+1, so the center is just at the middle of
+   the symmetric axis.
+3. Method 2: from rotated coordinate (i,j) to get input coordinates (x,y), this can ensure
+   that the result points mastrix all be mapped.
+
+n:              pixel number for ouside square side. also is the outer diameter for the annulus.
+ni:		pixel number for inner square side, alos is the inner diameter for the annulus.
+angle:          rotation angle. clockwise is positive.
+centxy          the center point coordinate of the concerning square area of LCD(fb).
+ANMat_XRYR:     after rotation
+                square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
+
+
+Midas Zhou
+-------------------------------------------------------------------------------------------*/
+
+void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coord centxy,
+                       					 struct egi_point_coord *ANMat_XRYR)
+{
+	int i,j,m,k;
+//	int sinang,cosang;
+	int xr,yr;
+
+	/* normalize angle to be within 0-359 */
+	int ang=angle%360;
+	int asign=ang >= 0 ? 1:-1; /* angle sign */
+	ang=(ang>=0 ? ang:-ang) ;
+
+	/* clear the result maxtrix */
+	memset(ANMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("!!! WARNING !!! mat_pointrotate_fpAnnulusMap(): the number of pixels on	\
+							the square side is NOT in form of n=2*m+1.\n");
+	}
+
+
+	/* check whether fp16_cos[] and fp16_sin[] is generated */
+	//printf("prepare fixed point sin/cos ...\n");
+	if( fp16_sin[30] == 0)
+		mat_create_fptrigontab();
+
+
+/* 1. generate matrix of point_coordinates for the square, result Matrix is centered at square center. */
+	/* */
+	for(j=0; j<=n/2;j++) /* row index,Y: 0->n/2 */
+	{
+		m=sqrt( (n/2)*(n/2)-j*j ); /* distance from Y to the point on outer circle */
+
+		if(j<ni/2)
+			k=sqrt( (ni/2)*(ni/2)-j*j); /* distance from Y to the point on inner circle */
+		else
+			k=0;
+
+		for(i=-m;i<=-k;i++) /* colum index, X: -m->-n, */
+		{
+			/*   get XRYR revert rotation matrix centered at ANMat_XRYU's center
+			this way can ensure all ANMat_XRYR[] points are filled!!!  */
+			/* upper and left part of the annuls j: 0->n/2*/
+			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;
+			yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
+			ANMat_XRYR[(n/2-j)*n+(n/2+i)].x= xr;
+			ANMat_XRYR[(n/2-j)*n+(n/2+i)].y= yr;
+			/* lower and left part of the annulus -j: 0->-n/2*/
+			xr = (-j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;
+			yr = (j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
+			ANMat_XRYR[(n/2+j)*n+(n/2+i)].x= xr;
+			ANMat_XRYR[(n/2+j)*n+(n/2+i)].y= yr;
+			/* upper and right part of the annuls -i: m->n */
+			xr = (j*fp16_cos[ang]-i*asign*fp16_sin[ang])>>16;
+			yr = (-j*asign*fp16_sin[ang]-i*fp16_cos[ang])>>16;
+			ANMat_XRYR[(n/2-j)*n+(n/2-i)].x= xr;
+			ANMat_XRYR[(n/2-j)*n+(n/2-i)].y= yr;
+			/* lower and right part of the annulus */
+			xr = (-j*fp16_cos[ang]-i*asign*fp16_sin[ang])>>16;
+			yr = (j*asign*fp16_sin[ang]-i*fp16_cos[ang])>>16;
+			ANMat_XRYR[(n/2+j)*n+(n/2-i)].x= xr;
+			ANMat_XRYR[(n/2+j)*n+(n/2-i)].y= yr;
+		}
+	}
+
+/* 2. transform coordinate origin back to X0Y0  */
+	for(i=0;i<n*n;i++)
+	{
+                ANMat_XRYR[i].x += ((n-1)>>1);
+                ANMat_XRYR[i].y += ((n-1)>>1);
+	}
+
 }
 

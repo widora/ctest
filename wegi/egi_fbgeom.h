@@ -55,8 +55,12 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r);
 int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
 int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf);
 
+/* square map */
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,
    	                                           const struct egi_point_coord *SQMat_XRYR);
+/* annulus map */
+void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t *image,
+                                                       const struct egi_point_coord *ANMat_XRYR);
 
 int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
                        const uint16_t *obuf, uint16_t *nbuf);

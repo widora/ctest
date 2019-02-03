@@ -673,7 +673,15 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, uint16_t *image,
 }
 #endif
 
-/*----------------------- Drawing for Method: revert rotation  -------------------------*/
+
+/*----------------------- Drawing for Method: revert rotation  --------------------------------
+n:              pixel number for square side.
+x0y0:		origin point coordinate of the square image,  in LCD coord system.
+centxy:         the center point coordinate of the concerning square area of LCD(fb).
+image:		original square shape image R5G6B5 data.
+SQMat_XRYR:     after rotation
+                square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
+--------------------------------------------------------------------------------------------------*/
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,
 						const struct egi_point_coord *SQMat_XRYR)
 {
@@ -695,6 +703,74 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,
 			fbset_color(image[k]);
 			draw_dot(&gv_fb_dev, x0y0.x+j, x0y0.y+i); /* ???? n-j */
 		}
+}
+
+
+
+
+
+/*------------------------ Draw annulus mapping ------------------------------------------------
+n:              pixel number for ouside square side. also is the outer diameter for the annulus.
+ni:             pixel number for inner square side, also is the inner diameter for the annulus.
+x0y0:		origin point coordinate of the square image,  in LCD coord system.
+centxy:         the center point coordinate of the concerning square area of LCD(fb).
+image:		original square shape image R5G6B5 data.
+ANMat_XRYR:     after rotation
+                square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
+
+----------------------------------------------------------------------------------------------*/
+void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t *image,
+		            			       const struct egi_point_coord *ANMat_XRYR)
+{
+	int i,j,m,k,t,pn;
+
+	/* check if n can be resolved in form of 2*m+1 */
+	if( (n-1)%2 != 0)
+	{
+		printf("fb_drawimg_ANMap(): the number of pixels on the square side must be n=2*m+1.\n");
+	 	//return;
+	}
+
+	/* Drawing only points of the annulus */
+        for(j=0; j<=n/2;j++) /* row index,Y: 0->n/2 */
+        {
+                m=sqrt( (n/2)*(n/2)-j*j ); /* distance from Y to the point on outer circle */
+
+                if(j<ni/2)
+                        k=sqrt( (ni/2)*(ni/2)-j*j); /* distance from Y to the point on inner circle */
+                else
+                        k=0;
+
+                for(i=-m;i<=-k;i++) /* colum index, X: -m->-n, */
+                {
+			/* since index i point map to  ANMat_XRYR[i](x,y), so get its mapped index t */
+
+                        /* upper and left part of the annuls j: 0->n/2*/
+			pn=(n/2-j)*n+n/2+i;
+			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
+			fbset_color(image[t]); /* get mapped pixel */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2-j); /* ???? n-j */
+
+                        /* lower and left part of the annulus -j: 0->-n/2*/
+			pn=(n/2+j)*n+n/2+i;
+			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
+			fbset_color(image[t]); /* get mapped pixel */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2+j); /* ???? n-j */
+
+                        /* upper and right part of the annuls -i: m->n */
+			pn=(n/2-j)*n+n/2-i;
+			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
+			fbset_color(image[t]); /* get mapped pixel */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2-j); /* ???? n-j */
+
+                        /* lower and right part of the annulus */
+			pn=(n/2+j)*n+n/2-i;
+			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
+			fbset_color(image[t]); /* get mapped pixel */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2+j); /* ???? n-j */
+		}
+	}
+
 }
 
 
