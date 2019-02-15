@@ -1,4 +1,3 @@
-
 /*-----------------------  touch_home.c ------------------------------
 1. Only first byte read from XPT is meaningful !!!??
 2. Keep enough time-gap for XPT to prepare data in each read-session,
@@ -32,6 +31,7 @@ Midas Zhou
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include "egi_color.h"
 #include "spi.h"
 #include "egi_fbgeom.h"
@@ -40,6 +40,7 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_txt.h"
 #include "egi_btn.h"
+#include "egi_pic.h"
 #include "egi_timer.h"
 #include "egi_objtxt.h"
 #include "egi_pagehome.h"
@@ -60,7 +61,7 @@ void roam_pic1(void)
 	pthread_detach(pthread_self());
 
         /* roaming 100 trips, step len=3, offset orign (40,60), in a 160x80 widonw */
-        egi_roampic_inwind("/tmp/lights.jpg", &gv_fb_dev, 5, 1000000, 60, 40, 160, 80);
+        egi_roampic_inwin("/tmp/lights.jpg", &gv_fb_dev, 5, 1000000, 60, 40, 160, 80);
 
 	pthread_exit(0);
 }
@@ -71,7 +72,7 @@ void roam_pic2(void)
 	pthread_detach(pthread_self());
 
         /* roaming 100 trips, step len=3, offset orign (40,60), in a 160x80 widonw */
-        egi_roampic_inwind("/tmp/dance.jpg", &gv_fb_dev, 2, 1000000, 30, 180, 200, 100);
+        egi_roampic_inwin("/tmp/dance.jpg", &gv_fb_dev, 2, 1000000, 30, 180, 200, 100);
 
 	pthread_exit(0);
 }
@@ -95,6 +96,10 @@ int main(int argc, char **argv)
 
 	uint16_t *buf;
 	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+
+	uint16_t *buf2;
+	buf2=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+
 	uint16_t *nbuf;
 	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
@@ -157,9 +162,7 @@ int main(int argc, char **argv)
 
 
   /* test -------- imgbuf funcs-------- */
-#if 1
-
-
+#if 0
 	show_jpg("/tmp/home.jpg",&gv_fb_dev,0,0,0); /*black on*/
 
 	pthread_t thread_roampic1;
@@ -183,6 +186,7 @@ int main(int argc, char **argv)
 	pthread_join(thread_roampic2,NULL);
 	exit(1);
 #endif
+
 
 
 
@@ -307,38 +311,63 @@ int main(int argc, char **argv)
 #if 0
         /* copy fb image to buf */
 	int centx=120;
-	int centy=120;
+	int centy=140;
 	int sq=237;
-        fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf);
+	int sq2=105;
+        fb_cpyto_buf(&gv_fb_dev, centx-sq/2, centy-sq/2, centx+sq/2, centy+sq/2, buf); /* buf */
+        fb_cpyto_buf(&gv_fb_dev, centx-sq2/2, centy-sq2/2, centx+sq2/2, centy+sq2/2, buf2); /* buf2 */
+
 	/* for image rotation */
-	struct egi_point_coord	*SQMat; /* the map matrix,  101=2*50+1 */
+	struct egi_point_coord	*SQMat; /* the map matrix, */
 	SQMat=malloc(sq*sq*sizeof(struct egi_point_coord));
 	memset(SQMat,0,sizeof(*SQMat));
+
+	struct egi_point_coord	*SQMat2; /* the map matrix,  */
+	SQMat2=malloc(sq2*sq2*sizeof(struct egi_point_coord));
+	memset(SQMat2,0,sizeof(*SQMat2));
+
 	struct egi_point_coord  centxy={centx,centy}; /* center of rotation */
 	struct egi_point_coord  x0y0={centx-sq/2,centy-sq/2};
-#endif
+	struct egi_point_coord  x0y02={centx-sq2/2,centy-sq2/2};
 
-#if 0
 	i=0;
+	j=0;
 	int sign=1;
 	while(1)
 	{
 		i += 2*sign;
+		j += 8*sign;
 		printf("%d%%360=%d\n",i,i%360);
+/* // reverse after one circle
 		if(i%360==0)
 		{
 			sign=-sign;
 			printf("sign=-sign=%d\n",sign);
 		}
-		/* get rotation map */
-  	        //float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
-		mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */
-		/* draw rotated image */
-		fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* side,center,image buf, map matrix */
+*/
+		/* --- get square rotation map ---- */
+  	        // float point:	mat_pointrotate_SQMap(101, 2*i, centxy, SQMat);/* side,angle,center, map matrix */
+		//  mat_pointrotate_fpSQMap(sq, i, centxy, SQMat);/* side,angle,center, map matrix */
+
+		/* --- get  annulus rotaton map --- */
+		mat_pointrotate_fpAnnulusMap(sq, 105, i, centxy, SQMat); /* ANMat = SQMat */
+		mat_pointrotate_fpAnnulusMap(sq2, 1, -j, centxy, SQMat2); /* ANMat = SQMat */
+
+		/* draw rotated square image */
+		// fb_drawimg_SQMap(sq, x0y0, buf, SQMat); /* square:  side,center,image buf, map matrix */
+
+		/* draw rotated annulus image */
+		fb_drawimg_ANMap(sq, 105, x0y0, buf, SQMat); /* annulus: ANMat = SQMat */
+		fb_drawimg_ANMap(sq2, 1, x0y02, buf2, SQMat2); /* annulus: ANMat = SQMat */
+
 		tm_delayms(55);
 	}
 	exit(1);
 #endif
+
+
+
+
 
 
 
@@ -386,11 +415,125 @@ int main(int argc, char **argv)
 #endif
 
 
+#if 0 /* test  ----------------- egi_pic --------------- */
+
+	/* -------- to search jpg files ------ */
+	char path[]="/mmc/photos";
+	int maxflen=100; /* max jpg file name length */
+	int maxfnum=20; /* max number of items in fpaths */
+	char **fpaths=NULL; /* jpg file paths */
+	fpaths=malloc(maxfnum*sizeof(char *));
+	memset(fpaths,0,maxfnum*sizeof(char *));
+	for(i=0;i<maxfnum;i++)
+	{
+		fpaths[i]=malloc(maxflen*sizeof(char));
+		memset(fpaths[i], 0, maxflen*sizeof(char));
+	}
+	int count=0;
+	/* search all jpg files in a path */
+	egi_find_jpgfiles(path, &count, fpaths, maxfnum, maxflen);
+	printf("Totally %d jpg files are found.\n",count);
+
+	/* ------- display jpg files ------- */
+	int pich=130;
+	int picw=230;
+	int poffx=4;
+	int poffy=4;
+	int symh=26;
+	EGI_DATA_PIC *data_pic=NULL;
+	EGI_EBOX *pic_box=NULL;
+
+	EGI_IMGBUF imgbuf;
+	uint16_t  *picbuf=NULL;
+
+	EGI_POINT  pxy;
+	/* set x0y0 of pic in box */
+	EGI_BOX	 box={ {0,0},{240-230-1,320-130/2-1} };
+	//EGI_BOX  box={ {0-100,0-150},{240-1-100,320-1-150} };
+	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
 
 
+for(i=0;i<count+1;i++)
+{
+	if(i==count)
+	{
+	   	i=0;
+		/* re_search all jpg files in a path */
+		egi_find_jpgfiles(path, &count, fpaths, maxfnum, maxflen);
+		printf("Totally %d jpg files are found.\n",count);
+		continue;
+	}
 
-	/* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */
-#if 0
+	/* allocate data_pic */
+        data_pic= egi_picdata_new( poffx, poffy,    /* int offx, int offy */
+ 	               		 pich, picw, /* heigth,width of displaying window */
+                       		 0,0,	   /* int imgpx, int imgpy */
+ 	       	                 &sympg_testfont  /* struct symbol_page *font */
+	                        );
+	/* set title */
+	data_pic->title="Happy New Year 2019!";
+
+	/* get a random point */
+	egi_randp_inbox(&pxy, &box);
+	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
+       				  data_pic,  /* EGI_DATA_PIC *egi_data */
+			          1,	     /* bool movable */
+			   	  pxy.x,pxy.y,//10,100,    /*  x0, y0 for host ebox*/
+        			  1,	     /* int frame */
+				  WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
+	);
+	//printf("egi_picbox_activate()...\n");
+	egi_picbox_activate(pic_box);
+
+	//system("date");
+	printf("egi_imgbuf_loadjpg(): %s...\n", fpaths[i]);
+	/* load jpg file to buf */
+	if(egi_imgbuf_loadjpg(fpaths[i], &imgbuf) != 0 )
+	   exit(-1);
+
+	/* scale pic to data_pic */
+	printf("start egi_scale_pixbuf()...\n");
+	fb_scale_pixbuf(imgbuf.width, imgbuf.height, data_pic->imgbuf->width, data_pic->imgbuf->height,
+				imgbuf.imgbuf, data_pic->imgbuf->imgbuf);
+
+	/* release useless imgbuf then */
+	egi_imgbuf_release(&imgbuf);
+
+ for(j=0;j<5;j++)
+ {
+	/* get a random point */
+	egi_randp_inbox(&pxy, &box);
+	pic_box->x0=pxy.x;
+	pic_box->y0=pxy.y;
+
+	/* refresh picbox to show the picture */
+	printf("start egi_picbox_refresh()...\n");
+	egi_ebox_needrefresh(pic_box);
+	//printf("egi_picbox_refresh()...\n");
+	egi_picbox_refresh(pic_box);
+	tm_delayms(1000);
+  }
+
+	/* sleep to erase the image */
+	egi_picbox_sleep(pic_box);
+
+	/* release it */
+	pic_box->free(pic_box);
+}
+
+	/* free fpaths */
+	for(i=0;i<maxfnum;i++)
+	{
+		free(fpaths[i]);
+	}
+	free(fpaths);
+
+	exit(1);
+
+#endif /* end of test: egi_pic */
+
+
+#if 0 /* test -----  egi_display_msgbox() and egi_push_datatxt( ) ----- */
 	int  nl;
 	char *msg="test egi_push_datatxt() \
 	\n	...\

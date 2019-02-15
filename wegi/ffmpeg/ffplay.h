@@ -16,7 +16,7 @@
 #define PIC_MAX_HEIGHT 320
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
-#define PIC_BUFF_NUM  8  //total number of RGB picture data buffers.
+#define PIC_BUFF_NUM  4  //total number of RGB picture data buffers.
 
 uint8_t** pPICbuffs; /* for one frame RGB data buffer */
 bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; //indicator for availiability.

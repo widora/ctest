@@ -21,6 +21,8 @@ NOTE:
 5. The speed of whole procedure depends on ffmpeg decoding speed, FB wirte speed and LCD display speed.
 6. Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
 7. Cost_time test codes will slow down processing and cause choppy.
+8. Use unstripped ffmpeg libs.
+9. Try to play mp3 :)
 
 TODO:
 1. TO exit main() from a thread.
@@ -44,8 +46,10 @@ Midas Zhou
 
 int main(int argc, char *argv[])
 {
-	/* for VIDEO  ::  Initializing these to NULL prevents segfaults! */
+	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext	*pFormatCtx=NULL;
+
+	/* for VIDEO  */
 	int			i;
 	int			videoStream;
 	AVCodecContext		*pCodecCtxOrig=NULL;
@@ -62,6 +66,15 @@ int main(int argc, char *argv[])
 	int Hb,Vb;  /* Horizontal and Veritcal size of a picture */
 	/* for Pic Info. */
 	struct PicInfo pic;
+
+	/* origin movie size */
+	int width;
+	int height;
+
+	/* scaled movie size */
+	int scwidth;
+	int scheight;
+
 
 	/*  for AUDIO  ::  for audio   */
 	int			audioStream;
@@ -80,7 +93,7 @@ int main(int argc, char *argv[])
 	int			got_frame;
 //	SwrContext		**pswr=malloc(sizeof(SwrContext *));
 	struct SwrContext		*swr=NULL; /* AV_SAMPLE_FMT_FLTP format conversion */
-	uint8_t			*outputBuffer;/* for converted data */
+	uint8_t			*outputBuffer=NULL;/* for converted data */
 	int 			outsamples;
 
 
@@ -154,18 +167,26 @@ int main(int argc, char *argv[])
 			audioStream=i;
 		}
 	}
+	printf("videoStream=%d, audioStream=%d \n",videoStream,audioStream);
+
 	if(videoStream == -1) {
 		printf("Didn't find a video stream!\n");
-		return -1;
+//		return -1;
 	}
 	if(audioStream == -1) {
 		printf("Didn't find an audio stream!\n");
 //go on   	return -1;
 	}
+	if(videoStream == -1 && audioStream == -1) {
+		printf("No stream found for video or audio!\n");
+		return -1;
+	}
 
-	/* proceed audio stream */
+
+	/* proceed --- audio --- stream */
 	if(audioStream != -1) /* only if audioStream exists */
   	{
+		printf("Prepare for audio stream processing ...\n");
 		/* Get a pointer to the codec context for the audio stream */
 		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 		/* Find the decoder for the audio stream */
@@ -223,6 +244,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
                                       int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
                                       int log_offset, void *log_ctx);
 */
+
 			/* allocate and set opts for swr */
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
@@ -248,19 +270,35 @@ struct SwrContext *swr_alloc_set_opts( swr ,
  			prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
 		}
 
+		/* allocate frame for audio */
+		pAudioFrame=av_frame_alloc();
+		if(pAudioFrame==NULL) {
+			fprintf(stderr, "Fail to allocate pAudioFrame!\n");
+			return -1;
+		}
+
+
 	} /* end of if(audioStream =! -1) */
 
 
-	/* proceed video stream */
+	/* proceed --- video --- stream */
+    if(videoStream != -1) /* only if videoStream exists */
+    {
+	printf("Prepare for video stream processing ...\n");
 	/* Get a pointer to the codec context for the video stream */
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
 	/* Find the decoder for the video stream */
 	printf("try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
-		fprintf(stderr, "Unsupported video codec!\n");
-		return -1;
+		fprintf(stderr, "Unsupported video codec! try to continue to decode audio...\n");
+		videoStream=-1;
+		//return -1;
 	}
+    }
+
+    if(videoStream != -1 && pCodec != NULL)
+    {
 	/* copy video codec context */
 	pCodecCtx=avcodec_alloc_context3(pCodec);
 	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
@@ -274,11 +312,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	}
 
 	/* allocate frame for audio */
+/*
 	pAudioFrame=av_frame_alloc();
 	if(pAudioFrame==NULL) {
 		fprintf(stderr, "Fail to allocate pAudioFrame!\n");
 		return -1;
 	}
+*/
+
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
 	if(pFrame==NULL) {
@@ -293,10 +334,41 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
-	/* Determine required buffer size and allocate buffer */
-	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, pCodecCtx->width, pCodecCtx->height);
+	/* max. scaled movie size to fit for the screen */
+	width=pCodecCtx->width;
+	height=pCodecCtx->height;
+        if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
+		if( (width/height) > (PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
+		{
+			/* fit for width, only if video width > screen width */
+			if(width>PIC_MAX_WIDTH) {
+				scwidth=PIC_MAX_WIDTH;
+				scheight=height*scwidth/width;
+			}
+		}
+		else if ( (height/width) > (PIC_MAX_HEIGHT/PIC_MAX_WIDTH) )
+		{
+			/* fit for height, only if video height > screen height */
+			if(height>PIC_MAX_HEIGHT) {
+				scheight=PIC_MAX_HEIGHT;
+				scwidth=width*scheight/height;
+			}
+		}
+	}
+	else {
+	 	scwidth=width;
+	 	scheight=height;
+	}
+
+	if(scwidth>PIC_MAX_WIDTH || scheight>PIC_MAX_HEIGHT)
+		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit!\n");
+	printf("original video size: width=%d, height=%d\nscaled video size: scwidth=%d, scheight=%d \n",width,height,scwidth,scheight);
+
+	/* Determine required buffer size and allocate buffer for scaled picture size */
+	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, scwidth, scheight);//pCodecCtx->width, pCodecCtx->height);
 	pic.numBytes=numBytes;
 	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+
 
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>>
 	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
@@ -306,7 +378,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	else
 		printf("----- finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
 
-	//------- PICBuff TEST......
+	/* ---  PICBuff TEST....  --- */
 /*
 	printf("----- test to get ALL free PICbuff \n");
 	for(i=0;i<PIC_BUFF_NUM;i++){
@@ -316,22 +388,32 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 */
 
 /*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>*/
+
+	 /* in order to put displaying window in center of the screen */
+/*
 	 Hb=(PIC_MAX_WIDTH-pCodecCtx->width+1)/2;
 	 Vb=(PIC_MAX_HEIGHT-pCodecCtx->height+1)/2;
 	 pic.Hs=Hb; pic.He=Hb+pCodecCtx->width-1;
 	 pic.Vs=Vb; pic.Ve=Vb+pCodecCtx->height-1;
+*/
+	 Hb=(PIC_MAX_WIDTH-scwidth+1)/2; /* horizontal offset */
+	 Vb=(PIC_MAX_HEIGHT-scheight+1)/2; /* vertical offset */
+	 pic.Hs=Hb; pic.He=Hb+scwidth-1;
+	 pic.Vs=Vb; pic.Ve=Vb+scheight-1;
+
+
 
 	/* Assign appropriate parts of buffer to image planes in pFrameRGB
 	Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
-	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, pCodecCtx->width, pCodecCtx->height);
+	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, scwidth, scheight); //pCodecCtx->width, pCodecCtx->height);
 
 	/* Initialize SWS context for software scaling */
 	printf(" initialize SWS context for software scaling... \n");
 	sws_ctx = sws_getContext( pCodecCtx->width,
 				  pCodecCtx->height,
 				  pCodecCtx->pix_fmt,
-				  pCodecCtx->width,
-				  pCodecCtx->height,
+				  scwidth,//pCodecCtx->width,
+				  scheight,//pCodecCtx->height,
 				  PIX_FMT_RGB565LE,
 				  SWS_BILINEAR,
 				  NULL,
@@ -347,6 +429,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
+  }/* end of (videoStream != -1) */
+
+
 /*  --------  LOOP  ::  Read packets and process data  --------   */
 	printf("----- start loop of reading AV frames and decoding:\n");
 	printf("	 converting video frame to RGB and then send to display...\n");
@@ -355,10 +440,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
 		/* -----   process Video Stream   ----- */
-		if(packet.stream_index==videoStream)
+		if( videoStream != -1 && packet.stream_index==videoStream)
 		{
 			//decode video frame
-			printf("...decoding video frame\n");
+			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 			//gettimeofday(&tm_end,NULL);
@@ -366,7 +451,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			/* if we get a complete video frame */
 			if(frameFinished) {
 				//convert the image from its native format to RG
-				printf("...converting image to RGB\n");
+				//printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -375,7 +460,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 				/* push data to pic buff for SPI LCD displaying */
 				//gettimeofday(&tm_start,NULL);
-				printf(" start Load_Pic2Buff()....\n");
+				//printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
 				//---- get play time
@@ -403,6 +488,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				if(bytes_used<0)
 				{
 					printf(" Error while decoding audio!\n");
+					packet.size=0;
+					packet.data=NULL;
+					//av_free_packet(&packet);
 					//break;
 					continue;
 				}
@@ -447,12 +535,16 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	printf("free PICbuffs[]...\n");
         free_PicBuffs();
 
-	/* Free the RGB image */
-	av_free(buffer);
-	av_frame_free(&pFrameRGB);
-
 	/* Free the YUV frame */
-	av_frame_free(&pFrame);
+	if(pFrame != NULL)
+		av_frame_free(&pFrame);
+
+	/* Free the RGB image */
+	if(buffer != NULL)
+		av_free(buffer);
+	if(pFrameRGB != NULL)
+		av_frame_free(&pFrameRGB);
+
 
 	/* close pcm device */
 	printf("close PCM device...\n");
