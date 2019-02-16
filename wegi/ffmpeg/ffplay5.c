@@ -44,6 +44,9 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
+#define ENABLE_LOOP 0
+#define ENABLE_AUDIO 0
+
 int main(int argc, char *argv[])
 {
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
@@ -106,7 +109,7 @@ int main(int argc, char *argv[])
 
 	/* check input argc */
 	if(argc < 2) {
-		printf("Please provide a movie file\n");
+		printf("File type is not recognizable!\n");
 		return -1;
 	}
 
@@ -135,10 +138,10 @@ int main(int argc, char *argv[])
 	avformat_network_init();
 
 	/* Open video file */
-	printf("open video file... \n");
+	printf("try to open file %s ...\n",argv[1]);
 	if(avformat_open_input(&pFormatCtx, argv[1], NULL, NULL)!=0)
 	{
-		printf("Fail to open video file!\n");
+		printf("Fail to open the file, or file type is not recognizable.\n");
 		return -1;
 	}
 
@@ -182,6 +185,10 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+#if(!ENABLE_AUDIO)
+	printf(" audio is disabled! \n");
+	audioStream=-1;
+#endif
 
 	/* proceed --- audio --- stream */
 	if(audioStream != -1) /* only if audioStream exists */
@@ -228,7 +235,7 @@ int main(int argc, char *argv[])
 
 			printf("alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
 			swr=swr_alloc();
-#if 0 /*----- to be replaced by swr_alloc_set_opts() */
+#if 1 /*----- to be replaced by swr_alloc_set_opts() */
 			//*pswr=swr;
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
 			av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
@@ -245,22 +252,30 @@ struct SwrContext *swr_alloc_set_opts( swr ,
                                       int log_offset, void *log_ctx);
 */
 
+#if 0 /* test swr_alloc_set_opts() */
+
 			/* allocate and set opts for swr */
+			printf("swr_alloc_set_opts()...\n");
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
 						0, NULL );
-			av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
+			//printf("av_opt_set()...\n");
+			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
+#endif
 
+			printf("swr_init(swr)...\n");
 			swr_init(swr);
 
 			/* alloc outputBuffer */
+			printf("malloc outputBuffer ...\n");
 			outputBuffer=malloc(2*frame_size * bytes_per_sample);
 			if(outputBuffer == NULL)
 	       	 	{
 				printf("malloc() outputBuffer failed!\n");
 				return -1;
 			}
+
 			/* open pcm play device and set parameters */
  			prepare_ffpcm_device(nb_channels,out_sample_rate,true); //true for interleaved access
 		}
@@ -271,6 +286,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		}
 
 		/* allocate frame for audio */
+		printf("alloc pAudioFrame ...\n");
 		pAudioFrame=av_frame_alloc();
 		if(pAudioFrame==NULL) {
 			fprintf(stderr, "Fail to allocate pAudioFrame!\n");
@@ -294,6 +310,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		fprintf(stderr, "Unsupported video codec! try to continue to decode audio...\n");
 		videoStream=-1;
 		//return -1;
+	}
+	if(pCodecCtxOrig->width<=0 || pCodecCtxOrig->height<=0) {
+		fprintf(stderr, "Video width or height illegal! try to continue to decode audio...\n");
+		videoStream=-1;
 	}
     }
 
@@ -360,9 +380,15 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	 	scheight=height;
 	}
 
-	if(scwidth>PIC_MAX_WIDTH || scheight>PIC_MAX_HEIGHT)
-		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit!\n");
 	printf("original video size: width=%d, height=%d\nscaled video size: scwidth=%d, scheight=%d \n",width,height,scwidth,scheight);
+
+	if( scwidth>PIC_MAX_WIDTH ||
+            scheight>PIC_MAX_HEIGHT ||
+	    scwidth <= 0 || scheight <= 0  )
+        {
+		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit!\n");
+	}
+
 
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, scwidth, scheight);//pCodecCtx->width, pCodecCtx->height);
@@ -433,10 +459,17 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
-	printf("----- start loop of reading AV frames and decoding:\n");
-	printf("	 converting video frame to RGB and then send to display...\n");
-	printf("	 sending audio frame data to playback ... \n");
+	printf("----- start loop of reading AV frames and decoding \n");
+	//printf("	 converting video frame to RGB and then send to display...\n");
+	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
+
+#if ENABLE_LOOP /* test loop ..... */
+ START_LOOP:
+	/* seek positio */
+        av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
+#endif
+
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
 		/* -----   process Video Stream   ----- */
@@ -463,11 +496,13 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				//printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
-				//---- get play time
-				printf("\r		 Elapsed time: %ds  ---  Duration: %ds  ",
+
+				/* print playing time */
+				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
 					atoi(av_ts2timestr(pFormatCtx->streams[videoStream]->duration,&pFormatCtx->streams[videoStream]->time_base))
 				 );
+
 //				printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
 				fflush(stdout);
 				//gettimeofday(&tm_end,NULL);
@@ -513,20 +548,33 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					else if(pAudioFrame->data[0]) {  //-- one channel only
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 					}
+
+					/* print playing time, if no video stream */
+					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
+						atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[audioStream]->time_base)),
+						atoi(av_ts2timestr(pFormatCtx->streams[audioStream]->duration,&pFormatCtx->streams[audioStream]->time_base))
+			 		);
+
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
+
+
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
 			}//---end of while(packet.size>0)
 
+
 		}//----- ///////  end of audioStream process \\\\\\------
 
-		//---- free OLD packet each time,   that was allocated by av_read_frame
-		av_free_packet(&packet);
+                //---- free OLD packet each time,   that was allocated by av_read_frame
+                av_free_packet(&packet);
 
 	}//end of while()
 
+#if ENABLE_LOOP /* test loop ..... */
+goto START_LOOP;
+#endif
 	/* wait display_thread */
 	tok_QuitFFplay = true;
 	pthread_join(pthd_displayPic,NULL);

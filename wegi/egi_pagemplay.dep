@@ -1,0 +1,2 @@
+egi_pagemplay : egi_pagemplay.c egi.h sys_list.h egi_image.h egi_color.h \
+ egi_txt.h egi_objtxt.h egi_btn.h egi_symbol.h egi_fbgeom.h egi_page.h

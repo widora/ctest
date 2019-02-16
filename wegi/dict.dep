@@ -1,0 +1,1 @@
+dict : dict.c egi_fbgeom.h egi.h sys_list.h egi_image.h dict.h

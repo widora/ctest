@@ -1,0 +1,3 @@
+egi_txt : egi_txt.c egi_color.h egi.h sys_list.h egi_image.h egi_txt.h \
+ egi_debug.h egi_symbol.h egi_fbgeom.h egi_bmpjpg.h include/jpeglib.h \
+ include/jconfig.h include/jmorecfg.h include/jerror.h

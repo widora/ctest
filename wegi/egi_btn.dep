@@ -1,0 +1,2 @@
+egi_btn : egi_btn.c egi_color.h egi.h sys_list.h egi_image.h egi_btn.h \
+ egi_symbol.h egi_fbgeom.h egi_debug.h
