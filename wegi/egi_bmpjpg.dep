@@ -1,3 +1,0 @@
-egi_bmpjpg : egi_bmpjpg.c include/jpeglib.h include/jconfig.h \
- include/jmorecfg.h include/jerror.h egi_image.h egi_debug.h egi_bmpjpg.h \
- egi.h sys_list.h egi_fbgeom.h egi_color.h egi_timer.h

@@ -1,2 +1,0 @@
-egi_objlist : egi_objlist.c egi.h sys_list.h egi_image.h egi_list.h \
- egi_timer.h egi_objlist.h egi_symbol.h egi_fbgeom.h egi_color.h

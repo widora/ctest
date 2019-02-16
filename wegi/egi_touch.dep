@@ -1,2 +1,0 @@
-egi_touch : egi_touch.c egi.h sys_list.h egi_image.h egi_debug.h \
- egi_timer.h xpt2046.h egi_touch.h egi_fbgeom.h

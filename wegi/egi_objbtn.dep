@@ -1,2 +1,0 @@
-egi_objbtn : egi_objbtn.c egi.h sys_list.h egi_image.h egi_debug.h \
- egi_btn.h egi_symbol.h egi_fbgeom.h

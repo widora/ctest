@@ -1,2 +1,0 @@
-egi_fbgeom : egi_fbgeom.c egi_fbgeom.h egi.h sys_list.h egi_image.h \
- egi_debug.h egi_math.h
