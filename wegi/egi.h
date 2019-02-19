@@ -113,6 +113,7 @@ struct egi_ebox_method
 	int (*activate)(EGI_EBOX *);
 	int (*refresh)(EGI_EBOX *);
 	int (*decorate)(EGI_EBOX *);
+	int (*play)(EGI_EBOX *); /* for motion pic ebox, or.. */
 	int (*sleep)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); //enum egi_touch_status);

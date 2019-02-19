@@ -15,6 +15,7 @@ Midas Zhou
 #include "egi_symbol.h"
 #include "egi_bmpjpg.h"
 
+
 /*-------------------------------------
       pic ebox self_defined methods
 --------------------------------------*/
@@ -37,7 +38,8 @@ int offx: 		offset from host ebox left top
 int offy:
 int height:		height and width for a EGI_IMGBUF
 int width:
-char *title: 		title of the the picture showing above the window, or NULL
+//char *title: 		title of the the picture showing above the window, or NULL
+			default NULL
 font: 			symbol page for the title, or NULL
 
 //EGI_IMGBUF imgbuf:	image buffer for a picture, in R5G6B5 pixel format
@@ -121,7 +123,6 @@ Dynamically create a new pic type ebox
 egi_data: pic data
 movable:  whether the host ebox is movable,relating to bkimg mem alloc.
 x0,y0:    host ebox origin position.
-//width,height:  size of the host ebox to be auto deduced from egi_data.
 frame:	  frame type of the host ebox.
 prmcolor:  prime color for the host ebox.
 
@@ -445,7 +446,8 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
 	int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
                                 int xw, int yw, int winw, int winh)
-	1---------------------------------------------------------------------------------------*/
+	---------------------------------------------------------------------------------------*/
+	/*  display imgbuf if not NULL */
 	if( data_pic->imgbuf != NULL && data_pic->imgbuf->imgbuf != NULL )
 	{
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev,
@@ -460,15 +462,13 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
 		/* keep original picture size */
 
+
 	}
 	else /* draw a black window if imgbuf is NULL */
 	{
                	fbset_color(0); /* use black as frame color  */
                	draw_filled_rect(&gv_fb_dev,wx0,wy0,wx0+imgw-1,wy0+imgh-1);
 	}
-
-
-
 
 
 	/* 9. decorate functoins */

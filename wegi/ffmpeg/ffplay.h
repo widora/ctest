@@ -8,6 +8,7 @@
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
+#include "libavutil/opt.h"
 #include "egi_bmpjpg.h"
 #include <stdio.h>
 #include "play_ffpcm.h"
@@ -100,6 +101,8 @@ void free_PicBuffs(void)
         for(i=0;i<PIC_BUFF_NUM;i++)
                 free(pPICbuffs[i]);
         free(pPICbuffs);
+
+	pPICbuffs=NULL;
 }
 
 /*-------------------------------------------------------------
@@ -151,7 +154,7 @@ void* thdf_Display_Pic(void * argv)
 
 		   	//-----  write data in pPICbffs[i] to lcd ----
 		   	//LCD_Write_Block(ppic->Hs,ppic->He,ppic->Vs,ppic->Ve, pPICbuffs[i], ppic->numBytes);
-		   	usleep(2000);
+		   	usleep(50000);
 		   	//----- put a FREE tag after write to displa
 	  	   	IsFree_PICbuff[i]=true;
 		}
@@ -159,7 +162,7 @@ void* thdf_Display_Pic(void * argv)
 	   /* quit ffplay */
 	   if(tok_QuitFFplay)
 		break;
-	    usleep(1000);
+	   usleep(2000);
   }
   return (void *)0;
 }

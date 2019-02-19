@@ -18,6 +18,20 @@ const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","F
 struct itimerval tm_tick_val,tm_tick_oval;
 long long unsigned int tm_tick_count=0;
 
+
+/*-------------------------------------
+Get time stamp in ms
+--------------------------------------*/
+long long unsigned int tm_get_tmstampms(void)
+{
+	struct timeval tmval;
+
+	gettimeofday(&tmval, NULL);
+
+	return ( ((long long unsigned int)tmval.tv_sec)*1000+tmval.tv_usec/1000);
+}
+
+
 /*----------------------------------
  get local time in string in format:
  		H:M:S

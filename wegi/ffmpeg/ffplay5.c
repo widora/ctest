@@ -24,6 +24,7 @@ NOTE:
 8. Use unstripped ffmpeg libs.
 9. Try to play mp3 :)
 
+
 TODO:
 1. TO exit main() from a thread.
 
@@ -44,8 +45,9 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
-#define ENABLE_LOOP 0
-#define ENABLE_AUDIO 0
+#define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the file */
+#define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file */
+#define ENABLE_AUDIO 1
 
 int main(int argc, char *argv[])
 {
@@ -78,7 +80,6 @@ int main(int argc, char *argv[])
 	int scwidth;
 	int scheight;
 
-
 	/*  for AUDIO  ::  for audio   */
 	int			audioStream;
 	AVCodecContext		*aCodecCtxOrig=NULL;
@@ -94,11 +95,9 @@ int main(int argc, char *argv[])
 	int64_t			channel_layout;
 	int 			bytes_used;
 	int			got_frame;
-//	SwrContext		**pswr=malloc(sizeof(SwrContext *));
 	struct SwrContext		*swr=NULL; /* AV_SAMPLE_FMT_FLTP format conversion */
 	uint8_t			*outputBuffer=NULL;/* for converted data */
 	int 			outsamples;
-
 
 
 	/* time structe */
@@ -114,7 +113,7 @@ int main(int argc, char *argv[])
 	}
 
 /* <<<<<<<    Init SPI and FB, Timer   >>>>>>  */
-       /* --- open spi dev --- */
+       /* --- open spi dev for touch pad --- */
         SPI_Open();
 
         /* --- prepare fb device --- */
@@ -132,32 +131,40 @@ int main(int argc, char *argv[])
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+#if ENABLE_MEDIA_LOOP
+ /* MEDIA_LOOP_START */
+printf("enable to loop playing media file or stream ...\n");
+while(1) {
+#endif
+
 	/* Register all formats and codecs */
 	av_register_all();
-
 	avformat_network_init();
 
-	/* Open video file */
-	printf("try to open file %s ...\n",argv[1]);
+	/* Open media stream or file */
+	printf("%lld(ms):	try to open file %s ...\n", tm_get_tmstampms(), argv[1]);
 	if(avformat_open_input(&pFormatCtx, argv[1], NULL, NULL)!=0)
 	{
 		printf("Fail to open the file, or file type is not recognizable.\n");
 		return -1;
 	}
 
-	/* Retrieve stream information */
-	printf("retrieve stream information... \n");
+	/* Retrieve stream information, !!!!! time consuming !!!! */
+	printf("%lld(ms):	retrieve stream information... \n", tm_get_tmstampms());
+	// ---- seems no use! ----
+//	pFormatCtx->probesize=5*1024;
+//	pFormatCtx->max_analyze_duration2=2;//5*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
 		printf(" Fail to find stream information!\n");
 		return -1;
 	}
 
 	/* Dump information about file onto standard error */
-	printf("try to dump file information... \n");
+	printf("%lld(ms):	try to dump file information... \n",tm_get_tmstampms());
 	av_dump_format(pFormatCtx, 0, argv[1], 0);
 
 	/* Find the first video stream and audio stream */
-	printf("try to find the first video stream... \n");
+	printf("%lld(ms):	try to find the first video stream... \n",tm_get_tmstampms());
 	videoStream=-1;
 	audioStream=-1;
 	for(i=0; i<pFormatCtx->nb_streams; i++) {
@@ -170,7 +177,7 @@ int main(int argc, char *argv[])
 			audioStream=i;
 		}
 	}
-	printf("videoStream=%d, audioStream=%d \n",videoStream,audioStream);
+	printf("%lld(ms):	videoStream=%d, audioStream=%d \n",tm_get_tmstampms(),videoStream,audioStream);
 
 	if(videoStream == -1) {
 		printf("Didn't find a video stream!\n");
@@ -181,7 +188,7 @@ int main(int argc, char *argv[])
 //go on   	return -1;
 	}
 	if(videoStream == -1 && audioStream == -1) {
-		printf("No stream found for video or audio!\n");
+		printf("No stream found for video or audio! quit now...\n");
 		return -1;
 	}
 
@@ -235,8 +242,7 @@ int main(int argc, char *argv[])
 
 			printf("alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
 			swr=swr_alloc();
-#if 1 /*----- to be replaced by swr_alloc_set_opts() */
-			//*pswr=swr;
+#if 1 /*----- or to be replaced by swr_alloc_set_opts() */
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
 			av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
 			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
@@ -245,14 +251,13 @@ int main(int argc, char *argv[])
 			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
 #endif
 
-/*
+#if 0 /* test swr_alloc_set_opts() */
+
+/* function definition:
 struct SwrContext *swr_alloc_set_opts( swr ,
                                       int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
                                       int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
-                                      int log_offset, void *log_ctx);
-*/
-
-#if 0 /* test swr_alloc_set_opts() */
+                                      int log_offset, void *log_ctx);		 */
 
 			/* allocate and set opts for swr */
 			printf("swr_alloc_set_opts()...\n");
@@ -293,7 +298,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			return -1;
 		}
 
-
 	} /* end of if(audioStream =! -1) */
 
 
@@ -330,15 +334,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		fprintf(stderr, "Cound not open video codec!\n");
 		return -1;
 	}
-
-	/* allocate frame for audio */
-/*
-	pAudioFrame=av_frame_alloc();
-	if(pAudioFrame==NULL) {
-		fprintf(stderr, "Fail to allocate pAudioFrame!\n");
-		return -1;
-	}
-*/
 
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
@@ -396,7 +391,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
 
 
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>>
+/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>> */
 	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
 		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
 		return -1;
@@ -428,12 +423,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	 pic.Vs=Vb; pic.Ve=Vb+scheight-1;
 
 
-
 	/* Assign appropriate parts of buffer to image planes in pFrameRGB
 	Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
 	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, scwidth, scheight); //pCodecCtx->width, pCodecCtx->height);
 
-	/* Initialize SWS context for software scaling */
+	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
 	printf(" initialize SWS context for software scaling... \n");
 	sws_ctx = sws_getContext( pCodecCtx->width,
 				  pCodecCtx->height,
@@ -447,7 +441,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				  NULL
 				);
 
-	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
+//	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
@@ -464,8 +458,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
 
-#if ENABLE_LOOP /* test loop ..... */
- START_LOOP:
+#if ENABLE_SEEK_LOOP /* test loop ..... */
+ START_SEEK_LOOP:
 	/* seek positio */
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 #endif
@@ -538,9 +532,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, pAudioFrame->data, aCodecCtx->frame_size);
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							printf("outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( &outputBuffer,outsamples);
+							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
 						else
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
@@ -572,27 +566,39 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 	}//end of while()
 
-#if ENABLE_LOOP /* test loop ..... */
-goto START_LOOP;
+#if ENABLE_SEEK_LOOP /* test loop ..... */
+goto SEEK_LOOP_START;
 #endif
-	/* wait display_thread */
-	tok_QuitFFplay = true;
-	pthread_join(pthd_displayPic,NULL);
 
-	/* free PICbuffs */
-	printf("free PICbuffs[]...\n");
-        free_PicBuffs();
+	if(videoStream >=0) /* only if video stream exists */
+	{
+		/* wait display_thread */
+		printf("joint picture displaying thread ...\n");
+		tok_QuitFFplay = true;
+		pthread_join(pthd_displayPic,NULL);
+
+		/* free PICbuffs */
+		printf("free PICbuffs[]...\n");
+        	free_PicBuffs();
+	}
 
 	/* Free the YUV frame */
-	if(pFrame != NULL)
+	printf("free pFrame...\n");
+	if(pFrame != NULL) {
 		av_frame_free(&pFrame);
-
+		pFrame=NULL;
+	}
 	/* Free the RGB image */
-	if(buffer != NULL)
+	printf("free buffer...\n");
+	if(buffer != NULL) {
 		av_free(buffer);
-	if(pFrameRGB != NULL)
+		buffer=NULL;
+	}
+	printf("free pFrameRGB...\n");
+	if(pFrameRGB != NULL) {
 		av_frame_free(&pFrameRGB);
-
+		pFrameRGB=NULL;
+	}
 
 	/* close pcm device */
 	printf("close PCM device...\n");
@@ -603,21 +609,38 @@ goto START_LOOP;
 	{
 		printf("free outputBuffer for pcm...\n");
 		free(outputBuffer);
+		outputBuffer=NULL;
 	}
 
 	/* Close the codecs */
 	printf("close the codecs...\n");
 	avcodec_close(pCodecCtx);
+//	pCodecCtx=NULL;
 	avcodec_close(pCodecCtxOrig);
+//	pCodecCtxOrig=NULL;
 	avcodec_close(aCodecCtx);
+//	aCodecCtx=NULL;
 	avcodec_close(aCodecCtxOrig);
+//	aCodecCtxOrig=NULL;
 
 	/* Close the video file */
 	printf("close the video file...\n");
 	avformat_close_input(&pFormatCtx);
+//	pFormatCtx=NULL;
 
 	printf("free swr at last...\n");
 	swr_free(&swr);
+//	swr=NULL;
+	printf("free sws_ctx at last...\n");
+	sws_freeContext(sws_ctx);
+//	sws_ctx=NULL;
+
+#if ENABLE_MEDIA_LOOP
+	tok_QuitFFplay = false;
+	usleep(30000);
+/* MEDIA_LOOP_END */
+}
+#endif
 
 /*  <<<<<<<<<   finish: clean up   >>>>>>>>>>>> */
 	/* close fb dev */

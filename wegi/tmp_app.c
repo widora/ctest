@@ -106,6 +106,12 @@ int main(int argc, char **argv)
 	pthread_t   thread_loopread;
 
 
+	/* test timer */
+	printf("get tm stamp in ms: %lld \n",tm_get_tmstampms());
+	system("uptime");
+	exit(0);
+
+
 
 	/* --- open spi dev --- */
 	SPI_Open();
@@ -191,8 +197,6 @@ int main(int argc, char **argv)
 #endif
 
 
-
-
 #if 0
 	/* test ------- touch loopread ------- */
 	int dy;
@@ -264,8 +268,6 @@ int main(int argc, char **argv)
 	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
 	 exit(1);
 #endif
-
-
 
 
 	/* --- clear screen with BLACK --- */
@@ -367,10 +369,6 @@ int main(int argc, char **argv)
 	}
 	exit(1);
 #endif
-
-
-
-
 
 
 
