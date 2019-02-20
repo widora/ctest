@@ -662,7 +662,7 @@ int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, 
         {
                 /* find out all jpg files */
                 fn_len=strlen(file->d_name);
-		if(fn_len>maxflen-1)/* file name length limit */
+		if(fn_len>maxflen-10)/* file name length limit, 10 as for extend file name */
 			continue;
                 if(strncmp(file->d_name+fn_len-4,".jpg",4)!=0 )
                          continue;

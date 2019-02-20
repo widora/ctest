@@ -11,6 +11,7 @@
 #include "libavutil/opt.h"
 #include "egi_bmpjpg.h"
 #include <stdio.h>
+#include <dirent.h>
 #include "play_ffpcm.h"
 
 #define PIC_MAX_WIDTH 240
@@ -191,6 +192,94 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 
 	return nbuff;
 }
+
+
+
+#if 0
+/* --------  !!!! OBSELETE, shell will parse *.xx to get all certain type of files  ----------------
+Find out specified type of files in a specified directory
+
+fpath:           full path with file extension name for searching, for example " /music/*.mp3 ".
+count:          total number of files found, NULL to ignore.
+fpaths:         file path list
+maxfnum:        max items of fpaths
+maxflen:        max file name length
+
+return value:
+         0 --- OK
+        <0 --- fails
+------------------------------------------------------------------------------------------*/
+#define FFIND_MAX_FILENUM 256 /* Max number of file paths to be stored in a buffer */
+#define FFIND_MAX_FPATHLEN 128 /* Max length for the full path of a file */
+char ff_fpath_buff[FFIND_MAX_FILENUM][FFIND_MAX_FPATHLEN]={0};
+static int ff_find_files(const char* fpath, int *count )
+{
+        DIR *dir;
+	char path[FFIND_MAX_FPATHLEN]={0}; /* for path string, without extension name */
+	char fext[10]={0}; /* for file extension name */
+	int fext_len; /* extension name length */
+        struct dirent *file;
+        int fn_len; /* file name length */
+        int num=0;
+
+	printf("fpath:%s, len=%d\n",fpath,strlen(fpath));
+
+	/* get extension name */
+	char *tp=strstr(fpath,"*.");/* postion for '*.' */
+	if(tp==NULL)
+	{
+		printf("ff_find_files(): Missing extension name or extension name error!  Example: /music/\*.mp3 \n");
+		return -1;
+	}
+	tp++; /* pass '*' */
+	strncpy(fext,tp,10-1);
+	fext_len=strlen(fext);
+	printf("fext: %s, fext_len: %d \n",fext, fext_len);
+
+	/* separate to get path string */
+	strncpy(path,fpath,strlen(fpath)-fext_len-1);
+	printf("path: %s \n",path);
+
+        /* open dir */
+        if(!(dir=opendir(path)))
+        {
+                printf("ff_find_files(): error open dir: %s !\n",path);
+                return -2;
+        }
+
+        /* get file paths */
+        while((file=readdir(dir))!=NULL)
+        {
+                /* find out all files */
+                fn_len=strlen(file->d_name);
+                if(fn_len>FFIND_MAX_FPATHLEN-10)/* full file path length limit */
+		{
+			printf("ff_find_files(): %s.\n	File path is too long, fail to store.\n",file->d_name);
+                        continue;
+		}
+                //if(strncmp(file->d_name+fn_len-4,".mp3",4)!=0 )
+                if(strncmp(file->d_name+fn_len-fext_len,fext,fext_len)!=0 )
+                         continue;
+		memset((char *)&ff_fpath_buff[num][0],0,FFIND_MAX_FPATHLEN*sizeof(char));
+		sprintf((char *)&ff_fpath_buff[num][0],"%s/%s",path,file->d_name);
+		//printf("Find:	%s\n",&ff_fpath_buff[num][0]);
+                num++;
+                if(num==FFIND_MAX_FILENUM)/* break if fpaths buffer is full */
+		{
+			printf("ff_find_files(): File fpath buffer is full! try to increase FFIND_MAX_FILENUM.\n");
+                        break;
+		}
+        }
+
+	if(count !=NULL)
+	        *count=num; /* return count */
+
+         closedir(dir);
+         return 0;
+}
+#endif
+
+
 
 
 

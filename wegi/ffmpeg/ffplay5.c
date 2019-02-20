@@ -25,8 +25,10 @@ NOTE:
 9. Try to play mp3 :)
 
 
+
 TODO:
-1. TO exit main() from a thread.
+1. Can not decode png picture in a mp3 file.
+
 
 The data flow of a 480*320 movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
@@ -34,7 +36,8 @@ The data flow of a 480*320 movie is like this:
   (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 Usage:
-	ffplay3  video_file
+	ffplay  video_file/media_address
+	ffplay /music/*.avi
 
 Midas Zhou
 -------------------------------------------------------------------------------------------------*/
@@ -45,12 +48,22 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
+#define ENABLE_CLIP_TEST 1 /* play the beginning part of a file */
 #define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file */
 #define ENABLE_AUDIO 1
 
+int ff_token_skip=0; /* when >0, stop to play next file */
+
 int main(int argc, char *argv[])
 {
+	/* for input files */
+	int fnum; /* number of multimedia files input from shell */
+	int ff_sec_Vduration; /* in seconds, multimedia file duration */
+	int ff_sec_Aduration; /* in seconds, multimedia file duration */
+	int ff_sec_Velapsed;  /* in seconds, playing time elapsed */
+	int ff_sec_Aelapsed;  /* in seconds, playing time elapsed */
+
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext	*pFormatCtx=NULL;
 
@@ -111,6 +124,7 @@ int main(int argc, char *argv[])
 		printf("File type is not recognizable!\n");
 		return -1;
 	}
+	printf("total number of input files: %d\n",argc);
 
 /* <<<<<<<    Init SPI and FB, Timer   >>>>>>  */
        /* --- open spi dev for touch pad --- */
@@ -137,13 +151,16 @@ printf("enable to loop playing media file or stream ...\n");
 while(1) {
 #endif
 
-	/* Register all formats and codecs */
-	av_register_all();
-	avformat_network_init();
+   /* Register all formats and codecs */
+   av_register_all();
+   avformat_network_init();
+
+   for(fnum=1;fnum<argc;fnum++) /* play all input files */
+   {
 
 	/* Open media stream or file */
-	printf("%lld(ms):	try to open file %s ...\n", tm_get_tmstampms(), argv[1]);
-	if(avformat_open_input(&pFormatCtx, argv[1], NULL, NULL)!=0)
+	printf("%lld(ms):	try to open file %s ...\n", tm_get_tmstampms(), argv[fnum]);
+	if(avformat_open_input(&pFormatCtx, argv[fnum], NULL, NULL)!=0)
 	{
 		printf("Fail to open the file, or file type is not recognizable.\n");
 		return -1;
@@ -305,8 +322,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     if(videoStream != -1) /* only if videoStream exists */
     {
 	printf("Prepare for video stream processing ...\n");
+	clear_screen(&gv_fb_dev, 0);
+
 	/* Get a pointer to the codec context for the video stream */
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
+
 	/* Find the decoder for the video stream */
 	printf("try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
@@ -315,10 +335,13 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		videoStream=-1;
 		//return -1;
 	}
-	if(pCodecCtxOrig->width<=0 || pCodecCtxOrig->height<=0) {
-		fprintf(stderr, "Video width or height illegal! try to continue to decode audio...\n");
+
+	if(pCodecCtxOrig->width <= 0 || pCodecCtxOrig->height <= 0) {
+		fprintf(stderr, "Video width=%d or height=%d illegal! try to continue to decode audio...\n",
+				   pCodecCtxOrig->width, pCodecCtxOrig->height);
 		videoStream=-1;
 	}
+
     }
 
     if(videoStream != -1 && pCodec != NULL)
@@ -335,6 +358,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
+
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
 	if(pFrame==NULL) {
@@ -350,10 +374,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	}
 
 	/* max. scaled movie size to fit for the screen */
-	width=pCodecCtx->width;
-	height=pCodecCtx->height;
+	width=pCodecCtx->width; //324
+	height=pCodecCtx->height; //432
         if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
-		if( (width/height) > (PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
+		if( (width/height) >= (PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
 		{
 			/* fit for width, only if video width > screen width */
 			if(width>PIC_MAX_WIDTH) {
@@ -381,7 +405,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
             scheight>PIC_MAX_HEIGHT ||
 	    scwidth <= 0 || scheight <= 0  )
         {
-		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit!\n");
+		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit! reset to 240x240. \n");
+		scwidth=240;
+		scheight=240;
 	}
 
 
@@ -453,7 +479,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
-	printf("----- start loop of reading AV frames and decoding \n");
+	printf("--- PLAYING ---  loop reading AV frames and decoding... \n");
 	//printf("	 converting video frame to RGB and then send to display...\n");
 	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
@@ -473,6 +499,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+			
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 			/* if we get a complete video frame */
@@ -492,10 +519,12 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					printf("PICBuffs are full! The video frame is dropped!\n");
 
 				/* print playing time */
+				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
+				     			&pFormatCtx->streams[videoStream]->time_base) );
+				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+							&pFormatCtx->streams[videoStream]->time_base) );
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
-					atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[videoStream]->time_base)),
-					atoi(av_ts2timestr(pFormatCtx->streams[videoStream]->duration,&pFormatCtx->streams[videoStream]->time_base))
-				 );
+									ff_sec_Velapsed, ff_sec_Vduration );
 
 //				printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
 				fflush(stdout);
@@ -543,15 +572,18 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 					}
 
-					/* print playing time, if no video stream */
-					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
-						atoi(av_ts2timestr(packet.pts,&pFormatCtx->streams[audioStream]->time_base)),
-						atoi(av_ts2timestr(pFormatCtx->streams[audioStream]->duration,&pFormatCtx->streams[audioStream]->time_base))
-			 		);
-
+					/* print audio playing time, only if no video stream */
+					//if(videoStream<0) /* no for mp3 with pic */
+					//{
+						ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
+				     				&pFormatCtx->streams[audioStream]->time_base) );
+						ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
+								&pFormatCtx->streams[audioStream]->time_base) );
+						printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
+									ff_sec_Aelapsed, ff_sec_Aduration );
+					//}
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
-
 
 				}
 				packet.size -= bytes_used;
@@ -563,6 +595,16 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
                 //---- free OLD packet each time,   that was allocated by av_read_frame
                 av_free_packet(&packet);
+
+#if ENABLE_CLIP_TEST /* for test only ---------*/
+		if( (audioStream >= 0) && (ff_sec_Aelapsed >= 5 || ff_token_skip ) )
+		{
+			//reset  ff_token_skip=0;
+			ff_sec_Aelapsed=0;
+			ff_sec_Aduration=0;
+			break;
+		}
+#endif
 
 	}//end of while()
 
@@ -576,6 +618,7 @@ goto SEEK_LOOP_START;
 		printf("joint picture displaying thread ...\n");
 		tok_QuitFFplay = true;
 		pthread_join(pthd_displayPic,NULL);
+		tok_QuitFFplay = false;
 
 		/* free PICbuffs */
 		printf("free PICbuffs[]...\n");
@@ -615,28 +658,36 @@ goto SEEK_LOOP_START;
 	/* Close the codecs */
 	printf("close the codecs...\n");
 	avcodec_close(pCodecCtx);
-//	pCodecCtx=NULL;
+	pCodecCtx=NULL;
 	avcodec_close(pCodecCtxOrig);
-//	pCodecCtxOrig=NULL;
+	pCodecCtxOrig=NULL;
 	avcodec_close(aCodecCtx);
-//	aCodecCtx=NULL;
+	aCodecCtx=NULL;
 	avcodec_close(aCodecCtxOrig);
-//	aCodecCtxOrig=NULL;
+	aCodecCtxOrig=NULL;
 
 	/* Close the video file */
 	printf("close the video file...\n");
 	avformat_close_input(&pFormatCtx);
-//	pFormatCtx=NULL;
+	pFormatCtx=NULL;
 
-	printf("free swr at last...\n");
-	swr_free(&swr);
-//	swr=NULL;
-	printf("free sws_ctx at last...\n");
-	sws_freeContext(sws_ctx);
-//	sws_ctx=NULL;
+	if(audioStream >= 0)
+	{
+		printf("free swr at last...\n");
+		swr_free(&swr);
+		swr=NULL;
+	}
+
+	if(videoStream >= 0)
+	{
+		printf("free sws_ctx at last...\n");
+		sws_freeContext(sws_ctx);
+		sws_ctx=NULL;
+	}
+
+   } /* end of for(fnum=.. ) */
 
 #if ENABLE_MEDIA_LOOP
-	tok_QuitFFplay = false;
 	usleep(30000);
 /* MEDIA_LOOP_END */
 }
