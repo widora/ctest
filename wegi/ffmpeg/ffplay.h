@@ -8,6 +8,9 @@
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
+#include "libavfilter/avfiltergraph.h"
+#include "libavfilter/buffersink.h"
+#include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 #include "egi_bmpjpg.h"
 #include <stdio.h>
@@ -20,9 +23,9 @@
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define PIC_BUFF_NUM  4  //total number of RGB picture data buffers.
 
-uint8_t** pPICbuffs; /* for one frame RGB data buffer */
-bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; //indicator for availiability.
-//int nPICbuff; //indicator/tag of picture buffer,MAX. PIC_BUFF_NUM
+uint8_t** pPICbuffs; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
+bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiability of pPICbuffs[x].*/
+
 
 /* information of a decoded picture, for pthread params */
 struct PicInfo {
@@ -36,13 +39,15 @@ struct PicInfo {
 	int nPICbuff; // slot number of pPICbuffs
 };
 
-bool tok_QuitFFplay=false;
-
+static bool fftok_QuitFFplay=false; /* token for ffplay play control */
+bool fftok_Play=false;
+bool fftok_Forward=false;
 
 /*------------------------------------------------------
 WARNING:  for 1_producer and 1_consumer scenario only!!!
 
-Allocate memory for PICbuffs
+Allocate memory for PICbuffs,for 16bits color.
+
 Return value:
 	NULL   --- fails
 	others --- OK
@@ -55,7 +60,7 @@ uint8_t**  malloc_PICbuffs(int width, int height)
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                pPICbuffs[i]=(uint8_t *)malloc(width*height*3);
+                pPICbuffs[i]=(uint8_t *)malloc(width*height*2); /* for 16bits color */
 
               /* if fails, free those buffs */
                 if(pPICbuffs[i] == NULL) {
@@ -67,7 +72,7 @@ uint8_t**  malloc_PICbuffs(int width, int height)
                 }
        }
 
-        /* set indicator */
+        /* set tag */
         for(i=0;i<PIC_BUFF_NUM;i++) {
                 IsFree_PICbuff[i]=true;
         }
@@ -76,7 +81,8 @@ uint8_t**  malloc_PICbuffs(int width, int height)
 }
 
 /*----------------------------------------
-return a free PICbuff tag
+return a free PICbuff slot/tag number
+
 Return value:
         >=0  OK
         <0   fails
@@ -85,7 +91,7 @@ int get_FreePicBuff(void)
 {
         int i;
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                if(IsFree_PICbuff[i]){
+                if(IsFree_PICbuff[i]) {
                         return i;
 		}
         }
@@ -93,9 +99,9 @@ int get_FreePicBuff(void)
         return -1;
 }
 
-/*----------------------------------------------
-   free PICbuffs
-----------------------------------------------*/
+/*----------------------------------
+   free pPICbuffs
+----------------------------------*/
 void free_PicBuffs(void)
 {
         int i;
@@ -118,9 +124,10 @@ int get_costtime(struct timeval tm_start, struct timeval tm_end)
 }
 
 /*--------------------------------------------------
- <<<< a thread fucntion  >>>>
+	     a thread fucntion
 
- In a loop to write pPICBuffs[]  data to display
+	 In a loop to display pPICBuffs[]
+
 ---------------------------------------------------*/
 void* thdf_Display_Pic(void * argv)
 {
@@ -140,29 +147,28 @@ void* thdf_Display_Pic(void * argv)
 
    while(1)
    {
-	   for(i=0;i<PIC_BUFF_NUM;i++)
+	   for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
 	   {
-		if( !IsFree_PICbuff[i] ) //only if pic data is loaded in the buff
+		if( !IsFree_PICbuff[i] ) /* only if pic data is loaded in the buff */
 		{
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
 			/* display picture buffer with full scree */
 			imgbuf.imgbuf=(uint16_t *)pPICbuffs[i];
 			//egi_imgbuf_display(&imgbuf, &gv_fb_dev, 0, 0);
 
-			/* adjust window_position displaying */
+			/* window_position displaying */
 			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, 0, 0, ppic->Hs, ppic->Vs,
 									imgbuf.width, imgbuf.height);
-
-		   	//-----  write data in pPICbffs[i] to lcd ----
-		   	//LCD_Write_Block(ppic->Hs,ppic->He,ppic->Vs,ppic->Ve, pPICbuffs[i], ppic->numBytes);
-		   	usleep(50000);
-		   	//----- put a FREE tag after write to displa
+		   	//----- hold for a while :)))  ----
+		   	usleep(20000);
+		   	/* put a FREE tag after display, then it may be overwritten. */
 	  	   	IsFree_PICbuff[i]=true;
 		}
 	   }
 	   /* quit ffplay */
-	   if(tok_QuitFFplay)
+	   if(fftok_QuitFFplay)
 		break;
+
 	   usleep(2000);
   }
   return (void *)0;
@@ -170,7 +176,12 @@ void* thdf_Display_Pic(void * argv)
 
 
 /*-----------------------------------------------------------------------
- copy RGB data to data of a PicInfo
+ Copy RGB data from *data to PicInfo.data
+
+  ppic: 	a PicInfo struct
+  data:		data source
+  numbytes:	amount of data copied, in byte.
+
  Return value:
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
@@ -179,11 +190,11 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 
-	nbuff=get_FreePicBuff();
+	nbuff=get_FreePicBuff(); /* get a slot number */
 	ppic->nPICbuff=nbuff;
 //	printf(" get_FreePicBuff() =%d\n",nbuff);
 
-	//---- only if PICBuff has free slot
+	/* only if PICBuff has free slot */
 	if(nbuff >= 0){
 		ppic->data=pPICbuffs[nbuff];//get pointer to the PICBuff
 		memcpy(ppic->data,data,numBytes);

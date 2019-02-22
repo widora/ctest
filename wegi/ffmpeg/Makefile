@@ -1,6 +1,7 @@
 export STAGING_DIR = /home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 CC = $(STAGING_DIR)/mipsel-openwrt-linux-gcc
-APP = ffplay5
+#APP = ffplay6
+APP = filtering_video
 SOURCE = $(APP).c
 DEPS = ffplay.h
 OBJ = $(APP).o play_ffpcm.o
@@ -23,7 +24,7 @@ LDFLAGS  += -L/home/midas-zhou/Ctest/wegi/lib
 LDFLAGS  += -L/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/ipkg-install/usr/lib
 
 #------ -lz seems no use  ------------
-LIBS     += -lavutil -lswscale -lavcodec -lavformat -lswresample
+LIBS     += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpostproc
 #LIBS     += -lftdi1 -lusb-1.0
 LIBS	 += -lm -lasound -ljpeg
 LIBS	 += -lpthread
