@@ -34,6 +34,7 @@ NOTE:
 
 PAR	 --- Pixel Aspect Ratio
 SAR	 --- Sample Aspect Ratio
+	     BUT!!!! in avcodec.h,  struct AVCodecContext->sample_aspect_ratio is "width of a pixel divided by the height of the pixel"
 DAR	 --- Display Aspect Ratio
 PIX_FMT  --- pixel format defined in libavutil/pixfmt.h
 
@@ -57,6 +58,7 @@ Midas Zhou
 #include "spi.h"
 #include "egi_timer.h"
 #include "egi_fbgeom.h"
+#include "egi_debug.h"
 #include <signal.h>
 #include <math.h>
 
@@ -142,7 +144,9 @@ int main(int argc, char *argv[])
 	AVFrame		*filt_pFrame=NULL; /* for filtered frame */
 	enum AVPixelFormat outputs_pix_fmts[] = { AV_PIX_FMT_RGB565LE, AV_PIX_FMT_NONE };/* NONE as for end token */
 	char args[512];
-	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+	/* video filter descr, same as -vf option in ffmpeg */
+//	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -703,7 +707,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					/* push data to pic buff for SPI LCD displaying */
 					//printf(" start Load_Pic2Buff()....\n");
 					if( Load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
-						printf("PICBuffs are full! video frame is dropped!\n");
+						egi_pdebug(DBG_FFPLAY,"PICBuffs are full! video frame is dropped!\n");
 
 					av_frame_unref(filt_pFrame); /* unref it, or it will eat up memory */
 				}
