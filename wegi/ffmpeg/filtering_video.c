@@ -85,6 +85,12 @@ static int open_input_file(const char *filename)
     return 0;
 }
 
+
+/*-----------------------------------------------
+params:
+dec_ctx, fmt_ctx, filter_graph, filters_descr, buffersrc_ctx,
+//fmt_ctx:pFormatCtx, dec_ctx:pCodecCtxOrig
+------------------------------------------------*/
 static int init_filters(const char *filters_descr)
 {
     char args[512];
@@ -158,12 +164,16 @@ static int init_filters(const char *filters_descr)
     inputs->pad_idx    = 0;
     inputs->next       = NULL;
 
+
+
+
     if ((ret = avfilter_graph_parse_ptr(filter_graph, filters_descr,
                                     &inputs, &outputs, NULL)) < 0)
         goto end;
 
     if ((ret = avfilter_graph_config(filter_graph, NULL)) < 0)
         goto end;
+
 
 end:
     avfilter_inout_free(&inputs);

@@ -11,7 +11,9 @@ Based on:
 
 TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
-   It dosen't work for ACC_LC decoding, lots of float point operation.
+   It dosen't work for ACC_LC decoding, lots of float point operations.
+2. Can not decode png picture in a mp3 file. ...OK, with some tricks.
+
 
 NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
@@ -28,15 +30,21 @@ NOTE:
 9. Try to play mp3 :)
 
 
+		 (((  --- Glossary ---  )))
 
-TODO:
-1. Can not decode png picture in a mp3 file. ...OK, with some tricks.
+PAR	 --- Pixel Aspect Ratio
+SAR	 --- Sample Aspect Ratio
+DAR	 --- Display Aspect Ratio
+PIX_FMT  --- pixel format defined in libavutil/pixfmt.h
 
+		 (((  --- Data Flow ---  )))
 
-The data flow of a 480*320 movie is like this:
+The data flow of a movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
   (thread)  pPICBuff ----> FB (~xxxms per frame) ---> Display
   (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
+
+
 
 Usage:
 	ffplay  video_file/media_address
@@ -52,6 +60,7 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
+#define ENABLE_AVFILTER 1 /* enable AVFilter for video */
 #define ENABLE_CLIP_TEST 0 /* play the beginning part of a file */
 #define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file(s), if the file is not recognizable then skip it. */
@@ -77,7 +86,7 @@ int main(int argc, char *argv[])
 
 	/* for VIDEO  */
 	int			i;
-	int			videoStream=-1;
+	int			videoStream=-1; /* >=0, if stream exists */
 	AVCodecContext		*pCodecCtxOrig=NULL;
 	AVCodecContext		*pCodecCtx=NULL;
 	AVCodec			*pCodec=NULL;
@@ -88,6 +97,7 @@ int main(int argc, char *argv[])
 	int			numBytes;
 	uint8_t			*buffer=NULL;
 	struct SwsContext	*sws_ctx=NULL;
+	AVRational 		time_base; /*get from video stream, pFormatCtx->streams[videoStream]->time_base*/
 
 	int Hb,Vb;  /* Horizontal and Veritcal size of a picture */
 	/* for Pic Info. */
@@ -102,7 +112,7 @@ int main(int argc, char *argv[])
 	int scheight;
 
 	/*  for AUDIO  ::  for audio   */
-	int			audioStream=-1;
+	int			audioStream=-1;/* >=0, if stream exists */
 	AVCodecContext		*aCodecCtxOrig=NULL;
 	AVCodecContext		*aCodecCtx=NULL;
 	AVCodec			*aCodec=NULL;
@@ -123,15 +133,16 @@ int main(int argc, char *argv[])
 	/* for AVFilters */
 	AVFilterContext *avFltCtx_BufferSink=NULL;
 	AVFilterContext *avFltCtx_BufferSrc=NULL;
-	AVFilter	*avFlt_BufferSink=NULL;
+	AVFilter	*avFlt_BufferSink=NULL; /* to be freed by its holding graph */
 	AVFilter	*avFlt_BufferSrc=NULL;
 	AVFilterInOut	*avFltIO_InPuts=NULL;/* A linked-list of the inputs/outputs of the filter chain */
 	AVFilterInOut	*avFltIO_OutPuts=NULL;
 	//AVBufferSinkParams	*BufferSink_params;
-	AVFilterGraph	*avFltGraph=NULL; /* filter chain graph */
+	AVFilterGraph	*filter_graph=NULL; /* filter chain graph */
+	AVFrame		*filt_pFrame=NULL; /* for filtered frame */
 	enum AVPixelFormat outputs_pix_fmts[] = { AV_PIX_FMT_RGB565LE, AV_PIX_FMT_NONE };/* NONE as for end token */
 	char args[512];
-	const char *filter_descr = "scale=78:24,transpose=cclock"; //clock;
+	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -179,71 +190,6 @@ while(1) {
    avformat_network_init();
    avfilter_register_all(); /* register all default builtin filters */
 
-   /* prepare filters */
-   printf("prepare avfilters ...\n");
-   avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
-   avFlt_BufferSrc=avfilter_get_by_name("buffer");
-   if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
-   {
-	printf("Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n");
-	goto ff_fail;
-   }
-   avFltIO_InPuts=avfilter_inout_alloc();
-   avFltIO_OutPuts=avfilter_inout_alloc();
-   avFltGraph=avfilter_graph_alloc();
-
-   /* input arguments for filter_graph */
-   snprintf(args,sizeof(args),"video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
-			240,320,AV_PIX_FMT_RGB565LE,1,25,1,1);
-   /* Create and add a filter instance into an existing graph */
-   /* #####   int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,
-                                 const char *name, const char *args, void *opaque,
-                                 AVFilterGraph *graph_ctx);
-    #####*/
-
-   /* create source(in) filter in the filter_chain graph */
-   ret=avfilter_graph_create_filter(&avFltCtx_BufferSrc, avFlt_BufferSrc,"in",args,NULL,avFltGraph);
-   if(ret<0)
-   {
-        //av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-	printf("Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n");
-	goto ff_fail;
-   }
-
-   /* create sink(out) filter in the filter_chain graph */
-   //BufferSink_params=av_buffersink_params_alloc();
-   //BufferSink_params->pixel_fmts=;
-   ret=avfilter_graph_create_filter(&avFltCtx_BufferSink, avFlt_BufferSink,"out",NULL,NULL,avFltGraph);
-   //av_free(BufferSink_params);
-   if(ret<0)
-   {
-        //av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-	printf("Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n");
-	goto ff_fail;
-   }
-
-   /* set output pix format */
-   /**
-   * Set a binary option to an integer list.
-   *
-   * @param obj    AVClass object to set options on
-   * @param name   name of the binary option
-   * @param val    pointer to an integer list (must have the correct type with
-   *               regard to the contents of the list)
-   * @param term   list terminator (usually 0 or -1)
-   * @param flags  search flags
-   */
-   ret=av_opt_set_int_list(avFltCtx_BufferSink, "pix_fmts", outputs_pix_fmts,
-                              AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
-   if (ret < 0) {
-        //av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
-	printf("Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
-        goto ff_fail;
-    }
-
-
-   /* for test--------- */
-   goto ff_fail;
 
 
    /* play all input files, one by one. */
@@ -325,7 +271,7 @@ while(1) {
 #endif
 
 	/* proceed --- audio --- stream */
-	if(audioStream != -1) /* only if audioStream exists */
+	if(audioStream >= 0) /* only if audioStream exists */
   	{
 		printf("Prepare for audio stream processing ...\n");
 		/* Get a pointer to the codec context for the audio stream */
@@ -430,10 +376,13 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 
 	/* proceed --- video --- stream */
-    if(videoStream != -1) /* only if videoStream exists */
+    if(videoStream >=0 ) /* only if videoStream exists */
     {
 	printf("Prepare for video stream processing ...\n");
 	clear_screen(&gv_fb_dev, 0);
+
+	/* get time_base */
+	time_base = pFormatCtx->streams[videoStream]->time_base;
 
 	/* Get a pointer to the codec context for the video stream */
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
@@ -455,8 +404,119 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
     }
 
-    if(videoStream != -1 && pCodec != NULL)
+    /* videoStream may be reset to -1, so confirm again */
+    if(videoStream >=0 && pCodec != NULL)
     {
+
+#if ENABLE_AVFILTER /* AVFilter ON */
+  	/*---------<<< START: prepare filters >>>--------*/
+   	printf("video stream is found, prepare avfilters ...\n");
+
+	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
+   	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
+   	avFlt_BufferSrc=avfilter_get_by_name("buffer");
+   	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
+   	{
+		printf("Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n");
+		goto ff_fail;
+   	}
+   	avFltIO_InPuts=avfilter_inout_alloc();
+   	avFltIO_OutPuts=avfilter_inout_alloc();
+   	filter_graph=avfilter_graph_alloc();
+
+   	/* input arguments for filter_graph */
+   	snprintf(args,sizeof(args),
+			"video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+			pCodecCtxOrig->width,pCodecCtxOrig->height,pCodecCtxOrig->pix_fmt,
+			time_base.num,time_base.den,
+			pCodecCtxOrig->sample_aspect_ratio.num,pCodecCtxOrig->sample_aspect_ratio.den);
+		//240,320,AV_PIX_FMT_RGB565LE,1,25,1,1
+	printf("filter graph args: %s\n",args);
+
+   	/* create source(in) filter in the filter  graph
+    	*  int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,
+    	*                        const char *name, const char *args, void *opaque,
+    	*                        AVFilterGraph *graph_ctx);
+   	*/
+   	ret=avfilter_graph_create_filter(&avFltCtx_BufferSrc, avFlt_BufferSrc,"in",args,NULL,filter_graph);
+   	if(ret<0)
+   	{
+        	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
+		printf("Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n");
+		goto ff_fail;
+   	}
+
+   	/* create sink(out) filter in the filter chain graph */
+   	//BufferSink_params=av_buffersink_params_alloc();
+   	//BufferSink_params->pixel_fmts=;
+   	ret=avfilter_graph_create_filter(&avFltCtx_BufferSink, avFlt_BufferSink,"out",NULL,NULL,filter_graph);
+   	//av_free(BufferSink_params);
+   	if(ret<0)
+   	{
+        	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
+		printf("Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n");
+		goto ff_fail;
+   	}
+
+   	/* set output pix format */
+   	/**
+   	* Set a binary option to an integer list.
+   	*
+   	* @param obj    AVClass object to set options on
+   	* @param name   name of the binary option
+   	* @param val    pointer to an integer list (must have the correct type with
+   	*               regard to the contents of the list)
+  	* @param term   list terminator (usually 0 or -1)
+   	* @param flags  search flags
+   	*/
+   	ret=av_opt_set_int_list(avFltCtx_BufferSink, "pix_fmts", outputs_pix_fmts,
+        	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
+   	if (ret < 0) {
+        	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
+		printf("Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
+        	goto ff_fail;
+    	}
+   	/* set the endpoints for the filter graph --- Source */
+   	/* in the view of Caller | in the view of Filter */
+   	avFltIO_OutPuts->name		=av_strdup("in");
+   	avFltIO_OutPuts->filter_ctx	=avFltCtx_BufferSrc;
+   	avFltIO_OutPuts->pad_idx	=0;
+   	avFltIO_OutPuts->next		=NULL;
+
+   	/* set the endpoints for the filter graph --- Sink */
+   	/* in the view of Caller | in the view of the Filter */
+   	avFltIO_InPuts->name	=av_strdup("out");
+   	avFltIO_InPuts->filter_ctx	=avFltCtx_BufferSink;
+   	avFltIO_InPuts->pad_idx	=0;
+   	avFltIO_InPuts->next	=NULL;
+
+   	/* parse filter graph
+    	* int avfilter_graph_parse_ptr(AVFilterGraph *graph, const char *filters,
+    	*                     AVFilterInOut **open_inputs_ptr, AVFilterInOut **open_outputs_ptr,
+    	*                     void *log_ctx)
+    	*		                  	( I/O in the view of Caller )
+    	*/
+    	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
+    	if (ret < 0) {
+        	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
+		printf("Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n");
+        	goto ff_fail;
+    	}
+    	/* configure the filter graph */
+    	ret=avfilter_graph_config(filter_graph,NULL);
+    	if (ret < 0) {
+        	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
+		printf("Fail to call avfilter_graph_config() to configure filter graph.\n");
+        	goto ff_fail;
+    	}
+    	/* free temp. vars */
+    	avfilter_inout_free(&avFltIO_InPuts);
+    	avfilter_inout_free(&avFltIO_OutPuts);
+  	/*---------<<< END: prepare filters >>>--------*/
+
+#endif  /* end of AVFilter ON */
+
+
 	/* copy video codec context */
 	pCodecCtx=avcodec_alloc_context3(pCodec);
 	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
@@ -485,6 +545,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	}
 
 	/* max. scaled movie size to fit for the screen */
+#if ENABLE_AVFILTER /* to be decided by filters_description string, if frame rotated. */
+        scwidth=160;
+	scheight=240;
+
+#else if (!ENABLE_AVFILTER) /* to fit for current width and height */
 	width=pCodecCtx->width; //1200
 	height=pCodecCtx->height; //1920
         if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
@@ -511,6 +576,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	 	scwidth=width;
 	 	scheight=height;
 	}
+#endif /* end of ENABLE_AVFILTER on/off */
 
 	printf("original video size: width=%d, height=%d\nscaled video size: scwidth=%d, scheight=%d \n",width,height,scwidth,scheight);
 
@@ -581,7 +647,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
-  }/* end of (videoStream != -1) */
+  }/* end of (videoStream >=0 ) */
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
@@ -593,24 +659,58 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 #if ENABLE_SEEK_LOOP /* test loop ..... */
  START_SEEK_LOOP:
-	/* seek positio */
+	/* seek starting point */
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 #endif
 
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 
 		/* -----   process Video Stream   ----- */
-		if( videoStream != -1 && packet.stream_index==videoStream)
+		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
 			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
-			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
+				printf("Error decoding video. try to carry on...\n");
 
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 			/* if we get a complete video frame */
 			if(frameFinished) {
-				//convert the image from its native format to RG
+
+#if ENABLE_AVFILTER /* AVFilter ON */
+				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
+				/* push decoded frame into the filter graph */
+			        if( av_buffersrc_add_frame_flags(avFltCtx_BufferSrc,pFrame,
+									AV_BUFFERSRC_FLAG_KEEP_REF) <0 )
+				{
+				    //av_log(NULL,AV_LOG_ERROR,"Error while feeding pFrame to filter graph through avFltCtx_BufferSrc.\n");
+				    printf("Error feeding pFrame to filter graph,try to carry on...\n");
+				    //break;
+				}
+
+				/* pull filtered frames from the filter graph */
+				while(1)
+				{
+					ret=av_buffersink_get_frame(avFltCtx_BufferSink, filt_pFrame);
+					if( ret==AVERROR(EAGAIN) || ret==AVERROR_EOF )
+						break;
+					else if(ret<0)
+					{
+						break; /* try to carry on */
+						//goto ff_fail;
+					}
+					/* push data to pic buff for SPI LCD displaying */
+					//printf(" start Load_Pic2Buff()....\n");
+					if( Load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
+						printf("PICBuffs are full! video frame is dropped!\n");
+
+					av_frame_unref(filt_pFrame); /* unref it, or it will eat up memory */
+				}
+				av_frame_unref(filt_pFrame);
+
+#else if (!ENABLE_AVFILTER) /* AVfilter OFF */
+				//convert the image from its native format to RGB
 				//printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
@@ -619,12 +719,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				//gettimeofday(&tm_start,NULL);
 				//printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
+#endif  /* end of AVFilter ON/OFF */
+
 
 				/* print playing time */
+/*
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
 				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
@@ -632,12 +734,15 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Velapsed, ff_sec_Vduration );
 
-//				printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
+				//printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
 				fflush(stdout);
+*/
 				//gettimeofday(&tm_end,NULL);
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			}
+			} /* end of if(FrameFinished) */
+
 		}//----- end  of vidoStream process  ------
+
 
 	//----------------//////   process audio stream   \\\\\\\-----------------
 		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
@@ -679,15 +784,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					}
 
 					/* print audio playing time, only if no video stream */
-					//if(videoStream<0) /* no for mp3 with pic */
-					//{
+/*
 						ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     				&pFormatCtx->streams[audioStream]->time_base) );
 						ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
 								&pFormatCtx->streams[audioStream]->time_base) );
 						printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Aelapsed, ff_sec_Aduration );
-					//}
+*/
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
@@ -739,6 +843,7 @@ ff_fail:
 		av_frame_free(&pFrame);
 		pFrame=NULL;
 	}
+
 	/* Free the RGB image */
 	printf("free buffer...\n");
 	if(buffer != NULL) {
@@ -763,14 +868,22 @@ ff_fail:
 		outputBuffer=NULL;
 	}
 
-
+#if ENABLE_AVFILTER
 	/* free filter items */
-	if(avFltGraph != NULL)
+	if(filter_graph != NULL)
 	{
 		printf("avfilter graph free ...\n");
-		avfilter_graph_free(&avFltGraph);
-		avFltGraph=NULL;
+		/* It will also free all AVFilters in the filter graph */
+		avfilter_graph_free(&filter_graph);
+		filter_graph=NULL;
 	}
+	/* Free filted frame */
+	printf("free filt_pFrame...\n");
+	if(filt_pFrame != NULL) {
+		av_frame_free(&filt_pFrame);
+		filt_pFrame=NULL;
+	}
+#endif
 
 	/* Close the codecs */
 	printf("close the codecs...\n");
