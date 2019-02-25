@@ -106,8 +106,13 @@ void free_PicBuffs(void)
 {
         int i;
         for(i=0;i<PIC_BUFF_NUM;i++)
-                free(pPICbuffs[i]);
-        free(pPICbuffs);
+	{
+		if(pPICbuffs[i] != NULL)
+	                free(pPICbuffs[i]);
+	}
+
+	if(pPICbuffs != NULL)
+	        free(pPICbuffs);
 
 	pPICbuffs=NULL;
 }

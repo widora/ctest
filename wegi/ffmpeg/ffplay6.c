@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------------------------------------
-Based on: 
+Based on:
           FFmpeg examples in code sources.
           dranger.com/ffmpeg/tutorialxx.c
  				       ---  by Martin Bohme
@@ -38,6 +38,7 @@ SAR	 --- Sample Aspect Ratio
 DAR	 --- Display Aspect Ratio
 PIX_FMT  --- pixel format defined in libavutil/pixfmt.h
 
+
 		 (((  --- Data Flow ---  )))
 
 The data flow of a movie is like this:
@@ -64,12 +65,12 @@ Midas Zhou
 
 #define ENABLE_AVFILTER 1 /* enable AVFilter for video */
 #define ENABLE_CLIP_TEST 0 /* play the beginning part of a file */
-#define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the file */
+#define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the same file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file(s), if the file is not recognizable then skip it. */
 #define ENABLE_AUDIO 1
 #define ENABLE_AUTOFIT_ROTPIC 0 /* auto. rotate picture to fit for the screen ration */
 
-#define FF_LOOP_TIMEGAP 3 /* in second, holdon or idle time after ffplay a file */
+#define FF_LOOP_TIMEGAP 0 //3 /* in second, holdon or idle time after ffplay a file */
 
 
 int ff_token_skip=0; /* when >0, stop to play next file */
@@ -146,7 +147,8 @@ int main(int argc, char *argv[])
 	char args[512];
 	/* video filter descr, same as -vf option in ffmpeg */
 //	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
-	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=320:240,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -195,7 +197,6 @@ while(1) {
    avfilter_register_all(); /* register all default builtin filters */
 
 
-
    /* play all input files, one by one. */
    for(fnum=1;fnum<argc;fnum++)
    {
@@ -208,6 +209,7 @@ while(1) {
 #if ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
+		usleep(350000);
 		continue;
 #else
 		return -1;
@@ -237,8 +239,10 @@ while(1) {
 
 	/* Find the first video stream and audio stream */
 	printf("%lld(ms):	try to find the first video stream... \n",tm_get_tmstampms());
+	/* reset stream index first */
 	videoStream=-1;
 	audioStream=-1;
+
 	printf("number of streams: %d \n",pFormatCtx->nb_streams);
 	for(i=0; i<pFormatCtx->nb_streams; i++) {
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
@@ -516,6 +520,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     	/* free temp. vars */
     	avfilter_inout_free(&avFltIO_InPuts);
     	avfilter_inout_free(&avFltIO_OutPuts);
+	printf("Finish prepare avfilter and configure filter graph.\n");
   	/*---------<<< END: prepare filters >>>--------*/
 
 #endif  /* end of AVFilter ON */
@@ -533,7 +538,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
-
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
 	if(pFrame==NULL) {
@@ -548,14 +552,16 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		return -1;
 	}
 
-	/* max. scaled movie size to fit for the screen */
-#if ENABLE_AVFILTER /* to be decided by filters_description string, if frame rotated. */
-        scwidth=160;
-	scheight=240;
+	/* get original movie size */
+	width=pCodecCtx->width;
+	height=pCodecCtx->height;
+	/* calculate scaled movie size to fit for the screen */
+#if ENABLE_AVFILTER  /* to be decided by filters_description string, if frame rotated. */
+        scwidth=240;//160;
+	scheight=320;//240;
 
-#else if (!ENABLE_AVFILTER) /* to fit for current width and height */
-	width=pCodecCtx->width; //1200
-	height=pCodecCtx->height; //1920
+
+#else if (!ENABLE_AVFILTER) /* to fit for current width and height, no rotation */
         if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
 		if( (1.0*width/height) >= (1.0*PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
 		{
@@ -593,7 +599,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		scheight=240;
 	}
 
-
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, scwidth, scheight);//pCodecCtx->width, pCodecCtx->height);
 	pic.numBytes=numBytes;
@@ -601,7 +606,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 
 /* <<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>> */
-	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
+
+//	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
+	if(malloc_PICbuffs(scwidth,scheight) == NULL) {
 		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
 		return -1;
 	}
@@ -668,7 +675,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 #endif
 
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
-
 		/* -----   process Video Stream   ----- */
 		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
@@ -676,12 +682,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
 				printf("Error decoding video. try to carry on...\n");
-
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
-			/* if we get a complete video frame */
-			if(frameFinished) {
 
+			/* if we get complete video frame(s) */
+			if(frameFinished) {
 #if ENABLE_AVFILTER /* AVFilter ON */
 				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
 				/* push decoded frame into the filter graph */
@@ -692,7 +697,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				    printf("Error feeding pFrame to filter graph,try to carry on...\n");
 				    //break;
 				}
-
 				/* pull filtered frames from the filter graph */
 				while(1)
 				{
@@ -714,7 +718,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				av_frame_unref(filt_pFrame);
 
 #else if (!ENABLE_AVFILTER) /* AVfilter OFF */
-				//convert the image from its native format to RGB
+				/* convert the image from its native format to RGB */
 				//printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
@@ -729,12 +733,12 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 #endif  /* end of AVFilter ON/OFF */
 
 
-				/* print playing time */
-/*
+				/* ---print playing time--- */
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
 				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
 							&pFormatCtx->streams[videoStream]->time_base) );
+/*
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Velapsed, ff_sec_Vduration );
 
@@ -745,14 +749,15 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			} /* end of if(FrameFinished) */
 
-		}//----- end  of vidoStream process  ------
+		}/*  end  of vidoStream process  */
 
 
-	//----------------//////   process audio stream   \\\\\\\-----------------
+	/*----------------//////   process audio stream   \\\\\\\-----------------*/
 		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
-			//---bytes_used: indicates how many bytes of the data was consumed for decoding. when provided
-			//with a self contained packet, it should be used completely.
-			//---sb_size: hold the sample buffer size, on return the number of produced samples is stored.
+			/* bytes_used: indicates how many bytes of the data was consumed for decoding.
+			         when provided with a self contained packet, it should be used completely.
+			*  sb_size: hold the sample buffer size, on return the number of produced samples is stored.
+			*/
 			while(packet.size > 0) {
 				//gettimeofday(&tm_start,NULL);
 				bytes_used=avcodec_decode_audio4(aCodecCtx, pAudioFrame, &got_frame, &packet);
@@ -767,11 +772,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					//break;
 					continue;
 				}
-				//----- if decoded data size >0
+				/* if decoded data size >0 */
 				if(got_frame)
 				{
 					//gettimeofday(&tm_start,NULL);
-					//---- playback audio data
+					/* playback audio data */
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
@@ -788,11 +793,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					}
 
 					/* print audio playing time, only if no video stream */
-/*
 						ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     				&pFormatCtx->streams[audioStream]->time_base) );
 						ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
 								&pFormatCtx->streams[audioStream]->time_base) );
+/*
 						printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Aelapsed, ff_sec_Aduration );
 */
@@ -802,27 +807,27 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
-			}//---end of while(packet.size>0)
+			}/* end of while(packet.size>0) */
 
 
-		}//----- ///////  end of audioStream process \\\\\\------
+		}/*   end of audioStream process  */
 
-                //---- free OLD packet each time,   that was allocated by av_read_frame
+                /* free OLD packet each time, that was allocated by av_read_frame */
                 av_free_packet(&packet);
 
 #if ENABLE_CLIP_TEST /* for test only ---------*/
 		if( (audioStream >= 0) && (ff_sec_Aelapsed >= 5 || ff_token_skip ) )
 		{
-			//reset  ff_token_skip=0;
+			//reset:  ff_token_skip=0;
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
 			break;
 		}
 #endif
 
-	}//end of while()
+	}/*  end of while()   */
 
-#if ENABLE_SEEK_LOOP /* test loop ..... */
+#if ENABLE_SEEK_LOOP /* test seek loop  */
 goto SEEK_LOOP_START;
 #endif
 
@@ -934,7 +939,7 @@ ff_fail:
 
 #if ENABLE_MEDIA_LOOP
 
-	//sleep(2);
+	//usleep(500000);
 /* MEDIA_LOOP_END */
 }
 

@@ -103,15 +103,14 @@ us: time interval in us.
 void tm_settimer(int us)
 {
 	/* time left before next expiration  */
-
 	tm_val.it_value.tv_sec=0;
 	tm_val.it_value.tv_usec=us;
+
 	/* time interval for periodic timer */
 	tm_val.it_interval.tv_sec=0;
 	tm_val.it_interval.tv_usec=us;
 
 	setitimer(ITIMER_REAL,&tm_val,NULL); /* NULL get rid of old time value */
-
 }
 
 /*-------------------------------------

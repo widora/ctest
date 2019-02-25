@@ -22,7 +22,7 @@ TODO:
 5. systme()... sh -c ...
 6. btn-press and btn-release signal
 7. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
-8. after set tm_timer(), usleep() and slee() will disfunction!!???? 
+8. after set tm_timer(), SIGALM will disfunction sleep() and usleep(), try tm_delayms()...
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -52,6 +52,7 @@ Midas Zhou
 #include "egi_objlist.h"
 #include "egi_iwinfo.h"
 #include "egi_touch.h"
+#include "egi_log.h"
 
 char mvicon_load[16]={0};
 
@@ -77,6 +78,36 @@ void roam_pic2(void)
 	pthread_exit(0);
 }
 
+void test_log1(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+	}
+	pthread_exit(0);
+}
+void test_log2(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+	}
+	pthread_exit(0);
+}
+void test_log3(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+	}
+	pthread_exit(0);
+}
 
 
 /*  ---------------------  MAIN  ---------------------  */
@@ -107,9 +138,20 @@ int main(int argc, char **argv)
 
 
 	/* test timer */
+#if 0
 	printf("get tm stamp in ms: %lld \n",tm_get_tmstampms());
 	system("uptime");
 	exit(0);
+#endif
+
+	/* --- init log --- */
+	if(egi_init_log() !=0)
+	{
+	   printf("egi_init_log() fails! \n");
+	   exit(0);
+	}
+
+
 
 
 
@@ -170,6 +212,38 @@ int main(int argc, char **argv)
 	EGI_PAGE *page_openwrt=NULL;
 
 
+  /* test -------- egi_log funcs-------- */
+#if 1
+	
+	pthread_t thread_log1;
+	pthread_t thread_log2;
+	pthread_t thread_log3;
+
+	printf("test direct egi_push_log()...\n");
+	for(i=0;i<20;i++)
+	{
+		egi_push_log("Hello --- %d ---\n",i);
+	}
+
+	//tm_delayms(1000);
+	egi_quit_log();
+
+exit(1);
+/*
+	printf("test mutli_thread call egi_push_log()...\n");
+	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
+	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
+	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
+
+	egi_push_log("Good day. test log finish.n");
+*/
+	//sleep(2); sleep() with settimer()  
+	//usleep(800000);
+exit(0);
+#endif
+
+
+
   /* test -------- imgbuf funcs-------- */
 #if 0
 	show_jpg("/tmp/home.jpg",&gv_fb_dev,0,0,0); /*black on*/
@@ -190,9 +264,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* wait thread */
-	pthread_join(thread_roampic1,NULL);
-	pthread_join(thread_roampic2,NULL);
+	/* NO need for detached thread, wait thread */
+//	pthread_join(thread_roampic1,NULL);
+//	pthread_join(thread_roampic2,NULL);
 	exit(1);
 #endif
 
@@ -835,5 +909,9 @@ while(1)
 
 	/* close spi dev */
 	SPI_Close();
+
+	/* quit log system */
+	egi_quit_log();
+
 	return 0;
 }

@@ -20,18 +20,19 @@
 #define DBG_FBGEOM	(1<<9)
 #define DBG_TOUCH	(1<<10)
 #define DBG_BMPJPG	(1<<11)
+#define DBG_FFPLAY	(1<<12)
 
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
+#define DEFAULT_DBG_FLAGS   (DBG_NONE)//|DBG_FFPLAY) //DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
 
 #ifdef EGI_DEBUG
 
 	#define PDEBUG(fmt, args...)   fprintf(stderr,fmt, ## args)
 
 #else
-	#define PDEBUG(fmt,args...)
+	#define PDEBUG(fmt,args...)   /* blank space */
 
 #endif
 
