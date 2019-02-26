@@ -12,8 +12,18 @@ Based on:
 TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
    It dosen't work for ACC_LC decoding, lots of float point operations.
+
 2. Can not decode png picture in a mp3 file. ...OK, with some tricks.
 
+3. Start ffplay movie with png logo from script /etc/rc.local fails:
+	... error log ...
+	...
+	filter graph args: video_size=160x90:pix_fmt=0:time_base=125/2997:pixel_aspect=45/44
+	[Parsed_movie_0 @ 0x9b9c00] Failed to avformat_open_input 'logo.png'
+	Error initializing filter 'movie' with args 'logo.png'
+	Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.
+	joint picture displaying thread ...
+	...
 
 NOTE:
 1. A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
@@ -60,6 +70,7 @@ Midas Zhou
 #include "egi_timer.h"
 #include "egi_fbgeom.h"
 #include "egi_debug.h"
+#include "egi_log.h"
 #include <signal.h>
 #include <math.h>
 
@@ -166,6 +177,9 @@ int main(int argc, char *argv[])
 	printf("total number of input files: %d\n",argc);
 
 /* <<<<<<<    Init SPI and FB, Timer   >>>>>>  */
+       /* start logger */
+	egi_init_log();
+
        /* --- open spi dev for touch pad --- */
         SPI_Open();
 
@@ -205,7 +219,7 @@ while(1) {
 	printf("%lld(ms):	try to open file %s ...\n", tm_get_tmstampms(), argv[fnum]);
 	if(avformat_open_input(&pFormatCtx, argv[fnum], NULL, NULL)!=0)
 	{
-		printf("Fail to open the file, or file type is not recognizable.\n");
+		EGI_PLOG(LOG_TEST,"Fail to open the file, or file type is not recognizable.\n");
 #if ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
@@ -258,7 +272,8 @@ while(1) {
 			audioStream=i;
 		}
 	}
-	printf("%lld(ms):	videoStream=%d, audioStream=%d \n",tm_get_tmstampms(),videoStream,audioStream);
+	EGI_PLOG(LOG_TEST,"%s: videoStream=%d, audioStream=%d \n",
+				__FUNCTION__,tm_get_tmstampms(),videoStream,audioStream);
 
 	if(videoStream == -1) {
 		printf("Didn't find a video stream!\n");
@@ -418,14 +433,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 #if ENABLE_AVFILTER /* AVFilter ON */
   	/*---------<<< START: prepare filters >>>--------*/
-   	printf("video stream is found, prepare avfilters ...\n");
+   	EGI_PLOG(LOG_TEST, "%s(): video stream is found, prepare avfilters ...\n",__FUNCTION__);
 
 	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
    	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
    	avFlt_BufferSrc=avfilter_get_by_name("buffer");
    	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
    	{
-		printf("Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n");
+		EGI_PLOG(LOG_TEST,"%s(): Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n",__FUNCTION__);
 		goto ff_fail;
    	}
    	avFltIO_InPuts=avfilter_inout_alloc();
@@ -450,7 +465,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-		printf("Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n");
+		EGI_PLOG(LOG_TEST,"Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
+									__FUNCTION__);
 		goto ff_fail;
    	}
 
@@ -462,7 +478,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		printf("Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n");
+		EGI_PLOG(LOG_TEST,"%s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
+							__FUNCTION__);
 		goto ff_fail;
    	}
 
@@ -507,7 +524,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		printf("Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n");
+		EGI_PLOG(LOG_TEST,"%s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
+							__FUNCTION__);
         	goto ff_fail;
     	}
     	/* configure the filter graph */
@@ -952,5 +970,9 @@ ff_fail:
 
         /* close spi dev */
         SPI_Close();
+
+	/* quit logger */
+	egi_quit_log();
+
         return 0;
 }

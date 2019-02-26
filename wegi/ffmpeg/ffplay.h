@@ -13,6 +13,7 @@
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 #include "egi_bmpjpg.h"
+#include "egi_log.h"
 #include <stdio.h>
 #include <dirent.h>
 #include "play_ffpcm.h"

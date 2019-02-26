@@ -56,7 +56,6 @@ Midas Zhou
 
 char mvicon_load[16]={0};
 
-
 void roam_pic1(void)
 {
 	pthread_detach(pthread_self());
@@ -84,7 +83,7 @@ void test_log1(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+		EGI_PLOG(LOG_TEST," From file %s,  %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
 	}
 	pthread_exit(0);
 }
@@ -94,7 +93,7 @@ void test_log2(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+		EGI_PLOG(LOG_TEST,"%s(): ---%d--- \n",__FUNCTION__,i);
 	}
 	pthread_exit(0);
 }
@@ -104,7 +103,8 @@ void test_log3(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+		EGI_PLOG(LOG_TEST,"log3: ---- %d ---- \n",i);
+//		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
 	}
 	pthread_exit(0);
 }
@@ -151,10 +151,6 @@ int main(int argc, char **argv)
 	   exit(0);
 	}
 
-
-
-
-
 	/* --- open spi dev --- */
 	SPI_Open();
 
@@ -166,7 +162,7 @@ int main(int argc, char **argv)
 	//exit(0);
 
 	/* ---- set timer for time display ---- */
-		tm_settimer(500000);/* set timer interval interval */
+	tm_settimer(500000);/* set timer interval interval */
 	signal(SIGALRM, tm_sigroutine);
 
 	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
@@ -178,6 +174,7 @@ int main(int argc, char **argv)
 		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
 		exit(1);
 	}
+
 
 
 /*	mat_create_fptrigontab();
@@ -214,31 +211,29 @@ int main(int argc, char **argv)
 
   /* test -------- egi_log funcs-------- */
 #if 1
-	
 	pthread_t thread_log1;
 	pthread_t thread_log2;
 	pthread_t thread_log3;
 
+    #if 0
 	printf("test direct egi_push_log()...\n");
 	for(i=0;i<20;i++)
 	{
 		egi_push_log("Hello --- %d ---\n",i);
 	}
+    #endif
 
-	//tm_delayms(1000);
-	egi_quit_log();
+//exit(1);
 
-exit(1);
-/*
 	printf("test mutli_thread call egi_push_log()...\n");
 	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
 	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
 	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
 
-	egi_push_log("Good day. test log finish.n");
-*/
-	//sleep(2); sleep() with settimer()  
-	//usleep(800000);
+	egi_push_log("---- Good day! Log test finish. ----\n");
+
+	egi_quit_log();
+
 exit(0);
 #endif
 
@@ -910,7 +905,7 @@ while(1)
 	/* close spi dev */
 	SPI_Close();
 
-	/* quit log system */
+	/* quit log system,flush log_buff */
 	egi_quit_log();
 
 	return 0;

@@ -1,12 +1,17 @@
-/*----------------------------------------------------------------------------
+/*--------------------------------------------------------------------------------------------
 Try to write a thread_safe log system. :))))
 
-1. Run egi_init_log() first, then push log string into log_buff
-   by calling egi_push_log().
-
-2. A egi_log_thread_write() will be running as a thread,it monitors
+1. Run egi_init_log() first to initiliaze log porcess.
+   A egi_log_thread_write() then will be running as a thread,it monitors
    log_buff_count and write log_buff items into log file.
 
+2. Other threads just push log string into log_buff by calling egi_push_log().
+
+3. Call egi_quit_log() finally to end egi log process. Before that, you'd better
+   wait for a while to let other threads finish in_hand log pushing jobs.
+   Set EGI_LOG_QUITWAIT for default wait time before quit.
+
+4. In egi_push_log() you can turn on print for the pushing log information.
 
 Note:
 1. log_buff_mutex will not be destroyed after egi_quit_log().
@@ -15,10 +20,12 @@ Note:
 TODO:
 1. egi_init_log() can be called only once! It's NOT reentrant!!!!
    !!! consider to destroy and re-initiliate log_buff_mutex. !!!
-2. sort lof_buff wirte 
-3. file write is buffed, fflush...
-4  egi_push_log() after when egi_quit_log(), must wait for all egi_push_log().
---------------------------------------------------------------------------------*/
+2. sort lof_buff wirte. 	--- Not necessary
+3. egi_push_log() after when egi_quit_log(), must wait for all egi_push_log(). --- Not necessary.
+4. Consider file write buffer affection.
+
+Midas Zhou
+-----------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -65,14 +72,15 @@ int egi_push_log(const char *fmt, ...)
 	/* prepare time stamp string */
 	sprintf(strlog, "[%d-%02d-%02d %02d:%02d:%02d]  ",
 				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec);
-	printf("time string for strlog: %s \n",strlog);
+	//printf("time string for strlog: %s \n",strlog);
 
 	int tmlen=strlen(strlog);
 
 	/* push log string into temp. strlog */
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
-	printf("strlog=%s\n",strlog);
-
+#if ENABLE_LOGBUFF_PRINT
+	printf("%s\n",strlog);
+#endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 
    	/* get mutex lock */
@@ -86,7 +94,7 @@ int egi_push_log(const char *fmt, ...)
 	/* check if log_is_running */
 	if(!log_is_running)
 	{
-		printf("%s...%s: egi log is not running! try egi_init_log() first. \n",__FILE__,__FUNCTION__);
+		printf("%s(): egi log is not running! try egi_init_log() first. \n",__FUNCTION__);
 		pthread_mutex_unlock(&log_buff_mutex);
 		return -1;
 	}
@@ -100,9 +108,10 @@ int egi_push_log(const char *fmt, ...)
 	}
 
 	/* copy log string to log_buf */
+/*
 	printf("egi_push_log(): start strncpy...  log_buff_count=%d, strlen(strlog)=%d\n",
 									log_buff_count, strlen(strlog) );
-
+*/
 	memset(log_buff[log_buff_count],0,EGI_LOG_MAX_ITEMLEN); /* clear buff item */
 	strncpy(log_buff[log_buff_count],strlog,strlen(strlog));
 
@@ -159,11 +168,9 @@ static void egi_log_thread_write(void)
 		{
 			for(i=log_buff_count;i>0;i--)
 			{
-				printf("egi_log_thread_write(): start fprintf() log_buff[%d]: %s \n",
-											i-1, log_buff[i-1] );
+				//printf("egi_log_thread_write(): start fprintf() log_buff[%d]: %s \n",	i-1, log_buff[i-1] );
 				if( fprintf(egi_log_fp,"%s",log_buff[i-1]) <0 )
 					printf("egi_log_thread_write():fail to fprintf() log_buff \n");
-
 			}
 			/* reset count */
 			log_buff_count=0;
@@ -334,14 +341,14 @@ int egi_init_log(void)
 	log_is_running=true;
 
 
-#if 0 /* test log_buf */
+#if 0 /* FOR TEST: test log_buf[]  */
 	int i;
 
 	printf("egi_init_log(): test log_buff[] ...\n");
 
 	for(i=0;i<EGI_LOG_MAX_BUFFITEMS;i++)
 	{
-		/* test 256 bytes log string.. */
+		/* test log string buff, MAX. 254bytes printed for each item, 254 = 256-1'\n'-1'\0' */
 		snprintf(log_buff[i],EGI_LOG_MAX_ITEMLEN-1,"---1--------------------- TEST LOG_BUFF: %03d ---\
 --2------------------------------------------------\
 --3------------------------------------------------\
@@ -402,7 +409,7 @@ static int egi_stop_log(void)
 
 
 /*-------------------------------------------------------------------
-free all buff 
+free all log buff
 
 Return:
 	0	OK
@@ -433,7 +440,6 @@ static int egi_free_logbuff(void)
       /* -------------- exiting critical zone ---------------- */
 
 	return 0;
-
 }
 
 
@@ -451,6 +457,9 @@ Return:
 int egi_quit_log(void)
 {
 	int ret;
+
+	/* wait for other threads to finish pushing inhand log string */
+	tm_delayms(EGI_LOG_QUITWAIT);
 
 	/* stop log to let egi_log_thread_write() end */
 	if( egi_stop_log() !=0 )
