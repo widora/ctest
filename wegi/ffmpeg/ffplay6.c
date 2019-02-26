@@ -74,8 +74,8 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
-#define ENABLE_AVFILTER 1 /* enable AVFilter for video */
-#define ENABLE_CLIP_TEST 0 /* play the beginning part of a file */
+#define ENABLE_AVFILTER 0 /* enable AVFilter for video */
+#define ENABLE_CLIP_TEST 1 /* play the beginning part of a file */
 #define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the same file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file(s), if the file is not recognizable then skip it. */
 #define ENABLE_AUDIO 1
@@ -177,10 +177,23 @@ int main(int argc, char *argv[])
 	printf("total number of input files: %d\n",argc);
 
 /* <<<<<<<    Init SPI and FB, Timer   >>>>>>  */
-       /* start logger */
-	egi_init_log();
 
-       /* --- open spi dev for touch pad --- */
+       /* start egi tick */
+	printf("start egi tick...\n");
+        tm_start_egitick();
+       /* start logger */
+       if(egi_init_log() !=0)
+        {
+           printf("egi_init_log() fails! \n");
+           exit(0);
+        }
+
+
+	EGI_PLOG(LOG_TEST,"%s, %s(): --- Start FFPLAY --- \n",__FILE__, __FUNCTION__);
+//	tm_delayms(500);
+//exit(0);
+
+        /* --- open spi dev for touch pad --- */
         SPI_Open();
 
         /* --- prepare fb device --- */
@@ -216,14 +229,15 @@ while(1) {
    {
 
 	/* Open media stream or file */
-	printf("%lld(ms):	try to open file %s ...\n", tm_get_tmstampms(), argv[fnum]);
+	EGI_PLOG(LOG_TEST,"ffplay: Start to play file %s\n",argv[fnum]);
 	if(avformat_open_input(&pFormatCtx, argv[fnum], NULL, NULL)!=0)
 	{
-		EGI_PLOG(LOG_TEST,"Fail to open the file, or file type is not recognizable.\n");
+		EGI_PLOG(LOG_TEST,"ffplay: Fail to open the file, or file type is not recognizable.\n");
 #if ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
-		usleep(350000);
+		//xxxusleep(350000);
+		tm_delayms(300);
 		continue;
 #else
 		return -1;
@@ -272,8 +286,8 @@ while(1) {
 			audioStream=i;
 		}
 	}
-	EGI_PLOG(LOG_TEST,"%s: videoStream=%d, audioStream=%d \n",
-				__FUNCTION__,tm_get_tmstampms(),videoStream,audioStream);
+	EGI_PLOG(LOG_TEST,"ffplay: get videoStream [%d], audioStream [%d] \n",
+				 videoStream, audioStream);
 
 	if(videoStream == -1) {
 		printf("Didn't find a video stream!\n");
@@ -401,7 +415,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	/* proceed --- video --- stream */
     if(videoStream >=0 ) /* only if videoStream exists */
     {
-	printf("Prepare for video stream processing ...\n");
+	EGI_PLOG(LOG_TEST,"ffplay: Prepare for video stream processing ...\n");
 	clear_screen(&gv_fb_dev, 0);
 
 	/* get time_base */
@@ -433,7 +447,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 #if ENABLE_AVFILTER /* AVFilter ON */
   	/*---------<<< START: prepare filters >>>--------*/
-   	EGI_PLOG(LOG_TEST, "%s(): video stream is found, prepare avfilters ...\n",__FUNCTION__);
+   	EGI_PLOG(LOG_TEST, "%s(): prepare VIDEO avfilters ...\n", __FUNCTION__);
 
 	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
    	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
@@ -465,8 +479,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-		EGI_PLOG(LOG_TEST,"Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
-									__FUNCTION__);
+		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
+							__FILE__, __FUNCTION__ );
 		goto ff_fail;
    	}
 
@@ -478,8 +492,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		EGI_PLOG(LOG_TEST,"%s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
-							__FUNCTION__);
+		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
+							__FILE__, __FUNCTION__ );
 		goto ff_fail;
    	}
 
@@ -524,8 +538,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOG_TEST,"%s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
-							__FUNCTION__);
+		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
+							__FILE__, __FUNCTION__);
         	goto ff_fail;
     	}
     	/* configure the filter graph */
@@ -843,7 +857,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		}
 #endif
 
-	}/*  end of while()   */
+	}/*  end of while()  <<---end of file playing--->> */
 
 #if ENABLE_SEEK_LOOP /* test seek loop  */
 goto SEEK_LOOP_START;
@@ -949,18 +963,18 @@ ff_fail:
 	if(FF_LOOP_TIMEGAP>0)
 	{
 		printf("Hold on for a while...\n");
-		sleep(FF_LOOP_TIMEGAP);
+		//sleep(FF_LOOP_TIMEGAP);
+		tm_delayms(FF_LOOP_TIMEGAP*1000);
 	}
 
 
-   } /* end of for(...) play input files*/
+	EGI_PLOG(LOG_TEST,"ffplay: End of playing file %s\n",argv[fnum]);
+   } /* end of for(...), loop playing input files*/
 
 #if ENABLE_MEDIA_LOOP
-
-	//usleep(500000);
+   //tm_delayms(500);
 /* MEDIA_LOOP_END */
-}
-
+} /* end of while(1), eternal loop. */
 #endif
 
 /*  <<<<<<<<<   finish: clean up   >>>>>>>>>>>> */

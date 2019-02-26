@@ -13,6 +13,8 @@ Try to write a thread_safe log system. :))))
 
 4. In egi_push_log() you can turn on print for the pushing log information.
 
+5. setbuf() to NULL, so we use log_buff[] instead of system buffer.
+
 Note:
 1. log_buff_mutex will not be destroyed after egi_quit_log().
 2. Log items are not written  sorted by time, because of buff FILO and thread operation.
@@ -23,6 +25,7 @@ TODO:
 2. sort lof_buff wirte. 	--- Not necessary
 3. egi_push_log() after when egi_quit_log(), must wait for all egi_push_log(). --- Not necessary.
 4. Consider file write buffer affection.
+5. Fail to use access() to check file existance.
 
 Midas Zhou
 -----------------------------------------------------------------------------------------------*/
@@ -35,6 +38,7 @@ Midas Zhou
 #include <pthread.h>
 #include "egi_log.h"
 #include "egi_timer.h"
+
 
 static pthread_t log_write_thread;
 
@@ -79,7 +83,7 @@ int egi_push_log(const char *fmt, ...)
 	/* push log string into temp. strlog */
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
 #if ENABLE_LOGBUFF_PRINT
-	printf("%s\n",strlog);
+	printf("egi logger: %s\n",strlog);
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 
@@ -166,11 +170,22 @@ static void egi_log_thread_write(void)
 		/* write log buff items to log file */
 		if(log_buff_count>0)
 		{
-			for(i=log_buff_count;i>0;i--)
+			for(i=0;i<log_buff_count;i++)
 			{
-				//printf("egi_log_thread_write(): start fprintf() log_buff[%d]: %s \n",	i-1, log_buff[i-1] );
-				if( fprintf(egi_log_fp,"%s",log_buff[i-1]) <0 )
-					printf("egi_log_thread_write():fail to fprintf() log_buff \n");
+				//printf("egi_log_thread_write(): start fprintf() log_buff[%d]: %s \n",	i, log_buff[i] );
+				if( fprintf(egi_log_fp,"%s",log_buff[i]) < 0 )
+				{
+					printf("egi_log_thread_write(): fail to write log_buff[] to log file!\n");
+					/* in case that log file is corrupted */
+					if( access(EGI_LOGFILE_PATH,F_OK) !=0 )
+					{
+						printf("egi_log_thread_write(): log file %s dose NOT exist. exit thread...\n",EGI_LOGFILE_PATH);
+						/* reset running token */
+						log_is_running=false;
+						pthread_mutex_unlock(&log_buff_mutex);
+						pthread_exit(0);
+					}
+				}
 			}
 			/* reset count */
 			log_buff_count=0;
@@ -180,8 +195,6 @@ static void egi_log_thread_write(void)
 		if( !log_is_running ) /* !!! log_buff[] may already have been freed then */
 		{
 			printf("egi_log_thread_write(): log_is_running is false, flush log file and exit pthread now...\n");
-			/* flush log file */
-			//fflush(egi_log_fp); // NO use !!!!
 			pthread_mutex_unlock(&log_buff_mutex);
 			pthread_exit(0);
 		}
@@ -327,6 +340,8 @@ int egi_init_log(void)
 		ret=-3;
 		goto init_fail;
 	}
+	/* set stream buffer as NULL, write directly without any buffer */
+	setbuf(egi_log_fp,NULL);
 
 	/* 5. run log_writting thread */
 	if( pthread_create(&log_write_thread, NULL, (void *)egi_log_thread_write, NULL) !=0 )

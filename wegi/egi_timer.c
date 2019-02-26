@@ -117,7 +117,7 @@ void tm_settimer(int us)
 set timer for SIGALRM of global tick
 us: global tick time interval in us.
 --------------------------------------*/
-void tm_tick_settimer(int us)
+static void tm_tick_settimer(int us)
 {
 	/* time left before next expiration  */
 	tm_tick_val.it_value.tv_sec=0;
@@ -132,7 +132,7 @@ void tm_tick_settimer(int us)
 /* -----------------------------
   global tick timer routine
 -------------------------------*/
-void tm_tick_sigroutine(int signo)
+static void tm_tick_sigroutine(int signo)
 {
 	if(signo == SIGALRM)
 	{
@@ -142,6 +142,15 @@ void tm_tick_sigroutine(int signo)
 	/* restore tm_sigroutine */
 	signal(SIGALRM, tm_tick_sigroutine);
 
+}
+
+/*-------------------------------
+ start egi_system tick 
+-------------------------------*/
+void tm_start_egitick(void)
+{
+        tm_tick_settimer(TM_TICK_INTERVAL);
+        signal(SIGALRM, tm_tick_sigroutine);
 }
 
 

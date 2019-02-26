@@ -20,8 +20,9 @@ void tm_get_strtime(char *tmbuf);
 void tm_get_strday(char *tmdaybuf);
 void tm_sigroutine(int signo);
 void tm_settimer(int us);
-void tm_tick_settimer(int us);
-void tm_tick_sigroutine(int signo);
+//static void tm_tick_settimer(int us);
+//static void tm_tick_sigroutine(int signo);
+void tm_start_egitick(void);
 long long unsigned int tm_get_tickcount(void);
 void tm_delayms(long ms);/* !!! To be abandoned !!!! Not good! */
 bool tm_pulseus(long long unsigned int gap); /* gap(us) */

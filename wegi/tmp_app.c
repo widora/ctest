@@ -104,7 +104,6 @@ void test_log3(void)
 	for(i=0;i<10;i++)
 	{
 		EGI_PLOG(LOG_TEST,"log3: ---- %d ---- \n",i);
-//		egi_push_log("%s :: %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
 	}
 	pthread_exit(0);
 }
@@ -144,6 +143,11 @@ int main(int argc, char **argv)
 	exit(0);
 #endif
 
+	/* --- start egi tick --- */
+	tm_start_egitick();
+//	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
+//	signal(SIGALRM, tm_tick_sigroutine);
+
 	/* --- init log --- */
 	if(egi_init_log() !=0)
 	{
@@ -161,12 +165,11 @@ int main(int argc, char **argv)
 	//clear_screen(&gv_fb_dev, 0) ;
 	//exit(0);
 
-	/* ---- set timer for time display ---- */
-	tm_settimer(500000);/* set timer interval interval */
-	signal(SIGALRM, tm_sigroutine);
 
-	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
-	signal(SIGALRM, tm_tick_sigroutine);
+	/* ---- OBSELTE!!!! Clash with tm_tick_settimer() !  set timer for time display ---- */
+	//tm_settimer(500000);/* set timer interval interval */
+	//signal(SIGALRM, tm_sigroutine);
+
 
 	/* ---- start touch thread ---- */
 	if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
@@ -174,8 +177,6 @@ int main(int argc, char **argv)
 		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
 		exit(1);
 	}
-
-
 
 /*	mat_create_fptrigontab();
 	//printf(" -3%%100=%d \n",(-3)%100);
@@ -225,13 +226,22 @@ int main(int argc, char **argv)
 
 //exit(1);
 
+  while(1)
+  {
 	printf("test mutli_thread call egi_push_log()...\n");
 	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
 	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
 	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
-
 	egi_push_log("---- Good day! Log test finish. ----\n");
 
+/*
+	pthread_join(thread_log1,NULL);
+	pthread_join(thread_log2,NULL);
+	pthread_join(thread_log3,NULL);
+*/
+	tm_delayms(50);
+   }
+	printf("egi_quit_log...\n");
 	egi_quit_log();
 
 exit(0);
