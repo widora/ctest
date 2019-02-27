@@ -1,3 +1,7 @@
+/*-----------------------------------------------------------
+Note:
+
+-----------------------------------------------------------*/
 #ifndef  __FFPLAY_H__
 #define  __FFPLAY_H__
 
@@ -24,9 +28,12 @@
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define PIC_BUFF_NUM  4  //total number of RGB picture data buffers.
 
-uint8_t** pPICbuffs; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
-bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiability of pPICbuffs[x].*/
+static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
 
+static bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiability of pPICbuffs[x].
+					    * LoadPic2Buff() put 'false' tag
+					    * thdf_Display_Pic() put 'true' tag,
+					    */
 
 /* information of a decoded picture, for pthread params */
 struct PicInfo {
@@ -35,14 +42,14 @@ struct PicInfo {
 	int He;
 	int Vs;
 	int Ve;
-	uint8_t *data; //pointer to PICbuff
-	int numBytes;
-	int nPICbuff; // slot number of pPICbuffs
+	uint8_t *data; /* pointer to pPICbuffs */
+	int numBytes;  /* total bytes for a picture RGB data */
+	int nPICbuff; /* slot number of pPICbuffs */
 };
 
 static bool fftok_QuitFFplay=false; /* token for ffplay play control */
-bool fftok_Play=false;
-bool fftok_Forward=false;
+static bool fftok_Play=false;
+static bool fftok_Forward=false;
 
 /*------------------------------------------------------
 WARNING:  for 1_producer and 1_consumer scenario only!!!
@@ -63,7 +70,7 @@ uint8_t**  malloc_PICbuffs(int width, int height)
         for(i=0;i<PIC_BUFF_NUM;i++) {
                 pPICbuffs[i]=(uint8_t *)malloc(width*height*2); /* for 16bits color */
 
-              /* if fails, free those buffs */
+                /* if fails, free those buffs */
                 if(pPICbuffs[i] == NULL) {
                         for(k=0;k<i;k++) {
                                 free(pPICbuffs[k]);
@@ -106,14 +113,16 @@ int get_FreePicBuff(void)
 void free_PicBuffs(void)
 {
         int i;
+
+	if(pPICbuffs == NULL)
+		return;
+
         for(i=0;i<PIC_BUFF_NUM;i++)
 	{
 		if(pPICbuffs[i] != NULL)
 	                free(pPICbuffs[i]);
 	}
-
-	if(pPICbuffs != NULL)
-	        free(pPICbuffs);
+        free(pPICbuffs);
 
 	pPICbuffs=NULL;
 }
@@ -147,8 +156,8 @@ void* thdf_Display_Pic(void * argv)
    /* check size limit */
    if(imgbuf.width>PIC_MAX_WIDTH || imgbuf.height>PIC_MAX_HEIGHT)
    {
-	printf("thdf_Display_Pic(): movie size is too big to display.\n");
-	exit(-1);
+	EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
+	//exit(-1);
    }
 
    while(1)
@@ -158,15 +167,16 @@ void* thdf_Display_Pic(void * argv)
 		if( !IsFree_PICbuff[i] ) /* only if pic data is loaded in the buff */
 		{
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
-			/* display picture buffer with full scree */
+
 			imgbuf.imgbuf=(uint16_t *)pPICbuffs[i];
 			//egi_imgbuf_display(&imgbuf, &gv_fb_dev, 0, 0);
 
 			/* window_position displaying */
 			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, 0, 0, ppic->Hs, ppic->Vs,
 									imgbuf.width, imgbuf.height);
-		   	//----- hold for a while :)))  ----
+		   	/* hold for a while :))) */
 		   	usleep(20000);
+
 		   	/* put a FREE tag after display, then it may be overwritten. */
 	  	   	IsFree_PICbuff[i]=true;
 		}
@@ -198,13 +208,14 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 
 	nbuff=get_FreePicBuff(); /* get a slot number */
 	ppic->nPICbuff=nbuff;
-//	printf(" get_FreePicBuff() =%d\n",nbuff);
+	//printf("Load_Pic2Buff(): get_FreePicBuff() =%d\n",nbuff);
 
 	/* only if PICBuff has free slot */
 	if(nbuff >= 0){
-		ppic->data=pPICbuffs[nbuff];//get pointer to the PICBuff
-		memcpy(ppic->data,data,numBytes);
-		IsFree_PICbuff[nbuff]=false; //put a NON_FREE tag to the buff slot
+		ppic->data=pPICbuffs[nbuff]; /* get pointer to the PICBuff */
+		//printf("Load_Pic2Buff(): start memcpy..\n");
+		memcpy(ppic->data, data, numBytes);
+		IsFree_PICbuff[nbuff]=false; /* put a NON_FREE tag to the buff slot */
 	}
 
 	return nbuff;

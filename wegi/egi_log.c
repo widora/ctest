@@ -2,10 +2,13 @@
 Try to write a thread_safe log system. :))))
 
 1. Run egi_init_log() first to initiliaze log porcess.
-   A egi_log_thread_write() then will be running as a thread,it monitors
-   log_buff_count and write log_buff items into log file.
+   A egi_log_thread_write() then will be running as a log checking thread, It monitors
+   log_buff_count, and write log_buff[] items into log file if the counter>0.
 
 2. Other threads just push log string into log_buff by calling egi_push_log().
+   High level log string (>= LOGLV_NOBUFF_THRESHOLD) will be wirte directly to log file without
+   pushing to log_buff. So critical debug information will be recorded even if process exits abruptly
+   just after egi_push_log() operation.
 
 3. Call egi_quit_log() finally to end egi log process. Before that, you'd better
    wait for a while to let other threads finish in_hand log pushing jobs.
@@ -15,11 +18,13 @@ Try to write a thread_safe log system. :))))
 
 5. setbuf() to NULL, so we use log_buff[] instead of system buffer.
 
+
 Note:
 1. log_buff_mutex will not be destroyed after egi_quit_log().
 2. Log items are not written  sorted by time, because of buff FILO and thread operation.
 
 TODO:
+0. if the caller exits abruptly, then all buffered log will be lost. ..fork() ???
 1. egi_init_log() can be called only once! It's NOT reentrant!!!!
    !!! consider to destroy and re-initiliate log_buff_mutex. !!!
 2. sort lof_buff wirte. 	--- Not necessary
@@ -48,11 +53,36 @@ static FILE *egi_log_fp; /* log_buff_mutex lock */
 static char **log_buff;  /* log_buff_mutex lock */
 static int log_buff_count; /* count number, or number of the first available log buff,log_buffer_mutex lock */
 static bool log_is_running;
-static bool write_thread_running;
+//static bool write_thread_running;
 
-/*-----------------------------------------------------------------------
-Push log string to log buff item
-String chars that are out of log_buff[] item mem. space will be discarded.
+
+/*-----------------------------------------------------------------
+Convert enum egi_log_level to string
+----------------------------------------------------------------*/
+
+#define ENUM_LOGLV_CASE(x)      case    x:  return(#x);
+
+static inline const char *egi_loglv_to_string(enum egi_log_level log_level)
+{
+	switch(log_level)
+	{
+		ENUM_LOGLV_CASE(LOGLV_NONE);
+		ENUM_LOGLV_CASE(LOGLV_INFO);
+		ENUM_LOGLV_CASE(LOGLV_WARN);
+		ENUM_LOGLV_CASE(LOGLV_ERROR);
+		ENUM_LOGLV_CASE(LOGLV_CRITICAL);
+		ENUM_LOGLV_CASE(LOGLV_TEST);
+	}
+	return "LOGLV_Unknown";
+}
+
+
+
+/*---------------------------------------------------------------------------------------
+1. For high level log(>LOGLV_WARN),it will be written directly to log file with nobuffer.
+2. Otherwise, push log string to log_buff[] and wait for write_thread to
+   write to log file later.
+3. Log string that exceeds length of log_buff[] will be trimmed to EGI_LOG_MAX_ITEMLEN-1.
 
 TODO: check log string total length!!!
 
@@ -60,8 +90,8 @@ return:
 	0	OK
 	<0	Fails
 	>0	Log buff is full.
-----------------------------------------------------------------------*/
-int egi_push_log(const char *fmt, ...)
+--------------------------------------------------------------------------------------*/
+int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 {
 	char strlog[EGI_LOG_MAX_ITEMLEN]={0}; /* for temp. use */
 
@@ -73,9 +103,10 @@ int egi_push_log(const char *fmt, ...)
 	time_t t=time(NULL);
 	struct tm *tm=localtime(&t);
 
-	/* prepare time stamp string */
-	sprintf(strlog, "[%d-%02d-%02d %02d:%02d:%02d]  ",
-				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec);
+	/* prepare time stamp string and log_level */
+	sprintf(strlog, "[%d-%02d-%02d %02d:%02d:%02d] [%s] ",
+				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec,
+				egi_loglv_to_string(log_level) );
 	//printf("time string for strlog: %s \n",strlog);
 
 	int tmlen=strlen(strlog);
@@ -86,6 +117,19 @@ int egi_push_log(const char *fmt, ...)
 	printf("egi logger: %s\n",strlog);
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
+
+
+	/* if high level log, write directly to log file */
+	if(log_level >= LOGLV_NOBUFF_THRESHOLD)
+	{
+		if( fprintf(egi_log_fp,"%s",strlog) < 0 )
+		{
+			printf("egi_push_log(): fail to write strlog to log file.\n");
+			return -1;
+		}
+
+		return 0;
+	}
 
    	/* get mutex lock */
    	if(pthread_mutex_lock(&log_buff_mutex) != 0)

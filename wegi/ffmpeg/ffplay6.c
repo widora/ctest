@@ -74,8 +74,8 @@ Midas Zhou
 #include <signal.h>
 #include <math.h>
 
-#define ENABLE_AVFILTER 0 /* enable AVFilter for video */
-#define ENABLE_CLIP_TEST 1 /* play the beginning part of a file */
+#define ENABLE_AVFILTER 1 /* enable AVFilter for video */
+#define ENABLE_CLIP_TEST 0 /* play the beginning part of a file */
 #define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the same file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file(s), if the file is not recognizable then skip it. */
 #define ENABLE_AUDIO 1
@@ -151,7 +151,6 @@ int main(int argc, char *argv[])
 	AVFilter	*avFlt_BufferSrc=NULL;
 	AVFilterInOut	*avFltIO_InPuts=NULL;/* A linked-list of the inputs/outputs of the filter chain */
 	AVFilterInOut	*avFltIO_OutPuts=NULL;
-	//AVBufferSinkParams	*BufferSink_params;
 	AVFilterGraph	*filter_graph=NULL; /* filter chain graph */
 	AVFrame		*filt_pFrame=NULL; /* for filtered frame */
 	enum AVPixelFormat outputs_pix_fmts[] = { AV_PIX_FMT_RGB565LE, AV_PIX_FMT_NONE };/* NONE as for end token */
@@ -189,7 +188,7 @@ int main(int argc, char *argv[])
         }
 
 
-	EGI_PLOG(LOG_TEST,"%s, %s(): --- Start FFPLAY --- \n",__FILE__, __FUNCTION__);
+	EGI_PLOG(LOGLV_INFO,"%s, %s(): --- Start FFPLAY --- \n",__FILE__, __FUNCTION__);
 //	tm_delayms(500);
 //exit(0);
 
@@ -229,10 +228,10 @@ while(1) {
    {
 
 	/* Open media stream or file */
-	EGI_PLOG(LOG_TEST,"ffplay: Start to play file %s\n",argv[fnum]);
+	EGI_PLOG(LOGLV_INFO,"ffplay: Start to play file %s\n",argv[fnum]);
 	if(avformat_open_input(&pFormatCtx, argv[fnum], NULL, NULL)!=0)
 	{
-		EGI_PLOG(LOG_TEST,"ffplay: Fail to open the file, or file type is not recognizable.\n");
+		EGI_PLOG(LOGLV_ERROR,"ffplay: Fail to open the file, or file type is not recognizable.\n");
 #if ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
@@ -286,7 +285,7 @@ while(1) {
 			audioStream=i;
 		}
 	}
-	EGI_PLOG(LOG_TEST,"ffplay: get videoStream [%d], audioStream [%d] \n",
+	EGI_PLOG(LOGLV_INFO,"ffplay: get videoStream [%d], audioStream [%d] \n",
 				 videoStream, audioStream);
 
 	if(videoStream == -1) {
@@ -310,7 +309,7 @@ while(1) {
 	/* proceed --- audio --- stream */
 	if(audioStream >= 0) /* only if audioStream exists */
   	{
-		printf("Prepare for audio stream processing ...\n");
+		EGI_PLOG(LOGLV_INFO,"ffplay: Prepare for audio stream processing ...\n");
 		/* Get a pointer to the codec context for the audio stream */
 		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 		/* Find the decoder for the audio stream */
@@ -380,7 +379,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
 
-			printf("swr_init(swr)...\n");
+			EGI_PLOG(LOGLV_INFO,"ffplay: start swr_init() ...\n");
 			swr_init(swr);
 
 			/* alloc outputBuffer */
@@ -388,24 +387,32 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			outputBuffer=malloc(2*frame_size * bytes_per_sample);
 			if(outputBuffer == NULL)
 	       	 	{
-				printf("malloc() outputBuffer failed!\n");
+				EGI_PLOG(LOGLV_ERROR,"ffplay: malloc() outputBuffer failed!\n");
 				return -1;
 			}
 
 			/* open pcm play device and set parameters */
- 			prepare_ffpcm_device(nb_channels,out_sample_rate,true); //true for interleaved access
+ 			if( prepare_ffpcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
+			{
+				EGI_PLOG(LOGLV_ERROR,"ffplay: fail to prepare pcm device for interleaved access.\n");
+				goto ff_fail;
+			}
 		}
 		else
 		{
 			/* open pcm play device and set parameters */
- 			prepare_ffpcm_device(nb_channels,sample_rate,false); //false for noninterleaved access
+ 			if( prepare_ffpcm_device(nb_channels,sample_rate,false) !=0 ) /* false for noninterleaved access */
+			{
+				EGI_PLOG(LOGLV_ERROR,"ffplay: fail to prepare pcm device for noninterleaved access.\n");
+				goto ff_fail;
+			}
 		}
 
 		/* allocate frame for audio */
-		printf("alloc pAudioFrame ...\n");
+		printf("av_frame_alloc()...\n");
 		pAudioFrame=av_frame_alloc();
 		if(pAudioFrame==NULL) {
-			fprintf(stderr, "Fail to allocate pAudioFrame!\n");
+			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
 			return -1;
 		}
 
@@ -415,7 +422,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	/* proceed --- video --- stream */
     if(videoStream >=0 ) /* only if videoStream exists */
     {
-	EGI_PLOG(LOG_TEST,"ffplay: Prepare for video stream processing ...\n");
+	EGI_PLOG(LOGLV_INFO,"ffplay: Prepare for video stream processing ...\n");
 	clear_screen(&gv_fb_dev, 0);
 
 	/* get time_base */
@@ -446,15 +453,17 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     {
 
 #if ENABLE_AVFILTER /* AVFilter ON */
+
   	/*---------<<< START: prepare filters >>>--------*/
-   	EGI_PLOG(LOG_TEST, "%s(): prepare VIDEO avfilters ...\n", __FUNCTION__);
+
+   	EGI_PLOG(LOGLV_INFO, "ffplay: prepare VIDEO avfilters ...\n");
 
 	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
    	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
    	avFlt_BufferSrc=avfilter_get_by_name("buffer");
    	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
    	{
-		EGI_PLOG(LOG_TEST,"%s(): Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n",__FUNCTION__);
+		EGI_PLOG(LOGLV_ERROR,"ffplay: Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n");
 		goto ff_fail;
    	}
    	avFltIO_InPuts=avfilter_inout_alloc();
@@ -479,20 +488,17 @@ struct SwrContext *swr_alloc_set_opts( swr ,
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
+		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
 							__FILE__, __FUNCTION__ );
 		goto ff_fail;
    	}
 
    	/* create sink(out) filter in the filter chain graph */
-   	//BufferSink_params=av_buffersink_params_alloc();
-   	//BufferSink_params->pixel_fmts=;
    	ret=avfilter_graph_create_filter(&avFltCtx_BufferSink, avFlt_BufferSink,"out",NULL,NULL,filter_graph);
-   	//av_free(BufferSink_params);
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
+		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
 							__FILE__, __FUNCTION__ );
 		goto ff_fail;
    	}
@@ -538,7 +544,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOG_TEST,"%s, %s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
+		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
 							__FILE__, __FUNCTION__);
         	goto ff_fail;
     	}
@@ -587,13 +593,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	/* get original movie size */
 	width=pCodecCtx->width;
 	height=pCodecCtx->height;
+
 	/* calculate scaled movie size to fit for the screen */
 #if ENABLE_AVFILTER  /* to be decided by filters_description string, if frame rotated. */
         scwidth=240;//160;
 	scheight=320;//240;
 
 
-#else if (!ENABLE_AVFILTER) /* to fit for current width and height, no rotation */
+#elif (!ENABLE_AVFILTER) /* to fit for current width and height, no rotation */
         if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
 		if( (1.0*width/height) >= (1.0*PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
 		{
@@ -686,9 +693,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
-		printf("----- Fails to create the thread for displaying pictures! \n");
+		printf("ffplay(): Fails to create the thread for displaying pictures! \n");
 		return -1;
 	}
+	else
+		printf("ffplay(): Finish creating the thread for displaying pictures.\n");
 
   }/* end of (videoStream >=0 ) */
 
@@ -706,11 +715,12 @@ struct SwrContext *swr_alloc_set_opts( swr ,
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 #endif
 
+	printf("start while( av_read_frame ...) ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 		/* -----   process Video Stream   ----- */
 		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
-			//printf("...decoding video frame\n");
+			printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
 				printf("Error decoding video. try to carry on...\n");
@@ -720,6 +730,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			/* if we get complete video frame(s) */
 			if(frameFinished) {
 #if ENABLE_AVFILTER /* AVFilter ON */
+
 				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
 				/* push decoded frame into the filter graph */
 			        if( av_buffersrc_add_frame_flags(avFltCtx_BufferSrc,pFrame,
@@ -749,9 +760,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				}
 				av_frame_unref(filt_pFrame);
 
-#else if (!ENABLE_AVFILTER) /* AVfilter OFF */
+#elif (!ENABLE_AVFILTER) /* AVfilter OFF */
 				/* convert the image from its native format to RGB */
-				//printf("...converting image to RGB\n");
+				printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -759,7 +770,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				//printf(" start Load_Pic2Buff()....\n");
+				printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
 #endif  /* end of AVFilter ON/OFF */
@@ -770,13 +781,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
 				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
 							&pFormatCtx->streams[videoStream]->time_base) );
-/*
+
+
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Velapsed, ff_sec_Vduration );
 
 				//printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
 				fflush(stdout);
-*/
+
 				//gettimeofday(&tm_end,NULL);
 				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			} /* end of if(FrameFinished) */
@@ -968,7 +980,7 @@ ff_fail:
 	}
 
 
-	EGI_PLOG(LOG_TEST,"ffplay: End of playing file %s\n",argv[fnum]);
+	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n",argv[fnum]);
    } /* end of for(...), loop playing input files*/
 
 #if ENABLE_MEDIA_LOOP

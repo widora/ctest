@@ -83,7 +83,7 @@ void test_log1(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		EGI_PLOG(LOG_TEST," From file %s,  %s(): ---%d--- \n",__FILE__,__FUNCTION__,i);
+		EGI_PLOG(LOGLV_INFO," From file %s,  %s(): LOGLV_INFO---%d--- \n",__FILE__,__FUNCTION__,i);
 	}
 	pthread_exit(0);
 }
@@ -93,7 +93,8 @@ void test_log2(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		EGI_PLOG(LOG_TEST,"%s(): ---%d--- \n",__FUNCTION__,i);
+		EGI_PLOG(LOGLV_ERROR,"%s(): LOGLV_ERROR---%d--- \n",__FUNCTION__,i);
+//		exit(0);
 	}
 	pthread_exit(0);
 }
@@ -103,7 +104,7 @@ void test_log3(void)
 	pthread_detach(pthread_self());
 	for(i=0;i<10;i++)
 	{
-		EGI_PLOG(LOG_TEST,"log3: ---- %d ---- \n",i);
+		EGI_PLOG(LOGLV_INFO,"log3: LOGLV_INFO---- %d ---- \n",i);
 	}
 	pthread_exit(0);
 }
@@ -232,13 +233,9 @@ int main(int argc, char **argv)
 	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
 	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
 	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
-	egi_push_log("---- Good day! Log test finish. ----\n");
+	egi_push_log(LOGLV_WARN,"---- Good day! WARN Log  finish. ----\n");
+	egi_push_log(LOGLV_TEST,"---- Good day! TEST Log  finish. ----\n");
 
-/*
-	pthread_join(thread_log1,NULL);
-	pthread_join(thread_log2,NULL);
-	pthread_join(thread_log3,NULL);
-*/
 	tm_delayms(50);
    }
 	printf("egi_quit_log...\n");

@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------------------------------
  Based on:
 	   www.itwendao.com/article/detail/420944.html
 
@@ -13,7 +13,9 @@ some explanation:
         buffer: N*periods
         interleaved mode:record period data frame by frame, such as  frame1(Left sample,Right sample),frame2(), ......
         uninterleaved mode: record period data channel by channel, such as period(Left sample,Left ,left...),period(right,right..$
------------------------------------------------------------------------------------------------------*/
+
+Midas Zhou
+--------------------------------------------------------------------------------------------------------------*/
 #ifndef __PLAY_FFPCM_H__
 #define __PLAY_FFPCM_H__
 
@@ -23,8 +25,8 @@ some explanation:
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 
-extern snd_pcm_t *g_ffpcm_handle;
-//static snd_pcm_t *g_ffpcm_handle=NULL;
+//extern snd_pcm_t *g_ffpcm_handle;
+//static snd_pcm_t *g_ffpcm_handle;
 
 int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
 void close_ffpcm_device(void);

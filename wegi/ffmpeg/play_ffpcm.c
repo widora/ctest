@@ -1,22 +1,31 @@
+/*----------------------------------------------------------------
+Note:
+1. Mplayer will take the pcm device exclusively??
+
+----------------------------------------------------------------*/
 #include "play_ffpcm.h"
 #include "egi_debug.h"
+#include "egi_log.h"
 
-//----- definition of global varriable: g_ffpcm_handle ---------
-snd_pcm_t *g_ffpcm_handle;//=NULL assignment will cause multi_definition error in compilation ;
-bool g_blInterleaved;
-/*------------------------------------------------
- open an PCM device and set following parameters:
- 1.  access mode  (SND_PCM_ACCESS_RW_INTERLEAVED)
- 2.  PCM format    (SND_PCM_FORMAT_S16_LE)
- 3.  number of channels  ------  unsigned int nchan
- 4.  sampling rate  ----- unsigned int srate
- 5.  bl_interleaved  ----- True for INTERLEAVED access, 
-			   False for NONINTERLEAVED access 
+/* definition of global varriable: g_ffpcm_handle */
+static snd_pcm_t *g_ffpcm_handle;
+static bool g_blInterleaved;
 
+/*-------------------------------------------------------------------------------
+ Open an PCM device and set following parameters:
+
+ 1.  access mode:		(SND_PCM_ACCESS_RW_INTERLEAVED)
+ 2.  PCM format:		(SND_PCM_FORMAT_S16_LE)
+ 3.  number of channels:	unsigned int nchan
+ 4.  sampling rate:		unsigned int srate
+ 5.  bl_interleaved:		TRUE for INTERLEAVED access,
+				FALSE for NONINTERLEAVED access
 Return:
 a	0  :  OK
 	<0 :  fails
---------------------------------------------------*/
+
+Midas Zhou
+-----------------------------------------------------------------------------------*/
 int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
 {
 	int rc;
@@ -24,56 +33,57 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
 	snd_pcm_uframes_t frames;
         int dir=0;
 
-	//----- save interleave mode
+	/* save interleave mode */
 	g_blInterleaved=bl_interleaved;
 
-	//----- open PCM device for playblack
+	/* open PCM device for playblack */
 	rc=snd_pcm_open(&g_ffpcm_handle,"default",SND_PCM_STREAM_PLAYBACK,0);
 	if(rc<0)
 	{
-		fprintf(stderr,"unable to open pcm device: %s\n",snd_strerror(rc));
+		EGI_PLOG(LOGLV_ERROR,"%s(): unable to open pcm device: %s\n",__FUNCTION__,snd_strerror(rc));
+		//exit(-1);
 		return rc;
 	}
 
-	//----- allocate a hardware parameters object
+	/* allocate a hardware parameters object */
 	snd_pcm_hw_params_alloca(&params);
 
-	//----- fill it in with default values
+	/* fill it in with default values */
 	snd_pcm_hw_params_any(g_ffpcm_handle, params);
 
-	//<<<<<<<<<<<<<<<<<<<       set hardware parameters     >>>>>>>>>>>>>>>>>>>>>>
-	if(bl_interleaved) {
-		//----- interleaved mode
+	/* <<<<<<<<<<<<<<<<<<<       set hardware parameters     >>>>>>>>>>>>>>>>>>>>>> */
+	/* if interleaved mode */
+	if(bl_interleaved)  {
 		snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
 	}
+	/* otherwise noninterleaved mode */
 	else {
-		//----- !!!! use noninterleaved mode to play ffmpeg decoded data !!!!!
+		/* !!!! use noninterleaved mode to play ffmpeg decoded data !!!!! */
 		snd_pcm_hw_params_set_access(g_ffpcm_handle, params, SND_PCM_ACCESS_RW_NONINTERLEAVED);
 	}
 
-	//----- signed 16-bit little-endian format
+	/* signed 16-bit little-endian format */
 	snd_pcm_hw_params_set_format(g_ffpcm_handle, params, SND_PCM_FORMAT_S16_LE);
 
-	//----- two channels
+	/* set channel	*/
 	snd_pcm_hw_params_set_channels(g_ffpcm_handle, params, nchan);
 
-	//----- sampling rate
+	/* sampling rate */
 	snd_pcm_hw_params_set_rate_near(g_ffpcm_handle, params, &srate, &dir);
 	if(dir != 0)
 		printf(" Actual sampling rate is set to %d HZ!\n",srate);
 
-	//----- set params
+	/* set HW params */
 	rc=snd_pcm_hw_params(g_ffpcm_handle,params);
-	if(rc<0) //rc=0 on success
+	if(rc<0) /* rc=0 on success */
 	{
 		fprintf(stderr,"unable to set hw parameter: %s\n",snd_strerror(rc));
 		return rc;
 	}
 
-	//----- get period size
+	/* get period size */
 	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 	printf("snd pcm period size = %d frames\n",(int)frames);
-
 
 	return rc;
 }
