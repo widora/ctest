@@ -38,7 +38,9 @@ NOTE:
 7. Cost_time test codes will slow down processing and cause choppy.
 8. Use unstripped ffmpeg libs.
 9. Try to play mp3 :)
-
+10.For stream media, avformat_open_input() will fail if key_frame is corrupted.
+11.Change AVFilter descr to set clock or cclock, var. transpos_colock is vague.
+12.if logo.png is too big.!!!!
 
 		 (((  --- Glossary ---  )))
 
@@ -47,6 +49,12 @@ SAR	 --- Sample Aspect Ratio
 	     BUT!!!! in avcodec.h,  struct AVCodecContext->sample_aspect_ratio is "width of a pixel divided by the height of the pixel"
 DAR	 --- Display Aspect Ratio
 PIX_FMT  --- pixel format defined in libavutil/pixfmt.h
+FFmpeg transpose	--- map W(row) pixels to H(column) pixels , or vise versa.
+           for avfilter descr normal scale=WxH(image upright size!!! NOT LCD WxH!!!)
+	   !!! normal scale= image_W x image_H (image upright size!!!),
+ 	   if transpose clock or cclock, it shall set be 'scale=display_H x display_W',
+	   LCD always maps display_W to row, and display_H to column.
+	   also finally image_H map to display_W if clock/cclock transposed.
 
 
 		 (((  --- Data Flow ---  )))
@@ -73,19 +81,31 @@ Midas Zhou
 #include "egi_log.h"
 #include <signal.h>
 #include <math.h>
+#include <string.h>
 
-#define ENABLE_AVFILTER 1 /* enable AVFilter for video */
-#define ENABLE_CLIP_TEST 0 /* play the beginning part of a file */
+#define ENABLE_AVFILTER 0 /* enable AVFilter for video */
+#define ENABLE_CLIP_TEST 1 /* play the beginning part of a file */
+#define FF_CLIP_PLAYTIME 6 /* in second, set clip play time */
 #define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the same file */
 #define ENABLE_MEDIA_LOOP 1 /* loop trying to open and play media stream or file(s), if the file is not recognizable then skip it. */
 #define ENABLE_AUDIO 1
 #define ENABLE_AUTOFIT_ROTPIC 0 /* auto. rotate picture to fit for the screen ration */
-
-#define FF_LOOP_TIMEGAP 0 //3 /* in second, holdon or idle time after ffplay a file */
+#define FF_LOOP_TIMEGAP 3 //3 /* in second, holdon or idle time after ffplay a file */
 
 
 int ff_token_skip=0; /* when >0, stop to play next file */
 
+/*
+ffplay() parameters:
+ *	0. displaying window offset x0,y0
+ *	1. display_width, display_height; (displaying window size, relating to LCD coordinate,map to LCD WxH)
+ *	2. transpose_clock; for avfiler descr, transpose clock or not.
+ *	3. out_sample_rate for PCM
+
+Note:
+ *	1. 
+ *	2.
+*/
 int main(int argc, char *argv[])
 {
 	/* for input files */
@@ -117,11 +137,16 @@ int main(int argc, char *argv[])
 	/* for Pic Info. */
 	struct PicInfo pic;
 
-	/* origin movie size */
+	/* origin movie size, mapped as width->LCD(fb) row, height->LCD(fb) column  */
 	int width;
 	int height;
 
-	/* scaled movie size */
+	/* scaled movie size, mapped as  scwidth->LCD(fb) row, scheight->LCD(fb) column
+	   will be adjusted to fit for LCD WxH, clock transpose is also considered.
+	  0. used to set PicInfo pic.H and pic.V, for displaying image info.
+	  1. when No AVFilter applys, they will be modified to best fit LCD size, and then for SWS.
+	  2. when AVFilter applys instead of SWS, they are to be the same as display_width and display_height.
+         */
 	int scwidth;
 	int scheight;
 
@@ -156,9 +181,38 @@ int main(int argc, char *argv[])
 	enum AVPixelFormat outputs_pix_fmts[] = { AV_PIX_FMT_RGB565LE, AV_PIX_FMT_NONE };/* NONE as for end token */
 	char args[512];
 	/* video filter descr, same as -vf option in ffmpeg */
+	/* scale = Width x Height */
+	/* transpose: transpose rows with columns in the input video */
 //	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
-//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
-	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=320:240,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:320[out]";//,transpose=cclock[out]"; /* after cclock -> W160xH240, or clock */;
+//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=180:180,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
+
+	int transpose_clock=1; /* if 0, transpose not applied, else transpose clock or cclock */
+	/* display window
+	   map to final display LCD WxH (NOT image upright size!!!)
+	   1. when ENABLE_AVFILTER, display_width/display_height will be adjusted according to best fitting
+	      scwidth/scheight.
+	   2. when disable AVFILTER, display_width/disaply_height are just same as scwidth/scheight.
+        */
+	int display_width=240;  /* display_width is current view LCD pixel width!! final W&H for final view, NOT current view */
+	int display_height=320;
+
+	/* upright image width and height */
+	int image_width;
+	int image_height;
+
+	char filters_descr[512]={0};
+
+
+	/* map image W&H to display(LCD) W&H */
+/*
+	image_width=height;
+	image_height=display_width;
+	sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%dx%d,transpose=clock[out]",
+							image_width, image_height); /*
+
+	EGI_PLOG(LOGLV_WARN,"AVFilter Descr: %s\n",filters_descr);
+*/
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -170,23 +224,23 @@ int main(int argc, char *argv[])
 
 	/* check input argc */
 	if(argc < 2) {
-		printf("File path not found!\n");
+		printf("ffplay: File path not found!\n");
 		return -1;
 	}
-	printf("total number of input files: %d\n",argc);
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: total number of input files: %d\n",argc);
 
 /* <<<<<<<    Init SPI and FB, Timer   >>>>>>  */
 
        /* start egi tick */
-	printf("start egi tick...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: start egi tick...\n");
         tm_start_egitick();
+
        /* start logger */
        if(egi_init_log() !=0)
         {
            printf("egi_init_log() fails! \n");
            exit(0);
         }
-
 
 	EGI_PLOG(LOGLV_INFO,"%s, %s(): --- Start FFPLAY --- \n",__FILE__, __FUNCTION__);
 //	tm_delayms(500);
@@ -199,20 +253,11 @@ int main(int argc, char *argv[])
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-        /* ---- set timer for time display ---- */
-#if 0
-        tm_settimer(500000);/* set timer interval interval */
-        signal(SIGALRM, tm_sigroutine);
-
-        tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
-        signal(SIGALRM, tm_tick_sigroutine);
-#endif
-
 
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 #if ENABLE_MEDIA_LOOP
  /* MEDIA_LOOP_START */
-printf("enable to loop playing media file or stream ...\n");
+printf("Loop playing media file or stream ...\n");
 
 while(1) {
 #endif
@@ -220,11 +265,13 @@ while(1) {
    /* Register all formats and codecs */
    av_register_all();
    avformat_network_init();
-   avfilter_register_all(); /* register all default builtin filters */
 
+#if ENABLE_AVFILTER
+   avfilter_register_all(); /* register all default builtin filters */
+#endif
 
    /* play all input files, one by one. */
-   for(fnum=1;fnum<argc;fnum++)
+   for(fnum=1; fnum < argc; fnum++)
    {
 
 	/* Open media stream or file */
@@ -236,7 +283,7 @@ while(1) {
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
 		//xxxusleep(350000);
-		tm_delayms(300);
+		tm_delayms(30); /* sleep less if try to catch a key_frame for a media stream */
 		continue;
 #else
 		return -1;
@@ -244,13 +291,12 @@ while(1) {
 	}
 
 	/* Retrieve stream information, !!!!! time consuming !!!! */
-	printf("%lld(ms):	retrieve stream information... \n", tm_get_tmstampms());
-	// ---- seems no use! ----
-
+	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	retrieve stream information... \n", tm_get_tmstampms());
+	/* ---- seems no use! ---- */
 	//pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
-		printf(" Fail to find stream information!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
 #if ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
@@ -261,48 +307,54 @@ while(1) {
 	}
 
 	/* Dump information about file onto standard error */
-	printf("%lld(ms):	try to dump file information... \n",tm_get_tmstampms());
+	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	try to dump file information... \n",tm_get_tmstampms());
 	av_dump_format(pFormatCtx, 0, argv[1], 0);
 
 	/* Find the first video stream and audio stream */
-	printf("%lld(ms):	try to find the first video stream... \n",tm_get_tmstampms());
+	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	try to find the first video stream... \n",tm_get_tmstampms());
 	/* reset stream index first */
 	videoStream=-1;
 	audioStream=-1;
 
-	printf("number of streams: %d \n",pFormatCtx->nb_streams);
+	//printf("%d streams found.\n",pFormatCtx->nb_streams);
 	for(i=0; i<pFormatCtx->nb_streams; i++) {
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
 		   if( videoStream < 0) {
 			videoStream=i;
-			printf("video stream [%d] is found .\n",i);
+			printf("Video is found in stream[%d], to be accepted.\n",i);
 		   }
 		   else
-			printf("video stream [%d] is also available.\n",i);
+			printf("Video is also found in stream[%d], to be ignored.\n",i);
 		}
-		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO &&
-		   audioStream < 0) {
+
+		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO ) {
+		   if( audioStream < 0) {
 			audioStream=i;
+			printf("Audio is found in stream[%d], to be accepted.\n",i);
+		   }
+		   else
+			printf("Audio is also found in stream[%d], to be ignored.\n",i);
 		}
 	}
 	EGI_PLOG(LOGLV_INFO,"ffplay: get videoStream [%d], audioStream [%d] \n",
 				 videoStream, audioStream);
 
 	if(videoStream == -1) {
-		printf("Didn't find a video stream!\n");
+		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!\n");
 //		return -1;
 	}
 	if(audioStream == -1) {
-		printf("Didn't find an audio stream!\n");
+		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!\n");
 //go on   	return -1;
 	}
+
 	if(videoStream == -1 && audioStream == -1) {
-		printf("No stream found for video or audio! quit now...\n");
+		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...\n");
 		return -1;
 	}
 
 #if(!ENABLE_AUDIO)
-	printf(" audio is disabled! \n");
+	printf("Audio is disabled! \n");
 	audioStream=-1;
 #endif
 
@@ -313,21 +365,21 @@ while(1) {
 		/* Get a pointer to the codec context for the audio stream */
 		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 		/* Find the decoder for the audio stream */
-		printf("try to find the decoder for the audio stream... \n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to find the decoder for the audio stream... \n");
 		aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
 		if(aCodec == NULL) {
-			fprintf(stderr, "Unsupported audio codec!\n");
+			EGI_PLOG(LOGLV_ERROR, "Unsupported audio codec! quit ffplay now...\n");
 			return -1;
 		}
 		/* copy audio codec context */
 		aCodecCtx=avcodec_alloc_context3(aCodec);
 		if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
-			fprintf(stderr, "Couldn't copy audio code context!\n");
+			EGI_PLOG(LOGLV_ERROR, "Couldn't copy audio code context! quit ffplay now...\n");
 			return -1;
 		}
 		/* open audio codec */
 		if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
-			fprintf(stderr, "Cound not open audio codec!\n");
+			EGI_PLOG(LOGLV_ERROR, "Cound not open audio codec with avcodec_open2(), quit ffplay now...!\n");
 			return -1;
 		}
 		/* get audio stream parameters */
@@ -337,21 +389,21 @@ while(1) {
 		bytes_per_sample = av_get_bytes_per_sample(sample_fmt);
 		nb_channels = aCodecCtx->channels;
 		channel_layout = aCodecCtx->channel_layout;
-		printf("	frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
-		printf("	channel_layout=%lld\n",channel_layout);//long long int type
-		printf("	nb_channels=%d\n",nb_channels);
-		printf("	sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
-		printf("	bytes_per_sample: %d\n",bytes_per_sample);
-		printf("	sample_rate=%d\n",sample_rate);
+		EGI_PDEBUG(DBG_FFPLAY,"		frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
+		EGI_PDEBUG(DBG_FFPLAY,"		channel_layout=%lld\n",channel_layout);//long long int type
+		EGI_PDEBUG(DBG_FFPLAY,"		nb_channels=%d\n",nb_channels);
+		EGI_PDEBUG(DBG_FFPLAY,"		sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
+		EGI_PDEBUG(DBG_FFPLAY,"		bytes_per_sample: %d\n",bytes_per_sample);
+		EGI_PDEBUG(DBG_FFPLAY,"		sample_rate=%d\n",sample_rate);
 
 		/* prepare SWR context for FLTP format conversion */
 		if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 			/* set out sample rate for ffplaypcm */
 			out_sample_rate=44100;
 
-			printf("alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
+#if 1 /* -----METHOD (1)-----:  or to be replaced by swr_alloc_set_opts() */
+			EGI_PDEBUG(DBG_FFPLAY,"ffplay: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n");
 			swr=swr_alloc();
-#if 1 /*----- or to be replaced by swr_alloc_set_opts() */
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
 			av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
 			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
@@ -359,9 +411,7 @@ while(1) {
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
 			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
 #endif
-
-#if 0 /* test swr_alloc_set_opts() */
-
+#if 0 /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
 /* function definition:
 struct SwrContext *swr_alloc_set_opts( swr ,
                                       int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
@@ -369,12 +419,12 @@ struct SwrContext *swr_alloc_set_opts( swr ,
                                       int log_offset, void *log_ctx);		 */
 
 			/* allocate and set opts for swr */
-			printf("swr_alloc_set_opts()...\n");
+			EGI_PDEBUG(DBG_FFPLAY,"ffplay: swr_alloc_set_opts()...\n");
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
 						0, NULL );
-			//printf("av_opt_set()...\n");
+
 			/* how to dither ...?? */
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
@@ -383,7 +433,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			swr_init(swr);
 
 			/* alloc outputBuffer */
-			printf("malloc outputBuffer ...\n");
+			EGI_PDEBUG(DBG_FFPLAY,"ffplay: malloc outputBuffer ...\n");
 			outputBuffer=malloc(2*frame_size * bytes_per_sample);
 			if(outputBuffer == NULL)
 	       	 	{
@@ -409,7 +459,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		}
 
 		/* allocate frame for audio */
-		printf("av_frame_alloc()...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: av_frame_alloc() for Audio...\n");
 		pAudioFrame=av_frame_alloc();
 		if(pAudioFrame==NULL) {
 			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
@@ -419,10 +469,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	} /* end of if(audioStream =! -1) */
 
 
-	/* proceed --- video --- stream */
+     /* proceed --- video --- stream */
     if(videoStream >=0 ) /* only if videoStream exists */
     {
-	EGI_PLOG(LOGLV_INFO,"ffplay: Prepare for video stream processing ...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Prepare for video stream processing ...\n");
 	clear_screen(&gv_fb_dev, 0);
 
 	/* get time_base */
@@ -432,16 +482,16 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	pCodecCtxOrig=pFormatCtx->streams[videoStream]->codec;
 
 	/* Find the decoder for the video stream */
-	printf("try to find the decoder for the video stream... \n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
-		fprintf(stderr, "Unsupported video codec! try to continue to decode audio...\n");
+		EGI_PLOG(LOGLV_WARN,"Unsupported video codec! try to continue to decode audio...\n");
 		videoStream=-1;
 		//return -1;
 	}
-
+	/* if video size is illegal, then reset videoStream to -1, to ignore video processing */
 	if(pCodecCtxOrig->width <= 0 || pCodecCtxOrig->height <= 0) {
-		fprintf(stderr, "Video width=%d or height=%d illegal! try to continue to decode audio...\n",
+		EGI_PLOG(LOGLV_WARN,"Video width=%d or height=%d illegal! try to continue to decode audio...\n",
 				   pCodecCtxOrig->width, pCodecCtxOrig->height);
 		videoStream=-1;
 	}
@@ -452,12 +502,192 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     if(videoStream >=0 && pCodec != NULL)
     {
 
-#if ENABLE_AVFILTER /* AVFilter ON */
+	/* copy video codec context */
+	pCodecCtx=avcodec_alloc_context3(pCodec);
+	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
+		EGI_PLOG(LOGLV_ERROR,"Couldn't copy video code context!\n");
+		return -1;
+	}
 
+	/* open video codec */
+	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
+		EGI_PLOG(LOGLV_WARN, "Cound not open video codec!\n");
+		return -1;
+	}
+
+	/* Allocate video frame */
+	pFrame=av_frame_alloc();
+	if(pFrame==NULL) {
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate pFrame!\n");
+		return -1;
+	}
+	/* allocate an AVFrame structure */
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to allocate an AVFrame structure for RGB data...\n");
+	pFrameRGB=av_frame_alloc();
+	if(pFrameRGB==NULL) {
+		EGI_PLOG(LOGLV_ERROR, "Fail to allocate a AVFrame struct for RGB data !\n");
+		return -1;
+	}
+
+	/* <<<<<<<   calculate scaled movie size to fit for the screen  >>>>>>> */
+
+	/* get original video size */
+	printf("original video image size: width=%d, height=%d\n",pCodecCtx->width,pCodecCtx->height);
+
+#if ENABLE_AVFILTER  /* original image size, consider clock transpose. */
+	if(transpose_clock) {
+		width=pCodecCtx->height;
+		height=pCodecCtx->width;
+	}
+	else {
+		width=pCodecCtx->width;
+		height=pCodecCtx->height;
+	}
+
+#else /* (!ENABLE_AVFILTER), original size */
+	width=pCodecCtx->width;
+	height=pCodecCtx->height;
+
+#endif
+
+	/* width and height is the original image size, width is mapped to LCD width(column) */
+        if( width > LCD_MAX_WIDTH || height > LCD_MAX_HEIGHT ) {
+		if( (1.0*width/height) >= (1.0*LCD_MAX_WIDTH/LCD_MAX_HEIGHT) )
+		{
+			//printf("width/height >= LCD_MAX_WIDTH/LCD_MAX_HEIGHT \n");
+			/* fit for width, only if video width > screen width */
+			if(width>LCD_MAX_WIDTH) {
+				scwidth=LCD_MAX_WIDTH;
+				scheight=height*scwidth/width;
+			}
+		}
+		else if ( (1.0*height/width) > (1.0*LCD_MAX_HEIGHT/LCD_MAX_WIDTH) )
+		{
+			//printf("height/width > LCD_MAX_HEIGHT/LCD_MAX_WIDTH \n");
+			/* fit for height, only if video height > screen height */
+			if(height>LCD_MAX_HEIGHT) {
+				scheight=LCD_MAX_HEIGHT;
+				scwidth=width*scheight/height;
+			}
+		}
+	}
+	else {
+	 	scwidth=width;
+	 	scheight=height;
+	}
+	printf("ffplay: set scaled video size: scwidth=%d, scheight=%d \n",scwidth,scheight);
+
+	/* re-check size limit */
+	if( scwidth>LCD_MAX_WIDTH ||
+            scheight>LCD_MAX_HEIGHT ||
+	    scwidth <= 0 || scheight <= 0  )
+        {
+		printf("----- WARNING !!! -----\n  scwidth or scheight out of limit! reset to 240x240. \n");
+		scwidth=240;
+		scheight=240;
+	}
+
+#if ENABLE_AVFILTER
+	/* reset display_width and display_height according to scwidth/scheight,
+	 * just not to exceed it, will NOT keep ratio.
+	 */
+	if(display_width > scwidth) {
+		display_width=scwidth;
+	}
+	if(display_height > scheight) {
+		display_height=scheight;
+	}
+	printf("adjust display size for AVFilter to: display_width=%d, display_height=%d\n",
+								display_width,display_height);
+#else /* if DISABLE_AVFILTER */
+	display_width=scwidth;
+	display_height=scheight;
+#endif
+
+	/* Determine required buffer size and allocate buffer for scaled picture size */
+	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
+	pic.numBytes=numBytes;
+	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+
+	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
+	if(malloc_PICbuffs(display_width,display_height) == NULL) {
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
+		return -1;
+	}
+	else
+		EGI_PDEBUG(DBG_FFPLAY, "ffplay: finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
+
+	/* ---  PICBuff TEST....  --- */
+/*
+	printf("----- test to get ALL free PICbuff \n");
+	for(i=0;i<PIC_BUFF_NUM;i++){
+		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
+		IsFree_PICbuff[i]=false;
+	}
+*/
+	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>*/
+	 /* in order to put displaying window in center of the screen */
+	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
+	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
+	 pic.Hs=Hb; pic.He=Hb+display_width-1;
+	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
+
+	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
+	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
+// ??????????
+	 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
+
+#if (!ENABLE_AVFILTER)
+	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
+	EGI_PDEBUG(DBG_FFPLAY, "ffplay: initialize SWS context for software scaling... \n");
+	sws_ctx = sws_getContext( pCodecCtx->width,
+				  pCodecCtx->height,
+				  pCodecCtx->pix_fmt,
+				  display_width, //scwidth,/* scaled output size */
+				  display_height, //scheight,
+				  PIX_FMT_RGB565LE,
+				  SWS_BILINEAR,
+				  NULL,
+				  NULL,
+				  NULL
+				);
+
+//	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
+#endif
+
+/* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
+	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
+		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
+		return -1;
+	}
+	else
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Finish creating thread for displaying pictures.\n");
+
+
+////////////////////////////////////////////
+#if ENABLE_AVFILTER 	/* if AVFilter ON */
   	/*---------<<< START: prepare filters >>>--------*/
 
    	EGI_PLOG(LOGLV_INFO, "ffplay: prepare VIDEO avfilters ...\n");
 
+	/* prepare filters description*/
+	if(transpose_clock) /* map image WxH to display(LCD) HxW */
+	{
+		image_width=display_height;
+		image_height=display_width;
+	}
+	else /* image WxH map to LCD WxH */
+	{
+		image_width=display_width;
+		image_height=display_height;
+	}
+	sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d,transpose=clock[out]",
+							image_width, image_height);
+
+	EGI_PLOG(LOGLV_INFO,"AVFilter Descr: %s\n",filters_descr);
+
+	/* initiliaze avfilter graph */
+	printf("start av_frame_alloc() for filtered frame... \n");
 	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
    	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
    	avFlt_BufferSrc=avfilter_get_by_name("buffer");
@@ -476,8 +706,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			pCodecCtxOrig->width,pCodecCtxOrig->height,pCodecCtxOrig->pix_fmt,
 			time_base.num,time_base.den,
 			pCodecCtxOrig->sample_aspect_ratio.num,pCodecCtxOrig->sample_aspect_ratio.den);
-		//240,320,AV_PIX_FMT_RGB565LE,1,25,1,1
-	printf("filter graph args: %s\n",args);
+	fprintf("ffplay: set AV Filter graph args as: %s\n",args);
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: set AV Filter graph args as: %s\n",args);
 
    	/* create source(in) filter in the filter  graph
     	*  int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,
@@ -518,7 +748,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
         	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
    	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
-		printf("Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
         	goto ff_fail;
     	}
    	/* set the endpoints for the filter graph --- Source */
@@ -552,192 +782,59 @@ struct SwrContext *swr_alloc_set_opts( swr ,
     	ret=avfilter_graph_config(filter_graph,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		printf("Fail to call avfilter_graph_config() to configure filter graph.\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to call avfilter_graph_config() to configure filter graph.\n");
         	goto ff_fail;
     	}
     	/* free temp. vars */
     	avfilter_inout_free(&avFltIO_InPuts);
     	avfilter_inout_free(&avFltIO_OutPuts);
-	printf("Finish prepare avfilter and configure filter graph.\n");
+
   	/*---------<<< END: prepare filters >>>--------*/
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Finish prepare avfilter and configure filter graph.\n");
+
 
 #endif  /* end of AVFilter ON */
 
-
-	/* copy video codec context */
-	pCodecCtx=avcodec_alloc_context3(pCodec);
-	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
-		fprintf(stderr, "Couldn't copy video code context!\n");
-		return -1;
-	}
-	/* open video codec */
-	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
-		fprintf(stderr, "Cound not open video codec!\n");
-		return -1;
-	}
-
-	/* Allocate video frame */
-	pFrame=av_frame_alloc();
-	if(pFrame==NULL) {
-		fprintf(stderr, "Fail to allocate pFrame!\n");
-		return -1;
-	}
-	/* allocate an AVFrame structure */
-	printf("try to allocate an AVFrame structure...\n");
-	pFrameRGB=av_frame_alloc();
-	if(pFrameRGB==NULL) {
-		fprintf(stderr, "Fail to allocate AVFrame structure!\n");
-		return -1;
-	}
-
-	/* get original movie size */
-	width=pCodecCtx->width;
-	height=pCodecCtx->height;
-
-	/* calculate scaled movie size to fit for the screen */
-#if ENABLE_AVFILTER  /* to be decided by filters_description string, if frame rotated. */
-        scwidth=240;//160;
-	scheight=320;//240;
-
-
-#elif (!ENABLE_AVFILTER) /* to fit for current width and height, no rotation */
-        if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
-		if( (1.0*width/height) >= (1.0*PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
-		{
-			//printf("width/height >= PIC_MAX_WIDTH/PIC_MAX_HEIGHT \n");
-			/* fit for width, only if video width > screen width */
-			if(width>PIC_MAX_WIDTH) {
-				scwidth=PIC_MAX_WIDTH;
-				scheight=height*scwidth/width;
-			}
-		}
-		else if ( (1.0*height/width) > (1.0*PIC_MAX_HEIGHT/PIC_MAX_WIDTH) )
-		{
-			//printf("height/width > PIC_MAX_HEIGHT/PIC_MAX_WIDTH \n");
-			/* fit for height, only if video height > screen height */
-			if(height>PIC_MAX_HEIGHT) {
-				scheight=PIC_MAX_HEIGHT;
-				scwidth=width*scheight/height;
-			}
-		}
-	}
-	else {
-	 	scwidth=width;
-	 	scheight=height;
-	}
-#endif /* end of ENABLE_AVFILTER on/off */
-
-	printf("original video size: width=%d, height=%d\nscaled video size: scwidth=%d, scheight=%d \n",width,height,scwidth,scheight);
-
-	if( scwidth>PIC_MAX_WIDTH ||
-            scheight>PIC_MAX_HEIGHT ||
-	    scwidth <= 0 || scheight <= 0  )
-        {
-		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit! reset to 240x240. \n");
-		scwidth=240;
-		scheight=240;
-	}
-
-	/* Determine required buffer size and allocate buffer for scaled picture size */
-	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, scwidth, scheight);//pCodecCtx->width, pCodecCtx->height);
-	pic.numBytes=numBytes;
-	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
-
-
-/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>> */
-
-//	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
-	if(malloc_PICbuffs(scwidth,scheight) == NULL) {
-		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
-		return -1;
-	}
-	else
-		printf("----- finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
-
-	/* ---  PICBuff TEST....  --- */
-/*
-	printf("----- test to get ALL free PICbuff \n");
-	for(i=0;i<PIC_BUFF_NUM;i++){
-		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
-		IsFree_PICbuff[i]=false;
-	}
-*/
-
-/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>*/
-
-	 /* in order to put displaying window in center of the screen */
-	 Hb=(PIC_MAX_WIDTH-scwidth+1)/2; /* horizontal offset */
-	 Vb=(PIC_MAX_HEIGHT-scheight+1)/2; /* vertical offset */
-	 pic.Hs=Hb; pic.He=Hb+scwidth-1;
-	 pic.Vs=Vb; pic.Ve=Vb+scheight-1;
-
-	/* Assign appropriate parts of buffer to image planes in pFrameRGB
-	Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
-	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, scwidth, scheight); //pCodecCtx->width, pCodecCtx->height);
-
-	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
-	printf(" initialize SWS context for software scaling... \n");
-	sws_ctx = sws_getContext( pCodecCtx->width,
-				  pCodecCtx->height,
-				  pCodecCtx->pix_fmt,
-				  scwidth,//pCodecCtx->width,
-				  scheight,//pCodecCtx->height,
-				  PIX_FMT_RGB565LE,
-				  SWS_BILINEAR,
-				  NULL,
-				  NULL,
-				  NULL
-				);
-
-//	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
-
-/* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
-	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
-		printf("ffplay(): Fails to create the thread for displaying pictures! \n");
-		return -1;
-	}
-	else
-		printf("ffplay(): Finish creating the thread for displaying pictures.\n");
 
   }/* end of (videoStream >=0 ) */
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
 	gettimeofday(&tm_start,NULL);
-	printf("--- PLAYING ---  loop reading AV frames and decoding... \n");
+	EGI_PDEBUG(DBG_FFPLAY,"<<<< ----- FFPLAY START PLAYING STREAMS ----- >>>\n");
 	//printf("	 converting video frame to RGB and then send to display...\n");
 	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
 
-#if ENABLE_SEEK_LOOP /* test loop ..... */
+#if ENABLE_SEEK_LOOP /* test loop playing for only ONE file ..... */
  START_SEEK_LOOP:
 	/* seek starting point */
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 #endif
 
-	printf("start while( av_read_frame ...) ...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 		/* -----   process Video Stream   ----- */
 		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
-			printf("...decoding video frame\n");
+			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
-				printf("Error decoding video. try to carry on...\n");
+				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...\n");
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
 			/* if we get complete video frame(s) */
 			if(frameFinished) {
-#if ENABLE_AVFILTER /* AVFilter ON */
 
+#if ENABLE_AVFILTER /* AVFilter ON */
 				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
 				/* push decoded frame into the filter graph */
 			        if( av_buffersrc_add_frame_flags(avFltCtx_BufferSrc,pFrame,
 									AV_BUFFERSRC_FLAG_KEEP_REF) <0 )
 				{
 				    //av_log(NULL,AV_LOG_ERROR,"Error while feeding pFrame to filter graph through avFltCtx_BufferSrc.\n");
-				    printf("Error feeding pFrame to filter graph,try to carry on...\n");
+				    EGI_PLOG(LOGLV_ERROR, "Error feeding decoded pFrame to filter graph, try to carry on...\n");
 				    //break;
 				}
 				/* pull filtered frames from the filter graph */
@@ -748,13 +845,14 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 						break;
 					else if(ret<0)
 					{
+				    		EGI_PLOG(LOGLV_WARN, "AVFlilter operation av_buffersink_get_frame()<0, break while()...\n");
 						break; /* try to carry on */
 						//goto ff_fail;
 					}
 					/* push data to pic buff for SPI LCD displaying */
 					//printf(" start Load_Pic2Buff()....\n");
 					if( Load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
-						egi_pdebug(DBG_FFPLAY,"PICBuffs are full! video frame is dropped!\n");
+						EGI_PDEBUG(DBG_FFPLAY,"ffplay: PICBuffs are full! video frame is dropped!\n");
 
 					av_frame_unref(filt_pFrame); /* unref it, or it will eat up memory */
 				}
@@ -762,7 +860,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 #elif (!ENABLE_AVFILTER) /* AVfilter OFF */
 				/* convert the image from its native format to RGB */
-				printf("...converting image to RGB\n");
+				//printf("...converting image to RGB\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -770,9 +868,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				printf(" start Load_Pic2Buff()....\n");
+				//printf(" start Load_Pic2Buff()....\n");
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
-					printf("PICBuffs are full! The video frame is dropped!\n");
+					EGI_PDEBUG(DBG_FFPLAY,"ffplay: PICBuffs are full! The video frame is dropped!\n");
 #endif  /* end of AVFilter ON/OFF */
 
 
@@ -782,10 +880,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
 							&pFormatCtx->streams[videoStream]->time_base) );
 
-
+/*
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Velapsed, ff_sec_Vduration );
-
+*/
 				//printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
 				fflush(stdout);
 
@@ -809,7 +907,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				//printf(" avcode_decode_audio4() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 				if(bytes_used<0)
 				{
-					printf(" Error while decoding audio!\n");
+					EGI_PDEBUG(DBG_FFPLAY,"ffplay: Error while decoding audio! try to continue...\n");
 					packet.size=0;
 					packet.data=NULL;
 					//av_free_packet(&packet);
@@ -826,24 +924,24 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 						// Number of samples per channel in an audio frame
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
-							printf("outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							EGI_PDEBUG(DBG_FFPLAY,"ffplay: outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
 						else
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 					}
-					else if(pAudioFrame->data[0]) {  //-- one channel only
+					else if(pAudioFrame->data[0]) {  /* one channel only */
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 					}
 
 					/* print audio playing time, only if no video stream */
-						ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
-				     				&pFormatCtx->streams[audioStream]->time_base) );
-						ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
-								&pFormatCtx->streams[audioStream]->time_base) );
+					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
+				     			&pFormatCtx->streams[audioStream]->time_base) );
+					ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
+							&pFormatCtx->streams[audioStream]->time_base) );
 /*
-						printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
-									ff_sec_Aelapsed, ff_sec_Aduration );
+					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
+								ff_sec_Aelapsed, ff_sec_Aduration );
 */
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
@@ -859,8 +957,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
                 /* free OLD packet each time, that was allocated by av_read_frame */
                 av_free_packet(&packet);
 
-#if ENABLE_CLIP_TEST /* for test only ---------*/
-		if( (audioStream >= 0) && (ff_sec_Aelapsed >= 5 || ff_token_skip ) )
+#if ENABLE_CLIP_TEST /* for Clip test only ---------*/
+		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FF_CLIP_PLAYTIME || ff_token_skip ) )
 		{
 			//reset:  ff_token_skip=0;
 			ff_sec_Aelapsed=0;
@@ -869,54 +967,54 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		}
 #endif
 
-	}/*  end of while()  <<---end of file playing--->> */
+	}/*  end of while()  <<--- end of one file playing --->> */
 
 #if ENABLE_SEEK_LOOP /* test seek loop  */
 goto SEEK_LOOP_START;
 #endif
 
-
+	/* start to release all */
 ff_fail:
 	if(videoStream >=0) /* only if video stream exists */
 	{
 		/* wait display_thread */
-		printf("joint picture displaying thread ...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to joint picture displaying thread ...\n");
 		fftok_QuitFFplay = true;
 		pthread_join(pthd_displayPic,NULL);
 		fftok_QuitFFplay = false;
 
 		/* free PICbuffs */
-		printf("free PICbuffs[]...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free PICbuffs[]...\n");
         	free_PicBuffs();
 	}
 
 	/* Free the YUV frame */
-	printf("free pFrame...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: free pFrame...\n");
 	if(pFrame != NULL) {
 		av_frame_free(&pFrame);
 		pFrame=NULL;
 	}
 
 	/* Free the RGB image */
-	printf("free buffer...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: free buffer...\n");
 	if(buffer != NULL) {
 		av_free(buffer);
 		buffer=NULL;
 	}
-	printf("free pFrameRGB...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: free pFrameRGB...\n");
 	if(pFrameRGB != NULL) {
 		av_frame_free(&pFrameRGB);
 		pFrameRGB=NULL;
 	}
 
 	/* close pcm device */
-	printf("close PCM device...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: close PCM device...\n");
 	close_ffpcm_device();
 
 	/* free outputBuffer */
 	if(outputBuffer != NULL)
 	{
-		printf("free outputBuffer for pcm...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free outputBuffer for pcm...\n");
 		free(outputBuffer);
 		outputBuffer=NULL;
 	}
@@ -925,13 +1023,13 @@ ff_fail:
 	/* free filter items */
 	if(filter_graph != NULL)
 	{
-		printf("avfilter graph free ...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: avfilter graph free ...\n");
 		/* It will also free all AVFilters in the filter graph */
 		avfilter_graph_free(&filter_graph);
 		filter_graph=NULL;
 	}
 	/* Free filted frame */
-	printf("free filt_pFrame...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: free filt_pFrame...\n");
 	if(filt_pFrame != NULL) {
 		av_frame_free(&filt_pFrame);
 		filt_pFrame=NULL;
@@ -939,7 +1037,7 @@ ff_fail:
 #endif
 
 	/* Close the codecs */
-	printf("close the codecs...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: close the codecs...\n");
 	avcodec_close(pCodecCtx);
 	pCodecCtx=NULL;
 	avcodec_close(pCodecCtxOrig);
@@ -950,31 +1048,32 @@ ff_fail:
 	aCodecCtxOrig=NULL;
 
 	/* Close the video file */
-	printf("close the video file...\n");
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: avformat_close_input()...\n");
 	avformat_close_input(&pFormatCtx);
 	pFormatCtx=NULL;
 
 	if(audioStream >= 0)
 	{
-		printf("free swr at last...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free swr at last...\n");
 		swr_free(&swr);
 		swr=NULL;
 	}
 
+
 	if(videoStream >= 0)
 	{
-		printf("free sws_ctx at last...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free sws_ctx at last...\n");
 		sws_freeContext(sws_ctx);
 		sws_ctx=NULL;
 	}
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);
-	printf("Playing %s cost time: %d ms\n", argv[fnum],get_costtime(tm_start,tm_end) );
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n", argv[fnum],get_costtime(tm_start,tm_end) );
 
 	if(FF_LOOP_TIMEGAP>0)
 	{
-		printf("Hold on for a while...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Hold on displaying for a while...\n");
 		//sleep(FF_LOOP_TIMEGAP);
 		tm_delayms(FF_LOOP_TIMEGAP*1000);
 	}
@@ -983,13 +1082,14 @@ ff_fail:
 	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n",argv[fnum]);
    } /* end of for(...), loop playing input files*/
 
-#if ENABLE_MEDIA_LOOP
+
+#if ENABLE_MEDIA_LOOP /* go on loop forever */
    //tm_delayms(500);
-/* MEDIA_LOOP_END */
+  /* --- MEDIA_LOOP_END --- */
 } /* end of while(1), eternal loop. */
 #endif
 
-/*  <<<<<<<<<   finish: clean up   >>>>>>>>>>>> */
+	/*   finally clean up all  */
 	/* close fb dev */
         munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
         close(gv_fb_dev.fdfd);

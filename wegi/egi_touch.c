@@ -119,7 +119,7 @@ enum egi_touch_status
                         if(last_status==pressing || last_status==db_pressing || last_status==pressed_hold)
                         {
                                 last_status=releasing; /* or db_releasing */
-                                egi_pdebug(DBG_TOUCH,": ... ... ... pen releasing ... ... ...\n");
+                                EGI_PDEBUG(DBG_TOUCH,": ... ... ... pen releasing ... ... ...\n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy; /* record the last point coord */
@@ -152,7 +152,7 @@ enum egi_touch_status
                         if( last_status==pressing || last_status==db_pressing || last_status==pressed_hold )
                         {
                                 last_status=pressed_hold;
-                                egi_pdebug(DBG_TOUCH," ... ... ... pen hold down ... ... ...\n");
+                                EGI_PDEBUG(DBG_TOUCH," ... ... ... pen hold down ... ... ...\n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy;
@@ -163,7 +163,7 @@ enum egi_touch_status
 				last_x=sx;
 				live_touch_data.dy += (sy-last_y);
 				last_y=sy;
-				egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
+				EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
 								live_touch_data.dx,live_touch_data.dy );
 
                         }
@@ -178,7 +178,7 @@ enum egi_touch_status
 				live_touch_data.status=pressing;
 				last_x=sx;
 				last_y=sy;
-                      		egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ... ... ... pen pressing ... ... ...\n");
+                      		EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ... ... ... pen pressing ... ... ...\n");
 
                                 /* check if it's a double-click   */
                                 t_start=t_end;
@@ -187,7 +187,7 @@ enum egi_touch_status
                                 //printf("------- diff us=%ld  ---------\n",tus);
                                 if( tus < TM_DBCLICK_INTERVAL )
                                 {
-                                        egi_pdebug(DBG_TOUCH,"egi_touch_loopread(): ... ... ... double click,tus=%ld    \
+                                        EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ... ... ... double click,tus=%ld    \
 											  ... ... ...\n",tus);
                                         live_touch_data.status=db_pressing;
                                 }

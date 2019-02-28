@@ -95,7 +95,7 @@ int egi_page_free(EGI_PAGE *page)
 		list_for_each_safe(tnode, tmpnode, &page->list_head)
         	{
                	 	ebox=list_entry(tnode,EGI_EBOX,node);
-			egi_pdebug(DBG_PAGE,"egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n" 
+			EGI_PDEBUG(DBG_PAGE,"egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n" 
 									,ebox->tag,page->ebox->tag);
                 	list_del(tnode);
                 	ebox->free(ebox);
@@ -127,7 +127,7 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 	}
 
 	list_add_tail(&ebox->node, &page->list_head);
-	egi_pdebug(DBG_PAGE,"egi_page_addlist(): ebox '%s' is added to page '%s' \n",
+	EGI_PDEBUG(DBG_PAGE,"egi_page_addlist(): ebox '%s' is added to page '%s' \n",
 								ebox->tag, page->ebox->tag);
 
 	return 0;
@@ -224,7 +224,7 @@ int egi_page_activate(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->activate(ebox);
-		egi_pdebug(DBG_PAGE,"egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		EGI_PDEBUG(DBG_PAGE,"egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
 
@@ -261,7 +261,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	if(page->ebox->need_refresh)
 	{
 		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
-		egi_pdebug(DBG_PAGE,"egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
 
 		/* load a picture or use prime color as wallpaper*/
 		if(page->fpath != NULL)
@@ -298,7 +298,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
 		if(ret==0)
-		    egi_pdebug(DBG_TEST,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
+		    EGI_PDEBUG(DBG_TEST,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
 			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 	}
 
@@ -342,7 +342,7 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ebox->need_refresh=true;
-		egi_pdebug(DBG_PAGE,"egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 	return 0;
@@ -381,13 +381,13 @@ EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		if( ebox->type==type && ((EGI_DATA_BTN *)(ebox->egi_data))->id == id )
 		{
-		   egi_pdebug(DBG_PAGE,"egi_page_pickbtn(): find an ebox '%s' with id=%d in page '%s'. \n",
+		   EGI_PDEBUG(DBG_PAGE,"egi_page_pickbtn(): find an ebox '%s' with id=%d in page '%s'. \n",
 										ebox->tag,id,page->ebox->tag);
 			return ebox;
 		}
 	}
 
-	egi_pdebug(DBG_PAGE,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+	EGI_PDEBUG(DBG_PAGE,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
 										ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
@@ -432,7 +432,7 @@ int egi_page_routine(EGI_PAGE *page)
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
 	}
 
-	egi_pdebug(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
+	EGI_PDEBUG(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
 
 	/* 3. load page runner threads */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
@@ -461,7 +461,7 @@ int egi_page_routine(EGI_PAGE *page)
 		/* 1. read touch data */
 		if(!egi_touch_getdata(&touch_data) )
 		{
-			egi_pdebug(DBG_PAGE,"egi_page_routine(): egi_touch_getdata()	\
+			EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): egi_touch_getdata()	\
 							no updated touch data found, retry...\n");
 			continue;
 		}
@@ -478,7 +478,7 @@ int egi_page_routine(EGI_PAGE *page)
 			/* trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
 			{
-				egi_pdebug(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
+				EGI_PDEBUG(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 									hitbtn->tag,page->ebox->tag);
 				/* trigger button-hit action
 				   return <0 to exit this rountine, fall back to previous routine then ...

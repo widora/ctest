@@ -49,7 +49,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	int i,j;
 
 	/* malloc a egi_data_txt struct */
-	egi_pdebug(DBG_TXT,"egi_txtdata_new(): malloc data_txt ...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): malloc data_txt ...\n");
 	EGI_DATA_TXT *data_txt=malloc(sizeof(EGI_DATA_TXT));
 	if(data_txt==NULL)
 	{
@@ -68,7 +68,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
         data_txt->offy=offy;
 
         /*  malloc data->txt  */
-	egi_pdebug(DBG_TXT,"egi_txtdata_new(): malloc data_txt->txt ...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): malloc data_txt->txt ...\n");
         data_txt->txt=malloc(nl*sizeof(char *));
         if(data_txt->txt == NULL) /* malloc **txt */
         {
@@ -82,7 +82,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	/* malloc data->txt[] */
         for(i=0;i<nl;i++)
         {
-		egi_pdebug(DBG_TXT,"egi_txtdata_new(): start to malloc data_txt->txt[%d]...\n",i);
+		EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): start to malloc data_txt->txt[%d]...\n",i);
                 data_txt->txt[i]=malloc(llen*sizeof(char));
                 if(data_txt->txt[i] == NULL) /* malloc **txt */
                 {
@@ -138,7 +138,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	}
 
 	/* 1. create a new common ebox */
-	egi_pdebug(DBG_TXT,"egi_txtbox_new(): start to egi_ebox_new(type_txt)...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): start to egi_ebox_new(type_txt)...\n");
 	ebox=egi_ebox_new(type_txt);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
 	if(ebox==NULL)
 	{
@@ -149,7 +149,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	/* 2. default method assigned in egi_ebox_new() */
 
 	/* 3. txt ebox object method */
-	egi_pdebug(DBG_TXT,"egi_txtbox_new(): assign defined mehtod ebox->method=methd...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): assign defined mehtod ebox->method=methd...\n");
 	ebox->method=txtbox_method;
 
 	/* 4. fill in elements  */
@@ -162,10 +162,10 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox->frame=frame;	ebox->prmcolor=prmcolor;
 
 	/* 5. pointer default */
-	egi_pdebug(DBG_TXT,"egi_txtbox_new(): assign ebox->bkimg=NULL ...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): assign ebox->bkimg=NULL ...\n");
 	ebox->bkimg=NULL;
 
-	egi_pdebug(DBG_TXT,"egi_txtbox_new(): finish.\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): finish.\n");
 	return ebox;
 }
 
@@ -302,7 +302,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
                 return -2;
         }
 
-        egi_pdebug(DBG_TXT,"egi_txtbox_activate(): start to activate '%s' txt type ebox!\n",ebox->tag);
+        EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start to activate '%s' txt type ebox!\n",ebox->tag);
 	/* 2. activate(or wake up) a sleeping ebox
 		not necessary to adjust ebox size and allocate bkimg memory for a slpeeping ebox
 	*/
@@ -329,7 +329,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	/* 4. malloc exbo->bkimg for bk image storing */
    if( ebox->movable || (ebox->prmcolor<0) ) /* only if ebox is movale or it's transparent */
    {
-	egi_pdebug(DBG_TXT,"egi_txtbox_activate(): start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
 											ebox->tag,height,width);
 		/* egi_alloc_bkimg() will check width and height */
 		if( egi_alloc_bkimg(ebox, width, height)==NULL )
@@ -337,7 +337,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
                	 	printf("egi_txtbox_activate(): fail to egi_alloc_bkimg() for '%s' ebox!\n",ebox->tag);
                 	return -4;
         	}
-		egi_pdebug(DBG_TXT,"egi_txtbox_activate(): finish egi_alloc_bkimg() for '%s' ebox.\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): finish egi_alloc_bkimg() for '%s' ebox.\n",ebox->tag);
 
 
 	/* 5. store bk image which will be restored when this ebox position/size changes */
@@ -347,11 +347,11 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	ebox->bkbox.endxy.x=x0+width-1;
 	ebox->bkbox.endxy.y=y0+height-1;
 #if 0 /* DEBUG */
-	egi_pdebug(DBG_TXT,"txt activate... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_TXT,"txt activate... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 #endif
 
-	egi_pdebug(DBG_TXT,"egi_txtbox_activate(): start fb_cpyto_buf() for '%s' ebox.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start fb_cpyto_buf() for '%s' ebox.\n",ebox->tag);
 	if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
 				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0 )
 		return -5;
@@ -372,7 +372,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 		printf("egi_txtbox_activate(): WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", ret);
 		return -6;
 	}
-	egi_pdebug(DBG_TXT,"egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
@@ -413,14 +413,14 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* 2. check the ebox status */
 	if( ebox->status != status_active )
 	{
-		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): need_refresh of '%s' is false!\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -430,7 +430,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
-	egi_pdebug(DBG_TXT,"egi_txtbox_refresh():start to assign data_txt=(EGI_DATA_TXT *)(ebox->egi_data)\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh():start to assign data_txt=(EGI_DATA_TXT *)(ebox->egi_data)\n");
 	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int nl=data_txt->nl;
 //	int llen=data_txt->llen;
@@ -461,11 +461,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
            || (ebox->prmcolor<0)  )
    {
 #if 0 /* DEBUG */
-	egi_pdebug(DBG_TXT,"txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_TXT,"txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
 	/* restore bk image before refresh */
-	egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): fb_cpyfrom_buf() before refresh...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): fb_cpyfrom_buf() before refresh...\n");
         if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
 		return -3;
@@ -478,11 +478,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.y=y0+height-1;
 
 #if 1 /* DEBUG */
-	egi_pdebug(DBG_TXT,"refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_TXT,"refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
         /* ---- 6. store bk image which will be restored when this ebox position/size changes */
-	egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): fb_cpyto_buf() before refresh...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): fb_cpyto_buf() before refresh...\n");
         if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;
@@ -514,7 +514,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to txt[][] */
 	if(data_txt->fpath)
 	{
-		egi_pdebug(DBG_TXT,"egi_txtbox_refresh():  data_txt->fpath is NOT null, re-read txt file now...\n");
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh():  data_txt->fpath is NOT null, re-read txt file now...\n");
 		if(egi_txtbox_readfile(ebox,data_txt->fpath)<0) /* not = 0 */
 		{
 			printf("egi_txtbox_refresh(): fail to read txt file: %s \n",data_txt->fpath);
@@ -527,10 +527,10 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		ebox->decorate(ebox);
 
 	/* ---- 11. refresh TXT, write txt line to FB */
-	egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
 	for(i=0;i<nl;i++)
 	{
-		egi_pdebug(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
@@ -577,7 +577,7 @@ int egi_txtbox_sleep(EGI_EBOX *ebox)
 	/* reset status */
 	ebox->status=status_sleep;
 
-	egi_pdebug(DBG_TXT,"egi_txtbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
 	return 0;
 }
 
@@ -664,7 +664,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		memset(buf,0,sizeof(buf));/* clear buf */
 
 		nread=fread(buf,1,sizeof(buf),fil);
-		//egi_pdebug(DBG_TXT,"nread=%d\n",nread);
+		//EGI_PDEBUG(DBG_TXT,"nread=%d\n",nread);
 		if(nread <= 0) /* error or end of file */
 			break;
 
@@ -675,13 +675,13 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
 		{
-			//egi_pdebug(DBG_TXT,"buf[%d]='%c' ascii=%d\n",i,buf[i],buf[i]);
+			//EGI_PDEBUG(DBG_TXT,"buf[%d]='%c' ascii=%d\n",i,buf[i],buf[i]);
 			printf("i=%d of nread=%d\n",i,nread);
 			/*  ------ 1. if it's a return code */
 			/* TODO: substitue buf[i] with space ..... */
 			if( buf[i]==10 )
 			{
-				//egi_pdebug(DBG_TXT," ------get a return \n");
+				//EGI_PDEBUG(DBG_TXT," ------get a return \n");
 				/* if return code is the first char of a line, ignore it then. */
 			/*	if(nt != 0)
 					nlw +=1; //new line
@@ -723,7 +723,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			else
 			{
 				ncount+=symwidth[ (uint8_t)buf[i] ]; /*increase total bumber of pixels for current txt line*/
-				//egi_pdebug(DBG_TXT,"one line pixel counter: ncount=%d\n",ncount);
+				//EGI_PDEBUG(DBG_TXT,"one line pixel counter: ncount=%d\n",ncount);
 				txt[nlw][nt]=buf[i];
 				nt++;
 
@@ -782,7 +782,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	}
 	else
 	{
-		//egi_pdebug(DBG_TXT,"ftell(fil)=%ld\n",ftell(fil));
+		//EGI_PDEBUG(DBG_TXT,"ftell(fil)=%ld\n",ftell(fil));
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; //ftell(fil);
 	}
 
@@ -834,7 +834,7 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 {
 	int ret=0;
 
-	egi_pdebug(DBG_TXT,"egi_txtbox_decorate(): start to show_jpg()...\n");
+	EGI_PDEBUG(DBG_TXT,"egi_txtbox_decorate(): start to show_jpg()...\n");
 	ret=show_jpg("/tmp/openwrt.jpg", &gv_fb_dev, SHOW_BLACK_NOTRANSP, ebox->x0+2, ebox->y0+2); /* blackoff<0, show black */
 
 	return ret;
@@ -927,7 +927,7 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 		/* TODO: substitue buf[i] with space ..... */
 		if( buf[i]==10 )
 		{
-			//egi_pdebug(DBG_TXT," ------get a return \n");
+			//EGI_PDEBUG(DBG_TXT," ------get a return \n");
 			nlw += 1; /* return to next line anyway */
 			nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 

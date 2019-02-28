@@ -21,15 +21,15 @@ Try to write a thread_safe log system. :))))
 
 Note:
 1. log_buff_mutex will not be destroyed after egi_quit_log().
-2. Log items are not written  sorted by time, because of buff FILO and thread operation.
+2. Log items are not written sorted by time, because of buff FILO and thread operation.
 
 TODO:
-0. if the caller exits abruptly, then all buffered log will be lost. ..fork() ???
+0. TO add __FILE__, __FUNCTION__ at EGI_PLOG() macro.
 1. egi_init_log() can be called only once! It's NOT reentrant!!!!
    !!! consider to destroy and re-initiliate log_buff_mutex. !!!
-2. sort lof_buff wirte. 	--- Not necessary
+2. sort lof_buff by time. 	--- Not necessary
 3. egi_push_log() after when egi_quit_log(), must wait for all egi_push_log(). --- Not necessary.
-4. Consider file write buffer affection.
+4. Be ware of system buffer for file write,print,..etc.
 5. Fail to use access() to check file existance.
 
 Midas Zhou
@@ -75,8 +75,6 @@ static inline const char *egi_loglv_to_string(enum egi_log_level log_level)
 	}
 	return "LOGLV_Unknown";
 }
-
-
 
 /*---------------------------------------------------------------------------------------
 1. For high level log(>LOGLV_WARN),it will be written directly to log file with nobuffer.
@@ -400,7 +398,7 @@ int egi_init_log(void)
 	log_is_running=true;
 
 
-#if 0 /* FOR TEST: test log_buf[]  */
+#if 0 /* -----------FOR TEST: test log_buf[] ------------ */
 	int i;
 
 	printf("egi_init_log(): test log_buff[] ...\n");

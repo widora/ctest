@@ -477,7 +477,7 @@ FBDEV  gv_fb_dev;
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				egi_pdebug(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
 			/* map i,j to LCD(Y,X) */
@@ -594,7 +594,7 @@ FBDEV  gv_fb_dev;
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
-				egi_pdebug(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
+				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
 			/* map i,j to LCD(Y,X) */

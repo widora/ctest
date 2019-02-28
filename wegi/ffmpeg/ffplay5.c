@@ -400,22 +400,22 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	/* max. scaled movie size to fit for the screen */
 	width=pCodecCtx->width; //1200
 	height=pCodecCtx->height; //1920
-        if( width > PIC_MAX_WIDTH || height > PIC_MAX_HEIGHT ) {
-		if( (1.0*width/height) >= (1.0*PIC_MAX_WIDTH/PIC_MAX_HEIGHT) )
+        if( width > LCD_MAX_WIDTH || height > LCD_MAX_HEIGHT ) {
+		if( (1.0*width/height) >= (1.0*LCD_MAX_WIDTH/LCD_MAX_HEIGHT) )
 		{
-			//printf("width/height >= PIC_MAX_WIDTH/PIC_MAX_HEIGHT \n");
+			//printf("width/height >= LCD_MAX_WIDTH/LCD_MAX_HEIGHT \n");
 			/* fit for width, only if video width > screen width */
-			if(width>PIC_MAX_WIDTH) {
-				scwidth=PIC_MAX_WIDTH;
+			if(width>LCD_MAX_WIDTH) {
+				scwidth=LCD_MAX_WIDTH;
 				scheight=height*scwidth/width;
 			}
 		}
-		else if ( (1.0*height/width) > (1.0*PIC_MAX_HEIGHT/PIC_MAX_WIDTH) )
+		else if ( (1.0*height/width) > (1.0*LCD_MAX_HEIGHT/LCD_MAX_WIDTH) )
 		{
-			//printf("height/width > PIC_MAX_HEIGHT/PIC_MAX_WIDTH \n");
+			//printf("height/width > LCD_MAX_HEIGHT/LCD_MAX_WIDTH \n");
 			/* fit for height, only if video height > screen height */
-			if(height>PIC_MAX_HEIGHT) {
-				scheight=PIC_MAX_HEIGHT;
+			if(height>LCD_MAX_HEIGHT) {
+				scheight=LCD_MAX_HEIGHT;
 				scwidth=width*scheight/height;
 			}
 		}
@@ -427,8 +427,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 	printf("original video size: width=%d, height=%d\nscaled video size: scwidth=%d, scheight=%d \n",width,height,scwidth,scheight);
 
-	if( scwidth>PIC_MAX_WIDTH ||
-            scheight>PIC_MAX_HEIGHT ||
+	if( scwidth>LCD_MAX_WIDTH ||
+            scheight>LCD_MAX_HEIGHT ||
 	    scwidth <= 0 || scheight <= 0  )
         {
 		printf("----- WARNING !!! -----\n	scwidth or scheight out of limit! reset to 240x240. \n");
@@ -463,8 +463,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 /*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>*/
 
 	 /* in order to put displaying window in center of the screen */
-	 Hb=(PIC_MAX_WIDTH-scwidth+1)/2; /* horizontal offset */
-	 Vb=(PIC_MAX_HEIGHT-scheight+1)/2; /* vertical offset */
+	 Hb=(LCD_MAX_WIDTH-scwidth+1)/2; /* horizontal offset */
+	 Vb=(LCD_MAX_HEIGHT-scheight+1)/2; /* vertical offset */
 	 pic.Hs=Hb; pic.He=Hb+scwidth-1;
 	 pic.Vs=Vb; pic.Ve=Vb+scheight-1;
 

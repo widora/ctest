@@ -22,8 +22,8 @@ Note:
 #include <dirent.h>
 #include "play_ffpcm.h"
 
-#define PIC_MAX_WIDTH 240
-#define PIC_MAX_HEIGHT 320
+#define LCD_MAX_WIDTH 240
+#define LCD_MAX_HEIGHT 320
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define PIC_BUFF_NUM  4  //total number of RGB picture data buffers.
@@ -35,7 +35,8 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiabili
 					    * thdf_Display_Pic() put 'true' tag,
 					    */
 
-/* information of a decoded picture, for pthread params */
+/* information of a decoded picture, for pthread params 
+ */
 struct PicInfo {
         /* Hb,Vb,Hs,He,Vs,Ve;  for LCD image layout */
 	int Hs;
@@ -153,8 +154,11 @@ void* thdf_Display_Pic(void * argv)
    imgbuf.width=ppic->He - ppic->Hs +1;
    imgbuf.height=ppic->Ve - ppic->Vs +1;
 
+   printf("FFPLAY: -------thdf_Display_Pic(): imgbuf.width=%d, imgbuf.height=%d \n",
+						imgbuf.width, imgbuf.height );
+
    /* check size limit */
-   if(imgbuf.width>PIC_MAX_WIDTH || imgbuf.height>PIC_MAX_HEIGHT)
+   if(imgbuf.width>LCD_MAX_WIDTH || imgbuf.height>LCD_MAX_HEIGHT)
    {
 	EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
 	//exit(-1);

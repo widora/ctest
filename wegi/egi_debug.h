@@ -38,7 +38,8 @@
 
 
 /* define egi_pdebug() */
-#define egi_pdebug(flags, fmt, args...)			\
+//#define egi_pdebug(flags, fmt, args...)
+#define EGI_PDEBUG(flags, fmt, args...)			\
 	do {						\
 		if( flags & DEFAULT_DBG_FLAGS)		\
 		{					\

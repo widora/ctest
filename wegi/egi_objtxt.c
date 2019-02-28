@@ -139,7 +139,7 @@ return:
 EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 {
 	/* 1. create a data_txt */
-	egi_pdebug(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
+	EGI_PDEBUG(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
 	EGI_DATA_TXT *clock_txt=egi_txtdata_new(
 		10,30, /* offset X,Y */
       	  	3, /*int nl, lines  */
@@ -164,7 +164,7 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
         sprintf(clock_txt->txt[2],"Note NO. %d", num);
 
 	/* 2. create memo ebox */
-	egi_pdebug(DBG_OBJTXT,"create_ebox_notes(): strat to egi_txtbox_new().....\n");
+	EGI_PDEBUG(DBG_OBJTXT,"create_ebox_notes(): strat to egi_txtbox_new().....\n");
 	EGI_EBOX  *ebox_clock= egi_txtbox_new(
 		NULL, /* tag, put later */
         	clock_txt,  /* EGI_DATA_TXT pointer */
@@ -200,7 +200,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 
 	for(i=0;i<total;i++)
 	{
-	      egi_pdebug(DBG_OBJTXT,"create ebox notes txtebox[%d].\n",i);
+	      EGI_PDEBUG(DBG_OBJTXT,"create ebox notes txtebox[%d].\n",i);
 	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_color_random(light));
 	      if(txtebox[i]==NULL)
 	      {
@@ -210,13 +210,13 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 	      /* put decorate */
 	      txtebox[i]->decorate=egi_txtbox_decorate;
 
-	      egi_pdebug(DBG_OBJTXT,"egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
+	      EGI_PDEBUG(DBG_OBJTXT,"egi_txtbox_demon(): start to activate txtebox[%d]\n",i);
 	      ret=txtebox[i]->activate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox activate fails with ret=%d\n",ret);
 
 	      /* apply decoration method */
-	      egi_pdebug(DBG_OBJTXT,"egi_txtbox_demon(): start to decorate txtebox[%d]\n",i);
+	      EGI_PDEBUG(DBG_OBJTXT,"egi_txtbox_demon(): start to decorate txtebox[%d]\n",i);
 	      ret=txtebox[i]->decorate(txtebox[i]);
 	      if(ret != 0)
 			printf(" egi_txtbox_demo() txtebox decorate fails with ret=%d\n",ret);
@@ -266,7 +266,7 @@ EGI_EBOX *create_ebox_titlebar(
 )
 {
 	/* 1. create a data_txt */
-	egi_pdebug(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
+	EGI_PDEBUG(DBG_OBJTXT,"start to egi_txtdata_new()...\n");
 	EGI_DATA_TXT *title_txt=egi_txtdata_new(
 		offx,offy, /* offset X,Y */
       	  	1, /*int nl, lines  */
@@ -289,7 +289,7 @@ EGI_EBOX *create_ebox_titlebar(
 	/* 2. put title string */
 	if(title==NULL)
 	{
-		egi_pdebug(DBG_OBJTXT,"create_ebox_titlebar(): title==NULL, use default title\n");
+		EGI_PDEBUG(DBG_OBJTXT,"create_ebox_titlebar(): title==NULL, use default title\n");
 	        strncpy(title_txt->txt[0], "--- title bar ---", title_txt->llen-1); /* default */
 	}
 	else
@@ -321,7 +321,7 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 {
         int ret=0;
 
-        egi_pdebug(DBG_TXT,"egi_txtbox_decorate(): start to show_jpg()...\n");
+        EGI_PDEBUG(DBG_TXT,"egi_txtbox_decorate(): start to show_jpg()...\n");
         ret=show_jpg("/tmp/openwrt.jpg", &gv_fb_dev, SHOW_BLACK_NOTRANSP, ebox->x0+2, ebox->y0+2);
 
         return ret;
@@ -372,7 +372,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
    	while(1) /* repeat 1 more time  to adjust size of the ebox to fit with the message */
    	{
 		/* 1. create a data_txt */
-		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): start to egi_txtdata_new()...\n");
+		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): start to egi_txtdata_new()...\n");
 		msg_txt=egi_txtdata_new(
 			offx,offy, /* offset X,Y */
       		  	nl, /*int nl, lines  */
@@ -393,7 +393,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 		}
 
 		/* 3. create msg ebox */
-		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): start egi_txtbox_new().....\n");
+		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): start egi_txtbox_new().....\n");
 		height=nl*((&sympg_testfont)->symheight)+2*offy; /*adjust ebox height */
 		msgbox= egi_txtbox_new(
 			"msg_box", /* tag, or put later */
@@ -409,7 +409,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 		egi_push_datatxt(msgbox, msg, &pnl);
 
 		/* 5. adjust nl then release and loop back and re-create msg ebox */
-		egi_pdebug(DBG_OBJTXT,"egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
+		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
 		if(ms<0) pnl+=1; /* one more line for progress information */
 		if(nl>pnl) /* if nl great than number of pushed lines */
 		{

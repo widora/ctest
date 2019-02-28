@@ -66,7 +66,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 	}
 
 	/* malloc a EGI_IMGBUF struct */
-	egi_pdebug(DBG_PIC,"egi_picdata_new(): malloc EGI_IMGBUF...\n");
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc EGI_IMGBUF...\n");
 	EGI_IMGBUF *imgbuf = malloc(sizeof(EGI_IMGBUF));
 	if(imgbuf == NULL)
         {
@@ -80,7 +80,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 	imgbuf->width=width;
 
 	/* malloc imgbuf->imgbuf */
-	egi_pdebug(DBG_PIC,"egi_picdata_new(): malloc imgbuf->imgbuf...\n");
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc imgbuf->imgbuf...\n");
 	imgbuf->imgbuf = malloc(height*width*sizeof(uint16_t));
 	if(imgbuf->imgbuf == NULL)
 	{
@@ -92,7 +92,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 
 
         /* malloc a egi_data_pic struct */
-        egi_pdebug(DBG_PIC,"egi_picdata_new(): malloc data_pic ...\n");
+        EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc data_pic ...\n");
         EGI_DATA_PIC *data_pic=malloc(sizeof(EGI_DATA_PIC));
         if(data_pic==NULL)
         {
@@ -148,7 +148,7 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
         }
 
         /* 1. create a new common ebox */
-        egi_pdebug(DBG_PIC,"egi_picbox_new(): start to egi_ebox_new(type_pic)...\n");
+        EGI_PDEBUG(DBG_PIC,"egi_picbox_new(): start to egi_ebox_new(type_pic)...\n");
         ebox=egi_ebox_new(type_pic);// egi_data NOT allocated in egi_ebox_new()!!!
         if(ebox==NULL)
 	{
@@ -160,7 +160,7 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
         /* 2. default method to be assigned in egi_ebox_new(),...see egi_ebox_new() */
 
         /* 3. pic ebox object method */
-        egi_pdebug(DBG_PIC,"egi_picbox_new(): assign self_defined methods: ebox->method=methd...\n");
+        EGI_PDEBUG(DBG_PIC,"egi_picbox_new(): assign self_defined methods: ebox->method=methd...\n");
         ebox->method=picbox_method;
 
         /* 4. fill in elements for concept ebox */
@@ -259,7 +259,7 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 	ebox->bkbox.endxy.y=ebox->y0+ebox->height-1;
 
 	#if 0 /* DEBUG */
-	egi_pdebug(DBG_PIC," pic ebox activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_PIC," pic ebox activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 	#endif
 
@@ -281,7 +281,7 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 		return -4;
 
 
-	egi_pdebug(DBG_PIC,"egi_picbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+	EGI_PDEBUG(DBG_PIC,"egi_picbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
@@ -329,14 +329,14 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	/*  check the ebox status  */
 	if( ebox->status != status_active )
 	{
-		egi_pdebug(DBG_PIC,"ebox '%s' is not active! fail to refresh. \n",ebox->tag);
+		EGI_PDEBUG(DBG_PIC,"ebox '%s' is not active! fail to refresh. \n",ebox->tag);
 		return -3;
 	}
 
 	/* only if need_refresh is true */
 	if(!ebox->need_refresh)
 	{
-		egi_pdebug(DBG_PIC,"egi_picbox_refresh(): need_refresh=false, refresh action is ignored.\n");
+		EGI_PDEBUG(DBG_PIC,"egi_picbox_refresh(): need_refresh=false, refresh action is ignored.\n");
 		return 1;
 	}
 
@@ -344,7 +344,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
-	egi_pdebug(DBG_PIC,"pic refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_PIC,"pic refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
@@ -393,7 +393,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.y=ebox->y0+ebox->height-1;
 
 	#if 0 /* DEBUG */
-	egi_pdebug(DBG_PIC,"egi_picbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_PIC,"egi_picbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
@@ -513,7 +513,7 @@ int egi_picbox_sleep(EGI_EBOX *ebox)
         /* reset status */
         ebox->status=status_sleep;
 
-        egi_pdebug(DBG_PIC,"egi_picbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
+        EGI_PDEBUG(DBG_PIC,"egi_picbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
         return 0;
 }
 

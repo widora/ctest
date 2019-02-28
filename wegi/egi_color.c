@@ -46,7 +46,7 @@ uint16_t egi_color_random(enum egi_color_range range)
 			/* to select G range, so as to select color range */
                         if( color[i]==0x33*(2*range-2) || color[i]==0x33*(2*range-1) )
                         {
-		                egi_pdebug(DBG_COLOR," ----------- color G =0X%02X\n",color[i]);
+		                EGI_PDEBUG(DBG_COLOR," ----------- color G =0X%02X\n",color[i]);
 				continue;
 			}
 			else /* retry */
@@ -58,7 +58,7 @@ uint16_t egi_color_random(enum egi_color_range range)
         }
 
         ret=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
-        egi_pdebug(DBG_COLOR,"egi random color GRAY: 0x%04X(16bits) / 0x%02X%02X%02X(24bits) \n",
+        EGI_PDEBUG(DBG_COLOR,"egi random color GRAY: 0x%04X(16bits) / 0x%02X%02X%02X(24bits) \n",
 										ret,color[0],color[1],color[2]);
         return ret;
 }
@@ -111,7 +111,7 @@ uint16_t egi_colorgray_random(enum egi_color_range range)
 
         ret=(uint16_t)COLOR_RGB_TO16BITS(color,color,color);
 
-        egi_pdebug(DBG_COLOR,"egi random color GRAY: 0x%04X(16bits) / 0x%02X%02X%02X(24bits) \n",
+        EGI_PDEBUG(DBG_COLOR,"egi random color GRAY: 0x%04X(16bits) / 0x%02X%02X%02X(24bits) \n",
 											ret,color,color,color);
         return ret;
 }

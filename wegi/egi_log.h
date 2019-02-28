@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EGI_LOGFILE_PATH "/tmp/egi_log"
+#define EGI_LOGFILE_PATH "/mmc/egi_log"
 
 
 #define ENABLE_LOGBUFF_PRINT 	1	/* enable to print log buff content */

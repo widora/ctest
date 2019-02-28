@@ -127,7 +127,7 @@ void  play_ffpcm_buff(void ** buffer, int nf)
         {
             //EPIPE means underrun
             //fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-            egi_pdebug(DBG_FFPLAY,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
+            EGI_PDEBUG(DBG_FFPLAY,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
             snd_pcm_prepare(g_ffpcm_handle);
         }
 	else if(rc<0)

@@ -82,7 +82,7 @@ EGI_EBOX *egi_listbox_new (
         EGI_EBOX *ebox;
 
         /* 1. create a new common ebox with type_list */
-        egi_pdebug(DBG_LIST,"egi_listbox_new(): start to egi_ebox_new(type_list)...\n");
+        EGI_PDEBUG(DBG_LIST,"egi_listbox_new(): start to egi_ebox_new(type_list)...\n");
         ebox=egi_ebox_new(type_list);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
         if(ebox==NULL)
         {
@@ -93,7 +93,7 @@ EGI_EBOX *egi_listbox_new (
         /* 2. default methods have been assigned in egi_ebox_new() */
 
         /* 3. list ebox object method */
-        egi_pdebug(DBG_LIST,"egi_listbox_new(): assign defined mehtod ebox->method=methd...\n");
+        EGI_PDEBUG(DBG_LIST,"egi_listbox_new(): assign defined mehtod ebox->method=methd...\n");
         ebox->method=listbox_method;
 
         /* 4. fill in elements for main ebox */
@@ -190,7 +190,7 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 	for(i=0;i<inum;i++)
 	{
 		/* 12.1  create a data_txt */
-		egi_pdebug(DBG_LIST,"egi_listbox_new(): start to data_txt[%d]=egi_txtdata_new()...\n",i);
+		EGI_PDEBUG(DBG_LIST,"egi_listbox_new(): start to data_txt[%d]=egi_txtdata_new()...\n",i);
 		data_txt[i]=egi_txtdata_new(
 				txtoffx,txtoffy, /* offset X,Y */
       	 		 	nl, /*int nl, lines  */
@@ -207,7 +207,7 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 printf("egi_listbox_new(): data_txt[%d]=egi_txtdata_new() end...\n",i);
 
 		/* 12.2  creates all those txt eboxes */
-	        egi_pdebug(DBG_LIST,"egi_listbox_new(): start egi_txtbox_new().....\n");
+	        EGI_PDEBUG(DBG_LIST,"egi_listbox_new(): start egi_txtbox_new().....\n");
        		(data_list->txt_boxes)[i] = egi_txtbox_new(
                 			"----", /* tag, or put later */
 		                	data_txt[i], /* EGI_DATA_TXT pointer */
@@ -339,7 +339,7 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 		if(itnum >= inum)
 			itnum=itnum%inum; /* roll back then */
 
-		egi_pdebug(DBG_LIST,"egi_listbox_activate():----------itnum=%d----------\n",itnum);
+		EGI_PDEBUG(DBG_LIST,"egi_listbox_activate():----------itnum=%d----------\n",itnum);
 
 		/* 4.1 update position, within displaying window */
 		data_list->txt_boxes[itnum]->y0=ebox->y0	\
@@ -446,7 +446,7 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 		if(itnum >= inum)
 			itnum=itnum%inum; /* roll back then */
 
-		egi_pdebug(DBG_LIST,"egi_listbox_refresh():----------itnum=%d----------\n",itnum);
+		EGI_PDEBUG(DBG_LIST,"egi_listbox_refresh():----------itnum=%d----------\n",itnum);
 
 		/* 4.1 update position, within displaying window */
 		data_list->txt_boxes[itnum]->y0=ebox->y0	\
@@ -620,7 +620,7 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt
 	/* 8. check txt */
 	if(txt==NULL || txt[0]==NULL)
 	{
-//                egi_pdebug(DBG_LIST,"egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
+//                EGI_PDEBUG(DBG_LIST,"egi_listbox_updateitem(): input txt is NULL! keep data_txt unchanged.\n");
 
 		/* !!! put need_refresh flag before quit */
 		item_txtbox->need_refresh=true;
@@ -633,7 +633,7 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt
 	for(i=0; i<(data_txt->nl); i++)
 	{
 		strncpy(data_txt->txt[i], txt[i], data_txt->llen-1);/* 1 byte for end token */
-		egi_pdebug(DBG_LIST,"egi_listbox_updateitem(): txt_boxes[%d], txt[%d]='%s'\n",
+		EGI_PDEBUG(DBG_LIST,"egi_listbox_updateitem(): txt_boxes[%d], txt[%d]='%s'\n",
 										n,i,data_txt->txt[i]);
 	}
 

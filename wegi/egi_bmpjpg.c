@@ -378,7 +378,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	/* prepare image buffer */
 	egi_imgbuf->height=height;
 	egi_imgbuf->width=width;
-	egi_pdebug(DBG_BMPJPG,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
+	EGI_PDEBUG(DBG_BMPJPG,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
 								fpath,egi_imgbuf->width,egi_imgbuf->height);
 	/* alloc imgbuf */
 	egi_imgbuf->imgbuf=malloc(width*height*btypp);

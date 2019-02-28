@@ -96,7 +96,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 
 	/* 3. alloc memory */
 
-	egi_pdebug(DBG_EGI,"egi_alloc_bkimg(): start to malloc() ....!\n");
+	EGI_PDEBUG(DBG_EGI,"egi_alloc_bkimg(): start to malloc() ....!\n");
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
 
 	if(ebox->bkimg == NULL)
@@ -105,7 +105,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 		return NULL;
 	}
 
-	egi_pdebug(DBG_EGI,"egi_alloc_bkimg(): finish!\n");
+	EGI_PDEBUG(DBG_EGI,"egi_alloc_bkimg(): finish!\n");
 
 	return ebox->bkimg;
 }
@@ -214,7 +214,7 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
         list_for_each(tnode, &page->list_head)
         {
                 ebox=list_entry(tnode, EGI_EBOX, node);
-                //egi_pdebug(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
+                //EGI_PDEBUG(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
 
 		if(ebox->type == type)
 		{
@@ -306,7 +306,7 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.refresh == NULL)
 	{
-		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of refresh()!\n",ebox->tag);
+		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of refresh()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -330,7 +330,7 @@ int egi_ebox_activate(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.activate == NULL)
 	{
-		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of activate()!\n",ebox->tag);
+		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of activate()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -352,7 +352,7 @@ int egi_ebox_sleep(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.sleep == NULL)
 	{
-		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of sleep()!\n",ebox->tag);
+		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of sleep()!\n",ebox->tag);
 		return 1;
 	}
 
@@ -374,14 +374,14 @@ int egi_ebox_decorate(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.decorate == NULL)
 	{
-		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of decorate()!\n",ebox->tag);
+		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of decorate()!\n",ebox->tag);
 		return 1;
 	}
 
 	/* 2. ebox object defined method */
 	else
 	{
-		egi_pdebug(DBG_EGI,"egi_ebox_decorate(): start ebox->method.decorate(ebox)...\n");
+		EGI_PDEBUG(DBG_EGI,"egi_ebox_decorate(): start ebox->method.decorate(ebox)...\n");
 		return ebox->method.decorate(ebox);
 	}
 }
@@ -407,7 +407,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 	/* 1. put default methods here ...*/
 	if(ebox->method.free == NULL)
 	{
-		egi_pdebug(DBG_EGI,"ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
+		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of free(), now use default to free it ...!\n",ebox->tag);
 
 		/* 1.1 free ebox tyep data */
 		switch(ebox->type)
@@ -415,7 +415,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			case type_txt:
 				if(ebox->egi_data != NULL)
 				{
-					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
+					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_data_txt(ebox->egi_data)  \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_txt(ebox->egi_data);
 				 }
@@ -423,7 +423,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			case type_btn:
 				if(ebox->egi_data != NULL)
 				{
-					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_data_btn(ebox->egi_data)  \
+					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_data_btn(ebox->egi_data)  \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_btn(ebox->egi_data);
 				}
@@ -431,7 +431,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			case type_list:
 				if(ebox->egi_data != NULL)
 				{
-					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_date_list(ebox->egi_data) \
+					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_date_list(ebox->egi_data) \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_list(ebox->egi_data);
 				}
@@ -439,7 +439,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 			case type_pic:
 				if(ebox->egi_data != NULL)
 				{
-					egi_pdebug(DBG_EGI,"egi_ebox_free():start to egi_free_date_pic(ebox->egi_data) \
+					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_date_pic(ebox->egi_data) \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_pic(ebox->egi_data);
 				}
@@ -488,7 +488,7 @@ return:
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 {
 	/* malloc ebox */
-	egi_pdebug(DBG_EGI,"egi_ebox_new(): start to malloc for a new ebox....\n");
+	EGI_PDEBUG(DBG_EGI,"egi_ebox_new(): start to malloc for a new ebox....\n");
 	EGI_EBOX *ebox=malloc(sizeof(EGI_EBOX));
 
 	if(ebox==NULL)
@@ -501,7 +501,7 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	ebox->type=type;
 
 	/* assign default methods for new ebox */
-	egi_pdebug(DBG_EGI,"egi_ebox_new(): assing default method to ebox ....\n");
+	EGI_PDEBUG(DBG_EGI,"egi_ebox_new(): assing default method to ebox ....\n");
 	ebox->activate=egi_ebox_activate;
 	ebox->refresh=egi_ebox_refresh;
 	ebox->decorate=egi_ebox_decorate;
@@ -516,7 +516,7 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	 bkimg=NULL
 	 */
 
-	egi_pdebug(DBG_EGI,"egi_ebox_new(): end the call. \n");
+	EGI_PDEBUG(DBG_EGI,"egi_ebox_new(): end the call. \n");
 
 	return ebox;
 }
