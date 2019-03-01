@@ -6,6 +6,7 @@ Note:
 #include "play_ffpcm.h"
 #include "egi_debug.h"
 #include "egi_log.h"
+#include "egi_timer.h"
 
 /* definition of global varriable: g_ffpcm_handle */
 static snd_pcm_t *g_ffpcm_handle;
@@ -117,26 +118,30 @@ void  play_ffpcm_buff(void ** buffer, int nf)
 {
 	int rc;
 
-	//---- write interleaved frame data
+	/* write interleaved frame data */
 	if(g_blInterleaved)
-	        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); 
-	//---- write noninterleaved frame data
+	        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf );
+	/* write noninterleaved frame data */
 	else
-       	        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback 
+       	        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback
         if (rc == -EPIPE)
         {
-            //EPIPE means underrun
+            /* EPIPE means underrun */
             //fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-            EGI_PDEBUG(DBG_FFPLAY,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-            snd_pcm_prepare(g_ffpcm_handle);
+            EGI_PDEBUG(DBG_FFPLAY,"[%lld]: snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n",
+            						tm_get_tmstampms() );
+	    snd_pcm_prepare(g_ffpcm_handle);
         }
 	else if(rc<0)
         {
-        	fprintf(stderr,"error from writen():%s\n",snd_strerror(rc));
+        	//fprintf(stderr,"error from writen():%s\n",snd_strerror(rc));
+		EGI_PLOG(LOGLV_ERROR,"%s: error from writen():%s\n",__FUNCTION__, snd_strerror(rc));
         }
         else if (rc != nf)
         {
-                fprintf(stderr,"short write, write %d of total %d frames\n",rc,nf);
+                //fprintf(stderr,"short write, write %d of total %d frames\n",rc, nf);
+		EGI_PLOG(LOGLV_ERROR,"%s: short write, write %d of total %d frames\n",
+								__FUNCTION__, rc, nf);
         }
 
 }

@@ -15,8 +15,8 @@ char tm_strbuf[50]={0};
 const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 
 /* global tick */
-struct itimerval tm_tick_val,tm_tick_oval;
-long long unsigned int tm_tick_count=0;
+static struct itimerval tm_tick_val,tm_tick_oval;
+static long long unsigned int tm_tick_count=0;
 
 
 /*-------------------------------------
