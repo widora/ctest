@@ -635,9 +635,11 @@ goto SEEK_LOOP_START;
 	{
 		/* wait display_thread */
 		printf("joint picture displaying thread ...\n");
-		fftok_QuitFFplay = true;
+		control_cmd=cmd_exit_display_thread;
+		//fftok_QuitFFplay = true;
 		pthread_join(pthd_displayPic,NULL);
-		fftok_QuitFFplay = false;
+		control_cmd=cmd_none;
+		//fftok_QuitFFplay = false;
 
 		/* free PICbuffs */
 		printf("free PICbuffs[]...\n");

@@ -43,7 +43,7 @@ Midas Zhou
 #include <pthread.h>
 #include "egi_log.h"
 #include "egi_timer.h"
-
+#include "egi_utils.h"
 
 static pthread_t log_write_thread;
 
@@ -253,6 +253,7 @@ static void egi_log_thread_write(void)
 	//pthread_exit(0);
 }
 
+#if 0  /////////   use egi_utils' malloc functions ////////////
 /*--------------------------------------------------------------
 malloc 2 dimension buff.
 char** buff to be regarded as char buff[items][item_len];
@@ -339,6 +340,9 @@ static int egi_free_buff2D(char **buff, int items, int item_len)
 
 	return 0;
 }
+#endif //////////   use egi_utils' malloc functions ////////////
+
+
 
 /*-------------------------------------------
 1. allocate log buff itmes
@@ -362,7 +366,9 @@ int egi_init_log(void)
 	}
 
 	/* 2. malloc log buff */
-	if(egi_malloc_buff2D(&log_buff,EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN)<0)
+//	if(egi_malloc_buff2D(&log_buff,EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN)<0)
+	log_buff=egi_malloc_buff2D(EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN);
+	if(log_buff==NULL)
 	{
 		printf("egi_init_log(): fail to malloc log_buff.\n");
 		goto init_fail;
@@ -426,7 +432,7 @@ int egi_init_log(void)
 init_fail:
 	pthread_mutex_destroy(&log_buff_mutex); /* destroy mutex */
 
-	egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN);
+	egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS);
 
 	if(egi_log_fp != NULL)/* close file */
 		fclose(egi_log_fp);
@@ -484,12 +490,15 @@ static int egi_free_logbuff(void)
       /* -------------- entering critical zone ---------------- */
 
 	/* free log buff */
+/*
 	if( egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN) !=0 )
 	{
 		printf("egi_free_logbuff():fail to free log buff.\n");
 		pthread_mutex_unlock(&log_buff_mutex);
 		return -2;
 	}
+*/
+	egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS);
 
 	/* put mutex lock */
 	pthread_mutex_unlock(&log_buff_mutex);

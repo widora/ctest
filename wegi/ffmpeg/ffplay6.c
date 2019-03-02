@@ -42,7 +42,8 @@ NOTE:
 10. For stream media, avformat_open_input() will fail if key_frame is corrupted.
 11. Change AVFilter descr to set clock or cclock, var. transpos_colock is vague.
 12. if logo.png is too big.!!!!
-13. If AVFilter is applied, H/W pixels must be multiples of 16. For SWS there is no requirement.
+13. The final display windown H/W(row/column pixel numbers) must be multiples of 16 if AVFilter applied,
+    and multiples of 2 if software scaler applied.
 
 14.
 
@@ -129,17 +130,9 @@ Midas Zhou
 #define ENABLE_AUTOFIT_ROTPIC 0 /* auto. rotate picture to fit for the screen ration */
 
 #define FF_LOOP_TIMEGAP 0 //3 /* in second, holdon or idle time after ffplay a file */
-#define ENABLE_CLIP_TEST 1 /* play the beginning part of a file. */
+#define ENABLE_CLIP_TEST 0 /* play the beginning part of a file. */
 #define FF_CLIP_PLAYTIME 6 /* in second, set clip play time */
 
-
-/* ffplay control command signal */
-#if 0
-int ff_command_next;
-int ff_command_pause;
-int ff_command_stop;
-int ff_command_prev;
-#endif
 
 
 /*
@@ -161,21 +154,21 @@ Note:
  *  if 0, transpose not applied,
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-int transpose_clock=0;
+int transpose_clock=1;
 
-/* expected display window size,  will be adjusted in the function */
-int show_h=174;
-int show_w=174;
+/* expected display window size, LCD   will be adjusted in the function */
+int show_h= 297; //199;//185;/* LCD row pixels */
+int show_w= 219; //199;//185; /* LCD column pixels */
 
 
 int main(int argc, char *argv[])
 {
 	/* for input files */
 	int fnum; /* number of multimedia files input from shell */
-	int ff_sec_Vduration; /* in seconds, multimedia file duration */
-	int ff_sec_Aduration; /* in seconds, multimedia file duration */
-	int ff_sec_Velapsed;  /* in seconds, playing time elapsed */
-	int ff_sec_Aelapsed;  /* in seconds, playing time elapsed */
+	int ff_sec_Vduration=0; /* in seconds, multimedia file duration */
+	int ff_sec_Aduration=0; /* in seconds, multimedia file duration */
+	int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed */
+	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext	*pFormatCtx=NULL;
@@ -297,6 +290,7 @@ int main(int argc, char *argv[])
         init_dev(&gv_fb_dev);
 	clear_screen(&gv_fb_dev, 0);
 
+
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 #if ENABLE_MEDIA_LOOP
  /* MEDIA_LOOP_START */
@@ -316,15 +310,9 @@ while(1) {
    /* play all input files, one by one. */
    for(fnum=1; fnum < argc; fnum++)
    {
-
-   	/*reset display window size */
-#if ENABLE_AVFILTER
-   	display_width=(show_w>>4)<<4;
-   	display_height=(show_h>>4)<<4;
-#else /* disable avfilter */
-	display_width=show_w;
+	/* reset display window size */
 	display_height=show_h;
-#endif
+	display_width=show_w;
 
 	/* Open media stream or file */
 	EGI_PLOG(LOGLV_INFO,"ffplay: Start to play file %s\n",argv[fnum]);
@@ -655,6 +643,15 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	if(display_height > scheight) {
 		display_height=scheight;
 	}
+
+   	/*reset display window size to be multiples of 4 or 2 */
+#if  ENABLE_AVFILTER
+   	display_width=(display_width>>4)<<4;
+   	display_height=(display_height>>4)<<4;
+#else /* disable avfilter */
+	display_width=(display_width>>1)<<1;
+	display_height=(display_height>>1)<<1;
+#endif
 	printf("ffplay: adjust display size for to: display_width=%d, display_height=%d\n",
 									display_width,display_height);
 
@@ -662,9 +659,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
 	pic.numBytes=numBytes;
-	buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+	/* malloc buffer for pFrameRGB */
+	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
+	// use  av_malloc(numBytes)
 	if(malloc_PICbuffs(display_width,display_height) == NULL) {
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return -1;
@@ -689,8 +688,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
-// ??????????
 	 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
+
 
 #if (!ENABLE_AVFILTER)
 	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
@@ -920,7 +919,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 #elif (!ENABLE_AVFILTER) /* AVfilter OFF */
 				/* convert the image from its native format to RGB */
-				//printf("...converting image to RGB\n");
+				printf("ffplay: sws_scale converting ...\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -1021,7 +1020,6 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 #if ENABLE_CLIP_TEST /* for Clip test only ---------*/
 		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FF_CLIP_PLAYTIME) )
 		{
-			//reset:  ff_token_skip=0;
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
 			break;
@@ -1038,11 +1036,14 @@ goto SEEK_LOOP_START;
 ff_fail:
 	if(videoStream >=0) /* only if video stream exists */
 	{
-		/* wait display_thread */
+		/* wait for display_thread to join */
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to joint picture displaying thread ...\n");
-		fftok_QuitFFplay = true;
+
+		//fftok_QuitFFplay = true;
+		control_cmd = cmd_exit_display_thread; /* set command */
 		pthread_join(pthd_displayPic,NULL);
-		fftok_QuitFFplay = false;
+		control_cmd = cmd_none;/* clear command */
+		//fftok_QuitFFplay = false;
 
 		/* free PICbuffs */
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free PICbuffs[]...\n");
@@ -1054,6 +1055,7 @@ ff_fail:
 	if(pFrame != NULL) {
 		av_frame_free(&pFrame);
 		pFrame=NULL;
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: 	...pFrame freed.\n");
 	}
 
 	/* Free the RGB image */
@@ -1061,11 +1063,14 @@ ff_fail:
 	if(buffer != NULL) {
 		av_free(buffer);
 		buffer=NULL;
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay:	...buffer freed.\n");
 	}
+
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: free pFrameRGB...\n");
 	if(pFrameRGB != NULL) {
 		av_frame_free(&pFrameRGB);
 		pFrameRGB=NULL;
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: 	...pFrameRGB freed.\n");
 	}
 
 	/* close pcm device */

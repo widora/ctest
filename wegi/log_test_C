@@ -47,17 +47,10 @@ int main(int argc, char **argv)
 	int index;
 	int ret;
 
-  /* test -------- egi_log funcs-------- */
-	pthread_t thread_log1;
-	pthread_t thread_log2;
-	pthread_t thread_log3;
-
 
 	/* --- start egi tick --- */
 	tm_start_egitick();
 
-  while(1)
-  {
 	/* --- init log --- */
 	if(egi_init_log() !=0)
 	{
@@ -65,7 +58,29 @@ int main(int argc, char **argv)
 	   exit(0);
 	}
 
+	/* --- open spi dev --- */
+	SPI_Open();
 
+	/* --- prepare fb device --- */
+        gv_fb_dev.fdfd=-1;
+        init_dev(&gv_fb_dev);
+
+
+  /* test -------- egi_log funcs-------- */
+	pthread_t thread_log1;
+	pthread_t thread_log2;
+	pthread_t thread_log3;
+
+    #if 0
+	printf("test direct egi_push_log()...\n");
+	for(i=0;i<20;i++)
+	{
+		egi_push_log("Hello --- %d ---\n",i);
+	}
+    #endif
+
+//  while(1)
+  {
 	printf("test mutli_thread call egi_push_log()...\n");
 	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
 	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
@@ -73,10 +88,10 @@ int main(int argc, char **argv)
 	egi_push_log(LOGLV_WARN,"---- Good day! WARN Log  finish. ----\n");
 	egi_push_log(LOGLV_TEST,"---- Good day! TEST Log  finish. ----\n");
 
-	tm_delayms(30);
+	tm_delayms(50);
+   }
 
 	printf("egi_quit_log...\n");
 	egi_quit_log();
-}
 
 }

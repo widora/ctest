@@ -22,7 +22,7 @@ TODO:
 5. systme()... sh -c ...
 6. btn-press and btn-release signal
 7. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
-8. after set tm_timer(), usleep() and slee() will disfunction!!???? 
+8. after set tm_timer(), SIGALM will disfunction sleep() and usleep(), try tm_delayms()...
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -52,9 +52,9 @@ Midas Zhou
 #include "egi_objlist.h"
 #include "egi_iwinfo.h"
 #include "egi_touch.h"
+#include "egi_log.h"
 
 char mvicon_load[16]={0};
-
 
 void roam_pic1(void)
 {
@@ -77,6 +77,37 @@ void roam_pic2(void)
 	pthread_exit(0);
 }
 
+void test_log1(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		EGI_PLOG(LOGLV_INFO," From file %s,  %s(): LOGLV_INFO---%d--- \n",__FILE__,__FUNCTION__,i);
+	}
+	pthread_exit(0);
+}
+void test_log2(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s(): LOGLV_ERROR---%d--- \n",__FUNCTION__,i);
+//		exit(0);
+	}
+	pthread_exit(0);
+}
+void test_log3(void)
+{
+	int i;
+	pthread_detach(pthread_self());
+	for(i=0;i<10;i++)
+	{
+		EGI_PLOG(LOGLV_INFO,"log3: LOGLV_INFO---- %d ---- \n",i);
+	}
+	pthread_exit(0);
+}
 
 
 /*  ---------------------  MAIN  ---------------------  */
@@ -95,17 +126,35 @@ int main(int argc, char **argv)
 	int kr=0;
 
 	uint16_t *buf;
-	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+//	buf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 	uint16_t *buf2;
-	buf2=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+//	buf2=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 	uint16_t *nbuf;
-	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
+//	nbuf=(uint16_t *)malloc(320*240*sizeof(uint16_t));
 
 	pthread_t   thread_loopread;
 
 
+	/* test timer */
+#if 0
+	printf("get tm stamp in ms: %lld \n",tm_get_tmstampms());
+	system("uptime");
+	exit(0);
+#endif
+
+	/* --- start egi tick --- */
+	tm_start_egitick();
+//	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
+//	signal(SIGALRM, tm_tick_sigroutine);
+
+	/* --- init log --- */
+	if(egi_init_log() !=0)
+	{
+	   printf("egi_init_log() fails! \n");
+	   exit(0);
+	}
 
 	/* --- open spi dev --- */
 	SPI_Open();
@@ -114,12 +163,14 @@ int main(int argc, char **argv)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-	/* ---- set timer for time display ---- */
-		tm_settimer(500000);/* set timer interval interval */
-	signal(SIGALRM, tm_sigroutine);
+	//clear_screen(&gv_fb_dev, 0) ;
+	//exit(0);
 
-	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
-	signal(SIGALRM, tm_tick_sigroutine);
+
+	/* ---- OBSELTE!!!! Clash with tm_tick_settimer() !  set timer for time display ---- */
+	//tm_settimer(500000);/* set timer interval interval */
+	//signal(SIGALRM, tm_sigroutine);
+
 
 	/* ---- start touch thread ---- */
 	if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
@@ -127,7 +178,6 @@ int main(int argc, char **argv)
 		printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
 		exit(1);
 	}
-
 
 /*	mat_create_fptrigontab();
 	//printf(" -3%%100=%d \n",(-3)%100);
@@ -139,7 +189,7 @@ int main(int argc, char **argv)
  }
 */
 ///////////////////////////////////////////////////////////////////////////////
-
+#if 0
 	EGI_EBOX  *hitbtn;
 
 	/* ------  create txt type ebox objects -------*/
@@ -155,10 +205,48 @@ int main(int argc, char **argv)
 	EGI_EBOX *ebox_memo=create_ebox_memo();
 	if(ebox_memo == NULL)return -3;
 
+#endif
+
 	/* ------------   home_button eboxes definition  ------------------ */
+
 	EGI_PAGE *page_home=NULL;
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
+
+
+  /* test -------- egi_log funcs-------- */
+#if 1
+	pthread_t thread_log1;
+	pthread_t thread_log2;
+	pthread_t thread_log3;
+
+    #if 0
+	printf("test direct egi_push_log()...\n");
+	for(i=0;i<20;i++)
+	{
+		egi_push_log("Hello --- %d ---\n",i);
+	}
+    #endif
+
+//exit(1);
+
+//  while(1)
+  {
+	printf("test mutli_thread call egi_push_log()...\n");
+	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
+	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
+	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
+	egi_push_log(LOGLV_WARN,"---- Good day! WARN Log  finish. ----\n");
+	egi_push_log(LOGLV_TEST,"---- Good day! TEST Log  finish. ----\n");
+
+	tm_delayms(50);
+   }
+	printf("egi_quit_log...\n");
+	egi_quit_log();
+
+exit(0);
+#endif
+
 
 
   /* test -------- imgbuf funcs-------- */
@@ -181,13 +269,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* wait thread */
-	pthread_join(thread_roampic1,NULL);
-	pthread_join(thread_roampic2,NULL);
+	/* NO need for detached thread, wait thread */
+//	pthread_join(thread_roampic1,NULL);
+//	pthread_join(thread_roampic2,NULL);
 	exit(1);
 #endif
-
-
 
 
 #if 0
@@ -261,8 +347,6 @@ int main(int argc, char **argv)
 	 printf("ret=egi_txtbox_readfile()=%d\n",ret);
 	 exit(1);
 #endif
-
-
 
 
 	/* --- clear screen with BLACK --- */
@@ -364,10 +448,6 @@ int main(int argc, char **argv)
 	}
 	exit(1);
 #endif
-
-
-
-
 
 
 
@@ -834,5 +914,9 @@ while(1)
 
 	/* close spi dev */
 	SPI_Close();
+
+	/* quit log system,flush log_buff */
+	egi_quit_log();
+
 	return 0;
 }

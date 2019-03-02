@@ -17,6 +17,7 @@ INCLUDES += -I/home/midas-zhou/Ctest/wegi/include
 INCLUDES += -I/home/midas-zhou/ffmpeg-2.8.15/finish/include
 INCLUDES += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include
 
+### for -Wall for __attribute__
 CFLAGS   += -Wall
 
 LDFLAGS  += -L/home/midas-zhou/ffmpeg-2.8.15/finish/lib

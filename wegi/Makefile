@@ -50,6 +50,7 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 APPS = tmp_app
 
 #### -----  编译标志 -----
+## -Wall for __attribut__
 CFLAGS = -Wall
 CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----

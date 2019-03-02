@@ -25,8 +25,24 @@ Note:
 #define LCD_MAX_WIDTH 240
 #define LCD_MAX_HEIGHT 320
 
+
+/* ffplay control command signal */
+enum ff_control_cmd {
+        cmd_none,
+        cmd_play,
+        cmd_pause,
+        cmd_quit, /* release all resource and quit ffplay */
+        cmd_forward,
+        cmd_prev,
+
+        cmd_exit_display_thread, /* stop display thread */
+};
+
+static enum ff_control_cmd control_cmd;
+
+
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
-#define PIC_BUFF_NUM  4  //total number of RGB picture data buffers.
+#define PIC_BUFF_NUM  4  /* total number of RGB picture data buffers. */
 
 static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
 
@@ -35,33 +51,32 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiabili
 					    * thdf_Display_Pic() put 'true' tag,
 					    */
 
-/* information of a decoded picture, for pthread params 
+/* information of a decoded picture, for pthread params
  */
 struct PicInfo {
-        /* Hb,Vb,Hs,He,Vs,Ve;  for LCD image layout */
-	int Hs;
-	int He;
-	int Vs;
-	int Ve;
-	uint8_t *data; /* pointer to pPICbuffs */
-	int numBytes;  /* total bytes for a picture RGB data */
-	int nPICbuff; /* slot number of pPICbuffs */
+        /* coordinate for display window layout on LCD */
+	int Hs; /* Horizontal start pixel column number */
+	int He; /* Horizontal end */
+	int Vs; /* Vertical start pixel row number */
+	int Ve; /* Vertical end */
+	int nPICbuff; /* slot number of buff data in pPICbuffs[] */
+	uint8_t *data; /* RGB data, pointer to pPICbuffs[] page */
+	int numBytes;  /* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
 };
 
-static bool fftok_QuitFFplay=false; /* token for ffplay play control */
-static bool fftok_Play=false;
-static bool fftok_Forward=false;
 
-/*------------------------------------------------------
-WARNING:  for 1_producer and 1_consumer scenario only!!!
+
+
+/*----------------------------------------------------------
+WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 
 Allocate memory for PICbuffs,for 16bits color.
 
 Return value:
 	NULL   --- fails
 	others --- OK
--------------------------------------------------------*/
-uint8_t**  malloc_PICbuffs(int width, int height)
+----------------------------------------------------------*/
+uint8_t**  malloc_PICbuffs(int width, int height )
 {
         int i,k;
 
@@ -120,8 +135,10 @@ void free_PicBuffs(void)
 
         for(i=0;i<PIC_BUFF_NUM;i++)
 	{
+		printf("PIC_BUFF_NUM: %d/%d start to free...\n",i,PIC_BUFF_NUM);
 		if(pPICbuffs[i] != NULL)
 	                free(pPICbuffs[i]);
+		printf("PIC_BUFF_NUM: %d/%d freed.\n",i,PIC_BUFF_NUM);
 	}
         free(pPICbuffs);
 
@@ -139,12 +156,14 @@ int get_costtime(struct timeval tm_start, struct timeval tm_end)
         return time_cost;
 }
 
-/*--------------------------------------------------
+/*--------------------------------------------------------
 	     a thread fucntion
 
 	 In a loop to display pPICBuffs[]
 
----------------------------------------------------*/
+WARNING: !!! for 1_producer and 1_consumer scenario only!!!
+
+----------------------------------------------------------*/
 void* thdf_Display_Pic(void * argv)
 {
    int i;
@@ -186,7 +205,8 @@ void* thdf_Display_Pic(void * argv)
 		}
 	   }
 	   /* quit ffplay */
-	   if(fftok_QuitFFplay)
+	   //if(fftok_QuitFFplay)
+	   if(control_cmd == cmd_exit_display_thread )
 		break;
 
 	   usleep(2000);
