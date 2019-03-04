@@ -499,12 +499,15 @@ For 16bits color only!!!!
 
 1. Write image data of an EGI_IMGBUF to a window of FB to display it.
 2. Set outside color as black.
+3. window(xw,yw) defines a looking window to the original picture, (xp,yp) is the left_top
+   start point of the window. If the looking window covers area ouside of the picture,then
+   those area will be filled with BLACK.
 
 egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 (xp,yp):	coodinate of the displaying window origin(left top) point, relative to
 		the coordinate system of the picture(also origin at left top).
 (xw,yw):	displaying window origin, relate to the LCD coord system.
-winw,winh:		width and height of the displaying window.
+winw,winh:	width and height(row/column for fb) of the displaying window.
 ---------------------------------------------------------------------------------------*/
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 				int xw, int yw, int winw, int winh)
@@ -517,12 +520,18 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 		printf("egi_imgbuf_display(): egi_imgbuf is NULL. fail to display.\n");
 		return -1;
 	}
+	int imgw=egi_imgbuf->width;	/* image Width and Height */
+	int imgh=egi_imgbuf->height;
+	if( imgw<0 | imgh<0 )
+	{
+		printf("egi_imgbuf_display(): egi_imgbuf->width or height is negative. fail to display.\n");
+		return -1;
+	}
 
 	int i,j;
 	int xres=fb_dev->vinfo.xres;
 	//int yres=fb_dev->vinfo.yres;
-	int imgw=egi_imgbuf->width;	/* image Width and Height */
-	int imgh=egi_imgbuf->height;
+
 	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
 	unsigned char *fbp =fb_dev->map_fb;
 	uint16_t *imgbuf = egi_imgbuf->imgbuf;

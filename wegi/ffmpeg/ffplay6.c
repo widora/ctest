@@ -14,8 +14,9 @@ TODO:
    It dosen't work for ACC_LC decoding, lots of float point operations.
 
 2. Can not decode png picture in a mp3 file. ...OK, with some tricks.
+   However, fail to put logo on mp3 picture by AVFilter descr.
 
-3. Start ffplay movie with png logo from script /etc/rc.local fails:
+3. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
 	... error log ...
 	...
 	filter graph args: video_size=160x90:pix_fmt=0:time_base=125/2997:pixel_aspect=45/44
@@ -24,7 +25,6 @@ TODO:
 	Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.
 	joint picture displaying thread ...
 	...
-4. Whe sample_aspect_ratio=0/1, AVFilter will fail. !!!!
 
 NOTE:
 1.  A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
@@ -43,15 +43,16 @@ NOTE:
 11. Change AVFilter descr to set clock or cclock, var. transpos_colock is vague.
 12. if logo.png is too big.!!!!
 13. The final display windown H/W(row/column pixel numbers) must be multiples of 16 if AVFilter applied,
-    and multiples of 2 if software scaler applied.
+    and multiples of 2 while software scaler applied.
 
-14.
+
 
 		 (((  --- Glossary ---  )))
 
+FPS:		Frame Per Second
 PAR:		Pixel Aspect Ratio
 SAR:		Sample Aspect Ratio
-	     	BUT!!!! in avcodec.h,  struct AVCodecContext->sample_aspect_ratio is "width of a pixel divided by the height of the pixel"
+	     	!!!!BUT, in avcodec.h,  struct AVCodecContext->sample_aspect_ratio is "width of a pixel divided by the height of the pixel"
 DAR:		Display Aspect Ratio
 PIX_FMT:	pixel format defined in libavutil/pixfmt.h
 FFmpeg transpose:
@@ -77,14 +78,16 @@ The data flow of a movie is like this:
 
 
 Usage:
-	ffplay  video_file/media_address
+	ffplay  media_file or media_address
 	ffplay /music/*.mp3
 	ffplay /music/*.mp3  /video/*.avi
+	ffplay /media/*
 
 Midas Zhou
 -------------------------------------------------------------------------------------------------*/
 #include "ffplay.h"
 #include "spi.h"
+#include "egi_color.h"
 #include "egi_timer.h"
 #include "egi_fbgeom.h"
 #include "egi_debug.h"
@@ -94,45 +97,8 @@ Midas Zhou
 #include <string.h>
 
 
-/* param: ( enable_avfilter )
- *   if 1:	display window position and size will be adjust according to avfilter descr.
- *   if 0:	display window W&H map to LCD W&H(row&colum), window size will be adjusted to fit for
- *		LCD W&H.
- */
-#define ENABLE_AVFILTER 1 /* enable AVFilter for video */
-
-/* param: ( enable_seek_loop )
- *   if 1:	loop one single file/stream forever.
- *   if 0:	play one time only.
- */
-#define ENABLE_SEEK_LOOP 0  /* loop seeking and playing from the start of the same file */
-
-/* param: ( enable_media_loop )
- *   if 1:	loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
- *		and continue to try next one.
- *   if 0:	play one time for every file in playlist.
- */
-#define ENABLE_MEDIA_LOOP 1
-
-/* param: ( enable_audio )
- *   if 1:	enable audio playback.
- *   if 0:	disable audio playback.
- */
-#define ENABLE_AUDIO 1
-
-/* param: ( enable_auto_rotafit )
- *   if 1:	1. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
- *		2. here we assume that LCD_HEIGHT > LCD_WIDTH.
- *		3. if 1, then enable_avfilter also MUST set to 1.
- *
- *   if 0:	disable audio playback.
- */
-#define ENABLE_AUTOFIT_ROTPIC 0 /* auto. rotate picture to fit for the screen ration */
-
-#define FF_LOOP_TIMEGAP 0 //3 /* in second, holdon or idle time after ffplay a file */
-#define ENABLE_CLIP_TEST 0 /* play the beginning part of a file. */
+#define FF_LOOP_TIMEGAP 5 //3 /* in second, hold_on time after ffplaying a file */
 #define FF_CLIP_PLAYTIME 6 /* in second, set clip play time */
-
 
 
 /*
@@ -147,28 +113,79 @@ Note:
  *	1.
  *	2.
 */
+/* expected display window size, LCD will be adjusted in the function */
+int show_h= 320; //240; //199;//185;/* LCD row pixels */
+int show_w= 240;//160; //199;//185; /* LCD column pixels */
 
 
 
-/*  param: ( transpose_clock )
+/* param: ( enable_avfilter )
+ *   if 1:	display_window rotation and size will be adjusted according to avfilter descr.
+ *   if 0:	use SWS, display_window W&H map to LCD W&H(row&colum), window size will be adjusted to fit for
+ *		LCD W&H.
+ */
+/* enable AVFilter for video */
+static bool enable_avfilter=false;//true;
+
+/* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
+ *   if 1:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
+ *		2. here we assume that LCD_HEIGHT > LCD_WIDTH.
+ *		3. if 1, then enable_avfilter also MUST set to 1.
+ *
+ *   if 0:	disable it.
+ */
+static bool enable_auto_rotate=true;
+
+/*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=0)
  *  if 0, transpose not applied,
+	  !!!NOTE: if enable_auto_rotate=true, then it will be decided by checking image H and W,
+	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-int transpose_clock=1;
+static int transpose_clock=1;
 
-/* expected display window size, LCD   will be adjusted in the function */
-int show_h= 297; //199;//185;/* LCD row pixels */
-int show_w= 219; //199;//185; /* LCD column pixels */
+/* param: ( enable_stretch )
+ *   if 1:	stretch the image to fit for expected H&W, original iamge ratio is ignored.
+ *   if 0:	keep original ratio.
+ */
+static bool enable_stretch=true;
+
+/* param: ( enable_seek_loop )
+ *   if 1:	loop one single file/stream forever.
+ *   if 0:	play one time only.
+ */
+/* loop seeking and playing from the start of the same file */
+static bool enable_seekloop=false;
+
+/* param: ( enable_media_loop )
+ *   if 1:	loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
+ *		and continue to try next one.
+ *   if 0:	play one time for every file in playlist.
+ */
+//#define ENABLE_MEDIA_LOOP 1
+static bool enable_filesloop=true;
+
+/* param: ( enable_audio )
+ *   if 1:	enable audio playback.
+ *   if 0:	disable audio playback.
+ */
+static bool disable_audio=false;
+
+/* param: ( enable_clip_test )
+ *   if 1:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
+ *   if 0:	disable clip test.
+ */
+static bool enable_clip_test=false;
 
 
 int main(int argc, char *argv[])
 {
 	/* for input files */
 	int fnum; /* number of multimedia files input from shell */
-	int ff_sec_Vduration=0; /* in seconds, multimedia file duration */
-	int ff_sec_Aduration=0; /* in seconds, multimedia file duration */
-	int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed */
-	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed */
+	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
+	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
+	int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext	*pFormatCtx=NULL;
@@ -196,11 +213,8 @@ int main(int argc, char *argv[])
 	int widthOrig;
 	int heightOrig;
 
-	/* scaled movie size, mapped as  scwidth->LCD(fb) row, scheight->LCD(fb) column
+	/* for scaled movie size, mapped as scwidth->LCD(fb) row, scheight->LCD(fb) column
 	   will be adjusted to fit for LCD WxH, clock transpose is also considered.
-	  0. used to set PicInfo pic.H and pic.V, for displaying image info.
-	  1. when No AVFilter applys, they will be modified to best fit LCD size, and then for SWS.
-	  2. when AVFilter applys instead of SWS, they are to be the same as display_width and display_height.
          */
 	int scwidth;
 	int scheight;
@@ -239,26 +253,24 @@ int main(int argc, char *argv[])
 	/* video filter descr, same as -vf option in ffmpeg */
 	/* scale = Width x Height */
 	/* transpose: transpose rows with columns in the input video */
-//	const char *filters_descr = "scale=240:160,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
-//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=240:320[out]";//,transpose=cclock[out]"; /* after cclock -> W160xH240, or clock */;
-//	const char *filters_descr = "movie=logo.png[logo];[in][logo]overlay=5:5,scale=180:180,transpose=cclock"; /* after cclock -> W160xH240, or clock */;
 
-	/* display window
-	   mapped to final display WxH as of LCD row_pixel_number x column_pixel_number (NOT image upright size!!!)
-	   1. when ENABLE_AVFILTER, display_width/display_height will be adjusted according to best fitting
-	      scwidth/scheight.
-	   2. when disable AVFILTER, display_width/disaply_height are just same as scwidth/scheight.
-	   3. !!!Reset them when you start to play a new file, Otherwise the last adjuted data will be used.
+	/* display window, the final window_size that will be applied to AVFilter or SWS.
+	   0. Display width/height are NOT image upright width/height, their are related to LCD coordinate!
+	      If auto_rotation enabled, final display WxH are mapped to LCD row_pixel_number x column_pixel_number .
+	   1. Display_width/height are limited by scwidth/scheight, which are decided by original movie size 
+	      and LCD size limits.
+	   2. When disable AVFILTER, display_width/disaply_height are just same as scwidth/scheight.
         */
 	int display_width;
 	int display_height;
 
+	/* for AVFilter description, which will be parsed to apply on movie frames */
 	char filters_descr[512]={0};
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
 
-	/* thread */
+	/* thread for displaying RGB data */
 	pthread_t pthd_displayPic;
 
 	int ret;
@@ -292,20 +304,16 @@ int main(int argc, char *argv[])
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-#if ENABLE_MEDIA_LOOP
- /* MEDIA_LOOP_START */
-printf("Loop playing media file or stream ...\n");
-
+/* loop playing all files, check if enable_filesloop==true at the end of while(1) */
 while(1) {
-#endif
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
    	av_register_all();
    	avformat_network_init();
-#if  ENABLE_AVFILTER
+if(enable_avfilter)
+{
 	avfilter_register_all(); /* register all default builtin filters */
-#endif
-
+}
 
    /* play all input files, one by one. */
    for(fnum=1; fnum < argc; fnum++)
@@ -393,10 +401,12 @@ while(1) {
 		return -1;
 	}
 
-#if(!ENABLE_AUDIO)
-	printf("Audio is disabled! \n");
+/* disable audio */
+if(disable_audio)
+{
+	printf("ffplay: Audio is disabled! \n");
 	audioStream=-1;
-#endif
+}
 
 	/* proceed --- audio --- stream */
 	if(audioStream >= 0) /* only if audioStream exists */
@@ -452,11 +462,11 @@ while(1) {
 			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
 #endif
 #if 0 /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
-/* function definition:
-struct SwrContext *swr_alloc_set_opts( swr ,
-                                      int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
-                                      int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
-                                      int log_offset, void *log_ctx);		 */
+	/* Function definition:
+	struct SwrContext *swr_alloc_set_opts( swr ,
+                           int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
+                           int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
+                           int log_offset, void *log_ctx);		 */
 
 			/* allocate and set opts for swr */
 			EGI_PDEBUG(DBG_FFPLAY,"ffplay: swr_alloc_set_opts()...\n");
@@ -572,9 +582,22 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				pCodecCtx->width,pCodecCtx->height);
 
 
-
-#if ENABLE_AVFILTER  /* original image size, consider clock transpose. */
-	if(transpose_clock) {
+/* if enable_auto_rotate, then map long side to H, and shore side to W
+ * here assume LCD_H > LCD_W, and FB linesize is pixel number of LCD_W.
+ */
+if(enable_auto_rotate)
+{
+	if( pCodecCtx->height > pCodecCtx->width ) /*if image upright H>W */
+		transpose_clock=false;
+	else
+		transpose_clock=true;
+}
+/* get original video size, swap width and height if clock/cclock_transpose 
+ * pCodecCtx->heidth and width is the upright image size.
+ */
+if(enable_avfilter)
+{
+	if(transpose_clock) { /* if clock/cclock, swap H & W */
 		widthOrig=pCodecCtx->height;
 		heightOrig=pCodecCtx->width;
 	}
@@ -582,14 +605,30 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		widthOrig=pCodecCtx->width;
 		heightOrig=pCodecCtx->height;
 	}
-
-#else /* (!ENABLE_AVFILTER), original size */
+}
+else /* keep original size */
+{
 	widthOrig=pCodecCtx->width;
 	heightOrig=pCodecCtx->height;
+}
 
-#endif
 
-	/* <<<<<<<   calculate scaled movie size to fit for the screen  >>>>>>>
+/* stretch image size to expected */
+if(enable_stretch)
+{
+	/* <<<<<<< stretch image size, will NOT keep H/W ratio !!!  >>>>>> */
+	scwidth=widthOrig;
+	scheight=heightOrig;
+        if( widthOrig > LCD_MAX_WIDTH ) {
+		scwidth=LCD_MAX_WIDTH;
+	}
+	if( heightOrig > LCD_MAX_HEIGHT) {
+		scheight=LCD_MAX_HEIGHT;
+	}
+}
+else /* if NOT stretch, then keep original ratio */
+{
+	/* <<<<<<<   calculate scaled movie size to fit for the screen, keep H/W ratio!!!  >>>>>>>
 	 * 1. widthOrig and heightOrig are the original image size.
 	 * 2. scwidth and scheight are scaled/converted to be the best fit size for LCD.
          */
@@ -618,6 +657,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	 	scwidth=widthOrig;
 	 	scheight=heightOrig;
 	}
+}
 	printf("ffplay: set scaled video size to: scwidth=%d, scheight=%d \n",scwidth,scheight);
 
 	/* re-check size limit, in case data corrupted! */
@@ -630,12 +670,10 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		scheight=240;
 	}
 
-    /* if enable_image_maxfit */
-//	display_width=scwidth;
-//	display_height=scheight;
-
-	/* reset display_width and display_height according to scwidth/scheight,
-	 * just not to exceed limit size and will NOT keep original ratio though.
+	/* <<<<<<<<<<<<   Decide final display Width and Heigh    >>>>>>>>>> */
+	/* We get scwidth/scheight accroding to LCD Limts and original movie size, now we
+ 	 * can get decide display H/W according to scwidth/scheight.
+	 * just not to exceed scwidth/scheight, will not keep ratio if enable_strech=1.!!!
 	 */
 	if(display_width > scwidth) {
 		display_width=scwidth;
@@ -644,14 +682,20 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		display_height=scheight;
 	}
 
-   	/*reset display window size to be multiples of 4 or 2 */
-#if  ENABLE_AVFILTER
+
+/*  Double check here, should alread have been checked at the very begin
+ *  reset display window size to be multiples of 4(for AVFilter Descr) or 2(for SWS).
+*/
+if(enable_avfilter)
+{
    	display_width=(display_width>>4)<<4;
    	display_height=(display_height>>4)<<4;
-#else /* disable avfilter */
+}
+else
+{
 	display_width=(display_width>>1)<<1;
 	display_height=(display_height>>1)<<1;
-#endif
+}
 	printf("ffplay: adjust display size for to: display_width=%d, display_height=%d\n",
 									display_width,display_height);
 
@@ -663,8 +707,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
-	// use  av_malloc(numBytes)
-	if(malloc_PICbuffs(display_width,display_height) == NULL) {
+	if(malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return -1;
 	}
@@ -679,7 +722,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		IsFree_PICbuff[i]=false;
 	}
 */
-	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE to LCD layout    >>>>>>>>>>>>>>>>*/
+	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
 	 /* in order to put displaying window in center of the screen */
 	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
 	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
@@ -691,7 +734,8 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
 
 
-#if (!ENABLE_AVFILTER)
+if(!enable_avfilter) /* use SWS, if not AVFilter */
+{
 	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
 	EGI_PDEBUG(DBG_FFPLAY, "ffplay: initialize SWS context for software scaling... \n");
 	sws_ctx = sws_getContext( pCodecCtx->width,
@@ -707,7 +751,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				);
 
 //	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
-#endif
+}
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
@@ -718,13 +762,16 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Finish creating thread for displaying pictures.\n");
 
 
-////////////////////////////////////////////
-#if ENABLE_AVFILTER 	/* if AVFilter ON */
+/* if AVFilter ON, then initialize and prepare fitlers */
+if(enable_avfilter)
+{
   	/*---------<<< START: prepare filters >>>--------*/
 
    	EGI_PLOG(LOGLV_INFO, "ffplay: prepare VIDEO avfilters ...\n");
 
-	/* prepare filters description*/
+	/* prepare filters description
+	 * WARNING: if original image is much bigger than logo, then the logo maybe invisible after scale.
+         */
 	if(transpose_clock) /* image WxH to LCD HxW */
 	{
 		sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d,transpose=clock[out]",
@@ -850,8 +897,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
   	/*---------<<< END: prepare filters >>>--------*/
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Finish prepare avfilter and configure filter graph.\n");
 
-
-#endif  /* end of AVFilter ON */
+} /* end of AVFilter ON */
 
 
   }/* end of (videoStream >=0 ) */
@@ -864,11 +910,13 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
 
-#if ENABLE_SEEK_LOOP /* test loop playing for only ONE file ..... */
- START_SEEK_LOOP:
+/* if loop playing for only ONE file ..... */
+SEEK_LOOP_START:
+if(enable_seekloop)
+{
 	/* seek starting point */
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
-#endif
+}
 
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
@@ -885,7 +933,11 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 			/* if we get complete video frame(s) */
 			if(frameFinished) {
 
-#if ENABLE_AVFILTER /* AVFilter ON */
+/* If AVFilter ON, then push and pull decoded frames through AVFilter, then send filtered frame RGB data
+ *  to pic buff for display.
+ */
+if(enable_avfilter)
+{
 				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
 				/* push decoded frame into the filter graph */
 			        if( av_buffersrc_add_frame_flags(avFltCtx_BufferSrc,pFrame,
@@ -895,6 +947,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				    EGI_PLOG(LOGLV_ERROR, "Error feeding decoded pFrame to filter graph, try to carry on...\n");
 				    //break;
 				}
+
 				/* pull filtered frames from the filter graph */
 				while(1)
 				{
@@ -916,8 +969,9 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 					av_frame_unref(filt_pFrame); /* unref it, or it will eat up memory */
 				}
 				av_frame_unref(filt_pFrame);
-
-#elif (!ENABLE_AVFILTER) /* AVfilter OFF */
+}
+else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
+{
 				/* convert the image from its native format to RGB */
 				printf("ffplay: sws_scale converting ...\n");
 				sws_scale( sws_ctx,
@@ -931,8 +985,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					EGI_PDEBUG(DBG_FFPLAY,"ffplay: [%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
-
-#endif  /* end of AVFilter ON/OFF */
+} /* end of AVFilter ON/OFF */
 
 
 				/* ---print playing time--- */
@@ -1017,23 +1070,39 @@ struct SwrContext *swr_alloc_set_opts( swr ,
                 /* free OLD packet each time, that was allocated by av_read_frame */
                 av_free_packet(&packet);
 
-#if ENABLE_CLIP_TEST /* for Clip test only ---------*/
+
+/* For clip test, just ffplay a short time then break */
+if(enable_clip_test)
+{
 		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FF_CLIP_PLAYTIME) )
 		{
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
 			break;
 		}
-#endif
+}
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 
-#if ENABLE_SEEK_LOOP /* test seek loop  */
-goto SEEK_LOOP_START;
-#endif
+	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
+	if(FF_LOOP_TIMEGAP>0)
+	{
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: End playing %s, hold on for a while...\n",argv[fnum]);
+		tm_delayms(FF_LOOP_TIMEGAP*1000);
+	}
+	/* fill display area with BLACK */
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&gv_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve);
 
-	/* start to release all */
+/* if loop playing one file, then got to seek start  */
+if(enable_seekloop)
+{
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: enable_seekloop=true, go to seek the start of the same file and replay. \n");
+	goto SEEK_LOOP_START;
+}
+
 ff_fail:
+	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	if(videoStream >=0) /* only if video stream exists */
 	{
 		/* wait for display_thread to join */
@@ -1085,7 +1154,8 @@ ff_fail:
 		outputBuffer=NULL;
 	}
 
-#if ENABLE_AVFILTER
+if(enable_avfilter) /* free filter resources */
+{
 	/* free filter items */
 	if(filter_graph != NULL)
 	{
@@ -1100,7 +1170,7 @@ ff_fail:
 		av_frame_free(&filt_pFrame);
 		filt_pFrame=NULL;
 	}
-#endif
+}
 
 	/* Close the codecs */
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: close the codecs...\n");
@@ -1137,23 +1207,22 @@ ff_fail:
 	gettimeofday(&tm_end,NULL);
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n", argv[fnum],get_costtime(tm_start,tm_end) );
 
-	if(FF_LOOP_TIMEGAP>0)
-	{
-		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Hold on displaying for a while...\n");
-		//sleep(FF_LOOP_TIMEGAP);
-		tm_delayms(FF_LOOP_TIMEGAP*1000);
-	}
 
 
 	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n",argv[fnum]);
    } /* end of for(...), loop playing input files*/
 
 
-#if ENABLE_MEDIA_LOOP /* go on loop forever */
    //tm_delayms(500);
-  /* --- MEDIA_LOOP_END --- */
+
+/* --- PLAY ALL FILES END --- */
+if(!enable_filesloop) /* if disable loop playing all files, the break here */
+{
+	break;
+}
+EGI_PDEBUG(DBG_FFPLAY,"<<<<<  Finish one round of playing all files, go back to start a new round...  >>>>\n\n\n");
+
 } /* end of while(1), eternal loop. */
-#endif
 
 	/*   finally clean up all  */
 	/* close fb dev */

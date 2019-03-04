@@ -189,7 +189,6 @@ int main(int argc, char **argv)
  }
 */
 ///////////////////////////////////////////////////////////////////////////////
-#if 0
 	EGI_EBOX  *hitbtn;
 
 	/* ------  create txt type ebox objects -------*/
@@ -205,48 +204,12 @@ int main(int argc, char **argv)
 	EGI_EBOX *ebox_memo=create_ebox_memo();
 	if(ebox_memo == NULL)return -3;
 
-#endif
 
 	/* ------------   home_button eboxes definition  ------------------ */
 
 	EGI_PAGE *page_home=NULL;
 	EGI_PAGE *page_mplay=NULL;
 	EGI_PAGE *page_openwrt=NULL;
-
-
-  /* test -------- egi_log funcs-------- */
-#if 1
-	pthread_t thread_log1;
-	pthread_t thread_log2;
-	pthread_t thread_log3;
-
-    #if 0
-	printf("test direct egi_push_log()...\n");
-	for(i=0;i<20;i++)
-	{
-		egi_push_log("Hello --- %d ---\n",i);
-	}
-    #endif
-
-//exit(1);
-
-//  while(1)
-  {
-	printf("test mutli_thread call egi_push_log()...\n");
-	pthread_create(&thread_log1, NULL, (void *)test_log1, NULL);
-	pthread_create(&thread_log2, NULL, (void *)test_log2, NULL);
-	pthread_create(&thread_log3, NULL, (void *)test_log3, NULL);
-	egi_push_log(LOGLV_WARN,"---- Good day! WARN Log  finish. ----\n");
-	egi_push_log(LOGLV_TEST,"---- Good day! TEST Log  finish. ----\n");
-
-	tm_delayms(50);
-   }
-	printf("egi_quit_log...\n");
-	egi_quit_log();
-
-exit(0);
-#endif
-
 
 
   /* test -------- imgbuf funcs-------- */

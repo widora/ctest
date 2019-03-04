@@ -5,7 +5,8 @@ typedef struct
 {
         int height;
         int width;
-        uint16_t *imgbuf;
+        uint16_t *imgbuf; /* image data, for RGB565 format */
+	void *data; /* image data, for other pixel format */
 } EGI_IMGBUF;
 
 

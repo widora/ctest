@@ -75,8 +75,8 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-tmp_app: $(OBJS)  ###touch.o spi.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o tmp_app
+tmp_app: $(OBJS) buttons.o ###touch.o spi.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) buttons.o -o tmp_app
 
 
 #### ----- 目标文件自动生成规则 -----

@@ -1,2 +1,5 @@
 1. lake.jpg: a landscape photo taken at the West Lake, by Midas.
 2. cloud.jpg: clean sky of Zhoushan, by Midas.
+3. convert a file to an obj: 
+   openwrt_objcopy -I binary -O elf32-tradlittlemips -B mips buttons.img buttons.o
+

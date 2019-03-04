@@ -5,7 +5,7 @@ APP = ffplay6
 SOURCE = $(APP).c
 DEPS = ffplay.h
 OBJ = $(APP).o play_ffpcm.o
-EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o \
+EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o ../egi_utils.o\
 		../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
 
 APP2 = alsa_play

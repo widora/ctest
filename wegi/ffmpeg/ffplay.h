@@ -1,6 +1,8 @@
 /*-----------------------------------------------------------
 Note:
+	Never forget why you start! ---Just For Fun!
 
+Midas_Zhou
 -----------------------------------------------------------*/
 #ifndef  __FFPLAY_H__
 #define  __FFPLAY_H__
@@ -66,17 +68,19 @@ struct PicInfo {
 
 
 
+/*--------------------------------------------------------------
+WARNING: !!! for 1_producer and 1_consumer scenario only !!!
+Allocate memory for PICbuffs[]
 
-/*----------------------------------------------------------
-WARNING: !!! for 1_producer and 1_consumer scenario only!!!
+width,height:	picture size
+pixel_size:	in byte, size for one pixel.
 
-Allocate memory for PICbuffs,for 16bits color.
 
 Return value:
-	NULL   --- fails
-	others --- OK
-----------------------------------------------------------*/
-uint8_t**  malloc_PICbuffs(int width, int height )
+	 NULL   --- fails
+	!NULL 	--- OK
+----------------------------------------------------------------*/
+uint8_t**  malloc_PICbuffs(int width, int height, int pixel_size )
 {
         int i,k;
 
@@ -84,7 +88,7 @@ uint8_t**  malloc_PICbuffs(int width, int height )
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                pPICbuffs[i]=(uint8_t *)malloc(width*height*2); /* for 16bits color */
+                pPICbuffs[i]=(uint8_t *)malloc(width*height*pixel_size); /* for 16bits color */
 
                 /* if fails, free those buffs */
                 if(pPICbuffs[i] == NULL) {
@@ -94,7 +98,7 @@ uint8_t**  malloc_PICbuffs(int width, int height )
                         free(pPICbuffs);
                         return NULL;
                 }
-       }
+        }
 
         /* set tag */
         for(i=0;i<PIC_BUFF_NUM;i++) {
@@ -135,10 +139,10 @@ void free_PicBuffs(void)
 
         for(i=0;i<PIC_BUFF_NUM;i++)
 	{
-		printf("PIC_BUFF_NUM: %d/%d start to free...\n",i,PIC_BUFF_NUM);
+		//printf("PIC_BUFF_NUM: %d/%d start to free...\n",i,PIC_BUFF_NUM);
 		if(pPICbuffs[i] != NULL)
 	                free(pPICbuffs[i]);
-		printf("PIC_BUFF_NUM: %d/%d freed.\n",i,PIC_BUFF_NUM);
+		//printf("PIC_BUFF_NUM: %d/%d freed.\n",i,PIC_BUFF_NUM);
 	}
         free(pPICbuffs);
 

@@ -1,0 +1,5 @@
+touch : touch.c egi_color.h spi.h egi_fbgeom.h egi.h sys_list.h \
+ egi_image.h egi_math.h egi_page.h egi_txt.h egi_btn.h egi_symbol.h \
+ egi_pic.h egi_timer.h egi_objtxt.h egi_pagehome.h xpt2046.h egi_bmpjpg.h \
+ include/jpeglib.h include/jconfig.h include/jmorecfg.h include/jerror.h \
+ egi_objlist.h egi_iwinfo.h egi_touch.h egi_log.h

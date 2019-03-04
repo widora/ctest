@@ -444,7 +444,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 
 
 /* <<<<<<<<<<<<<<<<<<<<<<<<<<<<    allocate mem. for PIC buffers   >>>>>>>>>>>>>>>>>>>>>>>>>> */
-	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height) == NULL) {
+	if(malloc_PICbuffs(pCodecCtx->width,pCodecCtx->height, 2) == NULL) { /* pixel_size=2 for RGB565LE */
 		fprintf(stderr,"Fail to allocate memory for PICbuffs!\n");
 		return -1;
 	}
