@@ -237,8 +237,10 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 //	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
 	printf("--------- txtebox demon --- END ---------\n");
-	
-	return 0;
+
+	//return 0;
+
+	return pgret_OK; /* to treat as a page returen, so host page will refresh itsel */
 }
 
 

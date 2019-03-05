@@ -176,7 +176,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 	free(pdata);
 
 
-	return 0; /* return 0 to inform page to refresh itself */
+	return pgret_OK; /* treat as a page return, then the host page will refresh itself */
 }
 
 

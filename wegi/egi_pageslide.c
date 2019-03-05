@@ -34,6 +34,7 @@ Midas Zhou
 static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA *  touch_data);
 static int pageslide_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
+
 /*---------- [  PAGE ::  Test Slide Bar ] ---------
 1. create eboxes for 6 buttons and 1 title bar
 2. create Slide TEST page
@@ -166,19 +167,19 @@ static void egi_pageslide_runner(EGI_PAGE *page)
 
 }
 
-/*-----------------------------------
+/*------------------------------------------------------------------
 btn_close function:
 return
------------------------------------*/
+----------------------------------------------------------------------*/
 static int pageslide_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	return -1;
 }
 
-/*-----------------------------------
-redbtn sliding
+/*-------------------------------------------------------------------
+button sliding
 return
------------------------------------*/
+---------------------------------------------------------------------*/
 static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         int ty=0;
@@ -202,7 +203,7 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	{
 		printf("colorbtn_react(): double click, end the test!\n");
 		egi_msgbox_create("Message:\n\n    End sliding bar test.", 1000, WEGI_COLOR_ORANGE);
-		return -1;/* exit the page  */
+		return btnret_REQUEST_EXIT_PAGE;/* exit the page  */
 	}
 
 	/* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
@@ -257,6 +258,6 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		ebox->refresh(ebox);
 	}
 
-	return 1 ; /* 0 refresh container page */
+	return btnret_OK; /* 0 refresh container page */
 }
 

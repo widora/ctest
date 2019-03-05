@@ -272,6 +272,7 @@ int main(int argc, char *argv[])
 
 	/* thread for displaying RGB data */
 	pthread_t pthd_displayPic;
+	bool pthd_displayPic_running=false;
 
 	int ret;
 
@@ -760,6 +761,8 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 	}
 	else
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Finish creating thread for displaying pictures.\n");
+	/* set running token */
+	pthd_displayPic_running=true;
 
 
 /* if AVFilter ON, then initialize and prepare fitlers */
@@ -1103,7 +1106,7 @@ if(enable_seekloop)
 
 ff_fail:
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
-	if(videoStream >=0) /* only if video stream exists */
+	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{
 		/* wait for display_thread to join */
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: try to joint picture displaying thread ...\n");

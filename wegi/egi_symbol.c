@@ -37,6 +37,7 @@ Midas Zhou
 #include <string.h>
 #include "egi_symbol.h"
 #include "egi_debug.h"
+#include "egi_log.h"
 #include "egi_timer.h"
 
 /*--------------------(  testfont  )------------------------
@@ -44,7 +45,7 @@ Midas Zhou
   2.  5-pixel blank space for unprintable symbols, though 0-pixel seems also OK.
   3.  Please change the 'space' width according to your purpose.
 */
-static int testfont_width[16*8] =
+static int testfont_width[16*8] = /* check with maxnum */
 {
 	/* give return code a 0 width in a txt display  */
 //	5,5,5,5,5,5,5,5,5,5,0,5,5,5,5,5, /* unprintable symbol, give it 5 pixel wide blank */
@@ -76,7 +77,7 @@ struct symbol_page sympg_testfont=
 /*--------------------------(  numbfont  )-----------------------------------
  	big number font 0123456789:
 */
-static int numbfont_width[16*8] =
+static int numbfont_width[16*8] = /* check with maxnum */
 {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* unprintable symbol */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -99,8 +100,10 @@ struct symbol_page sympg_numbfont=
 
 
 /*--------------------------(  buttons  )-----------------------------------*/
-static int buttons_width[4*5] =
+static int buttons_width[4*5] =  /* check with maxnum */
 {
+	60,60,60,60,
+	60,60,60,60,
 	60,60,60,60,
 	60,60,60,60,
 	60,60,60,60,
@@ -112,7 +115,7 @@ struct symbol_page sympg_buttons=
 	.path="/home/buttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
-	.maxnum=4*3-1, /* 3 rows of ioncs */
+	.maxnum=4*5-1, /* 3 rows of ioncs */
 	.sqrow=4, /* 4 icons per row */
 	.symheight=60,
 	.symwidth=buttons_width, /* width list */
@@ -357,7 +360,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 #endif /*  test end -----------------------------------*/
 
 	close(fd);
-	printf("symbol_load_page(): succeed to load symbol image file %s!\n", sym_page->path);
+	EGI_PLOG(LOGLV_INFO,"symbol_load_page(): succeed to load symbol image file %s!\n", sym_page->path);
 	//printf("sym_page->data = %p \n",sym_page->data);
 	return (uint16_t *)sym_page->data;
 }
@@ -525,7 +528,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	/* check sym_code */
 	if( sym_code < 0 || sym_code > sym_page->maxnum )
 	{
-		printf("symbole code number out of range!\n");
+		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range!\n");
 		return;
 	}
 

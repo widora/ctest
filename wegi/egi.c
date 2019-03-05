@@ -12,6 +12,8 @@ Very simple concept:
 6. First init egi_data_xxx for different type, then init the egi_element_box with it.
 
 7. some ideas about egi_page ....
+  7.0 Life-circle of a page:
+      create a page ---> activate the page ---> run page routine ---> exit the routine ---> free the page.
   7.1 Home egi_page (wallpaper, app buttons, head informations ...etc.)
   7.2 Current active egi_page (current running/displaying egi_page, accept all pad-touch events)
   7.3 Back Running egi_page (running in back groud, no pad-touch reaction. )

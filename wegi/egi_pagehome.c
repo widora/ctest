@@ -22,6 +22,7 @@ Midas Zhou
 #include <unistd.h> /* usleep */
 #include "egi.h"
 #include "egi_debug.h"
+#include "egi_log.h"
 #include "egi_color.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
@@ -34,13 +35,15 @@ Midas Zhou
 #include "egi_pageopenwrt.h"
 #include "egi_pagebook.h"
 #include "egi_iwinfo.h"
+#include "egi_pageffplay.h"
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
-static int egi_homepage_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_homepage_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_homepage_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_homepage_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
 
@@ -106,24 +109,26 @@ EGI_PAGE *egi_create_homepage(void)
 
 	/* 1.3 add button tags and reactions here */
 	egi_ebox_settag(home_btns[0], "btn_mplayer");
-	home_btns[0]->reaction=egi_homepage_mplay;
+	home_btns[0]->reaction=egi_homebtn_mplay;
 
 	egi_ebox_settag(home_btns[1], "btn_test");
-	home_btns[1]->reaction=egi_homepage_test;
+	home_btns[1]->reaction=egi_homebtn_test;
 
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 
 	egi_ebox_settag(home_btns[3], "btn_openwrt");
-	home_btns[3]->reaction=egi_homepage_openwrt;
+	home_btns[3]->reaction=egi_homebtn_openwrt;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
 
 	egi_ebox_settag(home_btns[5], "btn_book");
-	home_btns[5]->reaction=egi_homepage_book;
+	home_btns[5]->reaction=egi_homebtn_book;
 
 	egi_ebox_settag(home_btns[6], "btn_chart");
 	egi_ebox_settag(home_btns[7], "btn_mp2");
-	egi_ebox_settag(home_btns[8], "btn_radio");
+
+	egi_ebox_settag(home_btns[8], "btn_ffplay");
+	home_btns[8]->reaction=egi_homebtn_ffplay;
 
 
 	/* --------- 2. create home head-bar --------- */
@@ -156,7 +161,6 @@ EGI_PAGE *egi_create_homepage(void)
 	head_txt->txt[0][6]=6;
 	head_txt->txt[0][7]=6;
 	/* !!! the last  MUST end with /0 */
-
 
 
 	/* ---------- 3.create home page -------- */
@@ -293,7 +297,7 @@ void egi_home_routine(void)
 button_mplay function:
 mplayer
 ------------------------------------------------------------------------------*/
-static int egi_homepage_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_mplay=egi_create_mplaypage();
 
@@ -303,14 +307,14 @@ static int egi_homepage_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* get out of routine loop */
 	egi_page_free(page_mplay);
 
-	return 0;
+	return pgret_OK;
 }
 
-/*------------------------------------------------------
+/*-------------------------------------------------------------------------
 button_openwrt function:
 openwrt
-------------------------------------------------------*/
-static int egi_homepage_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+---------------------------------------------------------------------------*/
+static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_openwrt=egi_create_openwrtpage();
 
@@ -320,14 +324,14 @@ static int egi_homepage_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* get out of routine loop */
 	egi_page_free(page_openwrt);
 
-	return 0; /* as for page exit, instead of <0 ????? */
+	return pgret_OK; /* as for page exit, instead of <0 ????? */
 }
 
 /*--------------------------------------------------------------------------
 button_openwrt function:
 book
 ----------------------------------------------------------------------------*/
-static int egi_homepage_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_book=egi_create_bookpage();
 
@@ -344,15 +348,46 @@ static int egi_homepage_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 button_test function:
 for test functions
 -----------------------------------------------------------------------------*/
-static int egi_homepage_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_test=egi_create_testpage();
 
         egi_page_activate(page_test);
+
 	/* get into routine loop */
         page_test->routine(page_test);
+
 	/* get out of routine loop */
 	egi_page_free(page_test);
 
-	return 0; /* as for page exit, instead of <0 ????? */
+	return pgret_OK; /* as for page exit, instead of <0 ????? */
+}
+
+
+/*----------------------------------------------------------------------------
+button_test function:
+for test functions
+-----------------------------------------------------------------------------*/
+static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+        EGI_PAGE *page_ffplay=egi_create_ffplaypage();
+	EGI_PLOG(LOGLV_INFO,"page '%s' is created.\n", page_ffplay->ebox->tag);
+
+        egi_page_activate(page_ffplay);
+	EGI_PLOG(LOGLV_INFO,"page '%s' is activated.\n", page_ffplay->ebox->tag);
+
+	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"trap into routine of '%s'...\n", page_ffplay->ebox->tag);
+        page_ffplay->routine(page_ffplay);
+
+//	/* exit a button activated page, set refresh flag for the host page, before page freeing.*/
+//	egi_page_needrefresh(ebox->container); pgret_OK will set refresh
+
+	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_ffplay->ebox->tag);
+	egi_page_free(page_ffplay);
+
+	
+
+	return pgret_OK; /* return 0 --- for page exit */
 }

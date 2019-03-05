@@ -74,9 +74,9 @@ EGI_PAGE *egi_create_mplaypage(void)
 		       					egi_color_random(medium) /*int prmcolor */
 						   );
 			/* if fail, try again ... */
-			if(data_btns[3*i+j]==NULL)
+			if(mplay_btns[3*i+j]==NULL)
 			{
-				printf("egi_create_mplaypage(): fail to call egi_btnbox_new() for home_btns[%d]. retry...\n", 3*i+j);
+				printf("egi_create_mplaypage(): fail to call egi_btnbox_new() for mplay_btns[%d]. retry...\n", 3*i+j);
 				free(data_btns[3*i+j]);
 				data_btns[3*i+j]=NULL;
 

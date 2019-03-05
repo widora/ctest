@@ -126,10 +126,6 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 		return -1;
 	}
 
-	/* set ebox->container */
-	ebox->container=page;
-
-	/* add to list tail */
 	list_add_tail(&ebox->node, &page->list_head);
 	EGI_PDEBUG(DBG_PAGE,"egi_page_addlist(): ebox '%s' is added to page '%s' \n",
 								ebox->tag, page->ebox->tag);
@@ -484,15 +480,11 @@ int egi_page_routine(EGI_PAGE *page)
 			{
 				EGI_PDEBUG(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
 									hitbtn->tag,page->ebox->tag);
-		       /*  then trigger button-hit action:
-		  	   1. 'pressing' and 'db_pressing' reaction events never coincide,
-				'pressing' will prevail  ---
-
-			*  2. !!!!WARNING: check touch_data in buttion reaction funciton at very begin,
-			*  Status 'pressed_hold' will last for a while, so it will have chance to trigger
-			*  button of previous page after triggered current page routine to quit.
-			*  3. only 'pressed_hold','pressing','db_pressing' can trigger button reaction.
-			*/
+				/* trigger button-hit action
+				   return <0 to exit this rountine, fall back to previous routine then ...
+			  	 NOTE: ---  'pressing' and 'db_pressing' reaction events never coincide,
+					'pressing' will prevail  ---
+				*/
  				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
 								   last_status==pressing ||
 								   last_status==db_pressing  )  )
@@ -501,25 +493,23 @@ int egi_page_routine(EGI_PAGE *page)
 					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
-					/* IF: a button request to exit current page routine */
-					if( ret==btnret_REQUEST_EXIT_PAGE )
+					if(ret<0)
 					{
-				       printf("[page '%s'] [button '%s'] ret: request to exit holding page.\n",
+						printf("reaction of page '%s' button '%s' complete!\n",
 										page->ebox->tag, hitbtn->tag);
-						return pgret_OK; // or break;
+						printf("exit page '%s'... \n", page->ebox->tag);
+						return -1;
 					}
-					/* ELSE IF: a button activated page returns. */
-					else if ( ret==pgret_OK || ret==pgret_ERR )
-					{
-	  printf("[page '%s'] [button '%s'] ret: return from a button activated page, set needrefresh flag.\n",
-										page->ebox->tag,hitbtn->tag);
-						egi_page_needrefresh(page); /* refresh whole page */
-					}
+					/* else, react_ret=0, page exit!
+					   the page that activated in above reaction() is released */
 					else
-					/* ELSE: for other cases, btnret_OK, btnret_ERR  */
 					{
-					/* needfresh flags for page or eboxes to be set by btn react. func. */
-					    //let btn do it:	egi_page_needrefresh(page);
+						if(ret==0)/* ret=0: refresh page and its eboxes */
+						{
+							egi_page_needrefresh(page); /* refresh current page */
+						}
+
+						else ; /* ret!=0, will not refresh the page */
 					}
 				}
 
@@ -530,18 +520,12 @@ int egi_page_routine(EGI_PAGE *page)
 			/* else, do other routine jobs */
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
 			egi_page_refresh(page); /* only page->eboxs with needrefresh flag */
-
-			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
-			 *
-			 */
-			tm_delayms(100);
+			tm_delayms(100);/* hold on for a while, or the screen will be ...heheheheheh... */
 
 			/* loop in refreshing listed eboxes */
 		}
 
 	}/* end while() */
 
-
-	return pgret_OK;
-	//return 0;
+	return 0;
 }

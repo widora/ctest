@@ -85,14 +85,26 @@ enum egi_btn_type
 /* button status */
 enum egi_touch_status
 {
-	unkown=-1,  /* during reading or fails */
-	releasing=0,   /* status transforming from pressed_hold to released_hold */
-	pressing=1,      /* status transforming from released_hold to pressed_hold */
+	unkown=-1,  		/* during reading or fails */
+	releasing=0,   		/* status transforming from pressed_hold to released_hold */
+	pressing=1,      	/* status transforming from released_hold to pressed_hold */
 	released_hold=2,
 	pressed_hold=3,
-	db_releasing=4, /* double click, the last releasing */
-	db_pressing=5, /* double click, the last pressing */
+	db_releasing=4, 	/* double click, the last releasing */
+	db_pressing=5, 		/* double click, the last pressing */
 };
+
+/* button and page return value */
+enum egi_retval
+{
+	btnret_OK,			/* trigger normal reaction */
+	btnret_ERR,			/* reation fails */
+	btnret_IDLE, 			/* trigger no reaction, just bypass btn reaction function */
+	btnret_REQUEST_EXIT_PAGE, 	/* return to request the host page to exit */
+	pgret_OK,
+	pgret_ERR,
+};
+
 
 /*  ebox action methods */
 /*
@@ -116,7 +128,7 @@ struct egi_ebox_method
 	int (*play)(EGI_EBOX *); /* for motion pic ebox, or.. */
 	int (*sleep)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
-	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); //enum egi_touch_status);
+	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); /* enum egi_touch_status */
 };
 
 
@@ -236,9 +248,11 @@ struct egi_element_box
 	*/
 	int (*free)(EGI_EBOX *);
 
-	/* --- reaction to touch pattern
-
-	*/
+	/* reaction to touch_data
+	 * Several types of touch status can trigger page routine to call a button(ebox) reaction,
+	 * so always check touch_data at the begin of the reaction function codes, see if it's the expected
+	 * touch_status for the button(ebox).
+	 */
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * );
 
 	/* --- decorate:

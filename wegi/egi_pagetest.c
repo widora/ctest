@@ -18,6 +18,7 @@ Midas Zhou
 #include <stdlib.h>
 #include <unistd.h> /* usleep */
 #include "egi.h"
+#include "egi_log.h"
 #include "egi_color.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
@@ -160,7 +161,12 @@ return
 -----------------------------------*/
 static int egi_pagetest_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)// enum egi_touch_status btn_status)
 {
-        return -1;
+        if( touch_data->status==pressing )
+        {
+                return btnret_REQUEST_EXIT_PAGE;
+        }
+
+        return btnret_IDLE;
 }
 
 
@@ -173,28 +179,41 @@ static int egi_dbclick_test(EGI_EBOX * ebox , EGI_TOUCH_DATA * touch_data)//enum
 	if(touch_data->status==db_pressing)
 	{
 		egi_msgbox_create("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
-		return 1; /* >=00 return to routine; <0 exit this routine */
+		return btnret_OK;
 	}
 	else
-		return 1; /* return 0 to refresh whole page */
+		return btnret_IDLE;
 }
 
 
 /*-----------------------------------------------------------------------------
 button 'sliding bar test' function:
-
+a Page function 
 ------------------------------------------------------------------------------*/
 static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         EGI_PAGE *page_slide=egi_create_slidepage();
+        EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_slide->ebox->tag);
 
 	/* activate page, refresh image */
         egi_page_activate(page_slide);
+        EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_slide->ebox->tag);
+
         /* get into routine loop */
+        EGI_PLOG(LOGLV_INFO,"trap into routine of [page '%s'] ...\n", page_slide->ebox->tag);
         page_slide->routine(page_slide);
+
+        /* exit a button activated page, set refresh flag for the host page, before page freeing.*/
+//        egi_page_needrefresh(ebox->container);
+
         /* get out of routine loop */
+        EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_slide->ebox->tag);
         egi_page_free(page_slide);
 
-        return 0; /* return 0 will fall back to previous page and refresh screen*/
+        return pgret_OK; /* button activated page */
 }
+
+
+
+
 

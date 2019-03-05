@@ -53,8 +53,7 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false}; /* tag to indicate availiabili
 					    * thdf_Display_Pic() put 'true' tag,
 					    */
 
-/* information of a decoded picture, for pthread params
- */
+/* information of a decoded picture, for pthread params */
 struct PicInfo {
         /* coordinate for display window layout on LCD */
 	int Hs; /* Horizontal start pixel column number */
@@ -252,7 +251,7 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 
 
 #if 0
-/* --------  !!!! OBSELETE, shell will parse *.xx to get all certain type of files  ----------------
+/* --------  !!!! OBSELETE, shell will parse *.xx to get all certain type of files  ----------
 Find out specified type of files in a specified directory
 
 fpath:           full path with file extension name for searching, for example " /music/*.mp3 ".
@@ -264,7 +263,7 @@ maxflen:        max file name length
 return value:
          0 --- OK
         <0 --- fails
-------------------------------------------------------------------------------------------*/
+---------------------------------------------------------------------------------------------*/
 #define FFIND_MAX_FILENUM 256 /* Max number of file paths to be stored in a buffer */
 #define FFIND_MAX_FPATHLEN 128 /* Max length for the full path of a file */
 char ff_fpath_buff[FFIND_MAX_FILENUM][FFIND_MAX_FPATHLEN]={0};
