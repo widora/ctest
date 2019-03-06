@@ -648,7 +648,7 @@ while(1)
         page_home=egi_create_homepage();
 	egi_page_activate(page_home);
 	page_home->routine(page_home); /* get into routine loop */
-
+	printf("------- Eixt home page --------\n");
 
 
 #if 0 /* if loop */

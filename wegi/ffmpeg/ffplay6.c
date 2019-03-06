@@ -113,11 +113,15 @@ Note:
  *	1.
  *	2.
 */
-/* expected display window size, LCD will be adjusted in the function */
-int show_h= 320; //240; //199;//185;/* LCD row pixels */
-int show_w= 240;//160; //199;//185; /* LCD column pixels */
 
 
+/* expected display window size(upright image size), LCD will be adjusted in the function */
+int show_w=170; //240; // 160; //185; /* LCD column pixels */
+int show_h=170; //160; //240; //185;/* LCD row pixels */
+
+/* offset of the show window relating to LCD origin */
+int offx;
+int offy;
 
 /* param: ( enable_avfilter )
  *   if 1:	display_window rotation and size will be adjusted according to avfilter descr.
@@ -125,7 +129,7 @@ int show_w= 240;//160; //199;//185; /* LCD column pixels */
  *		LCD W&H.
  */
 /* enable AVFilter for video */
-static bool enable_avfilter=false;//true;
+static bool enable_avfilter=false;
 
 /* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
  *   if 1:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
@@ -134,15 +138,15 @@ static bool enable_avfilter=false;//true;
  *
  *   if 0:	disable it.
  */
-static bool enable_auto_rotate=true;
+static bool enable_auto_rotate=false;
 
 /*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=0)
  *  if 0, transpose not applied,
-	  !!!NOTE: if enable_auto_rotate=true, then it will be decided by checking image H and W,
+	  !!!  NOTE: if enable_auto_rotate=true, then it will be decided by checking image H and W,
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-static int transpose_clock=1;
+static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
 
 /* param: ( enable_stretch )
  *   if 1:	stretch the image to fit for expected H&W, original iamge ratio is ignored.
@@ -283,6 +287,20 @@ int main(int argc, char *argv[])
 	}
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: total number of input files: %d\n",argc);
 
+	/* check expected display window size */
+	if(enable_avfilter) {
+		if( (show_w&0xF) != 0 || (show_h&0xF) !=0 ) {
+			printf("ffplay: WARING!!! Display window sides must be multiples of 16 for AVFiler.\n");
+		}
+	}
+	else if( (show_w&0x1) != 0 || (show_h&0x1) !=0 ) {
+			printf("ffplay: WARING!!! Display window sides must be multiples of 2 for SWS.\n");
+	}
+
+	/* addjust offset of display window */
+	offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
+	offy=90;
+
 /* <<<<<<<    Init SPI, FB, Timer   >>>>>>  */
        /* start egi tick */
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: start egi tick...\n");
@@ -301,7 +319,13 @@ int main(int argc, char *argv[])
         /* --- prepare fb device --- */
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
-	clear_screen(&gv_fb_dev, 0);
+	//clear_screen(&gv_fb_dev, 0);
+
+	/* --- fill display area with BLACK --- */
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&gv_fb_dev, offx, offy, offx+show_w, offy+show_h);
+//(LCD_MAX_WIDTH-show_w)>>1, (LCD_MAX_HEIGHT-show_h)>>1,
+//				       (LCD_MAX_WIDTH+show_w)>>1, (LCD_MAX_HEIGHT+show_h)>>1 );
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
@@ -725,8 +749,13 @@ else
 */
 	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
 	 /* in order to put displaying window in center of the screen */
-	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
-	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
+//	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
+//	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
+//	 pic.Hs=Hb; pic.He=Hb+display_width-1;
+//	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
+
+	 Hb=offx;
+	 Vb=offy;
 	 pic.Hs=Hb; pic.He=Hb+display_width-1;
 	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
 

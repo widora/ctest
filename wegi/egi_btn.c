@@ -138,6 +138,8 @@ Return:
 ------------------------------------------------------------------------*/
 int egi_btnbox_activate(EGI_EBOX *ebox)
 {
+	int icon_code;
+
 	/* check data */
         if( ebox == NULL)
         {
@@ -163,9 +165,11 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	/* only if it has an icon, get symheight and symwidth */
 	if(data_btn->icon != NULL)
 	{
+		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR+CODE */
+
 		//int bkcolor=data_btn->icon->bkcolor;
 		int symheight=data_btn->icon->symheight;
-		int symwidth=data_btn->icon->symwidth[data_btn->icon_code];
+		int symwidth=data_btn->icon->symwidth[icon_code];
 		/* use bigger size for ebox height and width !!! */
 		if(symheight > ebox->height || symwidth > ebox->width )
 		{
@@ -257,7 +261,8 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int bkcolor=SYM_FONT_DEFAULT_TRANSPCOLOR;
 	int symheight;
 	int symwidth;
-
+	int icon_code;
+	uint16_t sym_subcolor; /* symbol substitute color */
 
 	/* check data */
         if( ebox == NULL)
@@ -313,9 +318,12 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	/* only if it has an icon */
 	if(data_btn->icon != NULL)
 	{
+		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR + CODE */
+		sym_subcolor= (data_btn->icon_code)>>16;
+
 		bkcolor=data_btn->icon->bkcolor;
 		symheight=data_btn->icon->symheight;
-		symwidth=data_btn->icon->symwidth[data_btn->icon_code];
+		symwidth=data_btn->icon->symwidth[icon_code];
 		/* use bigger size for ebox height and width !!! */
 		if(symheight > ebox->height || symwidth > ebox->width )
 		{
@@ -390,6 +398,13 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
 			        }
+       			        if(ebox->frame > 0) /* >0: double circle */
+       				{
+                			fbset_color(0); /* use black as frame color  */
+					draw_circle( &gv_fb_dev, x0+width/2, y0+height/2,
+								width>height ? (height/2-1):(width/2-1) );
+			        }
+
 				break;
 
 			default:
@@ -400,8 +415,21 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
 	/* 7. draw the button symbol if it has an icon */
 	if(data_btn->icon != NULL)
-		symbol_writeFB(&gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
-								x0, y0, data_btn->icon_code,data_btn->opaque);
+	{
+		/* if icon_code = SUB_COLOR + CODE */
+		if( sym_subcolor > 0 ) /* sym_subcolor may be 0xF.., so it should be unsigned ..*/
+		{
+			/* extract SUB_COLOR and CODE for symbol */
+			printf("egi_btnbox_refresh(): icond_code=SYM_SUB_COLOR + CODE. \n");
+			symbol_writeFB( &gv_fb_dev,data_btn->icon, sym_subcolor, bkcolor,
+					x0, y0, icon_code, data_btn->opaque );
+		}
+		/* else icon_code = CODE only */
+		else {
+			symbol_writeFB( &gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
+							x0, y0, icon_code, data_btn->opaque );
+		}
+	}
 
 	/* 8. decorate functoins  */
 	if(ebox->decorate)
@@ -447,7 +475,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
-void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+48void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str)
 */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,

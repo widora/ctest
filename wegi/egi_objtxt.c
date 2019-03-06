@@ -332,7 +332,7 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 
 /*---------------------------------------------------------------------------
 Message Box, Size:240x50
-display for a while, then release.
+display for a while, then release/free it.
 
 msg: 		message string
 ms:  	>0	It's an instant msgbox, delay/display in ms time, then destroy it.

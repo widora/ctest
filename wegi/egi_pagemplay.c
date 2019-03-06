@@ -70,7 +70,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 				        		0, /* bool movable */
 						        10+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							70,70, /* int width, int height */
-				       			-1, /* int frame,<0 no frame */
+				       			1, /* int frame,<0 no frame */
 		       					egi_color_random(medium) /*int prmcolor */
 						   );
 			/* if fail, try again ... */
@@ -104,7 +104,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
-		egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
+		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
 	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3 --------");
@@ -150,12 +150,16 @@ static void egi_pagemplay_runner(EGI_PAGE *page)
 
 }
 
-/*-----------------------------------
+/*----------------------------------------------------------------------
 btn_close function:
 return
------------------------------------*/
+------------------------------------------------------------------------*/
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	return -1;
+       /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+        return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
 

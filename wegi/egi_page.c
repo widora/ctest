@@ -413,7 +413,7 @@ int egi_page_routine(EGI_PAGE *page)
 	enum egi_touch_status last_status=released_hold;
 	EGI_TOUCH_DATA touch_data;
 
-	/* delay a while, to avoid pen-jittering  */
+	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
 	tm_delayms(100);
 
 
@@ -436,7 +436,7 @@ int egi_page_routine(EGI_PAGE *page)
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
 	}
 
-	EGI_PDEBUG(DBG_PAGE,"--------------- get into %s's loop routine -------------\n",page->ebox->tag);
+	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
 	/* 3. load page runner threads */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
@@ -465,8 +465,7 @@ int egi_page_routine(EGI_PAGE *page)
 		/* 1. read touch data */
 		if(!egi_touch_getdata(&touch_data) )
 		{
-			EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): egi_touch_getdata()	\
-							no updated touch data found, retry...\n");
+//			EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): egi_touch_getdata() no updated touch data found, retry...\n");
 			continue;
 		}
 		sx=touch_data.coord.x;
@@ -482,8 +481,8 @@ int egi_page_routine(EGI_PAGE *page)
 			/* trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
 			{
-				EGI_PDEBUG(DBG_TEST,"egi_page_routine(): button '%s' of page '%s' is touched!\n",
-									hitbtn->tag,page->ebox->tag);
+				EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): [page '%s'] [button '%s'] is touched! touch status is '%s'\n",
+  						page->ebox->tag,hitbtn->tag,egi_str_touch_status(last_status));
 		       /*  then trigger button-hit action:
 		  	   1. 'pressing' and 'db_pressing' reaction events never coincide,
 				'pressing' will prevail  ---
@@ -497,17 +496,20 @@ int egi_page_routine(EGI_PAGE *page)
 								   last_status==pressing ||
 								   last_status==db_pressing  )  )
 				{
+
 					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
+
 					/* IF: a button request to exit current page routine */
 					if( ret==btnret_REQUEST_EXIT_PAGE )
 					{
-				       printf("[page '%s'] [button '%s'] ret: request to exit holding page.\n",
+				       printf("[page '%s'] [button '%s'] ret: request to exit host page.\n",
 										page->ebox->tag, hitbtn->tag);
 						return pgret_OK; // or break;
 					}
+
 					/* ELSE IF: a button activated page returns. */
 					else if ( ret==pgret_OK || ret==pgret_ERR )
 					{
@@ -534,7 +536,7 @@ int egi_page_routine(EGI_PAGE *page)
 			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
 			 *
 			 */
-			tm_delayms(100);
+			tm_delayms(55);
 
 			/* loop in refreshing listed eboxes */
 		}

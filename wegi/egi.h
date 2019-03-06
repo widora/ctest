@@ -82,16 +82,18 @@ enum egi_btn_type
 };
 
 
-/* button status */
+/* button touch status */
+/* !!! SET str_touch_status[] in egi.c according !!! */
 enum egi_touch_status
 {
-	unkown=-1,  		/* during reading or fails */
-	releasing=0,   		/* status transforming from pressed_hold to released_hold */
-	pressing=1,      	/* status transforming from released_hold to pressed_hold */
-	released_hold=2,
-	pressed_hold=3,
-	db_releasing=4, 	/* double click, the last releasing */
-	db_pressing=5, 		/* double click, the last pressing */
+	unkown=0,  		/* during reading or fails */
+	releasing=1,   		/* status transforming from pressed_hold to released_hold */
+	pressing=2,      	/* status transforming from released_hold to pressed_hold */
+	released_hold=3,
+	pressed_hold=4,
+	db_releasing=5, 	/* double click, the last releasing */
+	db_pressing=6, 		/* double click, the last pressing */
+	undefined=7,		/* as for limit */
 };
 
 /* button and page return value */
@@ -99,10 +101,10 @@ enum egi_retval
 {
 	btnret_OK,			/* trigger normal reaction */
 	btnret_ERR,			/* reation fails */
-	btnret_IDLE, 			/* trigger no reaction, just bypass btn reaction function */
+	btnret_IDLE, 			/* trigger no reaction, just bypass btn reaction func */
 	btnret_REQUEST_EXIT_PAGE, 	/* return to request the host page to exit */
-	pgret_OK,
-	pgret_ERR,
+	pgret_OK,			/* page routine normally quit and free  */
+	pgret_ERR,			/* page routine return with failure */
 };
 
 
@@ -320,7 +322,7 @@ struct egi_data_btn
 	unsigned int id; /* unique id number for btn, MUST >0, default 0 for ignored  */
 	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
-	int icon_code; /* code number of the symbol in the symbol_page */
+	int32_t icon_code; /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
 	int opaque; /* opaque value for the icon, default 0, totally not transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
@@ -444,10 +446,7 @@ struct egi_data_pic
 
 	/* file path for a picture if applys */
 	char *fpath;
-
 };
-
-
 
 
 /* egi data for a picture type ebox */
@@ -497,6 +496,7 @@ struct egi_page
 
 
 /* for common ebox */
+char *egi_str_touch_status(enum egi_touch_status touch_status);
 int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);

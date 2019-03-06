@@ -42,6 +42,33 @@ Midas Zhou
 #include "egi_symbol.h"
 
 
+/* button touch status:
+ * corresponding to enum egi_touch_status in egi.h
+ */
+static const char *str_touch_status[]=
+{
+        "unkown",               /* during reading or fails */
+        "releasing",            /* status transforming from pressed_hold to released_hold */
+        "pressing",             /* status transforming from released_hold to pressed_hold */
+        "released_hold",
+        "pressed_hold",
+        "db_releasing",         /* double click, the last releasing */
+        "db_pressing",         /* double click, the last pressing */
+	"undefined",
+};
+
+/*	covert touch status to string 	 */
+char *egi_str_touch_status(enum egi_touch_status touch_status)
+{
+	enum egi_touch_status status_unkown=unkown;
+	enum egi_touch_status status_undefined=undefined;
+
+	if( touch_status >=status_unkown && touch_status < status_undefined )
+		return str_touch_status[touch_status];
+	else
+		return str_touch_status[status_undefined];
+}
+
 
 /*---------------------------------------
 return a random value not great than max
@@ -64,8 +91,6 @@ int egi_random_max(int max)
 
         return ret;
 }
-
-
 
 
 /*-----------------------------------------------------------------------
@@ -478,7 +503,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 }
 
 
-/*----------------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------
 create a new ebox according to its type and parameters
 WARNING: Memory for egi_data NOT allocated her, it's caller's job to allocate
 	and assign it to the new ebox. they'll be freed all together in egi_ebox_free().
@@ -486,7 +511,7 @@ WARNING: Memory for egi_data NOT allocated her, it's caller's job to allocate
 return:
 	NULL		fail
 	pointer		OK
-----------------------------------------------------------------------------*/
+-------------------------------------------------------------------------------------*/
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 {
 	/* malloc ebox */
@@ -510,12 +535,12 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 	ebox->sleep=egi_ebox_sleep;
 	ebox->free=egi_ebox_free;
 
-	/* others as default, after memset with 0:
-	 inmovable
-	 status=no_body
-	 frame=simple type
-	 prmcolor=BLACK
-	 bkimg=NULL
+	/* other params are as default, after memset with 0:
+	 * inmovable
+	 * status=no_body
+	 * frame=simple type
+	 * prmcolor=BLACK
+	 * bkimg=NULL
 	 */
 
 	EGI_PDEBUG(DBG_EGI,"egi_ebox_new(): end the call. \n");

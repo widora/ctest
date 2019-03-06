@@ -90,7 +90,7 @@ EGI_PAGE *egi_create_bookpage(void)
                 WEGI_COLOR_GRAY, //egi_colorgray_random(light),  /* int16_t bkcolor */
                 NULL    /* char *title */
         );
-        egi_txtbox_settitle(title_bar, "   Today's News ");
+        egi_txtbox_settitle(title_bar, "	Today's News ");
 
 
 	/*  5. create three play buttons */
@@ -199,12 +199,14 @@ static void egi_pagebook_runner(EGI_PAGE *page)
 
 /*-----------------------------------------------------------------
 button forward:
-return to routine -1 (<0 for button exit,while =0 for rountine exit
 other  >0 OK
        <0 fails
 ------------------------------------------------------------------*/
 static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
 
 	EGI_PDEBUG(DBG_TEST,"book_forward() triggered. \n");
 
@@ -219,19 +221,17 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	txt_ebox=egi_page_pickbtn(page, type_txt, book_id);
 	if(txt_ebox == NULL)
 	{
-		printf("book_foreard(): fail to find txt_ebox with id=%d in page '%s'.\n",book_id,page->ebox->tag);
-		return -1;
+		printf("[page '%s'] book_foreard(): fail to find txt_ebox with id=%d .\n",
+									page->ebox->tag,book_id);
+		return btnret_ERR;
 	}
 
 	/* refresh the txt ebox */
-	/* !!!! atuo. refresh in egi_page_routine() !!!! */
-//	txt_ebox->need_refresh=true;
-//	txt_ebox->refresh(txt_ebox);
-
+	/* !!!! as we return pgret_OK, egi_page_routine() will refresh the host page !!!! */
 	//egi_page_needrefresh(page);
 	//egi_page_refresh(page);
 
-        return 0; /*return 0 page refresh */
+        return pgret_OK; /*return pgret_OK to refresh page */
 }
 
 /*------------------------------------------------------------------
@@ -242,8 +242,12 @@ other  >0 OK
 ------------------------------------------------------------------*/
 static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
 
-        return 3;
+        egi_msgbox_create("Message:\n  Backward function not defined yet!", 1000, WEGI_COLOR_GRAY2);
+        return btnret_OK;
 }
 
 /*-------------------------------------------------------
@@ -255,7 +259,12 @@ other  >0 OK
 static int book_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 
-        return -1;
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+        /* create page and load the page */
+	return btnret_REQUEST_EXIT_PAGE;
 }
 
 

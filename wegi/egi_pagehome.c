@@ -299,12 +299,24 @@ mplayer
 ------------------------------------------------------------------------------*/
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-        EGI_PAGE *page_mplay=egi_create_mplaypage();
+	/* bypass unwanted touch status */
+	if(touch_data->status != pressing)
+		return btnret_IDLE;
 
+	/* create page and load the page */
+        EGI_PAGE *page_mplay=egi_create_mplaypage();
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_mplay->ebox->tag);
+
+	/* activate to display it */
         egi_page_activate(page_mplay);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_mplay->ebox->tag);
+
 	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_mplay->ebox->tag);
         page_mplay->routine(page_mplay);
+
 	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_mplay->ebox->tag);
 	egi_page_free(page_mplay);
 
 	return pgret_OK;
@@ -316,15 +328,27 @@ openwrt
 ---------------------------------------------------------------------------*/
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-        EGI_PAGE *page_openwrt=egi_create_openwrtpage();
+	/* bypass unwanted touch status */
+	if(touch_data->status != pressing)
+		return btnret_IDLE;
 
+	/* create page and load the page */
+        EGI_PAGE *page_openwrt=egi_create_openwrtpage();
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_openwrt->ebox->tag);
+
+	/* activate to display it */
         egi_page_activate(page_openwrt);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_openwrt->ebox->tag);
+
 	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_openwrt->ebox->tag);
         page_openwrt->routine(page_openwrt);
+
 	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_openwrt->ebox->tag);
 	egi_page_free(page_openwrt);
 
-	return pgret_OK; /* as for page exit, instead of <0 ????? */
+	return pgret_OK;
 }
 
 /*--------------------------------------------------------------------------
@@ -333,15 +357,28 @@ book
 ----------------------------------------------------------------------------*/
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-        EGI_PAGE *page_book=egi_create_bookpage();
 
+	/* bypass unwanted touch status */
+	if(touch_data->status != pressing)
+		return btnret_IDLE;
+
+	/* create page and load the page */
+        EGI_PAGE *page_book=egi_create_bookpage();
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_book->ebox->tag);
+
+	/* activate to display it */
         egi_page_activate(page_book);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_book->ebox->tag);
+
 	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_book->ebox->tag);
         page_book->routine(page_book);
+
 	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_book->ebox->tag);
 	egi_page_free(page_book);
 
-	return 0; /* as for page exit, instead of <0 ????? */
+	return pgret_OK;
 }
 
 /*----------------------------------------------------------------------------
@@ -350,17 +387,26 @@ for test functions
 -----------------------------------------------------------------------------*/
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	/* bypass unwanted touch status */
+	if(touch_data->status != pressing)
+		return btnret_IDLE;
+
+	/* create page and load the page */
         EGI_PAGE *page_test=egi_create_testpage();
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_test->ebox->tag);
 
         egi_page_activate(page_test);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_test->ebox->tag);
 
 	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_test->ebox->tag);
         page_test->routine(page_test);
 
 	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_test->ebox->tag);
 	egi_page_free(page_test);
 
-	return pgret_OK; /* as for page exit, instead of <0 ????? */
+	return pgret_OK;
 }
 
 
@@ -370,14 +416,19 @@ for test functions
 -----------------------------------------------------------------------------*/
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	/* bypass unwanted touch status */
+	if( touch_data->status != pressing )
+		return btnret_IDLE;
+
+	/* create page and load the page */
         EGI_PAGE *page_ffplay=egi_create_ffplaypage();
-	EGI_PLOG(LOGLV_INFO,"page '%s' is created.\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_ffplay->ebox->tag);
 
         egi_page_activate(page_ffplay);
-	EGI_PLOG(LOGLV_INFO,"page '%s' is activated.\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_ffplay->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"trap into routine of '%s'...\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_ffplay->ebox->tag);
         page_ffplay->routine(page_ffplay);
 
 //	/* exit a button activated page, set refresh flag for the host page, before page freeing.*/
@@ -387,7 +438,6 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_ffplay->ebox->tag);
 	egi_page_free(page_ffplay);
 
-	
 
 	return pgret_OK; /* return 0 --- for page exit */
 }

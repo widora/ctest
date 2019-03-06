@@ -76,7 +76,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		ffplay_btns[i]=egi_btnbox_new(NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
 				        	1, /* bool movable */
-					        60*i, 320-(60+15), /* int x0, int y0 */
+					        60*i, 320-(60-10), /* int x0, int y0 */
 						60,60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
 		       				egi_color_random(medium) /*int prmcolor, for geom button only. */
@@ -94,20 +94,21 @@ EGI_PAGE *egi_create_ffplaypage(void)
 
 
 	/* add tags,set icon_code and reaction function here */
+	uint16_t btn_color=WEGI_COLOR_BLUE;
 	egi_ebox_settag(ffplay_btns[0], "Prev");
-	data_btns[0]->icon_code=ICON_CODE_PREV;
+	data_btns[0]->icon_code=(btn_color<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
 	ffplay_btns[0]->reaction=egi_ffplay_prev;
 
 	egi_ebox_settag(ffplay_btns[1], "playpause");
-	data_btns[1]->icon_code=ICON_CODE_PLAY; /* 13--pause, 15--play */
+	data_btns[1]->icon_code=(btn_color<<16)+ICON_CODE_PLAY; /* 13--pause, 15--play */
 	ffplay_btns[1]->reaction=egi_ffplay_playpause;
 
 	egi_ebox_settag(ffplay_btns[2], "Next");
-	data_btns[2]->icon_code=ICON_CODE_NEXT;
+	data_btns[2]->icon_code=(btn_color<<16)+ICON_CODE_NEXT;
 	ffplay_btns[2]->reaction=egi_ffplay_next;
 
 	egi_ebox_settag(ffplay_btns[3], "Exit");
-	data_btns[3]->icon_code=ICON_CODE_EXIT;
+	data_btns[3]->icon_code=(btn_color<<16)+ICON_CODE_EXIT;
 	ffplay_btns[3]->reaction=egi_ffplay_exit;
 
 
@@ -115,7 +116,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
-		egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
+		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
 	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
@@ -167,14 +168,12 @@ return
 ----------------------------------------------------------------------*/
 static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
 	/* only react to status 'pressing' */
-        if(touch_data->status==pressing)
-	{
-
-		return btnret_OK;
-	}
-
-	return btnret_IDLE;
+	return btnret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -183,24 +182,23 @@ return
 ----------------------------------------------------------------------*/
 static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
 
 	/* only react to status 'pressing' */
-        if(touch_data->status==pressing)
-	{
-		struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
 
-		/* toggle the icon between play and pause */
-		if(data_btn->icon_code==ICON_CODE_PLAY)
-			data_btn->icon_code=ICON_CODE_PAUSE;
-		else
-			data_btn->icon_code=ICON_CODE_PLAY;
+	/* toggle the icon between play and pause */
+	if(data_btn->icon_code==ICON_CODE_PLAY)
+		data_btn->icon_code=ICON_CODE_PAUSE;
+	else
+		data_btn->icon_code=ICON_CODE_PLAY;
 
-		/* set refresh flag for this ebox */
-		egi_ebox_needrefresh(ebox);
+	/* set refresh flag for this ebox */
+	egi_ebox_needrefresh(ebox);
 
-		return btnret_OK;
-	}
-	return btnret_IDLE;
+	return btnret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -209,11 +207,11 @@ return
 ----------------------------------------------------------------------*/
 static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	/* only react to status 'pressing' */
-        if(touch_data->status==pressing)
-		return btnret_OK; //-1;
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
 
-	return btnret_IDLE;
+	return btnret_OK; //-1;
 }
 
 /*--------------------------------------------------------------------
@@ -223,16 +221,10 @@ return
 ----------------------------------------------------------------------*/
 static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	/* because of touch_read thread, some status may be missed !!!! */
-        if( touch_data->status==pressing )
-        {
-                egi_msgbox_create("Message:\n   Click! Start to exit page!", 1000, WEGI_COLOR_ORANGE);
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
 
-		/* reset touch_data */
-		//tm_delayms(5);
-
-                return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
-        }
-
-	return btnret_IDLE;
+        egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);
+        return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
