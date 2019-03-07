@@ -105,8 +105,8 @@ static int buttons_width[4*5] =  /* check with maxnum */
 	60,60,60,60,
 	60,60,60,60,
 	60,60,60,60,
-	60,60,60,60,
-	60,60,60,60,
+	48,48,48,48,
+	48,48,48,48,
 };
 /* symbole page struct for testfont */
 struct symbol_page sympg_buttons=
@@ -115,7 +115,7 @@ struct symbol_page sympg_buttons=
 	.path="/home/buttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
-	.maxnum=4*5-1, /* 3 rows of ioncs */
+	.maxnum=4*5-1, /* 5 rows of ioncs */
 	.sqrow=4, /* 4 icons per row */
 	.symheight=60,
 	.symwidth=buttons_width, /* width list */

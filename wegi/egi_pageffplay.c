@@ -25,15 +25,21 @@ Midas Zhou
 #include "egi_timer.h"
 
 /* icon code for button symbols */
-#define ICON_CODE_PREV 12
-#define ICON_CODE_PAUSE 13
-#define ICON_CODE_PLAY 15
-#define ICON_CODE_NEXT 14
-#define ICON_CODE_EXIT 19
+#define ICON_CODE_PREV 		12
+#define ICON_CODE_PAUSE 	13
+#define ICON_CODE_PLAY 		15
+#define ICON_CODE_NEXT 		14
+#define ICON_CODE_EXIT 		16
+#define ICON_CODE_SHUFFLE	17	/* pick next file randomly */
+#define ICON_CODE_REPEATONE	18	/* repeat current file */
+#define ICON_CODE_LOOPALL	19	/* loop all files in the list */
+
+static uint16_t btn_symcolor;
 
 static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
@@ -47,12 +53,12 @@ Return
 EGI_PAGE *egi_create_ffplaypage(void)
 {
 	int i;
-
-	EGI_EBOX *ffplay_btns[4];
-	EGI_DATA_BTN *data_btns[4];
+	int btnum=5;
+	EGI_EBOX *ffplay_btns[5];
+	EGI_DATA_BTN *data_btns[5];
 
 	/* --------- 1. create buttons --------- */
-        for(i=0;i<4;i++) /* row of buttons*/
+        for(i=0;i<btnum;i++) /* row of buttons*/
         {
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(i, /* int id */
@@ -76,8 +82,8 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		ffplay_btns[i]=egi_btnbox_new(NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
 				        	1, /* bool movable */
-					        60*i, 320-(60-10), /* int x0, int y0 */
-						60,60, /* int width, int height */
+					        48*i, 320-(60-5), /* int x0, int y0 */
+						48,60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
 		       				egi_color_random(medium) /*int prmcolor, for geom button only. */
 					   );
@@ -92,24 +98,31 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		}
 	}
 
+	/* get a random color for the icon */
+	btn_symcolor=egi_color_random(medium);
+	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
 
 	/* add tags,set icon_code and reaction function here */
-	uint16_t btn_color=WEGI_COLOR_BLUE;
 	egi_ebox_settag(ffplay_btns[0], "Prev");
-	data_btns[0]->icon_code=(btn_color<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
+	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
 	ffplay_btns[0]->reaction=egi_ffplay_prev;
 
-	egi_ebox_settag(ffplay_btns[1], "playpause");
-	data_btns[1]->icon_code=(btn_color<<16)+ICON_CODE_PLAY; /* 13--pause, 15--play */
+	egi_ebox_settag(ffplay_btns[1], "Play&Pause");
+	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY; /* 13--pause, 15--play */
 	ffplay_btns[1]->reaction=egi_ffplay_playpause;
 
 	egi_ebox_settag(ffplay_btns[2], "Next");
-	data_btns[2]->icon_code=(btn_color<<16)+ICON_CODE_NEXT;
+	data_btns[2]->icon_code=(btn_symcolor<<16)+ICON_CODE_NEXT;
 	ffplay_btns[2]->reaction=egi_ffplay_next;
 
 	egi_ebox_settag(ffplay_btns[3], "Exit");
-	data_btns[3]->icon_code=(btn_color<<16)+ICON_CODE_EXIT;
+	data_btns[3]->icon_code=(btn_symcolor<<16)+ICON_CODE_EXIT;
 	ffplay_btns[3]->reaction=egi_ffplay_exit;
+
+	egi_ebox_settag(ffplay_btns[4], "Playmode");
+	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_SHUFFLE;
+	ffplay_btns[4]->reaction=egi_ffplay_playmode;
+
 
 
 	/* --------- 2. create title bar --------- */
@@ -145,7 +158,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 
 
 	/* 3.5 add ebox to home page */
-	for(i=0;i<4;i++) /* add buttons */
+	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ffplay, ffplay_btns[i]);
 	egi_page_addlist(page_ffplay, title_bar); /* add title bar */
 
@@ -190,10 +203,10 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
 
 	/* toggle the icon between play and pause */
-	if(data_btn->icon_code==ICON_CODE_PLAY)
-		data_btn->icon_code=ICON_CODE_PAUSE;
+	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 )
+		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;
 	else
-		data_btn->icon_code=ICON_CODE_PLAY;
+		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;
 
 	/* set refresh flag for this ebox */
 	egi_ebox_needrefresh(ebox);
@@ -211,7 +224,35 @@ static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	return btnret_OK; //-1;
+	return btnret_OK;
+}
+
+/*--------------------------------------------------------------------
+ffplay play mode rotate.
+return
+----------------------------------------------------------------------*/
+static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	static int count=0;
+
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+	/* only react to status 'pressing' */
+	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
+
+	count++;
+	if(count>2)
+		count=count>>3;
+
+	/* rotate code: SHUFFLE -> REPEATONE -> LOOPALL -> */
+	data_btn->icon_code=(btn_symcolor<<16)+(ICON_CODE_SHUFFLE+count%3);
+
+	/* set refresh flag for this ebox */
+	egi_ebox_needrefresh(ebox);
+
+	return btnret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -226,5 +267,5 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 return btnret_IDLE;
 
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);
-        return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
+        return btnret_REQUEST_EXIT_PAGE;
 }

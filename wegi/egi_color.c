@@ -9,7 +9,7 @@
 
 
 /*-------------------------------------------------------------------------
-get a random 16bit color from Douglas.R.Jacobs' RGB Hex Triplet Color Chart
+Get a random 16bit color from Douglas.R.Jacobs' RGB Hex Triplet Color Chart
 
 rang: color range:
 	0--all range
@@ -65,7 +65,7 @@ uint16_t egi_color_random(enum egi_color_range range)
 
 
 /*---------------------------------------------------
-get a random 16bit gray_color from Douglas.R.Jacobs' 
+Get a random 16bit gray_color from Douglas.R.Jacobs'
 RGB Hex Triplet Color Chart
 
 rang: color range:

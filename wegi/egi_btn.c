@@ -398,7 +398,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
 			        }
-       			        if(ebox->frame > 0) /* >0: double circle */
+       			        if(ebox->frame > 0) /* >0: double circle !!! UGLY !!! */
        				{
                 			fbset_color(0); /* use black as frame color  */
 					draw_circle( &gv_fb_dev, x0+width/2, y0+height/2,

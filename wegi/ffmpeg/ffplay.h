@@ -22,11 +22,12 @@ Midas_Zhou
 #include "egi_log.h"
 #include <stdio.h>
 #include <dirent.h>
+#include <limits.h> /* NAME_MAX 255; PATH_MAX 4096 */
 #include "play_ffpcm.h"
 
 #define LCD_MAX_WIDTH 240
 #define LCD_MAX_HEIGHT 320
-
+#define FFPLAY_MUSIC_PATH "/mmc/"
 
 /* ffplay control command signal */
 enum ff_control_cmd {
@@ -41,6 +42,14 @@ enum ff_control_cmd {
 };
 
 static enum ff_control_cmd control_cmd;
+
+/* ffplay mode */
+enum ffplay_mode
+{
+        mode_loop_all,   /* loop all files in the list */
+        mode_repeat_one, /* repeat current file */
+        mode_shuffle,    /* pick next file randomly */
+};
 
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
@@ -250,90 +259,98 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 
 
 
-#if 0
-/* --------  !!!! OBSELETE, shell will parse *.xx to get all certain type of files  ----------
-Find out specified type of files in a specified directory
+/* -----------------------------------------------------------------------------------------
+Find out specified type of files in a specified directory and save in ff_find_files[]
 
-fpath:           full path with file extension name for searching, for example " /music/*.mp3 ".
-count:          total number of files found, NULL to ignore.
-fpaths:         file path list
-maxfnum:        max items of fpaths
-maxflen:        max file name length
+path:           Sear path without extension name.
+fext:		File extension name, MUST exclude ".", Example: "wav" or "mp3"...
+pcount:         Total number of files found, NULL to ignore.
 
 return value:
          0 --- OK
         <0 --- fails
 ---------------------------------------------------------------------------------------------*/
-#define FFIND_MAX_FILENUM 256 /* Max number of file paths to be stored in a buffer */
-#define FFIND_MAX_FPATHLEN 128 /* Max length for the full path of a file */
-char ff_fpath_buff[FFIND_MAX_FILENUM][FFIND_MAX_FPATHLEN]={0};
-static int ff_find_files(const char* fpath, int *count )
+#define FFPLAY_PATH_MAX 256 /* Max length for a file name */
+#define FFPLAY_NAME_MAX 128 /* Max length for a file path */
+#define FFPLAY_MAX_FILENUM 256 /* Max number of files for ff_fpath_buff[] */
+#define FFPLAY_FEXTNAME_MAX 10 /* !!!exclude '.', length of extension name */
+static char ff_fpath_buff[FFPLAY_MAX_FILENUM][FFPLAY_PATH_MAX+FFPLAY_NAME_MAX];
+static int ff_find_files(const char* path, const char* fext,  int *pcount )
 {
         DIR *dir;
-	char path[FFIND_MAX_FPATHLEN]={0}; /* for path string, without extension name */
-	char fext[10]={0}; /* for file extension name */
-	int fext_len; /* extension name length */
         struct dirent *file;
-        int fn_len; /* file name length */
+        int fnlen; /* file name length */
         int num=0;
+	int extnlen=strlen(fext); /* extension name length */
+	char *pt=NULL; /* pointer to '.' as for extension name */
 
-	printf("fpath:%s, len=%d\n",fpath,strlen(fpath));
-
-	/* get extension name */
-	char *tp=strstr(fpath,"*.");/* postion for '*.' */
-	if(tp==NULL)
+	/* 1. check input data */
+	if( path==NULL || fext==NULL )
 	{
-		printf("ff_find_files(): Missing extension name or extension name error!  Example: /music/\*.mp3 \n");
+		EGI_PLOG(LOGLV_ERROR, "ff_find_files(): Input path or extension name is NULL. \n");
 		return -1;
 	}
-	tp++; /* pass '*' */
-	strncpy(fext,tp,10-1);
-	fext_len=strlen(fext);
-	printf("fext: %s, fext_len: %d \n",fext, fext_len);
 
-	/* separate to get path string */
-	strncpy(path,fpath,strlen(fpath)-fext_len-1);
-	printf("path: %s \n",path);
+	/* 2. check input path leng */
+	if( strlen(path) > FFPLAY_PATH_MAX-1 )
+	{
+		EGI_PLOG(LOGLV_ERROR, "ff_find_files(): Input path length > FFPLAY_PATH_MAX(%d). \n",
+											FFPLAY_PATH_MAX);
+		return -2;
+	}
 
-        /* open dir */
+        /* 3. open dir */
         if(!(dir=opendir(path)))
         {
-                printf("ff_find_files(): error open dir: %s !\n",path);
-                return -2;
+                EGI_PLOG(LOGLV_ERROR,"ff_find_files(): %s, error open dir: %s!\n",strerror(errno),path);
+                return -3;
         }
 
-        /* get file paths */
+        /* 4. get file paths */
         while((file=readdir(dir))!=NULL)
         {
-                /* find out all files */
-                fn_len=strlen(file->d_name);
-                if(fn_len>FFIND_MAX_FPATHLEN-10)/* full file path length limit */
+                /* check path string length */
+                fnlen=strlen(file->d_name);
+                if( fnlen > FFPLAY_NAME_MAX-1 )
 		{
-			printf("ff_find_files(): %s.\n	File path is too long, fail to store.\n",file->d_name);
+			EGI_PLOG(LOGLV_WARN,"ff_find_files(): %s.\n	File path is too long, fail to store.\n",
+									file->d_name);
                         continue;
 		}
+
                 //if(strncmp(file->d_name+fn_len-4,".mp3",4)!=0 )
-                if(strncmp(file->d_name+fn_len-fext_len,fext,fext_len)!=0 )
+		pt=strstr(file->d_name,"."); /* get '.' pointer */
+		if(pt==NULL)
+		{
+			printf("ff_find_files(): no extension '.' for %s\n",file->d_name);
+			continue;
+		}
+
+                if( strncmp(pt+1, fext, FFPLAY_FEXTNAME_MAX)!=0 ) /* max extension name length */
                          continue;
-		memset((char *)&ff_fpath_buff[num][0],0,FFIND_MAX_FPATHLEN*sizeof(char));
+
+		/* Clear buff and save full path of the matched file */
+		memset((char *)&ff_fpath_buff[num][0],0,FFPLAY_NAME_MAX*sizeof(char));
 		sprintf((char *)&ff_fpath_buff[num][0],"%s/%s",path,file->d_name);
 		//printf("Find:	%s\n",&ff_fpath_buff[num][0]);
+
                 num++;
-                if(num==FFIND_MAX_FILENUM)/* break if fpaths buffer is full */
+                if(num >= FFPLAY_MAX_FILENUM)/* break if fpaths buffer is full */
 		{
-			printf("ff_find_files(): File fpath buffer is full! try to increase FFIND_MAX_FILENUM.\n");
+			EGI_PLOG(LOGLV_WARN,"ff_find_files(): File fpath buffer is full! try to increase FFIND_MAX_FILENUM.\n");
                         break;
 		}
         }
 
-	if(count !=NULL)
-	        *count=num; /* return count */
+	/* 5. feed back count to the caller */
+	if(pcount != NULL)
+	        *pcount=num; /* return count */
 
+	/* 6. close dir */
          closedir(dir);
+
          return 0;
 }
-#endif
-
 
 
 
