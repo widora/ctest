@@ -258,100 +258,151 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 }
 
 
-
-/* -----------------------------------------------------------------------------------------
+#if 0 ////////////// TO SEE IN egi_utils.c ////////////////////
+/*--------------------------------------------------------------------------------------------
 Find out specified type of files in a specified directory and save in ff_find_files[]
 
 path:           Sear path without extension name.
 fext:		File extension name, MUST exclude ".", Example: "wav" or "mp3"...
 pcount:         Total number of files found, NULL to ignore.
+		-1, search fails.
 
 return value:
-         0 --- OK
-        <0 --- fails
+         pointer to char (*)[EGI_PATH_MAX+FPLAY_NAME_MAX]   --- OK
+         NULL && pcount=-1;  --- Fails
 ---------------------------------------------------------------------------------------------*/
-#define FFPLAY_PATH_MAX 256 /* Max length for a file name */
-#define FFPLAY_NAME_MAX 128 /* Max length for a file path */
-#define FFPLAY_MAX_FILENUM 256 /* Max number of files for ff_fpath_buff[] */
-#define FFPLAY_FEXTNAME_MAX 10 /* !!!exclude '.', length of extension name */
-static char ff_fpath_buff[FFPLAY_MAX_FILENUM][FFPLAY_PATH_MAX+FFPLAY_NAME_MAX];
-static int ff_find_files(const char* path, const char* fext,  int *pcount )
+#define EGI_PATH_MAX 256 /* Max length for a file name */
+#define EGI_NAME_MAX 128 /* Max length for a file path */
+#define EGI_SEARCH_FILE_MAX (1<<10) /* to be 2**n, Max number of files for ff_fpath_buff[] */
+#define EGI_FEXTNAME_MAX 10 /* !!! exclude '.', length of extension name */
+static char* egi_alloc_search_files(const char* path, const char* fext,  int *pcount )
 {
         DIR *dir;
         struct dirent *file;
-        int fnlen; /* file name length */
-        int num=0;
-	int extnlen=strlen(fext); /* extension name length */
-	char *pt=NULL; /* pointer to '.' as for extension name */
+        //int fnlen; /* file name length */
+        int num=0; /* file numbers */
+	//int extnlen=strlen(fext); /* extension name length */
+	char *pt=NULL; /* pointer to '.', as for extension name */
+	char (*fpbuff)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL; /* pointer to final full_path buff */
+	//char (*pn)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL; /* pointer to a full_path in fpbuff[] */
+	int km=0; /* doubling memory times */
+	char *ptmp;
 
 	/* 1. check input data */
 	if( path==NULL || fext==NULL )
 	{
 		EGI_PLOG(LOGLV_ERROR, "ff_find_files(): Input path or extension name is NULL. \n");
-		return -1;
+
+		if(pcount!=NULL)*pcount=-1;
+		return NULL;
 	}
 
 	/* 2. check input path leng */
-	if( strlen(path) > FFPLAY_PATH_MAX-1 )
+	if( strlen(path) > EGI_PATH_MAX-1 )
 	{
-		EGI_PLOG(LOGLV_ERROR, "ff_find_files(): Input path length > FFPLAY_PATH_MAX(%d). \n",
-											FFPLAY_PATH_MAX);
-		return -2;
+		EGI_PLOG(LOGLV_ERROR, "ff_find_files(): Input path length > EGI_PATH_MAX(%d). \n",
+											EGI_PATH_MAX);
+		if(pcount!=NULL)*pcount=-1;
+		return NULL;
 	}
 
         /* 3. open dir */
         if(!(dir=opendir(path)))
         {
                 EGI_PLOG(LOGLV_ERROR,"ff_find_files(): %s, error open dir: %s!\n",strerror(errno),path);
-                return -3;
+
+		if(pcount!=NULL)*pcount=-1;
+                return NULL;
         }
 
-        /* 4. get file paths */
+	/* 4. calloc one slot buff first */
+	printf("start calloc()....\n");
+	fpbuff= calloc(1,EGI_PATH_MAX+EGI_NAME_MAX);
+	if(fpbuff==NULL)
+	{
+		EGI_PLOG(LOGLV_ERROR,"ff_alloc_search_files(): Fail to callo fpbuff!.\n");
+
+		if(pcount!=NULL)*pcount=-1;
+		return NULL;
+	}
+	km=0; /* 2^0, first double */
+
+        /* 5. get file paths */
         while((file=readdir(dir))!=NULL)
         {
-                /* check path string length */
-                fnlen=strlen(file->d_name);
-                if( fnlen > FFPLAY_NAME_MAX-1 )
+		/* 5.1 check number of files first, necessary to set limit????  */
+                if(num >= EGI_SEARCH_FILE_MAX)/* break if fpaths buffer is full */
+		{
+			EGI_PLOG(LOGLV_WARN,"ff_alloc_search_files(): File fpath buffer is full! try to increase FFIND_MAX_FILENUM.\n");
+                        break;
+		}
+
+		else if( num == (1<<km) )/* get limit of buff size */
+		{
+			/* double memory */
+			km++;
+			ptmp=(char *)realloc((char *)fpbuff,(1<<km)*(EGI_PATH_MAX+EGI_NAME_MAX) );
+
+			/* if doubling mem fails */
+			if(ptmp==NULL)
+			{
+				EGI_PLOG(LOGLV_ERROR,"ff_alloc_search_file(): Fail to realloc mem for fpbuff.\n");
+				/* break, and return old fpbuff data though*/
+				break;
+			}
+
+			/* get new pointer to the buff */
+			fpbuff=( char(*)[EGI_PATH_MAX+EGI_NAME_MAX])ptmp;
+			ptmp=NULL;
+
+			EGI_PLOG(LOGLV_INFO,"ff_find_files(): fpbuff[] is reallocated with capacity to buffer totally %d items of full_path.\n",
+													1<<km );
+		}
+
+                /* 5.2 check name string length */
+                if( strlen(file->d_name) > EGI_NAME_MAX-1 )
 		{
 			EGI_PLOG(LOGLV_WARN,"ff_find_files(): %s.\n	File path is too long, fail to store.\n",
 									file->d_name);
                         continue;
 		}
 
-                //if(strncmp(file->d_name+fn_len-4,".mp3",4)!=0 )
 		pt=strstr(file->d_name,"."); /* get '.' pointer */
 		if(pt==NULL)
 		{
-			printf("ff_find_files(): no extension '.' for %s\n",file->d_name);
+			//printf("ff_find_files(): no extension '.' for %s\n",file->d_name);
 			continue;
 		}
-
-                if( strncmp(pt+1, fext, FFPLAY_FEXTNAME_MAX)!=0 ) /* max extension name length */
+		/* compare file extension name */
+                if( strncmp(pt+1, fext, EGI_FEXTNAME_MAX)!=0 )
                          continue;
 
 		/* Clear buff and save full path of the matched file */
-		memset((char *)&ff_fpath_buff[num][0],0,FFPLAY_NAME_MAX*sizeof(char));
-		sprintf((char *)&ff_fpath_buff[num][0],"%s/%s",path,file->d_name);
-		//printf("Find:	%s\n",&ff_fpath_buff[num][0]);
+		memset((char *)(fpbuff+num), 0, (EGI_PATH_MAX+EGI_NAME_MAX)*sizeof(char) );
+		sprintf((char *)(fpbuff+num), "%s/%s", path, file->d_name);
+		//printf("ff_alloc_search_files(): push %s ...OK\n",fpbuff+num);
 
                 num++;
-                if(num >= FFPLAY_MAX_FILENUM)/* break if fpaths buffer is full */
-		{
-			EGI_PLOG(LOGLV_WARN,"ff_find_files(): File fpath buffer is full! try to increase FFIND_MAX_FILENUM.\n");
-                        break;
-		}
         }
 
-	/* 5. feed back count to the caller */
+	/* 6. feed back count to the caller */
 	if(pcount != NULL)
 	        *pcount=num; /* return count */
 
-	/* 6. close dir */
+	/* 7. free fpbuff if no file found */
+	if( num==0 && fpbuff != NULL )
+	{
+		free(fpbuff);
+		fpbuff=NULL;
+	}
+
+	/* 8. close dir */
          closedir(dir);
 
-         return 0;
+	/* 9. return pointer to the buff */
+         return (char *)fpbuff;
 }
-
+#endif 
 
 
 

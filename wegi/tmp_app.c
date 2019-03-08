@@ -137,17 +137,24 @@ int main(int argc, char **argv)
 	pthread_t   thread_loopread;
 
 
-	/* test timer */
-#if 0
-	printf("get tm stamp in ms: %lld \n",tm_get_tmstampms());
-	system("uptime");
-	exit(0);
-#endif
 
 	/* --- start egi tick --- */
 	tm_start_egitick();
 //	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 //	signal(SIGALRM, tm_tick_sigroutine);
+
+
+	/* test timer */
+#if 1
+	while(1)
+	{
+		printf("egi_random_max(5):%d\n",egi_random_max(5));
+		printf("egi_random_max(-5):%d\n",egi_random_max(-5));
+		tm_delayms(100);
+	}
+	exit(0);
+#endif
+
 
 	/* --- init log --- */
 	if(egi_init_log() !=0)

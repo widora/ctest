@@ -522,7 +522,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 	}
 	int imgw=egi_imgbuf->width;	/* image Width and Height */
 	int imgh=egi_imgbuf->height;
-	if( imgw<0 | imgh<0 )
+	if( imgw<0 || imgh<0 )
 	{
 		printf("egi_imgbuf_display(): egi_imgbuf->width or height is negative. fail to display.\n");
 		return -1;

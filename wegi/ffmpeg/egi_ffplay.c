@@ -45,7 +45,7 @@ NOTE:
 12. If logo.png is too big....?!!!!
 13. The final display windown H/W(row/column pixel numbers) must be multiples of 16 if AVFilter applied,
     and multiples of 2 while software scaler applied.
-14. When display a picture, you shall wait for a while after finish 
+
 
 
 		 (((  -------- Glossary --------  )))
@@ -103,8 +103,8 @@ Midas Zhou
 #include <string.h>
 
 
-#define FF_LOOP_TIMEGAP 0 /* in second, hold_on time after ffplaying a file, especially for a picture.. */
-#define FF_CLIP_PLAYTIME 5 /* in second, set clip play time */
+#define FF_LOOP_TIMEGAP 0 //3 /* in second, hold_on time after ffplaying a file */
+#define FF_CLIP_PLAYTIME 6 /* in second, set clip play time */
 
 
 /*
@@ -122,8 +122,8 @@ Note:
 
 
 /* expected display window size(upright image size), LCD will be adjusted in the function */
-int show_w=240; // 160; //185; /* LCD column pixels */
-int show_h=320; //240; //185;/* LCD row pixels */
+int show_w=170; //240; // 160; //185; /* LCD column pixels */
+int show_h=170; //160; //240; //185;/* LCD row pixels */
 
 /* offset of the show window relating to LCD origin */
 int offx;
@@ -135,7 +135,7 @@ int offy;
  *		LCD W&H.
  */
 /* enable AVFilter for video */
-static bool enable_avfilter=true;
+static bool enable_avfilter=false;
 
 /* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
  *   if 1:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
@@ -144,9 +144,9 @@ static bool enable_avfilter=true;
  *
  *   if 0:	disable it.
  */
-static bool enable_auto_rotate=true;
+static bool enable_auto_rotate=false;
 
-/*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=false)
+/*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=0)
  *  if 0, transpose not applied,
 	  !!!  NOTE: if enable_auto_rotate=true, then it will be decided by checking image H and W,
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
@@ -184,7 +184,7 @@ static bool disable_audio=false;
  *   if 1:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
  *   if 0:	disable clip test.
  */
-static bool enable_clip_test=false;
+static bool enable_clip_test=true;
 
 /* param: ( play mode )
  *   mode_loop_all:	loop all files in the list
@@ -202,6 +202,8 @@ FFplay for most type of media files:
 int main(int argc, char *argv[])
 {
 	/* for input files */
+	int ftotal; /* total number of media files */
+	char (*fpaths)[FFPLAY_PATH_MAX+FFPLAY_NAME_MAX]=NULL; /* pointer to strings of full_paths of files  */
 	int fnum; /* number of multimedia files input from shell */
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
@@ -299,11 +301,17 @@ int main(int argc, char *argv[])
 
 
 	/* check input argc */
+/*
 	if(argc < 2) {
 		printf("ffplay: File path not found!\n");
 		return -1;
 	}
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: total number of input files: %d\n",argc);
+*/
+
+	/* search all mp3 in default path files */
+	//ff_find_files( FFPLAY_MUSIC_PATH, "mp3", &ftotal );
+	//EGI_PDEBUG(DBG_FFPLAY,"ffplay: total number of input files: %d\n", ftotal);
 
 	/* check expected display window size */
 	if(enable_avfilter) {
@@ -317,7 +325,7 @@ int main(int argc, char *argv[])
 
 	/* addjust offset of display window */
 	offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
-	offy=0;//40;
+	offy=40;
 
 	/* <<<<<<<    Init SPI, FB, Timer   >>>>>>  */
        /* start egi tick */
@@ -344,6 +352,14 @@ int main(int argc, char *argv[])
 	draw_filled_rect(&gv_fb_dev, offx, offy, offx+show_w, offy+show_h);
 
 
+	/* --- search file, and get full_paths for found files --- */
+	fpaths=ff_alloc_search_files( argv[1], "mp3", &ftotal );
+	if( ftotal<=0 )
+	{
+		printf("No media files found in path %s.\n",argv[1]);
+		goto ff_fail;
+	}
+
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
 while(1) {
@@ -358,15 +374,21 @@ if(enable_avfilter)
 
 
    /* play all input files, one by one. */
-   for(fnum=1; fnum < argc; fnum++)
+   //for(fnum=1; fnum < argc; fnum++)
+   //{
+   /* play all input files randomly */
+//   for(fnum=egi_random_max(argc) ;;fnum=egi_random_max(argc) )
+   for( fnum=egi_random_max(ftotal)-1; ; fnum=egi_random_max(ftotal)-1 )
    {
+	EGI_PLOG(LOGLV_INFO,"----- fnum=%d, ftotal=%d -----\n",fnum,ftotal);
+
 	/* reset display window size */
 	display_height=show_h;
 	display_width=show_w;
 
 	/* Open media stream or file */
-	EGI_PLOG(LOGLV_INFO,"ffplay: Start to play file %s\n",argv[fnum]);//argv[fnum]);
-	if(avformat_open_input(&pFormatCtx, argv[fnum], NULL, NULL)!=0)
+	EGI_PLOG(LOGLV_INFO,"ffplay: Start to play file %s\n",fpaths[fnum]);//argv[fnum]);
+	if(avformat_open_input(&pFormatCtx, fpaths[fnum], NULL, NULL)!=0)
 	{
 		EGI_PLOG(LOGLV_ERROR,"ffplay: Fail to open the file, or file type is not recognizable.\n");
 
@@ -399,7 +421,7 @@ if(enable_avfilter)
 
 	/* Dump information about file onto standard error */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	Try to dump file information... \n",tm_get_tmstampms());
-	av_dump_format(pFormatCtx, 0, argv[fnum], 0);
+	av_dump_format(pFormatCtx, 0, fpaths[fnum], 0);
 
 	/* Find the first video stream and audio stream */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	Try to find the first video stream... \n",tm_get_tmstampms());
@@ -631,7 +653,7 @@ if(disable_audio)
  */
 if(enable_auto_rotate)
 {
-	if( pCodecCtx->height >= pCodecCtx->width ) /*if image upright H>W */
+	if( pCodecCtx->height > pCodecCtx->width ) /*if image upright H>W */
 		transpose_clock=false;
 	else
 		transpose_clock=true;
@@ -1131,12 +1153,6 @@ if(enable_clip_test)
 			ff_sec_Aduration=0;
 			break;
 		}
-		/* if a picture without audio */
-		else if( audioStream<0 )
-		{
-			tm_delayms(FF_CLIP_PLAYTIME*1000);
-			break;
-		}
 }
 
 	}/*  end of while()  <<--- end of one file playing --->> */
@@ -1144,7 +1160,7 @@ if(enable_clip_test)
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(FF_LOOP_TIMEGAP>0)
 	{
-		EGI_PDEBUG(DBG_FFPLAY,"ffplay: End playing %s, hold on for a while...\n",argv[fnum]);
+		EGI_PDEBUG(DBG_FFPLAY,"ffplay: End playing %s, hold on for a while...\n",fpaths[fnum]);
 		tm_delayms(FF_LOOP_TIMEGAP*1000);
 	}
 	/* fill display area with BLACK */
@@ -1262,9 +1278,9 @@ if(enable_avfilter) /* free filter resources */
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);
-	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n",argv[fnum], get_costtime(tm_start,tm_end) );
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n",fpaths[fnum], get_costtime(tm_start,tm_end) );
 
-	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n", argv[fnum]);
+	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n", fpaths[fnum]);
    } /* end of for(...), loop playing input files*/
 
 
@@ -1278,6 +1294,10 @@ if(enable_avfilter) /* free filter resources */
   EGI_PDEBUG(DBG_FFPLAY,"<<<<<  Finish one round of playing all files, go back to start a new round...  >>>>\n\n\n");
 
 } /* end of while(1), eternal loop. */
+
+	/* free fpths */
+	if(fpaths != NULL)
+		free(fpaths);
 
 	/*   finally clean up all  */
 	/* close fb dev */

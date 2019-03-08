@@ -25,9 +25,6 @@ Midas Zhou
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 
-//extern snd_pcm_t *g_ffpcm_handle;
-//static snd_pcm_t *g_ffpcm_handle;
-
 int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
 void close_ffpcm_device(void);
 void play_ffpcm_buff(void** buffer, int nf);

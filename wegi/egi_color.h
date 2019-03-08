@@ -11,7 +11,7 @@ Midas Zhou
 #include <stdint.h>
 
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
-#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( (r>>3)<<11 | (g>>2)<<5 | b>>3 ))
+#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( (r>>3)<<11 ) | ( (g>>2)<<5 ) | (b>>3) ))
 #define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS(rgb>>16, (rgb&0xff00)>>8, rgb&0xff) )
 #define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
 

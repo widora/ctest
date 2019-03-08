@@ -39,6 +39,7 @@ Midas Zhou
 #include "egi_debug.h"
 #include "egi_log.h"
 #include "egi_timer.h"
+#include "egi_math.h"
 
 /*--------------------(  testfont  )------------------------
   1.  ascii 0-127 symbol width,

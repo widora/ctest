@@ -10,9 +10,7 @@ Midas Zhou
 #include <stdio.h>
 
 char** egi_malloc_buff2D(int items, int item_len) __attribute__((__malloc__));
-
 void egi_free_buff2D(char **buff, int items);
-
-
+char* egi_alloc_search_files(const char* path, const char* fext,  int *pcount );
 
 #endif

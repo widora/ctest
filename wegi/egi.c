@@ -73,9 +73,13 @@ char *egi_str_touch_status(enum egi_touch_status touch_status)
 /*---------------------------------------
 return a random value not great than max
 
-max>0: 	1<< ret <<max
+Example:
+egi_random_max(5):  1,2,3,4,5
+egi_random_max(-5): -3,-2,-1,0,1
+
+max>0: 	1<= ret <=max
 max=0:  1
-max<0:  max+2 << ret << 1
+max<0:  max+2 <= ret <=1
 
 ---------------------------------------*/
 int egi_random_max(int max)
