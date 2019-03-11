@@ -106,7 +106,7 @@ void egi_free_buff2D(char **buff, int items)
 #define EGI_SEARCH_FILE_MAX (1<<10) /* to be 2**n, Max number of files for ff_fpath_buff[] */
 #define EGI_FEXTNAME_MAX 10 /* !!! exclude '.', length of extension name */
 /*---------------------------------------------------------------------------------------------------------
-Find out specified type of files in a specified directory and save in ff_find_files[]
+Find out specified type of files in a specified directory and return buff pointer.
 
 path:           Sear path without extension name.
 fext:		File extension name, MUST exclude ".", Example: "wav" or "mp3"...
@@ -114,8 +114,8 @@ pcount:         Total number of files found, NULL to ignore.
 		-1, search fails.
 
 return value:
-         pointer to char (*)[EGI_PATH_MAX+FPLAY_NAME_MAX]   --- OK
-         NULL && pcount=-1;  --- Fails
+         pointer to char (*)[EGI_PATH_MAX+FPLAY_NAME_MAX]   	OK
+         NULL && pcount=-1;					Fails
 ----------------------------------------------------------------------------------------------------------*/
 char* egi_alloc_search_files(const char* path, const char* fext,  int *pcount )
 {

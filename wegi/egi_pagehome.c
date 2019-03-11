@@ -36,6 +36,9 @@ Midas Zhou
 #include "egi_pagebook.h"
 #include "egi_iwinfo.h"
 #include "egi_pageffplay.h"
+#include "iot/egi_iotclient.h"
+
+static uint16_t btn_symcolor;
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
@@ -88,7 +91,7 @@ EGI_PAGE *egi_create_homepage(void)
 			home_btns[3*i+j]=egi_btnbox_new(NULL, /* put tag later */
 							data_btns[3*i+j], /* EGI_DATA_BTN *egi_data */
 				        		0, /* bool movable */
-						        15+(15+60)*j, 105+(15+60)*i, /* int x0, int y0 */
+						        15+(15+60)*j, 85+(15+60)*i, /* int x0, int y0 */
 							60,60, /* int width, int height */
 				       			1, /* int frame */
 		       					-1 /*int prmcolor */
@@ -116,7 +119,8 @@ EGI_PAGE *egi_create_homepage(void)
 
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 
-	egi_ebox_settag(home_btns[3], "btn_openwrt");
+	egi_ebox_settag(home_btns[3], "btn_linphone");
+	data_btns[3]->icon_code=9;
 	home_btns[3]->reaction=egi_homebtn_openwrt;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
@@ -125,13 +129,27 @@ EGI_PAGE *egi_create_homepage(void)
 	home_btns[5]->reaction=egi_homebtn_book;
 
 	egi_ebox_settag(home_btns[6], "btn_chart");
-	egi_ebox_settag(home_btns[7], "btn_mp2");
+
+	egi_ebox_settag(home_btns[7], "btn_bigiot_bulb"); /* id=7; as for bulb */
+	data_btns[7]->icon_code=11; /* SUB_COLOR + ICON_CODE */
 
 	egi_ebox_settag(home_btns[8], "btn_ffplay");
 	home_btns[8]->reaction=egi_homebtn_ffplay;
 
+	/* create a bkimg_btn for home_btns[7], withou cutout in icon image */
+	EGI_EBOX * bkimg_btn7=egi_copy_btn_ebox(home_btns[7]);
+	if(bkimg_btn7 != NULL)
+	{
+		EGI_DATA_BTN *bkbtn_data=(bkimg_btn7->egi_data);
+		bkbtn_data->icon_code=7;
+		bkbtn_data->id=7; /*change id for later sort */
+		egi_ebox_settag(bkimg_btn7, "btn_bigiot_frame");
+	}
 
-	/* --------- 2. create home head-bar --------- */
+	printf("btns[7]->egi_data->icon_code=%d\n",((EGI_DATA_BTN *)(home_btns[7]->egi_data))->icon_code);
+	printf("bkimg_btn7->egi_data->icon_code=%d\n",((EGI_DATA_BTN *)(bkimg_btn7->egi_data))->icon_code);
+
+        /* --------- 2. create home head-bar --------- */
         /* create head_txt */
         head_txt=egi_txtdata_new(
                 0,0, /* offset X,Y */
@@ -173,9 +191,13 @@ EGI_PAGE *egi_create_homepage(void)
 			page_home=egi_page_new("page_home");
 			usleep(100000);
 	}
-	/* 3.2 put pthread runner */
+	/* set bk color, applicable only if fpath==NULL  */
+	page_home->ebox->prmcolor=WEGI_COLOR_OCEAN;
+
+	/* 3.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
 	page_home->runner[0]=egi_display_cpuload;
 	page_home->runner[1]=egi_display_iotload;
+	page_home->runner[2]=egi_iotclient;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_page_routine;
@@ -185,8 +207,12 @@ EGI_PAGE *egi_create_homepage(void)
 
 	/* add ebox to home page */
 	/* beware of the sequence of the ebox list */
-	for(i=0;i<9;i++)
+	for(i=0;i<7;i++)
 		egi_page_addlist(page_home, home_btns[i]);
+	egi_page_addlist(page_home, home_btns[7]);
+	egi_page_addlist(page_home, home_btns[8]);
+
+	egi_page_addlist(page_home, bkimg_btn7);
 	egi_page_addlist(page_home,ebox_headbar);
 
 
@@ -204,7 +230,7 @@ display cpu load in home head-bar with motion icons
 -------------------------------------------------------*/
 static void egi_display_cpuload(EGI_PAGE *page)
 {
-	int load=0; 
+	int load=0;
 	int fd;
 	char strload[5]={0}; /* read in 4 byte */
 

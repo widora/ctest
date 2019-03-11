@@ -144,8 +144,8 @@ int main(int argc, char **argv)
 //	signal(SIGALRM, tm_tick_sigroutine);
 
 
-	/* test timer */
-#if 1
+	/* test random max */
+#if 0
 	while(1)
 	{
 		printf("egi_random_max(5):%d\n",egi_random_max(5));
@@ -729,6 +729,7 @@ while(1)
 			}
 			/* refresh MEMO eboxe according to tick */
 #if 1
+
 			//if( tm_get_tickcount()%400 == 0 ) /* 1000*TM_TICK_INTERVAL(2ms) */
 			if(tm_pulseus(800000))
 			{

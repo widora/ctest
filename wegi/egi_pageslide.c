@@ -173,7 +173,7 @@ return
 ----------------------------------------------------------------------*/
 static int pageslide_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	return -1;
+	return btnret_REQUEST_EXIT_PAGE;
 }
 
 /*-------------------------------------------------------------------

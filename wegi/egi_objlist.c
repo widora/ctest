@@ -6,7 +6,7 @@
 #include "egi_objlist.h"
 #include "egi_symbol.h"
 #include "egi_color.h"
-
+#include "egi_objtxt.h"
 
 /*----------------------------------------------------------------
 int reaction(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
@@ -98,7 +98,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 		data_list->icon_code[i]=31;
 
 		/* update items */
-		egi_listbox_updateitem(list, i, COLOR_24TO16BITS(color24[i%4]),pdata); //color[i%5], pdata);
+		egi_listbox_updateitem(list, i, COLOR_24TO16BITS(color24[i%4]),(const char **)pdata); //color[i%5], pdata);
 	}
 
 	/* 4. activate the list	*/

@@ -15,6 +15,7 @@ Midas Zhou
 #include "sys_list.h"
 //#include "egi_fbgeom.h"
 #include "egi_image.h"
+#include "egi_color.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
@@ -322,7 +323,7 @@ struct egi_data_btn
 	unsigned int id; /* unique id number for btn, MUST >0, default 0 for ignored  */
 	enum egi_btn_type shape; /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
-	int32_t icon_code; /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
+	uint32_t icon_code; /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
 	int opaque; /* opaque value for the icon, default 0, totally not transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
@@ -496,7 +497,7 @@ struct egi_page
 
 
 /* for common ebox */
-char *egi_str_touch_status(enum egi_touch_status touch_status);
+const char *egi_str_touch_status(enum egi_touch_status touch_status);
 int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
@@ -521,6 +522,9 @@ int egi_page_dispear(EGI_EBOX *ebox);
 int egi_btnbox_activate(EGI_EBOX *ebox);
 int egi_btnbox_refresh(EGI_EBOX *ebox);
 void egi_free_data_btn(EGI_DATA_BTN *data_btn);
+int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
 
+/* copy ebox */
+EGI_EBOX * egi_copy_btn_ebox(EGI_EBOX *ebox);
 
 #endif

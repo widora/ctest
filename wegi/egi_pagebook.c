@@ -218,7 +218,7 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* find the txt ebox in the page
 	    egi_page_pickbtn() will verify the integrity of the page*/
-	txt_ebox=egi_page_pickbtn(page, type_txt, book_id);
+	txt_ebox=egi_page_pickebox(page, type_txt, book_id);
 	if(txt_ebox == NULL)
 	{
 		printf("[page '%s'] book_foreard(): fail to find txt_ebox with id=%d .\n",

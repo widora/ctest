@@ -38,10 +38,10 @@
 #
 #---------------------------------------------------------------------------------------------------------------
 
-STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
+export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
+COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr/
 
-CC=/home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
-
+CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
 #### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
@@ -49,14 +49,19 @@ OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 APPS = tmp_app
 
+EXTRA_OBJS = buttons.o iot/egi_iotclient.o
+
+
 #### -----  编译标志 -----
 ## -Wall for __attribut__
-CFLAGS = -Wall
-CFLAGS += -I./ -I./include
+CFLAGS = -I./ -I./include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS += -Wall
+#CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -O -g -DEGI_DEBUG
 
-LDFLAGS = -L./lib -ljpeg -lm -lpthread
+LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
+LIBS += -ljpeg -lm -lpthread -ljson-c
 
 
 #----- 打印依赖文件  include $(DEP_FILES)
@@ -75,8 +80,8 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-tmp_app: $(OBJS) buttons.o ###touch.o spi.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) buttons.o -o tmp_app
+tmp_app: $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o tmp_app
 
 
 #### ----- 目标文件自动生成规则 -----

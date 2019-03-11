@@ -12,6 +12,7 @@
 #include "egi_symbol.h"
 #include "egi_bmpjpg.h"
 #include "egi_touch.h"
+#include "egi_log.h"
 
 /*---------------------------------------------
 init a egi page
@@ -115,16 +116,23 @@ int egi_page_free(EGI_PAGE *page)
 add a ebox into a page's head list.
 return:
 	0	OK
+	>0	ingored
 	<0	fails
 ---------------------------------------------------*/
 int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 {
 	/* check data */
-	if(page==NULL || ebox==NULL)
+	if(page==NULL)
 	{
-		printf("egi_page_travlist(): page or ebox is NULL!\n");
+		printf("egi_page_addlist(): input page is NULL!\n");
 		return -1;
 	}
+	if(ebox==NULL)
+	{
+		printf("egi_page_addlist(): input ebox is NULL!\n");
+		return 1;
+	}
+
 
 	/* set ebox->container */
 	ebox->container=page;
@@ -360,7 +368,7 @@ return:
 	pointer 	OK
 	NULL		fails not no match
 -----------------------------------------------------------------------------------*/
-EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
+EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
@@ -391,7 +399,7 @@ EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int
 		}
 	}
 
-	EGI_PDEBUG(DBG_PAGE,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+	EGI_PLOG(LOGLV_WARN,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
 										ebox->tag,id,page->ebox->tag);
 	return NULL;
 }

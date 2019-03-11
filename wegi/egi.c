@@ -40,7 +40,7 @@ Midas Zhou
 #include "egi_debug.h"
 #include "sys_list.h"
 #include "egi_symbol.h"
-
+#include "egi_color.h"
 
 /* button touch status:
  * corresponding to enum egi_touch_status in egi.h
@@ -57,8 +57,8 @@ static const char *str_touch_status[]=
 	"undefined",
 };
 
-/*	covert touch status to string 	 */
-char *egi_str_touch_status(enum egi_touch_status touch_status)
+/*	convert touch status to string 	 */
+const char *egi_str_touch_status(enum egi_touch_status touch_status)
 {
 	enum egi_touch_status status_unkown=unkown;
 	enum egi_touch_status status_undefined=undefined;
@@ -321,7 +321,6 @@ void egi_ebox_needrefresh(EGI_EBOX *ebox)
 }
 
 
-
 /*----------------------------------------------------
 ebox refresh: default method
 
@@ -332,21 +331,30 @@ reutrn:
 ------------------------------------------------------*/
 int egi_ebox_refresh(EGI_EBOX *ebox)
 {
-//	int ret;
-
-	/* 1. put default methods here ...*/
+	/* 1. check data */
+	if( ebox==NULL || ebox->egi_data==NULL )
+        {
+                printf("egi_copy_btn_ebox(): input ebox is invalid or NULL!\n");
+                return -1;
+        }
+	/* 2. put default methods here ...*/
 	if(ebox->method.refresh == NULL)
 	{
 		EGI_PDEBUG(DBG_EGI,"ebox '%s' has no defined method of refresh()!\n",ebox->tag);
 		return 1;
 	}
-
-	/* 2. ebox object defined method */
+	/* 3. ebox object defined method */
 	else
 	{
-			return ebox->method.refresh(ebox);
+		return ebox->method.refresh(ebox);
 	}
+
 }
+
+
+
+
+
 
 /*----------------------------------------------------
 ebox activate: default method
@@ -626,6 +634,93 @@ int egi_page_dispear(EGI_EBOX *ebox)
         /* 3. */
 	free(buf);
 	free(sbuf);
+
+	return 0;
+}
+
+
+/*------------------------------------------------------------------
+Duplicate a new ebox and its egi_data from an input ebox.
+
+return:
+	EGI_EBOX pointer	OK
+	NULL			fail
+--------------------------------------------------------------------*/
+EGI_EBOX *egi_copy_btn_ebox(EGI_EBOX *ebox)
+{
+	/* check data */
+	if( ebox==NULL || ebox->egi_data==NULL )
+        {
+                printf("egi_copy_btn_ebox(): input ebox is invalid or NULL!\n");
+                return NULL;
+        }
+        /* confirm ebox type */
+        if(ebox->type != type_btn)
+        {
+                printf("egi_copy_btn_ebox(): Not button type ebox!\n");
+                return NULL;
+        }
+
+
+        /* copy data_btn */
+        EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)malloc(sizeof(EGI_DATA_BTN));
+        if(data_btn==NULL)
+        {
+                printf("egi_copy_btn_ebox(): malloc data_btn fails!\n");
+                return NULL;
+        }
+        *data_btn=*((EGI_DATA_BTN *)(ebox->egi_data));
+
+        /* copy EGI_EBOX */
+        EGI_EBOX *newbox=(EGI_EBOX *)malloc(sizeof(EGI_EBOX));
+        if(newbox==NULL)
+        {
+               printf("egi_copy_btn_ebox(): malloc newbox fails!\n");
+               return NULL;
+        }
+        *newbox=*ebox;
+
+	/* assign egi_data */
+	newbox->egi_data=(void *)data_btn;
+
+	return newbox;
+}
+
+/*--------------------------------------------------------------------
+Set icon substitue color for a button ebox
+
+Note:
+    Pure BLACK set as transparent color, so here black subcolor should
+    not be 0 !!!
+
+return:
+	0	OK
+	<0	fail
+--------------------------------------------------------------------*/
+int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor)
+{
+	/* check data */
+	if( ebox==NULL || ebox->egi_data==NULL )
+        {
+                printf("egi_btnbox_setsubcolor(): input ebox is invalid or NULL!\n");
+                return -1;
+        }
+
+       	/* confirm ebox type */
+        if(ebox->type != type_btn)
+        {
+                printf("egi_btnbox_setsubcolor(): Not button type ebox!\n");
+                return -2;
+        }
+
+    	/* Pure BLACK set as transparent color, so here black subcolor should NOT be 0 */
+	if(subcolor==0)subcolor=1;
+
+	/* set subcolor in icon_code: SUBCOLOR(16bits) + CODE(16bits) */
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+	data_btn->icon_code = ((data_btn->icon_code)&0x0000ffff)+(subcolor<<16);
+
+	printf("%s(): subcolor=0x%04X, set icon_code=0x%08X \n",__func__, subcolor, data_btn->icon_code);
 
 	return 0;
 }
