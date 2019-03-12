@@ -473,6 +473,9 @@ struct egi_page
 	/* wallpaper for the page */
 	char *fpath;
 
+	/* TODO: image buff, load fpath file image to it. */
+	EGI_IMGBUF *imgbuf;
+
 	/* --- child list:
 	maintain a list for all child ebox, there should also be layer information
 	multi_layer operation is applied.

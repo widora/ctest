@@ -89,8 +89,8 @@ EGI_PAGE *egi_create_openwrtpage(void)
 	}
 
 	/* ----- 1.1 add tags and button reaction function here ------ */
-	egi_ebox_settag(open_btns[0], "BTN_0");
-	egi_ebox_settag(open_btns[1], "BTN_1");
+	egi_ebox_settag(open_btns[0], "LOAD");
+	egi_ebox_settag(open_btns[1], "WiFi");
 	egi_ebox_settag(open_btns[2], "BTN_2");
 	egi_ebox_settag(open_btns[3], "BTN_3");
 	egi_ebox_settag(open_btns[4], "BTN_4");
@@ -107,7 +107,7 @@ EGI_PAGE *egi_create_openwrtpage(void)
 		egi_colorgray_random(light),  /* uint16_t bkcolor */
     		NULL	/* char *title */
 	);
-	egi_txtbox_settitle(title_bar, "    OpenWRT System Info.");
+	egi_txtbox_settitle(title_bar, "	OpenWRT SysInfo");
 
 
 	/* --------- 3. create home page ------- */
@@ -149,6 +149,12 @@ return
 -----------------------------------*/
 static int egi_pageopen_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-        return -1;
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+        egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_OCEAN);
+        return btnret_REQUEST_EXIT_PAGE;
+
 }
 

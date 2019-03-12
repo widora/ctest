@@ -668,15 +668,14 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		if(nread <= 0) /* error or end of file */
 			break;
 
-		printf("-------- finish fread():  nread=fread()=%d ------- \n",nread);
-
+		//printf("-------- finish fread():  nread=fread()=%d ------- \n",nread);
 
 		 /*TODO: for() session to be replaced by egi_push_datatxt() if possible  */
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
 		{
 			//EGI_PDEBUG(DBG_TXT,"buf[%d]='%c' ascii=%d\n",i,buf[i],buf[i]);
-			printf("i=%d of nread=%d\n",i,nread);
+			//printf("i=%d of nread=%d\n",i,nread);
 			/*  ------ 1. if it's a return code */
 			/* TODO: substitue buf[i] with space ..... */
 			if( buf[i]==10 )
@@ -769,7 +768,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 
 
 	/* DEBUG, print out all txt in txt data buf */
-#if 1
+#if 0
 	for(i=0;i<nl;i++)
 		printf("%s\n",txt[i]);
 #endif

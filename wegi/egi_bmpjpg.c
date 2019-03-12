@@ -347,7 +347,7 @@ fpath:		jpg file path
 //fb_dev:		if not NULL, then write to FB,
 
 imgbuf:		buf to hold the image data, in 16bits color
-		input:  an EGI_IMGBUF 
+		input:  an EGI_IMGBUF
 		output: a pointer to the image data
 
 Return
@@ -410,7 +410,6 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 			dat +=3;
 		}
 	}
-
 
 	close_jpgImg(imgbuf);
 	fclose(infile);
@@ -639,8 +638,8 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
 }
 
 
-/* ----------------------------------------------------------------------------------------
- find out all jpg files in a specified directory
+/* --------------  OBSELETE!!! see egi_alloc_search_files() in egi_utils.c ----------------
+find out all jpg files in a specified directory
 
 path:	 	path for file searching
 count:	 	total number of jpg files found

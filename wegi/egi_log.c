@@ -112,12 +112,12 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	/* push log string into temp. strlog */
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
 #if ENABLE_LOGBUFF_PRINT
-	printf("egi logger: %s\n",strlog);
+	printf("egi logger: %s",strlog); /* no '/n', Let log caller to decide return token */
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 
 
-	/* if high level log, write directly to log file */
+	///////   FOR HIGHT LEVEL LOG:  write directly to log file //////
 	if(log_level >= LOGLV_NOBUFF_THRESHOLD)
 	{
 		if( fprintf(egi_log_fp,"%s",strlog) < 0 )
@@ -129,6 +129,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 		return 0;
 	}
 
+	///////   FOR NORMAL LEVEL LOG: 			 ////////
    	/* get mutex lock */
    	if(pthread_mutex_lock(&log_buff_mutex) != 0)
    	{

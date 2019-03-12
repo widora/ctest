@@ -346,7 +346,7 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 	/* 3. ebox object defined method */
 	else
 	{
-		return ebox->method.refresh(ebox);
+		return ebox->method.refresh(ebox); /*only if need_refresh flag is true */
 	}
 
 }

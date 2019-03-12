@@ -88,6 +88,10 @@ int egi_page_free(EGI_PAGE *page)
 		printf("egi_page_free(): page is NULL! fail to free.\n");
 		return -1;
 	}
+	if( page->ebox==NULL )
+	{
+		printf("%s: WARN: input page->ebox is NULL!\n",__func__);
+	}
 
 	/*  free every child in list */
 	if(!list_empty(&page->list_head))
@@ -104,7 +108,8 @@ int egi_page_free(EGI_PAGE *page)
 	}
 
 	/* free self ebox */
-	free(page->ebox);
+	if(page->ebox != NULL)
+		free(page->ebox);
 	/* free page */
 	free(page);
 
@@ -122,9 +127,9 @@ return:
 int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 {
 	/* check data */
-	if(page==NULL)
+	if( page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_addlist(): input page is NULL!\n");
+		printf("%s: input page or page->ebox is NULL!\n",__func__);
 		return -1;
 	}
 	if(ebox==NULL)
@@ -157,9 +162,9 @@ int egi_page_travlist(EGI_PAGE *page)
 	EGI_EBOX *ebox;
 
 	/* check data */
-	if(page==NULL)
+	if(page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_travlist(): input egi_page *page is NULL!\n");
+		printf("%s: input page or page->ebox is NULL!\n",__func__);
 		return -1;
 	}
 	/* check list */
@@ -198,9 +203,9 @@ int egi_page_activate(EGI_PAGE *page)
 	int yres=gv_fb_dev.vinfo.yres;
 
 	/* check data */
-	if(page==NULL)
+	if(page==NULL || page->ebox==NULL)
 	{
-		printf("egi_page_activate(): input egi_page *page is NULL!\n");
+		printf("egi_page_activate(): input page or page->ebox is NULL!\n");
 		return -1;
 	}
 	/* check list */
@@ -262,9 +267,9 @@ int egi_page_refresh(EGI_PAGE *page)
 	int yres=gv_fb_dev.vinfo.yres;
 
 	/* check data */
-	if(page==NULL || page->ebox==NULL )
+	if( page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_refresh(): input egi_page * page or page->ebox is NULL!\n");
+		printf("egi_page_refresh(): input page or page->ebox is NULL!\n");
 		return -1;
 	}
 
@@ -320,9 +325,32 @@ int egi_page_refresh(EGI_PAGE *page)
 	return 0;
 }
 
+/*--------------------------------------------------------------
+Just set need_refresh flag for the page, but do not set flag for
+its children.
+
+return:
+        0       OK
+        <0      fails
+----------------------------------------------------------------*/
+int egi_page_flag_needrefresh(EGI_PAGE *page)
+{
+        /* 1. check data */
+        if(page==NULL || page->ebox==NULL)
+        {
+                printf("%s: input page or page->ebox is NULL!\n",__func__);
+                return -1;
+        }
+
+	/* 2. set page need_refresh flag */
+	page->ebox->need_refresh=true;
+
+	return 0;
+}
+
 
 /*--------------------------------------------------------------
-set all eboxes in a page to be need_refresh=true
+Set all eboxes in a page to be need_refresh=true
 return:
 	0	OK
 	<0	fails
@@ -333,9 +361,9 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	EGI_EBOX *ebox;
 
 	/* 1. check data */
-	if(page==NULL)
+	if(page==NULL || page->ebox==NULL)
 	{
-		printf("egi_page_needrefresh(): input egi_page *page is NULL!\n");
+		printf("egi_page_needrefresh(): input page or page->ebox is NULL!\n");
 		return -1;
 	}
 
@@ -374,16 +402,16 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 	EGI_EBOX *ebox;
 
 	/* 1. check data */
-	if(page==NULL)
+	if(page==NULL || page->ebox==NULL )
 	{
-		printf("egi_page_pickbtn(): input egi_page *page is NULL!\n");
+		printf("%s: input page or page->ebox is NULL!\n",__func__);
 		return NULL;
 	}
 
 	/* 2. check list */
 	if(list_empty(&page->list_head))
 	{
-		printf("egi_page_pickbtn(): page '%s' has an empty list_head.\n",page->ebox->tag);
+		printf("%s: page '%s' has an empty list_head.\n",__func__,page->ebox->tag);
 		return NULL;
 	}
 
@@ -393,14 +421,14 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		if( ebox->type==type && ((EGI_DATA_BTN *)(ebox->egi_data))->id == id )
 		{
-		   EGI_PDEBUG(DBG_PAGE,"egi_page_pickbtn(): find an ebox '%s' with id=%d in page '%s'. \n",
-										ebox->tag,id,page->ebox->tag);
+		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with id=%d in page '%s'. \n",
+									__func__, ebox->tag,id,page->ebox->tag);
 			return ebox;
 		}
 	}
 
-	EGI_PLOG(LOGLV_WARN,"egi_page_pickbtn():  ebox '%s' with id=%d can NOT be found in page '%s'. \n",
-										ebox->tag,id,page->ebox->tag);
+	EGI_PLOG(LOGLV_WARN,"%s: ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+									__func__, ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
 
@@ -432,13 +460,15 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
 	/* 1. check data */
-	if(page==NULL)
+	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): start to check data for page.\n");
+	if(page==NULL || page->ebox==NULL)
 	{
-		printf("egi_page_routine(): input egi_page *page is NULL!\n");
+		printf("egi_page_routine(): input page OR page->ebox  is NULL!\n");
 		return -1;
 	}
 
 	/* 2. check list */
+	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): start to check ebox list for page.\n");
 	if(list_empty(&page->list_head))
 	{
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
@@ -447,6 +477,7 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
 	/* 3. load page runner threads */
+	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag); 
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		if( page->runner[i] !=0 )

@@ -53,8 +53,8 @@ EXTRA_OBJS = buttons.o iot/egi_iotclient.o
 
 
 #### -----  编译标志 -----
-## -Wall for __attribut__
-CFLAGS = -I./ -I./include -I$(COMMON_USRDIR)/include/json-c
+## -Wall for __attribut__ // -I$(COMMON_USRDIR)/include (for jpeg)
+CFLAGS = -I./ -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall
 #CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
