@@ -163,7 +163,7 @@ EGI_PAGE *egi_create_homepage(void)
         ebox_headbar= egi_txtbox_new(
                 "home_headbar", /* tag */
                 head_txt,  /* EGI_DATA_TXT pointer */
-                true, /* bool movable */
+                false, /* let home wallpaper take over, bool movable */
                 0,0, /* int x0, int y0 */
                 240,30, /* int width, int height */
                 -1, /* int frame, -1=no frame */
@@ -263,7 +263,8 @@ static void egi_display_cpuload(EGI_PAGE *page)
 }
 
 /*-----------------  RUNNER 2 --------------------------
-display IoT load in home head-bar with motion icons
+Display IoT motion icon.
+Display RSSI icon.
 -------------------------------------------------------*/
 static void egi_display_iotload(EGI_PAGE *page)
 {
@@ -274,11 +275,12 @@ static void egi_display_iotload(EGI_PAGE *page)
 										,page->ebox->tag);
 	while(1)
 	{
-		/* load IoT motion icons
+		/* 1. load IoT motion icons
 			  symbol_motion_string() is with sleep function */
   	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 180,0, symmic_iotload);
 
-		/* get RSSI value */
+
+		/* 2. get RSSI value */
 		rssi=get_iw_rssi();
 		if(rssi > -65) index=5;
 		else if(rssi > -73) index=4;
@@ -286,10 +288,10 @@ static void egi_display_iotload(EGI_PAGE *page)
 		else if(rssi > -94) index=2;
 		else 	index=1;
 		//EGI_PDEBUG(DBG_PAGE,"egi_display_itoload(): rssi=%d; index=%d \n",rssi,index);
-		/* draw RSSI symbol */
+
+		/* 3. draw RSSI symbol */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
 	}
-
 }
 
 

@@ -6,7 +6,6 @@
 
 #define EGI_LOGFILE_PATH "/mmc/egi_log"
 
-
 #define ENABLE_LOGBUFF_PRINT 	1	/* enable to print log buff content */
 #define EGI_LOG_MAX_BUFFITEMS	128 	/* MAX. number of log buff items */
 #define EGI_LOG_MAX_ITEMLEN	256 	/* Max length for each log string item */
@@ -45,7 +44,7 @@ int egi_quit_log(void);
  * Let the caller to put FILE and FUNCTION, we can not ensure that two egi_push_log()
  * will push string to the log buff exactly one after the other,because of concurrency
  * race condition.
- *  egi_push_log(" From file %s, %s(): \n",__FILE__,__FUNCTION__);
+ * egi_push_log(" From file %s, %s(): \n",__FILE__,__FUNCTION__);
 */
 
 #define EGI_PLOG(level, fmt, args...)                 \

@@ -720,7 +720,7 @@ int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor)
 	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
 	data_btn->icon_code = ((data_btn->icon_code)&0x0000ffff)+(subcolor<<16);
 
-	printf("%s(): subcolor=0x%04X, set icon_code=0x%08X \n",__func__, subcolor, data_btn->icon_code);
+	//printf("%s(): subcolor=0x%04X, set icon_code=0x%08X \n",__func__, subcolor, data_btn->icon_code);
 
 	return 0;
 }

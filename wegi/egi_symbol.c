@@ -701,7 +701,7 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
         while(*p) /* code '0' will be deemed as end token here !!! */
        	{
                	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p,0); /* -1, default font color */
-		tm_delayms(dt);	
+		tm_delayms(dt);
            	p++;
        	}
 }

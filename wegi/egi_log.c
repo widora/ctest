@@ -6,7 +6,7 @@ Try to write a thread_safe log system. :))))
    log_buff_count, and write log_buff[] items into log file if the counter>0.
 
 2. Other threads just push log string into log_buff by calling egi_push_log().
-   High level log string (>= LOGLV_NOBUFF_THRESHOLD) will be wirte directly to log file without
+   High level log string (>= LOGLV_NOBUFF_THRESHOLD) will be wirtten directly to log file without
    pushing to log_buff. So critical debug information will be recorded even if process exits abruptly
    just after egi_push_log() operation.
 
@@ -22,6 +22,7 @@ Try to write a thread_safe log system. :))))
 Note:
 1. log_buff_mutex will not be destroyed after egi_quit_log().
 2. Log items are not written sorted by time, because of buff FILO and thread operation.
+3. Give log string a '/n' and makes fprint flush immediately.
 
 TODO:
 0. TO add __FILE__, __FUNCTION__ at EGI_PLOG() macro.
@@ -112,7 +113,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	/* push log string into temp. strlog */
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
 #if ENABLE_LOGBUFF_PRINT
-	printf("egi logger: %s",strlog); /* no '/n', Let log caller to decide return token */
+	printf("EGI_Logger: %s",strlog); /* no '/n', Let log caller to decide return token */
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 

@@ -420,7 +420,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		if( sym_subcolor > 0 ) /* sym_subcolor may be 0xF.., so it should be unsigned ..*/
 		{
 			/* extract SUB_COLOR and CODE for symbol */
-			printf("egi_btnbox_refresh(): icond_code=SYM_SUB_COLOR + CODE. \n");
+			//printf("egi_btnbox_refresh(): icon_code=SYM_SUB_COLOR + CODE. \n");
 			symbol_writeFB( &gv_fb_dev,data_btn->icon, sym_subcolor, bkcolor,
 					x0, y0, icon_code, data_btn->opaque );
 		}

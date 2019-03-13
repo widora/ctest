@@ -21,11 +21,12 @@
 #define DBG_TOUCH	(1<<10)
 #define DBG_BMPJPG	(1<<11)
 #define DBG_FFPLAY	(1<<12)
+#define DBG_IOT		(1<<13)
 
 #define DBG_TEST	(1<<15)
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_PAGE|DBG_FFPLAY) //DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
+#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_PAGE|DBG_IOT) //DBG_FFPLAY) //DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
 
 #ifdef EGI_DEBUG
 
@@ -43,6 +44,7 @@
 	do {						\
 		if( flags & DEFAULT_DBG_FLAGS)		\
 		{					\
+			fprintf(stderr,"%s(): ",__func__); 	\
 			fprintf(stderr,fmt, ## args);	\
 		}					\
 	} while(0)

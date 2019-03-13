@@ -100,7 +100,7 @@ int egi_page_free(EGI_PAGE *page)
 		list_for_each_safe(tnode, tmpnode, &page->list_head)
         	{
                	 	ebox=list_entry(tnode,EGI_EBOX,node);
-			EGI_PDEBUG(DBG_PAGE,"egi_page_free(): ebox '%s' is unlisted from page '%s' and freed.\n" 
+			EGI_PDEBUG(DBG_PAGE,"ebox '%s' is unlisted from page '%s' and freed.\n" 
 									,ebox->tag,page->ebox->tag);
                 	list_del(tnode);
                 	ebox->free(ebox);
@@ -144,7 +144,7 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 
 	/* add to list tail */
 	list_add_tail(&ebox->node, &page->list_head);
-	EGI_PDEBUG(DBG_PAGE,"egi_page_addlist(): ebox '%s' is added to page '%s' \n",
+	EGI_PDEBUG(DBG_PAGE,"ebox '%s' is added to page '%s' \n",
 								ebox->tag, page->ebox->tag);
 
 	return 0;
@@ -241,7 +241,7 @@ int egi_page_activate(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->activate(ebox);
-		EGI_PDEBUG(DBG_PAGE,"egi_page_activate(): activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
+		EGI_PDEBUG(DBG_PAGE,"activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
 
@@ -278,7 +278,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	if(page->ebox->need_refresh)
 	{
 		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
-		EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
 
 		/* load a picture or use prime color as wallpaper*/
 		if(page->fpath != NULL)
@@ -382,7 +382,7 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ebox->need_refresh=true;
-		EGI_PDEBUG(DBG_PAGE,"egi_page_needrefresh(): find child --- ebox: '%s' --- \n",ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 	return 0;
@@ -460,7 +460,7 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 
 	/* 1. check data */
-	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): start to check data for page.\n");
+	EGI_PDEBUG(DBG_PAGE,"start to check data for page.\n");
 	if(page==NULL || page->ebox==NULL)
 	{
 		printf("egi_page_routine(): input page OR page->ebox  is NULL!\n");
@@ -468,7 +468,7 @@ int egi_page_routine(EGI_PAGE *page)
 	}
 
 	/* 2. check list */
-	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): start to check ebox list for page.\n");
+	EGI_PDEBUG(DBG_PAGE,"start to check ebox list for page.\n");
 	if(list_empty(&page->list_head))
 	{
 		printf("egi_page_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);

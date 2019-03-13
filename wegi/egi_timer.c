@@ -163,7 +163,7 @@ long long unsigned int tm_get_tickcount(void)
 }
 
 /*-----------------------------------------
-delay ms, at lease TM_TICK_INTERVAL/1000 ms
+delay ms, at lease TM_TICK_INTERVAL/2000 ms
 
 if ms<0, return.
 -------------------------------------------*/
@@ -186,7 +186,7 @@ void tm_delayms(long ms)
 }
 
 
-/*--------------------------------------------------------
+/*----------  OBSELETE -------------------------------------
 return:
     TRUE: in every preset time interval gap(us), or time
 interval exceeds gap(us).
