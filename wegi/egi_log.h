@@ -34,7 +34,7 @@ enum egi_log_level
 /* --- logger functions --- */
 int egi_push_log(enum egi_log_level log_level, const char *fmt, ...) __attribute__(( format(printf,2,3) ));
 //static void egi_log_thread_write(void);
-int egi_init_log(void);
+int egi_init_log(const char *fpath); //void);
 //static int egi_stop_log(void);
 //static int egi_free_logbuff(void)
 int egi_quit_log(void);

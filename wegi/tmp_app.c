@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 
 
 	/* --- init log --- */
-	if(egi_init_log() !=0)
+	if(egi_init_log("/mmc/egi_log") !=0)
 	{
 	   printf("egi_init_log() fails! \n");
 	   exit(0);

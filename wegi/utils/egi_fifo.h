@@ -21,8 +21,7 @@ typedef struct
 					 * one more time then pout, -1 when pout cross start line
 					 *  one more time. Normally ahead will be 0 or 1.
  					 */
-
-	//pthread_mutex_t lock;
+	pthread_mutex_t lock;		/* thread mutex lock */
 
 }EGI_FIFO;
 
