@@ -8,7 +8,7 @@
 
 #define ENABLE_LOGBUFF_PRINT 	1	/* enable to print log buff content */
 #define EGI_LOG_MAX_BUFFITEMS	128 	/* MAX. number of log buff items */
-#define EGI_LOG_MAX_ITEMLEN	256 	/* Max length for each log string item */
+#define EGI_LOG_MAX_ITEMLEN	512 //256 	/* Max length for each log string item */
 #define EGI_LOG_WRITE_SLEEPGAP	10  	/* in ms, sleep gap between two buff write session in egi_log_thread_write() */
 #define EGI_LOG_QUITWAIT 	55 	/* in ms, wait for other thread to finish pushing inhand log string,
 				     	 * before quit the log process */

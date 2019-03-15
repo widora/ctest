@@ -3,7 +3,7 @@
 
 #include <sys/time.h>
 #include <time.h>
-
+#include <stdbool.h>
 
 
 #define TM_TICK_INTERVAL	2000 //5000  /* us */

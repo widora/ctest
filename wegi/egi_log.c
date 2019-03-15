@@ -51,9 +51,9 @@ static pthread_t log_write_thread;
 /* NOT APPLIED YET!:  following variables to be mutex lock protected  by log_buff_mutex */
 static pthread_mutex_t log_buff_mutex;
 static FILE *egi_log_fp; /* log_buff_mutex lock */
-static char **log_buff;  /* log_buff_mutex lock */
+static unsigned char **log_buff;  /* log_buff_mutex lock */
 static int log_buff_count; /* count number, or number of the first available log buff,log_buffer_mutex lock */
-static bool log_is_running;
+static bool log_is_running; /* log_buff_mutex lock */
 //static bool write_thread_running;
 
 
@@ -117,7 +117,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 
-
+#if 0///////////////////////////////////////////////////////////////////////////////////
 	///////   FOR HIGHT LEVEL LOG:  write directly to log file //////
 	if(log_level >= LOGLV_NOBUFF_THRESHOLD)
 	{
@@ -129,8 +129,8 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 
 		return 0;
 	}
+#endif//////////////////////////////////////////////////////////////////////////////////
 
-	///////   FOR NORMAL LEVEL LOG: 			 ////////
    	/* get mutex lock */
    	if(pthread_mutex_lock(&log_buff_mutex) != 0)
    	{
@@ -138,7 +138,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 		return -1;
    	}
 
-   /* -------------- entering critical zone ---------------- */
+ /* -------------- entering critical zone ---------------- */
 	/* check if log_is_running */
 	if(!log_is_running)
 	{
@@ -147,29 +147,46 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 		return -1;
 	}
 
-	/* check if log_buff overflow */
-	else if(log_buff_count>EGI_LOG_MAX_BUFFITEMS-1)
+	///////   FOR HIGHT LEVEL LOG:  write directly to log file //////
+	if(log_level >= LOGLV_NOBUFF_THRESHOLD)
 	{
-		printf("egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...\n");
+		if( fprintf(egi_log_fp,"%s",strlog) < 0 )
+		{
+			printf("egi_push_log(): fail to write strlog to log file.\n");
+			return -1;
+		}
+
 		pthread_mutex_unlock(&log_buff_mutex);
-		return 1;
+
+		return 0;
 	}
+	///////   FOR NORMAL LEVEL LOG: push to puff 		 ////////
+	else
+	{
+		/* check if log_buff overflow */
+		if(log_buff_count>EGI_LOG_MAX_BUFFITEMS-1)
+		{
+			printf("egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...\n");
+			pthread_mutex_unlock(&log_buff_mutex);
+			return 1;
+		}
 
-	/* copy log string to log_buf */
-/*
-	printf("egi_push_log(): start strncpy...  log_buff_count=%d, strlen(strlog)=%d\n",
-									log_buff_count, strlen(strlog) );
-*/
-	memset(log_buff[log_buff_count],0,EGI_LOG_MAX_ITEMLEN); /* clear buff item */
-	strncpy(log_buff[log_buff_count],strlog,strlen(strlog));
+		/* copy log string to log_buf */
+	/*
+		printf("egi_push_log(): start strncpy...  log_buff_count=%d, strlen(strlog)=%d\n",
+										log_buff_count, strlen(strlog) );
+	*/
+		memset(log_buff[log_buff_count],0,EGI_LOG_MAX_ITEMLEN); /* clear buff item */
+		strncpy((char *)log_buff[log_buff_count],strlog,strlen(strlog));
 
-	/* increase count */
-	log_buff_count++;
+		/* increase count */
+		log_buff_count++;
+	}
 
 	/* put mutex lock */
    	pthread_mutex_unlock(&log_buff_mutex);
 
-   /* -------------- exiting critical zone ---------------- */
+ /* -------------- exiting critical zone ---------------- */
 
    	return 0;
 }
@@ -254,95 +271,6 @@ static void egi_log_thread_write(void)
 
 	//pthread_exit(0);
 }
-
-#if 0  /////////   use egi_utils' malloc functions ////////////
-/*--------------------------------------------------------------
-malloc 2 dimension buff.
-char** buff to be regarded as char buff[items][item_len];
-
-return:
-	0	OK
-	<0	Fails
-----------------------------------------------------------------*/
-static int egi_malloc_buff2D(char * **buff, int items, int item_len)
-{
-	int i,j;
-
-	/* check data */
-	if( items <= 0 || item_len <= 0 )
-	{
-		printf("egi_malloc_buff2(): itmes or item_len is illegal.\n");
-		return -1;
-	}
-
-	/* malloc buff */
-	*buff=malloc(items*sizeof(char *));
-	if(*buff==NULL)
-	{
-		printf("egi_malloc_buff2(): fail to malloc buff.\n");
-		return -2;
-	}
-
-	/* malloc buff items */
-	for(i=0;i<items;i++)
-	{
-		(*buff)[i]=malloc((item_len)*sizeof(char)); /* +1 for string end */
-		if((*buff)[i]==NULL)
-		{
-			printf("egi_malloc_buff2(): fail to malloc buff[%d], free buff and return.\n",i);
-			/* free mallocated items */
-			for(j=0;j<i;j++)
-			{
-				free((*buff)[j]);
-				(*buff)[j]=NULL;
-			}
-			free(*buff);
-			*buff=NULL;
-			return -3;
-		}
-
-		/* clear data */
-		memset((*buff)[i],0,item_len*sizeof(char));
-	}
-
-	return 0;
-}
-
-/*--------------------------------------------------------------
-free 2 dimension buff.
-char** buff to be regarded as char buff[items][item_len];
-return:
-	0	OK
-	<0	Fails
-	>0	buff is NULL
-----------------------------------------------------------------*/
-static int egi_free_buff2D(char **buff, int items, int item_len)
-{
-	int i;
-
-	/* check data */
-	if( items <= 0 || item_len <= 0 )
-	{
-		printf("egi_malloc_buff2(): itmes or item_len is illegal.\n");
-		return -1;
-	}
-
-	/* free buff items and buff */
-	if( buff == NULL)
-	{
-		return 1;
-	}
-	else
-	{
-		for(i=0;i<items;i++)
-			free(buff[i]);
-		free(buff);
-		buff=NULL;
-	}
-
-	return 0;
-}
-#endif //////////   use egi_utils' malloc functions ////////////
 
 
 

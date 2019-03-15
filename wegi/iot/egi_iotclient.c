@@ -11,7 +11,7 @@
 
 
 TODO:
-1. recv() may return serveral sessions of BIGIOT command at one time:
+1. recv() may return serveral sessions of BIGIOT command at one time, and fill log buffer full(254+1+1):
    [2019-03-12 10:21:52] [LOGLV_INFO] Message from the server: {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357312"}
 {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357312"}
 {"M":"say","ID":"Pc0a809a0[2019-03-12 10:22:03] [LOGLV_INFO] Message from the server: {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357323"}
@@ -23,8 +23,11 @@ TODO:
   wifi down:
 	1). Error performing SIOCGIWSTATS: Operation not supported
 
-2. check integrity of received message.
-3. set TIMEOUT for recv() and send()
+2. Calling recv() may return several IoT commands from socket buffer at one time, especailly in heavy load condition.
+   so need to separate them.
+
+3. check integrity of received message.
+4. set TIMEOUT for recv() and send()
 
 Midas Zhou
 -------------------------------------------------------------------------*/
@@ -243,6 +246,7 @@ static int iot_connect_checkin(void)
 	}
 
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to connect to the BIGIOT socket!\n",__func__);
+
 	memset(recv_buf,0,sizeof(recv_buf));
 	ret=recv(sockfd, recv_buf, BUFFSIZE-1, 0);
 	if(ret<=0)
@@ -256,7 +260,7 @@ static int iot_connect_checkin(void)
 
 	/* send json string for checkin to BIGIO */
 	EGI_PLOG(LOGLV_CRITICAL,"Start sending CheckIn msg to BIGIOT...\n");
-	ret=send(sockfd, strjson_checkin_template, strlen(strjson_checkin_template), MSG_CONFIRM|MSG_NOSIGNAL);
+	ret=send(sockfd, strjson_checkin_template, strlen(strjson_checkin_template), MSG_NOSIGNAL);
 	if(ret<=0)
 	{
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send login request to BIGIOT:%s\n"
@@ -363,7 +367,7 @@ static inline int iot_recv(int *recv_ret)
 	len=strlen(recv_buf);
 	if( ( recv_buf[0] != '{' ) || (recv_buf[len-1] != '\n') )
 	{
-		printf("%s: Invalid IoT message received: %s \n",__func__,recv_buf);
+		EGI_PLOG(LOGLV_ERROR,"%s: ********* Invalid IoT message received: %s ******** \n",__func__,recv_buf);
 		return 1;
 	}
 
@@ -422,6 +426,9 @@ void egi_iotclient(EGI_PAGE *page)
 	pthread_t  	pthd_keepalive;
 
 
+ 	EGI_PDEBUG(DBG_PAGE,"page '%s': runner thread egi_iotclient() is activated!.\n"
+                                                                                ,page->ebox->tag);
+
 	/* get related ebox form the page, id number for the IoT button */
 	EGI_EBOX *iotbtn=egi_page_pickebox(page, type_btn, 7);
 	if(iotbtn == NULL)
@@ -468,6 +475,7 @@ void egi_iotclient(EGI_PAGE *page)
 	   	//if( (ret=recv(sockfd,recv_buf,BUFFSIZE-1,0)) >0 )
 		if( iot_recv(&ret)==0 )
 		{
+			printf("Message from the server: %s\n",recv_buf);
 			EGI_PLOG(LOGLV_INFO,"Message from the server: %s\n",recv_buf);
 
 			/* parse string for json */
