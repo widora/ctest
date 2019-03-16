@@ -191,12 +191,12 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
    	return 0;
 }
 
-/*---------------------------------------
-It's a thread function running detached.
+/*--------------------------------------------
+It's a thread function, running detached????
 Note
 1. exits when log_is_running is false.
 2. flush log file before exit.
----------------------------------------*/
+-------------------------------------------*/
 static void egi_log_thread_write(void)
 {
 	int i;
@@ -321,17 +321,20 @@ int egi_init_log(const char *fpath)
 	/* set stream buffer as NULL, write directly without any buffer */
 	setbuf(egi_log_fp,NULL);
 
-	/* 5. run log_writting thread */
+	/* 5. set log_is_running before log_writring thread, which will refer to it.*/
+	log_is_running=true;
+
+	/* 6. run log_writting thread */
 	if( pthread_create(&log_write_thread, NULL, (void *)egi_log_thread_write, NULL) !=0 )
 	{
 		printf("egi_init_log():fail to create pthread for log_write_thread().\n");
+
+		log_is_running=false;
 		ret=-4;
 		goto init_fail;
 	}
 	printf("egi_init_log(): finish creating pthread log_write_thread().\n");
 
-	/* 6. set log_is_running */
-	log_is_running=true;
 
 
 #if 0 /* -----------FOR TEST: test log_buf[] ------------ */

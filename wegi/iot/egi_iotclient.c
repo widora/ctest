@@ -10,6 +10,16 @@
 	what's more....
 
 
+			------	(( Glossary ))  ------
+MTU:	    A maximum transmission unit(MTU) is the largest packet or frame size,IP uses MTU to determine
+   	    the maximum size of each paket in the transmission. Max. 1500-bytes for internet.
+	    A compelet packet:  Capsule(head and tail)+IP Header(20bytes)+TCP Header(20bytes)+Payload( )=Max.1500 bytes.
+
+TCP MSS:    Maximum Segment Size is the payload of a TCP packet.
+	    A complete TCP packet:  TCP Header(20bytes) + TCP MSS=Max.1480 bytes.
+	    < ***** > IPv4 is required to handle Min MSS of 536 bytes, while IPv6 is 1220 bytes.
+
+
 TODO:
 1. recv() may return serveral sessions of BIGIOT command at one time, and fill log buffer full(254+1+1):
    [2019-03-12 10:21:52] [LOGLV_INFO] Message from the server: {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357312"}

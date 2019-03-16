@@ -19,18 +19,20 @@ void fifo_pusher(void)
 	/* first, push some data */
 	for(i=0;i<64;i++)
 	{
-		if( egi_push_fifo(fifo, (unsigned char *)(&i), sizeof(int)) !=0 )
+		if( egi_push_fifo(fifo, (unsigned char *)(&i), sizeof(int), NULL,NULL,NULL ) !=0 )
 			i--;
 	}
 
 	while(1)
 	{
-//		tm_delayms(30);
+//		tm_delayms(15);
 
-		if( egi_push_fifo(fifo, (unsigned char *)(&i), sizeof(int) ) == 0)
+		if( egi_push_fifo(fifo, (unsigned char *)(&i), sizeof(int),NULL,NULL,NULL ) == 0)
 		{
-			//printf("push fifo: i=%d\n",i);
-			printf("Push fifo: ------ OK, i=%d -------\n", i);
+			if( i<<(32-20)==0 )
+				printf("push fifo: i=%d\n",i);
+
+//			printf("Push fifo: ------ OK, i=%d -------\n", i);
 			i++;
 		}
 
@@ -40,31 +42,33 @@ void fifo_pusher(void)
 void fifo_puller(void)
 {
 	int data;
+	int in,out,ahead;
 	int i=0;
 	int miss;
 
 	while(1)
 	{
 //		tm_delayms(15);
-		if(egi_pull_fifo(fifo, (unsigned char *)(&data), sizeof(int) ) !=0 )
+		if(egi_pull_fifo(fifo, (unsigned char *)(&data), sizeof(int), &in, &out, &ahead ) !=0 )
 			continue;
 
-		printf("pull fifo: data=%d\n",data);
+//		printf("pull fifo: data=%d\n",data);
 
 		if( data != i )
 		{
-			/* normal only overrun, if NOT */
-			if( ((data-i)<<(32-9))!=0 )   // 2**9=512
-			     EGI_PLOG(LOGLV_CRITICAL, "--- data-i != 512  data=%d, i=%d, ahead=%d --------\n",
-											data, i, fifo->ahead);
+			/* normal only overrun, if NOT.  */
+  		   if( ((data-i)<<(32-9))!=0 || (data-i)<512 )   // 2**9=512
+		      EGI_PLOG(LOGLV_CRITICAL, " ##### data-i != N*512 ##### data=%d, i=%d, pin=%d, pout=%d, ahead=%d \n",
+										data, i, in,out,ahead);
 
-			if( (data-i)<512 )
-			     EGI_PLOG(LOGLV_CRITICAL, " ========= data-i< 512  data=%d, i=%d, ahead=%d ============n",
-											data, i, fifo->ahead);
+///////////////////////////////// Multi_thread:  fifo->ahead is NOT STABLE!!!!! 
+//			if( (data-i)<512 )
+//			     EGI_PLOG(LOGLV_CRITICAL, " ========= data-i< 512  data=%d, i=%d, ahead=%d ============n",
+//											data, i, fifo->ahead);
 /*
 			if( (data-i > 10) || (i-data > 10) )
 			{
-			   EGI_PLOG(LOGLV_ERROR," <<<<<< data crash: data=%d, i=%d  ahead=%d >>>>>>>\n",
+			   EGI_PLOG(LOGLV_ERROR," <<<<<< data	 crash: data=%d, i=%d  ahead=%d >>>>>>>\n",
 											data, i, fifo->ahead);
 			}
 
@@ -82,7 +86,9 @@ void fifo_puller(void)
 			i=data;
 		}
 		else
-			printf("Pull fifo: ------ OK, i=%d -------\n", data);
+		{
+//			printf("Pull fifo: ------ OK, i=%d -------\n", data);
+		}
 
 		i++;
 	}

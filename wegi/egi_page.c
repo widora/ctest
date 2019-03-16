@@ -575,7 +575,7 @@ int egi_page_routine(EGI_PAGE *page)
 			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
 			 *
 			 */
-			tm_delayms(55);
+			tm_delayms(100); //55
 
 			/* loop in refreshing listed eboxes */
 		}

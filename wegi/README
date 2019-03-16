@@ -9,7 +9,7 @@ NOTE:
 
 
 
-	----- main source files ( GPL if applicable ) -----
+	----- main source files ( GPL if applicable, and all rights reserved. ) -----
 
 egi_fbgeom.c	fb and basic geometry functions
 xtp2046.c	touch controller interface funcs
@@ -19,17 +19,22 @@ egi_symbol.c	fonts/icons/symbols...definition and functions
 egi_bmpjpg.c	funcs for processing bmp and jpg files
 egi_timer.c	timer and delay 
 egi_debug.c	for debug
+egi_log.c	for logger operation 
+egi_utils.c	some helper functions
+egi_math.c	a common math function module
+egi_fifo.c	a common fifo module for EGI
+egi_iotclient.c		A BIGIOT client application.
 
 egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
 egi_list.c	type_list ebox
 egi_iwinfo.c	wifi info. extraction
+egi_pic.c	type_pic ebox
 
-sys_list.h	from kernel list operation func. 
+sys_list.h	from list operation derived from kernel codes. 
 
 egi_objtxt.c	type_txt objects creation functions
 egi_objlist.c   list objects 
-
 
 egi_pagehome.c		PAGE home
 egi_pagemplay.c	        PAGE mplayer
@@ -40,3 +45,4 @@ egi_pageslide.c		PAGE sliding bar test
 
 
 Midas Zhou
+midaszhou@yahoo.com
