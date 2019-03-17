@@ -489,7 +489,8 @@ int egi_page_routine(EGI_PAGE *page)
 								i, (unsigned int)page->threadID[i]);
 			}
 			else
-				printf("egi_page_routine(): fail to create pthread ID=%d \n",i);
+			   printf("egi_page_routine(): fail to create pthread for runner[%d] of page[%s] \n",
+					i,page->ebox->tag );
 		}
 	}
 

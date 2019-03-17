@@ -32,7 +32,7 @@ typedef struct
 }EGI_FIFO;
 
 
-EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size);
+EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size, int pin_wait);
 void egi_free_fifo(EGI_FIFO *efifo );
 int egi_push_fifo(EGI_FIFO *fifo, unsigned char *data, int size, int *in, int *out, int *ahd );
 int egi_pull_fifo(EGI_FIFO *fifo, unsigned char *data, int size, int *in, int *out, int *ahd );

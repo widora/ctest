@@ -9,6 +9,10 @@
 	3.4 A wrap thread, wrap other modules's data to json string and push to send_buff[].
 	what's more....
 
+4. For one socket, there shall be only one recv_thread and one send_thread running at the same time.
+
+
+
 
 			------	(( Glossary ))  ------
 MTU:	    A maximum transmission unit(MTU) is the largest packet or frame size,IP uses MTU to determine
@@ -35,9 +39,9 @@ TODO:
 
 2. Calling recv() may return several IoT commands from socket buffer at one time, especailly in heavy load condition.
    so need to separate them.
-
 3. check integrity of received message.
 4. set TIMEOUT for recv() and send()
+
 
 Midas Zhou
 -------------------------------------------------------------------------*/
@@ -66,7 +70,7 @@ Midas Zhou
 #define IOT_SERVER_ADDR		"121.42.180.30" /* WWW.BIGIOT.NET */
 #define IOT_SERVER_PORT 	8181
 #define IOT_HEARTBEAT_INTERVAL	15	/*in second, heart beat interval, Min 10s for status inquiry */
-#define IOT_RECONNECT_INTERVAL	15	/*in second, reconnect interval, for status inquiry min. 10s  */
+#define IOT_RECONNECT_INTERVAL	15	/*in second, reconnect interval, for status inquiry, Min. 10s  */
 
 #define BUFFSIZE 		2048
 #define BULB_OFF_COLOR 		0x000000 	/* default color for bulb turn_off */
@@ -79,7 +83,6 @@ Midas Zhou
 static int sockfd;
 static struct sockaddr_in svr_addr;
 static char recv_buf[BUFFSIZE]={0}; /* for recv() buff */
-
 
 static EGI_24BIT_COLOR subcolor=0;
 static bool bulb_off=false; /* default bulb status */
@@ -108,13 +111,16 @@ const static char *strjson_reply_template= "{\"M\":\"say\",\"C\":\"Hello from Wi
 const static char *strjson_check_online_template= "{\"M\":\"isOL\",\"ID\":[\"xx1\"...]}\n";
 const static char *strjson_check_status_template= "{\"M\":\"status\"}\n"; /* return key M value:'connected' or 'checked' */
 
+
 /* Functions declaration */
 const static char *iot_getkey_pstrval(json_object *json, const char* key);
+
 static void iot_keepalive(void);
 static int iot_connect_checkin(void);
 static inline int iot_send(int *send_ret, const char *strmsg);
 static inline int iot_recv(int *recv_ret);
 static inline int iot_status(void);
+
 
 /*-----------------------------------------------------------------------
 Get a pionter to a string type key value from an input json object.
@@ -129,6 +135,13 @@ return:
 const static char *iot_getkey_pstrval(json_object *json, const char* key)
 {
 	json_object *json_item=NULL;
+
+	/* check input param */
+	if( json==NULL || key==NULL)
+	{
+		EGI_PDEBUG(DBG_IOT,"input params invalid!\n");
+		return NULL;
+	}
 
 	/* get item object */
 	//obselete: json_item=json_object_object_get(json, key);
@@ -154,12 +167,18 @@ const static char *iot_getkey_pstrval(json_object *json, const char* key)
 }
 
 
-/*----------------  A thread function   ------------------
-Send status inquiry string to keep connection with server.
+/*--------------------  A thread function   --------------------------
+
+1. Send status inquiry string to keep connection with server.
+
+Note:
+   The function will not receive server replay message, just leave it
+   to other threads to confirm.
+
 
 Interval Min. 10 seconds as per protocol
 
-----------------------------------------=---------------*/
+-------------------------------------------------------------------*/
 static void iot_keepalive(void)
 {
 	int ret;
@@ -171,25 +190,6 @@ static void iot_keepalive(void)
 		/* idle time */
 		tm_delayms(IOT_HEARTBEAT_INTERVAL*1000);
 
-#if 0
-		/* send heart_beat msg */
-		ret=send(sockfd, strjson_keepalive_template, strlen(strjson_keepalive_template),
-										MSG_CONFIRM|MSG_NOSIGNAL);
-		if(ret <= 0) {
-			EGI_PLOG(LOGLV_ERROR,"%s: fail to send heart_beat msg  %s\n",__func__, strerror(errno));
-			/* keep going on however */
-		}
-		else {
-		        /* get time stamp */
-        		t=time(NULL);
-        		tm=localtime(&t);
-        		/* time stamp and msg */
-        		EGI_PLOG(LOGLV_INFO,"[%d-%02d-%02d %02d:%02d:%02d] A hear_beat msg is sent to BIGIOT.\n",
-                                tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec );
-			/* !!! WARNING: __TIME__ macro is inaccurate, has a deviation of several seconds. !!! */
-			///printf("[%s %s] %s: A heart_beat msg is sent to BIGIOT.\n",__DATE__, __TIME__, __func__);
-		}
-#endif
 		/* check iot network status */
 		ret=iot_send(&ret, strjson_check_status_template);
 		if(ret==0)
@@ -209,15 +209,18 @@ static void iot_keepalive(void)
 	}
 }
 
-/*-------------------------------------------------
-1. Step up socket FD
+/*--------------------------------------------------------
+1. Close and set up socket FD
 2. Connect to IoT server
 3. Check in.
+
+NOTE: Function loops trying to check into BigIot untill it
+      succeeds.
 
 Return:
 	0	OK
 	<O	fails
---------------------------------------------------*/
+---------------------------------------------------------*/
 static int iot_connect_checkin(void)
 {
 	int ret;
@@ -227,7 +230,7 @@ static int iot_connect_checkin(void)
    for(;;)
    {
 	tm_delayms(IOT_RECONNECT_INTERVAL*1000);
-	EGI_PLOG(LOGLV_CRITICAL,"------ Start connect and checkin to ther server ------\n");
+	EGI_PLOG(LOGLV_CRITICAL,"------ Start connect and check into ther server ------\n");
 
 	/* create a socket file descriptor */
 	close(sockfd); /*close it  first */
@@ -268,7 +271,7 @@ static int iot_connect_checkin(void)
 	//recv_buf[ret]='\0';
 	EGI_PLOG(LOGLV_CRITICAL,"Reply from the server: %s\n",recv_buf);
 
-	/* send json string for checkin to BIGIO */
+	/* send json string for check into BIGIO */
 	EGI_PLOG(LOGLV_CRITICAL,"Start sending CheckIn msg to BIGIOT...\n");
 	ret=send(sockfd, strjson_checkin_template, strlen(strjson_checkin_template), MSG_NOSIGNAL);
 	if(ret<=0)
@@ -315,6 +318,7 @@ static int iot_connect_checkin(void)
 Param:
 	send_ret:  pointer to return value of send() call.
 	strmsg:	   pointer to a message string.
+
 Return:
 	0	OK.
 	<0	send() fails.
@@ -324,14 +328,15 @@ static inline int iot_send(int *send_ret, const char *strmsg)
 	int ret;
 
 	/* check strmsg */
-	if(strlen(strmsg)==0)
+	if( strlen(strmsg)==0 || strmsg==NULL )
 		return -1;
 
-	/* send use a blocking socke FD */
+	/* send by a blocking socke FD */
 	ret=send(sockfd, strmsg, strlen(strmsg), MSG_CONFIRM|MSG_NOSIGNAL);
 
 	/* pass ret to the caller */
-	*send_ret=ret;
+	if(send_ret != NULL)
+		*send_ret=ret;
 
 	/* check result */
 	if(ret<0)
@@ -367,17 +372,20 @@ static inline int iot_recv(int *recv_ret)
 
 	/* receive with BLOCKING socket */
         ret=recv(sockfd, recv_buf, BUFFSIZE-1, 0);
-	*recv_ret=ret;
+
+	/* pass ret */
+	if(recv_ret != NULL)
+		*recv_ret=ret;
 
 	/* return error */
         if(ret<=0)
                 return -1;
 
-	/* check integrity :: head and end token */
+	/* check integrity :: by head and end token */
 	len=strlen(recv_buf);
 	if( ( recv_buf[0] != '{' ) || (recv_buf[len-1] != '\n') )
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: ********* Invalid IoT message received: %s ******** \n",__func__,recv_buf);
+		EGI_PLOG(LOGLV_ERROR,"%s: ********* Invalid BigIoT message received: %s ******** \n",__func__,recv_buf);
 		return 1;
 	}
 
@@ -453,7 +461,7 @@ void egi_iotclient(EGI_PAGE *page)
 	egi_ebox_refresh(iotbtn);
 	//printf("egi_iotclient: got iot button '%s' and reset subcolor.\n", iotbtn->tag);
 
-	/* prepare json replay */
+	/* 	1. prepare json_replay by template string */
 	json_reply=json_tokener_parse(strjson_reply_template);
 	if(json_reply == NULL)
 	{
@@ -462,10 +470,10 @@ void egi_iotclient(EGI_PAGE *page)
 	}
 	//printf("prepare json_reply as: %s\n",json_object_to_json_string(json_reply));
 
-	/*  set up socket, connect and checkin to BigIot.net */
+	/* 	2. Set up socket, connect and check into BigIot.net */
 	iot_connect_checkin();
 
-	/* launch keepalive thread, BIGIOT */
+	/* 	3. Launch keepalive thread, BIGIOT */
 	if( pthread_create(&pthd_keepalive, NULL, (void *)iot_keepalive, NULL) !=0 )
         {
                 EGI_PLOG(LOGLV_ERROR,"Fail to create bigiot_keepalive thread!\n");
@@ -477,26 +485,25 @@ void egi_iotclient(EGI_PAGE *page)
 	}
 
 
-	/* ------------ IoT Talk Loop:  loop recv and send processing ------------ */
+	/* 	4. ------------  IoT Talk Loop:  loop recv and send processing  ---------- */
 	while(1)
 	{
 		/* clear buff */
-		//memset(recv_buf,0,sizeof(recv_buf));
-	   	//if( (ret=recv(sockfd,recv_buf,BUFFSIZE-1,0)) >0 )
 		if( iot_recv(&ret)==0 )
 		{
 			printf("Message from the server: %s\n",recv_buf);
 			EGI_PLOG(LOGLV_INFO,"Message from the server: %s\n",recv_buf);
 
-			/* parse string for json */
-			json=json_tokener_parse(recv_buf);/* _parse(): creates a new json obj */
+			/* 4.1 parse received string for json */
+			json=json_tokener_parse(recv_buf);/* _parse() creates a new json obj */
 			if(!json)
 			{
 				EGI_PLOG(LOGLV_WARN,"egi_iotclient: Fail to parse received string by json_tokener_parse()!\n");
 			}
 			else /* extract key items and values */
 			{
-//////----- get key value of a json string object  ----
+/* ---- key ID ---- */
+				/* 4.2 get a key value from a string object, ret a pointer only. */
 				pstrIDval=iot_getkey_pstrval(json, "ID");
 				/* Need to check pstrIDvall ????? */
 				if(pstrIDval==NULL)
@@ -504,73 +511,77 @@ void egi_iotclient(EGI_PAGE *page)
 				  	 EGI_PDEBUG(DBG_IOT, "key 'ID' not found, continue...\n");
 				   	 continue;
 				 }
-//////----- renew reply_json's ID value: with visitor's ID value   ----
-				/* delete old "ID" key, then add own ID for reply  */
-				json_object_object_del(json_reply, "ID"); /* */
-				//printf("json_object_object_add()...\n");
+				/* 4.3 renew reply_json's ID value: with visitor's ID value
+				 * delete old "ID" key, then add own ID for reply
+				 */
+				json_object_object_del(json_reply, "ID");
 				json_object_object_add(json_reply, "ID", json_object_new_string(pstrIDval)); /* with strdup() inside */
 				/* NOTE: json_object_new_string() with strdup() inside */
 
-//////----- get IoT Command string pointer and parse it  ------
+/* ---- key C ---- */
+				/* 4.4 get a pointer to key 'C'(command) string value, and parse the string  */
 				pstrCval=iot_getkey_pstrval(json, "C");/* get visiotr's Command value */
-			if(pstrCval != NULL)
-			{
-				EGI_PDEBUG(DBG_IOT,"receive command: %s\n",pstrCval);
-				/* parse command string */
-				if(strcmp(pstrCval,"offOn")==0)
+				if(pstrCval != NULL)
 				{
-					EGI_PDEBUG(DBG_IOT,"Execute command 'offOn' ....\n");
-					/* toggle the bulb color */
-					bulb_off=!bulb_off;
-					if(bulb_off)
+					EGI_PDEBUG(DBG_IOT,"receive command: %s\n",pstrCval);
+					/* parse command string */
+					if(strcmp(pstrCval,"offOn")==0)
 					{
-						EGI_PDEBUG(DBG_IOT,"Switch bulb OFF \n");
-						subcolor=BULB_OFF_COLOR;
-					}
-					else
-					{
-						EGI_PDEBUG(DBG_IOT,"Switch bulb ON \n");
-						subcolor=BULB_ON_COLOR; /* mild white */
-					}
+						EGI_PDEBUG(DBG_IOT,"Execute command 'offOn' ....\n");
+						/* toggle the bulb color */
+						bulb_off=!bulb_off;
+						if(bulb_off)
+						{
+							EGI_PDEBUG(DBG_IOT,"Switch bulb OFF \n");
+							subcolor=BULB_OFF_COLOR;
+						}
+						else
+						{
+							EGI_PDEBUG(DBG_IOT,"Switch bulb ON \n");
+							subcolor=BULB_ON_COLOR; /* mild white */
+						}
 
-				}
-				if( !bulb_off && (  (strcmp(pstrCval,"plus")==0)
-						    || (strcmp(pstrCval,"up")==0)  ) )
-				{
-  				    EGI_PDEBUG(DBG_IOT,"Execute command 'plus' ....\n");
-				    if(  subcolor <  SUBCOLOR_UP_LIMIT ) /* up limit value */
-				    {
-					subcolor += BULB_COLOR_STEP;
-				    }
-				}
-				else if( !bulb_off && (  (strcmp(pstrCval,"minus")==0)
+					}
+					/* parse command 'plus' and 'up' */
+					if( !bulb_off && (  (strcmp(pstrCval,"plus")==0)
+							    || (strcmp(pstrCval,"up")==0)  ) )
+					{
+  					    	EGI_PDEBUG(DBG_IOT,"Execute command 'plus/up' ....\n");
+					    	if(  subcolor <  SUBCOLOR_UP_LIMIT ) /* up limit value */
+					    	{
+							subcolor += BULB_COLOR_STEP;
+					    	}
+					}
+					/* parse command 'minus' and 'down' */
+					else if( !bulb_off && (  (strcmp(pstrCval,"minus")==0)
 						         ||(strcmp(pstrCval,"down")==0)  ) )
-				{
-				    EGI_PDEBUG(DBG_IOT,"Execute command 'minus' ....\n");
-				    if( subcolor < SUBCOLOR_DOWN_LIMIT ) subcolor=SUBCOLOR_DOWN_LIMIT; /* low limit */
-				    else
-				    {
-					subcolor -= BULB_COLOR_STEP;
-				    }
-				}
+					{
+				    		EGI_PDEBUG(DBG_IOT,"Execute command 'minus/down' ....\n");
+				    		if( subcolor < SUBCOLOR_DOWN_LIMIT ) {
+							subcolor=SUBCOLOR_DOWN_LIMIT; /* low limit */
+						}
+				    		else {
+							subcolor -= BULB_COLOR_STEP;
+				    		}
+					}
 
-				//printf("subcolor=0x%08X \n",subcolor);
-				/* set subcolor to iotbtn */
-				egi_btnbox_setsubcolor(iotbtn, COLOR_24TO16BITS(subcolor)); //iotbtn_subcolor);
-				/* refresh iotbtn */
-				egi_ebox_needrefresh(iotbtn);
-				//egi_page_flag_needrefresh(page); /* !!!SLOW!!!! let page routine to do the refresh job */
-				egi_ebox_refresh(iotbtn);
-			}
-//////----- renew reply_json's key 'C' value: with message string for reply  ----
+					//printf("subcolor=0x%08X \n",subcolor);
+					/* set subcolor to iotbtn */
+					egi_btnbox_setsubcolor(iotbtn, COLOR_24TO16BITS(subcolor)); //iotbtn_subcolor);
+					/* refresh iotbtn */
+					egi_ebox_needrefresh(iotbtn);
+					//egi_page_flag_needrefresh(page); /* !!!SLOW!!!! let page routine to do the refresh job */
+					egi_ebox_refresh(iotbtn);
+				} /* end of (pstrCval != NULL) */
+
+				/* 4.4 renew reply_json key 'C' value: with message string for reply */
 				memset(keyC_buf,0,sizeof(keyC_buf));
 				sprintf(keyC_buf,"'%s', bulb: %s, light: 0x%06X",
 								pstrCval, bulb_status[bulb_off], subcolor);
 				json_object_object_del(json_reply, "C");
 				json_object_object_add(json_reply,"C", json_object_new_string(keyC_buf));
 
-//////----- generate corresponding reply string ----
-				/* prepare reply string for socket */
+				/* 4.5 prepare reply string for socket */
 				pstrtmp=json_object_to_json_string(json_reply);/* json..() return a pointer */
 				strreply=(char *)malloc(strlen(pstrtmp)+TEMPLATE_MARGIN+2); /* at least +2 for '/n/0' */
 				if(strreply==NULL)
@@ -583,17 +594,17 @@ void egi_iotclient(EGI_PAGE *page)
 				sprintf(strreply, "%s\n", json_object_to_json_string(json_reply) );/* json().. retrun a pointer */
 				EGI_PDEBUG(DBG_IOT,"reply json string: %s\n",strreply);
 
-//////----- send reply string by sockfd ----
-				/* reply to the visitor */
+				/* 4.6 send reply string by sockfd, to reply the visitor */
 				ret=send(sockfd, strreply, strlen(strreply), MSG_CONFIRM|MSG_NOSIGNAL);
 				if(ret<0)
 				{
 					EGI_PLOG(LOGLV_ERROR,"%s: send() error, %s\n",__func__, strerror(errno));
 				}
-					EGI_PDEBUG(DBG_IOT,"Reply to visitor successfully with: %s\n",strreply);
-			}
+				EGI_PDEBUG(DBG_IOT,"Reply to visitor successfully with: %s\n",strreply);
 
-//////----- clear arena for next IoT talk ----
+			} /* end of else (json) */
+
+			/* clear arena for next IoT talk */
 			/* free dupstr and deref json objects */
 			if(strreply !=NULL )
 				free(strreply);
@@ -601,8 +612,9 @@ void egi_iotclient(EGI_PAGE *page)
 			json_object_put(json); /* func with if(json) inside  */
 			//printf("json_object_put(json_item)...\n");
 			json_object_put(json_item); /* func with if(json) inside */
-		}
-		else if(ret==0)
+
+		} /* end of if(iot_recv(&ret)==0) */
+		else if(ret==0) /* socket disconnected, reconnect again. */
 		{
 			EGI_PLOG(LOGLV_ERROR,"%s: recv() ret=0 \n",__func__ );
 			/* trap into loop of connect&checkin untill it succeeds. */
@@ -619,7 +631,6 @@ void egi_iotclient(EGI_PAGE *page)
 
 		tm_delayms(100);
 	} /* end of while() */
-
 
 	/* joint threads */
 	pthread_join(pthd_keepalive,NULL);

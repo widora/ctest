@@ -9,7 +9,7 @@ NOTE:
 
 
 
-	----- main source files ( GPL if applicable, and all rights reserved. ) -----
+	----- main source files ( GPL if applicable ) -----
 
 egi_fbgeom.c	fb and basic geometry functions
 xtp2046.c	touch controller interface funcs

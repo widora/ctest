@@ -211,10 +211,8 @@ EGI_PAGE *egi_create_homepage(void)
 		egi_page_addlist(page_home, home_btns[i]);
 	egi_page_addlist(page_home, home_btns[7]);
 	egi_page_addlist(page_home, home_btns[8]);
-
 	egi_page_addlist(page_home, bkimg_btn7);
 	egi_page_addlist(page_home,ebox_headbar);
-
 
 	return page_home;
 }

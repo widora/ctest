@@ -6,10 +6,10 @@ A EGI FIFO buffer
 
 2. For overrun, we may take DIFFERENT stratigies: (DEFAULT case: 2.2 )
    2.1 fifo->pin_wait !=0:
-		Overrun occurs when pin catch up pout from loopback, stop and wait pout to increase.
+		When overrun occurs, pin will stop and wait for pout to catch up.
    2.2 fifo->pin_wait ==0:
-		Pin keeps increasing and old data in buff will be overwritten and lost before pout
-      		gets them.
+		When overrun occurs, Pin will keep increasing and old data in buff will be overwritten
+		and permantly lost before pout gets them.
 
 3. When underrun occurs, pout will wait for pin to increase. so pout will alway lag behind pin.
 
@@ -34,7 +34,7 @@ Midas Zhou
 #include "egi_fifo.h"
 
 
-/*---------------------------------------------------------------
+/*--------------------------------------------------------------------
 Malloc a EGI_FIFO structure and its buff.
 
 efifo:		An empty pointer to EGI_FIFO.
@@ -44,8 +44,8 @@ item_size:	data item size.
 Return:
 	!NULL	OK
 	NULL	fails
----------------------------------------------------------------*/
-EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size)
+---------------------------------------------------------------------*/
+EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size, int pin_wait)
 {
 	EGI_FIFO *efifo=NULL;
 
@@ -97,9 +97,11 @@ EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size)
 	efifo->pin  = 0;
 	efifo->pout = 0;
 	efifo->ahead=0;
+	efifo->pin_wait=pin_wait; /* 0:  pin will NOT wait for pout, keep pushing data.
+				   * 1:  stop pushing when pin catches up with pout from loopback
+				   */
 
 	EGI_PLOG(LOGLV_INFO,"%s: An EGI_FIFO intialized successfully.\n", __func__);
-
 
 	return efifo;
 }
@@ -168,10 +170,6 @@ int egi_push_fifo(EGI_FIFO *fifo,  unsigned char *data, int size,
 		return -2;
 	}
 
-////test
-///	printf("fifo input data=%d\n",*(int *)data);
-
-
         /* get mutex lock */
         if(pthread_mutex_lock(&fifo->lock) != 0)
         {
@@ -188,8 +186,9 @@ int egi_push_fifo(EGI_FIFO *fifo,  unsigned char *data, int size,
 		(fifo->ahead)++;
 
 		/* this case shall be rare! */
+		/* rare case that fifo->ahead=-2 before (fifo->ahead)++ */
 		if( fifo->ahead > 1 || fifo->ahead < 0 )
-			EGI_PLOG(LOGLV_WARN,"fifo->ahead=%d, pin=%d, pout=%d \n",
+			EGI_PLOG(LOGLV_WARN,"Pusher: fifo->ahead=%d, pin=%d, pout=%d \n",
 								fifo->ahead, fifo->pin, fifo->pout);
 	}
 
@@ -200,29 +199,48 @@ int egi_push_fifo(EGI_FIFO *fifo,  unsigned char *data, int size,
 	 *    If pout stops at item_size and pin goes on and on, then the value of ahead will keep increasing,
 	 *    So, It's an overrun!!! and we shall reset it when ahead==2 !!!!
 	 */
-	if( ((fifo->pin >= fifo->pout) && (fifo->ahead)>0)  /* usually ahead==1 !!! */
+	if( ((fifo->pin == fifo->pout) && (fifo->ahead)>0)  /* usually ahead==1 !!! */
 	     || fifo->ahead > 1 ) /* in case ahead==2 */
 	{
 
 		/* reset fifo->pin to the save value of pout, start a new chase. */
-		if(fifo->pout==fifo->item_size) /* while pout==item_size, assign 0 to pin. or SEG FAULT!!! */
+		if(fifo->pout==fifo->buff_size) /* while pout==buff_size, assign 0 to pin instead of buff_size. or SEG FAULT!!! */
 		{
 			fifo->pin=0;
-			EGI_PLOG(LOGLV_WARN, "assign pin to be pout, while pout==item_size!\n");
+			EGI_PLOG(LOGLV_WARN, "FIFO Pusher: Overrun occurs! assign 0 to pin(%d), while pout==buff_size, ahead=%d \n",
+											fifo->pin,fifo->ahead);
 		}
 		else
 			fifo->pin=fifo->pout;
 
-		fifo->ahead=0;
 
-		/* STRATEGY ONE: go on... */
-
-		/* STRATEGY TWO: return to wait pout ... */
-//		pthread_mutex_unlock(&fifo->lock);
-//		return 1;
+		/* going on or stop pushing depends on fifo->pin_wait */
+		if(fifo->pin_wait)
+		{
+//			EGI_PLOG(LOGLV_WARN,"FIFO Pusher: Overrun occurs! pin=%d, pout=%d, ahead=%d \n",
+//									fifo->pin, fifo->pout, fifo->ahead );
+			pthread_mutex_unlock(&fifo->lock);
+			return 1;
+		}
+		else {
+			/* if going on, reset fifo then */
+			fifo->ahead=0;
+		}
 	}
 
 	/* Now, fifo->pin is no more than buff_size-1. */
+
+	/* ----- FOR TEST ---------------- */
+	if(fifo->pin==0)
+	{
+		if( ((*data)<<(32-8)) != 0 )
+		{
+			EGI_PLOG(LOGLV_ERROR,"FIFO ERROR!!! push data=%d is NOT N*512 when pin==0! pout=%d, ahead-%d\n",
+								*data, fifo->pout, fifo->ahead );
+			exit(0);
+		}
+	}
+	/* ----- END OF TEST ------------ */
 
 	/* Clear slot and push data */
 	memset((fifo->buff)[fifo->pin],0,fifo->item_size);
@@ -299,7 +317,7 @@ int egi_pull_fifo(EGI_FIFO *fifo, unsigned char *data, int size,
 
 		/* this case shall never be expected */
 		if(fifo->ahead > 1 || fifo->ahead < 0 )
-			EGI_PLOG(LOGLV_WARN,"fifo->ahead=%d, pin=%d, pout=%d \n",
+			EGI_PLOG(LOGLV_WARN,"Puller: fifo->ahead=%d, pin=%d, pout=%d \n",
 								fifo->ahead, fifo->pin, fifo->pout);
 	}
 
@@ -313,8 +331,7 @@ int egi_pull_fifo(EGI_FIFO *fifo, unsigned char *data, int size,
 	if( ( (fifo->pout >= fifo->pin) && (fifo->ahead == 0) )  /* usually pout==pin and ahead==0 */
 		|| fifo->ahead < 0  )
 	{
-		EGI_PDEBUG(DBG_FIFO,"EGI_FIFO: !!! Output rate exceeds input, underrun occurrs!\n");
-
+		EGI_PDEBUG(DBG_FIFO,"FIFO Puller: Output rate exceeds input, underrun occurrs!\n");
 		/* return to wait pin */
 		pthread_mutex_unlock(&fifo->lock);
 		return 1;

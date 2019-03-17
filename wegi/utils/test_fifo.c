@@ -56,34 +56,27 @@ void fifo_puller(void)
 
 		if( data != i )
 		{
+		   if(fifo->pin_wait)
+			EGI_PLOG(LOGLV_CRITICAL," pin_wait=1 --------- data(%d)  !=  i(%d) ---------\n"
+												   ,data ,i );
 			/* normal only overrun, if NOT.  */
   		   if( ((data-i)<<(32-9))!=0 || (data-i)<512 )   // 2**9=512
+		   {
 		      EGI_PLOG(LOGLV_CRITICAL, " ##### data-i != N*512 ##### data=%d, i=%d, pin=%d, pout=%d, ahead=%d \n",
 										data, i, in,out,ahead);
+		   }
 
-///////////////////////////////// Multi_thread:  fifo->ahead is NOT STABLE!!!!! 
+///////////////////////////////// Multi_thread:  fifo->ahead is NOT STABLE!!!!!
 //			if( (data-i)<512 )
 //			     EGI_PLOG(LOGLV_CRITICAL, " ========= data-i< 512  data=%d, i=%d, ahead=%d ============n",
 //											data, i, fifo->ahead);
-/*
-			if( (data-i > 10) || (i-data > 10) )
-			{
-			   EGI_PLOG(LOGLV_ERROR," <<<<<< data	 crash: data=%d, i=%d  ahead=%d >>>>>>>\n",
-											data, i, fifo->ahead);
-			}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-			if( data > i )
-				miss += data-i;
-			else
-				miss += i-data;
+ 		   miss++;
+		   EGI_PLOG(LOGLV_WARN,"Pull fifo: ------ miss i=%d  total_miss: %d -------\n", i, miss);
 
-*/
-			miss++;
-//			if( ( miss<<(32-8) ) ==0 )
-//				EGI_PLOG(LOGLV_WARN,"Pull fifo: ------ miss i=%d  total_miss: %d -------\n", i,miss);
-
-			/* reset i */
-			i=data;
+		   /* reset i */
+		   i=data;
 		}
 		else
 		{
@@ -115,7 +108,7 @@ int main(void)
 	}
 
 	/* init fifo */
-	fifo=egi_malloc_fifo(512,sizeof(int));
+	fifo=egi_malloc_fifo(512,sizeof(int),1); /* pin_wait */
 	if(fifo==NULL)
 	{
 		printf("Fail to init fifo, quit.\n");
