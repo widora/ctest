@@ -121,9 +121,9 @@ Note:
 */
 
 
-/* expected display window size(upright image size), LCD will be adjusted in the function */
-int show_w=240; // 160; //185; /* LCD column pixels */
-int show_h=320; //240; //185;/* LCD row pixels */
+/* expected display window size, LCD will be adjusted in the function */
+int show_w= 144; //185; /* LCD column pixels */
+int show_h= 240; //240; //185;/* LCD row pixels */
 
 /* offset of the show window relating to LCD origin */
 int offx;
@@ -152,7 +152,7 @@ static bool enable_auto_rotate=true;
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
+static int transpose_clock=1; /* when 0, make sure enable_auto_rotate=false !!! */
 
 /* param: ( enable_stretch )
  *   if 1:	stretch the image to fit for expected H&W, original iamge ratio is ignored.
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
 
 	/* addjust offset of display window */
 	offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
-	offy=0;//40;
+	offy=40;
 
 	/* <<<<<<<    Init SPI, FB, Timer   >>>>>>  */
        /* start egi tick */
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
         tm_start_egitick();
 
        /* start logger */
-       if(egi_init_log() !=0)
+       if(egi_init_log("/mmc/log_ffplay") !=0)
         {
            printf("egi_init_log() fails! \n");
            exit(0);

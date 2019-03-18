@@ -10,25 +10,33 @@ Midas Zhou
 #include <pthread.h>
 #include <stdint.h>
 
-
-/* WARNING!!!! DO NOT REFER EGI_FIFO MEMBER DIRECTLY, IT MAY CASE MUTEX LOCK DISFUNCTION/CRASH !!! */
+/* DO NOT REFER EGI_FIFO MEMBER DIRECTLY IN MULT_THREAD CONDITION, THEY ARE UNSTABLE !!! */
 typedef struct
 {
 	int	  	item_size;	/* size of each item data, in byte. */
 	int   		buff_size;	/* itme number that the buff is capable of holding */
 	unsigned char 	**buff;		/* data buffer [buff_size][item_size] */
+
 	uint32_t 	pin;  		/* data pusher's position, as buff[pin].
 					 * after push_in, pin++ to move to next slot position !!!!!!  */
+
 	uint32_t 	pout; 		/* data puller's position!!!, as buff[pout]
 					 * after pull_out, pout++ to move to next slot position !!!!!! */
-	int		ahead; 		/* +1 when pin runs ahead of pout and && cross start line
-					 * one more time then pout, -1 when pout cross start line
-					 *  one more time. Normally ahead will be 0 or 1.
- 					 */
-	pthread_mutex_t lock;		/* thread mutex lock */
-	int		pin_wait;	/* if ==0, keep pushing in data, otherwise stop and wait for pout
-					 * to catch up. */
 
+	int		ahead; 		/* +1 when pin runs ahead of pout && cross start line [0]
+					 * one more time then pout, -1 when pout cross start line
+					 * one more time. In most case ahead will be 0 or 1, and rarely it
+					 * may be -1 or 2.
+ 					 */
+
+	pthread_mutex_t lock;		/* thread mutex lock */
+
+	int		pin_wait;	/* set pin_wait==0: It keeps pushing data, pin never waits for pout,
+					 * some data will be overwritten and lost before pout can get them.
+					 * set pin_wait!=0: When pin catches up pout from a loop back, it will
+					 * stop and wait for pin to catch up, so all data will be picked up
+					 * by pout.
+					 */
 }EGI_FIFO;
 
 

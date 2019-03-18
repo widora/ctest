@@ -1,10 +1,10 @@
-/*------------------------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------------------------------
 A EGI FIFO buffer
 
 1. Overrun occurs when pin catches up pout from loop_back, and underrun occurs when pout catches up
    pin and no more new data is available.
 
-2. For overrun, we may take DIFFERENT stratigies: (DEFAULT case: 2.2 )
+2. For overrun, we may take DIFFERENT stratigies:
    2.1 fifo->pin_wait !=0:
 		When overrun occurs, pin will stop and wait for pout to catch up.
    2.2 fifo->pin_wait ==0:
@@ -16,14 +16,22 @@ A EGI FIFO buffer
 4. Keep same sequence rule for push and pull:
       1. First, check whether pin/pout == fifo->buff_size,  If so, reset pin/pout to 0.
       2. Then, check whether overrun or underrun occurs.
-
-      3. If we leg pin increase even when overrun ocurrs, then after N times consecutive overrun,
+      3. If we let pin increase even when overrun ocurrs, then after N times consecutive overrun,
 	 total bytes of data loss MAY be N*(fifo->item_size) where N=1,2,3....
-         ---So, when ahead==2, we acknowedge overrun and reset ahead.
+         ---So, when ahead==2, we acknowedge overrun and reset ahead to 0.
+      4. Ahead=2 happens when pout remainds at buff_size(for example, the pulling thread gets stuck), and
+	 pin keeps looping back, like this:
+         Ahead increase from 0 to 1 when pin loop from buff_size to 0, then again when it increases to
+	 be buff_size, the program  will first increase ahead to be 2 and then check if overrun occurs,
+	 just as above mentioned.
+      5. Ahead=-1 happens when pin remaids/stops at buff_size, and pout chase up, then pout changes from
+	 buff_size to 0 and ahead changes from 0 to -1, which hanppes just before underrun check.
+
+5. Ahead may be -1,0,1,2, most likely 0 or 1.
 
 
 Midas Zhou
----------------------------------------------------------------------------------------------------*/
+--------------------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -130,17 +138,16 @@ void egi_free_fifo(EGI_FIFO *efifo )
 }
 
 
-/*--------------------------------------------------------------------
+/*---------------------------------------------------------------------
 Push data into buff.
 1. Keep difference between pin and pout within buff_size.
-2. If overrun occurs, reset pin to the same vaule as pout and
+2. If overrun occurs, reset pin to the same value as pout and
    start a new chase, also reset ahead to 0.
-3. Input data shall be same size of fifo->item_size, ????
 
 fifo:	  	a EGI_FIFO holding the buff.
 data:	  	data to push to fifo.
 size:	  	size of the data to push to fifo, in byte.
-in,out:		pusher/puller position corresponding to the data
+in,out:		pusher/puller position corresponding to the data[] slot
 		!!!! BEFORE pin++/pout++ !!!!
 ahd:    	current ahead mark.
 
@@ -272,7 +279,7 @@ fifo:	a EGI_FIFO holding the buff.
 data:	pointer to data pulled out from the fifo.
 size:	size of the data to be extraced from the fifo, in byte.
 	if size<=0 or >fifo->itemsize, then re_asign it to fifo->itemsize.
-in,out:		pusher/puller position corresponding to the data
+in,out:		pusher/puller position corresponding to the data[] slot
 		!!!! BEFORE pin++/pout++ !!!!
 ahd:    	current ahead mark.
 
@@ -326,7 +333,7 @@ int egi_pull_fifo(EGI_FIFO *fifo, unsigned char *data, int size,
 	 * Start Point: ahead=0, pin=item_size, pout=item_size.
 	 * Result: pout loopback and becomes 0. ahead becomes -1.
 	 * So, It's an underrun!!! and we shall stop pout.
-	 * We shall */
+	 */
 
 	if( ( (fifo->pout >= fifo->pin) && (fifo->ahead == 0) )  /* usually pout==pin and ahead==0 */
 		|| fifo->ahead < 0  )
