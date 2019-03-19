@@ -25,7 +25,7 @@ void tm_settimer(int us);
 void tm_start_egitick(void);
 long long unsigned int tm_get_tickcount(void);
 void tm_delayms(long ms);/* !!! To be abandoned !!!! Not good! */
-bool tm_pulseus(long long unsigned int gap); /* gap(us) */
+bool tm_pulseus(long long unsigned int gap, unsigned int t); /* gap(us) */
 long tm_diffus(struct timeval t_start, struct timeval t_end);
 
 #endif

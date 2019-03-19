@@ -6,7 +6,7 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 APP=egi_iotclient
 
-INCLUDES += -I../ -I$(COMMON_USRDIR)/include/json-c
+INCLUDES += -I../ -I../utils -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall
 LDFLAGS += -L$(COMMON_USRDIR)/lib
 LIBS += -ljson-c -lpthread

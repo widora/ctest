@@ -122,8 +122,8 @@ Note:
 
 
 /* expected display window size, LCD will be adjusted in the function */
-int show_w= 144; //185; /* LCD column pixels */
-int show_h= 240; //240; //185;/* LCD row pixels */
+int show_w= 240; //185; /* LCD column pixels */
+int show_h= 144; //240; //185;/* LCD row pixels */
 
 /* offset of the show window relating to LCD origin */
 int offx;
@@ -144,7 +144,7 @@ static bool enable_avfilter=true;
  *
  *   if 0:	disable it.
  */
-static bool enable_auto_rotate=true;
+static bool enable_auto_rotate=false;
 
 /*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=false)
  *  if 0, transpose not applied,
@@ -152,7 +152,7 @@ static bool enable_auto_rotate=true;
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-static int transpose_clock=1; /* when 0, make sure enable_auto_rotate=false !!! */
+static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
 
 /* param: ( enable_stretch )
  *   if 1:	stretch the image to fit for expected H&W, original iamge ratio is ignored.

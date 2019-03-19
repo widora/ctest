@@ -13,7 +13,6 @@ EGI_FIFO *fifo=NULL;
 
 void fifo_pusher(void)
 {
-	int k;
 	int i=0;
 
 	/* first, push some data */
@@ -66,7 +65,7 @@ void fifo_puller(void)
 										data, i, in,out,ahead);
 		   }
 
-///////////////////////////////// Multi_thread:  fifo->ahead is NOT STABLE!!!!!
+///////////////////////////////// Multi_thread: directly referred fifo->ahead is NOT STABLE!!!!! ////////////////////////////
 //			if( (data-i)<512 )
 //			     EGI_PLOG(LOGLV_CRITICAL, " ========= data-i< 512  data=%d, i=%d, ahead=%d ============n",
 //											data, i, fifo->ahead);

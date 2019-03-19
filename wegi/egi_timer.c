@@ -191,22 +191,40 @@ return:
     TRUE: in every preset time interval gap(us), or time
 interval exceeds gap(us).
     FALSE: otherwise
----------------------------------------------------------*/
-bool tm_pulseus(long long unsigned int gap) /* gap(us) */
+
+gap:	set period between pules
+t:	number of tm_pulse timer to be used.
+
+return:
+	true	pulse hits
+	false	wait pulse or fails to call pulse
+------------------------------------------------------------------------*/
+static struct timeval tm_pulse_tmnew[10]={0};
+static struct timeval tm_pulse_tmold[10]={0};
+bool tm_pulseus(long long unsigned int gap, unsigned int t) /* gap(us) */
 {
-	static struct timeval tmnew,tmold;
+	//struct timeval tmnew,tmold;
+	if(t>=10) {
+		printf("tm_pulseus(): timer number out of range!\n");
+		return false;
+	}
 
 	/* first init tmold */
-	if(tmold.tv_sec==0 && tmold.tv_usec==0)
-		gettimeofday(&tmold,NULL);
+	if(tm_pulse_tmold[t].tv_sec==0 && tm_pulse_tmold[t].tv_usec==0)
+		gettimeofday(&tm_pulse_tmold[t],NULL);
 
 	/* get current time value */
-	gettimeofday(&tmnew,NULL);
+	gettimeofday(&tm_pulse_tmnew[t],NULL);
 
 	/* compare timers */
-	if(tmnew.tv_sec*1000000+tmnew.tv_usec >= tmold.tv_sec*1000000+tmold.tv_usec + gap)
+	if(tm_pulse_tmnew[t].tv_sec*1000000+tm_pulse_tmnew[t].tv_usec >=
+				 tm_pulse_tmold[t].tv_sec*1000000+tm_pulse_tmold[t].tv_usec + gap)
 	{
-		tmold=tmnew;
+		/* reset tmold */
+		tm_pulse_tmold[t].tv_sec=0;
+		tm_pulse_tmold[t].tv_usec=0;
+		tm_pulse_tmnew[t]=tm_pulse_tmold[t];
+
 		return true;
 	}
 	else

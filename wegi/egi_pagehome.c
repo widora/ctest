@@ -279,7 +279,7 @@ static void egi_display_iotload(EGI_PAGE *page)
 
 
 		/* 2. get RSSI value */
-		rssi=get_iw_rssi();
+		iw_get_rssi(&rssi);
 		if(rssi > -65) index=5;
 		else if(rssi > -73) index=4;
 		else if(rssi > -80) index=3;

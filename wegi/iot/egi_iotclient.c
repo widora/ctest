@@ -69,12 +69,16 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_color.h"
 #include "egi_timer.h"
+#include "egi_iwinfo.h"
 
 #define IOT_SERVER_ADDR		"121.42.180.30" /* WWW.BIGIOT.NET */
 #define IOT_SERVER_PORT 	8181
 #define IOT_DEVICE_ID		"421"
 #define IOT_DEVICE_KEY		"f80ea043e"
-#define IOT_DATAINF_ID		546 /* data interface */
+
+/* IOT data interface ID */
+#define IOT_DATAINF_LOAD		546 /* CPU load */
+#define IOT_DATAINF_WSPEED		961 /* network traffic, income */
 
 #define IOT_HEARTBEAT_INTERVAL	30	/*in second, heart beat interval, Min 10s for status inquiry */
 #define IOT_RECONNECT_INTERVAL	15	/*in second, reconnect interval, for status inquiry, Min. 10s  */
@@ -273,8 +277,11 @@ Return:
 ---------------------------------------------------------------------*/
 static void iot_update_data(void)
 {
-	int id=IOT_DATAINF_ID;	/* interface ID */
-	double val=0;	/* interface  value */
+	/* ID and DATA for BIGIOT data interface */
+	int id[2]={ IOT_DATAINF_LOAD, IOT_DATAINF_WSPEED};	/* interface ID */
+	double data[2];
+
+	int ws;	/* wifi speed bytes/s */
 	json_object *json_data;
 	char sendbuff[BUFFSIZE]={0}; /* for recv() buff */
 	int ret;
@@ -293,7 +300,7 @@ static void iot_update_data(void)
         }
 
 	/* prepare update template */
-	/* WARNING: for an object_type json object containing an other object_type json object,
+	/* WARNING: for an object_type json object containing another object_type json object,
 	 *  when you call json_object_object_add() 2nd time, it incurrs segmentation fault!
 	 *  you need to put it and then reinitialize it.
 	 *
@@ -317,10 +324,16 @@ static void iot_update_data(void)
                 lseek(fd,0,SEEK_SET);
                 read(fd,strload,4);
                 load=atof(strload);/* for symmic_cpuload[], index from 0 to 5 */
+		/* get wifi actual speed  bytes/s */
+		iw_get_speed(&ws);
+		printf("------------------ get wifi speed: %d(bytes/s) ---------------\n",ws);
 
 		/* prepare data json */
+		data[0]=load;
+		data[1]=ws;
+
 		printf("start call iot_new_datajson()....\n");
- 		json_data=iot_new_datajson( (const int *)&id, &load, 1);
+ 		json_data=iot_new_datajson( (const int *)id, data, 2);
 		if(json_data==NULL)
 			continue;
 
@@ -350,9 +363,8 @@ static void iot_update_data(void)
 		if(json_object_put(json_update) != 1)
 			EGI_PLOG(LOGLV_ERROR,"Fail to json_object_put() json_update!\n");
 
-		/* refresh value */
+		/* delay and refresh value */
 		tm_delayms(6000);
-		val++;
 	}
 }
 
