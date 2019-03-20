@@ -162,11 +162,11 @@ long long unsigned int tm_get_tickcount(void)
 	return tm_tick_count;
 }
 
-/*-----------------------------------------
+/*----------- WARNING!!!! A lovely BUG :> -------------------
 delay ms, at lease TM_TICK_INTERVAL/2000 ms
 
 if ms<0, return.
--------------------------------------------*/
+------------------------------------------------*/
 void tm_delayms(long ms)
 {
 	unsigned int nticks;
@@ -245,4 +245,25 @@ long tm_diffus(struct timeval t_start, struct timeval t_end)
 	int td=ds*1000000+dus;
 
 	return ( td>0 ? td : -td );
+}
+
+/*------------------------------------------------------------
+	Use select to sleep
+
+NOTE:
+	1. In thread, it's OK. NO effect with egi timer????
+	2. In Main(), it'll fail, conflict with egi timer???
+
+----------------------------------------------------------*/
+//static unsigned char gv_tm_fd[128]={0};
+int egi_sleep(unsigned char fd, unsigned int s, unsigned int ms)
+{
+	struct timeval tmval;
+
+	tmval.tv_sec=s;
+	tmval.tv_usec=1000*ms;
+
+	select(fd,NULL,NULL,NULL,&tmval); /* wait until timeout */
+
+	return 0;
 }

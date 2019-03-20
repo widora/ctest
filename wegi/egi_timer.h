@@ -27,5 +27,6 @@ long long unsigned int tm_get_tickcount(void);
 void tm_delayms(long ms);/* !!! To be abandoned !!!! Not good! */
 bool tm_pulseus(long long unsigned int gap, unsigned int t); /* gap(us) */
 long tm_diffus(struct timeval t_start, struct timeval t_end);
+int egi_sleep(unsigned char fd, unsigned int s, unsigned int ms);
 
 #endif

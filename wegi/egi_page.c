@@ -576,8 +576,16 @@ int egi_page_routine(EGI_PAGE *page)
 			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
 			 *
 			 */
+#if 1
+//	                printf("--------egi_page: tm_delayms 100ms ------------\n");
 			tm_delayms(100); //55
-
+//	                printf("--------egi_page: end tm_delayms()------------\n");
+#endif
+#if 0 /* conflict with timer */
+	                printf("--------egi_page: egi_sleep 900ms ------------\n");
+			egi_sleep(4,0,900);
+	                printf("--------egi_page:  end egi_sleep 900ms------------\n");
+#endif
 			/* loop in refreshing listed eboxes */
 		}
 
