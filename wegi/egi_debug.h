@@ -26,29 +26,26 @@
 
 #define DBG_TEST	(1<<15)
 
+#define ENABLE_EGI_DEBUG
+
 /* default debug flags */
 #define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_PAGE|DBG_IOT) //|DBG_FIFO) //DBG_FFPLAY) //DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
 
-#ifdef EGI_DEBUG
-
-	#define PDEBUG(fmt, args...)   fprintf(stderr,fmt, ## args)
-
+#ifdef ENABLE_EGI_DEBUG
+	/* define egi_pdebug() */
+	//#define egi_pdebug(flags, fmt, args...)
+	#define EGI_PDEBUG(flags, fmt, args...)			\
+		do {						\
+			if( flags & DEFAULT_DBG_FLAGS)		\
+			{					\
+				fprintf(stderr,"%s(): ",__func__); 	\
+				fprintf(stderr,fmt, ## args);	\
+			}					\
+		} while(0)
 #else
-	#define PDEBUG(fmt,args...)   /* blank space */
+	#define EGI_PDEBUG(flags, fmt,args...)   /* blank space */
 
 #endif
-
-
-/* define egi_pdebug() */
-//#define egi_pdebug(flags, fmt, args...)
-#define EGI_PDEBUG(flags, fmt, args...)			\
-	do {						\
-		if( flags & DEFAULT_DBG_FLAGS)		\
-		{					\
-			fprintf(stderr,"%s(): ",__func__); 	\
-			fprintf(stderr,fmt, ## args);	\
-		}					\
-	} while(0)
 
 
 

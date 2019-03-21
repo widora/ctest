@@ -427,6 +427,8 @@ int main(int argc, char **argv)
 		dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 
+	if(symbol_load_allpages()==NULL) exit(-2);
+#if 0
 	/*------------------ Load Symbols ------------------*/
 	/* load testfont */
 	if(symbol_load_page(&sympg_testfont)==NULL)
@@ -443,6 +445,7 @@ int main(int argc, char **argv)
 	/* load icons for PLAYERs */
 	if(symbol_load_page(&sympg_icons_2)==NULL)
 		exit(-2);
+#endif
 
 	/* --------- test:  print all symbols in the page --------*/
 #if 0
@@ -877,7 +880,7 @@ while(1)
 	egi_page_free(page_mplay);
 
 	/* release symbol mem page */
-	symbol_release_page(&sympg_testfont);
+	symbol_free_allpages();
 
 	/* close fb dev */
         munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

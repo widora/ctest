@@ -94,8 +94,9 @@ extern char symmic_iotload[9];
 
 
 /*------------------- functions ---------------------*/
-uint16_t *symbol_load_page(struct symbol_page *sym_page);
-void symbol_release_page(struct symbol_page *sym_page);
+int symbol_load_allpages(void); //__attribute__((constructor))
+//static uint16_t *symbol_load_page(struct symbol_page *sym_page);
+//static void symbol_free_page(struct symbol_page *sym_page);
 int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
 

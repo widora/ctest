@@ -156,7 +156,10 @@ struct egi_element_box
 	*/
 	bool movable;
 
-	/* ebox tag */
+	/* ebox tag
+	 * NOTE: If you want to show tag on a btn ebox,make sure that all words should be within the box,
+	 * because outside letters will be refreshed by the ebox.
+	 */
 	char tag[EGI_TAG_LENGTH+1];/* 1byte for /0,  a simple description of the ebox for later debug */
 
 	/* ebox statu */
@@ -308,7 +311,7 @@ struct egi_data_txt
 	   of those chars should not exceeds ebox->width, or it may display in a roll-back way.
 	 */
 	struct symbol_page *font;
-	int16_t color; /* txt color */
+	uint16_t color; /* txt color */
 	char **txt; /*multiline txt data */
 	char *fpath; /* txt file path if applys */
 	long foff; /* curret offset of the txt file if applys */
@@ -325,7 +328,8 @@ struct egi_data_btn
 	struct symbol_page *icon; /* button icon */
 	uint32_t icon_code; /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
-	int opaque; /* opaque value for the icon, default 0, totally not transparent */
+	uint16_t font_color; /* tag font color, defaul is black */
+	int opaque; /* opaque value for the icon, default 0, 0---totally NOT transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag; /* to show tag on button or not, default 0, */
 };
@@ -506,7 +510,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
 EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
-void egi_ebox_settag(EGI_EBOX *ebox, char *tag);
+void egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
 enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);

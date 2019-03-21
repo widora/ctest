@@ -24,6 +24,8 @@ enum egi_log_level
 	LOGLV_TEST        =(1<<15),
 };
 
+#define ENABLE_EGI_PLOG
+
 /* Only log levels included in DEFAULT_LOG_LEVELS will be effective in EGI_PLOG() */
 #define DEFAULT_LOG_LEVELS   (LOGLV_NONE|LOGLV_TEST|LOGLV_INFO|LOGLV_WARN|LOGLV_ERROR|LOGLV_CRITICAL)
 
@@ -40,21 +42,25 @@ int egi_init_log(const char *fpath); //void);
 int egi_quit_log(void);
 
 
-/* define egi_plog(), push to log_buff
- * Let the caller to put FILE and FUNCTION, we can not ensure that two egi_push_log()
- * will push string to the log buff exactly one after the other,because of concurrency
- * race condition.
- * egi_push_log(" From file %s, %s(): \n",__FILE__,__FUNCTION__);
-*/
+#ifdef ENABLE_EGI_PLOG
+   /* define egi_plog(), push to log_buff
+    * Let the caller to put FILE and FUNCTION, we can not ensure that two egi_push_log()
+    * will push string to the log buff exactly one after the other,because of concurrency
+    * race condition.
+    * egi_push_log(" From file %s, %s(): \n",__FILE__,__FUNCTION__);
+    */
+	#define EGI_PLOG(level, fmt, args...)                 \
+        	do {                                            \
+                	if(level & DEFAULT_LOG_LEVELS)          \
+               	 	{                                       \
+				egi_push_log(level,fmt, ## args);	\
+                	}                                       \
+        	} while(0)
 
-#define EGI_PLOG(level, fmt, args...)                 \
-        do {                                            \
-                if(level & DEFAULT_LOG_LEVELS)          \
-                {                                       \
-			egi_push_log(level,fmt, ## args);	\
-                }                                       \
-        } while(0)
+#else
+	#define EGI_PLOG(level, fmt, args...)	/* leave as blank */
 
+#endif
 
 
 #endif

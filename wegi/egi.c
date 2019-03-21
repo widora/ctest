@@ -283,10 +283,10 @@ enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox)
 
 ///xxxxxxxxxxxxxxxxxxxxxxxxxx(((   OK   )))xxxxxxxxxxxxxxxxxxxxxxxxx
 
-/*-------------------------------------------
+/*------------------------------------------------------------
 put tag for an ebox
---------------------------------------------*/
-void egi_ebox_settag(EGI_EBOX *ebox, char *tag)
+--------------------------------------------------------------*/
+void egi_ebox_settag(EGI_EBOX *ebox, const char *tag)
 {
 	/* 1. clear tag */
 	memset(ebox->tag,0,EGI_TAG_LENGTH+1);

@@ -38,7 +38,7 @@ Midas Zhou
 #include "egi_pageffplay.h"
 #include "iot/egi_iotclient.h"
 
-static uint16_t btn_symcolor;
+//static uint16_t btn_symcolor;
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
@@ -47,7 +47,6 @@ static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-
 
 
 /*------------- [  PAGE ::   Home Page  ] -------------
@@ -130,8 +129,11 @@ EGI_PAGE *egi_create_homepage(void)
 
 	egi_ebox_settag(home_btns[6], "btn_chart");
 
-	egi_ebox_settag(home_btns[7], "btn_bigiot_bulb"); /* id=7; as for bulb */
+	egi_ebox_settag(home_btns[7], "0");//btn_iot"); /* id=7; as for bulb */
 	data_btns[7]->icon_code=11; /* SUB_COLOR + ICON_CODE */
+	data_btns[7]->showtag=true; /* display tag */
+	data_btns[7]->font=&sympg_numbfont;
+	data_btns[7]->font_color=WEGI_COLOR_ORANGE;
 
 	egi_ebox_settag(home_btns[8], "btn_ffplay");
 	home_btns[8]->reaction=egi_homebtn_ffplay;
@@ -179,7 +181,6 @@ EGI_PAGE *egi_create_homepage(void)
 	head_txt->txt[0][6]=6;
 	head_txt->txt[0][7]=6;
 	/* !!! the last  MUST end with /0 */
-
 
 	/* ---------- 3.create home page -------- */
 	/* 3.1 create page */
@@ -319,10 +320,10 @@ void egi_home_routine(void)
 }
 
 
-/*-----------------------------------------------------------------------------
+/*--------------------------------------------------------------------------
 button_mplay function:
 mplayer
-------------------------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	/* bypass unwanted touch status */
@@ -461,9 +462,9 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 //	egi_page_needrefresh(ebox->container); pgret_OK will set refresh
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n",
+									page_ffplay->ebox->tag);
 	egi_page_free(page_ffplay);
-
 
 	return pgret_OK; /* return 0 --- for page exit */
 }

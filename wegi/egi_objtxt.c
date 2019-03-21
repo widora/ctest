@@ -301,7 +301,7 @@ EGI_EBOX *create_ebox_titlebar(
 
 
 	/* 3. create memo ebox */
-	PDEBUG("create_ebox_titlebar(): start egi_txtbox_new().....\n");
+	EGI_PDEBUG(DBG_OBJTXT,"create_ebox_titlebar(): start egi_txtbox_new().....\n");
 	EGI_EBOX  *ebox_title= egi_txtbox_new(
 		"title_bar", /* tag, or put later */
         	title_txt,  /* EGI_DATA_TXT pointer */

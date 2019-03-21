@@ -35,6 +35,7 @@ Midas Zhou
 #include <stdint.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
 #include "egi_symbol.h"
 #include "egi_debug.h"
 #include "egi_log.h"
@@ -192,28 +193,69 @@ struct symbol_page sympg_icons_2=
 };
 
 
+/* -----  All static functions ----- */
+static uint16_t *symbol_load_page(struct symbol_page *sym_page);
+static void symbol_free_page(struct symbol_page *sym_page);
+
+
+/*-----------------------------------------------
+Load all symbol files into mem pages
+
+return:
+	0	OK
+	<0	Fail
+-----------------------------------------------*/
+int symbol_load_allpages(void)
+{
+        /* load testfont */
+        if(symbol_load_page(&sympg_testfont)==NULL)
+                return -1;
+        /* load numbfont */
+        if(symbol_load_page(&sympg_numbfont)==NULL)
+                return -2;
+        /* load buttons icons */
+        if(symbol_load_page(&sympg_buttons)==NULL)
+                return -3;
+        /* load icons for home head-bar*/
+        if(symbol_load_page(&sympg_icons)==NULL)
+                return -4;
+        /* load icons for PLAYERs */
+        if(symbol_load_page(&sympg_icons_2)==NULL)
+                return -5;
+}
+
+/* --------------------------------------
+	Free all mem pages
+----------------------------------------*/
+void symbol_free_allpages(void)
+{
+	symbol_free_page(&sympg_testfont);
+	symbol_free_page(&sympg_numbfont);
+	symbol_free_page(&sympg_buttons);
+	symbol_free_page(&sympg_icons);
+	symbol_free_page(&sympg_icons_2);
+}
 
 
 /*----------------------------------------------------------------
    load an img page file
-
-   1. direct mmap.  (current implementation!)
+   1. direct mmap.
       or
-   2. load to a mem page.
+   2. load to a mem page. (current implementation)
 
 path: 	path to the symbol image file
 num: 	total number of symbols,or MAX code number-1;
 height: heigh of all symbols
 width:	list for all symbol widthes
-sqrow:	symbol quantity in each row of an img page
+sqrow:	symbol number in each row of an img page
 
 ------------------------------------------------------------------*/
-uint16_t *symbol_load_page(struct symbol_page *sym_page)
+static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 {
 	int fd;
 	int datasize; /* memsize for all symbol data */
 	int i,j;
-	int x0,y0; /* origin position of a symbol in a image page, left top of a symbol */
+	int x0=0,y0=0; /* origin position of a symbol in a image page, left top of a symbol */
 	int nr,no;
 	int offset=0; /* in pixel, offset of data mem for each symbol, NOT of img file */
 	int all_height; /* height for all symbol in a page */
@@ -279,24 +321,23 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	{
 		if(sym_page->data == NULL)
 		{
-			printf("symbol_load_page(): fail to malloc sym_page->data! ???Maybe element number of symwidth[] is less than symbol_page.maxnum \n");
-			symbol_release_page(sym_page);
+			EGI_PLOG(LOGLV_ERROR,"symbol_load_page(): fail to malloc sym_page->data! ???Maybe element number of symwidth[] is less than symbol_page.maxnum \n");
+			symbol_free_page(sym_page);
 			return NULL;
 		}
 	}
-
 
 
 	/* read symbol pixel data from image file to sym_page.data */
         for(i=0; i<=sym_page->maxnum; i++) /* i for each symbol */
         {
 
-		/* width of a symbol width MUST NOT be zero.!   --- zero also OK, */
+		/* a symbol width MUST NOT be zero.!   --- zero also OK, */
 /*
 		if( sym_page->symwidth[i]==0 )
 		{
 			printf("symbol_load_page(): sym_page->symwidth[%d]=0!, a symbol width MUST NOT be zero!\n",i);
-			symbol_release_page(sym_page);
+			symbol_free_page(sym_page);
 			return NULL;
 		}
 */
@@ -307,7 +348,6 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 			x0=0;
 		else
 			x0 += sym_page->symwidth[i-1]; /* origin pixel order in a row */
-
 
                 y0 = nr * all_height; /* origin pixel order in a column */
                 //printf("x0=%d, y0=%d \n",x0,y0);
@@ -325,7 +365,8 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
                         if( lseek(fd,(y0+j)*SYM_IMGPAGE_WIDTH*2+x0*2,SEEK_SET)<0 ) /* in bytes */
                         {
                                 perror("lseek symbol image file");
-				symbol_release_page(sym_page);
+				//EGI_PLOG(LOGLV_ERROR,"lseek symbol image fails.%s \n",strerror(errno));
+				symbol_free_page(sym_page);
                                 return NULL;
                         }
 
@@ -334,7 +375,7 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
                         if( read(fd, (uint8_t *)(sym_page->data+offset+width*j), width*2) < width*2 )
                         {
                                 perror("read symbol image file");
-	 			symbol_release_page(sym_page);
+	 			symbol_free_page(sym_page);
                                 return NULL;
                         }
 
@@ -368,9 +409,9 @@ uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 
 /*--------------------------------------------------
-	release mem for data in a symbol page
+	Free mem for data in a symbol page
 ---------------------------------------------------*/
-void symbol_release_page(struct symbol_page *sym_page)
+static void symbol_free_page(struct symbol_page *sym_page)
 {
 	if(sym_page->data != NULL)
 	{
@@ -636,8 +677,8 @@ transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is s
 		    for fonts and icons,
 	     	<0	 --- no transparent pixel
 use following COLOR:
-#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font 
-#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font 
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
 
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 str:		pointer to a char string(or symbol codes[]);
