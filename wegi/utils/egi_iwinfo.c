@@ -92,6 +92,7 @@ int  iw_get_speed(int *ws)
 
 	/* reset ws first */
 	*ws=0;
+	count=0;
 
 	/* create a socket */
 	if( (sock=socket(AF_PACKET,SOCK_RAW,htons(ETH_P_ALL))) == -1 )
@@ -100,7 +101,6 @@ int  iw_get_speed(int *ws)
 								   __func__, strerror(errno));
 		return -1;
 	}
-
 	sll.sll_family=PF_PACKET;
 	sll.sll_protocol=htons(ETH_P_ALL);
 	strcpy(ifstruct.ifr_name,"apcli0");
@@ -114,25 +114,38 @@ int  iw_get_speed(int *ws)
 	sll.sll_ifindex=ifstruct.ifr_ifindex;
 
 	/* bind socket with address */
-	bind(sock,(struct sockaddr*)&sll, sizeof(struct sockaddr_ll));
-	count=0;
+	ret=bind(sock,(struct sockaddr*)&sll, sizeof(struct sockaddr_ll));
+	if(ret !=0 ) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call bind(): %s \n", __func__, strerror(errno));
+		close(sock);
+		return -3;
+	}
 
 	/* set timeout option */
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(struct timeval));
 
+	/* set port_reuse option */
+	int optval=1;/*YES*/
+	ret=setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	if(ret !=0 ) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call setsockopt(): %s \n", __func__, strerror(errno));
+		/* go on anyway */
+	}
+
 	printf("----------- start recvfrom() and tm_pulse counting ------------\n");
 	while(1)
 	{
-		/* 1 second,  use 0 pulse timer */
+		/* use pulse timer [0] */
 		if(tm_pulseus(IW_TRAFFIC_SAMPLE_SEC*1000000, 0)) {
-			printf("tm pulse OK!\n");
+			EGI_PLOG(LOGLV_INFO,"egi_iwinfo: tm pulse OK!\n");
 			break;
 		}
 
 		ret=recvfrom(sock,(char *)buf, sizeof(buf), 0, (struct sockaddr *)&addr, (socklen_t *)&len);
 		if(ret<=0) {
 			if( ret == EWOULDBLOCK ) {
-				EGI_PLOG(LOGLV_INFO,"%s: Fail to call recvfrom() ret=EWOULDBLOCK. \n", __func__);
+				EGI_PLOG(LOGLV_INFO,"%s: Fail to call recvfrom() ret=EWOULDBLOCK. \n"
+												 , __func__);
 				continue;
 			}
 			else if (ret==EAGAIN) {
@@ -141,13 +154,15 @@ int  iw_get_speed(int *ws)
 			}
 			else {
 				EGI_PLOG(LOGLV_ERROR,"%s: Fail to call ret=recvfrom()... ret=%d:%s \n",
-										__func__, ret, strerror(errno));
-				return -3;
+									__func__, ret, strerror(errno));
+				close(sock);
+				return -4;
 			}
 		}
 
 		count+=ret;
 	}
+
 	*ws=count;
 
 	close(sock);

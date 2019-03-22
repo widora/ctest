@@ -59,6 +59,7 @@ Midas Zhou
 #include <json.h>
 #include <json_object.h>
 #include <printbuf.h>
+#include <ctype.h> /* isdigit */
 #include "egi_iotclient.h"
 #include "egi.h"
 #include "egi_debug.h"
@@ -94,8 +95,8 @@ static char recv_buf[BUFFSIZE]={0}; /* for recv() buff */
 
 static EGI_24BIT_COLOR subcolor=0;
 static bool bulb_off=false; /* default bulb status */
-static char *bulb_status[2]={"ON","OFF"};
-static bool keep_heart_beat=false; /* token for keepalive thread */
+static const char *bulb_status[2]={"ON","OFF"};
+static bool keep_heart_beat __attribute__((__unused__)) =false; /* token for keepalive thread */
 
 /*
   1. After receive command from the server, push it to incmd[] and confirm server for the receipt.
@@ -115,11 +116,11 @@ struct egi_iotdata
 #define TEMPLATE_MARGIN		100 /* more bytes that may be added into the following json templates strings */
 const static char *strjson_checkin_template=
 			"{\"M\":\"checkin\",\"ID\":421, \"K\":\"f80ea043e\"}\n";
-const static char *strjson_keepalive_template=
+const static char *strjson_keepalive_template __attribute__((__unused__))=
 			"{\"M\":\"beat\"}\n";
 const static char *strjson_reply_template=
 			"{\"M\":\"say\",\"C\":\"Hello from Widora_NEO\",\"SIGN\":\"Widora_NEO\"}";//\n";
-const static char *strjson_check_online_template=
+const static char *strjson_check_online_template __attribute__((__unused__))=
 			"{\"M\":\"isOL\",\"ID\":[\"xx1\"...]}\n";
 const static char *strjson_check_status_template=
 			"{\"M\":\"status\"}\n"; /* return key M value:'connected' or 'checked' */
@@ -138,7 +139,7 @@ static inline int iot_status(void);
 
 
 /*-----------------------------------------------------------------------
-Get a pionter to a string type key value from an input json object.
+Get a pionter to a !!!!string type key value from an input json object.
 
 json:	a json object.
 key:	key name of a json object
@@ -151,16 +152,14 @@ const static char *iot_getkey_pstrval(json_object *json, const char* key)
 {
 	json_object *json_item=NULL;
 
-	/* check input param */
+	/* 1. check input param */
 	if( json==NULL || key==NULL)
 	{
 		EGI_PDEBUG(DBG_IOT,"input params invalid!\n");
 		return NULL;
 	}
 
-	/* get item object */
-	//obselete:
-	//json_item=json_object_object_get(json, key);
+	/* 2. get item object */
 	if( json_object_object_get_ex(json, key, &json_item)==false ) /* return pointer */
 	{
 		//EGI_PDEBUG(DBG_IOT,"Fail to get value of key '%s' from the input json object.\n",key);
@@ -171,26 +170,26 @@ const static char *iot_getkey_pstrval(json_object *json, const char* key)
 		//EGI_PDEBUG(DBG_IOT,"object key '%s' with value '%s'\n",
 		//					key, json_object_get_string(json_item));
 	}
-	/* check json object type */
+	/* 3. check json object type */
 	if(!json_object_is_type(json_item, json_type_string))
 	{
 		EGI_PDEBUG(DBG_IOT,"Error, key '%s' json obj is NOT a string type object!\n",key );
 		return NULL;
 	}
 
-	/* get a pointer to string value */
+	/* 4. get a pointer to string value */
  	return json_object_get_string(json_item); /* return a pointer */
 }
 
-/*-----------------------------------------------------------------------
-Assembly a cjson object by adding 'num' groups of keys(IDs) and Values,
+/*-----------------------------------------------------------------------------
+Assembly a cjson object by adding groups of keys(IDs) and Values(string type),
 result json obj is like {"id1":"value1","id2","value2",.... }.
 
 Note: call json_object_put() to free it after use.
 
 Retrun:
 	NULL 	fails
------------------------------------------------------------------------*/
+--------------------------------------------------------------------------------*/
 static json_object * iot_new_datajson(const int *id, const double *value, int num)
 {
 	int k;
@@ -200,22 +199,21 @@ static json_object * iot_new_datajson(const int *id, const double *value, int nu
 	char strid[32];
 	char strval[32];
 
-	/* get a new json_object_type obj */
+	/* 1. get a new json_object_type obj */
 	json_object *json=json_object_new_object();
 	if(json==NULL)
 		return NULL;
 
-	/* insert Keys and Values into the json object */
+	/* 2. insert Keys and Values into the json object */
 	for(k=0; k<num; k++)
 	{
 		memset(strid,0,32);
 		sprintf(strid,"%d",id[k]);
 		memset(strval,0,32);
 		sprintf(strval,"%5.2f",value[k]);
-		/* with strdup() inside */
 		json_object_object_add(json, strid, json_object_new_string(strval));
 	}
-	EGI_PDEBUG(DBG_IOT,"%s: json created: %s\n",__func__,json_object_to_json_string(json));
+	//EGI_PDEBUG(DBG_IOT,"%s: json created: %s\n",__func__,json_object_to_json_string(json));
 
 	return json;
 }
@@ -243,23 +241,22 @@ static void iot_keepalive(void)
 	{
 		/* idle time */
 		//tm_delayms(IOT_HEARTBEAT_INTERVAL*1000);
-		EGI_PLOG(LOGLV_WARN,"---------- start egi_sleep %d ------------\n", IOT_HEARTBEAT_INTERVAL);
+		EGI_PLOG(LOGLV_WARN,"---------- start egi_sleep %d [%lld] ------------\n",
+							IOT_HEARTBEAT_INTERVAL, tm_get_tmstampms()/1000 );
 		egi_sleep(1,IOT_HEARTBEAT_INTERVAL,0);
-		EGI_PLOG(LOGLV_WARN,"---------- end egi_sleep()------------\n");
+		EGI_PLOG(LOGLV_WARN,"---------- end egi_sleep() [%lld] ----------\n", tm_get_tmstampms()/1000 );
 
 		/* check iot network status */
 		ret=iot_send(&ret, strjson_check_status_template);
 		if(ret==0)
 		{
-			EGI_PDEBUG(DBG_IOT,"heart_beat msg is sent out.\n");
+			//EGI_PDEBUG(DBG_IOT,"heart_beat msg is sent out.\n");
 		        /* get time stamp */
         		t=time(NULL);
         		tm=localtime(&t);
         		/* time stamp and msg */
         		EGI_PLOG(LOGLV_INFO,"[%d-%02d-%02d %02d:%02d:%02d] heart_beat msg is sent out.\n",
                                 tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec );
-			/* !!! WARNING: __TIME__ macro is inaccurate, has a deviation of several seconds. !!! */
-			///printf("[%s %s] %s: A heart_beat msg is sent to BIGIOT.\n",__DATE__, __TIME__, __func__);
 		}
 		else
 			EGI_PDEBUG(DBG_IOT,"Fail to send out heart_beat msg.\n");
@@ -291,16 +288,8 @@ static void iot_update_data(void)
         int fd;
         char strload[5]={0}; /* read in 4 byte */
 
-        /* open symbol image file */
-        fd=open("/proc/loadavg", O_RDONLY);
-        if(fd<0)
-        {
-                EGI_PLOG(LOGLV_ERROR,"%s: fail to open /proc/loadavg!\n",__func__);
-                pthread_exit(0);
-        }
-
 	/* prepare update template */
-	/* WARNING: for an object_type json object containing another object_type json object,
+	/* !!!!!WARNING: for an object_type json object containing another object_type json object,
 	 * To call json_object_object_add() 2nd time results in segmentation fault!
 	 *  you need to put it and then reinitialize it.
 	 *
@@ -315,31 +304,33 @@ static void iot_update_data(void)
 
 	while(1)
 	{
-		/* prepare template */
-		json_update=json_tokener_parse(strjson_update_template);
-
-		/* read avgload */
+	        /* 1. open proc file and read avgload */
+       		fd=open("/proc/loadavg", O_RDONLY);
+	        if(fd<0) {
+        	        EGI_PLOG(LOGLV_ERROR,"%s: fail to open /proc/loadavg!\n",__func__);
+			egi_sleep(2,1,0);
+               		continue;
+        	}
                 lseek(fd,0,SEEK_SET);
                 read(fd,strload,4);
                 load=atof(strload);/* for symmic_cpuload[], index from 0 to 5 */
-
-		/* get wifi actual speed  bytes/s */
+		/* 2. get wifi actual speed bytes/s */
 		iw_get_speed(&ws);
-
-		/* prepare data json */
+		/* 3. prepare data json */
 		data[0]=load;
 		data[1]=ws/IW_TRAFFIC_SAMPLE_SEC; /* get average value */
-
  		json_data=iot_new_datajson( (const int *)id, data, 2);
-		if(json_data==NULL)
-		{
+		if(json_data==NULL) {
 		    /* free json_update then */
 		    if(json_object_put(json_update) != 1)
-			EGI_PLOG(LOGLV_ERROR,"%s: iot_new_datajson() fails, and Fail to put json_update!\n",__func__);
+			EGI_PLOG(LOGLV_ERROR,"%s: iot_new_datajson() fails, Fail to put json_update!\n"
+												,__func__);
 		    continue;
 		}
 
-		/* insert data json to update template json */
+		/* 4. prepare template json */
+		json_update=json_tokener_parse(strjson_update_template);
+		/* 5. insert data json to update template json */
 		json_object_object_del(json_update,"V");
 		json_object_object_add(json_update,"V",json_data);
 		EGI_PLOG(LOGLV_CRITICAL,"Finish creating update_json: \n%s\n",
@@ -349,24 +340,22 @@ static void iot_update_data(void)
 		memset(sendbuff,0,sizeof(sendbuff));
 		sprintf(sendbuff,"%s\n",json_object_to_json_string(json_update));
 
-		/* send to iot */
+		/* 6. send to iot */
 		if (iot_send(&ret, sendbuff) != 0)
 			EGI_PLOG(LOGLV_WARN,"%s: fail to iot_send() updata message, ret=%d.\n",
 											__func__, ret);
-		/* release json_data */
+		/* 7. release json_data */
 		if(json_object_put(json_data) != 1)
 			EGI_PLOG(LOGLV_ERROR,"Fail to json_object_put() json_data!\n");
 		if(json_object_put(json_update) != 1)
 			EGI_PLOG(LOGLV_ERROR,"Fail to json_object_put() json_update!\n");
 
-		/* delay and refresh value */
+		/* 8. delay and refresh value */
+		close(fd);
 		//tm_delayms(6000);
-		egi_sleep(2,6,0);
+		egi_sleep(3, (6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1), 0);
 	}
-
-	close(fd);
 }
-
 
 
 /*--------------------------------------------------------
@@ -383,87 +372,76 @@ Return:
 ---------------------------------------------------------*/
 static int iot_connect_checkin(void)
 {
-	int ret;
-	//char buf[BUFFSIZE]={0}; /* for recv() buff */
+   int ret;
 
    /* loop trying .... */
-
    for(;;)
    {
 	EGI_PLOG(LOGLV_CRITICAL,"------ Start connect and check into ther server ------\n");
 
-	/* create a socket file descriptor */
-	close(sockfd); /*close it  first */
+	/* 1. create a socket file descriptor */
+	if( close(sockfd) != 0 ) { /*try close it first */
+		EGI_PLOG(LOGLV_ERROR,"%s :: close(): %s \n",__func__, strerror(errno));
+		/* go on whatever */
+	}
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
-	if(sockfd<0)
-	{
+	if(sockfd<0) {
 		perror("try to create socket file descriptor");
 		EGI_PLOG(LOGLV_ERROR,"%s :: socket(): %s \n",__func__,strerror(errno));
-
-		continue; //return -1;
+		continue;
 	}
-
-	/* set IOT server address  */
+	/* 2. set IOT server address  */
 	svr_addr.sin_family=AF_INET;
 	svr_addr.sin_port=htons(IOT_SERVER_PORT);
 	svr_addr.sin_addr.s_addr=inet_addr(IOT_SERVER_ADDR);
 	bzero(&(svr_addr.sin_zero),8);
-
-   	/* connect to socket. */
+   	/* 3. connect to socket. */
 	ret=connect(sockfd,(struct sockaddr *)&svr_addr, sizeof(struct sockaddr));
-	if(ret<0)
-	{
+	if(ret<0) {
 		EGI_PLOG(LOGLV_ERROR,"%s :: connect(): %s \n",__func__,strerror(errno));
-		continue;//return -2;
+		continue;
 	}
-
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to connect to the BIGIOT socket!\n",__func__);
-
+	/* 4. receive response msg from the server */
 	memset(recv_buf,0,sizeof(recv_buf));
 	ret=recv(sockfd, recv_buf, BUFFSIZE-1, 0);
-	if(ret<=0)
-	{
+	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s :: recv(): %s \n",__func__,strerror(errno));
 		continue;
 	}
-
-	//recv_buf[ret]='\0';
 	EGI_PLOG(LOGLV_CRITICAL,"Reply from the server: %s\n",recv_buf);
 
-	/* send json string for check into BIGIO */
+	/* 5. check into BIGIO */
 	EGI_PLOG(LOGLV_CRITICAL,"Start sending CheckIn msg to BIGIOT...\n");
 	ret=send(sockfd, strjson_checkin_template, strlen(strjson_checkin_template), MSG_NOSIGNAL);
-	if(ret<=0)
-	{
+	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send login request to BIGIOT:%s\n"
 								,__func__,strerror(errno));
-		continue;//return -3;
+		continue;
 	}
-	else
+	else {
 		EGI_PLOG(LOGLV_CRITICAL,"Checkin msg has been sent to BIGIOT.\n");
-
-	/* wait for reply from the server */
+	}
+	/* 6. wait for reply from the server */
 	memset(recv_buf,0,sizeof(recv_buf));
 	ret=recv(sockfd, recv_buf, BUFFSIZE-1, 0);
-	if(ret<=0)
-	{
+	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to recv() CheckIn confirm msg from BIGIOT, %s\n"
 								,__func__,strerror(errno));
-		continue;//return -4;
+		continue;
 	}
-	else if( strstr(recv_buf,"checkinok") ==NULL ) {
+	/* confirm checkin */
+	else if( strstr(recv_buf,"checkinok") == NULL ) {
 		EGI_PLOG(LOGLV_ERROR,"Checkin confirm msg is NOT received. retry after INTERVAL seconds...\n");
 	        tm_delayms(IOT_RECONNECT_INTERVAL*1000);
-
-		continue;//return -5;
+		continue;
 	}
 	else {
 		EGI_PLOG(LOGLV_CRITICAL,"EGI_IOT: Checkin confirm msg is received.\n");
 	}
-
 	EGI_PLOG(LOGLV_CRITICAL,"CheckIn reply from the server: %s\n",recv_buf);
 
-	/* finally break the loop */
+	/* 7. finally break the loop */
 	break;
 
     }/* loop end */
@@ -491,14 +469,11 @@ static inline int iot_send(int *send_ret, const char *strmsg)
 	/* check strmsg */
 	if( strlen(strmsg)==0 || strmsg==NULL )
 		return -1;
-
 	/* send by a blocking socke FD, */
 	ret=send(sockfd, strmsg, strlen(strmsg), MSG_CONFIRM|MSG_NOSIGNAL);
-
-		/* pass ret to the caller */
+	/* pass ret to the caller */
 	if(send_ret != NULL)
 		*send_ret=ret;
-
 	/* check result */
 	if(ret<0)
 	{
@@ -664,7 +639,7 @@ void egi_iotclient(EGI_PAGE *page)
 	{
 		if( iot_recv(&ret)==0 )
 		{
-			//EGI_PLOG(LOGLV_INFO,"Message from the server: %s\n",recv_buf);
+			EGI_PLOG(LOGLV_INFO,"Message from the server: %s\n",recv_buf);
 
 			/* 4.1 parse received string for json */
 			json=json_tokener_parse(recv_buf);/* _parse() creates a new json obj */
@@ -675,9 +650,8 @@ void egi_iotclient(EGI_PAGE *page)
 			}
 			else /* extract key items and values */
 			{
-
-				EGI_PDEBUG(DBG_IOT,"Message from IOT server: %s\n",
-					json_object_to_json_string_ext(json,JSON_C_TO_STRING_PRETTY));
+				//EGI_PDEBUG(DBG_IOT,"Message from IOT server: %s\n",
+				//	json_object_to_json_string_ext(json,JSON_C_TO_STRING_PRETTY));
 
 /* ---- key 'ID': needed to identify the Visitor ---- */
 				/* 4.2 get a key value from a string object, ret a pointer only. */
@@ -813,7 +787,7 @@ void egi_iotclient(EGI_PAGE *page)
 		}
 
 		//tm_delayms(IOT_CLIENT_);
-		egi_sleep(2,0,200);
+		egi_sleep(4,0,200);
 
 	} /* end of while() */
 

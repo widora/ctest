@@ -198,13 +198,13 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page);
 static void symbol_free_page(struct symbol_page *sym_page);
 
 
-/*-----------------------------------------------
+/*-------------------------------------------------------
 Load all symbol files into mem pages
-
+Don't forget to change symbol_free_allpages() accordingly
 return:
 	0	OK
 	<0	Fail
------------------------------------------------*/
+-------------------------------------------------------*/
 int symbol_load_allpages(void)
 {
         /* load testfont */
@@ -222,6 +222,8 @@ int symbol_load_allpages(void)
         /* load icons for PLAYERs */
         if(symbol_load_page(&sympg_icons_2)==NULL)
                 return -5;
+
+	return 0;
 }
 
 /* --------------------------------------
@@ -266,7 +268,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	if(fd<0)
 	{
 		printf("fail to open symbol file %s!\n",sym_page->path);
-		perror("open symbol image file");
+			perror("open symbol image file");
 		return NULL;
 	}
 
@@ -570,7 +572,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	/* check sym_code */
 	if( sym_code < 0 || sym_code > sym_page->maxnum )
 	{
-		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range!\n");
+		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range! sympg->path: %s\n", sym_page->path);
 		return;
 	}
 

@@ -140,12 +140,13 @@ EGI_PAGE *egi_create_homepage(void)
 
 	/* create a bkimg_btn for home_btns[7], withou cutout in icon image */
 	EGI_EBOX * bkimg_btn7=egi_copy_btn_ebox(home_btns[7]);
-	if(bkimg_btn7 != NULL)
+	if(bkimg_btn7 != NULL) /* reset egi_data */
 	{
 		EGI_DATA_BTN *bkbtn_data=(bkimg_btn7->egi_data);
 		bkbtn_data->icon_code=7;
 		bkbtn_data->id=7; /*change id for later sort */
 		egi_ebox_settag(bkimg_btn7, "btn_bigiot_frame");
+		bkbtn_data->font=NULL;
 	}
 
 	printf("btns[7]->egi_data->icon_code=%d\n",((EGI_DATA_BTN *)(home_btns[7]->egi_data))->icon_code);

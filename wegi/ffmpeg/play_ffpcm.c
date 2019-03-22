@@ -1,8 +1,12 @@
-/*----------------------------------------------------------------
+/*-----------------------------------------------------------------------
 Note:
 1. Mplayer will take the pcm device exclusively??
+2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
+  Mplayer interrrupted by signal 2 in Module: enable_cache
+  Mplayer interrrupted by signal 2 in Module: play_audio
 
-----------------------------------------------------------------*/
+Midas Zhou
+-----------------------------------------------------------------------*/
 #include "play_ffpcm.h"
 #include "egi_debug.h"
 #include "egi_log.h"
