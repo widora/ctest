@@ -60,6 +60,7 @@ Midas Zhou
 #include <json_object.h>
 #include <printbuf.h>
 #include <ctype.h> /* isdigit */
+#include <sys/resource.h>
 #include "egi_iotclient.h"
 #include "egi.h"
 #include "egi_debug.h"
@@ -77,6 +78,7 @@ Midas Zhou
 /* IOT data interface ID */
 #define IOT_DATAINF_LOAD	546 /* CPU load */
 #define IOT_DATAINF_WSPEED	961 /* network traffic, income */
+#define IOT_DATAINF_VMSIZE	430 /* vm size of self */
 
 #define IOT_HEARTBEAT_INTERVAL	30	/*in second, heart beat interval, Min 10s for status inquiry */
 #define IOT_RECONNECT_INTERVAL	15	/*in second, reconnect interval, for status inquiry, Min. 10s  */
@@ -210,13 +212,14 @@ static json_object * iot_new_datajson(const int *id, const double *value, int nu
 		memset(strid,0,32);
 		sprintf(strid,"%d",id[k]);
 		memset(strval,0,32);
-		sprintf(strval,"%5.2f",value[k]);
+		sprintf(strval,"%3.2f",value[k]);
 		json_object_object_add(json, strid, json_object_new_string(strval));
 	}
 	//EGI_PDEBUG(DBG_IOT,"%s: json created: %s\n",__func__,json_object_to_json_string(json));
 
 	return json;
 }
+
 
 
 /*--------------------  A thread function   --------------------------
@@ -274,19 +277,22 @@ Return:
 static void iot_update_data(void)
 {
 	/* ID and DATA for BIGIOT data interface */
-	int id[2]={ IOT_DATAINF_LOAD, IOT_DATAINF_WSPEED};	/* interface ID */
-	double data[2];
-
+	int id[3]={ IOT_DATAINF_LOAD, IOT_DATAINF_WSPEED, IOT_DATAINF_VMSIZE};	/* interface ID */
+	double data[3];
+	struct rusage	r_usage;
+	long vmsize;
 	int ws;	/* wifi speed bytes/s */
 	char sendbuff[BUFFSIZE]={0}; /* for recv() buff */
 	int ret;
-	json_object *json_data;
-	json_object *json_update;
-
 	/* open /porc/loadavg to get load value */
         double load=0.0;
         int fd;
         char strload[5]={0}; /* read in 4 byte */
+
+
+	json_object *json_data;
+	json_object *json_update;
+
 
 	/* prepare update template */
 	/* !!!!!WARNING: for an object_type json object containing another object_type json object,
@@ -316,10 +322,22 @@ static void iot_update_data(void)
                 load=atof(strload);/* for symmic_cpuload[], index from 0 to 5 */
 		/* 2. get wifi actual speed bytes/s */
 		iw_get_speed(&ws);
+		/* 3. get VM size */
+		getrusage(RUSAGE_SELF,&r_usage);
+                vmsize=r_usage.ru_maxrss;
+	       //long   ru_maxrss;        /* maximum resident set size */
+               //long   ru_ixrss;         /* integral shared memory size */
+               //long   ru_idrss;         /* integral unshared data size */
+               //long   ru_isrss;         /* integral unshared stack size */
+		EGI_PLOG(LOGLV_INFO,"xxxxxxxxxx   maxrss=%ld, ixrss=%ld, idrss=%ld, isrss=%ld    xxxxxxxxx\n",
+  				    r_usage.ru_maxrss,r_usage.ru_ixrss, r_usage.ru_idrss, r_usage.ru_isrss);
+
 		/* 3. prepare data json */
 		data[0]=load;
 		data[1]=ws/IW_TRAFFIC_SAMPLE_SEC; /* get average value */
- 		json_data=iot_new_datajson( (const int *)id, data, 2);
+		data[2]=(double)vmsize;
+		/* 4. create data json */
+ 		json_data=iot_new_datajson( (const int *)id, data, 3);
 		if(json_data==NULL) {
 		    /* free json_update then */
 		    if(json_object_put(json_update) != 1)
@@ -328,9 +346,9 @@ static void iot_update_data(void)
 		    continue;
 		}
 
-		/* 4. prepare template json */
+		/* 5. prepare template json */
 		json_update=json_tokener_parse(strjson_update_template);
-		/* 5. insert data json to update template json */
+		/* 6. insert data json to update template json */
 		json_object_object_del(json_update,"V");
 		json_object_object_add(json_update,"V",json_data);
 		EGI_PLOG(LOGLV_CRITICAL,"Finish creating update_json: \n%s\n",
@@ -340,17 +358,17 @@ static void iot_update_data(void)
 		memset(sendbuff,0,sizeof(sendbuff));
 		sprintf(sendbuff,"%s\n",json_object_to_json_string(json_update));
 
-		/* 6. send to iot */
+		/* 7. send to iot */
 		if (iot_send(&ret, sendbuff) != 0)
 			EGI_PLOG(LOGLV_WARN,"%s: fail to iot_send() updata message, ret=%d.\n",
 											__func__, ret);
-		/* 7. release json_data */
+		/* 8. release json_data */
 		if(json_object_put(json_data) != 1)
 			EGI_PLOG(LOGLV_ERROR,"Fail to json_object_put() json_data!\n");
 		if(json_object_put(json_update) != 1)
 			EGI_PLOG(LOGLV_ERROR,"Fail to json_object_put() json_update!\n");
 
-		/* 8. delay and refresh value */
+		/* 9. delay and refresh value */
 		close(fd);
 		//tm_delayms(6000);
 		egi_sleep(3, (6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1), 0);

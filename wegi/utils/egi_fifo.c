@@ -58,8 +58,8 @@ EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size, int pin_wait)
 	EGI_FIFO *efifo=NULL;
 
 	/* check params */
-	if(efifo != NULL)
-		EGI_PLOG(LOGLV_WARN,"%s: input EGI_FIFO pointer is not NULL.\n",__func__);
+//	if(efifo != NULL)
+//		EGI_PLOG(LOGLV_WARN,"%s: input EGI_FIFO pointer is not NULL.\n",__func__);
 
 	if( buff_size<=0 || item_size<=0 )
 	{

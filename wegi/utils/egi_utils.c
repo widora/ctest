@@ -1,9 +1,9 @@
-/*--------------------------------------------------------------------------------------------
+/*-------------------------------------------------------
 Utility functions, mem.
 
 
 Midas Zhou
------------------------------------------------------------------------------------------------*/
+-------------------------------------------------------*/
 #include "egi_utils.h"
 #include "egi_log.h"
 #include <stdio.h>
@@ -11,6 +11,8 @@ Midas Zhou
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
+
+
 
 /*---------------------------------------------------------------------
 malloc 2 dimension buff.
@@ -33,11 +35,11 @@ unsigned char** egi_malloc_buff2D(int items, int item_size)
 	/* check data */
 	if( items <= 0 || item_size <= 0 )
 	{
-		printf("egi_malloc_buff2(): itmes or item_size is illegal.\n");
+		printf("egi_malloc_buff2(): itmes or item_size is invalid.\n");
 		return NULL;
 	}
 
-	buff=malloc(items*sizeof(unsigned char *));
+	buff=calloc(items, sizeof(unsigned char *));
 	if(buff==NULL)
 	{
 		printf("egi_malloc_buff2(): fail to malloc buff.\n");
@@ -47,7 +49,7 @@ unsigned char** egi_malloc_buff2D(int items, int item_size)
 	/* malloc buff items */
 	for(i=0;i<items;i++)
 	{
-		buff[i]=malloc((item_size)*sizeof(unsigned char)); /* +1 for string end */
+		buff[i]=calloc(item_size, sizeof(unsigned char));
 		if(buff[i]==NULL)
 		{
 			printf("egi_malloc_buff2(): fail to malloc buff[%d], free buff and return.\n",i);
@@ -61,17 +63,88 @@ unsigned char** egi_malloc_buff2D(int items, int item_size)
 			buff=NULL;
 			return NULL;
 		}
-
 		/* clear data */
-		memset(buff[i],0,item_size*sizeof(unsigned char));
+		//memset(buff[i],0,item_size*sizeof(unsigned char));
 	}
 
 	return buff;
 }
 
-/*--------------------------------------------------------------
+
+/*---------------------------------------------------------------------------------------
+reallocate 2 dimension buff.
+NOTE:
+  1. WARNING: Caller must ensure buff dimension and size, old data will be lost after reallocation!!!!
+  2. Be carefull to use when new_items < old_itmes, if realloc fails, then **buff may NOT be
+     reverted to the old_items.!!!!
+
+buff:		buffer to be reallocated
+old_items:	original item number as of buff[items][item_size]
+new_items:	new item number as of buff[items][item_size]
+item_size:	item size in byte.
+
+return:
+	0	 	OK
+	<0		Fails
+----------------------------------------------------------------------------------------*/
+int egi_realloc_buff2D(unsigned char **buff, int old_items, int new_items, int item_size)
+{
+	int i,j;
+	unsigned char **tmp;
+
+	/* check input data */
+	if(buff==NULL) {
+		printf("egi_realloc_buff2(): input buff is NULL.\n");
+		return -1;
+	}
+	if( old_items <= 0 || new_items <= 0 || item_size <= 0 ) {
+		printf("egi_realloc_buff2(): itmes or item_size is invalid.\n");
+		return -2;
+	}
+	/* only if items changed */
+	if( new_items != old_items ) {
+		tmp=realloc(buff, sizeof(unsigned char *)*new_items);
+		if(tmp==NULL) {
+			printf("egi_realloc_buff2D(): fail to realloc buff.\n");
+			return -3;
+		}
+		buff=tmp;
+	}
+	/* need to calloc buff[] */
+	if( new_items > old_items ) {
+		for(i=old_items; i<new_items; i++) {
+			buff[i]=calloc(item_size, sizeof(unsigned char));
+
+			if(buff[i]==NULL) {
+				printf("egi_realloc_buff2D(): fail to calloc buff[%d], free buff and return.\n",i);
+				for(j=i-1; j>old_items-1; j--)
+					free( buff[j] );
+
+				/* revert item number to old_items !!! MAY BE TRAPED HERE!!! */
+				tmp=NULL;
+				while(tmp==NULL) {
+					printf("egi_realloc_buff2D(): realloc fails,revert item number to old_items.\n");
+					tmp=realloc( buff, sizeof(unsigned char *)*old_items );
+				}
+				return -4;
+			}
+		}
+	}
+	/* free redundant buff[] */
+	else if(new_items < old_items) {
+		for(i=new_items; i<old_items; i++)
+			free(buff[i]);
+	}
+
+	return 0;
+}
+
+
+
+
+/*----------------------------------------------------
 free 2 dimension buff.
-----------------------------------------------------------------*/
+----------------------------------------------------*/
 void egi_free_buff2D(unsigned char **buff, int items)
 {
 	int i;

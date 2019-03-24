@@ -7,7 +7,7 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 APP=egi_fifo
 
-OBJS= egi_utils.o egi_fifo.o egi_iwinfo.o ../egi_log.o ../egi_timer.o
+OBJS= egi_utils.o egi_fifo.o egi_filo.o egi_iwinfo.o ../egi_log.o ../egi_timer.o
 
 ## Shall also include all sys libs head file dir
 CFLAGS += -Wall -I../ -I../utils -I$(COMMON_USRDIR)/include
@@ -19,8 +19,14 @@ LIBS += -lpthread
 test_fifo: test_fifo.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_fifo.c -o test_fifo
 
+test_filo: test_filo.c $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_filo.c -o test_filo
+
 egi_fifo.o: egi_fifo.h egi_fifo.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_fifo.c
+
+egi_filo.o: egi_filo.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_filo.c
 
 egi_utils.o: egi_utils.h egi_utils.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_utils.c

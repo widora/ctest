@@ -14,7 +14,7 @@ Midas Zhou
 typedef struct
 {
 	int	  	item_size;	/* size of each item data, in byte. */
-	int   		buff_size;	/* itme number that the buff is capable of holding */
+	int   		buff_size;	/* total item number that the buff is capable of holding */
 	unsigned char 	**buff;		/* data buffer [buff_size][item_size] */
 
 	uint32_t 	pin;  		/* data pusher's position, as buff[pin].
