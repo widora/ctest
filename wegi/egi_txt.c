@@ -14,6 +14,7 @@ Midas Zhou
 //#include "egi_timer.h"
 #include "egi_symbol.h"
 #include "egi_bmpjpg.h"
+#include "egi_filo.h"
 
 
 //static int egi_txtbox_decorate(EGI_EBOX *ebox);
@@ -66,6 +67,14 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
         data_txt->color=color;
         data_txt->offx=offx;
         data_txt->offy=offy;
+	data_txt->forward=1; /* >0 default forward*/
+	/* init filo_off, default buff_size=1<<8 */
+	data_txt->filo_off=egi_malloc_filo(1<<8, sizeof(long), 0b01); /* 0b01: auto double mem when */
+	if(data_txt==NULL) {
+		printf("egi_txtdata_new(): fail to init data_txt->filo_off.\n");
+		free(data_txt);
+		return NULL;
+	}
 
         /*  malloc data->txt  */
 	EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): malloc data_txt->txt ...\n");
@@ -73,6 +82,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
         if(data_txt->txt == NULL) /* malloc **txt */
         {
                 printf("egi_txtdata_new(): fail to malloc egi_data_txt->txt!\n");
+		egi_free_filo(data_txt->filo_off);
 		free(data_txt);
 		data_txt=NULL; /* :( */
                 return NULL;
@@ -95,6 +105,7 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
                         }
                         free(data_txt->txt);
                         data_txt->txt=NULL; /* :) */
+			egi_free_filo(data_txt->filo_off); /* free filo */
 			free(data_txt);
 			data_txt=NULL; /* :))) ...JUST TO EMPHOSIZE THE IMPORTANCE !!!  */
 
@@ -591,13 +602,12 @@ Note:
 	4.1 Max. char number per line   =  llen;
 	4.2 Max. pixel number per line  =  bxwidth
 
-
 Return:
 	>0	number of chars read and stored to txt[].
 	0	get end of file.
 
 	<0	fail
----------------------------------------------------------------*/
+----------------------------------------------------------------*/
 int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 {
 	FILE *fil;
@@ -607,7 +617,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	int ret=0;
 	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
-	int bxheight=ebox->height;
+//	int bxheight=ebox->height;
 	char **txt=data_txt->txt;
 	int nt=0;/* index, txt[][nt] */
 	int nl=data_txt->nl; /* from 0, number of txt line */
@@ -615,7 +625,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
 	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
-	int symheight=data_txt->font->symheight;
+//	int symheight=data_txt->font->symheight;
 	int maxnum=data_txt->font->maxnum;
 	long foff=data_txt->foff; /* current file position */
 
@@ -629,11 +639,9 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		printf("egi_txtbox_readfile(): data_txt->txt is NULL!\n");
 		return -1;
 	}
-
 	/* reset txt buf */
 	for(i=0;i<nl;i++)
 		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
-
 	/* open txt file */
 	fil=fopen(path,"rb");
 	if(fil==NULL)
@@ -643,21 +651,29 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	}
 	printf("egi_txtbox_readfile(): succeed to open %s, current offset=%ld \n",path,foff);
 
-	/* restore file position */
-	fseek(fil,foff,SEEK_SET);
+	/* If read BACKWARD, pop foff from FILO filo_off */
+	if(data_txt->forward < 0) {
+		if( egi_filo_pop(data_txt->filo_off, &foff)>0 ) {   /* >0, filo empty */
+			foff=0;
+		}
 
-#if 0   /* WARNING:  feof() tests the end-of-file indicator for the stream pointed  to  by  stream,  returning
-       		nonzero if it is set. !!!!!! and only AFTER fread() operation can you get real stream buffer,
-		then you can use feof().
-	*/
-	if(feof(fil))
-	{
-		printf("egi_txtbox_readfile(): already reaches the end of the file '%s', offset=%ld, \
-			roll back now!\n", path,ftell(fil) );
-		rewind(fil); /* rewind the file offset */
-		//return 0;
+		/* restore file position */
+		fseek(fil,foff,SEEK_SET);
 	}
-#endif
+	/* If read FOREWARD */
+	else if(data_txt->forward >0) {
+
+		/* restore file position */
+		fseek(fil,foff,SEEK_SET);
+
+		/* If get end of file, then pop foff, We'll push it later again, to prevent from bad loop */
+		if(feof(fil)) {
+			if ( egi_filo_pop(data_txt->filo_off, &foff)>0 ) { /* >0, filo emplty*/
+				foff=0;
+			}
+		}
+	}
+	/* read FORWARD, push current foff at the end of this function */
 
 	while( !feof(fil) )
 	{
@@ -669,7 +685,6 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			break;
 
 		//printf("-------- finish fread():  nread=fread()=%d ------- \n",nread);
-
 		 /*TODO: for() session to be replaced by egi_push_datatxt() if possible  */
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
@@ -696,8 +711,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			}
 
 			/* ----- 2. if symbol code out of range */
-			else if( (uint8_t)buf[i] > maxnum )
-			{
+			else if( (uint8_t)buf[i] > maxnum ) {
 				printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
 				continue;
 			}
@@ -717,7 +731,6 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 				continue;
 #endif
 			}
-
 			/* ----- 4. OK, now push a char to txt[][] */
 			else
 			{
@@ -727,40 +740,32 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 				nt++;
 
 				/* ----- 5. check remained space
-				check Max. char number per line =llen
-					*/
-				if( nt > llen-1 ) /* txt buf end */
-				{
+				 * check Max. char number per line =llen
+				 */
+				if( nt > llen-1 )  { /* txt buf end */
 					nlw +=1; /* new line */
 					nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 				}
 
 			}
-
 			/* -----  5. check whether total number of lines used up  ------- */
-			if(nlw>nl-1) /* no more line for txt ebox */
-			{
+			if(nlw>nl-1) { /* no more line for txt ebox */
 				//ret+=i+1; /* count total chars, plus pushed in this for() */
 				//printf("last push txt i=%d of one read nread=%d, total ret=%d \n",i,nread,ret);
 				break; /* end for() session */
 			}
 			/* if else, go on for() to push next char */
 
-
-
 		}/* END for() */
 
 
-
 		/* check if txt line is used up, end this file-read session */
-		if(nlw>nl-1)
-		{
+		if(nlw>nl-1) {
 			ret+=i+1;
 			break; /* end while() of fread */
 		}
-		else
 		/* or if just finish pushing nread (may not be sizeof(buf)) to txt */
-		{
+		else {
 			ret+=nread;
 		}
 
@@ -773,17 +778,25 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 		printf("%s\n",txt[i]);
 #endif
 
-	/* save current file position */
-	if(feof(fil))
-	{
-		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset offset,if end of file */
+	/* If read FORWARD, push current foff, before renew the foff  */
+	if( data_txt->forward >0) {
+		egi_filo_push(data_txt->filo_off,&foff);
+	}
+
+	if(feof(fil)) {
+                ((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; /* reset offset,if end of file */
 		ret=0; /* end of file */
 	}
-	else
-	{
+	/* If read BACKWARD, and reach the first page */
+	else if( data_txt->forward<0 && foff==0) {
+		/* DO NOTHING,  when filo is empty, pop fails and foff will be set to 0, see above. */
+	}
+	else {
 		//EGI_PDEBUG(DBG_TXT,"ftell(fil)=%ld\n",ftell(fil));
+		/* Renew foff for NEXT read */
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; //ftell(fil);
 	}
+
 
 	fclose(fil);
 
@@ -805,6 +818,9 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 	int i;
 	int nl=data_txt->nl;
 
+	if(data_txt->filo_off !=NULL )
+		egi_free_filo(data_txt->filo_off);
+
 	if( data_txt->txt != NULL)
 	{
 		for(i=0;i<nl;i++)
@@ -821,6 +837,7 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 		free(data_txt);
 		data_txt=NULL;
 	}
+
 
 }
 
@@ -880,7 +897,7 @@ push txt to ebox->data_txt->txt[]
 
 data_txt:	the target txt data
 buf:		the source buffer
-*pnlw:		return number of lines used for written.
+*pnl:		return number of lines used for written.
 		<=nl, OK.
 		>nl, not enough space for char *buf.
 
@@ -914,7 +931,7 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
 	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
-	int symheight=data_txt->font->symheight;
+//	int symheight=data_txt->font->symheight;
 	int maxnum=data_txt->font->maxnum;
 
 	int nread=strlen(buf); /* total bytes of chars */
@@ -931,14 +948,12 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 			nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 
 		}
-
 		/* ----- 2. if symbol code out of range */
 		else if( (uint8_t)buf[i] > maxnum )
 		{
 			//printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
 			continue;
 		}
-
 		/* ----- 3. check available pixel space for current line
 		   Max. pixel number per line = bxwidth 	*/
 		else if( symwidth[ (uint8_t)buf[i] ] > (bxwidth-ncount - 2*offx) )
@@ -949,7 +964,6 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 			i--;
 
 		}
-
 		/* ----- 4. OK, now push a char to txt[][] */
 		else
 		{
@@ -987,4 +1001,38 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 		*pnl=nlw+1; /*  nlw  index from 0  */
 
 	return i;
+}
+
+/*-----------------------------------------------------
+set txt_file read/scroll direction:
+direct
+	>0:	forward
+	=0:	stop
+	<0:	backward
+
+Return
+	0	OK
+	<0	Fails
+------------------------------------------------------*/
+int egi_txtbox_set_direct(EGI_EBOX *ebox, int direct)
+{
+	if(ebox==NULL) {
+		printf("%s: input ebox is NULL.\n",__func__);
+		return -1;
+	}
+
+	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
+	if(data_txt==NULL) {
+		printf("%s: input ebox->data_txt is NULL.\n",__func__);
+		return -2;
+	} /* if data_txt is OK, we are sure that data_txt->filo_off is also OK */
+
+	/* if change from FORWARD to BACKWARD, pop out an foff value to avoid refreshing the same txt buff */
+	if( data_txt->forward>0 && direct<0 && data_txt->foff>0 ) {
+		egi_filo_pop(data_txt->filo_off, NULL);
+	}
+
+	data_txt->forward=direct;
+
+	return 0;
 }

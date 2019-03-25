@@ -1,3 +1,14 @@
+/*----------------------------------------------------------------------------------------
+A EGI_FILO buffer
+
+1. WARNING: No mutex lock applied, It is supposed there is only one pusher and one puller,
+   and they should NOT write/read the buff at the same time.
+
+2. When you set auto double/halve flag, make sure that buff_size is N power of 2,
+   or buff_size=1<<N. !!! --- IF NOT, DATA WILL BE LOST AFTER REALLOC --- !!!
+
+Midas Zhou
+----------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -5,6 +16,7 @@
 #include "egi_log.h"
 #include "egi_utils.h"
 #include "egi_filo.h"
+
 
 /*-----------------------------------------------------------------
 Calloc and init a FILO buffer
@@ -46,6 +58,8 @@ EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc)
                 efilo=NULL;
                 return NULL;
         }
+	efilo->buff_size=buff_size;
+	efilo->item_size=item_size;
 	efilo->pt=0;
 	efilo->auto_realloc=realloc;
 
@@ -67,10 +81,10 @@ void egi_free_filo(EGI_FILO *efilo )
                 }
                 /* free itself */
                 free(efilo);
+
                 efilo=NULL;
         }
 }
-
 
 
 /*-----------------------------------------------
@@ -97,22 +111,26 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
         }
 	/* check buff space */
 	if(filo->pt==filo->buff_size) {
-		/* auto reacllocate, increase buff to double size*/
-		if(filo->auto_realloc) {
-			if(realloc(filo->buff, (filo->buff_size)<<1) == NULL)	{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff.\n",__func__);
+		/* if enable auto double reaclloc, double buff size*/
+		if((filo->auto_realloc)&0b01) {
+		 	if( egi_realloc_buff2D( &filo->buff, filo->buff_size,
+					    		(filo->buff_size)<<1, filo->item_size ) !=0 )
+			{
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to double size.\n", __func__);
 				return -3;
 			}
 			filo->buff_size <<= 1;
+			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is doubled to be %d.\n",
+									__func__, filo->buff_size);
 		}
-		/* buff is full */
 		else {
-			EGI_PLOG(LOGLV_ERROR,"%s: FILO buff is full.\n",__func__);
+			EGI_PLOG(LOGLV_ERROR,"%s: FILO buff is full. no more data to push in.\n", __func__);
 			return 1;
 		}
 	}
 	/* push data into buff */
-	memcpy(filo->buff[filo->pt],(unsigned char *)data, filo->item_size);
+	memcpy( (void *)(filo->buff)[filo->pt], data, filo->item_size );
+
 	filo->pt++;
 
 	return 0;
@@ -128,7 +146,7 @@ Return:
 	>0	filo buff is empty.
 	0	OK
 	<0	fails
--------------------------------------------*/
+--------------------------------------------*/
 int egi_filo_pop(EGI_FILO *filo, void* data)
 {
 	/* verifyi input data */
@@ -136,18 +154,33 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
                 EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
                 return -1;
         }
-	if( data==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input data is invalid.\n",__func__);
-                return -2;
-        }
+	/* if data==NULL, Do not pass data */
 	/* check buff point */
 	if( filo->pt==0 ) {
-		printf("egi_filo_pop(): buff is empty!\n");
+		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
+												__func__);
 		return 1;
+	}
+	/* if enbale auto halve realloc, halve buff size */
+	if( (filo->auto_realloc)&0b10 )  {
+		/* check buff space, if half empty */
+		if( filo->pt == (filo->buff_size)>>1 )  {
+			if( egi_realloc_buff2D( &filo->buff, filo->buff_size,
+				    		(filo->buff_size)>>1, filo->item_size ) !=0 )
+			{
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to half size.\n", __func__);
+				return -3;
+			}
+			filo->buff_size >>= 1;
+			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is halved to be %d.\n",
+									__func__, filo->buff_size);
+		}
 	}
 	/* shift pt and copy data */
 	filo->pt--;
-	memcpy((unsigned char *)data, filo->buff[filo->pt],filo->item_size);
+
+	if(data != NULL)
+		memcpy( data, (void *)(filo->buff)[filo->pt], filo->item_size);
 
 	return 0;
 }

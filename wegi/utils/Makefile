@@ -7,7 +7,7 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 APP=egi_fifo
 
-OBJS= egi_utils.o egi_fifo.o egi_filo.o egi_iwinfo.o ../egi_log.o ../egi_timer.o
+OBJS= egi_utils.o egi_fifo.o egi_filo.o egi_iwinfo.o ../egi_log.o ../egi_timer.o 
 
 ## Shall also include all sys libs head file dir
 CFLAGS += -Wall -I../ -I../utils -I$(COMMON_USRDIR)/include
@@ -21,6 +21,9 @@ test_fifo: test_fifo.c $(OBJS)
 
 test_filo: test_filo.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_filo.c -o test_filo
+
+test_fsearch: test_fsearch.c $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_fsearch.c -o test_fsearch
 
 egi_fifo.o: egi_fifo.h egi_fifo.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_fifo.c
@@ -37,7 +40,8 @@ egi_iwinfo.o: egi_iwinfo.h egi_iwinfo.c
 
 .PHONY:	clean
 clean:
-	rm -rf $(APP) $(APP).o test_fifo egi_utils.o egi_fifo.o egi_iwinfo.o
+	rm -rf $(APP) $(APP).o egi_utils.o egi_fifo.o egi_iwinfo.o
+	rm -rf test_fifo test_filo test_fsearch
 
 #CFLAGS += $(shell pkg-config --cflags json-c)
 #LDFLAGS += $(shell pkg-config --libs json-c)

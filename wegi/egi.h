@@ -16,6 +16,7 @@ Midas Zhou
 //#include "egi_fbgeom.h"
 #include "egi_image.h"
 #include "egi_color.h"
+#include "egi_filo.h"
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
@@ -298,23 +299,35 @@ struct egi_touch_data
 };
 
 
-
 /* egi data for a txt type ebox */
 typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
 	unsigned int id; /* unique id number for txt, MUST>0, default 0 for ignored  */
-	int offx; /* offset from ebox x0,y0 */
+	int offx; 	/* offset from ebox x0,y0 */
 	int offy;
-	int nl;  /* number of txt lines, make it as big as possible?? */
-	int llen; /* in byte, number of chars for each line. The total pixel number
-	   of those chars should not exceeds ebox->width, or it may display in a roll-back way.
-	 */
+	int nl;  	/* number of txt lines, make it as big as possible?? */
+	int llen; 	/* in byte, number of chars for each line. The total pixel number
+	   	   	 * of those chars should not exceeds ebox->width, or it may display in a roll-back way.
+	 	   	 */
+
 	struct symbol_page *font;
 	uint16_t color; /* txt color */
-	char **txt; /*multiline txt data */
-	char *fpath; /* txt file path if applys */
-	long foff; /* curret offset of the txt file if applys */
+	char **txt; 	/*multiline txt data */
+
+	/* ...For txt file operaton... */
+	char *fpath; 	/* txt file path if applys */
+	long foff; 	/* curret offset of the txt file if applys
+			 * sizeof(long) is the time_size of filo_off
+			 */
+	int forward; 	/* flag, read file forward/backward when refresh egi_txt
+		      	 * >0 Read Forward (as default)
+			 * =0 STOP
+		      	 * <0 Read Backward
+		      	 */
+	EGI_FILO *filo_off; /* a FILO buff for push/pop offset position for txt file
+			     *
+			     */
 };
 
 
@@ -322,16 +335,16 @@ struct egi_data_txt
 typedef struct egi_data_btn EGI_DATA_BTN;
 struct egi_data_btn
 {
-	//char tag[32]; /* short description of the button */
-	unsigned int id; /* unique id number for btn, MUST >0, default 0 for ignored  */
-	enum egi_btn_type shape; /* button shape type, square or circle */
+	//char tag[32]; 	  /* short description of the button */
+	unsigned int id; 	  /* unique id number for btn, MUST >0, default 0 for ignored  */
+	enum egi_btn_type shape;  /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
-	uint32_t icon_code; /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
+	uint32_t icon_code; 	  /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
-	uint16_t font_color; /* tag font color, defaul is black */
-	int opaque; /* opaque value for the icon, default 0, 0---totally NOT transparent */
+	uint16_t font_color; 	  /* tag font color, defaul is black */
+	int opaque; 		  /* opaque value for the icon, default 0, 0---totally NOT transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
-	bool showtag; /* to show tag on button or not, default 0, */
+	bool showtag;             /* to show tag on button or not, default 0, */
 };
 
 /* egi data for a list type ebox */

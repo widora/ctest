@@ -74,9 +74,10 @@ unsigned char** egi_malloc_buff2D(int items, int item_size)
 /*---------------------------------------------------------------------------------------
 reallocate 2 dimension buff.
 NOTE:
-  1. WARNING: Caller must ensure buff dimension and size, old data will be lost after reallocation!!!!
-  2. Be carefull to use when new_items < old_itmes, if realloc fails, then **buff may NOT be
-     reverted to the old_items.!!!!
+  1. WARNING: Caller must ensure buff dimension size, old data will be lost after reallocation!!!!
+     !!!! After realloc, the Caller is responsible to revise dimension size of buff accordingly.
+  2. Be carefull to use when new_items < old_itmes, if realloc fails, then dimension of buff
+     may NOT be able to reverted to the old_items.!!!!
 
 buff:		buffer to be reallocated
 old_items:	original item number as of buff[items][item_size]
@@ -87,13 +88,13 @@ return:
 	0	 	OK
 	<0		Fails
 ----------------------------------------------------------------------------------------*/
-int egi_realloc_buff2D(unsigned char **buff, int old_items, int new_items, int item_size)
+int egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int item_size)
 {
 	int i,j;
 	unsigned char **tmp;
 
 	/* check input data */
-	if(buff==NULL) {
+	if( buff==NULL || *buff==NULL) {
 		printf("egi_realloc_buff2(): input buff is NULL.\n");
 		return -1;
 	}
@@ -101,44 +102,45 @@ int egi_realloc_buff2D(unsigned char **buff, int old_items, int new_items, int i
 		printf("egi_realloc_buff2(): itmes or item_size is invalid.\n");
 		return -2;
 	}
-	/* only if items changed */
+	/* free redundant buff[] before realloc buff */
+	if(new_items < old_items) {
+		for(i=new_items; i<old_items; i++)
+			free((*buff)[i]);
+	}
+	/* if items changed */
 	if( new_items != old_items ) {
-		tmp=realloc(buff, sizeof(unsigned char *)*new_items);
+		tmp=realloc(*buff, sizeof(unsigned char *)*new_items);
 		if(tmp==NULL) {
 			printf("egi_realloc_buff2D(): fail to realloc buff.\n");
 			return -3;
 		}
-		buff=tmp;
+		*buff=tmp;
 	}
 	/* need to calloc buff[] */
 	if( new_items > old_items ) {
 		for(i=old_items; i<new_items; i++) {
-			buff[i]=calloc(item_size, sizeof(unsigned char));
+			(*buff)[i]=calloc(item_size, sizeof(unsigned char));
 
-			if(buff[i]==NULL) {
+			if((*buff)[i]==NULL) {
 				printf("egi_realloc_buff2D(): fail to calloc buff[%d], free buff and return.\n",i);
 				for(j=i-1; j>old_items-1; j--)
-					free( buff[j] );
+					free( (*buff)[j] );
 
 				/* revert item number to old_items !!! MAY BE TRAPED HERE!!! */
 				tmp=NULL;
 				while(tmp==NULL) {
 					printf("egi_realloc_buff2D(): realloc fails,revert item number to old_items.\n");
-					tmp=realloc( buff, sizeof(unsigned char *)*old_items );
+					tmp=realloc( *buff, sizeof(unsigned char *)*old_items );
 				}
+
+				*buff=tmp;
 				return -4;
 			}
 		}
 	}
-	/* free redundant buff[] */
-	else if(new_items < old_items) {
-		for(i=new_items; i<old_items; i++)
-			free(buff[i]);
-	}
 
 	return 0;
 }
-
 
 
 
@@ -177,13 +179,8 @@ void egi_free_buff2D(unsigned char **buff, int items)
 }
 
 
-
-#define EGI_PATH_MAX 256 /* Max length for a file name */
-#define EGI_NAME_MAX 128 /* Max length for a file path */
-#define EGI_SEARCH_FILE_MAX (1<<10) /* to be 2**n, Max number of files for ff_fpath_buff[] */
-#define EGI_FEXTNAME_MAX 10 /* !!! exclude '.', length of extension name */
 /*------------------------------------------------------------------------------------------
-1. Find out specified type of files in a specified directory and push them into allocated fpbuff,
+1. Find out all files with specified type in a specified directory and push them into allocated fpbuff,
 then return the fpbuff pointer.
 2. The fpbuff will expend its memory double each time when no space left for more file paths.
 3. Remember to free() the fpbuff at last.

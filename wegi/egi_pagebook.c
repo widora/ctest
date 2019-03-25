@@ -66,7 +66,7 @@ EGI_PAGE *egi_create_bookpage(void)
         	&sympg_testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
-	book_txt->id=1; /* set unique id */
+	book_txt->id=BOOK_TXT_ID; /* set unique id */
 
 	/* 2. set book txt fpath */
 	book_txt->fpath="/home/memo.txt";
@@ -92,12 +92,10 @@ EGI_PAGE *egi_create_bookpage(void)
         );
         egi_txtbox_settitle(title_bar, "	Today's News ");
 
-
 	/*  5. create three play buttons */
         EGI_EBOX *play_btns[3]; /* 0-left, 1-exit,  2-right */
         EGI_DATA_BTN *data_btns[3];
 	int sym_code[3]={11,2,10}; /*left(back),exit,right(forward)---- int icon_code for sympg_icons_2 */
-
 	for(i=0;i<3;i++)
 	{
 	       	/* 5.1. create data_btns for UP ARROW */
@@ -108,8 +106,7 @@ EGI_PAGE *egi_create_bookpage(void)
 			&sympg_testfont /* for ebox->tag font */
         	);
         	/* if fail, try again ... */
-                if(data_btns[i]==NULL)
-                {
+                if(data_btns[i]==NULL) {
                 	printf("egi_create_mplaypage(): fail to call egi_btndata_new() for	\
 										data_btns[%d] fails.\n",i );
                         i--;
@@ -128,8 +125,7 @@ EGI_PAGE *egi_create_bookpage(void)
                                             -1 /*int prmcolor */
                                           );
                /* if fail, try again ... */
-               if(play_btns[i]==NULL)
-               {
+               if(play_btns[i]==NULL) {
                		printf("egi_create_bookpage(): fail to call egi_btnbox_new() for play_btns[%d] \n",i);
                         free(data_btns[i]);
                         data_btns[i]=NULL;
@@ -139,7 +135,6 @@ EGI_PAGE *egi_create_bookpage(void)
                }
 	}
 
-
         /* 5.3 add button tags and reactions here */
         egi_ebox_settag(play_btns[0], "backward");
         play_btns[0]->reaction=book_backward;
@@ -148,12 +143,10 @@ EGI_PAGE *egi_create_bookpage(void)
         egi_ebox_settag(play_btns[2], "forward");
         play_btns[2]->reaction=book_forward;
 
-
         /* 6. create book page  */
         /* 6.1 create book page */
         page_book=egi_page_new("page_book");
-        while(page_book==NULL)
-        {
+        while(page_book==NULL) {
                         printf("egi_create_bookpage(): fail to call egi_page_new(), try again ...\n");
                         page_book=egi_page_new("page_book");
                         usleep(100000);
@@ -167,7 +160,6 @@ EGI_PAGE *egi_create_bookpage(void)
         /* 6.4 set wallpaper */
         //no wallpaper!! page_book->fpath="/tmp/mplay.jpg";
 
-
 	/* 6.5  add to page ebox list and
 	   6.6  set container */
 	/*----- BEWARE OF THE SEQUENCE FOR REFRESH--------*/
@@ -177,12 +169,10 @@ EGI_PAGE *egi_create_bookpage(void)
  	egi_page_addlist(page_book,title_bar); /* title bar */
 	title_bar->container=page_book;
 
-	for(i=0;i<3;i++) /* buttons */
-	{
+	for(i=0;i<3;i++) { /* buttons */
 	 	egi_page_addlist(page_book,play_btns[i]);
 		play_btns[i]->container=page_book;
 	}
-
 
 	return page_book;
 }
@@ -209,28 +199,26 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 return btnret_IDLE;
 
 	EGI_PDEBUG(DBG_TEST,"book_forward() triggered. \n");
-
 	EGI_EBOX *txt_ebox;
-	unsigned int book_id=BOOK_TXT_ID; /*txt ebox id for the book */
+//	unsigned int book_id=BOOK_TXT_ID; /*txt ebox id for the book */
 
 	/* get its container */
 	EGI_PAGE *page=ebox->container;
 
 	/* find the txt ebox in the page
 	    egi_page_pickbtn() will verify the integrity of the page*/
-	txt_ebox=egi_page_pickebox(page, type_txt, book_id);
-	if(txt_ebox == NULL)
-	{
-		printf("[page '%s'] book_foreard(): fail to find txt_ebox with id=%d .\n",
-									page->ebox->tag,book_id);
+	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_TXT_ID); //book_id);
+	if(txt_ebox == NULL) {
+		printf("[page '%s'] book_forward(): fail to find txt_ebox with id=%d .\n",
+									page->ebox->tag,BOOK_TXT_ID);
 		return btnret_ERR;
 	}
 
+	/* set read direction */
+	egi_txtbox_set_direct(txt_ebox, 1); /* > 0 backward */
+
 	/* refresh the txt ebox */
 	/* !!!! as we return pgret_OK, egi_page_routine() will refresh the host page !!!! */
-	//egi_page_needrefresh(page);
-	//egi_page_refresh(page);
-
         return pgret_OK; /*return pgret_OK to refresh page */
 }
 
@@ -246,8 +234,28 @@ static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-        egi_msgbox_create("Message:\n  Backward function not defined yet!", 1000, WEGI_COLOR_GRAY2);
-        return btnret_OK;
+//        egi_msgbox_create("Message:\n  Backward function not defined yet!", 1000, WEGI_COLOR_GRAY2);
+
+	EGI_PDEBUG(DBG_TEST,"book_backward() triggered. \n");
+	EGI_EBOX *txt_ebox;
+
+	/* get its container */
+	EGI_PAGE *page=ebox->container;
+
+	/* find the txt ebox in the page
+	 *   egi_page_pickbtn() will verify the integrity of the page
+         */
+	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_TXT_ID); //book_id);
+	if(txt_ebox == NULL) {
+		printf("[page '%s'] book_backward(): fail to find txt_ebox with id=%d .\n",
+									page->ebox->tag,BOOK_TXT_ID);
+		return btnret_ERR;
+	}
+
+	/* set read direction */
+	egi_txtbox_set_direct(txt_ebox, -1); /* < 0 backward */
+
+        return pgret_OK; /* return pgret_OK to refresh page */
 }
 
 /*-------------------------------------------------------
