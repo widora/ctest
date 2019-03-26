@@ -317,9 +317,10 @@ struct egi_data_txt
 
 	/* ...For txt file operaton... */
 	char *fpath; 	/* txt file path if applys */
-	long foff; 	/* curret offset of the txt file if applys
+	long foff; 	/* current seek position of the txt file.
 			 * sizeof(long) is the time_size of filo_off
 			 */
+	long count;     /* count of chars loaded to txt[] for displaying */
 	int forward; 	/* flag, read file forward/backward when refresh egi_txt
 		      	 * >0 Read Forward (as default)
 			 * =0 STOP

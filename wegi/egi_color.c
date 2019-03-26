@@ -83,7 +83,7 @@ Midas Zhou
 ---------------------------------------------------*/
 uint16_t egi_colorgray_random(enum egi_color_range range)
 {
-        int i,j;
+        int i;
         uint8_t color; /*R=G=B*/
         struct timeval tmval;
         uint16_t ret;
@@ -94,8 +94,8 @@ uint16_t egi_colorgray_random(enum egi_color_range range)
         /* random number 0-5 */
         for(;;)
         {
-                j=(int)(15.0*rand()/(RAND_MAX+1.0));
-                color= 0x11*j;  /*i=0,1,2 -> R,G,B, j=0-14(0-E)*/
+                i=(int)(15.0*rand()/(RAND_MAX+1.0));
+                color= 0x11*i;
 
                 if( range > 0 ) /* if not all color range */
 		{

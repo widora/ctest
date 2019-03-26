@@ -262,8 +262,8 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int bkcolor=SYM_FONT_DEFAULT_TRANSPCOLOR;
 	int symheight;
 	int symwidth;
-	int icon_code;
-	uint16_t sym_subcolor; /* symbol substitute color */
+	int icon_code=0; /* 0, first ICON */;
+	uint16_t sym_subcolor=0; /* symbol substitute color, 0 as no subcolor */
 
 	/* check data */
         if( ebox == NULL)
@@ -315,12 +315,11 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
                 return -1;
         }
 
-
 	/* only if it has an icon */
 	if(data_btn->icon != NULL)
 	{
 		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR + CODE */
-		sym_subcolor= (data_btn->icon_code)>>16;
+		sym_subcolor = (data_btn->icon_code)>>16;
 
 		bkcolor=data_btn->icon->bkcolor;
 		symheight=data_btn->icon->symheight;
@@ -423,12 +422,12 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 			/* extract SUB_COLOR and CODE for symbol */
 			//printf("egi_btnbox_refresh(): icon_code=SYM_SUB_COLOR + CODE. \n");
 			symbol_writeFB( &gv_fb_dev,data_btn->icon, sym_subcolor, bkcolor,
-					x0, y0, icon_code, data_btn->opaque );
+							    x0, y0, icon_code, data_btn->opaque );
 		}
-		/* else icon_code = CODE only */
+		/* else icon_code = CODE only, sym_subcolor==0 BLACk is NOT applicable !!! */
 		else {
 			symbol_writeFB( &gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
-							x0, y0, icon_code, data_btn->opaque );
+							     x0, y0, icon_code, data_btn->opaque );
 		}
 	}
 

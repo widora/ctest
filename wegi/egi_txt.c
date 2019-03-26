@@ -45,7 +45,6 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	struct symbol_page *font,
 	uint16_t color
 )
-
 {
 	int i,j;
 
@@ -522,7 +521,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	}
 	/* TODO: other type of frame .....*/
 
-	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to txt[][] */
+	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to renew txt[][] */
 	if(data_txt->fpath)
 	{
 		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh():  data_txt->fpath is NOT null, re-read txt file now...\n");
@@ -596,7 +595,7 @@ int egi_txtbox_sleep(EGI_EBOX *ebox)
 /*-----------------------------------------------------------------
 Note:
 1. Read a txt file and try to push it to egi_data_txt->txt[]
-2. If it reaches the end of file, then reset offset and roll back.
+NOPE! 2. If it reaches the end of file, then reset offset and roll back.
 3. llen=data_txt->llen-1  one byte for string end /0.
 4. Limit conditions for line return:
 	4.1 Max. char number per line   =  llen;
@@ -604,12 +603,18 @@ Note:
 
 Return:
 	>0	number of chars read and stored to txt[].
-	0	get end of file.
+	0	get end of file or stop reading.
 
 	<0	fail
 ----------------------------------------------------------------*/
 int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 {
+	/* check input data here */
+	if( ebox==NULL || ebox->egi_data==NULL ) {
+		printf("egi_txtbox_readfile(): input ebox or its egi_data is NULL!\n");
+		return -1;
+	}
+
 	FILE *fil;
 	int i;
 	char buf[32]={0};
@@ -634,57 +639,48 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	 nl = nl < (bxheight/symheight) ? nl : (bxheight/symheight);  */
 
 	/* check ebox data here */
-	if( txt==NULL )
-	{
+	if( txt==NULL ) {
 		printf("egi_txtbox_readfile(): data_txt->txt is NULL!\n");
-		return -1;
-	}
-	/* reset txt buf */
-	for(i=0;i<nl;i++)
-		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
-	/* open txt file */
-	fil=fopen(path,"rb");
-	if(fil==NULL)
-	{
-		perror("egi_txtbox_readfile()");
 		return -2;
 	}
-	printf("egi_txtbox_readfile(): succeed to open %s, current offset=%ld \n",path,foff);
+
+	/* If STOP reading */
+	if(data_txt->forward==0 )
+		return 0;
+
+	/* If read FORWARD && count<0 indicating end of file alread */
+	if( data_txt->forward > 0 && data_txt->count<0 )
+		return 0;
 
 	/* If read BACKWARD, pop foff from FILO filo_off */
 	if(data_txt->forward < 0) {
 		if( egi_filo_pop(data_txt->filo_off, &foff)>0 ) {   /* >0, filo empty */
 			foff=0;
-		}
-
-		/* restore file position */
-		fseek(fil,foff,SEEK_SET);
+		} /* else, foff is popped from filo_off */
 	}
-	/* If read FOREWARD */
-	else if(data_txt->forward >0) {
+	/* If read FOREWARD, push foff if !feof(fil), see at the end of this function */
 
-		/* restore file position */
-		fseek(fil,foff,SEEK_SET);
-
-		/* If get end of file, then pop foff, We'll push it later again, to prevent from bad loop */
-		if(feof(fil)) {
-			if ( egi_filo_pop(data_txt->filo_off, &foff)>0 ) { /* >0, filo emplty*/
-				foff=0;
-			}
-		}
+	/* reset txt buf and open file */
+	for(i=0;i<nl;i++)
+		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
+	fil=fopen(path,"rb");
+	if(fil==NULL) {
+		perror("egi_txtbox_readfile()");
+		return -2;
 	}
-	/* read FORWARD, push current foff at the end of this function */
+	printf("egi_txtbox_readfile(): succeed to open %s, current offset=%ld \n",path,foff);
+
+	/* restore file position */
+	fseek(fil,foff,SEEK_SET);
 
 	while( !feof(fil) )
 	{
 		memset(buf,0,sizeof(buf));/* clear buf */
 
 		nread=fread(buf,1,sizeof(buf),fil);
-		//EGI_PDEBUG(DBG_TXT,"nread=%d\n",nread);
 		if(nread <= 0) /* error or end of file */
 			break;
 
-		//printf("-------- finish fread():  nread=fread()=%d ------- \n",nread);
 		 /*TODO: for() session to be replaced by egi_push_datatxt() if possible  */
 		/* here put char to egi_data_txt->txt */
 		for(i=0;i<nread;i++)
@@ -771,32 +767,35 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 
 	} /* END while() of fread */
 
-
 	/* DEBUG, print out all txt in txt data buf */
 #if 0
 	for(i=0;i<nl;i++)
 		printf("%s\n",txt[i]);
 #endif
 
-	/* If read FORWARD, push current foff, before renew the foff  */
-	if( data_txt->forward >0) {
-		egi_filo_push(data_txt->filo_off,&foff);
-	}
+	/* renew data_txt->count, current count of chars loaded to txt[]  */
+	data_txt->count=ret;
 
+	/* If reach end of file, renew foff to end position, we'll verify it at begin of this func */
 	if(feof(fil)) {
-                ((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; /* reset offset,if end of file */
+		//printf("---------------end: END OF FILE ----------------\n");
+		/* push foff and set count<0, to avoid endless pushing.  */
+		egi_filo_push(data_txt->filo_off, &foff);
+		data_txt->count=-1;
+
 		ret=0; /* end of file */
 	}
-	/* If read BACKWARD, and reach the first page */
-	else if( data_txt->forward<0 && foff==0) {
-		/* DO NOTHING,  when filo is empty, pop fails and foff will be set to 0, see above. */
+	/* If read BACKWARD, save curretn position to data_txt->foff */
+	else if( data_txt->forward<0 ) {
+		((EGI_DATA_TXT *)(ebox->egi_data))->foff = foff+ret;
 	}
-	else {
-		//EGI_PDEBUG(DBG_TXT,"ftell(fil)=%ld\n",ftell(fil));
+	/* IF read FORWARD, renew data_txt->foff for NEXT read */
+	else if( data_txt->forward>0 ) {
+		/* push open_time txt position first, */
+		egi_filo_push(data_txt->filo_off,&foff);
 		/* Renew foff for NEXT read */
-		((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret; //ftell(fil);
+		((EGI_DATA_TXT *)(ebox->egi_data))->foff +=ret;
 	}
-
 
 	fclose(fil);
 
@@ -1016,6 +1015,8 @@ Return
 ------------------------------------------------------*/
 int egi_txtbox_set_direct(EGI_EBOX *ebox, int direct)
 {
+	long pt=0;
+
 	if(ebox==NULL) {
 		printf("%s: input ebox is NULL.\n",__func__);
 		return -1;
@@ -1027,9 +1028,18 @@ int egi_txtbox_set_direct(EGI_EBOX *ebox, int direct)
 		return -2;
 	} /* if data_txt is OK, we are sure that data_txt->filo_off is also OK */
 
-	/* if change from FORWARD to BACKWARD, pop out an foff value to avoid refreshing the same txt buff */
+	/* if change from FORWARD to BACKWARD:
+	 * pop out an foff value to avoid refreshing the same txt buff twice */
 	if( data_txt->forward>0 && direct<0 && data_txt->foff>0 ) {
 		egi_filo_pop(data_txt->filo_off, NULL);
+	}
+	/* if change form BACKWARD to FORWARD:
+	 *  MUST push current foff again!!!, otherwise current foff will be lost in data_txt filo!  
+         *  So we keep all foffs in filo, they are continuous indexes for file displaying.
+ 	 */
+	else if (data_txt->forward<0 && direct>0 ) {
+		pt=data_txt->foff - data_txt->count; /* For foff is pointed to the end of txt page */
+		egi_filo_push(data_txt->filo_off, &pt);
 	}
 
 	data_txt->forward=direct;

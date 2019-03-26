@@ -283,7 +283,7 @@ static void iot_update_data(void)
 	long vmsize;
 	int ws;	/* wifi speed bytes/s */
 	char sendbuff[BUFFSIZE]={0}; /* for recv() buff */
-	int ret;
+	int ret=0;
 	/* open /porc/loadavg to get load value */
         double load=0.0;
         int fd;
@@ -339,13 +339,8 @@ static void iot_update_data(void)
 		/* 4. create data json */
  		json_data=iot_new_datajson( (const int *)id, data, 3);
 		if(json_data==NULL) {
-		    /* free json_update then */
-		    if(json_object_put(json_update) != 1)
-			EGI_PLOG(LOGLV_ERROR,"%s: iot_new_datajson() fails, Fail to put json_update!\n"
-												,__func__);
 		    continue;
 		}
-
 		/* 5. prepare template json */
 		json_update=json_tokener_parse(strjson_update_template);
 		/* 6. insert data json to update template json */

@@ -199,8 +199,8 @@ int egi_page_activate(EGI_PAGE *page)
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
 	int ret=0;
-	int xres=gv_fb_dev.vinfo.xres;
-	int yres=gv_fb_dev.vinfo.yres;
+	int xres __attribute__((__unused__))=gv_fb_dev.vinfo.xres;
+	int yres __attribute__((__unused__))=gv_fb_dev.vinfo.yres;
 
 	/* check data */
 	if(page==NULL || page->ebox==NULL)
@@ -263,8 +263,8 @@ int egi_page_refresh(EGI_PAGE *page)
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
 	int ret;
-	int xres=gv_fb_dev.vinfo.xres;
-	int yres=gv_fb_dev.vinfo.yres;
+	int xres __attribute__((__unused__))=gv_fb_dev.vinfo.xres;
+	int yres __attribute__((__unused__))=gv_fb_dev.vinfo.yres;
 
 	/* check data */
 	if( page==NULL || page->ebox==NULL )
@@ -443,7 +443,7 @@ return:
 -----------------------------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
-	int i,j;
+	int i;
 	int ret;
 	uint16_t sx,sy;
 	enum egi_touch_status last_status=released_hold;
@@ -454,8 +454,8 @@ int egi_page_routine(EGI_PAGE *page)
 
 
 	/* for time struct */
-	struct timeval t_start,t_end; /* record two pressing_down time */
-	long tus;
+//	struct timeval t_start,t_end; /* record two pressing_down time */
+//	long tus;
 
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
 

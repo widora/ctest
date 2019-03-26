@@ -200,7 +200,6 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	EGI_PDEBUG(DBG_TEST,"book_forward() triggered. \n");
 	EGI_EBOX *txt_ebox;
-//	unsigned int book_id=BOOK_TXT_ID; /*txt ebox id for the book */
 
 	/* get its container */
 	EGI_PAGE *page=ebox->container;
