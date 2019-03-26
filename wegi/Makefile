@@ -49,7 +49,8 @@ OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 APPS = tmp_app
 
-EXTRA_OBJS = buttons.o iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
+#buttons.o
+EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
 	     utils/egi_filo.o
 
 

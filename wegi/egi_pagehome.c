@@ -199,7 +199,7 @@ EGI_PAGE *egi_create_homepage(void)
 	/* 3.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
 	page_home->runner[0]=egi_display_cpuload;
 	page_home->runner[1]=egi_display_iotload;
-	page_home->runner[2]=NULL;//egi_iotclient;
+	page_home->runner[2]=NULL; //egi_iotclient;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_page_routine;
