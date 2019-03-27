@@ -8,6 +8,7 @@ Midas Zhou
 #include <fcntl.h>
 #include <errno.h>
 #include "egi_cstring.h"
+#include "egi_log.h"
 
 /*--------------------------------------------------
 Trim all spaces at end of a string, return a pointer
@@ -218,11 +219,22 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 		}
 
 	} /* end of while() */
+
 	if(!found_sect) {
 		printf("%s: Fail to find given SECTION:[%s] in config file.\n",__func__,sect);
 		ret=1;
 	}
-
+#if 1
+	/* log errors */
+	if(ret !=0 ) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to get value of key:[%s] in section:[%s] in config file.\n",
+										      __func__, key, sect);
+	}
+	else {
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Get value of key:[%s] in section:[%s] in config file.\n",
+										      __func__, key, sect);
+	}
+#endif
 	fclose(fil);
 	return ret;
 }

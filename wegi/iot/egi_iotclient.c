@@ -21,7 +21,6 @@ TCP MSS:    Maximum Segment Size is the payload of a TCP packet.
 	    A complete TCP packet:  TCP Header(20bytes) + TCP MSS=Max.1480 bytes.
 	    < ***** > IPv4 is required to handle Min MSS of 536 bytes, while IPv6 is 1220 bytes.
 
-
 TODO:
 1. recv() may return serveral sessions of BIGIOT command at one time, and fill log buffer full(254+1+1):
     //////  and cause log buff overflow !!!! \\\\\\\\
@@ -68,12 +67,8 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_color.h"
 #include "egi_timer.h"
+#include "egi_cstring.h"
 #include "egi_iwinfo.h"
-
-#define IOT_SERVER_ADDR		"121.42.180.30" /* WWW.BIGIOT.NET */
-#define IOT_SERVER_PORT 	8181
-#define IOT_DEVICE_ID		"421"
-#define IOT_DEVICE_KEY		"f80ea043e"
 
 /* IOT data interface ID */
 #define IOT_DATAINF_LOAD	546 /* CPU load */
@@ -116,8 +111,12 @@ struct egi_iotdata
 
 /* json string templates as per BIGIOT protocol */
 #define TEMPLATE_MARGIN		100 /* more bytes that may be added into the following json templates strings */
+
+static char device_id[64];  /*{0}, device_id as string */
+static char device_key[64]; /*{0},  device_key as string */
+
 const static char *strjson_checkin_template=
-			"{\"M\":\"checkin\",\"ID\":421, \"K\":\"f80ea043e\"}\n";
+			"{\"M\":\"checkin\"}";
 const static char *strjson_keepalive_template __attribute__((__unused__))=
 			"{\"M\":\"beat\"}\n";
 const static char *strjson_reply_template=
@@ -127,7 +126,7 @@ const static char *strjson_check_online_template __attribute__((__unused__))=
 const static char *strjson_check_status_template=
 			"{\"M\":\"status\"}\n"; /* return key M value:'connected' or 'checked' */
 const static char *strjson_update_template=
-			"{\"M\":\"update\",\"ID\":\"421\"}";//to insert: \"V\":{\"id1\":\"value1\"}}\n";
+			"{\"M\":\"update\"}"; /* to insert: "ID":id and \"V\":{\"id1\":\"value1\"}}\n"; */
 
 
 /* Functions declaration */
@@ -244,10 +243,10 @@ static void iot_keepalive(void)
 	{
 		/* idle time */
 		//tm_delayms(IOT_HEARTBEAT_INTERVAL*1000);
-		EGI_PLOG(LOGLV_WARN,"---------- start egi_sleep %d [%lld] ------------\n",
-							IOT_HEARTBEAT_INTERVAL, tm_get_tmstampms()/1000 );
+//		EGI_PLOG(LOGLV_WARN,"---------- start egi_sleep %d [%lld] ------------\n",
+//							IOT_HEARTBEAT_INTERVAL, tm_get_tmstampms()/1000 );
 		egi_sleep(1,IOT_HEARTBEAT_INTERVAL,0);
-		EGI_PLOG(LOGLV_WARN,"---------- end egi_sleep() [%lld] ----------\n", tm_get_tmstampms()/1000 );
+//		EGI_PLOG(LOGLV_WARN,"---------- end egi_sleep() [%lld] ----------\n", tm_get_tmstampms()/1000 );
 
 		/* check iot network status */
 		ret=iot_send(&ret, strjson_check_status_template);
@@ -280,7 +279,7 @@ static void iot_update_data(void)
 	int id[3]={ IOT_DATAINF_LOAD, IOT_DATAINF_WSPEED, IOT_DATAINF_VMSIZE};	/* interface ID */
 	double data[3];
 	struct rusage	r_usage;
-	long vmsize;
+	long maxrss;
 	int ws;	/* wifi speed bytes/s */
 	char sendbuff[BUFFSIZE]={0}; /* for recv() buff */
 	int ret=0;
@@ -289,10 +288,8 @@ static void iot_update_data(void)
         int fd;
         char strload[5]={0}; /* read in 4 byte */
 
-
 	json_object *json_data;
 	json_object *json_update;
-
 
 	/* prepare update template */
 	/* !!!!!WARNING: for an object_type json object containing another object_type json object,
@@ -324,7 +321,7 @@ static void iot_update_data(void)
 		iw_get_speed(&ws);
 		/* 3. get VM size */
 		getrusage(RUSAGE_SELF,&r_usage);
-                vmsize=r_usage.ru_maxrss;
+                maxrss=r_usage.ru_maxrss;
 	       //long   ru_maxrss;        /* maximum resident set size */
                //long   ru_ixrss;         /* integral shared memory size */
                //long   ru_idrss;         /* integral unshared data size */
@@ -334,15 +331,18 @@ static void iot_update_data(void)
 
 		/* 3. prepare data json */
 		data[0]=load;
-		data[1]=ws/IW_TRAFFIC_SAMPLE_SEC; /* get average value */
-		data[2]=(double)vmsize;
+		data[1]=ws; /* get average speed value */
+		data[2]=(double)maxrss;
 		/* 4. create data json */
  		json_data=iot_new_datajson( (const int *)id, data, 3);
 		if(json_data==NULL) {
 		    continue;
 		}
-		/* 5. prepare template json */
+
+		/* 5. prepare template json !!!! object_object, re_update !!!! */
 		json_update=json_tokener_parse(strjson_update_template);
+		json_object_object_add(json_update,"ID",json_object_new_string(device_id));
+
 		/* 6. insert data json to update template json */
 		json_object_object_del(json_update,"V");
 		json_object_object_add(json_update,"V",json_data);
@@ -366,8 +366,9 @@ static void iot_update_data(void)
 		/* 9. delay and refresh value */
 		close(fd);
 		//tm_delayms(6000);
-		egi_sleep(3, (6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1), 0);
+		egi_sleep(3, ( 6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1 ), 0);
 	}
+
 }
 
 
@@ -386,6 +387,52 @@ Return:
 static int iot_connect_checkin(void)
 {
    int ret;
+   char pval[256]={0};
+   char psvr[64]={0}; /* server ip */
+   int port=0;	      /* server port */
+   //char device_id[64]={0};  /* device_id as string */
+   //char pkey[64]={0}; /* device_key as string */
+
+   json_object *json_checkin;
+   int len;
+   const char *pstr;
+   char *strjson_checkin=NULL;
+
+   /* get server addr and port  from config file */
+   if ( egi_get_config_value("IOT_CLIENT","server_ip",psvr) != 0)
+	return -1;
+   if ( egi_get_config_value("IOT_CLIENT","server_port",pval) != 0)
+	return -1;
+   port=atoi(pval);
+
+   /* get BIGIOT id and key from config file */
+   memset(device_id,0,sizeof(device_id));
+   memset(device_key,0,sizeof(device_key));
+   if ( egi_get_config_value("IOT_CLIENT", "device_id", device_id) !=0 )
+	return -1;
+
+   if ( egi_get_config_value("IOT_CLIENT", "device_key", device_key) !=0 )
+	return -1;
+
+   /* create checkin json */
+   if( (json_checkin=json_tokener_parse(strjson_checkin_template))==NULL)
+		return -2;
+
+   json_object_object_add(json_checkin,"ID",json_object_new_string(device_id));
+   json_object_object_add(json_checkin,"K",json_object_new_string(device_key));
+   EGI_PLOG(LOGLV_CRITICAL,"%s:Finish creating json_checkin: \n%s\n", __func__,
+                                        json_object_to_json_string_ext(json_checkin,
+                                        JSON_C_TO_STRING_PRETTY) );  /* ret pointer only */
+
+    /* creat checkin json string */
+    pstr=json_object_to_json_string(json_checkin);
+    len=strlen(pstr);
+    strjson_checkin=calloc(len+2,1); /* 2, '\n'+\'0' */
+    if( strjson_checkin==NULL ) {
+	json_object_put(json_checkin);
+	return -3;
+    }
+    sprintf(strjson_checkin,"%s\n",pstr);
 
    /* loop trying .... */
    for(;;)
@@ -405,8 +452,8 @@ static int iot_connect_checkin(void)
 	}
 	/* 2. set IOT server address  */
 	svr_addr.sin_family=AF_INET;
-	svr_addr.sin_port=htons(IOT_SERVER_PORT);
-	svr_addr.sin_addr.s_addr=inet_addr(IOT_SERVER_ADDR);
+	svr_addr.sin_port=htons(port);//IOT_SERVER_PORT);
+	svr_addr.sin_addr.s_addr=inet_addr(psvr);//IOT_SERVER_ADDR);
 	bzero(&(svr_addr.sin_zero),8);
    	/* 3. connect to socket. */
 	ret=connect(sockfd,(struct sockaddr *)&svr_addr, sizeof(struct sockaddr));
@@ -426,7 +473,7 @@ static int iot_connect_checkin(void)
 
 	/* 5. check into BIGIO */
 	EGI_PLOG(LOGLV_CRITICAL,"Start sending CheckIn msg to BIGIOT...\n");
-	ret=send(sockfd, strjson_checkin_template, strlen(strjson_checkin_template), MSG_NOSIGNAL);
+	ret=send(sockfd, strjson_checkin, strlen(strjson_checkin), MSG_NOSIGNAL);
 	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send login request to BIGIOT:%s\n"
 								,__func__,strerror(errno));
@@ -459,6 +506,8 @@ static int iot_connect_checkin(void)
 
     }/* loop end */
 
+	free(strjson_checkin);
+ 	json_object_put(json_checkin);
 	return 0;
 }
 
@@ -626,7 +675,8 @@ void egi_iotclient(EGI_PAGE *page)
 	}
 
 	/* 	2. Set up socket, connect and check into BigIot.net */
-	iot_connect_checkin();
+	if( iot_connect_checkin() !=0 )
+		return;
 
 	/* 	3.1 Launch keepalive thread, BIGIOT */
 #if 1

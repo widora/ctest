@@ -65,15 +65,21 @@ int iw_get_rssi(int *rssi)
 	return 0;
 }
 
-/*------------------------------------------
+/*-----------------------------------------------------------
 A rough method to get current wifi speed
 
 ws:	speed in (bytes/s)
 
+Note:
+1. If there is no actual income stream, recvfrom()
+   will take more time than expected.
+2. It will cause caller to exit sometimes,when you start to
+   run a app which will increase income stream from nothing.
+
 Return
 	0	OK
 	<0	Fails
--------------------------------------------*/
+----------------------------------------------------------*/
 int  iw_get_speed(int *ws)
 {
 	int 			sock;
@@ -132,7 +138,7 @@ int  iw_get_speed(int *ws)
 		/* go on anyway */
 	}
 
-	printf("----------- start recvfrom() and tm_pulse counting ------------\n");
+	printf("iw_get_speed:----------- start recvfrom() and tm_pulse counting ------------\n");
 	while(1)
 	{
 		/* use pulse timer [0] */
@@ -163,7 +169,7 @@ int  iw_get_speed(int *ws)
 		count+=ret;
 	}
 
-	*ws=count;
+	*ws=count/IW_TRAFFIC_SAMPLE_SEC;
 
 	close(sock);
 	return 0;

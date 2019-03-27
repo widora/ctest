@@ -51,7 +51,7 @@ APPS = tmp_app
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
-	     utils/egi_filo.o
+	     utils/egi_filo.o utils/egi_cstring.o
 
 
 #### -----  编译标志 -----
