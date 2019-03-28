@@ -1,3 +1,9 @@
+/*------------------------------
+Test EGI FIFO
+
+Midas Zhou
+-------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -95,16 +101,15 @@ int main(void)
 
 	pthread_t pt_pusher, pt_puller;
 
-
-        /* --- start egi tick --- */
-        tm_start_egitick();
-
 	/* init logger */
   	if(egi_init_log("/mmc/log_fifo") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
 	}
+
+        /* --- start egi tick --- */
+        tm_start_egitick();
 
 	/* init fifo */
 	fifo=egi_malloc_fifo(512,sizeof(int),1); /* pin_wait */

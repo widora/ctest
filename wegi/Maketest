@@ -1,43 +1,3 @@
-#-------------------------------------------------------------------------------------------------------------
-# 一个Makefile文件通常所包含的内容和步骤：
-#	1. 指定路径  VPATH
-#	2. 源文件和目标文件列表，如：
-#		SRC_FILES =
-#		OBJ_FILES =
-#		APP_FILES =
-#		DEP_FILES = 头文件依赖
-#       3.所需的编译标志，如：
-#		CFLAGS =
-#		LDFLAGS =
-#	4.指定默认生成目标，如:
-#		all: app1 app2
-#	    4.1 手动设置特定目标生成规则
-#	5.目标文件，库文件，应用程序的生成规则，如：
-#		%.o:%.c
-#			gcc -c .........
-#		libapp.a:$(LIBOBJ)
-#			ar ........
-#	6.清理方法
-#	7.所包含头文件的依赖和跟踪
-#	8.安装方法
-#
-#
-#
-#
-#                                ----- 自动依赖跟踪例子 -----
-#
-# 1. make会从头到尾一次次分析Makefile（从树根捋到每个树叉），每分析完一遍确定一个可以解决的目标或未知量，
-#  接着就运行解出这个目标或未知量。
-#  这样一次次直到最终目标生成。因此会看到$(warning...)内容被调用了好几次。
-#
-# 2. %.dep:%.c 这样的模板应该是按照最近原则进行匹配的。不然 %:%.c 这个模板可被所有情况引用了！！！
-#
-# 3. Makefile中应用shell命令需要注意：
-#	3.1 每个命令需要用“;”分割，并且每一此shell命令从头到尾必须用”\“连接符号。
-#	3.2 shell中的$var在Makefile中必须用$$var
-#
-#---------------------------------------------------------------------------------------------------------------
-
 export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr/
 
@@ -47,14 +7,13 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 
-##--- exclude some objs !!!BEWARE, :NO SPACE ----
-OBJS := $(OBJS:test_color.o= )
+### --- exclude objs -----
+OBJS := $(OBJS:tmp_app.o= )
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-APPS = tmp_app
+APPS = test_color
 
-#buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
 	     utils/egi_filo.o utils/egi_cstring.o
 
@@ -63,7 +22,6 @@ EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_
 ## -Wall for __attribut__ // -I$(COMMON_USRDIR)/include (for jpeg)
 CFLAGS = -I./ -I./iot -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall -O2
-#CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -O -g -DEGI_DEBUG
 
@@ -87,10 +45,8 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-
-
-tmp_app: $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o tmp_app
+test_color: $(OBJS) $(EXTRA_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o test_color
 
 
 #### ----- 目标文件自动生成规则 -----
@@ -102,7 +58,6 @@ tmp_app: $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
 clean:
 	rm -rf $(OBJS) $(EXTRA_OBJS) $(APPS) $(DEP_FILES)
 
-
 include $(DEP_FILES)
 
 $(warning "----- %.dep: %.c -----")
@@ -113,7 +68,6 @@ $(warning "----- %.dep: %.c -----")
 	@$(CC) -MM $(CFLAGS) $< > $@.123
 	@sed 's,\($*\)\.o[: ]*,\1 : ,g' < $@.123 > $@
 	cat $@.123
-
 
 #------- \1 表示第一个$(*)所代表的内容
 	@rm -f $@.123

@@ -9,15 +9,15 @@ Midas Zhou
 #define __EGI_COLOR_H__
 
 #include <stdint.h>
-	
-/* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
-#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( (r>>3)<<11 ) | ( (g>>2)<<5 ) | (b>>3) ))
-#define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
-#define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
 
 /* color definition */
 typedef uint16_t			 EGI_16BIT_COLOR;
 typedef uint32_t			 EGI_24BIT_COLOR;
+
+/* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
+#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( (r>>3)<<11 ) | ( (g>>2)<<5 ) | (b>>3) ))
+#define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
+#define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)
 #define WEGI_COLOR_WHITE 		 COLOR_RGB_TO16BITS(255,255,255)
@@ -56,9 +56,9 @@ enum egi_color_range
 };
 
 /* functions */
-uint16_t egi_color_random(enum egi_color_range range);
-uint16_t egi_colorgray_random(enum egi_color_range range);
-
+EGI_16BIT_COLOR egi_color_random(enum egi_color_range range);
+EGI_16BIT_COLOR egi_colorgray_random(enum egi_color_range range);
+EGI_16BIT_COLOR egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
 
 
 

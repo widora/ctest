@@ -1,3 +1,9 @@
+/*------------------------------
+Test EGI CSTRING functions
+
+Midas Zhou
+-------------------------------*/
+
 #include <stdio.h>
 #include "egi_timer.h"
 #include "egi_cstring.h"

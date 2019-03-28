@@ -80,7 +80,7 @@ Midas Zhou
 
 #define BUFFSIZE 		2048
 #define BULB_OFF_COLOR 		0x000000 	/* default color for bulb turn_off */
-#define BULB_ON_COLOR 		0xDDDDDD   	/* default color for bulb turn_on */
+#define BULB_ON_COLOR 		egi_color_random(medium) //0xDDDDDD   	/* default color for bulb turn_on */
 #define BULB_COLOR_STEP 	0x111111	/* step for turn up and turn down */
 #define SUBCOLOR_UP_LIMIT	0xFFFFFF 	/* up limit value for bulb light color */
 #define SUBCOLOR_DOWN_LIMIT	0x666666 	/* down limit value for bulb light color */
@@ -90,7 +90,9 @@ static int sockfd;
 static struct sockaddr_in svr_addr;
 static char recv_buf[BUFFSIZE]={0}; /* for recv() buff */
 
-static EGI_24BIT_COLOR subcolor=0;
+static EGI_16BIT_COLOR bulb_color;
+static EGI_16BIT_COLOR subcolor;
+
 static bool bulb_off=false; /* default bulb status */
 static const char *bulb_status[2]={"ON","OFF"};
 static bool keep_heart_beat __attribute__((__unused__)) =false; /* token for keepalive thread */
@@ -112,6 +114,8 @@ struct egi_iotdata
 /* json string templates as per BIGIOT protocol */
 #define TEMPLATE_MARGIN		100 /* more bytes that may be added into the following json templates strings */
 
+static char server_ip[32];
+static int  server_port;
 static char device_id[64];  /*{0}, device_id as string */
 static char device_key[64]; /*{0},  device_key as string */
 
@@ -154,26 +158,22 @@ const static char *iot_getkey_pstrval(json_object *json, const char* key)
 	json_object *json_item=NULL;
 
 	/* 1. check input param */
-	if( json==NULL || key==NULL)
-	{
+	if( json==NULL || key==NULL) {
 		EGI_PDEBUG(DBG_IOT,"input params invalid!\n");
 		return NULL;
 	}
 
 	/* 2. get item object */
-	if( json_object_object_get_ex(json, key, &json_item)==false ) /* return pointer */
-	{
+	if( json_object_object_get_ex(json, key, &json_item)==false ) {/* return pointer */
 		//EGI_PDEBUG(DBG_IOT,"Fail to get value of key '%s' from the input json object.\n",key);
 		return NULL;
 	}
-	else
-	{
+	else {
 		//EGI_PDEBUG(DBG_IOT,"object key '%s' with value '%s'\n",
 		//					key, json_object_get_string(json_item));
 	}
 	/* 3. check json object type */
-	if(!json_object_is_type(json_item, json_type_string))
-	{
+	if(!json_object_is_type(json_item, json_type_string)) {
 		EGI_PDEBUG(DBG_IOT,"Error, key '%s' json obj is NOT a string type object!\n",key );
 		return NULL;
 	}
@@ -206,8 +206,7 @@ static json_object * iot_new_datajson(const int *id, const double *value, int nu
 		return NULL;
 
 	/* 2. insert Keys and Values into the json object */
-	for(k=0; k<num; k++)
-	{
+	for(k=0; k<num; k++) {
 		memset(strid,0,32);
 		sprintf(strid,"%d",id[k]);
 		memset(strval,0,32);
@@ -250,8 +249,7 @@ static void iot_keepalive(void)
 
 		/* check iot network status */
 		ret=iot_send(&ret, strjson_check_status_template);
-		if(ret==0)
-		{
+		if(ret==0) {
 			//EGI_PDEBUG(DBG_IOT,"heart_beat msg is sent out.\n");
 		        /* get time stamp */
         		t=time(NULL);
@@ -387,9 +385,9 @@ Return:
 static int iot_connect_checkin(void)
 {
    int ret;
-   char pval[256]={0};
-   char psvr[64]={0}; /* server ip */
-   int port=0;	      /* server port */
+   char pval[32]={0};
+//   char psvr[64]={0}; /* server ip */
+//   int port=0;	      /* server port */
    //char device_id[64]={0};  /* device_id as string */
    //char pkey[64]={0}; /* device_key as string */
 
@@ -399,11 +397,12 @@ static int iot_connect_checkin(void)
    char *strjson_checkin=NULL;
 
    /* get server addr and port  from config file */
-   if ( egi_get_config_value("IOT_CLIENT","server_ip",psvr) != 0)
+   memset(device_id,0,sizeof(server_ip));
+   if ( egi_get_config_value("IOT_CLIENT","server_ip",server_ip) != 0)
 	return -1;
    if ( egi_get_config_value("IOT_CLIENT","server_port",pval) != 0)
 	return -1;
-   port=atoi(pval);
+   server_port=atoi(pval);
 
    /* get BIGIOT id and key from config file */
    memset(device_id,0,sizeof(device_id));
@@ -452,8 +451,8 @@ static int iot_connect_checkin(void)
 	}
 	/* 2. set IOT server address  */
 	svr_addr.sin_family=AF_INET;
-	svr_addr.sin_port=htons(port);//IOT_SERVER_PORT);
-	svr_addr.sin_addr.s_addr=inet_addr(psvr);//IOT_SERVER_ADDR);
+	svr_addr.sin_port=htons(server_port);
+	svr_addr.sin_addr.s_addr=inet_addr(server_ip);
 	bzero(&(svr_addr.sin_zero),8);
    	/* 3. connect to socket. */
 	ret=connect(sockfd,(struct sockaddr *)&svr_addr, sizeof(struct sockaddr));
@@ -537,8 +536,7 @@ static inline int iot_send(int *send_ret, const char *strmsg)
 	if(send_ret != NULL)
 		*send_ret=ret;
 	/* check result */
-	if(ret<0)
-	{
+	if(ret<0) {
 		EGI_PLOG(LOGLV_ERROR,"iot_send: Call send() error, %s\n", strerror(errno));
 		return -2;
 	}
@@ -630,6 +628,7 @@ void egi_iotclient(EGI_PAGE *page)
 {
 	int ret;
 	int jsret;
+	int k=0;
 
 	json_object *json=NULL; /* sock received json */
 	json_object *json_reply=NULL; /* json for reply */
@@ -655,14 +654,15 @@ void egi_iotclient(EGI_PAGE *page)
 
 	/* get related ebox form the page, id number for the IoT button */
 	EGI_EBOX *iotbtn=egi_page_pickebox(page, type_btn, 7);
-	if(iotbtn == NULL)
-	{
+	if(iotbtn == NULL) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to pick the IoT button in page '%s'\n.",
 								__func__,  page->ebox->tag);
 		return;
 	}
-	egi_btnbox_setsubcolor(iotbtn, COLOR_24TO16BITS(BULB_ON_COLOR)); /* set subcolor */
-	subcolor=BULB_ON_COLOR;
+	bulb_color=egi_color_random(medium);
+//	egi_btnbox_setsubcolor(iotbtn, COLOR_24TO16BITS(BULB_ON_COLOR)); /* set subcolor */
+	egi_btnbox_setsubcolor(iotbtn, bulb_color); /* set subcolor */
+//	subcolor=BULB_ON_COLOR;
 	egi_ebox_needrefresh(iotbtn);
 	//egi_page_flag_needrefresh(page); /* !!!SLOW!!!, put flag, let page routine to do the refresh job */
 	egi_ebox_refresh(iotbtn);
@@ -706,8 +706,7 @@ void egi_iotclient(EGI_PAGE *page)
 
 			/* 4.1 parse received string for json */
 			json=json_tokener_parse(recv_buf);/* _parse() creates a new json obj */
-			if(!json)
-			{
+			if(!json) {
 				EGI_PLOG(LOGLV_WARN,"egi_iotclient: Fail to parse received string by json_tokener_parse()!\n");
 				continue;
 			}
@@ -750,11 +749,15 @@ void egi_iotclient(EGI_PAGE *page)
 						bulb_off=!bulb_off;
 						if(bulb_off) {
 							EGI_PDEBUG(DBG_IOT,"Switch bulb OFF \n");
-							subcolor=BULB_OFF_COLOR;
+							//subcolor=BULB_OFF_COLOR;
+							bulb_color=BULB_OFF_COLOR;
+							subcolor=bulb_color;
 						}
 						else {
 							EGI_PDEBUG(DBG_IOT,"Switch bulb ON \n");
-							subcolor=BULB_ON_COLOR; /* mild white */
+							//subcolor=BULB_ON_COLOR; /* mild white */
+							bulb_color=egi_color_random(medium);
+							subcolor=bulb_color;
 						}
 
 					}
@@ -764,21 +767,32 @@ void egi_iotclient(EGI_PAGE *page)
 					{
   					    	EGI_PDEBUG(DBG_IOT,"Execute command 'plus/up' ....\n");
 						/* up limit value */
-					    	if(  subcolor <  SUBCOLOR_UP_LIMIT ) {
-							subcolor += BULB_COLOR_STEP;
-					    	}
+					    	//if(  subcolor <  SUBCOLOR_UP_LIMIT ) {
+						//	subcolor += BULB_COLOR_STEP;
+					    	//}
+						k +=2;
+						subcolor= egi_colorbrt_adjust(bulb_color,k);
+						printf("---------bulb_color: 0x%02X,  subcolor: 0x%02X------\n",
+										bulb_color, subcolor);
+
 					}
 					/* parse command 'minus' and 'down' */
 					else if( !bulb_off && (  (strcmp(pstrCval,"minus")==0)
 						         ||(strcmp(pstrCval,"down")==0)  ) )
 					{
 				    		EGI_PDEBUG(DBG_IOT,"Execute command 'minus/down' ....\n");
+					#if 0
 				    		if( subcolor < SUBCOLOR_DOWN_LIMIT ) {
 							subcolor=SUBCOLOR_DOWN_LIMIT; /* low limit */
 						}
 				    		else {
 							subcolor -= BULB_COLOR_STEP;
 				    		}
+					#endif
+						k -= 2;
+						subcolor=egi_colorbrt_adjust(bulb_color,k);
+						printf("---------bulb_color: 0x%02X,  subcolor: 0x%02X------\n",
+										bulb_color, subcolor);
 					}
 					/* if digit, set as tag */
 					else if( !bulb_off && isdigit(pstrCval[0]) )
@@ -788,7 +802,7 @@ void egi_iotclient(EGI_PAGE *page)
 
 					//printf("subcolor=0x%08X \n",subcolor);
 					/* set subcolor to iotbtn */
-					egi_btnbox_setsubcolor(iotbtn, COLOR_24TO16BITS(subcolor)); //iotbtn_subcolor);
+					egi_btnbox_setsubcolor(iotbtn, subcolor);//COLOR_24TO16BITS(subcolor)); //iotbtn_subcolor);
 					/* refresh iotbtn */
 					egi_ebox_needrefresh(iotbtn);
 					//egi_page_flag_needrefresh(page); /* !!!SLOW!!!! let page routine to do the refresh job */

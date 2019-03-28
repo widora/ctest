@@ -1,3 +1,8 @@
+/*------------------------------
+Test EGI FILO
+
+Midas Zhou
+-------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,15 +19,15 @@ int main(void)
 	int k;
 	int data;
 
-        /* --- start egi tick --- */
-        tm_start_egitick();
-
 	/* init logger */
   	if(egi_init_log("/mmc/log_filo") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
 	}
+
+        /* --- start egi tick --- */
+        tm_start_egitick();
 
 while(1)
 {
