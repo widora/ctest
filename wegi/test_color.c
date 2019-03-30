@@ -11,13 +11,16 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include "egi_color.h"
 #include "egi_log.h"
-
+#include "egi.h"
 
 int main(void)
 {
-	int k=0;
-	int delt=1;
-	EGI_16BIT_COLOR color,subcolor;
+	int i;
+	int value[3]={0}; /* control param for brightness adjustment */
+	int step[3]={18,12,18};  /* increase/decrease step for value */
+	int delt[3]={18,12,18};
+
+	EGI_16BIT_COLOR color[3],subcolor[3];
 
 	/* --- init logger --- */
   	if(egi_init_log("/mmc/log_color") != 0)
@@ -31,31 +34,58 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-	/* get a random color */
-	color= egi_color_random(deep);
-	subcolor=color;
-	fbset_color(subcolor);
-	draw_filled_rect(&gv_fb_dev, 100, 200, 100+80, 200+80);
-	usleep(990000);
+	/* test draw_pline */
+	EGI_POINT p1,p2;
+	EGI_BOX box={{0,0},{240-1,320-1,}};
 
+   while(1)
+  {
+	egi_randp_inbox(&p1, &box);
+	egi_randp_inbox(&p2, &box);
+	fbset_color(egi_color_random(medium));
+	draw_pline(&gv_fb_dev,p1.x,p1.y,p2.x,p2.y,egi_random_max(11));
+/*
+	draw_pline(&gv_fb_dev,
+		   egi_random_max(232),20,
+		   egi_random_max(232),320-1-20,
+		   egi_random_max(11) );
+*/
+	usleep(200000);
+  }
+	exit(1);
+
+
+
+
+
+	/* get a random color */
+	for(i=0;i<3;i++) {
+		color[i]= egi_color_random(deep);
+	}
+	color[0]=WEGI_COLOR_RED;
+	color[1]=WEGI_COLOR_GREEN;
+	color[2]=WEGI_COLOR_BLUE;
 
 while(1)
 {
+        for(i=0;i<3;i++)
+	{
+		subcolor[i]=egi_colorbrt_adjust(color[i],value[i]);
+		//printf("---k=%d,  subcolor: 0x%02X  ||||  color: 0x%02X ---\n",k,subcolor,color);
+		fbset_color(subcolor[i]);
+		draw_filled_rect(&gv_fb_dev, 15+(60+15)*i, 150, (15+60)*(i+1), 150+60);
 
-	subcolor=egi_colorbrt_adjust(color,k);
-	printf("---k=%d,  subcolor: 0x%02X  ||||  color: 0x%02X ---\n",k,subcolor,color);
-//	if(subcolor==color);
-//		k=0;
+		value[i] += step[i]; /* Y Max.255, k to be little enough */
+		if(subcolor[i]==0xFFFF || egi_color_getY(subcolor[i])>=210 )
+			step[i]= -delt[i];
+		if(subcolor[i]==0x0000 || egi_color_getY(subcolor[i])<=10 ) //255
+			step[i]= delt[i];
 
-	fbset_color(subcolor);
-	draw_filled_rect(&gv_fb_dev, 100, 200, 100+80, 200+80);
-
-	k += delt; /* Y Max.255, k to be little enough */
-	if(subcolor==0xFFFF)delt=-2;
-	if(subcolor==0x0000)delt=2;
-
-//	tm_delayms(50);
-//	usleep(300000);
+		printf("------- subcolor[%d]:  Y=%d step[%d]=%d-------\n",
+						i,egi_color_getY(subcolor[i]),i,step[i]);
+	}
+	//tm_delayms(50);
+	usleep(55000);
 }
 
   	/* quit logger */

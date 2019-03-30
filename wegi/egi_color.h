@@ -59,7 +59,7 @@ enum egi_color_range
 EGI_16BIT_COLOR egi_color_random(enum egi_color_range range);
 EGI_16BIT_COLOR egi_colorgray_random(enum egi_color_range range);
 EGI_16BIT_COLOR egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
-
+int egi_color_getY(EGI_16BIT_COLOR color);
 
 
 

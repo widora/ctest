@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+/*-----------------------------------------------------------------------------
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
@@ -8,12 +8,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 博客：yuweixian4230.blog.chinaunix.net
 
 
-TODO:
-0.  draw_dot(): check FB mem. boundary during writing. ---OK
-
-
-Modified by Midas-Zhou
-
+Developed and modified by Midas-Zhou
 -----------------------------------------------------------------------------*/
 #include "egi_fbgeom.h"
 #include "egi.h"
@@ -55,7 +50,7 @@ FBDEV  gv_fb_dev;
         ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo)); //获取 固定参数
         ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo)); //获取可变参数
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
-        fr_dev->map_fb=(char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,fr_dev->fdfd,0);
+        fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,fr_dev->fdfd,0);
 //        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
 
 	printf(" \n------- FB Parameters -------:\n");
@@ -76,13 +71,13 @@ FBDEV  gv_fb_dev;
     }
 
 
-  /*------------------------------------
-  check if (px,py) in box(x1,y1,x2,y2)
-  return true or false
-  -------------------------------------*/
-  bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
-  {
-      int xl,xh,yl,yh;
+/*------------------------------------
+ check if (px,py) in box(x1,y1,x2,y2)
+ return true or false
+-------------------------------------*/
+bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
+{
+       int xl,xh,yl,yh;
 
 	if(x1>=x2){
 		xh=x1;xl=x2;
@@ -102,23 +97,24 @@ FBDEV  gv_fb_dev;
 		return true;
 	else
 		return false;
-  }
+}
 
 
-    /*  set color for every dot */
-    void fbset_color(uint16_t color)
-    {
+/*  set color for every dot */
+inline void fbset_color(uint16_t color)
+{
 	fb_color=color;
-    }
+}
 
-    /* -------------------------------------------
+
+/* -------------------------------------------
       clear screen with given color
 
       BUG:
 		!!!!call egi_colorxxxx_randmon() error
-     --------------------------------------------*/
-    void clear_screen(FBDEV *dev, uint16_t color)
-    {
+ --------------------------------------------*/
+void clear_screen(FBDEV *dev, uint16_t color)
+{
 	int i,j;
 	FBDEV *fr_dev=dev;
 	int xres=dev->vinfo.xres;
@@ -143,16 +139,15 @@ FBDEV  gv_fb_dev;
 
 */
 
-    }
+}
 
-    /*-----------------------------------------------------
-
+/*-----------------------------------------------------
     Return:
 	0	OK
 	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
-    --------------------------------------------------------*/
-    int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
-    {
+--------------------------------------------------------*/
+int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
+{
         FBDEV *fr_dev=dev;
 	int fx=x;
 	int fy=y;
@@ -199,7 +194,7 @@ FBDEV  gv_fb_dev;
         *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 
 	return 0;
-    }
+}
 
 
 #if 0   /*------ OBSOLETE, seems the same effect as above !! --------*/
@@ -217,10 +212,12 @@ FBDEV  gv_fb_dev;
     }
 #endif
 
-
-
-    void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2) 
-    {
+#if 0 ///////////// OBSELETE ///////////////////
+/*---------------------------------------------------
+	Draw a simple line
+---------------------------------------------------*/
+void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
+{
         FBDEV *fr_dev=dev;
         int *xx1=&x1;
         int *yy1=&y1;
@@ -229,17 +226,18 @@ FBDEV  gv_fb_dev;
 
         int i=0;
         int j=0;
+	int k;
         int tekxx=*xx2-*xx1;
         int tekyy=*yy2-*yy1;
 
-
-        //if((*xx2>=*xx1)&&(*yy2>=*yy1))
         if(*xx2>*xx1)
         {
             for(i=*xx1;i<=*xx2;i++)
             {
-                j=(i-*xx1)*tekyy/tekxx+*yy1;
+                j=(i-*xx1)*tekyy/tekxx+*yy1; /* Y */
+//		for(k=*yy1
                 draw_dot(fr_dev,i,j);
+
             }
         }
 	else if(*xx2 == *xx1)
@@ -257,16 +255,123 @@ FBDEV  gv_fb_dev;
 	}
         else
         {
-            //if(*xx2<*xx1)
             for(i=*xx2;i<=*xx1;i++)
             {
                 j=(i-*xx2)*tekyy/tekxx+*yy2;
                 draw_dot(fr_dev,i,j);
             }
         }
+}
+#endif //////////////// END /////////////////////
 
 
-    }
+/*---------------------------------------------------
+	Draw a simple line
+---------------------------------------------------*/
+void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
+{
+        int i=0;
+        int j=0;
+	int k;
+        int tekxx=x2-x1;
+        int tekyy=y2-y1;
+	int tmp;
+
+        if(x2>x1) {
+	    tmp=y1;
+            for(i=x1;i<=x2;i++) {
+                j=(i-x1)*tekyy/tekxx+y1;
+		if(y2>=y1) {
+			for(k=tmp;k<=j;k++)		/* fill uncontinous points */
+		                draw_dot(dev,i,k);
+		}
+		else { /* y2<y1 */
+			for(k=tmp;k>=j;k--)
+				draw_dot(dev,i,k);
+		}
+		tmp=j;
+            }
+        }
+	else if(x2 == x1) {
+	   if(y2>=y1) {
+		for(i=y1;i<=y2;i++)
+		   draw_dot(dev,x1,i);
+	    }
+	    else {
+		for(i=y2;i<=y1;i++)
+			draw_dot(dev,x1,i);
+	   }
+	}
+        else /* x1>x2 */
+        {
+	    tmp=y2;
+            for(i=x2;i<=x1;i++) {
+                j=(i-x2)*tekyy/tekxx+y2;
+		if(y1>=y2) {
+			for(k=tmp;k<=j;k++)		/* fill uncontinous points */
+		        	draw_dot(dev,i,k);
+		}
+		else {  /* y2>y1 */
+			for(k=tmp;k>=j;k--)		/* fill uncontinous points */
+		        	draw_dot(dev,i,k);
+		}
+		tmp=j;
+            }
+        }
+}
+
+
+/*--------------------------------------------------------------
+Draw A Poly Line
+x1,x1: starting point
+x2,y2: ending point
+w: width of the poly line
+----------------------------------------------------------------*/
+void draw_pline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
+{
+//	FBDEV *fr_dev=dev;
+	int i;
+	int xr1,yr1,xr2,yr2;
+
+	/* half width, also as circle rad */
+	int r=w>>1;
+//	printf("%s: r=%d \n",__func__,r);
+
+	/* x,y, difference */
+	int ydif=y2-y1;
+	int xdif=x2-x1;
+	float len=sqrt(ydif*ydif+xdif*xdif);
+
+	/* sin() and cos() of inclinination angle */
+	float sina=ydif/len;
+	float cosa=xdif/len;
+
+	/* draw multiple lines  */
+//	printf("start draw multi lines...\n");
+	for(i=0;i<=r;i++)
+	{
+//		printf("%s: i=%d \n",__func__,i);
+		/* draw UP_HALF multiple lines  */
+		xr1=x1-i*sina;
+		yr1=y1+i*cosa;
+		xr2=x2-i*sina;
+		yr2=y2+i*cosa;
+//		printf("%s: i=%d   xr1=%d,yr1=%d,  xr2=%d,yr2=%d \n",__func__,i,xr1,yr1,xr2,yr2);
+		draw_line(dev,xr1,yr1,xr2,yr2);
+
+		/* draw LOW_HALF multiple lines  */
+		xr1=x1+i*sina;
+		yr1=y1-i*cosa;
+		xr2=x2+i*sina;
+		yr2=y2-i*cosa;
+		draw_line(dev,xr1,yr1,xr2,yr2);
+	}
+
+	/* draw start/end circles */
+	draw_filled_circle(dev, x1, y1, r);
+	draw_filled_circle(dev, x2, y2, r);
+}
+
 
 
     /*------------------------------------------------
