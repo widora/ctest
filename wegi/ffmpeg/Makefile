@@ -9,7 +9,7 @@ SOURCE = $(APP).c
 DEPS = ffplay.h
 OBJ = $(APP).o play_ffpcm.o
 EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o ../utils/egi_utils.o\
-		../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
+	  ../utils/egi_filo.o	../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c
@@ -23,6 +23,7 @@ INCLUDES += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_
 ### for -Wall for __attribute__
 CFLAGS   += -Wall
 
+CFLAGS	 += -I/home/midas-zhou/Ctest/wegi/utils
 CFLAGS   += -I/home/midas-zhou/Ctest/wegi
 CFLAGS   += -I$(COMMON_USRDIR)/include
 

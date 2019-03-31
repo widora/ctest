@@ -135,7 +135,7 @@ int offy;
  *		LCD W&H.
  */
 /* enable AVFilter for video */
-static bool enable_avfilter=true;
+static bool enable_avfilter=false;//true;
 
 /* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
  *   if 1:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
 
 	/* addjust offset of display window */
 	offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
-	offy=40;
+	offy=50;//40;
 
 	/* <<<<<<<    Init SPI, FB, Timer   >>>>>>  */
        /* start egi tick */
@@ -1024,7 +1024,7 @@ if(enable_avfilter)
 else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
 {
 				/* convert the image from its native format to RGB */
-				printf("ffplay: sws_scale converting ...\n");
+				//printf("ffplay: sws_scale converting ...\n");
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,

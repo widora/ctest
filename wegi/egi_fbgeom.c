@@ -327,7 +327,7 @@ x1,x1: starting point
 x2,y2: ending point
 w: width of the poly line
 ----------------------------------------------------------------*/
-void draw_pline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
+void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 {
 //	FBDEV *fr_dev=dev;
 	int i;

@@ -47,7 +47,7 @@ void fbset_color(uint16_t color);
 void clear_screen(FBDEV *dev, uint16_t color);
 int draw_dot(FBDEV *dev,int x,int y);
 void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
-void draw_pline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
+void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
 void draw_oval(FBDEV *dev,int x,int y);
 void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);

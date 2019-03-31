@@ -34,16 +34,22 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-	/* test draw_pline */
+	/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<  test draw_wline <<<<<<<<<<<<<<<<<<<<<<*/
+
+
+ //void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
+ //                unsigned int gap, int fontcolor, int transpcolor, int x0, int y0, const char* str )
+
+
+	/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<  test draw_wline <<<<<<<<<<<<<<<<<<<<<<*/
 	EGI_POINT p1,p2;
 	EGI_BOX box={{0,0},{240-1,320-1,}};
-
    while(1)
   {
 	egi_randp_inbox(&p1, &box);
 	egi_randp_inbox(&p2, &box);
 	fbset_color(egi_color_random(medium));
-	draw_pline(&gv_fb_dev,p1.x,p1.y,p2.x,p2.y,egi_random_max(11));
+	draw_wline(&gv_fb_dev,p1.x,p1.y,p2.x,p2.y,egi_random_max(11));
 /*
 	draw_pline(&gv_fb_dev,
 		   egi_random_max(232),20,
@@ -53,9 +59,7 @@ int main(void)
 	usleep(200000);
   }
 	exit(1);
-
-
-
+	/* >>>>>>>>>>>>>>>>>>>>>>>>>>> end testing draw_wlines >>>>>>>>>>>>>>>>>*/
 
 
 	/* get a random color */

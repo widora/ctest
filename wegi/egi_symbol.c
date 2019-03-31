@@ -711,6 +711,78 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 }
 
 
+/*---------------------------------------------------------------------------
+1. write strings to FB device.
+2. It will auto. return to next line to write if current line is used up,
+   or if it gets a return code.
+3. If write symbols, just use symbol codes[] for str[].
+4. If it's font, then use symbol bkcolor as transparent tunnel.
+
+fbdev: 		FB device
+sym_page: 	a font symbol page
+pixpl:		pixels per line.
+lines:		number of lines available.
+gap:		space between two lines, in pixel.
+fontcolor:	font color (or symbol color for a symbol)
+		>= 0, use given font color.
+		<0   use default color in img data
+transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
+		    for fonts and icons,
+	     	<0	 --- no transparent pixel
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
+x0,y0: 		start position coordinate in screen, left top point of a symbol.
+str:		pointer to a char string(or symbol codes[]);
+-------------------------------------------------------------------------------*/
+void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
+			     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
+			     int x0, int y0, const char* str )
+{
+	const char *p=str;
+	int x=x0;
+	int y=y0;
+	unsigned int pxl=pixpl; /* available pixels in current line */
+	unsigned int ln=0; /* lines used */
+	int cw; /* char width, in pixel */
+
+	/* check lines */
+	if(lines==0)return;
+
+	/* check page data */
+	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
+		return;
+
+	/* if the symbol is font then use symbol back color as transparent tunnel */
+	//if(tspcolor >0 && sym_page->symtype == type_font )
+
+	/* use bkcolor for both font and icon anyway!!! */
+	if(transpcolor>=0)
+		transpcolor=sym_page->bkcolor;
+
+	while(*p) /* code '0' will be deemed as end token here !!! */
+	{
+		/* 1. Check whether remained space is enough for the char,
+  		 * or, if its a return code.
+		 * 2. Note: If the first char for a new line is a return code, it returns again,
+		 * and it may looks not so good!
+		 */
+		cw=sym_page->symwidth[(int)(*p)];
+		if( pxl < cw || (*p)=='\n' )
+		{
+			ln++;
+			if(ln>=lines) /* no lines available */
+				return;
+			y += gap + sym_page->symheight; /* move to next line */
+			x = x0;
+			pxl=pixpl;
+		}
+		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y,*p,0);
+		x+=cw;
+		pxl-=cw;
+		p++;
+	}
+}
 
 /*-------------------------------------------------------------------------------
 display each symbol in a char string to form a motion picture.

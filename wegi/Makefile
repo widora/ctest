@@ -48,11 +48,13 @@ SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 
 ##--- exclude some objs !!!BEWARE, :NO SPACE ----
-OBJS := $(OBJS:test_color.o= )
+OBJS := $(OBJS:test_color.o=)
+#OBJS := $(OBJS:test_sym.o=)
+OBJS := $(OBJS:tmp_app.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-APPS = tmp_app
+APPS = test_sym #tmp_app
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
@@ -89,8 +91,8 @@ $(warning "----- %:%.c -----")
 ####----- !!!! manually edit here !!!! -----
 
 
-tmp_app: $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o tmp_app
+$(APPS): $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o $(APPS)
 
 
 #### ----- 目标文件自动生成规则 -----
