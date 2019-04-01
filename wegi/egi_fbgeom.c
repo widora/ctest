@@ -8,7 +8,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 博客：yuweixian4230.blog.chinaunix.net
 
 
-Developed and modified by Midas-Zhou
+Modified and appended by Midas-Zhou
 -----------------------------------------------------------------------------*/
 #include "egi_fbgeom.h"
 #include "egi.h"

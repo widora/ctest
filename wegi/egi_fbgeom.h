@@ -7,7 +7,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 博客：yuweixian4230.blog.chinaunix.net
 
 
-Modified by: Midas Zhou
+Modified and appended by: Midas Zhou
 -----------------------------------------------------------------------------*/
 #ifndef __EGI_FBGEOM_H__
 #define __EGI_FBGEOM_H__

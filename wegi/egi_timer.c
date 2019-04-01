@@ -233,11 +233,11 @@ bool tm_pulseus(long long unsigned int gap, unsigned int t) /* gap(us) */
 
 
 /*---------------------------------------------------------
-return time difference in us
+return time difference in us, as an unsigned value.
 t_start:	start time
 t_end:		end time
 -----------------------------------------------------------*/
-long tm_diffus(struct timeval t_start, struct timeval t_end)
+unsigned int tm_diffus(struct timeval t_start, struct timeval t_end)
 {
 	int ds=t_end.tv_sec-t_start.tv_sec;
 	int dus=t_end.tv_usec-t_start.tv_usec;
@@ -245,6 +245,20 @@ long tm_diffus(struct timeval t_start, struct timeval t_end)
 	int td=ds*1000000+dus;
 
 	return ( td>0 ? td : -td );
+}
+
+/*------------------------------------------------------------------
+return time difference in ms, as a signed value.
+tm_start:	start time
+tm_end:		end time
+------------------------------------------------------------------*/
+int tm_signed_diffms(struct timeval tm_start, struct timeval tm_end)
+{
+        int time_cost;
+        time_cost=(tm_end.tv_sec-tm_start.tv_sec)*1000	\
+			+(tm_end.tv_usec-tm_start.tv_usec)/1000;
+
+        return time_cost;
 }
 
 /*------------------------------------------------------------

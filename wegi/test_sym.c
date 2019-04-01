@@ -28,6 +28,9 @@ int main(void)
 	char *pt=NULL;
 	int  len; /* length of fgets string */
 	char strtm[32]={0}; /* time stamp */
+	int  nsect; /* section number */
+	int  start_secs; /* sub start time, in seconds */
+	int  end_secs; /* sub end time, in seconds */
 	char strsub[32*4]={0}; /* 64_chars x 4_lines, for subtitle content */
 
 
@@ -81,14 +84,25 @@ while(1)
 	while(!(feof(fil)))
 	{
 		/* section number or a return code, ignore it. */
+		memset(strtm,0,sizeof(strtm));
 		fgets(strtm,32,fil);
-		if(*strtm=='\n')continue;/* or continue if its a return */
+		if(*strtm=='\n' || *strtm=='\t')
+			continue;  /* or continue if its a return */
+		else {
+			nsect=atoi(strtm);
+			printf("Section: %d\n",nsect);
+		}
 
 		/* get time stamp */
 		memset(strtm,0,sizeof(strtm));
 		fgets(strtm,sizeof(strtm),fil);/* time stamp */
-		printf("time stamp: %s\n",strtm);
-
+		//if(strcmp(strtm,"-->")==0) {
+			printf("time stamp: %s\n",strtm);
+			start_secs=atoi(strtm)*3600+atoi(strtm+3)*60+atoi(strtm+6);
+			printf("Start(sec): %d\n",start_secs);
+			end_secs=atoi(strtm+17)*3600+atoi(strtm+20)*60+atoi(strtm+23);
+			printf("End(sec): %d\n",end_secs);
+		//}
 		/* read a section of sub and display */
 		fbset_color(WEGI_COLOR_BLACK);
 		draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);

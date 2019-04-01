@@ -75,6 +75,7 @@ display_height,display_width:
 The data flow of a movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
   (thread)  pPICBuff ----> FB (~xxxms per frame) ---> Display
+  (thread)  display subtitle
   (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 
@@ -91,17 +92,34 @@ Usage:
 
 Midas Zhou
 -----------------------------------------------------------------------------------------------------------*/
-#include "ffplay.h"
+#include <signal.h>
+#include <math.h>
+#include <string.h>
+
+#include "ff_utils.h"
+#include "ff_pcm.h"
+
 #include "spi.h"
 #include "egi_color.h"
 #include "egi_timer.h"
 #include "egi_fbgeom.h"
 #include "egi_debug.h"
 #include "egi_log.h"
-#include <signal.h>
-#include <math.h>
-#include <string.h>
+#include "egi_bmpjpg.h"
+#include "egi_log.h"
+#include "egi_symbol.h"
 
+#include "libavutil/avutil.h"
+#include "libavutil/time.h"
+#include "libavutil/timestamp.h"
+#include "libswresample/swresample.h"
+#include "libavcodec/avcodec.h"
+#include "libavformat/avformat.h"
+#include "libswscale/swscale.h"
+#include "libavfilter/avfiltergraph.h"
+#include "libavfilter/buffersink.h"
+#include "libavfilter/buffersrc.h"
+#include "libavutil/opt.h"
 
 #define FF_LOOP_TIMEGAP 0 /* in second, hold_on time after ffplaying a file, especially for a picture.. */
 #define FF_CLIP_PLAYTIME 5 /* in second, set clip play time */
@@ -121,6 +139,8 @@ Note:
 */
 
 
+// in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
+
 /* expected display window size, LCD will be adjusted in the function */
 int show_w= 240; //185; /* LCD column pixels */
 int show_h= 144; //240; //185;/* LCD row pixels */
@@ -128,6 +148,9 @@ int show_h= 144; //240; //185;/* LCD row pixels */
 /* offset of the show window relating to LCD origin */
 int offx;
 int offy;
+
+/* seek position */
+//static long ff_start_tmsecs=60*5; /* starting position */
 
 /* param: ( enable_avfilter )
  *   if 1:	display_window rotation and size will be adjusted according to avfilter descr.
@@ -163,6 +186,8 @@ static bool enable_stretch=true;
 /* param: ( enable_seek_loop )
  *   if 1:	loop one single file/stream forever.
  *   if 0:	play one time only.
+ *   NOTE: if TRUE, then curretn input seek postin will be ignored.!!! It always start from the
+ *     	   very beginning of the file.
  */
 /* loop seeking and playing from the start of the same file */
 static bool enable_seekloop=false;
@@ -193,6 +218,8 @@ static bool enable_clip_test=false;
  */
 static enum ffplay_mode playmode=mode_loop_all;
 
+/* param: subtitle path */
+static char *subpath="/mmc/ross.srt";
 
 /*-----------------------------------------------------
 FFplay for most type of media files:
@@ -205,7 +232,7 @@ int main(int argc, char *argv[])
 	int fnum; /* number of multimedia files input from shell */
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
-	int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
 	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
@@ -293,6 +320,7 @@ int main(int argc, char *argv[])
 
 	/* thread for displaying RGB data */
 	pthread_t pthd_displayPic;
+	pthread_t pthd_displaySub;
 	bool pthd_displayPic_running=false;
 
 	int ret;
@@ -339,6 +367,9 @@ int main(int argc, char *argv[])
         init_dev(&gv_fb_dev);
 	//clear_screen(&gv_fb_dev, 0);
 
+	/* --- load sympages --- */
+	symbol_load_allpages();
+
 	/* --- fill display area with BLACK --- */
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&gv_fb_dev, offx, offy, offx+show_w, offy+show_h);
@@ -363,6 +394,9 @@ if(enable_avfilter)
 	/* reset display window size */
 	display_height=show_h;
 	display_width=show_w;
+
+	/* reset elaped time recorder */
+	ff_sec_Velapsed=0;
 
 	/* Open media stream or file */
 	EGI_PLOG(LOGLV_INFO,"ffplay: Start to play file %s\n",argv[fnum]);//argv[fnum]);
@@ -812,6 +846,16 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 	/* set running token */
 	pthd_displayPic_running=true;
 
+/* <<<<<<<<<<<<     create a thread to display subtitles     >>>>>>>>>>>>>>> */
+	if(subpath != NULL) {
+		if(pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)subpath) != 0) {
+			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
+			//Go on anyway. //return -1;
+		}
+		else
+			EGI_PDEBUG(DBG_FFPLAY,"FFplay: Finish creating thread for displaying subtitles.\n");
+	}
+
 
 /* if AVFilter ON, then initialize and prepare fitlers */
 if(enable_avfilter)
@@ -857,6 +901,7 @@ if(enable_avfilter)
 		EGI_PLOG(LOGLV_ERROR,"fail to alloc filter inputs/outputs or graph.\n");
 		goto ff_fail;
 	}
+
 
    	/* input arguments for filter_graph */
 	snprintf(args, sizeof(args),"video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
@@ -968,6 +1013,11 @@ if(enable_seekloop)
 	/* seek starting point */
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 }
+else
+	//pFormatCtx->streams[videoStream]->time_base
+	/* seek to the position */
+	av_seek_frame(pFormatCtx, videoStream,ff_start_tmsecs*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+
 
 	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
@@ -1165,11 +1215,11 @@ ff_fail:
 		/* wait for display_thread to join */
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: Try to joint picture displaying thread ...\n");
 
-		//fftok_QuitFFplay = true;
-		control_cmd = cmd_exit_display_thread; /* set command */
+		/* give a command to exit threads */
+		control_cmd = cmd_exit_display_thread;
 		pthread_join(pthd_displayPic,NULL);
-		control_cmd = cmd_none;/* clear command */
-		//fftok_QuitFFplay = false;
+		pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
+		control_cmd = cmd_none;/* call off command */
 
 		/* free PICbuffs */
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free PICbuffs[]...\n");
@@ -1252,7 +1302,6 @@ if(enable_avfilter) /* free filter resources */
 		swr=NULL;
 	}
 
-
 	if(videoStream >= 0)
 	{
 		EGI_PDEBUG(DBG_FFPLAY,"ffplay: free sws_ctx at last...\n");
@@ -1262,7 +1311,8 @@ if(enable_avfilter) /* free filter resources */
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);
-	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n",argv[fnum], get_costtime(tm_start,tm_end) );
+	EGI_PDEBUG(DBG_FFPLAY,"ffplay: Playing %s cost time: %d ms\n",argv[fnum],
+									tm_signed_diffms(tm_start,tm_end) );
 
 	EGI_PLOG(LOGLV_INFO,"ffplay: End of playing file %s\n", argv[fnum]);
    } /* end of for(...), loop playing input files*/
@@ -1289,6 +1339,9 @@ if(enable_avfilter) /* free filter resources */
 
 	/* quit logger */
 	egi_quit_log();
+
+	/* sleep, to let sys release cache ...*/
+	tm_delayms(1000);
 
         return 0;
 }

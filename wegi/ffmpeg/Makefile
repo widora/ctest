@@ -6,8 +6,8 @@ COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+ds
 APP = ffplay6
 #APP = filtering_video
 SOURCE = $(APP).c
-DEPS = ffplay.h
-OBJ = $(APP).o play_ffpcm.o
+DEPS = ff_utils.h ff_utils.c ff_pcm.h ff_pcm.c
+OBJ = $(APP).o ff_pcm.o ff_utils.o
 EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o ../utils/egi_utils.o\
 	  ../utils/egi_filo.o	../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
 
@@ -40,14 +40,20 @@ LIBS	 += -lpthread
 
 #----------------  APP  --------------------
 $(APP): $(OBJ) $(DEPS)
-	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(OBJ) $(EGI_OBJ)
-$(APP).o: $(SOURCE)
+	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) $(EGI_OBJ) -o $(APP)
+
+$(APP).o: $(SOURCE) $(DEPS)
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
-play_ffpcm.o: play_ffpcm.c
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c play_ffpcm.c
+
+ff_pcm.o: ff_pcm.c ff_pcm.h
+	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_pcm.c
+
+ff_utils.o: ff_utils.c ff_utils.h
+	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
+
 
 #---------------  APP2 -----------------------
-$(APP2):$(SOURCE2)
+$(APP2):$(SOURCE2) $(DEPS)
 	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP2) $(SOURCE2)
 
 
