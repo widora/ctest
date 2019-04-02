@@ -214,7 +214,7 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 /*------------------------------------------------------------------
 1. in a page, find the ebox index according to given x,y
 2. a sleeping ebox will be ignored.
-
+3. type may be multiple, like: type_txt|type_slider|type_btn ...etc.
 x,y: point at request
 page:  a egi page containing eboxes
 
@@ -247,7 +247,7 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
                 ebox=list_entry(tnode, EGI_EBOX, node);
                 //EGI_PDEBUG(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
 
-		if(ebox->type == type)
+		if(ebox->type & type)
 		{
 	        	 if(ebox->status==status_sleep)
 				continue; /* ignore sleeping ebox */
@@ -334,7 +334,7 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 	/* 1. check data */
 	if( ebox==NULL || ebox->egi_data==NULL )
         {
-                printf("egi_copy_btn_ebox(): input ebox is invalid or NULL!\n");
+                printf("egi_ebox_refresh(): input ebox is invalid or NULL!\n");
                 return -1;
         }
 	/* 2. put default methods here ...*/
@@ -481,6 +481,14 @@ int egi_ebox_free(EGI_EBOX *ebox)
 					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_date_pic(ebox->egi_data) \
 						 for '%s' ebox\n", ebox->tag);
 					egi_free_data_pic(ebox->egi_data);
+				}
+				break;
+			case type_slider:
+				if(ebox->egi_data != NULL)
+				{
+					EGI_PDEBUG(DBG_EGI,"egi_ebox_free():start to egi_free_data_slider(ebox->egi_data) \
+						 for '%s' ebox\n", ebox->tag);
+					egi_free_data_slider(ebox->egi_data);
 				}
 				break;
 			case type_page:

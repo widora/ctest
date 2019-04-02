@@ -22,9 +22,10 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_page.h"
 #include "egi_symbol.h"
-
+#include "egi_slider.h"
 
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
 1. create eboxes for 6 buttons and 1 title bar
@@ -70,7 +71,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 				        		0, /* bool movable */
 						        10+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							70,70, /* int width, int height */
-				       			1, /* int frame,<0 no frame */
+				       			0,//1, /* int frame,<0 no frame */
 		       					egi_color_random(medium) /*int prmcolor */
 						   );
 			/* if fail, try again ... */
@@ -100,7 +101,37 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[5], "Mini.");
 
 
-	/* --------- 2. create title bar --------- */
+
+	/* --------- 2. create a horizontal sliding bar --------- */
+//	EGI_POINT pxy={30,100};
+	EGI_DATA_BTN *data_slider=egi_sliderdata_new(
+	                                /* for btnbox */
+        	                        0, square,  	/* int id, enum egi_btn_type shape */
+                	                NULL,		/* struct symbol_page *icon */
+					0,		/* int icon_code, */
+                        	        &sympg_testfont,/* struct symbol_page *font */
+	                                /* for slider */
+        	                        (EGI_POINT){30,100},//pxy,	/* EGI_POINT pxy */
+                	                8,180,		/* int swidth, int slen */
+	                       	        0, 	        /* init val, usually to be 0 */
+                               	 	WEGI_COLOR_GRAY,  /* EGI_16BIT_COLOR val_color */
+					WEGI_COLOR_GRAY5,   /* EGI_16BIT_COLOR void_color */
+	                                WEGI_COLOR_GREEN //WHITE   /* EGI_16BIT_COLOR slider_color */
+        	                    );
+
+	EGI_EBOX *sliding_bar=egi_slider_new(
+  	 			"slider",  /* char *tag, or NULL to ignore */
+			        data_slider, /* EGI_DATA_BTN *egi_data */
+			        50,50,	     /* int width, int height */
+			        -1,	     /* int frame,<0 no frame */
+			        -1          /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
+			                       2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
+			     );
+
+	sliding_bar->reaction=slider_react;
+
+
+	/* --------- 3. create title bar --------- */
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
@@ -110,8 +141,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3 --------");
 
 
-	/* --------- 3. create mplay page ------- */
-	/* 3.1 create mplay page */
+	/* --------- 4. create mplay page ------- */
+	/* 4.1 create mplay page */
 	EGI_PAGE *page_mplay=NULL;
 	page_mplay=egi_page_new("page_mplayer");
 	while(page_mplay==NULL)
@@ -122,13 +153,13 @@ EGI_PAGE *egi_create_mplaypage(void)
 	}
 	page_mplay->ebox->prmcolor=egi_colorgray_random(light);
 
-        /* 3.2 put pthread runner */
+        /* 4.2 put pthread runner */
         //page_mplay->runner[0]= ;
 
-        /* 3.3 set default routine job */
+        /* 4.3 set default routine job */
         page_mplay->routine=egi_page_routine; /* use default */
 
-        /* 3.4 set wallpaper */
+        /* 4.4 set wallpaper */
         page_mplay->fpath="/tmp/mplay.jpg";
 
 
@@ -136,7 +167,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	for(i=0;i<6;i++) /* buttons */
 		egi_page_addlist(page_mplay, mplay_btns[i]);
 	egi_page_addlist(page_mplay, title_bar); /* title bar */
-
+	egi_page_addlist(page_mplay, sliding_bar); /* sliding bar */
 
 	return page_mplay;
 }
@@ -149,6 +180,7 @@ static void egi_pagemplay_runner(EGI_PAGE *page)
 {
 
 }
+
 
 /*----------------------------------------------------------------------
 btn_close function:
@@ -163,3 +195,49 @@ static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
 
+/*-------------------------------------------------------------------
+Horizontal Sliding bar reaction
+return
+---------------------------------------------------------------------*/
+static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	static int mark;
+	EGI_DATA_SLIDER *data_slider;
+	int minx,maxx;
+	int vol;
+	static char strcmd[50];
+
+        /* bypass unwanted touch status */
+        if( touch_data->status != pressed_hold && touch_data->status != pressing )
+                return btnret_IDLE;
+
+        /* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
+        if(touch_data->status==pressing)
+        {
+                printf("slider_react(): pressing sliding bar....\n");
+                mark=ebox->x0;
+        }
+	else  //(touch_data->status==pressed_hold)
+	{
+		data_slider=(EGI_DATA_SLIDER *)(((EGI_DATA_BTN *)(ebox->egi_data))->prvdata);
+		minx=data_slider->sxy.x-(ebox->width>>1);
+		maxx=minx+data_slider->sl;
+
+		/* update slider ebox position */
+		printf("touch_data->dx = %d\n",touch_data->dx);
+		ebox->x0 = mark+(touch_data->dx);
+		if(ebox->x0 < minx) ebox->x0=minx;
+		else if(ebox->x0 > maxx) ebox->x0=maxx;
+
+		/* adjust volume */
+		vol=100*data_slider->val/data_slider->sl;
+		memset(strcmd,0,sizeof(strcmd));
+		sprintf(strcmd,"amixer set PCM %d%%",vol);
+		system(strcmd);
+
+	        ebox->need_refresh=true;
+	        ebox->refresh(ebox);
+	}
+
+	return btnret_IDLE; /* OK, page need not refresh */
+}

@@ -516,12 +516,12 @@ int egi_page_routine(EGI_PAGE *page)
 		if(last_status !=released_hold )
 		{
 			/* check if any ebox was hit */
-		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn);
+		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
 			/* trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
 			{
-				EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): [page '%s'] [button '%s'] is touched! touch status is '%s'\n",
+	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): [page '%s'] [button '%s'] is touched! touch status is '%s'\n",
   						page->ebox->tag,hitbtn->tag,egi_str_touch_status(last_status));
 		       /*  then trigger button-hit action:
 		  	   1. 'pressing' and 'db_pressing' reaction events never coincide,
@@ -578,7 +578,7 @@ int egi_page_routine(EGI_PAGE *page)
 			 */
 #if 1
 //	                printf("--------egi_page: tm_delayms 100ms ------------\n");
-			tm_delayms(100); //55
+			tm_delayms(55); //55
 //	                printf("--------egi_page: end tm_delayms()------------\n");
 #endif
 #if 0 /* conflict with timer */

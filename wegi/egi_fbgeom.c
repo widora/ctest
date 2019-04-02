@@ -7,6 +7,9 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 作者：yuweixian4230@163.com
 博客：yuweixian4230.blog.chinaunix.net
 
+Note:
+1. Not thread safe.
+
 
 Modified and appended by Midas-Zhou
 -----------------------------------------------------------------------------*/
@@ -16,6 +19,7 @@ Modified and appended by Midas-Zhou
 #include "egi_math.h"
 #include <unistd.h>
 #include <string.h> /*memset*/
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -38,21 +42,31 @@ Modified and appended by Midas-Zhou
 FBDEV  gv_fb_dev;
 
 
- /* default color set */
- static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
+/* default color set */
+static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
 
- void init_dev(FBDEV *dev)
- {
+/*-------------------------------------
+Return:
+	0	OK
+	<0	Fails
+---------------------------------------*/
+int init_dev(FBDEV *dev)
+{
         FBDEV *fr_dev=dev;
 
         fr_dev->fdfd=open("/dev/fb0",O_RDWR);
-//        printf("the framebuffer device was opended successfully.\n");
-        ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo)); //获取 固定参数
-        ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo)); //获取可变参数
-        fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
-        fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,fr_dev->fdfd,0);
-//        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
+	if(fr_dev<0) {
+	  printf("Open /dev/fb0: %s\n",strerror(errno));
+	  return -1;
+	}
 
+//      printf("the framebuffer device was opended successfully.\n");
+        ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
+        ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
+        fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
+        fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
+											fr_dev->fdfd,0);
+//        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
 	printf(" \n------- FB Parameters -------:\n");
 	printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
 	printf(" line_length: %d bytes\n",fr_dev->finfo.line_length);
@@ -60,15 +74,21 @@ FBDEV  gv_fb_dev;
 	printf(" xoffset: %d,  yoffset: %d \n", fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
 	printf(" screensize: %ld bytes\n", fr_dev->screensize);
 	printf(" ----------------------------\n\n");
-  }
 
-    void release_dev(FBDEV *dev)
-    {
-	if(!dev->map_fb)return;
+	return 0;
+}
+
+/*-------------------------
+Release FB and free map
+--------------------------*/
+void release_dev(FBDEV *dev)
+{
+	if(!dev || !dev->map_fb)
+		return;
 
 	munmap(dev->map_fb,dev->screensize);
 	close(dev->fdfd);
-    }
+}
 
 
 /*------------------------------------
@@ -107,12 +127,11 @@ inline void fbset_color(uint16_t color)
 }
 
 
-/* -------------------------------------------
-      clear screen with given color
-
+/*---------------------------------------------
+    clear screen with given color
       BUG:
-		!!!!call egi_colorxxxx_randmon() error
- --------------------------------------------*/
+	!!!!call egi_colorxxxx_randmon() error
+---------------------------------------------*/
 void clear_screen(FBDEV *dev, uint16_t color)
 {
 	int i,j;
@@ -123,22 +142,19 @@ void clear_screen(FBDEV *dev, uint16_t color)
 	long int location=0;
 
 	for(location=0; location < (fr_dev->screensize/bytes_per_pixel); location++)
-	        *((unsigned short int *)(fr_dev->map_fb+location*bytes_per_pixel))=color;//color;
+	        *((uint16_t*)(fr_dev->map_fb+location*bytes_per_pixel))=color;
 
 /*   ---------------following is more accurate!?!?  ///
 	for(i=0;i<yres;i++)
 	{
 		for(j=0;j<xres;j++)
 		{
-
 		        location=(j+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                 	     (i+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
        			 *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
 		}
 	}
-
 */
-
 }
 
 /*-----------------------------------------------------
@@ -322,10 +338,10 @@ void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
 
 
 /*--------------------------------------------------------------
-Draw A Poly Line
+Draw A Wide Line
 x1,x1: starting point
 x2,y2: ending point
-w: width of the poly line
+w: width of the line ( W=2*N+1 )
 ----------------------------------------------------------------*/
 void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 {
@@ -402,7 +418,7 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
     }
 
 
-    /*-------------------------------------------------------------
+/*-------------------------------------------------------------
     Draw a filled rectangle defined by two end points of its
     diagonal line. Both points are also part of the rectangle.
 
@@ -410,31 +426,27 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 		0	OK
 		//ignore -1	point out of FB mem
     Midas
-    ------------------------------------------------------------*/
-    int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
-    {
+------------------------------------------------------------*/
+int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
+{
 	int xr,xl,yu,yd;
 	int i,j;
 
         /* sort point coordinates */
-        if(x1>x2)
-        {
+        if(x1>x2) {
                 xr=x1;
 		xl=x2;
         }
-        else
-	{
+        else {
                 xr=x2;
 		xl=x1;
 	}
 
-        if(y1>y2)
-        {
+        if(y1>y2) {
                 yu=y1;
 		yd=y2;
         }
-        else
-	{
+        else {
                 yu=y2;
 		yd=y1;
 	}
@@ -448,7 +460,46 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 	}
 
 	return 0;
-    }
+}
+
+/*--------------------------------------------------------------------------
+Same as draw_filled_rect(), but with color.
+---------------------------------------------------------------------------*/
+int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
+{
+	int xr,xl,yu,yd;
+	int i,j;
+
+        /* sort point coordinates */
+        if(x1>x2) {
+                xr=x1;
+		xl=x2;
+        }
+        else {
+                xr=x2;
+		xl=x1;
+	}
+
+        if(y1>y2) {
+                yu=y1;
+		yd=y2;
+        }
+        else {
+                yu=y2;
+		yd=y1;
+	}
+
+	for(i=yd;i<=yu;i++)
+	{
+		for(j=xl;j<=xr;j++)
+		{
+			fb_color=color;
+                	draw_dot(dev,j,i); /* ignore range check */
+		}
+	}
+
+	return 0;
+}
 
 
 

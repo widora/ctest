@@ -25,6 +25,12 @@ Midas Zhou
 typedef struct egi_page EGI_PAGE;
 typedef struct egi_element_box EGI_EBOX;
 typedef struct egi_touch_data EGI_TOUCH_DATA;
+typedef struct egi_data_txt EGI_DATA_TXT;
+typedef struct egi_data_btn EGI_DATA_BTN;
+typedef struct egi_data_list EGI_DATA_LIST;
+typedef struct egi_data_slider EGI_DATA_SLIDER;
+typedef struct egi_data_pic EGI_DATA_PIC;
+
 
 //typedef struct egi_imgbuf EGI_IMGBUF;
 
@@ -55,13 +61,13 @@ struct egi_box_coords
 /* element box type */
 enum egi_ebox_type
 {
-	type_page,
-	type_txt,
-	type_btn, /* button */
-	type_list,
-	type_slider, /* sliding bar */
-	type_chart,
-	type_pic, /* still picture or motion picture */
+	type_page=1,
+	type_txt=1<<1,
+	type_btn=1<<2, /* button */
+	type_list=1<<3,
+	type_slider=1<<4, /* sliding bar */
+	type_chart=1<<5,
+	type_pic=1<<6, /* still picture or motion picture */
 };
 
 /* element box status */
@@ -167,8 +173,8 @@ struct egi_element_box
 	enum egi_ebox_status status;
 
 	/* start point coordinate, left top point */
-	unsigned int x0;
-	unsigned int y0;
+	int x0; //unsigned ??
+	int y0; //unsigned ??
 
 	/* box size, fit to different type
 	1. for txt box, H&W define the holding pad size. and if txt string extend out of
@@ -300,7 +306,7 @@ struct egi_touch_data
 
 
 /* egi data for a txt type ebox */
-typedef struct egi_data_txt EGI_DATA_TXT;
+//typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
 	unsigned int id; /* unique id number for txt, MUST>0, default 0 for ignored  */
@@ -333,7 +339,7 @@ struct egi_data_txt
 
 
 /* egi data for a botton type ebox */
-typedef struct egi_data_btn EGI_DATA_BTN;
+//typedef struct egi_data_btn EGI_DATA_BTN;
 struct egi_data_btn
 {
 	//char tag[32]; 	  /* short description of the button */
@@ -346,10 +352,12 @@ struct egi_data_btn
 	int opaque; 		  /* opaque value for the icon, default 0, 0---totally NOT transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag;             /* to show tag on button or not, default 0, */
+
+	void *prvdata;		  /* private data for derivative ebox, slider etc. */
 };
 
 /* egi data for a list type ebox */
-typedef struct egi_data_list EGI_DATA_LIST;
+//typedef struct egi_data_list EGI_DATA_LIST;
 struct egi_data_list
 {
         /* total number of items in a list, part of them may be shown in the displaying_window */
@@ -385,7 +393,7 @@ struct egi_data_list
 	*/
 
 	/* refresh motion type
-	   0:	not motion
+	   0:	no motion
 	   1:	sliding from left
 	*/
 	int motion;
@@ -405,29 +413,38 @@ struct egi_data_list
       if they'are defined as so.
 
 */
-typedef struct egi_data_slider EGI_DATA_SLIDER;
+//typedef struct egi_data_slider EGI_DATA_SLIDER;
 struct egi_data_slider
 {
-	/* adjusting range: 0 - maxval  */
-	int	maxval; /* Max. of the slider value,  */
+	/* start point of the slider
+	 *  for Horizontal type, start point is at left of the LCD,
+	 *  for Vertical type, start point is at down part of the LCD, with bigger Y,
+	 */
+	EGI_POINT sxy;
 
-	/* width of bar slot */
-	int	ws; /* at least>0 */
+	/* position type of the sliding bar */
+	int ptype; /* 0--Horizontal, 1--Vertical */
 
-	/* offset of slider ebox from the left top of the hosting ebox */
-	int	offx;
-	int	offy; /* to be <=0, so the slider will be inside the hosting ebox */
+	/* width and length of a bar slot */
+	int	sw;  /* at least>0 */
+	int	sl;
+
+	/* indicating value, part of ls */
+	int 	val; /* range: 0-ls */
+
+	/* color for the valued bar and remainded bar */
+	EGI_16BIT_COLOR color_valued;
+	EGI_16BIT_COLOR color_void;
+	EGI_16BIT_COLOR color_slider; /* only if it applys */
 
 	/* icon for the slot bar, if not NULL */
-	struct symbol_page *slot_icon;
-	int slot_code;
+//	struct symbol_page *slot_icon;
+//	int slot_code;
 
-	/* slider is also an ebox */
-	EGI_EBOX    *slider;
-
-	/* icon for the slider block, if not NULL */
-	struct symbol_page *slider_icon;
-	int slider_code;
+	/* Icon for the slider block:
+	 * if ebox->prmcolor <0 && data_btn->icon ==NULL
+	 *  then it will draw D=3*sw circle as for the slider
+	 */
 };
 
 /*
@@ -440,7 +457,7 @@ struct egi_data_slider
      It also frees and reallocates memory for imgbuf according to pic size.
 
 */
-typedef struct egi_data_pic EGI_DATA_PIC;
+//typedef struct egi_data_pic EGI_DATA_PIC;
 struct egi_data_pic
 {
 	/* image data for a picture, in R5G6B5 pixel format */

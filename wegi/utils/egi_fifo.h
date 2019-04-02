@@ -31,9 +31,9 @@ typedef struct
 
 	pthread_mutex_t lock;		/* thread mutex lock */
 
-	int		pin_wait;	/* set pin_wait==0: It keeps pushing data, pin never waits for pout,
+	int		pin_wait;	/* 1.Set pin_wait==0: It keeps pushing data, pin never waits for pout,
 					 * some data will be overwritten and lost before pout can get them.
-					 * set pin_wait!=0: When pin catches up pout from a loop back, it will
+					 * 2.Set pin_wait!=0: When pin catches up pout from a loop back, it will
 					 * stop and wait for pin to catch up, so all data will be picked up
 					 * by pout.
 					 */

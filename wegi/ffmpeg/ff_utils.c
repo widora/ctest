@@ -1,26 +1,13 @@
-/*--------------------------------------------------------------------
+/*-----------------------------------------------------------------------
 Note:
 	Never forget why you start! ---Just For Fun!
 
 TODO:
-1. Use a new FB_DEV to display subtitle. or it rises a race condition
-   for the FB dev.
-2.
+1. Putting subtitle displaying codes in thdf_Display_Pic() may be better.
+
 
 Midas_Zhou
-----------------------------------------------------------------------*/
-//#include "libavutil/avutil.h"
-//#include "libavutil/time.h"
-//#include "libavutil/timestamp.h"
-//#include "libswresample/swresample.h"
-//#include "libavcodec/avcodec.h"
-//#include "libavformat/avformat.h"
-//#include "libswscale/swscale.h"
-//#include "libavfilter/avfiltergraph.h"
-//#include "libavfilter/buffersink.h"
-//#include "libavfilter/buffersrc.h"
-//#include "libavutil/opt.h"
-
+-------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <dirent.h>
 #include <limits.h> /* system: NAME_MAX 255; PATH_MAX 4096 */
@@ -169,9 +156,7 @@ void* thdf_Display_Pic(void * argv)
 		if( !IsFree_PICbuff[i] ) /* only if pic data is loaded in the buff */
 		{
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
-
 			imgbuf.imgbuf=(uint16_t *)pPICbuffs[i];
-			//egi_imgbuf_display(&imgbuf, &gv_fb_dev, 0, 0);
 
 			/* window_position displaying */
 			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, 0, 0, ppic->Hs, ppic->Vs,
@@ -179,12 +164,12 @@ void* thdf_Display_Pic(void * argv)
 		   	/* hold for a while :))) */
 		   	usleep(20000);
 
-		   	/* put a FREE tag after display, then it may be overwritten. */
+		   	/* put a FREE tag after display, then it can be overwritten. */
 	  	   	IsFree_PICbuff[i]=true;
 		}
 	   }
+
 	   /* quit ffplay */
-	   //if(fftok_QuitFFplay)
 	   if(control_cmd == cmd_exit_display_thread )
 		break;
 
@@ -227,7 +212,7 @@ int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 
 
 /*-------------------------------------------------------------
-	     a thread fucntion
+A thread function of displaying subtitles.
 Read a SRT substitle file and display it on a dedicated area.
 
 argv*:  data for subtitle path
@@ -285,7 +270,9 @@ void* thdf_Display_Subtitle(void * argv)
 
         	/* 3. read a section of sub and display it */
 	        fbset_color(WEGI_COLOR_BLACK);
-        	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,
+//        	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,
+//								subbox.endxy.x,subbox.endxy.y);
+        	draw_filled_rect2(&gv_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
 								subbox.endxy.x,subbox.endxy.y);
 	        len=0;
         	memset(strsub,0,sizeof(strsub));
@@ -329,7 +316,6 @@ void* thdf_Display_Subtitle(void * argv)
         }/* end of sub file */
 
        	fclose(fil);
-
 	return NULL;
 }
 

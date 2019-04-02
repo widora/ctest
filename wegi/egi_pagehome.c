@@ -224,7 +224,6 @@ display cpu load in home head-bar with motion icons
 
 1. read /proc/loadavg to get the value
 	loadavg 1-6,  >5 alarm
-
 2. corresponding symmic_cpuload[] index from 0-5.
 
 -------------------------------------------------------*/
@@ -254,12 +253,12 @@ static void egi_display_cpuload(EGI_PAGE *page)
 			load=5;
 		//printf("----------------- load: %d -----------------\n",load);
 		/* load cpuload motion icons
-			  symbol_motion_string() is with---sleep---function inside */
+		 *	  symbol_motion_string() is with---sleep---function inside
+		 * WARNING: use global FB dev may cause rase condition
+		 */
   	 	symbol_motion_string(&gv_fb_dev, 155-load*15, &sympg_icons,
 		 					1, 210,0, &symmic_cpuload[load][0]);
-
 	}
-
 }
 
 /*-----------------  RUNNER 2 --------------------------
@@ -279,7 +278,6 @@ static void egi_display_iotload(EGI_PAGE *page)
 			  symbol_motion_string() is with sleep function */
   	 	symbol_motion_string(&gv_fb_dev, 120, &sympg_icons, 1, 180,0, symmic_iotload);
 
-
 		/* 2. get RSSI value */
 		iw_get_rssi(&rssi);
 		if(rssi > -65) index=5;
@@ -289,7 +287,9 @@ static void egi_display_iotload(EGI_PAGE *page)
 		else 	index=1;
 		//EGI_PDEBUG(DBG_PAGE,"egi_display_itoload(): rssi=%d; index=%d \n",rssi,index);
 
-		/* 3. draw RSSI symbol */
+		/* 3. draw RSSI symbol
+		 * WARNING: use global FB dev may cause rase condition
+		 */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
 	}
 }
