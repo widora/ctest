@@ -149,7 +149,7 @@ EGI_EBOX * egi_slider_new(
         ebox->movable=true; /* MUST true for a slider */
         ebox->width=width;
 	ebox->height=height;
-	if(data_slider->ptype) /* Horizontal Type */
+	if(data_slider->ptype==0) /* Horizontal Type */
 	{
 	        ebox->x0=data_slider->sxy.x+data_slider->val-(width>>1);
 		ebox->y0=data_slider->sxy.y-(height>>1);
@@ -198,6 +198,7 @@ int egi_slider_activate(EGI_EBOX *ebox)
                 printf("egi_sliderbox_activate(): data_btn  or its prvdata for slider is NULL!\n");
                 return -1;
         }
+	//EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
 	/* 1. confirm ebox type */
         if(ebox->type != type_slider)
@@ -224,8 +225,9 @@ int egi_slider_activate(EGI_EBOX *ebox)
 
 	/* else if no icon, use prime shape and size */
 
-
-	/* origin(left top), for btn H&W x0,y0 is same as ebox */
+	/* origin(left top), for btn H&W x0,y0 is same as ebox
+	 * NOTE: already initialized according to sxy and ls in egi_slider_new()
+	 */
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 
@@ -424,6 +426,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		draw_wline(&gv_fb_dev,data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
 			      data_slider->sxy.x+data_slider->val, data_slider->sxy.y, /* slider point*/
 			   data_slider->sw);
+
 		/* draw void sliding slot */
 		fbset_color(data_slider->color_void);
 		draw_wline(&gv_fb_dev, data_slider->sxy.x+data_slider->val, data_slider->sxy.y, /* slider point*/

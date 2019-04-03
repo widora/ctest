@@ -63,19 +63,19 @@ APPS = tmp_app #test_sym
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
-	     utils/egi_filo.o utils/egi_cstring.o
-
+	     utils/egi_filo.o utils/egi_cstring.o	\
+	     ffmpeg/ff_pcm.o
 
 #### -----  编译标志 -----
 ## -Wall for __attribut__ // -I$(COMMON_USRDIR)/include (for jpeg)
-CFLAGS = -I./ -I./iot -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS = -I./ -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall -O2
 #CFLAGS += -I./ -I./include
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -O -g -DEGI_DEBUG
 
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
-LIBS += -ljpeg -lm -lpthread -ljson-c
+LIBS += -ljpeg -lm -lpthread -ljson-c -lasound
 
 
 #----- 打印依赖文件  include $(DEP_FILES)

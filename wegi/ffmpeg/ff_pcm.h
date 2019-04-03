@@ -32,5 +32,7 @@ Midas Zhou
 int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
 void close_ffpcm_device(void);
 void play_ffpcm_buff(void** buffer, int nf);
+int ffpcm_getset_volume(int *pvol, int *percnt);
+
 
 #endif

@@ -77,6 +77,7 @@ enum egi_ebox_status
 	status_nobody=0,
 	status_sleep,
 	status_active,
+	status_page_exiting, /* to inform page runner */
 };
 
 /*
@@ -412,7 +413,6 @@ struct egi_data_list
 
   3.  The geometry of the slot bar and/or the slider will be replaced by icons,
       if they'are defined as so.
-
 */
 //typedef struct egi_data_slider EGI_DATA_SLIDER;
 struct egi_data_slider
@@ -513,9 +513,9 @@ struct egi_page
 	EGI_IMGBUF *imgbuf;
 
 	/* --- child list:
-	maintain a list for all child ebox, there should also be layer information
-	multi_layer operation is applied.
-	*/
+	 *  maintain a list for all child ebox, there should also be layer information
+ 	 *  multi_layer operation is applied.
+	 */
 	struct list_head list_head; /* list head for child eboxes */
 
 	/* --- !!! page routine function : threads pusher and job pusher ----
@@ -527,6 +527,7 @@ struct egi_page
 	/* --- following jobs carried out in routine(),  not in page_refresh() method
 	   pthread runner
 	   thread jobs to be loaded in routine().
+	   and joint in egi_page_free()
 	*/
 	pthread_t threadID[EGI_PAGE_MAXTHREADS];
 	bool thread_running[EGI_PAGE_MAXTHREADS]; /* indicating whether the thread is running */

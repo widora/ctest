@@ -1,10 +1,11 @@
-/*----------------------------------------------------------------
+/*--------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+
 Midas Zhou
------------------------------------------------------------------*/
+---------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +57,6 @@ EGI_PAGE * egi_page_new(char *tag)
 	egi_ebox_settag(page->ebox,tag);
 	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
-
 	/* 5. set prmcolor<0, so it will NOT  draw prmcolor in page refresh()
 	   !!!! 0 will be deemed as pure black in refresh()  */
 	page->ebox->prmcolor=-1;
@@ -87,6 +87,7 @@ Return:
 int egi_page_free(EGI_PAGE *page)
 {
 	int ret=0;
+	int i;
 	struct list_head *tnode, *tmpnode;
 	EGI_EBOX *ebox;
 
@@ -100,6 +101,15 @@ int egi_page_free(EGI_PAGE *page)
 	{
 		printf("%s: WARN: input page->ebox is NULL!\n",__func__);
 	}
+
+	/* change status, wait runner ....*/
+	page->ebox->status=status_page_exiting;
+
+	for(i=0;i<EGI_PAGE_MAXTHREADS;i++) {
+		if(page->thread_running[i])
+			pthread_join(page->threadID[i],NULL);
+	}
+
 
 	/*  free every child in list */
 	if(!list_empty(&page->list_head))
@@ -441,7 +451,6 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 }
 
 
-
 /*-----------------------------------------------------
 default page routine job
 
@@ -459,7 +468,6 @@ int egi_page_routine(EGI_PAGE *page)
 
 	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
 	tm_delayms(100);
-
 
 	/* for time struct */
 //	struct timeval t_start,t_end; /* record two pressing_down time */
@@ -485,7 +493,7 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
 	/* 3. load page runner threads */
-	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag); 
+	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag);
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		if( page->runner[i] !=0 )
@@ -544,7 +552,6 @@ int egi_page_routine(EGI_PAGE *page)
 								   last_status==pressing ||
 								   last_status==db_pressing  )  )
 				{
-
 					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...
 					*/
@@ -598,7 +605,6 @@ int egi_page_routine(EGI_PAGE *page)
 		}
 
 	}/* end while() */
-
 
 	return pgret_OK;
 	//return 0;

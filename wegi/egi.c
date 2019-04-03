@@ -37,6 +37,7 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_list.h"
 #include "egi_pic.h"
+#include "egi_slider.h"
 #include "egi_debug.h"
 #include "sys_list.h"
 #include "egi_symbol.h"
@@ -350,10 +351,6 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 	}
 
 }
-
-
-
-
 
 
 /*----------------------------------------------------

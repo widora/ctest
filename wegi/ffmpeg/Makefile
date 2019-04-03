@@ -9,7 +9,8 @@ SOURCE = $(APP).c
 DEPS = ff_utils.h ff_utils.c ff_pcm.h ff_pcm.c
 OBJ = $(APP).o ff_pcm.o ff_utils.o
 EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o ../utils/egi_utils.o\
-	  ../utils/egi_filo.o	../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o
+	  ../utils/egi_filo.o	../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bmpjpg.o ../egi_fbgeom.o ../spi.o \
+	  ../egi_slider.o
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c

@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*--------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -15,8 +15,7 @@ page creation jobs:
 4. button reaction functins
 
 Midas Zhou
----------------------------------------------------------------------------*/
-
+--------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h> /* usleep */
@@ -28,9 +27,15 @@ Midas Zhou
 #include "egi_page.h"
 #include "egi_symbol.h"
 #include "egi_slider.h"
+#include "egi_timer.h"
+#include "ff_pcm.h"
 
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static void check_volume_runner(EGI_PAGE *page);
+
+#define  SLIDER_ID 100 /* use a big value */
+
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
 1. create eboxes for 6 buttons and 1 title bar
@@ -107,32 +112,39 @@ EGI_PAGE *egi_create_mplaypage(void)
 
 
 	/* --------- 2. create a horizontal sliding bar --------- */
+
+	int sl=180; /* slot length */
+
+	/* set playback volume percert to data_slider->val */
+	int pvol; /* percent value */
+	ffpcm_getset_volume(&pvol,NULL);
+	printf("-------pvol=%%%d-----\n",pvol);
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(
 	                                /* for btnbox */
-        	                        0, square,  	/* int id, enum egi_btn_type shape */
+        	                        SLIDER_ID, square,  	/* int id, enum egi_btn_type shape */
                 	                NULL,		/* struct symbol_page *icon */
 					0,		/* int icon_code, */
                         	        &sympg_testfont,/* struct symbol_page *font */
 	                                /* for slider */
         	                        (EGI_POINT){30,100},//pxy,	/* EGI_POINT pxy */
-                	                8,180,		/* int swidth, int slen */
-	                       	        0, 	        /* init val, usually to be 0 */
+                	                8,sl,	 	/* slot width, slot length */
+	                       	        pvol*sl/100,      /* init val, usually to be 0 */
                                	 	WEGI_COLOR_GRAY,  /* EGI_16BIT_COLOR val_color */
 					WEGI_COLOR_GRAY5,   /* EGI_16BIT_COLOR void_color */
 	                                WEGI_COLOR_GREEN //WHITE   /* EGI_16BIT_COLOR slider_color */
         	                    );
 
 	EGI_EBOX *sliding_bar=egi_slider_new(
-  	 			"slider",  /* char *tag, or NULL to ignore */
+  	 			"volume slider",  /* char *tag, or NULL to ignore */
 			        data_slider, /* EGI_DATA_BTN *egi_data */
-			        50,50,	     /* int width, int height */
+			        50,50,	     /* slider block: int width, int height */
 			        -1,	     /* int frame,<0 no frame */
 			        -1          /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
 			                       2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
 			     );
 
+	/* set reaction function */
 	sliding_bar->reaction=slider_react;
-
 
 	/* --------- 3. create title bar --------- */
 	EGI_EBOX *title_bar= create_ebox_titlebar(
@@ -156,8 +168,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 	}
 	page_mplay->ebox->prmcolor=egi_colorgray_random(light);
 
-        /* 4.2 put pthread runner */
-        //page_mplay->runner[0]= ;
+	/* 4.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
+        page_mplay->runner[0]=check_volume_runner;
 
         /* 4.3 set default routine job */
         page_mplay->routine=egi_page_routine; /* use default */
@@ -176,11 +188,35 @@ EGI_PAGE *egi_create_mplaypage(void)
 }
 
 
-/*-----------------  RUNNER 1 --------------------------
-
--------------------------------------------------------*/
-static void egi_pagemplay_runner(EGI_PAGE *page)
+/*-------------------------    RUNNER 1   --------------------------
+Check volume and refresh slider.
+-------------------------------------------------------------------*/
+static void check_volume_runner(EGI_PAGE *page)
 {
+     int pvol;
+     int sval;
+     EGI_EBOX *slider=egi_page_pickebox(page, type_slider, SLIDER_ID);
+     EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(slider->egi_data);
+     EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
+
+     while(1) {
+	   /* get palyback volume */
+	   ffpcm_getset_volume(&pvol,NULL);
+	   sval=pvol*data_slider->sl/100;
+
+	   /* slider value is drivered by ebox->x0 for H slider, so set x0 not val */
+	   slider->x0=data_slider->sxy.x+sval-(slider->width>>1);
+
+	   /* refresh it */
+           slider->need_refresh=true;
+           slider->refresh(slider);
+
+	   /* check page status */
+	   if(page->ebox->status==status_page_exiting)
+		return;
+
+	   egi_sleep(0,0,300); /* 300ms */
+     }
 
 }
 
