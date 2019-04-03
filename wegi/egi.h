@@ -1,9 +1,11 @@
-/*-----------------------------------------------------------------------------
-embedded graphic interface based on frame buffer, 16bit color tft-LCD.
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
 
 
 Midas Zhou
------------------------------------------------------------------------------*/
+------------------------------------------------------------------*/
 #ifndef __EGI_H__
 #define __EGI_H__
 
@@ -13,7 +15,6 @@ Midas Zhou
 #include <stdbool.h>
 #include <pthread.h>
 #include "sys_list.h"
-//#include "egi_fbgeom.h"
 #include "egi_image.h"
 #include "egi_color.h"
 #include "egi_filo.h"

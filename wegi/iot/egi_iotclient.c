@@ -1,4 +1,9 @@
 /*--------------------------  iot_client.c  ---------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 1. A simple example to connect BIGIOT and control a bulb icon.
 2. IoT talk syntax is according to BigIot Protocol: www.bigiot.net/help/1.html
 

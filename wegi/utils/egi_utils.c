@@ -1,9 +1,13 @@
-/*-------------------------------------------------------
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
 Utility functions, mem.
 
 
 Midas Zhou
--------------------------------------------------------*/
+-----------------------------------------------------------------*/
 #include "egi_utils.h"
 #include "egi_log.h"
 #include <stdio.h>
@@ -11,7 +15,6 @@ Midas Zhou
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
-
 
 
 /*---------------------------------------------------------------------

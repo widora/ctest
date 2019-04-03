@@ -1,12 +1,8 @@
 NOTE:
-1. Copy main() source file to temp_app.c, then you can use Makefile.
-2. Change the original main() source file to xxx_C for backup.  
-3. Make it and you will get bin file temp_app, change the name as you wish.
-4. Black_and_While font images show sharply in contrasting color backgroud, while Gray font images show softly
+1. Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
+2. Black_and_While font images show sharply in contrasting color backgroud, while Gray font images show softly
    and smoothly in simlar color backgroup.  When replace default font color with a given one, the Gray img font may 
    getting worse. that because all non-zero color vaule will be replaced by the SAME given value.
-5. Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
-
 
 
 	----- main source files ( GPL if applicable ) -----
@@ -23,10 +19,12 @@ egi_log.c	for logger operation
 egi_utils.c	some helper functions
 egi_math.c	a common math function module
 egi_fifo.c	a common fifo module for EGI
+egi_filo.c	a common filo module for EGI
 egi_iotclient.c		A BIGIOT client application.
 
 egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
+egi_slider.c	type_slier ebox, for sliding bar.
 egi_list.c	type_list ebox
 egi_iwinfo.c	wifi info. extraction
 egi_pic.c	type_pic ebox
@@ -41,7 +39,6 @@ egi_pagemplay.c	        PAGE mplayer
 egi_pageopenwrt.c	PAGE openwrt info.
 egi_pagetest.c		PAGE test
 egi_pageslide.c		PAGE sliding bar test
-
 
 
 Midas Zhou

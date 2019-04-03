@@ -1,4 +1,9 @@
 /* ------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 NOTE:
 1. egi_touch_loopread() will wait until live_touch_data.updated is fals,
    so discard first egi_touch_getdata() before loop call it.

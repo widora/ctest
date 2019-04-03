@@ -1,6 +1,16 @@
 /*-----------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 Note:
-1. Mplayer will take the pcm device exclusively??
+1. Mplayer will take the pcm device exclusively?? ---NOPE.
 2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
   Mplayer interrrupted by signal 2 in Module: enable_cache
   Mplayer interrrupted by signal 2 in Module: play_audio
@@ -28,8 +38,6 @@ static bool g_blInterleaved;
 Return:
 a	0  :  OK
 	<0 :  fails
-
-Midas Zhou
 -----------------------------------------------------------------------------------*/
 int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
 {

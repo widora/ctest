@@ -1,4 +1,9 @@
 /*-------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 creating eboxes and page.
@@ -101,9 +106,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[5], "Mini.");
 
 
-
 	/* --------- 2. create a horizontal sliding bar --------- */
-//	EGI_POINT pxy={30,100};
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(
 	                                /* for btnbox */
         	                        0, square,  	/* int id, enum egi_btn_type shape */
@@ -138,7 +141,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
-	egi_txtbox_settitle(title_bar, "   MPlayer 1.0rc2-4.8.3 --------");
+	egi_txtbox_settitle(title_bar, "   	MPlayer 1.0rc");
 
 
 	/* --------- 4. create mplay page ------- */

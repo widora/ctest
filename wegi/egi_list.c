@@ -1,4 +1,9 @@
 /*----------------------- egi_list.c -------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 1. a list ebox consists of item txt_eboxes set in egi_data.
 2. Icon of a list item is drawed by calling its txt_eboxe decorate function.
 

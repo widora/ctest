@@ -1,4 +1,9 @@
 #-------------------------------------------------------------------------------------------------------------
+#	This program is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License version 2 as
+#	published by the Free Software Foundation.
+#
+#	Midas Zhou
 # 一个Makefile文件通常所包含的内容和步骤：
 #	1. 指定路径  VPATH
 #	2. 源文件和目标文件列表，如：

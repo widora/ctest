@@ -1,4 +1,9 @@
 /*-------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 creating eboxes and page.

@@ -1,4 +1,9 @@
 /*-----------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
@@ -9,6 +14,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
 Note:
 1. Not thread safe.
+
 
 
 Modified and appended by Midas-Zhou

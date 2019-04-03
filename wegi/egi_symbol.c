@@ -1,4 +1,9 @@
 /*----------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 For test only!
 
 1. Symbols may be icons,fonts, image, a serial motion picture.... etc.

@@ -1,4 +1,9 @@
 /*----------------------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 A EGI_FILO buffer
 
 1. WARNING: No mutex lock applied, It is supposed there is only one pusher and one puller,
