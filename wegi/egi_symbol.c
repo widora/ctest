@@ -23,6 +23,7 @@ For test only!
 	7.1 sympg->maxnum;
 	7.2 xxx_width[N] >= sympg->maxnu;
 	7.3 modify symbol structre in egi_symbol.h accordingly.
+
 TODO:
 0.  different type symbol now use same writeFB function !!!!! font and icon different writeFB func????
 0.  if image file is not complete.
@@ -539,8 +540,9 @@ transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is s
 	     	<0	 no transparent pixel
 
 fontcolor:	font color(symbol color for a symbol)
-		>= 0, use given font color.
-		<0   use default color in img data
+		>= 0,  use given font color.
+		<0  ,  use default color in img data.
+
 use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
@@ -557,6 +559,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 {
 	int i,j;
 	FBDEV *dev = fb_dev;
+	FBPIX fpix;
 	long int pos; /* offset position in fb map */
 	int xres=dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
 	int yres=dev->vinfo.yres;
@@ -630,7 +633,6 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				continue;
 
 #endif
-
 			/*x(i,j),y(i,j) mapped to LCD(xy),
 				however, pos may also be out of FB screensize  */
 			pos=mapy*xres+mapx; /* in pixel, LCD fb mem position */
@@ -641,6 +643,16 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			   (no transp. color applied) OR (write only untransparent pixel) */
 			if(transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
+				/* push original fb data to FB FILO, before write new color */
+//				if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
+				if(fb_dev->filo_on)
+				{
+					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
+					fpix.color=*(uint16_t *)(dev->map_fb+(pos<<1));
+					//printf("symbol push FILO: pos=%ld.\n",fpix.position);
+					egi_filo_push(fb_dev->fb_filo,&fpix);
+				}
+
 				/* if use complementary color */
 				if(TESTFONT_COLOR_FLIP)
 				{
@@ -683,6 +695,7 @@ fontcolor:	font color (or symbol color for a symbol)
 transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 		    for fonts and icons,
 	     	<0	 --- no transparent pixel
+
 use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font

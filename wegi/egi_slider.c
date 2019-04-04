@@ -112,6 +112,7 @@ EGI_EBOX * egi_slider_new(
 	char *tag, /* or NULL to ignore */
         EGI_DATA_BTN *egi_data,
         int width, int height, /* for frame drawing and prmcolor filled_rectangle */
+	int twidth, int theight, /* for touch area,which is coupled with ebox->x0,y0 */
         int frame,
         int prmcolor /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
 			2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
@@ -151,15 +152,30 @@ EGI_EBOX * egi_slider_new(
 	ebox->height=height;
 	if(data_slider->ptype==0) /* Horizontal Type */
 	{
+		/* ebox->x0,y0 */
 	        ebox->x0=data_slider->sxy.x+data_slider->val-(width>>1);
-		ebox->y0=data_slider->sxy.y-(height>>1);
+		ebox->y0=data_slider->sxy.y-(height>>1); /* beware of LCD Y dir */
+
+		/* couple touch area with slider position */
+		ebox->touchbox.startxy.x=data_slider->sxy.x+data_slider->val-(twidth>>1);
+		ebox->touchbox.startxy.y=data_slider->sxy.y-(theight>>1);
+		ebox->touchbox.endxy.x=data_slider->sxy.x+data_slider->val+(twidth>>1);
+		ebox->touchbox.endxy.y=data_slider->sxy.y+(theight>>1);
 	}
 	else	/* Vertical Type, start point is at lower end  */
 	{
+		/* ebox->x0,y0 */
 		ebox->x0=data_slider->sxy.x-(width>>1);
-		ebox->y0=data_slider->sxy.y-data_slider->val-(height>>1);
+		ebox->y0=data_slider->sxy.y-data_slider->val-(height>>1); /* slider x0y0 at bigger Y end of LCD */
+
+		/* couple touch area with slider position */
+		ebox->touchbox.startxy.x=data_slider->sxy.x-(twidth>>1);
+		ebox->touchbox.startxy.y=data_slider->sxy.y-data_slider->val-(theight>>1);
+		ebox->touchbox.endxy.x=data_slider->sxy.x+(twidth>>1);
+		ebox->touchbox.endxy.y=data_slider->sxy.y-data_slider->val+(theight>>1);
 	}
-        ebox->frame=frame;      ebox->prmcolor=prmcolor;
+        ebox->frame=frame;
+	ebox->prmcolor=prmcolor;
 
         /* 5. pointer default */
         ebox->bkimg=NULL;
@@ -307,6 +323,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	int symwidth;
 	int icon_code=0; /* 0, first ICON */;
 	uint16_t sym_subcolor=0; /* symbol substitute color, 0 as no subcolor */
+	int twidth,theight; /* widht/height of ebox->touchbox */
 
 	/* check data */
         if( ebox == NULL || ebox->egi_data == NULL
@@ -322,6 +339,10 @@ int egi_slider_refresh(EGI_EBOX *ebox)
                 printf("egi_slider_refresh(): Not slider type ebox!\n");
                 return -1;
         }
+
+	/* get touchbox height and width */
+	twidth=ebox->touchbox.endxy.x - ebox->touchbox.startxy.x;
+	theight=ebox->touchbox.endxy.y - ebox->touchbox.startxy.y;
 
 	/*  check the ebox status  */
 	if( ebox->status != status_active )
@@ -387,7 +408,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	int x0=ebox->x0;  /* x0 is fixed for Vertical slider */
 	int y0=ebox->y0;  /* y0 is fixed for HOrizontal slider */
 
-   if(ebox->movable) /* only if ebox is movale */
+   if(ebox->movable) /* only if ebox is movale, For SLIDER it's sure!!! */
    {
        /* ---- 4. redefine bkimg box range, in case it changes */
 	/* check ebox height and font lines in case it changes, then adjust the height */
@@ -411,15 +432,22 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	}
    } /* end of movable codes */
 
-
-	/*  ---- update slider value according to ebox position and redraw sliding slot */
+	/*  ---- update slider value according to ebox->x0y0 position and redraw sliding slot */
 	if(data_slider->ptype==0) { 	/* Horizontal sliding bar */
 		/* get slider value */
 		data_slider->val=x0+(ebox->width>>1)-data_slider->sxy.x;
+
+		/* check limit */
 		if(data_slider->val > data_slider->sl)
 				data_slider->val=data_slider->sl;
 		else if(data_slider->val<0)
 				data_slider->val=0;
+
+		/* couple touch area with slider position */
+		ebox->touchbox.startxy.x=data_slider->sxy.x+data_slider->val-(twidth>>1);
+		ebox->touchbox.startxy.y=data_slider->sxy.y-(theight>>1);
+		ebox->touchbox.endxy.x=data_slider->sxy.x+data_slider->val+(twidth>>1);
+		ebox->touchbox.endxy.y=data_slider->sxy.y+(theight>>1);
 
 		/* draw valued sliding slot */
 		fbset_color(data_slider->color_valued);
@@ -443,6 +471,12 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		else if(data_slider->val<0)
 				data_slider->val=0;
 
+		/* couple touch area with slider position */
+		ebox->touchbox.startxy.x=data_slider->sxy.x-(twidth>>1);
+		ebox->touchbox.startxy.y=data_slider->sxy.y-data_slider->val-(theight>>1);
+		ebox->touchbox.endxy.x=data_slider->sxy.x+(twidth>>1);
+		ebox->touchbox.endxy.y=data_slider->sxy.y-data_slider->val+(theight>>1);
+
 		/* draw valued sliding slot */
 		fbset_color(data_slider->color_valued);
 		draw_wline(&gv_fb_dev, data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
@@ -464,13 +498,13 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		if(data_slider->ptype==0) {	/* Horizontal bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x+data_slider->val, data_slider->sxy.y,
-					   data_slider->sw
+					   data_slider->sw + 2
 			);
 		}
 		else  {   /* Vertical bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x, data_slider->sxy.y-data_slider->val,
-					   data_slider->sw
+					   data_slider->sw + 2
 			);
 		}
 	}

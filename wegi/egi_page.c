@@ -78,7 +78,7 @@ EGI_PAGE * egi_page_new(char *tag)
 }
 
 
-/*---------------------------------------------
+/*--------------------------------------------
 free a egi page
 Return:
 	0	OK
@@ -92,13 +92,11 @@ int egi_page_free(EGI_PAGE *page)
 	EGI_EBOX *ebox;
 
 	/* check data */
-	if(page == NULL)
-	{
+	if(page == NULL) {
 		printf("egi_page_free(): page is NULL! fail to free.\n");
 		return -1;
 	}
-	if( page->ebox==NULL )
-	{
+	if( page->ebox==NULL ) {
 		printf("%s: WARN: input page->ebox is NULL!\n",__func__);
 	}
 
@@ -106,8 +104,11 @@ int egi_page_free(EGI_PAGE *page)
 	page->ebox->status=status_page_exiting;
 
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++) {
-		if(page->thread_running[i])
+		if(page->thread_running[i]) {
+			EGI_PDEBUG(DBG_PAGE,"page ['%s'] wait to join runner thread [%d].\n"
+										,page->ebox->tag,i);
 			pthread_join(page->threadID[i],NULL);
+		}
 	}
 
 
@@ -118,7 +119,7 @@ int egi_page_free(EGI_PAGE *page)
 		list_for_each_safe(tnode, tmpnode, &page->list_head)
         	{
                	 	ebox=list_entry(tnode,EGI_EBOX,node);
-			EGI_PDEBUG(DBG_PAGE,"ebox '%s' is unlisted from page '%s' and freed.\n" 
+			EGI_PDEBUG(DBG_PAGE,"ebox '%s' is unlisted from page '%s' and freed.\n"
 									,ebox->tag,page->ebox->tag);
                 	list_del(tnode);
                 	ebox->free(ebox);

@@ -216,17 +216,21 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 1. in a page, find the ebox index according to given x,y
 2. a sleeping ebox will be ignored.
 3. type may be multiple, like: type_txt|type_slider|type_btn ...etc.
-x,y: point at request
+
+x,y: point under request
+
 page:  a egi page containing eboxes
 
 return:
 	pointer to a ebox  	Ok
-	NULL			fail
+	NULL			fail or no ebox is hit.
 -------------------------------------------------------------------*/
 EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
+	EGI_POINT *sxy;
+	EGI_POINT *exy;
 
         /* check page */
         if(page==NULL)
@@ -242,21 +246,31 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
                 return NULL;
         }
 
+
         /* traverse the list, not safe */
         list_for_each(tnode, &page->list_head)
         {
                 ebox=list_entry(tnode, EGI_EBOX, node);
                 //EGI_PDEBUG(DBG_EGI,"egi_get_pagebtn(): find child --- ebox: '%s' --- \n",ebox->tag);
 
+		sxy=&(ebox->touchbox.startxy);
+		exy=&(ebox->touchbox.endxy);
+
 		if(ebox->type & type)
 		{
-	        	 if(ebox->status==status_sleep)
-				continue; /* ignore sleeping ebox */
+	        	 if(ebox->status==status_sleep)  /* ignore sleeping ebox */
+				continue;
 
 			 /* check whether the ebox is hit */
-        	         if( x>=ebox->x0 && x<=ebox->x0+ebox->width \
-                	                && y>=ebox->y0 && y<=ebox->y0+ebox->height )
-                  	return ebox;
+			 if( sxy->x==0 && exy->x==0 ) {    /* 1. If touch box NOT defined */
+	        	         if( x > ebox->x0 && x < ebox->x0+ebox->width \
+                	                	&& y > ebox->y0 && y < ebox->y0+ebox->height )
+	                  	return ebox;
+			 }
+			 else {    /* 2. If touch box defined */
+				if( x > sxy->x && x < exy->x  && y > sxy->y && y < exy->y )
+				  return ebox;
+			 }
 		}
 	}
 
@@ -287,7 +301,7 @@ enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox)
 /*------------------------------------------------------------
 put tag for an ebox
 --------------------------------------------------------------*/
-void egi_ebox_settag(EGI_EBOX *ebox, const char *tag)
+inline void egi_ebox_settag(EGI_EBOX *ebox, const char *tag)
 {
 	/* 1. clear tag */
 	memset(ebox->tag,0,EGI_TAG_LENGTH+1);
@@ -314,11 +328,20 @@ void egi_ebox_settag(EGI_EBOX *ebox, const char *tag)
 /*-----------------------------------
 put need_refresh flag true
 ------------------------------------*/
-void egi_ebox_needrefresh(EGI_EBOX *ebox)
+inline void egi_ebox_needrefresh(EGI_EBOX *ebox)
 {
     if(ebox != NULL)
 	ebox->need_refresh=true;
+}
 
+
+/*---------------------------------------
+	set touch area
+---------------------------------------*/
+inline void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box)
+{
+    if(ebox != NULL)
+	ebox->touchbox=box;
 }
 
 

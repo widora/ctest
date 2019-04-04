@@ -32,8 +32,9 @@ Modified and appended by Midas-Zhou
 #include <math.h>
 #include <stdlib.h>
 
-#ifndef _TYPE_FBDEV_
-#define _TYPE_FBDEV_
+//#ifndef _TYPE_FBDEV_
+//#define _TYPE_FBDEV_
+#if 0
     typedef struct fbdev{
         int fdfd; //open "dev/fb0"
         struct fb_var_screeninfo vinfo;
@@ -41,7 +42,8 @@ Modified and appended by Midas-Zhou
         long int screensize;
         char *map_fb;
     }FBDEV;
-#endif
+#endif 
+//#endif
 
 
 /* global variale, Frame buffer device */
@@ -70,9 +72,27 @@ int init_dev(FBDEV *dev)
         ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
         ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
+
+	/* mmap FB */
         fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
 											fr_dev->fdfd,0);
-//        printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
+	if(fr_dev->map_fb==MAP_FAILED) {
+		printf("Fail to mmap FB!\n");
+		close(fr_dev->fdfd);
+		return -2;
+	}
+
+	/* init fb_filo */
+	fr_dev->filo_on=0;
+	fr_dev->fb_filo=egi_malloc_filo(1<<12, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
+	if(fr_dev->fb_filo==NULL) {
+		printf("Fail to malloc FB FILO!\n");
+		munmap(dev->map_fb,dev->screensize);
+		close(fr_dev->fdfd);
+		return -3;
+	}
+
+//      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
 	printf(" \n------- FB Parameters -------:\n");
 	printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
 	printf(" line_length: %d bytes\n",fr_dev->finfo.line_length);
@@ -84,6 +104,7 @@ int init_dev(FBDEV *dev)
 	return 0;
 }
 
+
 /*-------------------------
 Release FB and free map
 --------------------------*/
@@ -92,9 +113,54 @@ void release_dev(FBDEV *dev)
 	if(!dev || !dev->map_fb)
 		return;
 
+	egi_free_filo(dev->fb_filo);
 	munmap(dev->map_fb,dev->screensize);
 	close(dev->fdfd);
 }
+
+/*-------------------------------------------------------------
+Put fb->filo_on to 1, as turn on FB FILO.
+
+Note:
+1. To activate FB FILO, depends also on FB_writing handle codes.
+2.
+--------------------------------------------------------------*/
+inline void fb_filo_on(FBDEV *dev)
+{
+	if(!dev || !dev->fb_filo)
+		return;
+
+	dev->filo_on=1;
+}
+
+inline void fb_filo_off(FBDEV *dev)
+{
+	if(!dev || !dev->fb_filo)
+		return;
+
+	dev->filo_on=0;
+}
+
+
+
+/*----------------------------------------------
+	Pop out all FBFIXs in the fb filo
+----------------------------------------------*/
+void fb_filo_flush(FBDEV *dev)
+{
+	FBPIX fpix;
+
+	if(!dev || !dev->fb_filo)
+		return;
+
+	while( egi_filo_pop(dev->fb_filo, &fpix)==0 )
+	{
+		/* write back to FB */
+		//printf("EGI FILO pop out: pos=%ld, color=%d\n",fpix.position,fpix.color);
+		*((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
+	}
+}
+
 
 
 /*------------------------------------
@@ -176,6 +242,7 @@ int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
         long int location=0;
 	int xres=fr_dev->vinfo.xres;
 	int yres=fr_dev->vinfo.yres;
+	FBPIX fpix;
 
 #ifdef FB_DOTOUT_ROLLBACK
 	/* map to LCD(X,Y) */
@@ -205,6 +272,14 @@ int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 
         location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+
+	/* push to FB FILO */
+	if(fr_dev->filo_on)
+        {
+                fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
+                fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
+                egi_filo_push(fr_dev->fb_filo, &fpix);
+        }
 
 	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
 	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) )
@@ -344,20 +419,20 @@ void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
 
 
 /*--------------------------------------------------------------
-Draw A Wide Line
+Draw A Line with width.
 x1,x1: starting point
 x2,y2: ending point
 w: width of the line ( W=2*N+1 )
+
+Midas
 ----------------------------------------------------------------*/
 void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 {
-//	FBDEV *fr_dev=dev;
 	int i;
 	int xr1,yr1,xr2,yr2;
 
 	/* half width, also as circle rad */
 	int r=w>>1;
-//	printf("%s: r=%d \n",__func__,r);
 
 	/* x,y, difference */
 	int ydif=y2-y1;
@@ -369,16 +444,13 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 	float cosa=xdif/len;
 
 	/* draw multiple lines  */
-//	printf("start draw multi lines...\n");
 	for(i=0;i<=r;i++)
 	{
-//		printf("%s: i=%d \n",__func__,i);
 		/* draw UP_HALF multiple lines  */
 		xr1=x1-i*sina;
 		yr1=y1+i*cosa;
 		xr2=x2-i*sina;
 		yr2=y2+i*cosa;
-//		printf("%s: i=%d   xr1=%d,yr1=%d,  xr2=%d,yr2=%d \n",__func__,i,xr1,yr1,xr2,yr2);
 		draw_line(dev,xr1,yr1,xr2,yr2);
 
 		/* draw LOW_HALF multiple lines  */
@@ -388,19 +460,17 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 		yr2=y2-i*cosa;
 		draw_line(dev,xr1,yr1,xr2,yr2);
 	}
-
 	/* draw start/end circles */
 	draw_filled_circle(dev, x1, y1, r);
 	draw_filled_circle(dev, x2, y2, r);
 }
 
 
-
-    /*------------------------------------------------
+/*------------------------------------------------
 	           draw an oval
-    -------------------------------------------------*/
-    void draw_oval(FBDEV *dev,int x,int y) //(x.y) 是坐标
-    {
+-------------------------------------------------*/
+void draw_oval(FBDEV *dev,int x,int y) //(x.y) 是坐标
+{
         FBDEV *fr_dev=dev;
         int *xx=&x;
         int *yy=&y;
@@ -410,18 +480,22 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
 	draw_line(fr_dev,*xx-2,*yy-1,*xx-2,*yy+1);
 	draw_line(fr_dev,*xx+1,*yy-2,*xx+1,*yy+2);
 	draw_line(fr_dev,*xx+2,*yy-2,*xx+2,*yy+2);
-    }
+}
 
 
-    void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
-    {
+/*--------------------------------------------------
+Draw an rectangle
+Midas
+--------------------------------------------------*/
+void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
+{
         FBDEV *fr_dev=dev;
 
 	draw_line(fr_dev,x1,y1,x1,y2);
 	draw_line(fr_dev,x1,y2,x2,y2);
 	draw_line(fr_dev,x2,y2,x2,y1);
 	draw_line(fr_dev,x2,y1,x1,y1);
-    }
+}
 
 
 /*-------------------------------------------------------------
@@ -470,8 +544,9 @@ int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
 
 /*--------------------------------------------------------------------------
 Same as draw_filled_rect(), but with color.
+Midas
 ---------------------------------------------------------------------------*/
-int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
+int draw_filled_rect2(FBDEV *dev, uint16_t color, int x1,int y1,int x2,int y2)
 {
 	int xr,xl,yu,yd;
 	int i,j;
@@ -509,14 +584,14 @@ int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
 
 
 
-    /*------------------------------------------------
-    draw a circle,
+/*----------------------------------------------
+draw a circle,
 	(x,y)	circle center
 	r	radius
-    Midas
-    -------------------------------------------------*/
-    void draw_circle(FBDEV *dev, int x, int y, int r)
-    {
+Midas
+-----------------------------------------------*/
+void draw_circle(FBDEV *dev, int x, int y, int r)
+{
 	int i;
 	int s;
 
@@ -534,14 +609,14 @@ int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
 		draw_dot(dev,x-i,y-s);
 		draw_dot(dev,x+i,y-s);
 	}
-    }
+}
 
-    /*------------------------------------------------
-    draw a filled circle
-    Midas
-    -------------------------------------------------*/
-    void draw_filled_circle(FBDEV *dev, int x, int y, int r)
-    {
+/*------------------------------------------------
+  draw a filled circle
+  Midas
+-------------------------------------------------*/
+void draw_filled_circle(FBDEV *dev, int x, int y, int r)
+{
 	int i;
 	int s;
 
@@ -553,10 +628,10 @@ int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
 		draw_line(dev,x-s,y-i,x+s,y-i);
 	}
 
-    }
+}
 
 
-   /*----------------------------------------------------------------------------
+/*----------------------------------------------------------------------------
    copy a block of FB memory  to buffer
    x1,y1,x2,y2:	  LCD area corresponding to FB mem. block
    buf:		  data dest.
@@ -566,7 +641,7 @@ int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
 		0	OK
 		-1	fails
    Midas
-   ----------------------------------------------------------------------------*/
+----------------------------------------------------------------------------*/
    int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
    {
 	int i,j;
@@ -749,7 +824,6 @@ int draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2)
 			else
 				tmpx=j;
 
-
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
@@ -869,8 +943,6 @@ void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,
 
 
 
-
-
 /*------------------------ Draw annulus mapping ------------------------------------------------
 n:              pixel number for ouside square side. also is the outer diameter for the annulus.
 ni:             pixel number for inner square side, also is the inner diameter for the annulus.
@@ -889,7 +961,7 @@ void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t
 	/* check if n can be resolved in form of 2*m+1 */
 	if( (n-1)%2 != 0)
 	{
-		printf("fb_drawimg_ANMap(): the number of pixels on the square side must be n=2*m+1.\n");
+		printf("fb_drawimg_ANMap(): WARNING: the number of pixels on the square side must be n=2*m+1.\n");
 	 	//return;
 	}
 
@@ -911,28 +983,27 @@ void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t
 			pn=(n/2-j)*n+n/2+i;
 			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
 			fbset_color(image[t]); /* get mapped pixel */
-			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2-j); /* ???? n-j */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2-j);
 
                         /* lower and left part of the annulus -j: 0->-n/2*/
 			pn=(n/2+j)*n+n/2+i;
 			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
 			fbset_color(image[t]); /* get mapped pixel */
-			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2+j); /* ???? n-j */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2+i, x0y0.y+n/2+j);
 
                         /* upper and right part of the annuls -i: m->n */
 			pn=(n/2-j)*n+n/2-i;
 			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
 			fbset_color(image[t]); /* get mapped pixel */
-			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2-j); /* ???? n-j */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2-j);
 
                         /* lower and right part of the annulus */
 			pn=(n/2+j)*n+n/2-i;
 			t=ANMat_XRYR[pn].y*n+ANMat_XRYR[pn].x;/* +n/2 for origin from (n/2,n/2) to (0,0) */
 			fbset_color(image[t]); /* get mapped pixel */
-			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2+j); /* ???? n-j */
+			draw_dot(&gv_fb_dev, x0y0.x+n/2-i, x0y0.y+n/2+j);
 		}
 	}
-
 }
 
 

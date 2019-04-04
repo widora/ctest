@@ -178,12 +178,22 @@ struct egi_element_box
 	int x0; //unsigned ??
 	int y0; //unsigned ??
 
+	/* for touch area detection
+	 * 0. It is drived by x0,y0! touchbox to be updated by new x0y0 in refresh function.
+	 * 1. Default/If 0, then use prime area(x0,y0,x0+width,y0+height) for touch detecting
+	 * 2. Touchbox MAY or MAY NOT be linked with x0,y0 of a movable ebox.
+	 * 3. If 2, touchbox refresh function MUST be realized by each ebox in its egi_xxx.c,
+         *    currently only available in type_slider ebox.
+         * 4. In a type_slider ebox, it is coupled/linked with ebox->x0,y0, they are concentric.
+	 */
+	EGI_BOX touchbox;
+
 	/* box size, fit to different type
-	1. for txt box, H&W define the holding pad size. and if txt string extend out of
-	   the ebox pad, it will not be updated/refreshed by the ebox, so keep box size bigger 
-	   enough to hold all text inside.
-	2. for button, H&W is same as symbol H&W.
-	*/
+	 * 1. for txt box, H&W define the holding pad size. and if txt string extend out of
+	 *    the ebox pad, it will not be updated/refreshed by the ebox, so keep box size bigger
+	 *    enough to hold all text inside.
+	 * 2. for button, H&W is same as symbol H&W.
+	 */
 	int height;
 	int width;
 
@@ -307,7 +317,10 @@ struct egi_touch_data
 };
 
 
-/* egi data for a txt type ebox */
+/* egi data for a txt type ebox
+ * Note: well, you may use symbol_strings_writeFB() to display txt,
+	 but it cann't set/renew color/font independently for each line.
+ */
 //typedef struct egi_data_txt EGI_DATA_TXT;
 struct egi_data_txt
 {
@@ -478,7 +491,7 @@ struct egi_data_pic
 	   1. for only one line!
 	 */
 	char *title;
-	/* font of the title */
+	/* font for the title */
 	struct symbol_page *font;
 
 	/* file path for a picture if applys */
@@ -524,6 +537,9 @@ struct egi_page
 	*/
 	int (*routine)(EGI_PAGE *page);
 
+	/* if NOT NULL, always do the miscelaneous job when refresh the page in the routine func */
+	int (*page_refresh_misc)(EGI_PAGE *page);
+
 	/* --- following jobs carried out in routine(),  not in page_refresh() method
 	   pthread runner
 	   thread jobs to be loaded in routine().
@@ -543,13 +559,14 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
 EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
-void egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
+inline void egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
 enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
 EGI_EBOX * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
 
 int egi_ebox_activate(EGI_EBOX *ebox);
-void egi_ebox_needrefresh(EGI_EBOX *ebox);
+inline void egi_ebox_needrefresh(EGI_EBOX *ebox);
+inline void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
 int egi_ebox_refresh(EGI_EBOX *ebox);
 int egi_ebox_decorate(EGI_EBOX *ebox);
 int egi_ebox_sleep(EGI_EBOX *ebox);

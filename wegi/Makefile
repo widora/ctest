@@ -54,12 +54,12 @@ OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 
 ##--- exclude some objs !!!BEWARE, :NO SPACE ----
 OBJS := $(OBJS:test_color.o=)
-OBJS := $(OBJS:test_sym.o=)
-#OBJS := $(OBJS:tmp_app.o=)
+#OBJS := $(OBJS:test_sym.o=)
+OBJS := $(OBJS:tmp_app.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-APPS = tmp_app #test_sym
+APPS = test_sym #tmp_app
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \

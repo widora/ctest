@@ -37,6 +37,10 @@ int main(void)
 	EGI_BOX subbox={{0,150},{240-1, 260}};
 	EGI_16BIT_COLOR color[3],subcolor[3];
 
+        EGI_POINT p1={0},p2={0};
+        EGI_BOX box={{0,0},{240-1,320-1,}};
+
+
 	/* --- init logger --- */
   	if(egi_init_log("/mmc/log_color") != 0) {
 		printf("Fail to init logger,quit.\n");
@@ -103,9 +107,11 @@ while(1)
 			end_secs=atoi(strtm+17)*3600+atoi(strtm+20)*60+atoi(strtm+23);
 			printf("End(sec): %d\n",end_secs);
 		//}
+
 		/* read a section of sub and display */
-		fbset_color(WEGI_COLOR_BLACK);
-		draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);
+		//fbset_color(WEGI_COLOR_BLACK);
+		//draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);
+
 		ln=0;
 		len=0;
 		memset(strsub,0,sizeof(strsub));
@@ -118,9 +124,24 @@ while(1)
 				break;
 		}while( *pt!='\n' && *pt!='\r' && *pt!='\0' ); /* return code, section end token */
 
-	 	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
-										1, 0, 170, strsub);
-		tm_delayms(1500);
+		/* flush FB FILO */
+		fb_filo_flush(&gv_fb_dev);
+		fb_filo_on(&gv_fb_dev);
+
+		/* write string */
+	 	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 200, subln, -5, WEGI_COLOR_ORANGE,
+										1, 0, 220, strsub);
+		/* draw wline */
+		p1=p2;
+       		egi_randp_inbox(&p2, &box);
+		fbset_color(WEGI_COLOR_GREEN);
+       		draw_wline(&gv_fb_dev,p1.x,p1.y,p2.x,p2.y,9);
+
+		/* always turn off filo to prevetn other FB writing mess */
+		fb_filo_off(&gv_fb_dev);
+
+
+		tm_delayms(500);
 	}
 	fclose(fil);
 

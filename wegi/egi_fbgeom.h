@@ -22,13 +22,11 @@ Modified and appended by: Midas Zhou
 #include <stdint.h>
 #include <stdbool.h>
 #include "egi.h"
+#include "egi_filo.h"
 
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
 
-
-#ifndef _TYPE_FBDEV_
-#define _TYPE_FBDEV_
 
 typedef struct fbdev{
         int fdfd; /* file descriptor, open "dev/fb0" */
@@ -37,9 +35,15 @@ typedef struct fbdev{
         long int screensize;
         unsigned char *map_fb;
 	/* pthread_mutex_t fbmap_lock; */
+	EGI_FILO *fb_filo;
+	int filo_on;	/* >0,activate FILO push */
 }FBDEV;
 
-#endif
+typedef struct fbpixel {
+	long int position;
+	uint16_t color;
+}FBPIX;
+
 
 /* global variale, Frame buffer device */
 extern FBDEV   gv_fb_dev;
@@ -47,6 +51,9 @@ extern FBDEV   gv_fb_dev;
 /* functions */
 int 	init_dev(FBDEV *dev);
 void 	release_dev(FBDEV *dev);
+void 	fb_filo_flush(FBDEV *dev);
+inline void fb_filo_on(FBDEV *dev);
+inline void fb_filo_off(FBDEV *dev);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 void 	fbset_color(uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);

@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*-------------------------------------------------------------------
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 creating eboxes and page.
@@ -15,7 +15,7 @@ TODO:
 	2. pack page activate and free action.
 
 Midas Zhou
----------------------------------------------------------------------------*/
+--------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -38,8 +38,6 @@ Midas Zhou
 #include "egi_pageffplay.h"
 #include "iot/egi_iotclient.h"
 
-//static uint16_t btn_symcolor;
-
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -59,6 +57,8 @@ Return
 ------------------------------------------------------*/
 EGI_PAGE *egi_create_homepage(void)
 {
+	int nr=3; /* btn row number */
+	int nc=3; /* btn column number */
 	int i,j;
 
 	EGI_EBOX *home_btns[9];
@@ -67,9 +67,9 @@ EGI_PAGE *egi_create_homepage(void)
 	EGI_EBOX  *ebox_headbar;
 
 	/* -------- 1. create button eboxes -------- */
-        for(i=0;i<3;i++) /* row of buttons*/
+        for(i=0;i<nr;i++) /* row of buttons*/
         {
-                for(j=0;j<3;j++) /* column of buttons */
+                for(j=0;j<nc;j++) /* column of buttons */
                 {
 			/* 1.1 create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
@@ -148,6 +148,12 @@ EGI_PAGE *egi_create_homepage(void)
 		egi_ebox_settag(bkimg_btn7, "btn_bigiot_frame");
 		bkbtn_data->font=NULL;
 	}
+	else {
+		printf("%s: Fail to copy for bkimg_btn7! \n",__func__);
+		for(i=0;i<nr*nc;i++)
+			egi_ebox_free(home_btns[i]);
+		return NULL;
+	}
 
 	printf("btns[7]->egi_data->icon_code=%d\n",((EGI_DATA_BTN *)(home_btns[7]->egi_data))->icon_code);
 	printf("bkimg_btn7->egi_data->icon_code=%d\n",((EGI_DATA_BTN *)(bkimg_btn7->egi_data))->icon_code);
@@ -219,14 +225,13 @@ EGI_PAGE *egi_create_homepage(void)
 	return page_home;
 }
 
-/*-----------------  RUNNER 1 --------------------------
+/*----------------  RUNNER 1 ----------------------
 display cpu load in home head-bar with motion icons
 
 1. read /proc/loadavg to get the value
 	loadavg 1-6,  >5 alarm
 2. corresponding symmic_cpuload[] index from 0-5.
-
--------------------------------------------------------*/
+-------------------------------------------------*/
 static void egi_display_cpuload(EGI_PAGE *page)
 {
 	int load=0;

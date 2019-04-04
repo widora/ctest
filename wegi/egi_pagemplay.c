@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 creating eboxes and page.
@@ -13,6 +12,7 @@ page creation jobs:
 2. thread-runner functions.
 3. egi_XXX_routine() function if not use default egi_page_routine().
 4. button reaction functins
+
 
 Midas Zhou
 --------------------------------------------------------------------*/
@@ -37,14 +37,14 @@ static void check_volume_runner(EGI_PAGE *page);
 #define  SLIDER_ID 100 /* use a big value */
 
 
-/*---------- [  PAGE ::  Mplayer Operation ] ---------
+/*------- [  PAGE ::  Mplayer Operation ] ---------
 1. create eboxes for 6 buttons and 1 title bar
 2. create MPlayer Operation page
 
 Return
 	pointer to a page	OK
 	NULL			fail
-------------------------------------------------------*/
+--------------------------------------------------*/
 EGI_PAGE *egi_create_mplaypage(void)
 {
 	int i,j;
@@ -83,7 +83,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 							70,70, /* int width, int height */
 				       			0,//1, /* int frame,<0 no frame */
 		       					egi_color_random(medium) /*int prmcolor */
-						   );
+					   );
 			/* if fail, try again ... */
 			if(mplay_btns[3*i+j]==NULL)
 			{
@@ -112,13 +112,12 @@ EGI_PAGE *egi_create_mplaypage(void)
 
 
 	/* --------- 2. create a horizontal sliding bar --------- */
-
-	int sl=180; /* slot length */
+	int sl=200; /* slot length */
 
 	/* set playback volume percert to data_slider->val */
 	int pvol; /* percent value */
 	ffpcm_getset_volume(&pvol,NULL);
-	printf("-------pvol=%%%d-----\n",pvol);
+	//printf("-------pvol=%%%d-----\n",pvol);
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(
 	                                /* for btnbox */
         	                        SLIDER_ID, square,  	/* int id, enum egi_btn_type shape */
@@ -126,22 +125,26 @@ EGI_PAGE *egi_create_mplaypage(void)
 					0,		/* int icon_code, */
                         	        &sympg_testfont,/* struct symbol_page *font */
 	                                /* for slider */
-        	                        (EGI_POINT){30,100},//pxy,	/* EGI_POINT pxy */
-                	                8,sl,	 	/* slot width, slot length */
+        	                        (EGI_POINT){(240-sl)/2,100},/* slider starting EGI_POINT pxy */
+                	                5,sl,	 	/* slot width, slot length */
 	                       	        pvol*sl/100,      /* init val, usually to be 0 */
                                	 	WEGI_COLOR_GRAY,  /* EGI_16BIT_COLOR val_color */
 					WEGI_COLOR_GRAY5,   /* EGI_16BIT_COLOR void_color */
-	                                WEGI_COLOR_GREEN //WHITE   /* EGI_16BIT_COLOR slider_color */
-        	                    );
+	                                WEGI_COLOR_WHITE   /* EGI_16BIT_COLOR slider_color */
+       	                    );
 
 	EGI_EBOX *sliding_bar=egi_slider_new(
   	 			"volume slider",  /* char *tag, or NULL to ignore */
 			        data_slider, /* EGI_DATA_BTN *egi_data */
-			        50,50,	     /* slider block: int width, int height */
+			        15,15,	     /* slider block: ebox->width/height, to be Min. if possible */
+				50,50,	     /* touchbox size, twidth/theight */
 			        -1,	     /* int frame,<0 no frame */
 			        -1          /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
 			                       2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
-			     );
+		     	   );
+
+	/* reset touch area */
+	//egi_ebox_set_touchbox(sliding_bar, );
 
 	/* set reaction function */
 	sliding_bar->reaction=slider_react;
@@ -177,7 +180,6 @@ EGI_PAGE *egi_create_mplaypage(void)
         /* 4.4 set wallpaper */
         page_mplay->fpath="/tmp/mplay.jpg";
 
-
 	/* add ebox to home page */
 	for(i=0;i<6;i++) /* buttons */
 		egi_page_addlist(page_mplay, mplay_btns[i]);
@@ -188,42 +190,45 @@ EGI_PAGE *egi_create_mplaypage(void)
 }
 
 
-/*-------------------------    RUNNER 1   --------------------------
-Check volume and refresh slider.
--------------------------------------------------------------------*/
+/*-----------------    RUNNER 1   -------------------
+	Check volume and refresh slider.
+----------------------------------------------------*/
 static void check_volume_runner(EGI_PAGE *page)
 {
      int pvol;
-     int sval;
+     int sval=0;
+     int buf;
+
      EGI_EBOX *slider=egi_page_pickebox(page, type_slider, SLIDER_ID);
      EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(slider->egi_data);
      EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
      while(1) {
+	   egi_sleep(0,0,300); /* 300ms */
+
+	   /* check page status for exit */
+	   if(page->ebox->status==status_page_exiting)
+		return;
+
 	   /* get palyback volume */
 	   ffpcm_getset_volume(&pvol,NULL);
-	   sval=pvol*data_slider->sl/100;
+	   buf=pvol*data_slider->sl/100;
 
+	   if(buf==sval)continue;
+
+	   sval=buf;
 	   /* slider value is drivered by ebox->x0 for H slider, so set x0 not val */
 	   slider->x0=data_slider->sxy.x+sval-(slider->width>>1);
 
 	   /* refresh it */
            slider->need_refresh=true;
            slider->refresh(slider);
-
-	   /* check page status */
-	   if(page->ebox->status==status_page_exiting)
-		return;
-
-	   egi_sleep(0,0,300); /* 300ms */
      }
-
 }
 
 
 /*----------------------------------------------------------------------
-btn_close function:
-return
+btn_close function: return
 ------------------------------------------------------------------------*/
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
@@ -233,6 +238,7 @@ static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
         return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
+
 
 /*-------------------------------------------------------------------
 Horizontal Sliding bar reaction
@@ -262,7 +268,7 @@ static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		minx=data_slider->sxy.x-(ebox->width>>1);
 		maxx=minx+data_slider->sl;
 
-		/* update slider ebox position */
+		/* update slider x0y0, it's coupled with touchbox position */
 		printf("touch_data->dx = %d\n",touch_data->dx);
 		ebox->x0 = mark+(touch_data->dx);
 		if(ebox->x0 < minx) ebox->x0=minx;
@@ -278,5 +284,5 @@ static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	        ebox->refresh(ebox);
 	}
 
-	return btnret_IDLE; /* OK, page need not refresh */
+	return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */
 }

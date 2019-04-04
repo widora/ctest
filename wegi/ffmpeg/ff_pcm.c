@@ -180,7 +180,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	snd_mixer_selem_id_t *sid;
 	snd_mixer_elem_t* elem;
 	snd_mixer_selem_channel_id_t chn;
-	snd_mixer_selem_channel_id_t vchn;
+	//snd_mixer_selem_channel_id_t vchn;
 	const char *card="default";
 	const char *selem_name="PCM";
 

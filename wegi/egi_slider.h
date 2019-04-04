@@ -32,6 +32,7 @@ EGI_EBOX * egi_slider_new(
         char *tag, /* or NULL to ignore */
         EGI_DATA_BTN *egi_data,
         int width, int height, /* for frame drawing and prmcolor filled_rectangle */
+ 	int twidth, int theight, /* for touch area,which is coupled with ebox->x0,y0 */
         int frame,
         int prmcolor /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
                         2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */

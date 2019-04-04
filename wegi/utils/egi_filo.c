@@ -30,8 +30,8 @@ item_size:
 realloc:	if !=0, enable auto realloc for buff.
 
 Return:
-	0	Ok
-	<0	fails
+	Pointer to filo		Ok
+	NULL			fails
 -------------------------------------------------------------------*/
 EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc)
 {
@@ -48,7 +48,7 @@ EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc)
                 return NULL;
         }
 
-        /* NOT LOCK APPLIED !!!! buff mutex lock */
+        /* NO LOCK APPLIED !!!! buff mutex lock */
 //        if(pthread_mutex_init(&efilo->lock,NULL) != 0) {
 //                printf("%s: fail to initiate EGI_FILO mutex lock.\n",__func__);
 //                free(efilo);

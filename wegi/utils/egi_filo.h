@@ -13,6 +13,9 @@ Midas Zhou
 #include <stdlib.h>
 #include <pthread.h>
 
+#define FILO_AUTO_DOUBLE	0b01
+#define FILO_AUTO_HALVE		0b10
+
 /*  1.  WARNING: No mutex lock applied, It is supposed there is only one pusher and one puller,
  *      and they should NOT write/read the buff at the same time.
  *  2.  When you set auto double/halve flag, make sure that buff_size is
@@ -24,7 +27,7 @@ typedef struct
         int             buff_size;      /* total item number that the buff is capable of holding */
         unsigned char   **buff;         /* data buffer [buff_size][item_size] */
 
-	unsigned int	pt;		/* curretn data position,
+	unsigned int	pt;		/* current data position,
 					 * pt++ AFTER push; pt-- BEFORE pop
 					 */
 
