@@ -18,11 +18,10 @@ Midas-Zhou
 
 #define MATH_PI 3.1415926535897932
 
-static int fp16_sin[360]={0}; /* fixed point sin() value table, whose divider is 2<<16 */
-static int fp16_cos[360]={0}; /* fixed point cos() value table, whose divider is 2<<16 */
+int fp16_sin[360]={0}; /* fixed point sin() value table, divisor 2<<16 */
+int fp16_cos[360]={0}; /* fixed point cos() value table, divisor 2<<16 */
 
 //static void mat_create_fptrigontab(void);
-
 
 
 /*--------------------------------------------------------------
@@ -48,6 +47,55 @@ void mat_create_fptrigontab(void)
 	//printf(" ----- sin(1)=%f\n",sin(1.0*pi/180.0));
 }
 
+
+/*----------------------------------------------------------------------------------
+Fix point square root for uint32_t, the result is <<16, so you need to >>16 to get
+the right answer.
+
+Original Source:
+	http://read.pudn.com/downloads286/sourcecode/embedded/1291109/sqrt.c__.htm
+------------------------------------------------------------------------------------*/
+uint64_t mat_fp16_sqrtu32(uint32_t x)
+{
+	uint64_t x0=x;
+	x0<<=32;
+	uint64_t x1;
+	uint32_t s=1;
+	uint64_t g0,g1;
+
+	if(x<=1)return x;
+
+	x1=x0-1;
+	if(x1>4294967296-1) {
+		s+=16;
+		x1>>=32;
+	}
+	if(x1>65535) {
+		s+=8;
+		x1>>=16;
+	}
+	if(x1>255) {
+		s+=4;
+		x1>>=8;
+	}
+	if(x1>15) {
+		s+=2;
+		x1>>=4;
+	}
+	if(x1>3) {
+		s+=1;
+	}
+
+	g0=1<<s;
+	g1=(g0+(x0>>s))>>1;
+
+	while(g1<g0) {
+		g0=g1;
+		g1=(g0+x0/g0)>>1;
+	}
+
+	return g0; /* right shift >>16 to get right answer */
+}
 
 
 /*---------------------------------------------------------------------------------------

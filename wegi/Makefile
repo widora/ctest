@@ -54,12 +54,13 @@ OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 
 ##--- exclude some objs !!!BEWARE, :NO SPACE ----
 OBJS := $(OBJS:test_color.o=)
-#OBJS := $(OBJS:test_sym.o=)
+OBJS := $(OBJS:test_sym.o=)
+#OBJS := $(OBJS:test_geom.o=)
 OBJS := $(OBJS:tmp_app.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-APPS = test_sym #tmp_app
+APPS = test_geom #test_sym #tmp_app
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
@@ -76,7 +77,6 @@ CFLAGS += -Wall -O2
 
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
 LIBS += -ljpeg -lm -lpthread -ljson-c -lasound
-
 
 #----- 打印依赖文件  include $(DEP_FILES)
 #-----如果前面有include命令，那么make命令只会执行下面all中的第一个依赖文件，除非用make all完整命令

@@ -84,7 +84,7 @@ int init_dev(FBDEV *dev)
 
 	/* init fb_filo */
 	fr_dev->filo_on=0;
-	fr_dev->fb_filo=egi_malloc_filo(1<<12, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
+	fr_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
 	if(fr_dev->fb_filo==NULL) {
 		printf("Fail to malloc FB FILO!\n");
 		munmap(dev->map_fb,dev->screensize);
@@ -418,51 +418,103 @@ void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
 }
 
 
-/*--------------------------------------------------------------
+/*--------------------------------------------------------------------
 Draw A Line with width.
 x1,x1: starting point
 x2,y2: ending point
 w: width of the line ( W=2*N+1 )
 
+NOTE: if you input w=0, it's same as w=1.
+
 Midas
-----------------------------------------------------------------*/
-void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w)
+----------------------------------------------------------------------*/
+void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 {
 	int i;
 	int xr1,yr1,xr2,yr2;
+	//float sina,cosa;
 
 	/* half width, also as circle rad */
-	int r=w>>1;
+	int r=w>>1; /* so w=0 and w=1 is the same */
 
 	/* x,y, difference */
 	int ydif=y2-y1;
 	int xdif=x2-x1;
-	float len=sqrt(ydif*ydif+xdif*xdif);
 
+// 	float len=sqrt(ydif*ydif+xdif*xdif);
+        int32_t fp16_len = mat_fp16_sqrtu32(ydif*ydif+xdif*xdif);
+
+
+//   if(len !=0 )
+   if(fp16_len !=0 )
+   {
 	/* sin() and cos() of inclinination angle */
-	float sina=ydif/len;
-	float cosa=xdif/len;
-
+/*
+	      sina=ydif/len;
+	      cosa=xdif/len;
+*/
 	/* draw multiple lines  */
 	for(i=0;i<=r;i++)
 	{
 		/* draw UP_HALF multiple lines  */
+/*
 		xr1=x1-i*sina;
 		yr1=y1+i*cosa;
 		xr2=x2-i*sina;
 		yr2=y2+i*cosa;
+*/
+		xr1=x1-(i*ydif<<16)/fp16_len;
+		yr1=y1+(i*xdif<<16)/fp16_len;
+		xr2=x2-(i*ydif<<16)/fp16_len;
+		yr2=y2+(i*xdif<<16)/fp16_len;
+
 		draw_line(dev,xr1,yr1,xr2,yr2);
 
 		/* draw LOW_HALF multiple lines  */
+/*
 		xr1=x1+i*sina;
 		yr1=y1-i*cosa;
 		xr2=x2+i*sina;
 		yr2=y2-i*cosa;
+*/
+		xr1=x1+(i*ydif<<16)/fp16_len;
+		yr1=y1-(i*xdif<<16)/fp16_len;
+		xr2=x2+(i*ydif<<16)/fp16_len;
+		yr2=y2-(i*xdif<<16)/fp16_len;
+
 		draw_line(dev,xr1,yr1,xr2,yr2);
 	}
+   } /* end of len !=0, if len=0, the two points are the same position */
+
 	/* draw start/end circles */
 	draw_filled_circle(dev, x1, y1, r);
 	draw_filled_circle(dev, x2, y2, r);
+}
+
+
+/*---------------------------------------------------------------------
+Draw A Poly Line.
+
+points:	     input points for the polyline
+num:	     total number of input points.
+w: width of the line ( W=2*N+1 )
+
+Midas
+---------------------------------------------------------------------*/
+void draw_pline(FBDEV *dev, EGI_POINT *points, int pnum, unsigned int w)
+{
+	int i=0;
+
+	/* check input data */
+	if( points==NULL || pnum<=0 ) {
+		printf("%s: Input params error.\n", __func__);
+		return ;
+	}
+
+	for(i=0; i<pnum-1; i++) {
+		draw_wline(dev,points[i].x,points[i].y,points[i+1].x,points[i+1].y,w);
+	}
+
 }
 
 
