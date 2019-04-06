@@ -1,5 +1,10 @@
-/* -------------------------------------------------------------------------
-original source: https://blog.csdn.net/luxiaoxun/article/details/7622988
+/*-----------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
+Original source: https://blog.csdn.net/luxiaoxun/article/details/7622988
 
 1. Modified for a 240x320 SPI LCD display.
 2. The width of the displaying picture must be a multiple of 4.
@@ -11,8 +16,8 @@ TODO:
 
 ./open-gcc -L./lib -I./include -ljpeg -o jpgshow fbshow.c
 
-Midas
----------------------------------------------------------------------------*/
+Midas Zhou
+-----------------------------------------------------------------------*/
 #ifndef __EGI_BMPJPG_H__
 #define __EGI_BMPJPG_H__
 
@@ -32,7 +37,7 @@ Midas
 #include "egi_image.h"
 #include "egi_fbgeom.h"
 
-//14byte文件头
+/* 14byte文件头 */
 typedef struct
 {
 	char cfType[2];//文件类型，"BM"(0x4D42)
@@ -42,14 +47,14 @@ typedef struct
 }__attribute__((packed)) BITMAPFILEHEADER;
 //__attribute__((packed))的作用是告诉编译器取消结构在编译过程中的优化对齐
 
-//40byte信息头
+/* 40byte信息头 */
 typedef struct
 {
 	char ciSize[4];//BITMAPFILEHEADER所占的字节数
 	long ciWidth;//宽度
 	long ciHeight;//高度
 	char ciPlanes[2];//目标设备的位平面数，值为1
-	int ciBitCount;//每个像素的位数
+	uint16_t ciBitCount;//每个像素的位数
 	char ciCompress[4];//压缩说明
 	char ciSizeImage[4];//用字节表示的图像大小，该数据必须是4的倍数
 	char ciXPelsPerMeter[4];//目标设备的水平像素数/米
@@ -58,6 +63,7 @@ typedef struct
 	char ciClrImportant[4]; //指定重要的颜色数，当该域的值等于颜色数时（或者等于0时），表示所有颜色都一样重要
 }__attribute__((packed)) BITMAPINFOHEADER;
 
+/* in order of BMP file BGR ??? */
 typedef struct
 {
 	unsigned char blue;
@@ -81,7 +87,7 @@ typedef struct
 #define SHOW_BLACK_TRANSP	1
 #define SHOW_BLACK_NOTRANSP	0
 
-/*  ----- functions --------  */
+/* functions */
 unsigned char *open_jpgImg(char *filename, int *w, int *h, int *components, FILE **fil);
 void close_jpgImg(unsigned char *imgbuf);
 
@@ -103,5 +109,8 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
 /* find all jpg files in a path */
 int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, int maxflen);
+
+/* save FB data to a 24bit color BMP file */
+int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath);
 
 #endif

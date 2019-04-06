@@ -156,14 +156,15 @@ void  play_ffpcm_buff(void ** buffer, int nf)
         }
 }
 
-#if 1
 /*------------------------------------------------------------------------
-Set volume to the first available channel.
+Get current volume value from the first available channel, and then set all
+volume to the given value.
 
 pgetvol: 	(0-100), pointer to a value to pass the volume percentage.
-		if NULL, ignore.
+		If NULL, ignore.
+
 psetvol: 	(0-100), volume value of percentage*100.
-		if NULL, ignore.
+		If NULL, ignore.
 
 Return:
 	0	OK
@@ -280,4 +281,3 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	return ret;
 }
 
-#endif

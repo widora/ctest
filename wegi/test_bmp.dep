@@ -1,0 +1,6 @@
+test_bmp : test_bmp.c egi_timer.h egi_fbgeom.h egi.h sys_list.h \
+ egi_image.h egi_color.h utils/egi_filo.h egi_log.h egi_bmpjpg.h \
+ /home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr//include/jpeglib.h \
+ /home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr//include/jconfig.h \
+ /home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr//include/jmorecfg.h \
+ /home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr//include/jerror.h

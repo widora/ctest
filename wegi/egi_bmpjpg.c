@@ -1,5 +1,10 @@
-/* -------------------------------------------------------------------------
-original source: https://blog.csdn.net/luxiaoxun/article/details/7622988
+/*------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
+Original source: https://blog.csdn.net/luxiaoxun/article/details/7622988
 
 1. Modified for a 240x320 SPI LCD display.
 2. The width of the displaying picture must be a multiple of 4.
@@ -13,8 +18,8 @@ TODO:
 
 ./open-gcc -L./lib -I./include -ljpeg -o jpgshow fbshow.c
 
-Modified by Midas
----------------------------------------------------------------------------*/
+Modified by Midas Zhou
+-----------------------------------------------------------------------*/
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,13 +38,8 @@ Modified by Midas
 #include "egi_color.h"
 #include "egi_timer.h"
 
-
-BITMAPFILEHEADER FileHead;
-BITMAPINFOHEADER InfoHead;
-
-//static int xres = 240;
-//static int yres = 320;
-//static int bits_per_pixel = 16; //tft lcd
+static BITMAPFILEHEADER FileHead;
+static BITMAPINFOHEADER InfoHead;
 
 /*--------------------------------------------------------------
  open jpg file and return decompressed image buffer pointer
@@ -116,7 +116,7 @@ void close_jpgImg(unsigned char *imgbuf)
 
 
 /*------------------------------------------------------------------
-open a BMP file and write image data to FB.
+open a 24bit BMP file and write image data to FB.
 image size limit: 320x240
 
 blackoff:   1	 Do NOT wirte black pixels to FB.
@@ -167,7 +167,7 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 		return( -3 );
 	}
 
-	rc = fread( (char *)&InfoHead, sizeof(BITMAPINFOHEADER),1, fp );
+	rc = fread((char *)&InfoHead, sizeof(BITMAPINFOHEADER), 1, fp);
 	if ( rc != 1)
 	{
 		printf("read infoheader error!\n");
@@ -687,3 +687,113 @@ int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, 
          return 0;
 }
 
+
+/*---------------------------------------------------
+Save FB data to a BMP file.
+
+NOTE:
+1. RowSize=4*[ BPP*Width/32], otherwise padded with 0.
+
+fpath:	Input path to the file.
+
+Return:
+	0	OK
+	<0	Fail
+---------------------------------------------------*/
+int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
+{
+	FILE *fil;
+	int rc;
+	int i,j;
+	int xres=fb_dev->vinfo.xres; /* line pixel number */
+	int yres=fb_dev->vinfo.yres;
+	EGI_16BIT_COLOR	color16b;
+	PIXEL bgr;
+	BITMAPFILEHEADER file_header; /* 14 bytes */
+	BITMAPINFOHEADER info_header; /* 40 bytes */
+
+   printf("file header size:%d,	info header size:%d\n",sizeof(BITMAPFILEHEADER),sizeof(BITMAPINFOHEADER));
+
+	/* fill in file header */
+	memset(&file_header,0,sizeof(BITMAPFILEHEADER));
+	file_header.cfType[0]='B';
+	file_header.cfType[1]='M';
+	file_header.cfSize=sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER)
+					+fb_dev->screensize/2*3;  /* 16bits -> 24bits */
+	file_header.cfReserved=0;
+	file_header.cfoffBits=sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+/*
+        char cfType[2];//文件类型，"BM"(0x4D42)
+        long cfSize;//文件大小（字节）
+        long cfReserved;//保留，值为0
+        long cfoffBits;//数据区相对于文件头的偏移量（字节）
+*/
+
+	/* Fill in info header */
+	memset(&info_header,0,sizeof(BITMAPINFOHEADER));
+	info_header.ciSize[0]=40;
+	info_header.ciWidth=240;
+	info_header.ciHeight=320;
+	info_header.ciPlanes[0]=1;
+	info_header.ciBitCount=24;
+	*(long *)info_header.ciSizeImage=fb_dev->screensize/2*3; /* to be multiple of 4 */
+/*
+        char ciSize[4];//BITMAPFILEHEADER所占的字节数
+        long ciWidth;//宽度
+        long ciHeight;//高度
+        char ciPlanes[2];//目标设备的位平面数，值为1
+        int ciBitCount;//每个像素的位数
+        char ciCompress[4];//压缩说明
+        char ciSizeImage[4];//用字节表示的图像大小，该数据必须是4的倍数
+        char ciXPelsPerMeter[4];//目标设备的水平像素数/米
+        char ciYPelsPerMeter[4];//目标设备的垂直像素数/米
+        char ciClrUsed[4]; //位图使用调色板的颜色数
+        char ciClrImportant[4]; //
+*/
+
+	/* open file for write */
+	fil=fopen(fpath,"w");
+	if(fil==NULL) {
+		printf("%s: Fail to open %s for write.\n",__func__,fpath);
+		return -1;
+	}
+
+	/* write file header */
+        rc = fwrite((char *)&file_header, 1, sizeof(BITMAPFILEHEADER), fil);
+        if (rc != sizeof(BITMAPFILEHEADER)) {
+		printf("%s: Fail to write file header to %s.\n",__func__,fpath);
+		fclose(fil);
+		return -2;
+         }
+	/* write info header */
+        rc = fwrite((char *)&info_header, 1, sizeof(BITMAPINFOHEADER), fil);
+        if (rc != sizeof(BITMAPINFOHEADER)) {
+		printf("%s: Fail to write info header to %s.\n",__func__,fpath);
+		fclose(fil);
+		return -3;
+         }
+
+	/* RGB color saved in order of BGR in BMP file
+	 * From bottom to up
+	 */
+	for(i=0;i<yres;i++) /* enumerate line number */
+	{
+		for(j=0;j<xres;j++) /* enumerate pixels in a line, xres to be multiple of 4 */
+		{
+			color16b=*(uint16_t *)(fb_dev->map_fb+fb_dev->screensize-(i+1)*xres*2 + j*2); /* bpp=2 */
+			bgr.red=(color16b>>11)<<3;
+			bgr.green=(color16b&0b11111100000)>>3;
+			bgr.blue=(color16b << 11)>>8;
+
+		        rc = fwrite((char *)&bgr, 1, sizeof(PIXEL), fil);
+       			if (rc != sizeof(PIXEL)) {
+				printf("%s: Fail to write BGR data to %s, i=%d. \n",__func__,fpath,i);
+				fclose(fil);
+				return -4;
+			}
+         	}
+	}
+
+	fclose(fil);
+	return 0;
+}

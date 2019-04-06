@@ -95,15 +95,15 @@ while(1)
 	/* 2. generate AN OTHER sin() points  */
 	for(i=0;i<num;i++) {
 		points[i].x=i;
-		points[i].y=(rad*fp16_sin[(i*div+4*delt)%360]>>16)+40*3+35; /* 4*rad to shift image to Y+ */
+		points[i].y=(rad*fp16_sin[( i*div + (delt<<1) )%360]>>16)+40*3+35; /* 4*rad to shift image to Y+ */
 	}
 	fbset_color(WEGI_COLOR_ORANGE);//GREEN);
-	draw_pline(&gv_fb_dev, points, num, 0);
+	draw_pline(&gv_fb_dev, points, num, 5);
 
 	/* alway shut off filo after use */
 	fb_filo_off(&gv_fb_dev);
 
-	tm_delayms(55);
+	tm_delayms(80);
 //	egi_sleep(0,0,150);
 
 	delt+=16;

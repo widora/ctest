@@ -39,6 +39,7 @@ typedef struct fbdev{
 	int filo_on;	/* >0,activate FILO push */
 }FBDEV;
 
+/* distinguished from PIXEL in egi_bmpjpg.h */
 typedef struct fbpixel {
 	long int position;
 	uint16_t color;

@@ -206,7 +206,7 @@ t:	number of tm_pulse timer to be used.
 return:
 	true	pulse hits
 	false	wait pulse or fails to call pulse
-------------------------------------------------------------------------*/
+----------------------------------------------------------*/
 static struct timeval tm_pulse_tmnew[10]={0};
 static struct timeval tm_pulse_tmold[10]={0};
 bool tm_pulseus(long long unsigned int gap, unsigned int t) /* gap(us) */
@@ -269,7 +269,7 @@ int tm_signed_diffms(struct timeval tm_start, struct timeval tm_end)
         return time_cost;
 }
 
-/*------------------------------------------------------------
+/*---------------------------------------------------------
 	Use select to sleep
 
 NOTE:
