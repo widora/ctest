@@ -1,8 +1,13 @@
-/*-------------------------------
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 Test EGI FBGEOM functions
 
 Midas Zhou
--------------------------------*/
+-----------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,9 +25,9 @@ int main(void)
 
 	EGI_16BIT_COLOR color[3],subcolor[3];
 
-   for(i=0;i<30;i++) {
-	printf("sqrt of %d is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
-  }
+//   for(i=0;i<30;i++) {
+//	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
+//  }
 	/* --- init logger --- */
   	if(egi_init_log("/mmc/log_color") != 0)
 	{
@@ -37,7 +42,8 @@ int main(void)
         gv_fb_dev.fdfd=-1;
         init_dev(&gv_fb_dev);
 
-	/* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
+#if 0
+/* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*
 	EGI_POINT p1,p2;
 	EGI_BOX box={{0,0},{240-1,320-1,}};
@@ -51,9 +57,8 @@ int main(void)
 	usleep(200000);
   }
 */
-
 	int rad=50; /* radius */
-	int div=4;/* 2 deg per pixel, 240*2=480deg */
+	int div=4;/* 4 deg per pixel, 240*2=480deg */
 	int num=240/1; /* number of points */
 	EGI_POINT points[240/1]; /* points */
 	int delt=0;
@@ -108,7 +113,51 @@ while(1)
 
 	delt+=16;
 }
-	/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+/* END >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+#endif
+
+
+/* <<<<<<<<<<<<<<  test line Chart  <<<<<<<<<<<<<<<*/
+	int num=240/10+1; /* number of data */
+	int cdata[240]={0}; /* 240 data */
+	EGI_POINT points[240/1]; /* points */
+
+
+while(1)
+{
+        /* flush FB FILO */
+	printf("start to flush filo...\n");
+        fb_filo_flush(&gv_fb_dev);
+	/* draw poly line with FB FILO */
+        fb_filo_on(&gv_fb_dev);
+
+	/* ----------Prepare data and draw plines */
+	fbset_color(WEGI_COLOR_ORANGE);//GREEN);
+        for(i=0; i<num; i++)
+	{
+		points[i].x=i*(240/24); /* assign X */
+		points[i].y=100+egi_random_max(80); /* assign Y */
+	}
+	printf("draw ploy lines...\n");
+	draw_pline(&gv_fb_dev, points, num, 3);
+	/* ----------Prepare data and draw plines */
+	fbset_color(WEGI_COLOR_GREEN);
+        for(i=0; i<num; i++)
+	{
+		points[i].x=i*(240/24); /* assign X */
+		points[i].y=80+egi_random_max(120); /* assign Y */
+	}
+	printf("draw ploy lines...\n");
+	draw_pline(&gv_fb_dev, points, num, 3);
+
+
+        fb_filo_off(&gv_fb_dev);
+
+	tm_delayms(55);
+}
+
+/* END >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+
 
   	/* quit logger */
   	egi_quit_log();

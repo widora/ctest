@@ -331,13 +331,6 @@ int main(int argc, char *argv[])
 	int ret;
 
 
-	/*-----TEST: ------------*/
-	int vol;
-	int percnt=50;
-	ffpcm_getset_volume(&vol,&percnt);
-	return 0;
-
-
 	/* check input argc */
 	if(argc < 2) {
 		printf("ffplay: File path not found!\n");

@@ -93,7 +93,7 @@ int init_dev(FBDEV *dev)
 	}
 
 //      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
-	printf(" \n------- FB Parameters -------:\n");
+	printf(" \n------- FB Parameters -------\n");
 	printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
 	printf(" line_length: %d bytes\n",fr_dev->finfo.line_length);
 	printf(" xres: %d pixels, yres: %d pixels \n", fr_dev->vinfo.xres, fr_dev->vinfo.yres);

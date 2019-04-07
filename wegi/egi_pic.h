@@ -1,8 +1,13 @@
-/*---------------- egi_pic.h--------------------------
+/*------------------------- egi_pic.h-------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+
 egi pic tyep ebox functions
 
 Midas Zhou
-------------------------------------------------------*/
+------------------------------------------------------------------*/
 #ifndef __EGI_PIC_H__
 #define __EGI_PIC_H__
 

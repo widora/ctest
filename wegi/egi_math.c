@@ -21,9 +21,6 @@ Midas-Zhou
 int fp16_sin[360]={0}; /* fixed point sin() value table, divisor 2<<16 */
 int fp16_cos[360]={0}; /* fixed point cos() value table, divisor 2<<16 */
 
-//static void mat_create_fptrigontab(void);
-
-
 /*--------------------------------------------------------------
 Create fixed point lookup table for
 trigonometric functions: sin(),cos()
@@ -49,8 +46,8 @@ void mat_create_fptrigontab(void)
 
 
 /*----------------------------------------------------------------------------------
-Fix point square root for uint32_t, the result is <<16, so you need to >>16 to get
-the right answer.
+Fix point square root for uint32_t, the result is <<16 shifted, so you need to shift
+>>16 back after call to get the right answer.
 
 Original Source:
 	http://read.pudn.com/downloads286/sourcecode/embedded/1291109/sqrt.c__.htm
@@ -94,7 +91,7 @@ uint64_t mat_fp16_sqrtu32(uint32_t x)
 		g1=(g0+x0/g0)>>1;
 	}
 
-	return g0; /* right shift >>16 to get right answer */
+	return g0; /* after call, right shift >>16 to get right answer */
 }
 
 

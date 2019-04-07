@@ -38,8 +38,8 @@ Modified by Midas Zhou
 #include "egi_color.h"
 #include "egi_timer.h"
 
-//static BITMAPFILEHEADER FileHead;
-//static BITMAPINFOHEADER InfoHead;
+static BITMAPFILEHEADER FileHead;
+static BITMAPINFOHEADER InfoHead;
 
 /*--------------------------------------------------------------
  open jpg file and return decompressed image buffer pointer
@@ -119,10 +119,6 @@ void close_jpgImg(unsigned char *imgbuf)
 open a 24bit BMP file and write image data to FB.
 image size limit: 320x240
 
-Note:
-    1. Read color pixel one by one, is rather slower.
-    2. For BGR type onley, BGRA is not supported. 
-
 blackoff:   1	 Do NOT wirte black pixels to FB.
 		 (keep original data in FB)
 
@@ -136,20 +132,14 @@ Return:
 --------------------------------------------------------------------*/
 int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
-	BITMAPFILEHEADER FileHead;
-	BITMAPINFOHEADER InfoHead;
-	unsigned char *buff;
-	int j,k;
-	int pad; /*in byte, pad to multiple of 4bytes */
-
 	FILE *fp;
 	int xres=fb_dev->vinfo.xres;
 	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
 	int rc;
-//	int line_x, line_y;
+	int line_x, line_y;
 	long int location = 0;
 	uint16_t color;
-	PIXEL pix;
+
 
 	/* get fb map */
 	unsigned char *fbp =fb_dev->map_fb;
@@ -158,38 +148,38 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	fp = fopen( fpath, "rb" );
 	if (fp == NULL)
 	{
-		return -1;
+		return( -1 );
 	}
 
 	rc = fread( &FileHead, sizeof(BITMAPFILEHEADER),1, fp );
 	if ( rc != 1)
 	{
-		printf("Read FileHead error!\n");
+		printf("read header error!\n");
 		fclose( fp );
-		return -2;
+		return( -2 );
 	}
 
 	//检测是否是bmp图像
 	if (memcmp(FileHead.cfType, "BM", 2) != 0)
 	{
-		printf("It's not a BMP file\n");
+		printf("it's not a BMP file\n");
 		fclose( fp );
-		return -3;
+		return( -3 );
 	}
 
 	rc = fread((char *)&InfoHead, sizeof(BITMAPINFOHEADER), 1, fp);
 	if ( rc != 1)
 	{
-		printf("Read InfoHead error!\n");
+		printf("read infoheader error!\n");
 		fclose( fp );
-		return -4;
+		return( -4 );
 	}
 
 	printf("BMP width=%d,height=%d  ciBitCount=%d\n",(int)InfoHead.ciWidth, (int)InfoHead.ciHeight, (int)InfoHead.ciBitCount);
 	//检查是否24bit色
 	if(InfoHead.ciBitCount != 24 ){
 		printf("It's not 24bit_color BMP!\n");
-		return -5;
+		return -1;
 	}
 
 #if 0 /* check picture size */
@@ -210,59 +200,50 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	}
 #endif
 
-//	line_x = line_y = 0;
+	line_x = line_y = 0;
+	//向framebuffer中写BMP图片
 
+	//跳转的数据区
 	fseek(fp, FileHead.cfoffBits, SEEK_SET);
 
-	/* if ciWidth_bitcount is not multiple of 4bytes=32, then we need skip padded 0,
-	 * skip=0, if ciWidth_bitcount is multiple of 4bytes=32.
-	 *  if line=7*3byte=21bytes, 21+3_pad=24yptes  skip=3bytes.
-	 */
-	pad=( 4-(((InfoHead.ciWidth*InfoHead.ciBitCount)>>3)&3) ) &3; /* bytes */
-	printf("Pad byte for each line: %d \n",pad);
+	while(!feof(fp))
+	{
+		PIXEL pix;
+		rc = fread( (char *)&pix, 1, sizeof(PIXEL), fp);
+		if (rc != sizeof(PIXEL))
+			break;
 
-	/* calloc buff for one line image */
-	buff=calloc(1, InfoHead.ciWidth*sizeof(PIXEL)+pad );
-	if(buff==NULL) {
-		printf("%s: Fail to alloc buff for color data.\n",__func__);
-		return -6;
+		/* frame buffer location */
+		location = line_x * bits_per_pixel / 8 +x0 + (InfoHead.ciHeight - line_y - 1 +y0) * xres * bits_per_pixel / 8;
+
+        	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
+        	if( location<0 || location>(fb_dev->screensize-bits_per_pixel/8) )
+        	{
+               			 printf("show_bmp(): WARNING: point location out of fb mem.!\n");
+  		                 return 1;
+        	}
+
+		//显示每一个像素, in ili9431 node of dts, color sequence is defined as 'bgr'(as for ili9431) .
+		// little endian is noticed.
+		/* converting to format R5G6B5(as for framebuffer) */
+		color=COLOR_RGB_TO16BITS(pix.red,pix.green,pix.blue);
+		/*if blockoff>0, don't write black to fb, so make it transparent to back color */
+		if(  !blackoff || color )
+		{
+			*(uint16_t *)(fbp+location)=color;
+		}
+
+		line_x++;
+		if (line_x == InfoHead.ciWidth )
+		{
+			line_x = 0;
+			line_y++;
+			//printf("line_y = %d\n",line_y);
+			if(line_y == InfoHead.ciHeight)
+				break;
+		}
 	}
 
-	/* Read one line each time, read more to speed up process */
-	for(j=0;j<InfoHead.ciHeight;j++)
-	{
-		/* Read one line with pad */
-		rc=fread(buff,InfoHead.ciWidth*sizeof(PIXEL)+pad,1,fp);
-		if( rc < 1 ) {
-			printf("%s: fread error.%s\n",__func__,strerror(errno));
-			return -7;
-		}
-
-		/* write to FB */
-		for(k=0; k<InfoHead.ciWidth; k++) /* iterate pixel data in one line */
-		{
-			pix=*(PIXEL *)(buff+k*sizeof(PIXEL));
-
-			location = k * bits_per_pixel / 8 +x0 +
-					(InfoHead.ciHeight - j - 1 +y0) * xres * bits_per_pixel / 8;
-	        	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
-        		if( location<0 || location>(fb_dev->screensize-bits_per_pixel/8) )
-	        	{
-               			 printf("show_bmp(): WARNING: point location out of fb mem.!\n");
-				 free(buff);
-  		                 return 1;
-        		}
-			/* converting to format R5G6B5(as for framebuffer) */
-			color=COLOR_RGB_TO16BITS(pix.red,pix.green,pix.blue);
-			/*if blockoff>0, don't write black to fb, so make it transparent to back color */
-			if(  !blackoff || color )
-			{
-				*(uint16_t *)(fbp+location)=color;
-			}
-		}
-	 }
-
-	free(buff);
 	fclose( fp );
 	return( 0 );
 }
@@ -530,6 +511,8 @@ winw,winh:	width and height(row/column for fb) of the displaying window.
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 				int xw, int yw, int winw, int winh)
 {
+
+
 	/* check data */
 	if(egi_imgbuf == NULL)
 	{
@@ -708,7 +691,8 @@ int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, 
 /*---------------------------------------------------
 Save FB data to a BMP file.
 
-TODO: RowSize=4*[ BPP*Width/32], otherwise padded with 0.
+NOTE:
+1. RowSize=4*[ BPP*Width/32], otherwise padded with 0.
 
 fpath:	Input path to the file.
 
@@ -726,7 +710,7 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 	EGI_16BIT_COLOR	color16b;
 	PIXEL bgr;
 	BITMAPFILEHEADER file_header; /* 14 bytes */
-	BITMAPINFOHEADER info_header; /* 40 bytes */
+	BITMAPINFOHEADER info_header; /* 42 bytes */
 
    printf("file header size:%d,	info header size:%d\n",sizeof(BITMAPFILEHEADER),sizeof(BITMAPINFOHEADER));
 
@@ -792,9 +776,9 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 	/* RGB color saved in order of BGR in BMP file
 	 * From bottom to up
 	 */
-	for(i=0;i<yres;i++) /* iterate line number */
+	for(i=0;i<yres;i++) /* enumerate line number */
 	{
-		for(j=0;j<xres;j++) /* iterate pixels in a line, xres to be multiple of 4 */
+		for(j=0;j<xres;j++) /* enumerate pixels in a line, xres to be multiple of 4 */
 		{
 			color16b=*(uint16_t *)(fb_dev->map_fb+fb_dev->screensize-(i+1)*xres*2 + j*2); /* bpp=2 */
 			bgr.red=(color16b>>11)<<3;
