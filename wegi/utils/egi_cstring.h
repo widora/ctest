@@ -11,6 +11,7 @@ Midas Zhou
 
 #define EGI_CONFIG_PATH "/home/egi.conf"
 
+char * cstr_split_nstr(char *str, char *split, unsigned n);
 char * cstr_trim_space(char *buf);
 int egi_get_config_value(char *sect, char *key, char* value);
 

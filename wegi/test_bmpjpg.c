@@ -11,6 +11,7 @@ Midas Zhou
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <errno.h>
 #include "egi_timer.h"
 #include "egi_fbgeom.h"
 #include "egi_color.h"
@@ -37,13 +38,8 @@ int main(int argc, char **argv)
         fb_dev.fdfd=-1;
         init_dev(&fb_dev);
 
-	/* >>>>>>>>>>>>>>>>>>>>>  START TEST  >>>>>>>>>>>>>>>>*/
 #if 1
-
-        show_bmp(argv[1],&fb_dev,0,0,0);/* 0-BALCK_ON, 1-BLACK_OFF, 0,0-x0y0 */
-	return 0;
-#endif
-
+	/* >>>>>>>>>>>>>>>>>>>>>  START TEST  >>>>>>>>>>>>>>>>*/
         /* get time stamp */
         time_t t=time(NULL);
         struct tm *tm=localtime(&t);
@@ -57,7 +53,16 @@ int main(int argc, char **argv)
 
 	egi_save_FBbmp(&fb_dev, path);
 
+// show bmp
+//        show_bmp(argv[1],&fb_dev,0,0,0);/* 0-BALCK_ON, 1-BLACK_OFF, 0,0-x0y0 */
+//	return 0;
+
 	/* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
+#endif
+
+
+
+
 
   	/* quit logger */
 //  	egi_quit_log();

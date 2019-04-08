@@ -14,5 +14,6 @@ Midas Zhou
 
 int iw_get_rssi(int *rssi);
 int iw_get_speed(int *ws);
+int  iw_http_request(char *host, char *request, char *reply);
 
 #endif

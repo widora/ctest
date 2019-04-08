@@ -20,6 +20,8 @@ extern int fp16_cos[360];
 
 void mat_create_fptrigontab(void);
 uint64_t mat_fp16_sqrtu32(uint32_t x);
+void egi_float_limits(float *data, int num, float *min, float *max);
+
 /*
 void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
                                                         struct egi_point_coord *SQMat_XRYR);

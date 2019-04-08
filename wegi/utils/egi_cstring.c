@@ -15,6 +15,44 @@ Midas Zhou
 #include "egi_cstring.h"
 #include "egi_log.h"
 
+
+/*--------------------------------------------------------
+Get pointer to the first char after Nth split char.
+
+str:	source string.
+split:  split char (or string).
+n:	the n_th split
+	if n=0, then return split=str;
+
+Example str:"data,12.23,94,343.43"
+	split=",", n=2 (from 0...)
+	then get pointer to '9',
+
+Return:
+	pointer	to a char	OK, spaces trimed.
+        NULL			Fail, or not found.
+---------------------------------------------------------*/
+char * cstr_split_nstr(char *str, char *split, unsigned n)
+{
+	int i;
+	char *pt;
+
+	if(str==NULL || split==NULL)
+		return NULL;
+
+	if(n==0)return str;
+
+	pt=str;
+	for(i=1;i<=n;i++) {
+		pt=strstr(pt,split);
+		if(pt==NULL)return NULL;
+		pt=pt+1;
+	}
+
+	return pt;
+}
+
+
 /*--------------------------------------------------
 Trim all spaces at end of a string, return a pointer
 to the first non_space char.

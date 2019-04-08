@@ -95,6 +95,33 @@ uint64_t mat_fp16_sqrtu32(uint32_t x)
 }
 
 
+/*---------------------------------------------------------------------
+Get Min and Max value of an float array
+data:	data array
+num:	item size of the array
+min,max:	Min and Max value of the array
+
+---------------------------------------------------------------------*/
+void egi_float_limits(float *data, int num, float *min, float *max)
+{
+	int i=num;
+	float fmin=data[0];
+	float fmax=data[0];
+
+	if(data==NULL || min==NULL || max==NULL || num<=0 )
+		return;
+
+	for(i=0;i<num;i++) {
+		if(data[i]>fmax)
+			fmax=data[i];
+		else if(data[i]<fmax)
+			fmin=data[i];
+	}
+
+	*min=fmin;
+	*max=fmax;
+}
+
 /*---------------------------------------------------------------------------------------
 generate a rotation lookup map for a square image block
 

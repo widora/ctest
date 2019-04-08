@@ -18,9 +18,11 @@ Midas Zhou
 #include <netinet/ether.h>   /* ETH_P_ALL */
 #include <unistd.h>
 #include <netpacket/packet.h> /* sockaddr_ll */
+#include <netdb.h> /* gethostbyname() */
 #include "egi_timer.h"
 #include "egi_log.h"
 #include "egi_iwinfo.h"
+
 
 #ifndef IW_NAME
 #define IW_NAME "apcli0"
@@ -180,5 +182,81 @@ int  iw_get_speed(int *ws)
 	*ws=count/IW_TRAFFIC_SAMPLE_SEC;
 
 	close(sock);
+	return 0;
+}
+
+
+
+/*--------------------------------------------------------------
+Send request and get reply by HTTP protocol.
+
+Note: the caller must ensure enough space for msgsend and msgrecv
+
+host:	  remote host
+request:  request string
+reply:    replay string from the host
+
+Return
+	0	OK
+	<0	Fails
+---------------------------------------------------------------*/
+int  iw_http_request(char *host, char *request, char *reply)
+{
+	int ret;
+	int port=80;
+	int sock;
+	struct sockaddr_in host_addr;
+	struct hostent * remoteHost;
+	char strmsg[256];
+
+	if( host==NULL || request==NULL || reply==NULL)
+		return -1;
+
+	if( (remoteHost=gethostbyname(host))==NULL)
+	{
+		printf("%s: Fail to get host by name %s.\n",__func__,host);
+		return -2;
+	}
+
+	bzero(&host_addr,sizeof(host_addr));
+	host_addr.sin_family=AF_INET;
+	host_addr.sin_port=htons(port);
+	host_addr.sin_addr.s_addr=((struct in_addr *)(remoteHost->h_addr))->s_addr;
+
+	memset(strmsg,0,sizeof(strmsg));
+	strcat(strmsg,"GET ");
+	strcat(strmsg,request);
+	strcat(strmsg," HTTP/1.1\r\n");
+	strcat(strmsg,"HOST: ");
+	strcat(strmsg,host);
+	strcat(strmsg,"\r\n\r\n");
+	printf("%s REQUEST string: %s\n",__func__,strmsg);
+
+	sock=socket(AF_INET,SOCK_STREAM,0);
+	if(sock<0) {
+		printf("%s() socket error: %s \n",__func__, strerror(errno));
+		return -3;
+	}
+
+	ret=connect(sock, (struct sockaddr *)&host_addr, sizeof(host_addr));
+	if(ret<0) {
+		printf("%s() connect error: %s \n",__func__, strerror(errno));
+		return -4;
+	}
+
+	ret=send(sock,strmsg,strlen(strmsg),0);
+	if(ret<=0) {
+		printf("%s() send error: %s \n",__func__, strerror(errno));
+		return -5;
+	}
+
+	ret=recv(sock,reply,256-1,0);
+	if(ret<=0) {
+		printf("%s() recv error: %s \n",__func__, strerror(errno));
+		return -6;
+	}
+
+	reply[ret]='\0'; /* string end token */
+
 	return 0;
 }
