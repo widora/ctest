@@ -14,7 +14,9 @@ Midas Zhou
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include "egi_timer.h"
+#include "egi_iwinfo.h"
 #include "egi_cstring.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
@@ -172,30 +174,58 @@ while(1)
 
 #if 1
 /* >>>>>>>>>>>>>>>>>>>>>  TEST STOCK MARKET DATA  DISPLAY >>>>>>>>>>>>>>>>*/
-        FILE *fil;
-        char data[256];
-        char *pt,*pt1,*pt2;
-        float point,price,volume,turnover;
+/*
+   0. Http request hq.sinajs.cn to get stock data.
+   1. Scale value for upper. and lower part of the chart are different.
+      Initiative scale value of 'unit_upp' and 'unit_low' to be set as 12pixels per_point.
+
+   2. Initiative fmax and fmin:
+       INDEX: fmax=fbench+unit_upp*wh/2(/10 for STOCK price)
+              fmin=fbench-unit_low*wh/2(/10 for STOCK price)
+
+*/
+        char data[256];		/* for http REQUEST reply buff */
+        char *pt;
+        float point;//price,volume,turnover;
 	int num=61; /* 240/4+1 */
 
-	float data_point[240/4+1]={0}; /* store stock point */
-	float fmin=0;
-	float fmax=0;
-	EGI_POINT pxy[61]={0}; /* for drawing line */
-	int offy=310; /* offset of Y axis */
-	int   wh=240; /* height of display window */
-	int   hlgap=40; /* grid H LINE gap */
-	int   unit_h=wh; /* =wh/limit_gap, in pixel, unit height */
-	int point_bench=3250;
+	/* float precision: 6-7 digitals, double precisio: 15-16 digitals */
+	float data_point[240/4+1]={0}; /* store stock point for every second*/
+	float fmin=0; 		/* Min value for all data_point[] history data */
+	float fmax=0; 		/* Max value for all data_point[] history data */
+	float fbench=0;		/* Bench value, usually Yesterday's value */
+	EGI_POINT pxy[61]={0};  /* for drawing line */
+	EGI_16BIT_COLOR symcolor;
+
+	int   wh=240; 		/* height of display window */
+	int   ng=6;		/* number of grids/slots */
+	int   hlgap=wh/ng; 	/* grid H LINE gap */
+
+	float fupp_dev; /* fupp_dev=fmax-fbench, if fmax>fbench;  OR fupp_dev=0;  */
+	float flow_dev; /* flow_dev=fbench-fmin, if fmin<fbench;  OR flow_dev=0;  */
+	int   upp_ng=3;	/* = fupp_dev/(fupp_dev+flow_dev)*6,  */
+	int   low_ng=3;	/* = ng-upp_ng; */
+	int   offy=70+hlgap*upp_nag;
+	//int   offy=190;//310-120; /* offset of axis to bench mark  */
+//	int   unit_h=wh; 	/* unit_h=wh/limit_gap, in pixel, unit height. MUST give an init value. */
+	float   upp_limit; 	/* =fbench+unit_upp*wh/w, upper bar of chart */
+	float   low_limit; 	/* =fbench-unit_low*wh/w, low bar of char */
+	float	famp=1;	        /* amplitude of point/price fluctuation, init=10*/
+	float   funit=wh/2/famp; /* 240/2/famp, pixles per point/price  */
+//	float   unit_upp=240/2.0/10.0; /* init. 12pix/point; only if fmax>fbench; unit_upp=(wh/2)/(fmax-fbench) */
+//	float   unit_low=240/2.0/10.0; /* init. 12pix/point; only if fmin<fbench; unit_low=(wh/2)/(fbench-fmin) */
 	char strdata[64]={0};
+//	char *sname="s_sh000001"; /* Index or stock name */
+//	char *sname="sh600389";/* Index or stock name */
+	char *sname="sz000931";
+	char request[32];
+	int px,py;
+	int pn;
 
-
-	/*-------TEST ------------*/
-	iw_http_request("hq.sinajs.cn", "/list=s_sh000001", data);
-	printf("reply data:%s\n",data);
-	return 0;
-
-
+	/* generate request string */
+	memset(request,0,sizeof(request));
+	strcat(request,"/list=");
+	strcat(request,sname);
 
 	/* init pxy.X and data_point[] */
 	for(i=0;i<num;i++) {
@@ -212,8 +242,8 @@ while(1)
 	/* draw grids */
 	fbset_color(WEGI_COLOR_GRAY3);
         for(i=0;i<=wh/hlgap;i++)
-	 	draw_line(&gv_fb_dev,0,offy-hlgap*i,240-1,offy-hlgap*i);
-//	draw_line(&gv_fb_dev,0,320-1,240-1,320-1);
+	 	draw_line(&gv_fb_dev,0,offy+wh/2-hlgap*i,240-1,offy+wh/2-hlgap*i);
+
 	/* make some dash line effects */
 	for(i=0;i<11;i++)
 	{
@@ -223,100 +253,185 @@ while(1)
 
 	/* draw mid line as open price, bench_mark */
 	fbset_color(WEGI_COLOR_GRAY3);
- 	draw_line(&gv_fb_dev,0,offy-hlgap*3,240-1,offy-hlgap*3);
-
+ 	draw_line(&gv_fb_dev,0,offy+wh/2-hlgap*3,240-1,offy+wh/2-hlgap*3);
 
 while(1)
 {
-	/* open data file */
-        fil=fopen("/tmp/gp.data","r");
-        if(fil==NULL) {
-                printf("Open data file: %s. \n",strerror(errno));
-                return -1;
-        }
-
-        fseek(fil,0,SEEK_SET);
-        memset(data,0,sizeof(data));
-        fgets(data,sizeof(data),fil);
-        fclose(fil);
-
-	/* -----TEST: cstr_split_nstr() ------ */
-	i=1;
-	do {
-		pt=cstr_split_nstr(data, ",", i);
-		if(pt!=NULL)
-			printf("data[%d]: %s\n",i,pt);
-		i++;
-	}while(pt != NULL);
+	/* HTTP REQEST for data */
+	if( iw_http_request("hq.sinajs.cn", request, data) !=0 ) {
+		tm_delayms(500);
+		continue;
+	}
+	printf("HTTP Reply: %s\n",data);
 
 
-        /* extract data: name,current_point,current_price,up_down_rate, volume, turn_over, */
-        //pt1=strstr(data,",");
-	pt=cstr_split_nstr(data,",",1); /* get point to the char aft 1st ',' token */
-        if(pt !=NULL ) {
-
-		/* shift data and push point value into data_point[num-1] */
-		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
-                data_point[num-1]=atof(pt);
-
-		/* update fmin,fmax */
-		if(fmin==0)
-			fmin=data_point[num-1];
-		else if(data_point[num-1]<fmin)
-			fmin=data_point[num-1];
-
-		if(fmax==0)
-			fmax=data_point[num-1];
-		else if(data_point[num-1]>fmax)
-			fmax=data_point[num-1];
-
-		/* extract price */
-//                pt2=strstr((pt1+1),",");
-  //              if(pt2 !=NULL ) {
-    //                    price=atof(pt2+1);
-      //                  printf("point: %f, price: %f \n",data_point[num-1],price);
-        //        }
-
-        }
-
-	/* get limit gap */
-	//unit_h=wh;
-	if(fmax != fmin)
-		unit_h=wh/(fmax-fmin);
-
-	/* update pxy */
-	for(i=0;i<num;i++)
+	/* First, get bench mark value and fmax,fmin.
+	 * Usually bench mark value is yesterday's price or point value
+	 * Run once only.
+	 */
+	if(fbench==0)
 	{
-		/* if 0, fill data_point[]  with lastest data */
-		if(data_point[i]==0)
-			data_point[i]=data_point[num-1];
+		/* If INDEX, get current point */
+		if(strstr(sname,"s_")) {
+			pn=1;
+			data_point[num-1]=atof(cstr_split_nstr(data,",",pn));/* get current point */
+			pt=cstr_split_nstr(data,",",pn+1); /* get deviation pointer */
+			if(pt==NULL) {
+				printf("%s: reply data format error.\n",__func__);
+				return;
+			}
+			fbench=data_point[num-1]-atof(pt);	/* yesterday's point=current-dev */
+			printf("Yesterday's Index: fbench=%0.2f\n",fbench);
+		}
+		/* If STOCK, get yesterday's closing price as bench mark */
+		else {
+			pn=2;
+			pt=cstr_split_nstr(data,",",pn); /* get yesterday closing price pointer */
+			if(pt==NULL) {
+				printf("%s: reply data format error.\n",__func__);
+				return;
+			}
+			fbench=atof(pt);
+			printf("Yestearday's Price: fbench=%0.2f\n",fbench);
+		}
 
-		/* --------update pxy according to data_point[] -------*/
-	 	pxy[i].y=offy-(data_point[i]-fmin)*unit_h;
+		/* init fmax,fmin whit current point */
+		fmax=data_point[num-1];
+		fmin=data_point[num-1];
+
+		/* init upper and lower limit bar */
+		upp_limit=fbench+famp;
+		low_limit=fbench-famp;
+
+		/* Init data_point[]  with fbench (yesterday's points/price) */
+		for(i=0;i<num;i++)
+			data_point[i]=fbench;
 	}
 
 
-        /* flush FB FILO */
-	printf("start to flush filo...\n");
+        /* extract data:
+	 *
+	 * 1. INDEX data format:
+	 *  	index name, current_point,up_down value,up_down_rate, volume, turn_over,
+	 *
+	 * 2. STOCK data format:
+	 *  	stock name, Today's opening_price, Yestearday 's closing_price, current_price,
+	 *	Highest price, Lowest price, Buy 1 price, Sell 1 price, number of traded shares/100
+	 *	traded value/10000, Buy1 Volume, Buy1 Price,......Sell1 Volume, Sell1 Price....
+	 */
+
+      /* <<<<<<<<  INDEX  >>>>>>>> */
+	if(strstr(sname,"s_")){  /* STOCK INDEX:  after 1st ',' token */
+		pn=1;
+	}
+	else {		/* STOCK PRICE: after 3rd ',' token */
+		pn=3;
+	}
+	pt=cstr_split_nstr(data,",",pn);
+        if(pt !=NULL ) {
+		/* shift data and push point value into data_point[num-1] */
+		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
+		/* update the latest point value */
+                data_point[num-1]=atof(pt);
+		printf("latest data_point=%0.2f \n", data_point[num-1]);
+
+		/* update funit */
+		if( fabs(data_point[num-1]-fbench) > famp )
+		{
+			famp=fabs(data_point[num-1]-fbench);
+			upp_limit=fbench+famp;
+			low_limit=fbench-famp;
+			funit=wh/2/famp;
+		}
+
+		/* update fmin,fmax */
+		if(data_point[num-1]<fmin) {
+			fmin=data_point[num-1];
+		}
+		if(data_point[num-1]>fmax) {
+			fmax=data_point[num-1];
+		}
+
+
+        }
+
+      /* <<<<<<<<  STOCK  >>>>>>>> */
+
+	/* update the latest pxy according to the latest data_point*/
+	for(i=0;i<num;i++)
+	{
+		/* update PXY according to data_point[] */
+		if(data_point[i]>fbench)
+		 	pxy[i].y=offy-(data_point[i]-fbench)*funit;
+		else
+		 	pxy[i].y=offy+(fbench-data_point[i])*funit;
+//		printf("unit_upp: %0.2f,  unit_low: %0.2f, data_point[%d]=%0.2f, pxy[%d].y=%d \n",
+//						unit_upp,unit_low,i,data_point[i],i,pxy[i].y);
+
+	}
+
+        /*  Flush FB FILO */
         fb_filo_flush(&gv_fb_dev);
         fb_filo_on(&gv_fb_dev);
 
-	/* draw point ploy line */
-	fbset_color(WEGI_COLOR_ORANGE);//GREEN);
+	/* draw  ploy line */
+	fbset_color(WEGI_COLOR_YELLOW);//GREEN);
 	draw_pline(&gv_fb_dev, pxy, num, 0);
 
-	/* sym_write fmin,fmax and current point value */
-	sprintf(strdata,"%0.2f",fmax);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
-                                        	1, 0, 50 ,strdata); /* transpcolor, x0,y0, str */
-	sprintf(strdata,"%0.2f",fmin);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GREEN,
-                                        	1, 0, 320-30, strdata); /* transpcolor, x0,y0, str */
-	sprintf(strdata,"%0.2f",data_point[num-1]); /* current point */
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
-                                        	1, 240-70, 50, strdata); /* transpcolor, x0,y0, str */
+	/* ----- Draw marks and symbols ------ */
+	/* INDEX or STOCK name */
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
+                                        	1, 70, 30 ,sname); /* transpcolor, x0,y0, str */
+	/* fbench value */
+	sprintf(strdata,"%0.2f",fbench);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+                                        	1, 80, 165 ,strdata); /* transpcolor, x0,y0, str */
+	/* upp_limit value */
+	sprintf(strdata,"%0.2f",upp_limit); //fbench+(wh/2)/funit);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+                                        	1, 80, 50 ,strdata); /* transpcolor, x0,y0, str */
+	/* low_limit value */
+	sprintf(strdata,"%0.2f",low_limit); //fbench-(wh/2)/funit);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+                                        	1, 80, 320-30, strdata); /* transpcolor, x0,y0, str */
+	/* ---- draw fmax mark---- */
+	if(fmax > fbench) {
+		py=offy-(fmax-fbench)*funit;
+		//symcolor=WEGI_COLOR_RED;
+	}
+	else {
+		py=offy+(fbench-fmax)*funit;
+		//symcolor=WEGI_COLOR_GREEN;
+	}
+	symcolor=WEGI_COLOR_ORANGE;
+	fbset_color(symcolor);
+	draw_wline(&gv_fb_dev, 0,py,60,py,0);
+	sprintf(strdata,"%0.2f",fmax); //fbench+(wh/2)/unit_upp);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+                                        	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
 
+	/* ---- draw fmin mark---- */
+	if(fmin > fbench) {
+		py=offy-(fmin-fbench)*funit;
+		//symcolor=WEGI_COLOR_RED;
+	}
+	else {
+		py=offy+(fbench-fmin)*funit;
+		//symcolor=WEGI_COLOR_GREEN;
+	}
+	symcolor=WEGI_COLOR_BLUE;
+	fbset_color(symcolor);
+	draw_wline(&gv_fb_dev, 0,py,60,py,0);
+	sprintf(strdata,"%0.2f",fmin); //fbench+(wh/2)/unit_upp);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+                                        	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
 
+	/* current point/price value */
+	if(data_point[num-1]>fbench)symcolor=WEGI_COLOR_RED;
+	else {	symcolor = WEGI_COLOR_GREEN; }
+	sprintf(strdata,"%0.2f",data_point[num-1]);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+                                        	1, 240-70, pxy[num-1].y-20, strdata); /* transpcolor, x0,y0, str */
 
 	/* turn off FILO */
 	fb_filo_off(&gv_fb_dev);
@@ -326,8 +441,6 @@ while(1)
 
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
 #endif
-
-
 
   	/* quit logger */
   	egi_quit_log();

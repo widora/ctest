@@ -212,7 +212,7 @@ int  iw_http_request(char *host, char *request, char *reply)
 	if( host==NULL || request==NULL || reply==NULL)
 		return -1;
 
-	if( (remoteHost=gethostbyname(host))==NULL)
+	if( (remoteHost=gethostbyname(host)) == NULL )
 	{
 		printf("%s: Fail to get host by name %s.\n",__func__,host);
 		return -2;
@@ -230,7 +230,7 @@ int  iw_http_request(char *host, char *request, char *reply)
 	strcat(strmsg,"HOST: ");
 	strcat(strmsg,host);
 	strcat(strmsg,"\r\n\r\n");
-	printf("%s REQUEST string: %s\n",__func__,strmsg);
+	//printf("%s REQUEST string: %s\n",__func__,strmsg);
 
 	sock=socket(AF_INET,SOCK_STREAM,0);
 	if(sock<0) {

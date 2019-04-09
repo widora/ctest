@@ -162,8 +162,8 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
 	/* if data==NULL, Do not pass data */
 	/* check buff point */
 	if( filo->pt==0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
-												__func__);
+//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
+//												__func__);
 		return 1;
 	}
 	/* if enbale auto halve realloc, halve buff size */
