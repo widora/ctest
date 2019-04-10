@@ -55,14 +55,16 @@ OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 ##--- exclude some objs !!!BEWARE, :NO SPACE ----
 OBJS := $(OBJS:test_color.o=)
 OBJS := $(OBJS:test_sym.o=)
-#OBJS := $(OBJS:test_geom.o=)
+OBJS := $(OBJS:test_geom.o=)
+#OBJS := $(OBJS:test_stock.o=)
 OBJS := $(OBJS:tmp_app.o=)
 OBJS := $(OBJS:test_bmpjpg.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-#APPS =  test_bmpjpg
-APPS = test_geom
+APPS  = test_stock
+#APPS = test_bmpjpg
+#APPS = test_geom
 #APPS = test_sym
 #APPS = tmp_app
 
@@ -106,7 +108,7 @@ $(APPS): $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
 
 #### ----- 目标文件自动生成规则 -----
 %:%.c $(DEP_FILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $@.c
 
 
 #### ----- 清除目标 -----

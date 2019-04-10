@@ -258,5 +258,7 @@ int  iw_http_request(char *host, char *request, char *reply)
 
 	reply[ret]='\0'; /* string end token */
 
+	close(sock);
+
 	return 0;
 }
