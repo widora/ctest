@@ -1,12 +1,25 @@
-/*------------------------------------------------------------------
+/*----------------------------------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 A program to draw stock index/price in a line chart.
 
+NOTE:
+   0. Http request hq.sinajs.cn to get stock data.
+   1. Initiate 'fdmax' and 'fdmin' with first input data_point[].
+   2. Initiate 'famp' with a value that is smaller than the real amplitude of fluctuation,
+      so the chart will reflect the fluctuation sufficiently.
+      A too big value results in small fluctuation in the chart, and may be indiscernible.
+   3. Initiate data_point[] with the opening point/price.
+   4. Initiate 'fbench' with yesterday's point/price, or the opening price. whatever you want.
+      Assign current price to it, then you'll be likely to observe more significant fluctuation
+      in the line chart.
+   5. Adjust weight value to chart_time_range/sampling_time_gap to get a reasonable chart result.
+
+
 Midas Zhou
------------------------------------------------------------------*/
+------------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,6 +37,20 @@ Midas Zhou
 #include "egi.h"
 #include "egi_math.h"
 
+
+/* data compression type */
+enum compress_type {
+	none,		/* when new data comes, shift data_point[] to drop data_point[0]
+			 * then savethe latest data in data_point[num-1]
+                         */
+	interpolation,  /* when new data comes, update all data_point[] by interpolation */
+	common_avg,	/* when new data comes, update all data_point[] by different weights */
+	fold_avg,       /* avg data_point[0], then [1], then[2]....  */
+};
+
+/*------------------------------------
+ 	    MAIN FUNCTION
+------------------------------------*/
 int main(void)
 {
 	int i,k;
@@ -45,29 +72,33 @@ int main(void)
 	/* --- load all symbol pages --- */
 	symbol_load_allpages();
 
+
 /* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  TEST STOCK MARKET DATA  DISPLAY >>>>>>>>>>>>>>>>>>>>>>>>>*/
-/* NOTE:
-   0. Http request hq.sinajs.cn to get stock data.
-   1. Initiate 'fdmax' and 'fdmin' with 'fbench' instead of first input data_point[].
-   2. Initiate 'famp' with a value that is smaller than the real amplitude of fluctuation,
-      so the chart will reflect the fluctuation sufficiently.
-      A too big value results in small fluctuation in the chart, and may be indiscernible.
-   3. Initiate data_point[] with the opening point/price.
-   4. Adjust weight value to chart_time_range/sampling_time_gap to get a reasonable chart result.
-*/
+
         char data[256];		/* for http REQUEST reply buff */
         char *pt;
         float point;//price,volume,turnover;
-	int num=61; /* 240/4+1 */
+	int num=16+1; /* points on chart X axis
+		       * put in form of num=2*N+1, data_point[num] is the latest data, and never compressed,
+		       * fold compression is applied, so num=2*N+1;
+		       */
+	float data_point[240]={0}; /* store stock point/price for every second,or time_gap as set*/
+	int navg_first=3; /* first average number for data compression.
+			     get navg_th average of data_point[]  = (data[0]+data[1]...data[navg-1])/navg  */
+	int navg=navg_first; /* later ajust to 2 */
+	int navg_count=1; /* start from 1, for data_point[] initialized with bench data alread */
+	int npstore=0; /*0 to num-1; index of current data_point[npstore] for compression operation . */
+	int ncompress=0; /* represent as nth compression */
+	bool buff_filled=false; /* before we start data compression, data_point[] shall be filled with new data */
+	//int nshift=0; /* for temp count */
+	EGI_POINT pxy[240]={0};  /* point x,y relating to LCD coord */
+	EGI_16BIT_COLOR symcolor;
 
 	/* Float Precision: 6-7 digitals, double precisio: 15-16 digitals */
 
-	float data_point[240/4+1]={0}; /* store stock point/price for every second,or time_gap as set*/
 	float fdmin=0; 		/* Min value for all data_point[] history data */
 	float fdmax=0; 		/* Max value for all data_point[] history data */
-	float fbench=0;		/* Bench value, usually Yesterday's value */
-	EGI_POINT pxy[61]={0};  /* for drawing line */
-	EGI_16BIT_COLOR symcolor;
+	float fbench=0;		/* Bench value, usually Yesterday's value, or opening price */
 
 	int   wh=210; 		/* height of display window */
 	int   ng=6;		/* number of grids/slots */
@@ -84,14 +115,12 @@ int main(void)
 	 *    else: keep defalt upp_ng and low_ng
 	 */
 	int   chart_x0=0;  /* char x0 as of LCD FB */
-	int   chart_y0=70; /* chart y0 as of LCD FB */ 
+	int   chart_y0=70; /* chart y0 as of LCD FB */
 	int   offy=chart_y0+hlgap*upp_ng;  /* bench mark line offset value, offset from LCD y=0 */
-	//int   offy=190;//310-120; /* offset of axis to bench mark  */
-//	int   unit_h=wh; 	/* unit_h=wh/limit_gap, in pixel, unit height. MUST give an init value. */
 	/* chart upp limit and low limit value */
 	float   upp_limit; 	/* upper bar of chart */
 	float   low_limit; 	/* low bar of char */
-	float	famp=0.05;	        /* amplitude of point/price fluctuation, init=10*/
+	float	famp=0.05;      /* Only for initial amplitude of point/price fluctuation */
 	float   funit=wh/2/famp; /* 240/2/famp, pixles per point/price  */
 //	float   unit_upp=240/2.0/10.0; /* init. 12pix/point; only if fdmax>fbench; unit_upp=(wh/2)/(fdmax-fbench) */
 //	float   unit_low=240/2.0/10.0; /* init. 12pix/point; only if fdmin<fbench; unit_low=(wh/2)/(fbench-fdmin) */
@@ -99,18 +128,18 @@ int main(void)
 	char *sname="s_sh000001"; /* Index or stock name */
 //	char *sname="sh600389";/* Index or stock name */
 //	char *sname="sz000931";
-	char request[32];
+	char strrequest[32]; /* request string */
 	int px,py;
 	int pn;
 
-	/* generate request string */
-	memset(request,0,sizeof(request));
-	strcat(request,"/list=");
-	strcat(request,sname);
+	/* generate http request string */
+	memset(strrequest,0,sizeof(strrequest));
+	strcat(strrequest,"/list=");
+	strcat(strrequest,sname);
 
-	/* init pxy.X and data_point[] */
-	for(i=0;i<num;i++) {
-		pxy[i].x=i*4;
+	/* init pxy[].X  */
+	for(i=0;i<num-1;i++) {
+		pxy[i].x=240/(num-1)*i;
 		//data_point[i]=point_bench;
 	}
 	pxy[num-1].x=240-1;
@@ -135,21 +164,21 @@ int main(void)
 /*  <<<<<<<<<<<   Loop reading data and drawing line chart    >>>>>>>>>>  */
 while(1)
 {
-	/* HTTP REQEST for data */
-	if( iw_http_request("hq.sinajs.cn", request, data) !=0 ) {
+	/* 1. HTTP REQEST for data */
+	if( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
 		tm_delayms(1000);
 		continue;
 	}
 	printf("HTTP Reply: %s\n",data);
 
 
-	/* First, get bench mark value and fdmax,fdmin.
-	 * Usually bench mark value is yesterday's price or point value
+	/* 2. First, get bench mark value and fdmax,fdmin.
+	 * Usually bench mark value is yesterday's price, or opening price, or current price, as you like.
 	 * Run once only.
 	 */
 	if(fbench==0)
 	{
-		/* If INDEX, get current point */
+		/* 2.1 If INDEX, get current point */
 		if(strstr(sname,"s_")) {
 			pn=1;
 			data_point[num-1]=atof(cstr_split_nstr(data,",",pn));/* get current point */
@@ -161,7 +190,7 @@ while(1)
 			fbench=data_point[num-1]-atof(pt);	/* yesterday's point=current-dev */
 			printf("Yesterday's Index: fbench=%0.2f\n",fbench);
 		}
-		/* If STOCK, get yesterday's closing price as bench mark */
+		/* If STOCK PRICE, get yesterday's closing price as bench mark */
 		else {
 			pn=2;
 			data_point[num-1]=atof(cstr_split_nstr(data,",",pn+1));/* get current point */
@@ -174,19 +203,21 @@ while(1)
 			printf("Yestearday's Price: fbench=%0.2f\n",fbench);
 		}
 
+		/* <<<<<<  You may ignore above and redefine fbench here  >>>>>> */
+		//fbench=data_point[num-1];
+
 		/* init fdmax,fdmin whit current point */
-		fdmax=fbench; //data_point[num-1];
-		fdmin=fbench; //data_point[num-1];
+		fdmax=data_point[num-1];
+		fdmin=data_point[num-1];
 
 		/* init upper and lower limit bar */
 		upp_limit=fbench+famp;
 		low_limit=fbench-famp;
 
-		/* Init data_point[]  with fbench (yesterday's points/price) */
+		/* Init data_point[]  with opening price or current price or fbench (yesterday's points/price) */
 		for(i=0;i<num;i++)
 			data_point[i]=data_point[num-1];//fbench;
 	}
-
 
         /* extract data:
 	 *
@@ -199,25 +230,26 @@ while(1)
 	 *	traded value/10000, Buy1 Volume, Buy1 Price,......Sell1 Volume, Sell1 Price....
 	 */
 
-      /* <<<<<<<<  INDEX  >>>>>>>> */
+      /* <<<<<<<<  INDEX  POINT  >>>>>>>> */
 	if(strstr(sname,"s_")){  /* Get STOCK INDEX:  after 1st ',' token */
 		pn=1;
 	}
-      /* <<<<<<<<  STOCK  >>>>>>>> */
+      /* <<<<<<<<  STOCK  PRICE  >>>>>>>> */
 	else {		/* Get STOCK PRICE: after 3rd ',' token */
 		pn=3;
 	}
-	pt=cstr_split_nstr(data,",",pn);
-        if(pt !=NULL ) {
 
-#if 0
-		/* METHOD 1: shift data and push point value into data_point[num-1] */
+     /* Read data */
+     pt=cstr_split_nstr(data,",",pn);
+     if(pt ==NULL ) continue;
+
+     /* <<<<<<<<<<<<<<<<<   DATA SAVE AND COMPRESSION    >>>>>>>>>>>>>> */
+     printf("Start data save and compression  ((( ---> ");
+#if 0		/* METHOD 1: shift data and push point value into data_point[num-1] */
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
 #endif
 
-
-#if 1
-		/* METHOD 2: average compression, but keep lastest data_point[num-1]  */
+#if 0		/* METHOD 2: Common_Average compression, but keep lastest data_point[num-1]  */
 		for(i=0;i<num-1;i++) {
 			//data_point[i]=(data_point[i]+data_point[i+1])/2.0; /* AVERAGE */
 			//data_point[i]=(data_point[i]*10.0+data_point[i+1])/11.0; /* SMOOTH_BIA AVERAGE */
@@ -225,6 +257,60 @@ while(1)
 							/ ( (num-i)*1+1 ); /* SMOOTH_BIA AVERAGE */
 		}
 #endif
+
+#if 0		/* METHOD 3: Interpolation compression  */
+		for(i=0;i<num-1;i++) { /* data_point[num-1] unchanged */
+			data_point[i]=data_point[i]*(num-2-i)/(num-2)+data_point[i+1]*i/(num-2);
+		}
+#endif
+
+#if 1		/* METHOD 4: Fold_Average Compression */
+
+	if( !buff_filled )  /* first, update all data_point[] */
+	{
+		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
+		buff_filled=true;
+	}
+	else  /* then, compress data by averaging */
+	{
+		/* remember current npstore for next for() */
+		k=npstore;
+		/* add next data to get average and update data_point[npstore] */
+		data_point[k]=data_point[k]*navg_count+data_point[k+1];
+		navg_count++;
+		data_point[k] /= navg_count;
+		printf("npstore=%d, navg_count=%d\n",npstore,navg_count);
+
+		/* check if curretn data_point[x] avg compression completes */
+		if(navg_count==navg) {
+			navg_count=1; /* reset to 1, for data_point[] already initialized with bench data */
+			npstore++; /* next data_point index for avg compression */
+
+			/* 1. If in mid of round: if not 1st compression, then adjust navg */
+			if( ncompress > 0 && npstore == (num>>1) ) {
+				navg=navg_first*(1<<ncompress); /* ajust navg for uncompressed data */
+			}
+
+			/* 2. If end of round: reset npstore, !!!!! keep data_point[num-1] alway uncompressed !!!! */
+			else if(npstore == num-1) { /* data[num-1] never compress, reset npstore to 0 */
+				ncompress++;
+				npstore=0;  /* data[num-1] never compress, reset npstore to 0 */
+				/* !!! adjust navg to 2 for first half data_point[x], which are already compressed */
+				navg=2;
+			}
+		}
+
+		/* just shift followed data */
+		for( ++k; k<num-1; k++)
+		{
+			data_point[k]=data_point[k+1];
+		}
+	}
+#endif
+
+     printf(" ---> End.  ))) \n");
+
+
 
 		/* 1. Update the latest point value */
                 data_point[num-1]=atof(pt);
@@ -258,16 +344,31 @@ while(1)
 		 * They are the same only when fdmax>fbench and fdmin<fbench.
 		 */
 		if(flow_dev<fupp_dev) {
-			low_ng=flow_dev/(fupp_dev+flow_dev)+1;
+			/* estimate low and upp ng */
+			low_ng=flow_dev*ng/(fupp_dev+flow_dev)+1;
+			upp_ng=fupp_dev*ng/(fupp_dev+flow_dev);
+			/* again */
+			low_ng=ng*low_ng/(low_ng+upp_ng);
+			//if(low_ng==0)low_ng=1; /* At least 1 grid */
 			upp_ng=ng-low_ng;
 			/* update funit */
-			funit=fmin(upp_ng*hlgap/fupp_dev, low_ng*hlgap/flow_dev);
+			/* flow_dev may BE ZERO ! */
+			funit=fmin(1.0*upp_ng*hlgap/fupp_dev, 1.0*low_ng*hlgap/flow_dev);
 		}
 		else if(flow_dev>fupp_dev) {
-			upp_ng=fupp_dev/(fupp_dev+flow_dev)+1;
+			/* estimate low and upp ng */
+			upp_ng=fupp_dev*ng/(fupp_dev+flow_dev)+1;
+			low_ng=flow_dev*ng/(fupp_dev+flow_dev);
+			/* again */
+			upp_ng=ng*upp_ng/(low_ng+upp_ng);
+			//if(upp_ng==0)upp_ng=1; /* At least 1 grid */
 			low_ng=ng-upp_ng;
 			/* update funit */
-			funit=fmin(upp_ng*hlgap/fupp_dev, low_ng*hlgap/flow_dev);
+			/* fupp_dev may BE ZERO */
+			if(fupp_dev !=0 )
+				funit=fmin(1.0*upp_ng*hlgap/fupp_dev, 1.0*low_ng*hlgap/flow_dev);
+			else
+				funit=1.0*low_ng*hlgap/flow_dev;
 		}
 		else  { //elseif(flow_dev==fupp_dev)
 			upp_ng=ng>>1;
@@ -284,9 +385,14 @@ while(1)
 		printf("funit=%0.3f, hlgap/funit=%0.3f \n",funit,hlgap/funit);
 		printf("low_ng=%d, upp_ng=%d.\n",low_ng,upp_ng);
 		printf("upp_limit=%0.2f, low_limit=%0.2f \n",upp_limit,low_limit);
-        }
+		printf("fupp_dev*funit/hlgap=%0.1f <----> upp_ng=%d \n",fupp_dev*funit/hlgap,upp_ng);
+		printf("flow_dev*funit/hlgap=%0.2f <----> low_ng=%d \n",flow_dev*funit/hlgap,low_ng);
+
+//        } /* end of if(pt!=NULL) */
+
 
 	/* update the latest pxy according to the latest data_point*/
+	printf("Update Pxy[] for drawing.  start  ---> ");
 	for(i=0;i<num;i++)
 	{
 		/* update PXY according to data_point[] */
@@ -295,23 +401,31 @@ while(1)
 		else
 		 	pxy[i].y=offy+(fbench-data_point[i])*funit;
 	}
+	printf(" End.\n ");
 
 	/* <<<<<<<    Flush FB and Turn on FILO  >>>>>>> */
+	printf("Flush pixel data in FILO, start  ---> ");
         fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
         fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
+	printf("End.\n");
 
 	/* 1. Draw bench_mark line according to low_ng and upp_ng */
+	printf("Draw bench mark line, start  ---> ");
 	fbset_color(WEGI_COLOR_GRAY3);
  	draw_line(&gv_fb_dev,0,offy,240-1,offy);
+	printf("End.\n");
 
-	/* 2. Draw poy line of Pxy */
+	/* 2. Draw poly line of Pxy */
+	printf("Draw poly lines from Pxy[], start  ---> ");
 	fbset_color(WEGI_COLOR_YELLOW);//GREEN);
 	draw_pline(&gv_fb_dev, pxy, num, 0);
+	printf("End.\n");
 
 	/* 3. ----- Draw marks and symbols ------ */
+	printf("Draw marks and symbols, start  ((( ---> ");
 	/* 3.1 INDEX or STOCK name */
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
-                                        	1, 70, 30 ,sname); /* transpcolor, x0,y0, str */
+                                        	1, 60, 5 ,sname); /* transpcolor, x0,y0, str */
 	/* 3.2 fbench value */
 	sprintf(strdata,"%0.2f",fbench);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
@@ -324,7 +438,7 @@ while(1)
 	sprintf(strdata,"%0.2f",low_limit);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
                                         	1, 80, chart_y0+wh-20, strdata); /* transpcolor, x0,y0, str */
-	/* 3.4 draw fdmax mark */
+	/* 3.4 draw fdmax mark and symbol */
 	if(fdmax > fbench) {
 		py=offy-(fdmax-fbench)*funit;
 		//symcolor=WEGI_COLOR_RED;
@@ -333,13 +447,13 @@ while(1)
 		py=offy+(fbench-fdmax)*funit;
 		//symcolor=WEGI_COLOR_GREEN;
 	}
-	symcolor=WEGI_COLOR_ORANGE;
+	symcolor=WEGI_COLOR_RASPBERRY;
 	fbset_color(symcolor);
 	draw_wline(&gv_fb_dev, 0,py,60,py,0);
 	sprintf(strdata,"%0.2f",fdmax); //fbench+(wh/2)/unit_upp);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
                                         	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
-	/* 3.5 draw fdmin mark */
+	/* 3.5 draw fdmin mark and symbol*/
 	if(fdmin > fbench) {
 		py=offy-(fdmin-fbench)*funit;
 		//symcolor=WEGI_COLOR_RED;
@@ -356,19 +470,35 @@ while(1)
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
                                         	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
 	/* 3.6 write current point/price value */
-	symcolor=WEGI_COLOR_YELLOW;
+	symcolor=WEGI_COLOR_WHITE;
 	sprintf(strdata,"%0.2f",data_point[num-1]);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-                                       	1, 240-70, pxy[num-1].y-20, strdata); /* transpcolor, x0,y0, str */
+        // move with pxy              	1, 240-70, pxy[num-1].y-20, strdata); /* transpcolor, x0,y0, str */
+					1, 240-70, chart_y0-40, strdata); /* display on top */
 	/* 3.7 write up_down value */
+	/* draw a gray pad */
+	//draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY3,
+	//			  240-70, pxy[num-1].y-20-15, 240-70+60, pxy[num-1].y-20);
+
 	if(data_point[num-1]>fbench)symcolor=WEGI_COLOR_RED;
 	else {	symcolor = WEGI_COLOR_GREEN; }	sprintf(strdata,"%+0.2f",data_point[num-1]-fbench);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-                                       	1, 240-70, pxy[num-1].y-20-20, strdata); /* transpcolor, x0,y0, str */
+        // move with pxy                     	1, 240-70, pxy[num-1].y-20-20, strdata); /* transpcolor, x0,y0, str */
+					1, 90, chart_y0-40, strdata); /* display on top */
+
+	/* 3.8 write up_down percentage */
+	sprintf(strdata,"%%%+0.2f",(data_point[num-1]-fbench)*100/fbench);
+        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0,y0, str */
+
+	printf(" ---> End.  ))) \n");
 
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&gv_fb_dev);
+
+	/* check time */
+
 
         tm_delayms(1000);
 }

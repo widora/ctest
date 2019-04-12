@@ -14,7 +14,6 @@ CFLAGS += -Wall -I../ -I../utils -I$(COMMON_USRDIR)/include
 LDFLAGS += -L$(COMMON_USRDIR)/lib
 LIBS += -lpthread
 
-
 read_conf: read_conf.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) read_conf.c -o read_conf
 

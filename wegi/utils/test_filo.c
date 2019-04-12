@@ -51,6 +51,16 @@ while(1)
 		egi_filo_push(filo,(void *)&k);
 	}
 
+	printf("TEST egi_filo_read() and egi_filo_totalitem() ....\n");
+	for(k=0;k<10;k++) {
+		if(egi_filo_read(filo, 10*k, &data)!=0)
+			printf("------ egi_filo_read() ERROR! -------\n");
+		printf("pn=%d, data=%d\n",10*k, data);
+		egi_filo_pop(filo,NULL);
+		printf("total item=%d after %d pop_outs.\n",egi_filo_itemtotal(filo),k+1);
+	}
+	tm_delayms(1000);
+
 	printf(" start pop...\n");
 	for(k=0;k<(1<<12);k++) {
 		egi_filo_pop(filo, (void *)&data);
@@ -59,10 +69,13 @@ while(1)
 			printf("data[%d]=%d, ----- ERROR! ----- \n", k, data);
 	}
 	printf(" --------- push and pop results OK ---------\n");
+
+
+
 	/* free filo */
 	egi_free_filo(filo);
 
-	tm_delayms(300);
+	tm_delayms(1000);
 }
 
 

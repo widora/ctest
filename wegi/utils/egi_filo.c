@@ -159,7 +159,6 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
                 EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
                 return -1;
         }
-	/* if data==NULL, Do not pass data */
 	/* check buff point */
 	if( filo->pt==0 ) {
 //		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
@@ -188,4 +187,61 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
 		memcpy( data, (void *)(filo->buff)[filo->pt], filo->item_size);
 
 	return 0;
+}
+
+
+/*----------------------------------------------------------------
+Read data from FILO buffer, data in FILO keep intact after read.
+filo:	FILO struct
+pn:	index/position of the data in the filo buff, start from 0.
+data:	pointer to pass the data
+
+Return:
+	>0	filo buff is empty.
+	0	OK
+	<0	fails
+-----------------------------------------------------------------*/
+int egi_filo_read(EGI_FILO *filo, int pn, void* data)
+{
+	/* verifyi input data */
+	if( filo==NULL || filo->buff==NULL ) {
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                return -1;
+        }
+	/* check buff point */
+	if( filo->pt==0 ) {
+//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
+//												__func__);
+		return 1;
+	}
+	if( pn < 0 || pn > filo->pt-1 ) {
+//		EGI_PLOG(LOGLV_ERROR,"%s: input pn is invalid.\n",__func__);
+		return -2;
+	}
+
+	/* if data==NULL, Do not pass data */
+	if(data != NULL)
+		memcpy(data, (void *)(filo->buff)[pn], filo->item_size);
+
+
+	return 0;
+}
+
+
+/*----------------------------------------
+Get total number of items in the filo buff.
+filo:	FILO struct
+
+Return:
+	number of data in the buff.
+----------------------------------------*/
+int egi_filo_itemtotal(EGI_FILO *filo)
+{
+	/* verifyi input data */
+	if( filo==NULL || filo->buff==NULL ) {
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                return 0;
+        }
+
+	return filo->pt;
 }

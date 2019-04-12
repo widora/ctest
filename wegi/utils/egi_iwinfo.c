@@ -227,7 +227,9 @@ int  iw_http_request(char *host, char *request, char *reply)
 	strcat(strmsg,"GET ");
 	strcat(strmsg,request);
 	strcat(strmsg," HTTP/1.1\r\n");
+	//SVR NOT SUPPORT strcat(strmsg," Content-Type: charset=uft-8\r\n");
 	strcat(strmsg,"HOST: ");
+
 	strcat(strmsg,host);
 	strcat(strmsg,"\r\n\r\n");
 	//printf("%s REQUEST string: %s\n",__func__,strmsg);
