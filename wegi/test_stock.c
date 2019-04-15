@@ -26,6 +26,7 @@ Midas Zhou
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <math.h>
 #include "egi_timer.h"
 #include "egi_iwinfo.h"
@@ -56,11 +57,13 @@ int main(void)
 	int i,k;
 
 	/* --- init logger --- */
-  	if(egi_init_log("/mmc/log_color") != 0)
+#if 0
+  	if(egi_init_log("/tmp/log_color") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
 	}
+#endif
 
         /* --- start egi tick --- */
         tm_start_egitick();
@@ -77,20 +80,20 @@ int main(void)
 
         char data[256];		/* for http REQUEST reply buff */
         char *pt;
-        float point;//price,volume,turnover;
-	int num=16+1; /* points on chart X axis
+        float point,tprice,yprice,volume,turnover;
+	int num=238+1; /* points on chart X axis
 		       * put in form of num=2*N+1, data_point[num] is the latest data, and never compressed,
 		       * fold compression is applied, so num=2*N+1;
 		       */
 	float data_point[240]={0}; /* store stock point/price for every second,or time_gap as set*/
-	int navg_first=3; /* first average number for data compression.
+	int navg_first=2; /* first average number for data compression.
 			     get navg_th average of data_point[]  = (data[0]+data[1]...data[navg-1])/navg  */
 	int navg=navg_first; /* later ajust to 2 */
 	int navg_count=1; /* start from 1, for data_point[] initialized with bench data alread */
 	int npstore=0; /*0 to num-1; index of current data_point[npstore] for compression operation . */
 	int ncompress=0; /* represent as nth compression */
 	bool buff_filled=false; /* before we start data compression, data_point[] shall be filled with new data */
-	//int nshift=0; /* for temp count */
+	int nshift=0; /* for temp count */
 	EGI_POINT pxy[240]={0};  /* point x,y relating to LCD coord */
 	EGI_16BIT_COLOR symcolor;
 
@@ -98,8 +101,9 @@ int main(void)
 
 	float fdmin=0; 		/* Min value for all data_point[] history data */
 	float fdmax=0; 		/* Max value for all data_point[] history data */
-	float fbench=0;		/* Bench value, usually Yesterday's value, or opening price */
-
+	float fbench=0;		/* Bench value, usually Yesterday's value, or opening price
+				 * Reset with 0 first, It's a token for updating limits and bench value.
+				 */
 	int   wh=210; 		/* height of display window */
 	int   ng=6;		/* number of grids/slots */
 	int   hlgap=wh/ng; 	/* grid H LINE gap */
@@ -129,8 +133,15 @@ int main(void)
 //	char *sname="sh600389";/* Index or stock name */
 //	char *sname="sz000931";
 	char strrequest[32]; /* request string */
+	int  favor_num=3;
+	const char *favor_stock[3]={"sh600389","sz000931","sz000931"};
+
 	int px,py;
 	int pn;
+	bool market_closed=true;
+	struct tm *local_tm; /* local time */
+	time_t tm_t; /* seconds since 1970 */
+	int mincount; /* local_tm->hour * 60 +local_tm->min */
 
 	/* generate http request string */
 	memset(strrequest,0,sizeof(strrequest));
@@ -164,12 +175,46 @@ int main(void)
 /*  <<<<<<<<<<<   Loop reading data and drawing line chart    >>>>>>>>>>  */
 while(1)
 {
+	/* 0. check stock market time */
+	tm_t=time(NULL);
+	local_tm=localtime(&tm_t);
+	mincount=local_tm->tm_hour*60+local_tm->tm_min;
+	/*  market close time */
+	if( mincount < 9*60+30 || mincount >=13*60 )
+	{
+		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
+		if(!market_closed) { /* toggle token */
+			market_closed=true;
+		}
+	}
+	/* recession time */
+	else if ( mincount >= 11*60+30 && mincount < 13*60 )
+	{
+		/* Do NOT draw chart during noon recession */
+		if(fbench!=0 ) /* first get fbench and last stock index/price, then hold on. */
+			continue;
+	}
+
+	/*  market trade time */
+	else {
+		printf(" <<<<<<<<<<<<<<<<<   Trade Time   >>>>>>>>>>>>>>>>> \n");
+		if(market_closed) {   /* toggle token */
+			market_closed=false;
+			fbench=0; /* need reset fbench */
+		}
+	}
+
 	/* 1. HTTP REQEST for data */
+	memset(strrequest,0,sizeof(strrequest));
+	strcat(strrequest,"/list=");
+	strcat(strrequest,sname);
 	if( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
 		tm_delayms(1000);
 		continue;
 	}
-	printf("HTTP Reply: %s\n",data);
+	pt=cstr_split_nstr(data,"var ",1);
+	if(pt !=NULL)
+		printf("HTTP Reply: %s\n",pt);
 
 
 	/* 2. First, get bench mark value and fdmax,fdmin.
@@ -187,10 +232,10 @@ while(1)
 				printf("%s: reply data format error.\n",__func__);
 				return -1;
 			}
-			fbench=data_point[num-1]-atof(pt);	/* yesterday's point=current-dev */
+			fbench = data_point[num-1]-atof(pt);  /* yesterday's point=current-dev */
 			printf("Yesterday's Index: fbench=%0.2f\n",fbench);
 		}
-		/* If STOCK PRICE, get yesterday's closing price as bench mark */
+		/* 2.2 If STOCK PRICE, get yesterday's closing price as bench mark */
 		else {
 			pn=2;
 			data_point[num-1]=atof(cstr_split_nstr(data,",",pn+1));/* get current point */
@@ -231,17 +276,18 @@ while(1)
 	 */
 
       /* <<<<<<<<  INDEX  POINT  >>>>>>>> */
-	if(strstr(sname,"s_")){  /* Get STOCK INDEX:  after 1st ',' token */
+	if(strstr(sname,"s_")){  /* Get current STOCK INDEX:  after 1st ',' token */
 		pn=1;
 	}
       /* <<<<<<<<  STOCK  PRICE  >>>>>>>> */
-	else {		/* Get STOCK PRICE: after 3rd ',' token */
+	else {		/* Get current STOCK PRICE: after 3rd ',' token */
 		pn=3;
 	}
 
-     /* Read data */
-     pt=cstr_split_nstr(data,",",pn);
-     if(pt ==NULL ) continue;
+      /* Get pointer to current data */
+      pt=cstr_split_nstr(data,",",pn);
+      if( pt==NULL ) continue;
+
 
      /* <<<<<<<<<<<<<<<<<   DATA SAVE AND COMPRESSION    >>>>>>>>>>>>>> */
      printf("Start data save and compression  ((( ---> ");
@@ -269,7 +315,9 @@ while(1)
 	if( !buff_filled )  /* first, update all data_point[] */
 	{
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
-		buff_filled=true;
+		nshift++;
+		if(nshift==num) /* all data_point[] refreshed */
+			buff_filled=true;
 	}
 	else  /* then, compress data by averaging */
 	{
@@ -493,6 +541,30 @@ while(1)
 
 	printf(" ---> End.  ))) \n");
 
+	/* if market closed */
+	if(market_closed)
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
+						1, 20,320-35, "Market Closed" );
+	else { /* display favorate stock */
+		//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
+		//				1, 20,320-35, "Trade Time" );
+
+		/* favorate stock price */
+		memset(strrequest,0,sizeof(strrequest));
+		strcat(strrequest,"/list=");
+		strcat(strrequest,favor_stock[2]);
+		while( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
+			tm_delayms(300);
+		}
+		memset(strdata,0,sizeof(strdata));
+		tprice=atof(cstr_split_nstr(data,",",3)); /* current price */
+		yprice=atof(cstr_split_nstr(data,",",2)); /* yesterday price */
+		if(tprice-yprice>0)symcolor=WEGI_COLOR_RED;
+		else symcolor=WEGI_COLOR_GREEN;
+		sprintf(strdata,"%s  %0.2f  %%%+0.2f",favor_stock[2],tprice,(tprice-yprice)*100/yprice);
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+						1, 20,320-35, strdata );
+	}
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&gv_fb_dev);
@@ -506,7 +578,7 @@ while(1)
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
 
   	/* quit logger */
-  	egi_quit_log();
+//  	egi_quit_log();
 
         /* close fb dev */
         munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

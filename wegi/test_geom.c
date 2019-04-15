@@ -35,7 +35,7 @@ int main(void)
 //	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
 //  }
 	/* --- init logger --- */
-  	if(egi_init_log("/mmc/log_color") != 0)
+  	if(egi_init_log("/tmp/log_geom") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
@@ -53,7 +53,7 @@ int main(void)
 
 
 
-#if 0
+#if 1
 /* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*
 	EGI_POINT p1,p2;
@@ -128,7 +128,7 @@ while(1)
 #endif
 
 
-#if 1
+#if 0
 /* <<<<<<<<<<<<<<  test line Chart  <<<<<<<<<<<<<<<*/
 	int num=240/10+1; /* number of data */
 	int cdata[240]={0}; /* 240 data */
