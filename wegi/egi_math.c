@@ -96,7 +96,7 @@ uint64_t mat_fp16_sqrtu32(uint32_t x)
 
 
 /*---------------------------------------------------------------------
-Get Min and Max value of an float array
+Get Min and Max value of a float array
 data:	data array
 num:	item size of the array
 min,max:	Min and Max value of the array

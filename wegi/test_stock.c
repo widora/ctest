@@ -134,7 +134,7 @@ int main(void)
 //	char *sname="sz000931";
 	char strrequest[32]; /* request string */
 	int  favor_num=3;
-	const char *favor_stock[3]={"sh600389","sz000931","sz000931"};
+	const char *favor_stock[3]={"sh600389","sz000931","sz300223"};
 
 	int px,py;
 	int pn;
@@ -142,7 +142,8 @@ int main(void)
 	struct tm *local_tm; /* local time */
 	time_t tm_t; /* seconds since 1970 */
 	int mincount; /* local_tm->hour * 60 +local_tm->min */
-
+	int seccount; /* local_tm->hour*3600+local_tm->min*60+local_tm->sec */
+	int wcount; 	/* counter for while() loop */
 	/* generate http request string */
 	memset(strrequest,0,sizeof(strrequest));
 	strcat(strrequest,"/list=");
@@ -173,25 +174,30 @@ int main(void)
 	}
 
 /*  <<<<<<<<<<<   Loop reading data and drawing line chart    >>>>>>>>>>  */
+wcount=0;
 while(1)
 {
-	/* 0. check stock market time */
+
+	/* <<<<<<<<<<<<<<<<<   Check Time    >>>>>>>>>>>>>> */
 	tm_t=time(NULL);
 	local_tm=localtime(&tm_t);
-	mincount=local_tm->tm_hour*60+local_tm->tm_min;
+	seccount=local_tm->tm_hour*3600+local_tm->tm_min*60+local_tm->tm_sec;
 	/*  market close time */
-	if( mincount < 9*60+30 || mincount >=13*60 )
+	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+2 ) /* +2 for transfer delay */
 	{
 		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
 		if(!market_closed) { /* toggle token */
 			market_closed=true;
 		}
+		/* get last data and draw, then hold on... */
+		if( wcount>0 && fbench!=0 ) continue;
 	}
-	/* recession time */
-	else if ( mincount >= 11*60+30 && mincount < 13*60 )
+	/* recess time */
+	else if ( seccount >= 11*3600+30*60+2 && seccount < 13*3600 ) /* +2 for transfer delay */
 	{
+		printf(" <<<<<<<<<<<<<<<<<   Recess at Noon   >>>>>>>>>>>>>>>>> \n");
 		/* Do NOT draw chart during noon recession */
-		if(fbench!=0 ) /* first get fbench and last stock index/price, then hold on. */
+		if( wcount>0 && fbench!=0 ) /* first get fbench and last stock index/price, then hold on. */
 			continue;
 	}
 
@@ -204,6 +210,9 @@ while(1)
 		}
 	}
 
+
+
+	/* <<<<<<<<<<<<<<<<  HTTP Request Market Data    >>>>>>>>>>>>>> */
 	/* 1. HTTP REQEST for data */
 	memset(strrequest,0,sizeof(strrequest));
 	strcat(strrequest,"/list=");
@@ -249,7 +258,7 @@ while(1)
 		}
 
 		/* <<<<<<  You may ignore above and redefine fbench here  >>>>>> */
-		//fbench=data_point[num-1];
+		fbench=data_point[num-1];
 
 		/* init fdmax,fdmin whit current point */
 		fdmax=data_point[num-1];
@@ -275,11 +284,11 @@ while(1)
 	 *	traded value/10000, Buy1 Volume, Buy1 Price,......Sell1 Volume, Sell1 Price....
 	 */
 
-      /* <<<<<<<<  INDEX  POINT  >>>>>>>> */
+      /* ( if  INDEX  POINT  ) */
 	if(strstr(sname,"s_")){  /* Get current STOCK INDEX:  after 1st ',' token */
 		pn=1;
 	}
-      /* <<<<<<<<  STOCK  PRICE  >>>>>>>> */
+      /* ( if STOCK  PRICE  ) */
 	else {		/* Get current STOCK PRICE: after 3rd ',' token */
 		pn=3;
 	}
@@ -310,16 +319,16 @@ while(1)
 		}
 #endif
 
-#if 1		/* METHOD 4: Fold_Average Compression */
+#if 1	/* METHOD 4: Fold_Average Compression */
 
-	if( !buff_filled )  /* first, update all data_point[] */
+	if( !market_closed && !buff_filled )  /* first, update all data_point[] */
 	{
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
 		nshift++;
 		if(nshift==num) /* all data_point[] refreshed */
 			buff_filled=true;
 	}
-	else  /* then, compress data by averaging */
+	else if( !market_closed )  /* then, compress data by averaging */
 	{
 		/* remember current npstore for next for() */
 		k=npstore;
@@ -354,11 +363,15 @@ while(1)
 			data_point[k]=data_point[k+1];
 		}
 	}
+	else /* if market closed, do NOT compress data, only for display */
+		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
+
 #endif
 
      printf(" ---> End.  ))) \n");
 
 
+     /* <<<<<<<<<<<<<  Update Pxy Data and Parameters    >>>>>>>>>>>>>> */
 
 		/* 1. Update the latest point value */
                 data_point[num-1]=atof(pt);
@@ -450,6 +463,7 @@ while(1)
 		 	pxy[i].y=offy+(fbench-data_point[i])*funit;
 	}
 	printf(" End.\n ");
+
 
 	/* <<<<<<<    Flush FB and Turn on FILO  >>>>>>> */
 	printf("Flush pixel data in FILO, start  ---> ");
@@ -552,26 +566,31 @@ while(1)
 		/* favorate stock price */
 		memset(strrequest,0,sizeof(strrequest));
 		strcat(strrequest,"/list=");
-		strcat(strrequest,favor_stock[2]);
+		strcat(strrequest,favor_stock[wcount%3]);
 		while( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
 			tm_delayms(300);
+		}
+		if(strstr(data,",")==NULL)
+		{
+			printf("Return data error!\n %s\n", data);
+			wcount++;
+			continue;
 		}
 		memset(strdata,0,sizeof(strdata));
 		tprice=atof(cstr_split_nstr(data,",",3)); /* current price */
 		yprice=atof(cstr_split_nstr(data,",",2)); /* yesterday price */
 		if(tprice-yprice>0)symcolor=WEGI_COLOR_RED;
 		else symcolor=WEGI_COLOR_GREEN;
-		sprintf(strdata,"%s  %0.2f  %%%+0.2f",favor_stock[2],tprice,(tprice-yprice)*100/yprice);
+		sprintf(strdata,"%s   %0.2f   %%%+0.2f",favor_stock[wcount%3],tprice,(tprice-yprice)*100/yprice);
 		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-						1, 20,320-35, strdata );
+						1, 5,320-35, strdata );
 	}
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&gv_fb_dev);
 
-	/* check time */
 
-
+	wcount++;
         tm_delayms(1000);
 }
 

@@ -161,7 +161,6 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
                 return NULL;
 	}
 
-
         /* 2. default method to be assigned in egi_ebox_new(),...see egi_ebox_new() */
 
         /* 3. pic ebox object method */
@@ -188,7 +187,6 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
 		ebox->height=egi_data->imgbuf->height+2*(egi_data->offy)+symheight;/* one line of title string */
 	else
 		ebox->height=egi_data->imgbuf->height+2*(egi_data->offy);
-
 
 	/* 6. set frame and color */
         ebox->frame=frame;
