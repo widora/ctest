@@ -38,6 +38,9 @@ TODO:
 4. Be ware of system buffer for file write,print,..etc.
 5. Fail to use access() to check file existance.
 
+6. A rush of (big) data writing may cause SD card unmount ????
+
+
 Midas Zhou
 -----------------------------------------------------------------------------------------------*/
 #include <stdio.h>

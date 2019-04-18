@@ -18,21 +18,43 @@ Midas Zhou
 --------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h> /* usleep */
+#include <unistd.h> /* usleep,unlink */
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "egi.h"
 #include "egi_color.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
 #include "egi_btn.h"
 #include "egi_page.h"
+#include "egi_log.h"
 #include "egi_symbol.h"
 #include "egi_slider.h"
 #include "egi_timer.h"
 #include "ff_pcm.h"
 
+
+#define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
+static int pfd;
+static FILE *pfil;
+
+static enum mplay_status {
+	mp_playing,
+	mp_pause,
+	mp_stop
+};
+
+static enum mplay_status status=mp_stop;
+
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+
 static void check_volume_runner(EGI_PAGE *page);
+
 
 #define  SLIDER_ID 100 /* use a big value */
 
@@ -52,6 +74,21 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *mplay_btns[6];
 	EGI_DATA_BTN *data_btns[6];
 
+
+	/* --------- 0. create name fifo -------- */
+#if 0
+	unlink(MPFIFO_NAME);
+	if (mkfifo(MPFIFO_NAME,0666) !=0) {
+		printf("%s:Fail to mkfifo for mplayer.\n",__func__);
+		return NULL;
+	}
+	pfd=open(MPFIFO_NAME,O_WRONLY);
+	if(pfd==-1) {
+		printf("%s:Fail to open mkfifo. \n",__func__);
+	        return NULL;
+	}
+	printf("------fifo open!--------\n");
+#endif
 	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
         {
@@ -98,17 +135,22 @@ EGI_PAGE *egi_create_mplaypage(void)
 	}
 
 	/* add tags and reaction function here */
-	egi_ebox_settag(mplay_btns[0], "Back");
-	egi_ebox_settag(mplay_btns[1], "Play");
+	egi_ebox_settag(mplay_btns[0], "Prev");
 
-	egi_ebox_settag(mplay_btns[2], "TEST!");
-	mplay_btns[2]->reaction=egi_txtbox_demo; /* txtbox demo */
+	egi_ebox_settag(mplay_btns[1], "Play"); /* or Pause */
+	mplay_btns[1]->reaction=react_play;
 
-	egi_ebox_settag(mplay_btns[3], "Close");
+	egi_ebox_settag(mplay_btns[2], "Next!");
+	mplay_btns[2]->reaction=react_next;
+
+	egi_ebox_settag(mplay_btns[3], "HOME");
 	mplay_btns[3]->reaction=egi_pagemplay_exit;
 
-	egi_ebox_settag(mplay_btns[4], "HOME");
-	egi_ebox_settag(mplay_btns[5], "Mini.");
+	egi_ebox_settag(mplay_btns[4], "Stop");
+	mplay_btns[4]->reaction=react_stop;
+
+	egi_ebox_settag(mplay_btns[5], "TEST");
+	mplay_btns[5]->reaction=egi_txtbox_demo; /* txtbox demo */
 
 
 	/* --------- 2. create a horizontal sliding bar --------- */
@@ -147,7 +189,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	//egi_ebox_set_touchbox(sliding_bar, );
 
 	/* set reaction function */
-	sliding_bar->reaction=slider_react;
+	sliding_bar->reaction=react_slider;
 
 	/* --------- 3. create title bar --------- */
 	EGI_EBOX *title_bar= create_ebox_titlebar(
@@ -236,6 +278,14 @@ static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	/* mplayer quit */
+	if(status==mp_playing || status==mp_pause ) {
+		printf("--------- quit mplayer ------\n");
+		fwrite("quit\n",sizeof("quit\n"),1,pfil);
+		pclose(pfil);
+		status=mp_stop;
+	}
+
         return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
 
@@ -244,7 +294,7 @@ static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 Horizontal Sliding bar reaction
 return
 ---------------------------------------------------------------------*/
-static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	static int mark;
 	EGI_DATA_SLIDER *data_slider;
@@ -259,7 +309,7 @@ static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(touch_data->status==pressing)
         {
-                printf("slider_react(): pressing sliding bar....\n");
+                printf("react_slider(): pressing sliding bar....\n");
                 mark=ebox->x0;
         }
 	else  //(touch_data->status==pressed_hold)
@@ -285,4 +335,83 @@ static int slider_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	}
 
 	return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */
+}
+
+
+/*------------------------------------
+	Button play reaction func
+------------------------------------*/
+static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	char strcmd[256];
+	char *strplaylist="/mmc/mp3.list";
+
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+	/* open/close mplayer */
+	if(status==mp_stop) {
+		printf("--------- start mplayer ------\n");
+         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -playlist %s >/dev/null 2>&1",
+										MPFIFO_NAME,strplaylist);
+		pfil=popen(strcmd,"w");
+		if(pfil!=NULL) {
+			EGI_PLOG(LOGLV_INFO,"%s: Succeed to pipe_open mplayer!\n",__func__);
+			status=mp_playing;
+			egi_ebox_settag(ebox, "Pause");
+			egi_ebox_needrefresh(ebox);
+			egi_ebox_refresh(ebox);
+		}
+	}
+	else if(status==mp_playing) {
+		printf("--------- start pause ------\n");
+		write(pfd,"pause\n",sizeof("pause\n"));
+		status=mp_pause;
+		egi_ebox_settag(ebox, "Play");
+		egi_ebox_needrefresh(ebox);
+		egi_ebox_refresh(ebox);
+	}
+	else if(status==mp_pause) {
+		printf("--------- start re play ------\n");
+		write(pfd,"pause\n",sizeof("pause\n"));
+		status=mp_playing;
+		egi_ebox_settag(ebox, "Pause");
+		egi_ebox_needrefresh(ebox);
+		egi_ebox_refresh(ebox);
+	}
+
+        return btnret_OK; /* */
+}
+
+/*------------------------------------
+	Button next reaction func
+------------------------------------*/
+static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+	/* mplayer next */
+	if(status==mp_playing) {
+		printf("--------- start forward ------\n");
+		//fwrite("pt_step 1\r\n",sizeof("pt_step 1\r\n"),1,pfil);
+		fputs(">",pfil);
+	}
+
+        return btnret_OK; /* */
+}
+
+
+/*------------------------------------
+	Button Stop reaction func
+------------------------------------*/
+static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+        return btnret_OK; /* */
 }

@@ -27,23 +27,21 @@ TCP MSS:    Maximum Segment Size is the payload of a TCP packet.
 	    < ***** > IPv4 is required to handle Min MSS of 536 bytes, while IPv6 is 1220 bytes.
 
 TODO:
-1. recv() may return serveral sessions of BIGIOT command at one time, and fill log buffer full(254+1+1):
+1. Calling recv() may return several IoT commands from socket buffer at one time, especailly in heavy load condition.
+   so need to separate them.
+   recv() may return serveral sessions of BIGIOT command at one time, and fill log buffer full(254+1+1):
     //////  and cause log buff overflow !!!! \\\\\\\\
    [2019-03-12 10:21:52] [LOGLV_INFO] Message from the server: {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357312"}
 {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357312"}
 {"M":"say","ID":"Pc0a809a0[2019-03-12 10:22:03] [LOGLV_INFO] Message from the server: {"M":"say","ID":"Pc0a809a00a2900000b2b","NAME":"guest","C":"down","T":"1552357323"}
     ///// put recv() string to a buff......///
-
-  ret==0:
-	1). WiFi disconnects, network is down.    --- trigger iot_connect_checkin()
-
-2. Calling recv() may return several IoT commands from socket buffer at one time, especailly in heavy load condition.
-   so need to separate them.
-3. check integrity of received message.
-4. set TIMEOUT for recv() and send()
-5. use select 
+2. Thread iot_update_data() may exit sometime.
+3. Check integrity of received message.
+4. Set TIMEOUT for recv() and send()
+5. Use select
 
 Midas Zhou
+midaszhou@yahoo.com
 -------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +88,8 @@ Midas Zhou
 #define SUBCOLOR_UP_LIMIT	0xFFFFFF 	/* up limit value for bulb light color */
 #define SUBCOLOR_DOWN_LIMIT	0x666666 	/* down limit value for bulb light color */
 
+
+//#define IOT_HOME_BULB
 
 static int sockfd;
 static struct sockaddr_in svr_addr;
@@ -189,7 +189,7 @@ const static char *iot_getkey_pstrval(json_object *json, const char* key)
 
 /*-----------------------------------------------------------------------------
 Assembly a cjson object by adding groups of keys(IDs) and Values(string type),
-result json obj is like {"id1":"value1","id2","value2",.... }.
+result json obj is like {"id1":"value1","id2":"value2",.... }.
 
 Note: call json_object_put() to free it after use.
 
@@ -297,8 +297,7 @@ static void iot_update_data(void)
 	/* prepare update template */
 	/* !!!!!WARNING: for an object_type json object containing another object_type json object,
 	 * To call json_object_object_add() 2nd time results in segmentation fault!
-	 *  you need to put it and then reinitialize it.
-	 *
+	 * You need to put it and then reinitialize it.
 	 */
 #if 0
 	json_object *json_update=json_tokener_parse(strjson_update_template);
@@ -336,9 +335,14 @@ static void iot_update_data(void)
 		data[0]=load;
 		data[1]=ws; /* get average speed value */
 		data[2]=(double)maxrss;
+		EGI_PLOG(LOGLV_INFO,"raw data for json_data: load=%lf, ws=%lf, maxrss=%lf. \n",
+										data[0],data[1],data[2] );
+
 		/* 4. create data json */
  		json_data=iot_new_datajson( (const int *)id, data, 3);
 		if(json_data==NULL) {
+		    EGI_PLOG(LOGLV_ERROR,"iot_new_datajson() fail to create data json! retry...\n");
+		    egi_sleep(2,0,500);
 		    continue;
 		}
 
@@ -463,6 +467,7 @@ static int iot_connect_checkin(void)
 	ret=connect(sockfd,(struct sockaddr *)&svr_addr, sizeof(struct sockaddr));
 	if(ret<0) {
 		EGI_PLOG(LOGLV_ERROR,"%s :: connect(): %s \n",__func__,strerror(errno));
+		egi_sleep(0,0,500);
 		continue;
 	}
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to connect to the BIGIOT socket!\n",__func__);
@@ -471,6 +476,7 @@ static int iot_connect_checkin(void)
 	ret=recv(sockfd, recv_buf, BUFFSIZE-1, 0);
 	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s :: recv(): %s \n",__func__,strerror(errno));
+		egi_sleep(0,0,500);
 		continue;
 	}
 	EGI_PLOG(LOGLV_CRITICAL,"Reply from the server: %s\n",recv_buf);
@@ -481,6 +487,7 @@ static int iot_connect_checkin(void)
 	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send login request to BIGIOT:%s\n"
 								,__func__,strerror(errno));
+		egi_sleep(0,0,500);
 		continue;
 	}
 	else {
@@ -492,12 +499,14 @@ static int iot_connect_checkin(void)
 	if(ret<=0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to recv() CheckIn confirm msg from BIGIOT, %s\n"
 								,__func__,strerror(errno));
+		egi_sleep(0,0,500);
 		continue;
 	}
 	/* confirm checkin */
 	else if( strstr(recv_buf,"checkinok") == NULL ) {
 		EGI_PLOG(LOGLV_ERROR,"Checkin confirm msg is NOT received. retry after INTERVAL seconds...\n");
-	        tm_delayms(IOT_RECONNECT_INTERVAL*1000);
+	        //tm_delayms(IOT_RECONNECT_INTERVAL*1000);
+		egi_sleep(0,IOT_RECONNECT_INTERVAL,0);
 		continue;
 	}
 	else {
@@ -651,9 +660,11 @@ void egi_iotclient(EGI_PAGE *page)
 	pthread_t  	pthd_keepalive;
 	pthread_t	pthd_update; /* update BIGIOT interface data */
 
+
+#ifdef IOT_HOME_BULB
+
  	EGI_PDEBUG(DBG_PAGE,"page '%s': runner thread egi_iotclient() is activated!.\n"
                                                                                 ,page->ebox->tag);
-
 	/* magic operation */
 //	mallopt(M_MMAP_THRESHOLD,0);
 
@@ -671,6 +682,7 @@ void egi_iotclient(EGI_PAGE *page)
 	egi_ebox_needrefresh(iotbtn);
 	//egi_page_flag_needrefresh(page); /* !!!SLOW!!!, put flag, let page routine to do the refresh job */
 	egi_ebox_refresh(iotbtn);
+#endif
 
 	/* 	1. prepare jsons with template string */
 	json_reply=json_tokener_parse(strjson_reply_template);
@@ -683,17 +695,16 @@ void egi_iotclient(EGI_PAGE *page)
 	if( iot_connect_checkin() !=0 )
 		return;
 
-	/* 	3.1 Launch keepalive thread, BIGIOT */
 #if 1
+	/* 	3.1 Launch keepalive thread, BIGIOT */
 	if( pthread_create(&pthd_keepalive, NULL, (void *)iot_keepalive, NULL) !=0 ) {
                 EGI_PLOG(LOGLV_ERROR,"Fail to create iot_keepalive thread!\n");
                 goto fail;
         }
 	else
 		EGI_PDEBUG(DBG_IOT,"Create bigiot_keepavlie thread successfully!\n");
-#endif
-	/* 	3.2 Launch keepalive thread, BIGIOT */
-#if 1
+
+	/* 	3.2 Launch update_data thread, BIGIOT */
 	if( pthread_create(&pthd_update, NULL, (void *)iot_update_data, NULL) !=0 ) {
                 EGI_PLOG(LOGLV_ERROR,"Fail to create iot_update_data thread!\n");
                 goto fail;
@@ -701,6 +712,7 @@ void egi_iotclient(EGI_PAGE *page)
 	else
 		EGI_PDEBUG(DBG_IOT,"Create iot_update_data thread successfully!\n");
 #endif
+
 
 	/* 	4. ------------  IoT Talk Loop:  loop recv and send processing  ---------- */
 	while(1)
@@ -726,7 +738,7 @@ void egi_iotclient(EGI_PAGE *page)
 				/* Need to check pstrIDvall ????? */
 				if(pstrIDval==NULL) /* if NO ID, deem it as illegal */
 				 {
-				  	 EGI_PLOG(LOGLV_WARN, "egi_iotclient: key 'ID' not found in recv_buf, continue...\n");
+//				  	 EGI_PLOG(LOGLV_WARN, "egi_iotclient: key 'ID' not found in recv_buf, continue...\n");
 					 json_object_put(json);
 				   	 continue;
 				 }
@@ -799,6 +811,8 @@ void egi_iotclient(EGI_PAGE *page)
 						printf("---------bulb_color: 0x%02X,  subcolor: 0x%02X------\n",
 										bulb_color, subcolor);
 					}
+
+#ifdef IOT_HOME_BULB
 					/* if digit, set as tag */
 					else if( !bulb_off && isdigit(pstrCval[0]) )
 					{
@@ -812,6 +826,8 @@ void egi_iotclient(EGI_PAGE *page)
 					egi_ebox_needrefresh(iotbtn);
 					//egi_page_flag_needrefresh(page); /* !!!SLOW!!!! let page routine to do the refresh job */
 					egi_ebox_refresh(iotbtn);
+#endif
+
 				} /* end of (pstrCval != NULL) */
 
 /* ---- Create reply_json  ---- */

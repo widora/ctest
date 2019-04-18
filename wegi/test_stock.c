@@ -16,9 +16,15 @@ NOTE:
       Assign current price to it, then you'll be likely to observe more significant fluctuation
       in the line chart.
    5. Adjust weight value to chart_time_range/sampling_time_gap to get a reasonable chart result.
+   6. Request/Sampling time is NOT stable due to heavy CPU load or network delay.
+   7. Stock data stream from SINA does NOT stop at 15:00:00! It keeps running until 15:01:53. !!!!!!
 
+TODO:
+   1. It may miss data occassionly, because of network delay OR request interval too big???
+				---try to increase request frequency.
 
 Midas Zhou
+midaszhou@yahoo.com
 ------------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +45,8 @@ Midas Zhou
 #include "egi_math.h"
 
 
+#define REQUEST_INTERVAL_TIMEMS	500 /* request interval time in ms */
+
 /* data compression type */
 enum compress_type {
 	none,		/* when new data comes, shift data_point[] to drop data_point[0]
@@ -57,7 +65,7 @@ int main(void)
 	int i,k;
 
 	/* --- init logger --- */
-#if 0
+#if 1
   	if(egi_init_log("/tmp/log_color") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
@@ -86,7 +94,7 @@ int main(void)
 		       * fold compression is applied, so num=2*N+1;
 		       */
 	float data_point[240]={0}; /* store stock point/price for every second,or time_gap as set*/
-	int navg_first=2; /* first average number for data compression.
+	int navg_first=3; /* first average number for data compression.
 			     get navg_th average of data_point[]  = (data[0]+data[1]...data[navg-1])/navg  */
 	int navg=navg_first; /* later ajust to 2 */
 	int navg_count=1; /* start from 1, for data_point[] initialized with bench data alread */
@@ -139,10 +147,10 @@ int main(void)
 	int px,py;
 	int pn;
 	bool market_closed=true;
-	struct tm *local_tm; /* local time */
+	struct tm *tm_local; /* local time */
 	time_t tm_t; /* seconds since 1970 */
-	int mincount; /* local_tm->hour * 60 +local_tm->min */
-	int seccount; /* local_tm->hour*3600+local_tm->min*60+local_tm->sec */
+	int mincount; /* tm_local->hour * 60 +tm_local->min */
+	int seccount; /* tm_local->hour*3600+tm_local->min*60+tm_local->sec */
 	int wcount; 	/* counter for while() loop */
 	/* generate http request string */
 	memset(strrequest,0,sizeof(strrequest));
@@ -180,25 +188,33 @@ while(1)
 
 	/* <<<<<<<<<<<<<<<<<   Check Time    >>>>>>>>>>>>>> */
 	tm_t=time(NULL);
-	local_tm=localtime(&tm_t);
-	seccount=local_tm->tm_hour*3600+local_tm->tm_min*60+local_tm->tm_sec;
+	tm_local=localtime(&tm_t);
+	seccount=tm_local->tm_hour*3600+tm_local->tm_min*60+tm_local->tm_sec;
 	/*  market close time */
-	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+2 ) /* +2 for transfer delay */
+	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+60 ) /* +60 for transaction lingering ???? */
 	{
 		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
 		if(!market_closed) { /* toggle token */
 			market_closed=true;
 		}
-		/* get last data and draw, then hold on... */
-		if( wcount>0 && fbench!=0 ) continue;
+		/* get last data and draw, then loop to hold on... */
+		if( wcount>0 && fbench!=0 ) {
+			egi_sleep(0,0,500);
+			//tm_delayms(500);
+			continue;
+		}
 	}
 	/* recess time */
-	else if ( seccount >= 11*3600+30*60+2 && seccount < 13*3600 ) /* +2 for transfer delay */
+	else if ( seccount >= 11*3600+30*60+60 && seccount < 13*3600 ) /* +60 for transaction lingering??? */
 	{
+//		EGI_PLOG(LOGLV_INFO,"seccount=%d, start recess...\n",seccount);
 		printf(" <<<<<<<<<<<<<<<<<   Recess at Noon   >>>>>>>>>>>>>>>>> \n");
-		/* Do NOT draw chart during noon recession */
-		if( wcount>0 && fbench!=0 ) /* first get fbench and last stock index/price, then hold on. */
+		/* Do NOT draw chart during noon recession,loop to hold on */
+		if( wcount>0 && fbench!=0 ) {/* first get fbench and last stock index/price, then hold on. */
+			egi_sleep(0,0,500);
+			//tm_delayms(500);
 			continue;
+		}
 	}
 
 	/*  market trade time */
@@ -209,7 +225,6 @@ while(1)
 			fbench=0; /* need reset fbench */
 		}
 	}
-
 
 
 	/* <<<<<<<<<<<<<<<<  HTTP Request Market Data    >>>>>>>>>>>>>> */
@@ -258,7 +273,7 @@ while(1)
 		}
 
 		/* <<<<<<  You may ignore above and redefine fbench here  >>>>>> */
-		fbench=data_point[num-1];
+//		fbench=data_point[num-1];
 
 		/* init fdmax,fdmin whit current point */
 		fdmax=data_point[num-1];
@@ -375,7 +390,8 @@ while(1)
 
 		/* 1. Update the latest point value */
                 data_point[num-1]=atof(pt);
-		printf("latest data_point=%0.2f \n", data_point[num-1]);
+		EGI_PLOG(LOGLV_INFO,"[%02d:%02d:%02d] latest data_point=%0.2f \n",
+					tm_local->tm_hour,tm_local->tm_min,tm_local->tm_sec,data_point[num-1]);
 
 		/* 2. Update fdmin, fdmax, flow_dev, fupp_dev */
 		if(data_point[num-1] < fdmin) {
@@ -589,15 +605,15 @@ while(1)
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&gv_fb_dev);
 
-
 	wcount++;
-        tm_delayms(1000);
+
+        tm_delayms(REQUEST_INTERVAL_TIMEMS);
 }
 
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
 
   	/* quit logger */
-//  	egi_quit_log();
+  	egi_quit_log();
 
         /* close fb dev */
         munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

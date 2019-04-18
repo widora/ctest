@@ -69,7 +69,8 @@ int iw_get_rssi(int *rssi)
 		return -2;
 	}
 
-	*rssi=(int)(signed char)stats.qual.level;
+	if(rssi != NULL)
+		*rssi=(int)(signed char)stats.qual.level;
 
 	close(sockfd);
 	return 0;
@@ -169,7 +170,7 @@ int  iw_get_speed(int *ws)
 				continue;
 			}
 			else {
-				EGI_PLOG(LOGLV_ERROR,"%s: Fail to call ret=recvfrom()... ret=%d:%s \n",
+				EGI_PLOG(LOGLV_ERROR,"%s: Fail to call recvfrom()... ret=%d:%s \n",
 									__func__, ret, strerror(errno));
 				close(sock);
 				return -4;
@@ -179,7 +180,8 @@ int  iw_get_speed(int *ws)
 		count+=ret;
 	}
 
-	*ws=count/IW_TRAFFIC_SAMPLE_SEC;
+	if(ws !=NULL)
+		*ws=count/IW_TRAFFIC_SAMPLE_SEC;
 
 	close(sock);
 	return 0;
