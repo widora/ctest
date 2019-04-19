@@ -74,7 +74,7 @@ int main(void)
 #endif
 
         /* --- start egi tick --- */
-        tm_start_egitick();
+//        tm_start_egitick();
 
         /* --- prepare fb device --- */
         gv_fb_dev.fdfd=-1;
@@ -191,7 +191,7 @@ while(1)
 	tm_local=localtime(&tm_t);
 	seccount=tm_local->tm_hour*3600+tm_local->tm_min*60+tm_local->tm_sec;
 	/*  market close time */
-	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+60 ) /* +60 for transaction lingering ???? */
+	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+20 ) /* +20 for transaction lingering ???? */
 	{
 		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
 		if(!market_closed) { /* toggle token */
@@ -205,7 +205,10 @@ while(1)
 		}
 	}
 	/* recess time */
-	else if ( seccount >= 11*3600+30*60+60 && seccount < 13*3600 ) /* +60 for transaction lingering??? */
+	/* Note:
+         *	1. Noon recess starts at 11:30:10, while data stream stop updating. ---2019-4-19
+	*/
+	else if ( seccount >= 11*3600+30*60+20 && seccount < 13*3600 ) /* +20 for transaction lingering??? */
 	{
 //		EGI_PLOG(LOGLV_INFO,"seccount=%d, start recess...\n",seccount);
 		printf(" <<<<<<<<<<<<<<<<<   Recess at Noon   >>>>>>>>>>>>>>>>> \n");
@@ -233,7 +236,8 @@ while(1)
 	strcat(strrequest,"/list=");
 	strcat(strrequest,sname);
 	if( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
-		tm_delayms(1000);
+		egi_sleep(0,0,1000);
+		//tm_delayms(1000);
 		continue;
 	}
 	pt=cstr_split_nstr(data,"var ",1);
@@ -584,7 +588,8 @@ while(1)
 		strcat(strrequest,"/list=");
 		strcat(strrequest,favor_stock[wcount%3]);
 		while( iw_http_request("hq.sinajs.cn", strrequest, data) !=0 ) {
-			tm_delayms(300);
+			egi_sleep(0,0,300);
+			//tm_delayms(300);
 		}
 		if(strstr(data,",")==NULL)
 		{
@@ -607,7 +612,8 @@ while(1)
 
 	wcount++;
 
-        tm_delayms(REQUEST_INTERVAL_TIMEMS);
+	egi_sleep(0,0,REQUEST_INTERVAL_TIMEMS);
+        //tm_delayms(REQUEST_INTERVAL_TIMEMS);
 }
 
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
