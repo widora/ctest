@@ -373,7 +373,7 @@ generate a rotation lookup map for a annulus shape image block
    that the result points mastrix all be mapped.
 
 n:              pixel number for ouside square side. also is the outer diameter for the annulus.
-ni:		pixel number for inner square side, alos is the inner diameter for the annulus.
+ni:		pixel number for inner square side, alss is the inner diameter for the annulus.
 angle:          rotation angle. clockwise is positive.
 centxy          the center point coordinate of the concerning square area of LCD(fb).
 ANMat_XRYR:     after rotation
@@ -449,6 +449,23 @@ void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coo
 			ANMat_XRYR[(n/2+j)*n+(n/2-i)].y= yr;
 		}
 	}
+        clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+while(1) {
+
+        for(i=0; i<24; i++) {
+
+        fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+        fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
+
+                fbset_color(egi_color_random(medium));
+                draw_pcircle(&gv_fb_dev, 120, 120, 5*i, 5); //atoi(argv[1]), atoi(argv[2]));
+                tm_delayms(55);
+
+        fb_filo_off(&gv_fb_dev); /* start collecting old FB pixel data */
+
+        }
+}
+        return 0;
 
 /* 2. transform coordinate origin back to X0Y0  */
 	for(i=0;i<n*n;i++)

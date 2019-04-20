@@ -25,11 +25,11 @@ Midas Zhou
 #include "egi.h"
 #include "egi_math.h"
 
-int main(void)
+int main(int argc, char ** argv)
 {
 	int i,k;
-
 	EGI_16BIT_COLOR color[3],subcolor[3];
+	struct timeval tms,tme;
 
 //   for(i=0;i<30;i++) {
 //	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
@@ -52,9 +52,38 @@ int main(void)
 	symbol_load_allpages();
 
 
+#if 1  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
+	int w;
 
-#if 1
-/* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
+	if(argc>1) w=atoi(argv[1]);
+	else w=1;
+
+        clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+while(1) {
+
+        fbset_color(egi_color_random(medium));
+	gettimeofday(&tms,NULL);
+        for(i=5; i<40; i++) {
+       	 	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+	        fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
+
+		draw_filled_annulus(&gv_fb_dev, 120, 120, 2*i, w);
+//                draw_pcircle(&gv_fb_dev, 120, 120, i, 5); //atoi(argv[1]), atoi(argv[2]));
+                tm_delayms(75);
+
+	        fb_filo_off(&gv_fb_dev); /* start collecting old FB pixel data */
+        }
+	gettimeofday(&tme,NULL);
+
+	printf("--------- cost time in us: %d -------\n",tm_diffus(tms,tme));
+
+}
+        return 0;
+
+#endif
+
+
+#if 0  /* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*
 	EGI_POINT p1,p2;
 	EGI_BOX box={{0,0},{240-1,320-1,}};
@@ -128,8 +157,7 @@ while(1)
 #endif
 
 
-#if 0
-/* <<<<<<<<<<<<<<  test line Chart  <<<<<<<<<<<<<<<*/
+#if 0 /* <<<<<<<<<<<<<<  test line Chart  <<<<<<<<<<<<<<<*/
 	int num=240/10+1; /* number of data */
 	int cdata[240]={0}; /* 240 data */
 	EGI_POINT points[240/1]; /* points */

@@ -5,17 +5,13 @@ published by the Free Software Foundation.
 
 
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
-
- 本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
+本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
 但转载请保持文档的完整性，注明原作者及原链接，严禁用于任何商业用途。
-
 作者：yuweixian4230@163.com
 博客：yuweixian4230.blog.chinaunix.net
 
 Note:
 1. Not thread safe.
-
-
 
 Modified and appended by Midas-Zhou
 -----------------------------------------------------------------------------*/
@@ -123,7 +119,7 @@ Put fb->filo_on to 1, as turn on FB FILO.
 
 Note:
 1. To activate FB FILO, depends also on FB_writing handle codes.
-2.
+Midas Zhou
 --------------------------------------------------------------*/
 inline void fb_filo_on(FBDEV *dev)
 {
@@ -144,7 +140,8 @@ inline void fb_filo_off(FBDEV *dev)
 
 
 /*----------------------------------------------
-	Pop out all FBFIXs in the fb filo
+Pop out all FBFIXs in the fb filo
+Midas Zhou
 ----------------------------------------------*/
 void fb_filo_flush(FBDEV *dev)
 {
@@ -166,6 +163,8 @@ void fb_filo_flush(FBDEV *dev)
 /*------------------------------------
  check if (px,py) in box(x1,y1,x2,y2)
  return true or false
+
+ Midas Zhou
 -------------------------------------*/
 bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 {
@@ -203,6 +202,7 @@ inline void fbset_color(uint16_t color)
     clear screen with given color
       BUG:
 	!!!!call egi_colorxxxx_randmon() error
+ Midas
 ---------------------------------------------*/
 void clear_screen(FBDEV *dev, uint16_t color)
 {
@@ -418,21 +418,21 @@ void draw_line(FBDEV *dev,int x1,int y1,int x2,int y2)
 }
 
 
+
 /*--------------------------------------------------------------------
-Draw A Line with width.
+Draw A Line with width, draw no circle at two points
 x1,x1: starting point
 x2,y2: ending point
 w: width of the line ( W=2*N+1 )
 
 NOTE: if you input w=0, it's same as w=1.
 
-Midas
+Midas Zhou
 ----------------------------------------------------------------------*/
-void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
+void draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 {
 	int i;
 	int xr1,yr1,xr2,yr2;
-	//float sina,cosa;
 
 	/* half width, also as circle rad */
 	int r=w>>1; /* so w=0 and w=1 is the same */
@@ -441,28 +441,14 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 	int ydif=y2-y1;
 	int xdif=x2-x1;
 
-// 	float len=sqrt(ydif*ydif+xdif*xdif);
         int32_t fp16_len = mat_fp16_sqrtu32(ydif*ydif+xdif*xdif);
 
-
-//   if(len !=0 )
    if(fp16_len !=0 )
    {
-	/* sin() and cos() of inclinination angle */
-/*
-	      sina=ydif/len;
-	      cosa=xdif/len;
-*/
 	/* draw multiple lines  */
 	for(i=0;i<=r;i++)
 	{
 		/* draw UP_HALF multiple lines  */
-/*
-		xr1=x1-i*sina;
-		yr1=y1+i*cosa;
-		xr2=x2-i*sina;
-		yr2=y2+i*cosa;
-*/
 		xr1=x1-(i*ydif<<16)/fp16_len;
 		yr1=y1+(i*xdif<<16)/fp16_len;
 		xr2=x2-(i*ydif<<16)/fp16_len;
@@ -471,12 +457,6 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 		draw_line(dev,xr1,yr1,xr2,yr2);
 
 		/* draw LOW_HALF multiple lines  */
-/*
-		xr1=x1+i*sina;
-		yr1=y1-i*cosa;
-		xr2=x2+i*sina;
-		yr2=y2-i*cosa;
-*/
 		xr1=x1+(i*ydif<<16)/fp16_len;
 		yr1=y1-(i*xdif<<16)/fp16_len;
 		xr2=x2+(i*ydif<<16)/fp16_len;
@@ -486,20 +466,75 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 	}
    } /* end of len !=0, if len=0, the two points are the same position */
 
+}
+
+
+
+/*--------------------------------------------------------------------
+Draw A Line with width, with circle at two points.
+x1,x1: starting point
+x2,y2: ending point
+w: width of the line ( W=2*N+1 )
+
+NOTE: if you input w=0, it's same as w=1.
+
+Midas Zhou
+----------------------------------------------------------------------*/
+void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
+{
+	/* half width, also as circle rad */
+	int r=w>>1; /* so w=0 and w=1 is the same */
+
+	int i;
+	int xr1,yr1,xr2,yr2;
+
+	/* x,y, difference */
+	int ydif=y2-y1;
+	int xdif=x2-x1;
+
+        int32_t fp16_len = mat_fp16_sqrtu32(ydif*ydif+xdif*xdif);
+
+
+   if(fp16_len !=0 )
+   {
+	/* draw multiple lines  */
+	for(i=0;i<=r;i++)
+	{
+		/* draw UP_HALF multiple lines  */
+		xr1=x1-(i*ydif<<16)/fp16_len;
+		yr1=y1+(i*xdif<<16)/fp16_len;
+		xr2=x2-(i*ydif<<16)/fp16_len;
+		yr2=y2+(i*xdif<<16)/fp16_len;
+
+		draw_line(dev,xr1,yr1,xr2,yr2);
+
+		/* draw LOW_HALF multiple lines  */
+		xr1=x1+(i*ydif<<16)/fp16_len;
+		yr1=y1-(i*xdif<<16)/fp16_len;
+		xr2=x2+(i*ydif<<16)/fp16_len;
+		yr2=y2-(i*xdif<<16)/fp16_len;
+
+		draw_line(dev,xr1,yr1,xr2,yr2);
+	}
+   } /* end of len !=0, if len=0, the two points are the same position */
+
+
 	/* draw start/end circles */
 	draw_filled_circle(dev, x1, y1, r);
 	draw_filled_circle(dev, x2, y2, r);
 }
 
 
+
+
 /*---------------------------------------------------------------------
-Draw A Poly Line.
+Draw A Poly Line, with circle at each point.
 
 points:	     input points for the polyline
 num:	     total number of input points.
 w: width of the line ( W=2*N+1 )
 
-Midas
+Midas Zhou
 ---------------------------------------------------------------------*/
 void draw_pline(FBDEV *dev, EGI_POINT *points, int pnum, unsigned int w)
 {
@@ -516,6 +551,33 @@ void draw_pline(FBDEV *dev, EGI_POINT *points, int pnum, unsigned int w)
 	}
 
 }
+
+
+/*---------------------------------------------------------------------
+Draw A Poly Line, with no circle at each point.
+
+points:	     input points for the polyline
+num:	     total number of input points.
+w: width of the line ( W=2*N+1 )
+
+Midas Zhou
+---------------------------------------------------------------------*/
+void draw_pline_nc(FBDEV *dev, EGI_POINT *points, int pnum, unsigned int w)
+{
+	int i=0;
+
+	/* check input data */
+	if( points==NULL || pnum<=0 ) {
+		printf("%s: Input params error.\n", __func__);
+		return ;
+	}
+
+	for(i=0; i<pnum-1; i++) {
+		draw_wline_nc(dev,points[i].x,points[i].y,points[i+1].x,points[i+1].y,w);
+	}
+
+}
+
 
 
 /*------------------------------------------------
@@ -537,7 +599,7 @@ void draw_oval(FBDEV *dev,int x,int y) //(x.y) 是坐标
 
 /*--------------------------------------------------
 Draw an rectangle
-Midas
+Midas Zhou
 --------------------------------------------------*/
 void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
 {
@@ -596,7 +658,7 @@ int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
 
 /*--------------------------------------------------------------------------
 Same as draw_filled_rect(), but with color.
-Midas
+Midas Zhou
 ---------------------------------------------------------------------------*/
 int draw_filled_rect2(FBDEV *dev, uint16_t color, int x1,int y1,int x2,int y2)
 {
@@ -640,7 +702,7 @@ int draw_filled_rect2(FBDEV *dev, uint16_t color, int x1,int y1,int x2,int y2)
 draw a circle,
 	(x,y)	circle center
 	r	radius
-Midas
+Midas Zhou
 -----------------------------------------------*/
 void draw_circle(FBDEV *dev, int x, int y, int r)
 {
@@ -663,9 +725,113 @@ void draw_circle(FBDEV *dev, int x, int y, int r)
 	}
 }
 
+
+/*-----------------------------------------------------------------
+draw a circle formed by poly lines.
+	(x,y)	circle center
+	r	radius
+	w	pline width
+
+Note:	1. The final circle looks ugly if 'r' or 'w' is small.!!!!
+	2. np=30, for rmax=20 with end circle
+	   np=90, for rmax=70 with end circle
+
+Midas Zhou
+------------------------------------------------------------------*/
+void draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w)
+{
+	int i;
+	int np=90; /* number of segments in a 1/4 circle */
+	double dx[90+1],dy[90+1];
+	EGI_POINT points[90+1]; /* points on 1/4 circle */
+
+	for(i=0; i<np+1; i++) {
+		dx[i]=1.0*r*cos(90.0/np*i/180.0*MATH_PI); //cos(1.0*np*i*MATH_PI/2.0);
+		dy[i]=1.0*r*sin(90.0/np*i/180.0*MATH_PI);  // sin(1.0*np*i*MATH_PI/2.0);
+	}
+
+	/* draw 4th quadrant */
+	for(i=0; i<np+1; i++) {
+		points[i].x=x0+dx[i];
+		points[i].y=y0+dy[i];
+	}
+	points[0].x -=1; /* erase tip */
+	points[np].y -=1;
+	draw_pline(dev,points,np+1,w);
+
+	/* draw 3rd quadrant */
+	for(i=0; i<np+1; i++) {
+		points[i].x = (x0<<1) - points[i].x;
+	}
+	draw_pline(dev,points,np+1,w);
+
+	/* draw 2nd quadrant */
+	for(i=0; i<np+1; i++) {
+		points[i].y = (y0<<1) - points[i].y;
+	}
+	draw_pline(dev,points,np+1,w);
+
+	/* draw 1st quadrant */
+	for(i=0; i<np+1; i++) {
+		points[i].x = (x0<<1) - points[i].x;
+	}
+	draw_pline(dev,points,np+1,w);
+
+}
+
+
+/*-----------------------------------------------------------------------
+draw a filled annulus.
+	(x0,y0)	circle center
+	r	radius in mid of w.
+	w	width of annulus.
+
+Note:
+	1. When w=1, the result annulus is a circle with some
+	   unconnected dots.!!!
+--------------------------------------------------------------------------*/
+void draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w)
+{
+	int i,j,k;
+	int m,n;
+	int ro=r+(w>>1); /* outer radium */
+	int ri=r-(w>>1); /* inner radium */
+
+        for(j=0; j<ro;j++) /* j<=ro,  j=ro erased here!!!  */
+        {
+		/* distance from Xcenter to the point on outer circle */
+	        m=sqrt( ro*ro-j*j );
+		//m=mat_fp16_sqrtu32(ro*ro-j*j)>>16; /* Seems no effect */
+
+		/* distance from Xcenter to the point on inner circle */
+                if(j<ri) {
+                        k=sqrt( ri*ri-j*j);
+			//k=mat_fp16_sqrtu32(ri*ri-j*j)>>16;
+		}
+                else
+                        k=0;
+
+		/*erase tips*/
+		if(j==0) {
+			m-=1;
+			k-=1;
+		}
+
+		/* draw 4th quadrant */
+		draw_line(dev,x0+k,y0+j,x0+m,y0+j);
+		/* draw 3rd quadrant */
+		draw_line(dev,x0-k,y0+j,x0-m,y0+j);
+		/* draw 2nd quadrant */
+		draw_line(dev,x0-k,y0-j,x0-m,y0-j);
+		/* draw 1st quadrant */
+		draw_line(dev,x0+k,y0-j,x0+m,y0-j);
+	}
+}
+
+
 /*------------------------------------------------
   draw a filled circle
-  Midas
+  Midas Zhou
 -------------------------------------------------*/
 void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 {
@@ -683,6 +849,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 }
 
 
+
 /*----------------------------------------------------------------------------
    copy a block of FB memory  to buffer
    x1,y1,x2,y2:	  LCD area corresponding to FB mem. block
@@ -692,7 +859,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		1	partial area out of FB mem boundary
 		0	OK
 		-1	fails
-   Midas
+   Midas Zhou
 ----------------------------------------------------------------------------*/
    int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
    {
@@ -1004,6 +1171,7 @@ image:		original square shape image R5G6B5 data.
 ANMat_XRYR:     after rotation
                 square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
 
+Midas Zhou
 ----------------------------------------------------------------------------------------------*/
 void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t *image,
 		            			       const struct egi_point_coord *ANMat_XRYR)
@@ -1071,6 +1239,7 @@ Return
 	1	partial area out of FB mem boundary
 	0	OK
 	-1	fails
+Midas Zhou
 ------------------------------------------------------------------------------*/
 int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
 			const uint16_t *obuf, uint16_t *nbuf)
@@ -1124,6 +1293,8 @@ return:
 	1	pn extend from pb
 	0	ok
 	<0	fails, or get end of
+
+Midas Zhou
 --------------------------------------------------------------------*/
 int egi_getpoit_interpol2p(EGI_POINT *pn, int off, const EGI_POINT *pa, const EGI_POINT *pb)
 {
@@ -1159,6 +1330,8 @@ pa,pb	two points
 return:
 	>0 	number of steps
 	=0 	if pa==pb or s<step
+
+Midas Zhou
 ---------------------------------------------------------*/
 int egi_numstep_btw2p(int step, const EGI_POINT *pa, const EGI_POINT *pb)
 {
@@ -1190,6 +1363,7 @@ box:	the box.
 return:
 	0	OK
 	<0	fail
+Midas
 ---------------------------------------------------------*/
 int egi_randp_inbox(EGI_POINT *pr, const EGI_BOX *box)
 {
@@ -1218,6 +1392,7 @@ box:	the box.
 return:
 	0	OK
 	<0	fail
+Midas Zhou
 ---------------------------------------------------------*/
 int egi_randp_boxsides(EGI_POINT *pr, const EGI_BOX *box)
 {

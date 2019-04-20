@@ -16,7 +16,7 @@ Midas Zhou
 #include "egi_btn.h"
 #include "egi_debug.h"
 #include "egi_symbol.h"
-
+#include "egi_timer.h"
 
 /*-------------------------------------
       button ebox self_defined methods
@@ -30,6 +30,7 @@ static EGI_METHOD btnbox_method=
         .free=NULL, /* to see egi_ebox_free() in egi.c */
 };
 
+static void egi_btn_touch_effect(EGI_EBOX *ebox, enum egi_touch_status touch_status);
 
 
 /*-----------------------------------------------------------------------------
@@ -66,6 +67,7 @@ EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
 	data_btn->icon=icon;
 	data_btn->icon_code=icon_code;
 	data_btn->font=font;
+	data_btn->touch_effect=egi_btn_touch_effect;
 	//data_btn->font_color=0; /* black as default */
 
 	return data_btn;
@@ -389,7 +391,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
         			/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
        				{
-                			fbset_color(0); /* use black as frame color  */
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
                 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 			        }
 				break;
@@ -399,13 +401,13 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
         			/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
        				{
-                			fbset_color(0); /* use black as frame color  */
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
 					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
 			        }
        			        if(ebox->frame > 0) /* >0: double circle !!! UGLY !!! */
        				{
-                			fbset_color(0); /* use black as frame color  */
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
 					draw_circle( &gv_fb_dev, x0+width/2, y0+height/2,
 								width>height ? (height/2-1):(width/2-1) );
 			        }
@@ -484,7 +486,8 @@ use following COLOR:
                 int fontcolor, int transpcolor, int x0, int y0, const char* str)
 */
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
-		symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
+		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
+		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
  							ebox->x0+shx, ebox->y0+shy, ebox->tag);
 
 	} /* endif: taglen>0 */
@@ -509,4 +512,29 @@ void egi_free_data_btn(EGI_DATA_BTN *data_btn)
 
 	data_btn=NULL;
 }
+
+
+/*---------------------------------------------------------------------
+ Default effect when the button is touched.
+ Or to redefine it later.
+---------------------------------------------------------------------*/
+static void egi_btn_touch_effect(EGI_EBOX *ebox, enum egi_touch_status touch_status)
+{
+
+	/* for pressing down touch_status only */
+        if(ebox==NULL || touch_status != pressing)
+		 return;
+
+        /* draw press status indicating image */
+        fbset_color(WEGI_COLOR_WHITE);
+        draw_filled_annulus(&gv_fb_dev, ebox->x0+ebox->width/2, ebox->y0+ebox->height/2,
+		(ebox->width < ebox->height) ? (ebox->width/2-5/2):(ebox->height/2-5/2), 5);  /* r, circle width=5 */
+
+        tm_delayms(150);
+
+        /* refresh immediately */
+        egi_ebox_needrefresh(ebox);
+        egi_ebox_refresh(ebox);
+}
+
 

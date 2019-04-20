@@ -167,9 +167,10 @@ struct egi_element_box
 
 	/* ebox tag
 	 * NOTE: If you want to show tag on a btn ebox,make sure that all words should be within the box,
-	 * because outside letters will be refreshed by the ebox.
+	 * because outside letters will NOT be refreshed by the ebox.
 	 */
 	char tag[EGI_TAG_LENGTH+1];/* 1byte for /0,  a simple description of the ebox for later debug */
+	EGI_16BIT_COLOR	tag_color;
 
 	/* ebox statu */
 	enum egi_ebox_status status;
@@ -363,10 +364,13 @@ struct egi_data_btn
 	struct symbol_page *icon; /* button icon */
 	uint32_t icon_code; 	  /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
-	uint16_t font_color; 	  /* tag font color, defaul is black */
+//	uint16_t font_color; 	use ebox->tag_color instead  /* tag font color, defaul is black */
 	int opaque; 		  /* opaque value for the icon, default 0, 0---totally NOT transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag;             /* to show tag on button or not, default 0, */
+	void (*touch_effect)(EGI_EBOX *, enum egi_touch_status);
+                                  /* If not NULL, to be called when the btn is touched,depends on touch status,
+				     default set in egi_btn.c, or to be re-define later. */
 
 	void *prvdata;		  /* private data for derivative ebox, slider etc. */
 };

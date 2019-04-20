@@ -619,8 +619,7 @@ use following COLOR:
 48void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str)
 */
-		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
-		symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
+		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
  							ebox->x0+shx, ebox->y0+shy, ebox->tag);
 
 	} /* endif: taglen>0 */

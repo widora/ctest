@@ -22,6 +22,7 @@ NOTE:
 TODO:
    1. It may miss data occassionly, because of network delay OR request interval too big???
 				---try to increase request frequency.
+   2. Rule out market close/holidy day.
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -60,7 +61,7 @@ enum compress_type {
 /*------------------------------------
  	    MAIN FUNCTION
 ------------------------------------*/
-int main(void)
+int main(int argc, char **argv)
 {
 	int i,k;
 
@@ -74,7 +75,7 @@ int main(void)
 #endif
 
         /* --- start egi tick --- */
-//        tm_start_egitick();
+        tm_start_egitick();
 
         /* --- prepare fb device --- */
         gv_fb_dev.fdfd=-1;

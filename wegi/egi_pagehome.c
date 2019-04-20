@@ -133,7 +133,8 @@ EGI_PAGE *egi_create_homepage(void)
 	data_btns[7]->icon_code=11; /* SUB_COLOR + ICON_CODE */
 	data_btns[7]->showtag=true; /* display tag */
 	data_btns[7]->font=&sympg_numbfont;
-	data_btns[7]->font_color=WEGI_COLOR_ORANGE;
+	//data_btns[7]->font_color=WEGI_COLOR_ORANGE;
+	home_btns[7]->tag_color=WEGI_COLOR_ORANGE;
 
 	egi_ebox_settag(home_btns[8], "btn_ffplay");
 	home_btns[8]->reaction=egi_homebtn_ffplay;

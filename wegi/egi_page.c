@@ -538,8 +538,10 @@ int egi_page_routine(EGI_PAGE *page)
 			/* trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
 			{
+
 	EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): [page '%s'] [button '%s'] is touched! touch status is '%s'\n",
   						page->ebox->tag,hitbtn->tag,egi_str_touch_status(last_status));
+
 		       /*  then trigger button-hit action:
 		  	   1. 'pressing' and 'db_pressing' reaction events never coincide,
 				'pressing' will prevail  ---
@@ -549,6 +551,12 @@ int egi_page_routine(EGI_PAGE *page)
 			*  button of previous page after triggered current page routine to quit.
 			*  3. only 'pressed_hold','pressing','db_pressing' can trigger button reaction.
 			*/
+				/* display touch effect for button */
+				if(hitbtn->type==type_btn) {
+					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,last_status);
+
+				}
+				/* trigger reaction func */
  				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
 								   last_status==pressing ||
 								   last_status==db_pressing  )  )

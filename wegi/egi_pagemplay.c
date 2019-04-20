@@ -36,8 +36,8 @@ Midas Zhou
 
 
 #define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
-static int pfd;		/* file descriptor for open() fifo */
-static FILE *pfil;	/* file stream of popen() mplayer */
+static int pfd;				/* file descriptor for open() fifo */
+static FILE *pfil;			/* file stream of popen() mplayer */
 
 enum mplay_status {
 	mp_playing,
@@ -45,7 +45,7 @@ enum mplay_status {
 	mp_stop
 };
 
-static enum mplay_status status=mp_stop;
+static enum mplay_status status;
 
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -56,6 +56,7 @@ static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 static void check_volume_runner(EGI_PAGE *page);
+
 
 
 #define  SLIDER_ID 100 /* use a big value */
@@ -79,6 +80,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	enum egi_btn_type btn_type;
 
 	/* --------- 0. create name fifo -------- */
+	status=mp_stop;
 	unlink(MPFIFO_NAME);
 	if (mkfifo(MPFIFO_NAME,0766) !=0) {
 		printf("%s:Fail to mkfifo for mplayer.\n",__func__);
@@ -125,8 +127,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 				        		0, /* bool movable */
 						        10+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							btnW,btnH, /* int width, int height */
-				       			0,//1, /* int frame,<0 no frame */
-		       					egi_color_random(medium) /*int prmcolor */
+				       			-1,//1, /* int frame,<0 no frame */
+		       					egi_color_random(deep) /*int prmcolor */
 					   );
 			/* if fail, try again ... */
 			if(mplay_btns[3*i+j]==NULL)
@@ -138,6 +140,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 				i--;
 				continue;
 			}
+			/* set tag color */
+			mplay_btns[3*i+j]->tag_color=WEGI_COLOR_WHITE;
 		}
 	}
 
@@ -148,7 +152,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[1], "Play"); /* or Pause */
 	mplay_btns[1]->reaction=react_play;
 
-	egi_ebox_settag(mplay_btns[2], "Next!");
+	egi_ebox_settag(mplay_btns[2], "Next");
 	mplay_btns[2]->reaction=react_next;
 
 	egi_ebox_settag(mplay_btns[3], "HOME");
@@ -212,7 +216,6 @@ EGI_PAGE *egi_create_mplaypage(void)
 	);
 	egi_txtbox_settitle(title_bar, "   	MPlayer 1.0rc");
 
-
 	/* --------- 4. create mplay page ------- */
 	/* 4.1 create mplay page */
 	EGI_PAGE *page_mplay=NULL;
@@ -232,7 +235,7 @@ EGI_PAGE *egi_create_mplaypage(void)
         page_mplay->routine=egi_page_routine; /* use default */
 
         /* 4.4 set wallpaper */
-        page_mplay->fpath="/tmp/mplay.jpg";
+        page_mplay->fpath="/tmp/mplay_neg.jpg";
 
 	/* add ebox to home page */
 	for(i=0;i<6;i++) /* buttons */
@@ -340,7 +343,6 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	static char *strplaylist="/mmc/mp3.list";
 	static char *cmdPause="pause\n";
 
-
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
@@ -441,6 +443,7 @@ static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+
         return btnret_OK; /* */
 }
 
@@ -459,10 +462,10 @@ static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		"/mmc/music/mp3.list",
 	};
 
-
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
+
 
 	/* mplayer change playlist */
 	if(status==mp_playing) {
@@ -472,9 +475,12 @@ static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		write(pfd,cmdLoadlist,strlen(cmdLoadlist));
 		/* change button tag accordingly */
 		egi_ebox_settag(ebox, str_option[nlist]);
-		egi_ebox_needrefresh(ebox);
-		egi_ebox_refresh(ebox);
+
 	}
+
+	/* refresh */
+	egi_ebox_needrefresh(ebox);
+	egi_ebox_refresh(ebox);
 
         return btnret_OK; /* */
 }
@@ -504,3 +510,4 @@ static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
         return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }
+
