@@ -603,12 +603,34 @@ Midas Zhou
 --------------------------------------------------*/
 void draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
 {
-        FBDEV *fr_dev=dev;
+//        FBDEV *fr_dev=dev;
 
-	draw_line(fr_dev,x1,y1,x1,y2);
-	draw_line(fr_dev,x1,y2,x2,y2);
-	draw_line(fr_dev,x2,y2,x2,y1);
-	draw_line(fr_dev,x2,y1,x1,y1);
+	draw_line(dev,x1,y1,x1,y2);
+	draw_line(dev,x1,y2,x2,y2);
+	draw_line(dev,x2,y2,x2,y1);
+	draw_line(dev,x2,y1,x1,y1);
+}
+
+/*--------------------------------------------------
+Draw an rectangle with pline
+x1,y1,x2,y2:	two points define a rect.
+w:		with of ploy line.
+
+Midas Zhou
+--------------------------------------------------*/
+void draw_wrect(FBDEV *dev,int x1,int y1,int x2,int y2, int w)
+{
+	/* sort min and max x,y */
+	int xl=(x1<x2?x1:x2);
+	int xr=(x1>x2?x1:x2);
+	int yu=(y1<y2?y1:y2);
+	int yd=(y1>y2?y1:y2);
+
+	draw_wline_nc(dev,xl-w/2,yu,xr+w/2,yu,w);
+	draw_wline_nc(dev,xl-w/2,yd,xr+w/2,yd,w);
+	draw_wline_nc(dev,xl,yu-w/2,xl,yd+w/2,w);
+	draw_wline_nc(dev,xr,yu-w/2,xr,yd+w/2,w);
+
 }
 
 
@@ -711,8 +733,9 @@ void draw_circle(FBDEV *dev, int x, int y, int r)
 
 	for(i=0;i<r;i++)
 	{
-		s=sqrt(r*r*1.0-i*i*1.0);
-		if(i==0)s-=1; /* erase four tips */
+//		s=sqrt(r*r*1.0-i*i*1.0);
+		s=round(sqrt(r*r*1.0-i*i*1.0));
+//		if(i==0)s-=1; /* erase four tips */
 		draw_dot(dev,x-s,y+i);
 		draw_dot(dev,x+s,y+i);
 		draw_dot(dev,x-s,y-i);
@@ -797,25 +820,27 @@ void draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 	int ro=r+(w>>1); /* outer radium */
 	int ri=r-(w>>1); /* inner radium */
 
-        for(j=0; j<ro;j++) /* j<=ro,  j=ro erased here!!!  */
+        for(j=0; j<ro; j++) /* j<=ro,  j=ro erased here!!!  */
         {
 		/* distance from Xcenter to the point on outer circle */
-	        m=sqrt( ro*ro-j*j );
+	        m=round(sqrt( ro*ro-j*j ));
 		//m=mat_fp16_sqrtu32(ro*ro-j*j)>>16; /* Seems no effect */
+		m-=1; /* diameter is odd */
 
 		/* distance from Xcenter to the point on inner circle */
                 if(j<ri) {
-                        k=sqrt( ri*ri-j*j);
+                        k=round(sqrt( ri*ri-j*j));
 			//k=mat_fp16_sqrtu32(ri*ri-j*j)>>16;
+			k-=1; /* diameter is odd */
 		}
                 else
                         k=0;
 
 		/*erase tips*/
-		if(j==0) {
-			m-=1;
-			k-=1;
-		}
+//		if(j==0) {
+//			m-=1;
+//			k-=1;
+//		}
 
 		/* draw 4th quadrant */
 		draw_line(dev,x0+k,y0+j,x0+m,y0+j);
@@ -840,8 +865,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 	for(i=0;i<r;i++)
 	{
-		s=sqrt(r*r-i*i);
-		if(i==0)s-=1; /* erase four tips */
+		s=round(sqrt(r*r-i*i));
+		s-=1; /* diameter is always odd */
+
+		//if(i==0)s-=1; /* erase four tips */
 		draw_line(dev,x-s,y+i,x+s,y+i);
 		draw_line(dev,x-s,y-i,x+s,y-i);
 	}
@@ -1425,3 +1452,25 @@ int egi_randp_boxsides(EGI_POINT *pr, const EGI_BOX *box)
 	return 0;
 }
 
+
+
+/////////////////////////////////////////////////////////////////
+/*----------------------------------------------
+With param color
+Midas Zhou
+-----------------------------------------------*/
+void draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color)
+{
+	fbset_color(color);
+	draw_circle(dev, x,y, r);
+}
+void draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color)
+{
+	fbset_color(color);
+	draw_filled_annulus(dev, x0, y0, r,  w);
+}
+void draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color)
+{
+	fbset_color(color);
+	draw_filled_circle(dev, x, y,r);
+}

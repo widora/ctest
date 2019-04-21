@@ -87,7 +87,7 @@ enum egi_ebox_status
 */
 enum egi_btn_type
 {
-	square=0, /* default */
+	square=0, /* default, or rectangle */
 	circle,
 };
 

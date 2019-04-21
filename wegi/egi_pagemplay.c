@@ -78,6 +78,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *mplay_btns[6];
 	EGI_DATA_BTN *data_btns[6];
 	enum egi_btn_type btn_type;
+	EGI_16BIT_COLOR color;
+
 
 	/* --------- 0. create name fifo -------- */
 	status=mp_stop;
@@ -91,6 +93,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
         {
+		color=egi_color_random(deep);
+
                 for(j=0;j<3;j++) /* column of buttons */
                 {
 			/* 1. create new data_btns */
@@ -128,7 +132,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 						        10+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							btnW,btnH, /* int width, int height */
 				       			-1,//1, /* int frame,<0 no frame */
-		       					egi_color_random(deep) /*int prmcolor */
+		       					egi_color_random(deep) //color,/*int prmcolor */
 					   );
 			/* if fail, try again ... */
 			if(mplay_btns[3*i+j]==NULL)

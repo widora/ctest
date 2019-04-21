@@ -58,6 +58,7 @@ inline void fb_filo_off(FBDEV *dev);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 void 	fbset_color(uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);
+//////////////// draw function ////////////
 int 	draw_dot(FBDEV *dev,int x,int y);
 void 	draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
@@ -66,12 +67,20 @@ void 	draw_pline_nc(FBDEV *dev, EGI_POINT *points,int pnum, unsigned int w);
 void 	draw_pline(FBDEV *dev, EGI_POINT *points,int pnum, unsigned int w);
 void 	draw_oval(FBDEV *dev,int x,int y);
 void 	draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
+void 	draw_wrect(FBDEV *dev,int x1,int y1,int x2,int y2, int w);
 int 	draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 int     draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2);
 void 	draw_circle(FBDEV *dev, int x, int y, int r);
 void 	draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w);
 void 	draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w);
 void 	draw_filled_circle(FBDEV *dev, int x, int y, int r);
+//////////////// new draw function, with color /////////////
+void draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
+void draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color);
+void draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
+
+
+
 int 	fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
 int 	fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf);
 

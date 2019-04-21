@@ -28,7 +28,7 @@ Midas Zhou
 int main(int argc, char ** argv)
 {
 	int i,k;
-	EGI_16BIT_COLOR color[3],subcolor[3];
+//	EGI_16BIT_COLOR color[3],subcolor[3];
 	struct timeval tms,tme;
 
 //   for(i=0;i<30;i++) {
@@ -54,21 +54,27 @@ int main(int argc, char ** argv)
 
 #if 1  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
 	int w;
+	EGI_16BIT_COLOR color;
 
 	if(argc>1) w=atoi(argv[1]);
 	else w=1;
 
-        clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+//	clear_screen(&gv_fb_dev,0);
 while(1) {
 
-        fbset_color(egi_color_random(medium));
+        color=egi_color_random(medium);
+	//color=WEGI_COLOR_YELLOW;
 	gettimeofday(&tms,NULL);
         for(i=5; i<40; i++) {
        	 	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
 	        fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
 
-		draw_filled_annulus(&gv_fb_dev, 120, 120, 2*i, w);
+		draw_filled_circle2(&gv_fb_dev,120,120,2*i,WEGI_COLOR_BLACK);
+		draw_filled_annulus2(&gv_fb_dev, 120, 120, 2*i, w, color);
 //                draw_pcircle(&gv_fb_dev, 120, 120, i, 5); //atoi(argv[1]), atoi(argv[2]));
+		draw_circle2(&gv_fb_dev,120,120,2*i+10,color);
+		draw_circle2(&gv_fb_dev,120,120,2*i+20,color);
+
                 tm_delayms(75);
 
 	        fb_filo_off(&gv_fb_dev); /* start collecting old FB pixel data */

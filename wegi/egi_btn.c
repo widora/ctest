@@ -525,12 +525,23 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, enum egi_touch_status touch_sta
         if(ebox==NULL || touch_status != pressing)
 		 return;
 
-        /* draw press status indicating image */
-        fbset_color(WEGI_COLOR_WHITE);
-        draw_filled_annulus(&gv_fb_dev, ebox->x0+ebox->width/2, ebox->y0+ebox->height/2,
-		(ebox->width < ebox->height) ? (ebox->width/2-5/2):(ebox->height/2-5/2), 5);  /* r, circle width=5 */
+//	enum egi_btn_type btn_shape=((EGI_DATA_BTN *)ebox->egi_data)->shape;
 
-        tm_delayms(150);
+        /* draw pressing effect image */
+        fbset_color(WEGI_COLOR_WHITE);
+
+//	if(btn_shape==circle) {
+	        draw_filled_annulus(&gv_fb_dev, ebox->x0+ebox->width/2, ebox->y0+ebox->height/2,
+			(ebox->width < ebox->height) ? (ebox->width/2-5/2):(ebox->height/2-5/2), 5);  /* r, circle width=5 */
+		printf("---- ebox: H%d x W%d, dannulus: R=%d ----\n",ebox->height,ebox->width,
+			(ebox->width < ebox->height) ? (ebox->width/2-5/2):(ebox->height/2-5/2) );
+//	}
+//	else if(btn_shape==square) {
+//		draw_wrect(&gv_fb_dev, ebox->x0+5/2,ebox->y0+5/2,
+//				ebox->x0+ebox->width-5/2,ebox->y0+ebox->height-5/2, 5/2);
+//	}
+
+        tm_delayms(125);
 
         /* refresh immediately */
         egi_ebox_needrefresh(ebox);
