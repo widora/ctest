@@ -36,16 +36,27 @@ Midas Zhou
 
 
 #define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
-static int pfd;				/* file descriptor for open() fifo */
+static int pfd=-1;				/* file descriptor for open() fifo */
 static FILE *pfil;			/* file stream of popen() mplayer */
 
-enum mplay_status {
-	mp_playing,
-	mp_pause,
-	mp_stop
+static int list_items=4;
+static int  nlist=0;			/* list index */
+static char *str_option[]={"RADIO","XM","MP3","MPP"};
+static char *str_playlist[]=
+{
+		"/home/radio.list",
+		"/home/xm.list",
+		"/mmc/mp3.list",
+		"/mmc/music/mp3.list",
 };
 
-static enum mplay_status status;
+enum mplay_status {
+	mp_playing=0,
+	mp_pause=1,
+	mp_stop=2
+};
+static enum mplay_status status=mp_stop;
+static char *str_pstatus[]={"Play","Pause"};
 
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -80,15 +91,6 @@ EGI_PAGE *egi_create_mplaypage(void)
 	enum egi_btn_type btn_type;
 	EGI_16BIT_COLOR color;
 
-
-	/* --------- 0. create name fifo -------- */
-	status=mp_stop;
-	unlink(MPFIFO_NAME);
-	if (mkfifo(MPFIFO_NAME,0766) !=0) {
-		printf("%s:Fail to mkfifo for mplayer.\n",__func__);
-		return NULL;
-	}
-	//printf("%s: %s created!.\n",__func__,MPFIFO_NAME);
 
 	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
@@ -146,6 +148,8 @@ EGI_PAGE *egi_create_mplaypage(void)
 			}
 			/* set tag color */
 			mplay_btns[3*i+j]->tag_color=WEGI_COLOR_WHITE;
+			/* set container for ebox*/
+			// in egi_page_addlist() 
 		}
 	}
 
@@ -153,7 +157,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[0], "Prev");
 	mplay_btns[0]->reaction=react_prev;
 
-	egi_ebox_settag(mplay_btns[1], "Play"); /* or Pause */
+	egi_ebox_settag(mplay_btns[1], str_pstatus[ !(int)(status)] ); //"Play"); /* or Pause */
 	mplay_btns[1]->reaction=react_play;
 
 	egi_ebox_settag(mplay_btns[2], "Next");
@@ -165,7 +169,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	egi_ebox_settag(mplay_btns[4], "Stop");
 	mplay_btns[4]->reaction=react_stop;
 
-	egi_ebox_settag(mplay_btns[5], "MP3");
+	egi_ebox_settag(mplay_btns[5], str_option[nlist]);
 //	mplay_btns[5]->reaction=egi_txtbox_demo; /* txtbox demo */
 	mplay_btns[5]->reaction=react_option;
 	/* adjust square button position */
@@ -344,18 +348,28 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	char strcmd[256];
-	static char *strplaylist="/mmc/mp3.list";
+//	static char *strplaylist="/home/radio.list"; //"/mmc/mp3.list";
 	static char *cmdPause="pause\n";
 
         /* bypass unwanted touch status */
-        if(touch_data->status != pressing)
+        if( touch_data->status != pressing )
                 return btnret_IDLE;
+
+	if(pfd<0) {
+		status=mp_stop;
+		unlink(MPFIFO_NAME);
+		if (mkfifo(MPFIFO_NAME,0766) !=0) {
+			printf("%s:Fail to mkfifo for mplayer.\n",__func__);
+			return NULL;
+		}
+	}
+	//printf("%s: %s created!.\n",__func__,MPFIFO_NAME);
 
 	/* open/close mplayer */
 	if(status==mp_stop) {
 		//printf("--------- start mplayer ------\n");
-         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -playlist %s >/dev/null 2>&1",
-										MPFIFO_NAME,strplaylist);
+         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -playlist %s >/dev/null 2>&1",
+									MPFIFO_NAME,str_playlist[nlist]);
 		pfil=popen(strcmd,"w");
 		if(pfil!=NULL) {
 			EGI_PLOG(LOGLV_INFO,"%s: Succeed to pipe_open mplayer!\n",__func__);
@@ -443,10 +457,28 @@ static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ---------------------------------------*/
 static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	static char *cmdQuit="quit\n";
+
         /* bypass unwanted touch status */
-        if(touch_data->status != pressing)
+        if(touch_data->status != releasing)
                 return btnret_IDLE;
 
+	/* mplayer quit */
+	if(status==mp_playing || status==mp_pause ) {
+		printf("--------- Stop mplayer ------\n");
+		write(pfd,cmdQuit,strlen(cmdQuit));
+		pclose(pfil);
+		status=mp_stop;
+	}
+	close(pfd);
+	pfd=-1;
+	unlink(MPFIFO_NAME);
+
+	/* change play/pause_button tag to 'play'  */
+	EGI_EBOX *btn_play=egi_page_pickebox(ebox->container, type_btn, 1);  /* id for play/pause btn is 1 */
+	egi_ebox_settag(btn_play,"Play");
+	egi_ebox_needrefresh(btn_play);
+	egi_ebox_refresh(btn_play);
 
         return btnret_OK; /* */
 }
@@ -457,24 +489,15 @@ static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	static char cmdLoadlist[256];
-	static int  nlist=0;
-	static char *str_option[3]={"MP3","RADIO","MPP"};
-	static char *str_playlist[3]=
-	{
-		"/mmc/mp3.list",
-		"/home/radio.list",
-		"/mmc/music/mp3.list",
-	};
 
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-
 	/* mplayer change playlist */
 	if(status==mp_playing) {
 		nlist++;
-			if(nlist>=3)nlist=0;
+			if(nlist>=list_items)nlist=0;
 		sprintf(cmdLoadlist,"loadlist '%s' \n",str_playlist[nlist]);
 		write(pfd,cmdLoadlist,strlen(cmdLoadlist));
 		/* change button tag accordingly */
@@ -495,22 +518,10 @@ static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 --------------------------------------------*/
 static int egi_pagemplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	static char *cmdQuit="quit\n";
 
        /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
-
-	/* mplayer quit */
-	if(status==mp_playing || status==mp_pause ) {
-		printf("--------- quit mplayer ------\n");
-		write(pfd,cmdQuit,strlen(cmdQuit));
-		pclose(pfil);
-		status=mp_stop;
-	}
-
-	close(pfd);
-	unlink(MPFIFO_NAME);
 
         return btnret_REQUEST_EXIT_PAGE; /* >=00 return to routine; <0 exit this routine */
 }

@@ -189,7 +189,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 {
 
 	if(touch_data->status != pressing)
-	   return 1; /* no refresh */
+	   return btnret_IDLE;
 
 	int total=56;
 	int i;
@@ -225,7 +225,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 	      tm_delayms(5);
 //	      usleep(200000);
 	}
-	tm_delayms(3000); /* hold on SHOW */
+	tm_delayms(2000); /* hold on SHOW */
 
 	for(i=total-1;i>=0;i--)
 	{
@@ -237,8 +237,6 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 //	tm_delayms(2000); /* hold on CLEAR */
 	//getchar();
 	printf("--------- txtebox demon --- END ---------\n");
-
-	//return 0;
 
 	return pgret_OK; /* to treat as a page returen, so host page will refresh itsel */
 }

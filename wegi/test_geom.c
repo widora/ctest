@@ -29,6 +29,7 @@ int main(int argc, char ** argv)
 {
 	int i,k;
 //	EGI_16BIT_COLOR color[3],subcolor[3];
+	EGI_16BIT_COLOR color;
 	struct timeval tms,tme;
 
 //   for(i=0;i<30;i++) {
@@ -52,9 +53,33 @@ int main(int argc, char ** argv)
 	symbol_load_allpages();
 
 
+#if 1  /* <<<<<<<<<<<<<<  test draw trianle  <<<<<<<<<<<<<<<*/
+
+	EGI_BOX box={0,0,239,319};
+	EGI_BOX tri_box;
+	EGI_POINT pts[3]={ 50,50, 100,100, 75, 90};
+
+while(1) {
+
+	egi_randp_inbox(&tri_box.startxy, &box);
+	tri_box.endxy.x=tri_box.startxy.x+100;
+	tri_box.endxy.y=tri_box.startxy.y+100;
+
+	for(i=0;i<3;i++)
+		egi_randp_inbox(pts+i, &tri_box);
+
+        color=egi_color_random(all);
+	fbset_color(color);
+	draw_filled_triangle(&gv_fb_dev, pts);
+	tm_delayms(75);
+}
+	return 0;
+#endif
+
+
+
 #if 1  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
 	int w;
-	EGI_16BIT_COLOR color;
 
 	if(argc>1) w=atoi(argv[1]);
 	else w=1;

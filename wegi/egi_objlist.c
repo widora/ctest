@@ -21,6 +21,9 @@ int reaction(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
 ----------------------------------------------------------------*/
 int egi_listbox_test(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
 {
+	if(touch_data->status != releasing)
+		return btnret_IDLE;
+
 	int i,j;
 	int inum=13;
 	int nwin=5; /* window size in items */
@@ -169,7 +172,7 @@ printf("egi_listbox_test(): finish egi_listbox_new(). \n");
 
 		/* end loop */
 		j++;
-		if(j>3)
+		if(j>1)
 		{
 			egi_msgbox_create("Message: \n\n End of list test. Thanks! \n\n",1000, WEGI_COLOR_ORANGE);
 			break;

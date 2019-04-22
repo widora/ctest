@@ -61,7 +61,8 @@ void tm_get_strtime(char *tmbuf)
 
 
 /*----------------------------------
- get local time in string in format:
+Get local time in string,
+  in format of:
  	Year_Mon_Day  Weekday
 ------------------------------------*/
 void tm_get_strday(char *tmdaybuf)
@@ -77,8 +78,6 @@ void tm_get_strday(char *tmdaybuf)
 }
 
 
-
-
 /* -----------------------------
  timer routine
 -------------------------------*/
@@ -89,7 +88,7 @@ void tm_sigroutine(int signo)
 //		printf(" . tick . \n");
 
 	/* ------- routine action every tick -------- */
-#if 0	// put heavy action here is not a good ideal ??????  !!!!!!
+#if 0	// put heavy action here is not a good idea ??????  !!!!!!
         /* get time and display */
         tm_get_strtime(tm_strbuf);
         wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38); 
@@ -170,11 +169,11 @@ long long unsigned int tm_get_tickcount(void)
 	return tm_tick_count;
 }
 
-/*----------- WARNING!!!! A lovely BUG :> -------------------
+/*----- WARNING!!!! A lovely BUG :> -------
 delay ms, at lease TM_TICK_INTERVAL/2000 ms
 
 if ms<0, return.
-------------------------------------------------*/
+-----------------------------------------*/
 void tm_delayms(long ms)
 {
 	unsigned int nticks;

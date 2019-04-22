@@ -297,7 +297,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	if(page->ebox->need_refresh)
 	{
 		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
-		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
+		//EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
 
 		/* load a picture or use prime color as wallpaper*/
 		if(page->fpath != NULL)
@@ -333,9 +333,9 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-		if(ret==0)
-		    EGI_PDEBUG(DBG_TEST,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
-			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+//		if(ret==0)
+//		    EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
+//			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 	}
 
 	/* reset need_refresh */
@@ -549,7 +549,7 @@ int egi_page_routine(EGI_PAGE *page)
 			*  2. !!!!WARNING: check touch_data in buttion reaction funciton at very begin,
 			*  Status 'pressed_hold' will last for a while, so it will have chance to trigger
 			*  button of previous page after triggered current page routine to quit.
-			*  3. only 'pressed_hold','pressing','db_pressing' can trigger button reaction.
+			*  3. only 'pressed_hold','pressing','db_pressing' can trigger button reaction. ???
 			*/
 				/* display touch effect for button */
 				if(hitbtn->type==type_btn) {
@@ -559,6 +559,7 @@ int egi_page_routine(EGI_PAGE *page)
 				/* trigger reaction func */
  				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
 								   last_status==pressing ||
+								   last_status==releasing ||
 								   last_status==db_pressing  )  )
 				{
 					/*if ret<0, button pressed to exit current page
@@ -580,6 +581,7 @@ int egi_page_routine(EGI_PAGE *page)
 	  printf("[page '%s'] [button '%s'] ret: return from a button activated page, set needrefresh flag.\n",
 										page->ebox->tag,hitbtn->tag);
 						egi_page_needrefresh(page); /* refresh whole page */
+						egi_page_refresh(page);
 					}
 					else
 					/* ELSE: for other cases, btnret_OK, btnret_ERR  */
@@ -595,7 +597,18 @@ int egi_page_routine(EGI_PAGE *page)
 		{
 			/* else, do other routine jobs */
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
-			egi_page_refresh(page); /* only page->eboxs with needrefresh flag */
+
+		       /* Note: If a react function is triggered by a pressing touch, then after running
+			* the function, a press_hold AND/OR a releasing touch status will likely be
+		        * captured immediately and it triggers its reaction function just before following
+			* egi_page_refresh().
+			* If above mentioned press_hold/releasing reaction function also include refreshing
+			* the ebox, that will cause following egi_page_refresh() useless. Because after refresh
+			* the need_refresh flag will be reset afterall.
+			* So, it must run just after egi_page_needrefresh(page);
+			* OR OR OR --- All react functions to be triggered by a 'releasing' status.
+	               */
+//			egi_page_refresh(page); /* only page->eboxs with needrefresh flag */
 
 			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
 			 *

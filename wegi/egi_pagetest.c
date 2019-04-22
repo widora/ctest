@@ -180,22 +180,24 @@ egi_dbclick_test()
 -----------------------------------------------------------*/
 static int egi_dbclick_test(EGI_EBOX * ebox , EGI_TOUCH_DATA * touch_data)//enum egi_touch_status btn_status)
 {
-	if(touch_data->status==db_pressing)
-	{
-		egi_msgbox_create("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
-		return btnret_OK;
-	}
-	else
+	if(touch_data->status!=db_pressing)
 		return btnret_IDLE;
+
+	egi_msgbox_create("Message:\n    Double Click!", 1000, WEGI_COLOR_ORANGE);
+	return btnret_OK;
 }
 
 
 /*-----------------------------------------------------------------------------
 button 'sliding bar test' function:
-a Page function 
+a Page function
 ------------------------------------------------------------------------------*/
 static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	/* bypass unwanted touch */
+	if(touch_data->status != releasing )
+		return btnret_IDLE;
+
         EGI_PAGE *page_slide=egi_create_slidepage();
         EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_slide->ebox->tag);
 
@@ -213,6 +215,7 @@ static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* get out of routine loop */
         EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_slide->ebox->tag);
         egi_page_free(page_slide);
+
 
         return pgret_OK; /* button activated page */
 }

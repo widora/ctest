@@ -803,6 +803,83 @@ void draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 }
 
 
+/*-----------------------------------------------------------------
+draw a a filled triangle.
+points: 3 points
+
+Midas Zhou
+------------------------------------------------------------------*/
+void draw_filled_triangle(FBDEV *dev, EGI_POINT *points)
+{
+	if(points==NULL)
+		return;
+
+	int i;
+	int nl=0,nr=0; /* left and right point index */
+	int nm; /* mid point index */
+
+	float klr,klm,kmr;
+	int yu,yd,ymu;
+
+	for(i=1;i<3;i++) {
+		if(points[i].x < points[nl].x) nl=i;
+		if(points[i].x > points[nr].x) nr=i;
+	}
+
+	/* three points are collinear */
+	if(nl==nr) {
+		draw_pline_nc(dev, points, 3, 1);
+		return;
+	}
+
+	/* get x_mid point index */
+	nm=3-nl-nr;
+
+	//printf("points[nl=%d] x=%d, y=%d \n", nl,points[nl].x,points[nl].y);
+	//printf("points[nm=%d] x=%d, y=%d \n", nm,points[nm].x,points[nm].y);
+	//printf("points[nr=%d] x=%d, y=%d \n", nr,points[nr].x,points[nr].y);
+
+	if(points[nr].x != points[nl].x) {
+		klr=1.0*(points[nr].y-points[nl].y)/(points[nr].x-points[nl].x);
+	}
+	else
+		klr=1000000.0; /* a big value */
+
+	if(points[nm].x != points[nl].x) {
+		klm=1.0*(points[nm].y-points[nl].y)/(points[nm].x-points[nl].x);
+	}
+	else
+		klm=1000000.0;
+
+	if(points[nr].x != points[nm].x) {
+		kmr=1.0*(points[nr].y-points[nm].y)/(points[nr].x-points[nm].x);
+	}
+	else
+		kmr=1000000.0;
+
+	//printf("klr=%f, klm=%f, kmr=%f \n",klr,klm,kmr);
+
+	/* draw lines for two tri */
+	for( i=0; i<points[nm].x-points[nl].x+1; i++)
+	{
+		yu=points[nl].y+klr*i;
+		yd=points[nl].y+klm*i;
+		//printf("part1: x=%d	yu=%d	yd=%d \n", points[nl].x+i, yu, yd);
+		draw_line(dev, points[nl].x+i, yu, points[nl].x+i, yd);
+	}
+	ymu=yu;
+	for( i=0; i<points[nr].x-points[nm].x+1; i++)
+	{
+		yu=ymu+klr*i;
+		yd=points[nm].y+kmr*i;
+		//printf("part2: x=%d	yu=%d	yd=%d \n", points[nm].x+i, yu, yd);
+		draw_line(dev, points[nm].x+i, yu, points[nm].x+i, yd);
+	}
+
+}
+
+
+
 /*-----------------------------------------------------------------------
 draw a filled annulus.
 	(x0,y0)	circle center
@@ -1451,6 +1528,10 @@ int egi_randp_boxsides(EGI_POINT *pr, const EGI_BOX *box)
 
 	return 0;
 }
+
+
+
+
 
 
 

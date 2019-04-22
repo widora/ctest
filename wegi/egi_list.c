@@ -189,7 +189,6 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 	data_list->iconoffx=iconoffx;
 	data_list->iconoffy=iconoffy;
 
-
 	/* 12. create txt_type eboxes for item txt_ebox->egi_data  */
 	printf("egi_listbox_new(): total list item number inum=%d \n",inum);
 	for(i=0;i<inum;i++)
@@ -525,7 +524,7 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
 		}
 
 		/* hold on for a while */
-		tm_delayms(100);
+		tm_delayms(55); //100
 
 	    } /* end for(), end sliding_refresh one txt_ebox */
 	    tm_delayms(500);
