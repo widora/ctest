@@ -195,7 +195,7 @@ a Page function
 static int egi_slidebar_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	/* bypass unwanted touch */
-	if(touch_data->status != releasing )
+	if(touch_data->status != pressing )
 		return btnret_IDLE;
 
         EGI_PAGE *page_slide=egi_create_slidepage();

@@ -43,7 +43,7 @@ Modified and appended by Midas-Zhou
 
 
 /* global variale, Frame buffer device */
-FBDEV  gv_fb_dev;
+FBDEV  gv_fb_dev __attribute__(( visibility ("hidden") )) ;
 
 
 /* default color set */

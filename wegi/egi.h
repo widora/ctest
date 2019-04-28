@@ -368,7 +368,7 @@ struct egi_data_btn
 	int opaque; 		  /* opaque value for the icon, default 0, 0---totally NOT transparent */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag;             /* to show tag on button or not, default 0, */
-	void (*touch_effect)(EGI_EBOX *, enum egi_touch_status);
+	void (*touch_effect)(EGI_EBOX *, EGI_TOUCH_DATA *);
                                   /* If not NULL, to be called when the btn is touched,depends on touch status,
 				     default set in egi_btn.c, or to be re-define later. */
 
@@ -572,6 +572,7 @@ int egi_ebox_activate(EGI_EBOX *ebox);
 inline void egi_ebox_needrefresh(EGI_EBOX *ebox);
 inline void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
 int egi_ebox_refresh(EGI_EBOX *ebox);
+int egi_ebox_forcerefresh(EGI_EBOX *ebox);
 int egi_ebox_decorate(EGI_EBOX *ebox);
 int egi_ebox_sleep(EGI_EBOX *ebox);
 int egi_ebox_free(EGI_EBOX *ebox);

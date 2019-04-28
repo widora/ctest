@@ -39,16 +39,17 @@ Midas Zhou
 static int pfd=-1;				/* file descriptor for open() fifo */
 static FILE *pfil;			/* file stream of popen() mplayer */
 
-static int list_items=4;
 static int  nlist=0;			/* list index */
-static char *str_option[]={"RADIO","XM","MP3","MPP"};
+static char *str_option[]={"RADIO","XM","MP3","MPP","ENG"};
 static char *str_playlist[]=
 {
 		"/home/radio.list",
 		"/home/xm.list",
 		"/mmc/mp3.list",
 		"/mmc/music/mp3.list",
+		"/mmc/eng/mp3.list"
 };
+static int list_items=5;
 
 enum mplay_status {
 	mp_playing=0,
@@ -347,6 +348,7 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ----------------------------------------*/
 static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	int ret;
 	char strcmd[256];
 //	static char *strplaylist="/home/radio.list"; //"/mmc/mp3.list";
 	static char *cmdPause="pause\n";
@@ -368,15 +370,14 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* open/close mplayer */
 	if(status==mp_stop) {
 		//printf("--------- start mplayer ------\n");
-         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -playlist %s >/dev/null 2>&1",
-									MPFIFO_NAME,str_playlist[nlist]);
+         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
+									MPFIFO_NAME,str_playlist[nlist] );
 		pfil=popen(strcmd,"w");
 		if(pfil!=NULL) {
 			EGI_PLOG(LOGLV_INFO,"%s: Succeed to pipe_open mplayer!\n",__func__);
 			status=mp_playing;
 			egi_ebox_settag(ebox, "Pause");
-			egi_ebox_needrefresh(ebox);
-			egi_ebox_refresh(ebox);
+			egi_ebox_forcerefresh(ebox);
 		}
 
 		/* open fifo for command input */
@@ -390,12 +391,31 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	}
 
 	else if(status==mp_playing) {
-		//printf("--------- start pause ------\n");
-		write(pfd, cmdPause,strlen(cmdPause));
-		status=mp_pause;
-		egi_ebox_settag(ebox, "Play");
-		egi_ebox_needrefresh(ebox);
-		egi_ebox_refresh(ebox);
+		/* check whether mplayer is running */
+		// --- TODO: How to check if the fifo pipe is broken?!
+		//if(fileno(pfil)<0) {
+		//if(pfil==NULL) {
+
+		/* write pause command to mplayer  */
+		printf("--------- start pause ------\n");
+		ret=write(pfd, cmdPause,strlen(cmdPause));
+		if(ret<=0) { /* especailly 0! */
+			EGI_PLOG(LOGLV_WARN,"%s: try to write command to mplayer throgh pfd: %s.\n",
+									__func__, strerror(errno) );
+			pclose(pfil);
+			close(pfd);
+			pfd=-1;
+			unlink(MPFIFO_NAME);
+
+			status==mp_stop;
+			egi_ebox_settag(ebox, "Start");
+			egi_ebox_forcerefresh(ebox);
+		}
+		else {
+			status=mp_pause;
+			egi_ebox_settag(ebox, "Resume");
+			egi_ebox_forcerefresh(ebox);
+		}
 	}
 
 	else if(status==mp_pause) {
@@ -403,8 +423,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		status=mp_playing;
 		write(pfd, cmdPause,strlen(cmdPause));
 		egi_ebox_settag(ebox, "Pause");
-		egi_ebox_needrefresh(ebox);
-		egi_ebox_refresh(ebox);
+		egi_ebox_forcerefresh(ebox);
 	}
 
         return btnret_OK; /* */
@@ -477,8 +496,7 @@ static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* change play/pause_button tag to 'play'  */
 	EGI_EBOX *btn_play=egi_page_pickebox(ebox->container, type_btn, 1);  /* id for play/pause btn is 1 */
 	egi_ebox_settag(btn_play,"Play");
-	egi_ebox_needrefresh(btn_play);
-	egi_ebox_refresh(btn_play);
+	egi_ebox_forcerefresh(btn_play);
 
         return btnret_OK; /* */
 }
@@ -506,8 +524,7 @@ static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	}
 
 	/* refresh */
-	egi_ebox_needrefresh(ebox);
-	egi_ebox_refresh(ebox);
+	egi_ebox_forcerefresh(ebox);
 
         return btnret_OK; /* */
 }

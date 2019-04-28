@@ -21,7 +21,7 @@ int reaction(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
 ----------------------------------------------------------------*/
 int egi_listbox_test(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
 {
-	if(touch_data->status != releasing)
+	if(touch_data->status != pressing)
 		return btnret_IDLE;
 
 	int i,j;

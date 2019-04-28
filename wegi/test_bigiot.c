@@ -29,7 +29,7 @@ int main(void)
 
 	/* --- init logger --- */
 #if 1
-  	if(egi_init_log("/tmp/log_iot") != 0)
+  	if(egi_init_log("/mmc/log_iot") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;

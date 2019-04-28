@@ -333,9 +333,11 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret=ebox->refresh(ebox);
-//		if(ret==0)
-//		    EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
-//			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+#if 0 /* debug only */
+		if(ret==0)
+		    EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
+			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+#endif
 	}
 
 	/* reset need_refresh */
@@ -475,6 +477,7 @@ int egi_page_routine(EGI_PAGE *page)
 //	long tus;
 
 	EGI_EBOX  *hitbtn; /* hit button_ebox */
+	EGI_EBOX  *last_holdbtn=NULL; /* remember last hold btn */
 
 	/* 1. check data */
 	EGI_PDEBUG(DBG_PAGE,"start to check data for page.\n");
@@ -529,11 +532,18 @@ int egi_page_routine(EGI_PAGE *page)
 		sy=touch_data.coord.y;
 		last_status=touch_data.status;
 
+
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
 		{
 			/* check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
+
+			/* check if last hold btn losing foucs */
+			if( last_holdbtn != NULL && last_holdbtn != hitbtn) {
+				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				last_holdbtn=NULL;
+			}
 
 			/* trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
@@ -553,7 +563,12 @@ int egi_page_routine(EGI_PAGE *page)
 			*/
 				/* display touch effect for button */
 				if(hitbtn->type==type_btn) {
-					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,last_status);
+
+					/* remember last hold btn */
+					if(last_status==pressed_hold) last_holdbtn=hitbtn;
+
+					/* call touch_effect() */
+					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 
 				}
 				/* trigger reaction func */
@@ -566,6 +581,8 @@ int egi_page_routine(EGI_PAGE *page)
 					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
+
+
 
 					/* IF: a button request to exit current page routine */
 					if( ret==btnret_REQUEST_EXIT_PAGE )
@@ -598,7 +615,8 @@ int egi_page_routine(EGI_PAGE *page)
 			/* else, do other routine jobs */
                         //eig_pdebug(DBG_PAGE,"egi_page_routine(): --- XPT_READ_STATUS_PENUP ---\n");
 
-		       /* Note: If a react function is triggered by a pressing touch, then after running
+		       /* 	              -----   NOTE  -----
+			* If a react function is triggered by a pressing touch, then after running
 			* the function, a press_hold AND/OR a releasing touch status will likely be
 		        * captured immediately and it triggers its reaction function just before following
 			* egi_page_refresh().
@@ -606,7 +624,11 @@ int egi_page_routine(EGI_PAGE *page)
 			* the ebox, that will cause following egi_page_refresh() useless. Because after refresh
 			* the need_refresh flag will be reset afterall.
 			* So, it must run just after egi_page_needrefresh(page);
-			* OR OR OR --- All react functions to be triggered by a 'releasing' status.
+			* OR OR OR --- All react functions to be triggered by a 'releasing' status. ??
+			* However...a 'releasing' status always happens after a 'pressing' status, and if the
+			* preceding 'pressing' triggers a PAGE, which unfortunatly has an ebox just at the same
+			* location waiting for a 'releasing' to activate it. WOW.... It is activated at once!!!
+			* Conclusion: activating touch_status(signal) for all eboxes shall be the same type!
 	               */
 //			egi_page_refresh(page); /* only page->eboxs with needrefresh flag */
 
@@ -615,7 +637,7 @@ int egi_page_routine(EGI_PAGE *page)
 			 */
 #if 1
 //	                printf("--------egi_page: tm_delayms 100ms ------------\n");
-			tm_delayms(55); //55
+			tm_delayms(75); //55
 //	                printf("--------egi_page: end tm_delayms()------------\n");
 #endif
 #if 0 /* conflict with timer */

@@ -48,16 +48,16 @@ midaszhou@yahoo.com
 
 #define REQUEST_INTERVAL_TIMEMS	500 /* request interval time in ms */
 
+
 /* data compression type */
 enum compress_type {
 	none,		/* when new data comes, shift data_point[] to drop data_point[0]
-			 * then save the latest data into data_point[num-1]
+			 * then savethe latest data in data_point[num-1]
                          */
 	interpolation,  /* when new data comes, update all data_point[] by interpolation */
 	common_avg,	/* when new data comes, update all data_point[] by different weights */
 	fold_avg,       /* avg data_point[0], then [1], then[2]....  */
 };
-
 
 /*------------------------------------
  	    MAIN FUNCTION
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 
 	/* --- init logger --- */
 #if 1
-  	if(egi_init_log("/mmc/log_stock") != 0)
+  	if(egi_init_log("/tmp/log_color") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 #endif
 
         /* --- start egi tick --- */
-//        tm_start_egitick();
+        tm_start_egitick();
 
         /* --- prepare fb device --- */
         gv_fb_dev.fdfd=-1;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
         float point,tprice,yprice,volume,turnover;
 	int num=238+1; /* points on chart X axis
 		       * put in form of num=2*N+1, data_point[num] is the latest data, and never compressed,
-		       * fold compression is applied as num=2*N+1;
+		       * fold compression is applied, so num=2*N+1;
 		       */
 	float data_point[240]={0}; /* store stock point/price for every second,or time_gap as set*/
 	int navg_first=2; /* first average number for data compression.
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	float fbench=0;		/* Bench value, usually Yesterday's value, or opening price
 				 * Reset with 0 first, It's a token for updating limits and bench value.
 				 */
-	int   wh=210-60; 		/* height of display window */
+	int   wh=210; 		/* height of display window */
 	int   ng=6;		/* number of grids/slots */
 	int   hlgap=wh/ng; 	/* grid H LINE gap */
 
@@ -194,32 +194,19 @@ while(1)
 	tm_t=time(NULL);
 	tm_local=localtime(&tm_t);
 	seccount=tm_local->tm_hour*3600+tm_local->tm_min*60+tm_local->tm_sec;
-
 	/*  market close time */
 	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+20 ) /* +20 for transaction lingering ???? */
 	{
+		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
 		if(!market_closed) { /* toggle token */
 			market_closed=true;
 		}
-
-		/* if there is plenty of time before market opens, then starts deep sleep...  */
-		if( ( seccount >=15*3600+30 || seccount < 9*3600+30*60 - 10 )
-			&& wcount>=30  && fbench!=0 )  /* get fbench and go some rounds then...*/
-		{
-			printf(" <<<<<<<<<<<<<<<<<   Close Time, Deep Sleep NOW.   >>>>>>>>>>>>>>>> \n");
-			egi_sleep(0,5,0);
-			continue;
-			//exit(1);
-		}
-		/* get last data, set fbench and draw, then loop to wait for market_open */
-		else if( fbench!=0 ) {
-			printf(" <<<<<<<<<<<<<<<<< Market Closed >>>>>>>>>>>>>>>> \n");
-			wcount++;
+		/* get last data and draw, then loop to hold on... */
+		if( wcount>0 && fbench!=0 ) {
 			egi_sleep(0,0,500);
+			//tm_delayms(500);
 			continue;
 		}
-
-		/* else if fbench==0, go on to get data and set fbench */
 	}
 	/* recess time */
 	/* Note:
@@ -243,7 +230,6 @@ while(1)
 		if(market_closed) {   /* toggle token */
 			market_closed=false;
 			fbench=0; /* need reset fbench */
-			wcount=0; /* reset wcount */
 		}
 	}
 
@@ -395,16 +381,10 @@ while(1)
 		}
 
 		/* just shift followed data */
-#if 0
 		for( ++k; k<num-1; k++)
 		{
 			data_point[k]=data_point[k+1];
 		}
-#else
-		/* k as current [npstore] */
-		memmove(data_point+(k+1), data_point+(k+1)+1, sizeof(data_point[0]) * (num-1-(k+1)) );
-#endif
-
 	}
 	else /* if market closed, do NOT compress data, only for display */
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
@@ -508,11 +488,6 @@ while(1)
 	}
 	printf(" End.\n ");
 
-	wcount++;
-	egi_sleep(2,0,REQUEST_INTERVAL_TIMEMS); /* tick off!!! */
-        //tm_delayms(REQUEST_INTERVAL_TIMEMS);
-	/* Go on only if wcount%4==0;  wcount>5 to let go at least one time */
-	if( (wcount & 0b11) != 0 && wcount>5 ) continue;
 
 	/* <<<<<<<    Flush FB and Turn on FILO  >>>>>>> */
 	printf("Flush pixel data in FILO, start  ---> ");
@@ -607,7 +582,7 @@ while(1)
 	/* if market closed */
 	if(market_closed)
 		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
-						1, 20,chart_y0+wh+10, "Market Closed" );
+						1, 20,320-35, "Market Closed" );
 	else { /* display favorate stock */
 		//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
 		//				1, 20,320-35, "Trade Time" );
@@ -633,14 +608,15 @@ while(1)
 		else symcolor=WEGI_COLOR_GREEN;
 		sprintf(strdata,"%s   %0.2f   %%%+0.2f",favor_stock[wcount%3],tprice,(tprice-yprice)*100/yprice);
 		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-						1, 5,chart_y0+wh+10, strdata ); //320-35
+						1, 5,320-35, strdata );
 	}
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&gv_fb_dev);
 
-//	wcount++;
-//	egi_sleep(0,0,REQUEST_INTERVAL_TIMEMS);
+	wcount++;
+
+	egi_sleep(0,0,REQUEST_INTERVAL_TIMEMS);
         //tm_delayms(REQUEST_INTERVAL_TIMEMS);
 }
 
