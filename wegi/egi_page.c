@@ -103,11 +103,21 @@ int egi_page_free(EGI_PAGE *page)
 	/* change status, wait runner ....*/
 	page->ebox->status=status_page_exiting;
 
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++) {
 		if(page->thread_running[i]) {
 			EGI_PDEBUG(DBG_PAGE,"page ['%s'] wait to join runner thread [%d].\n"
 										,page->ebox->tag,i);
-			pthread_join(page->threadID[i],NULL);
+			if( pthread_cancel(page->threadID[i]) !=0 )
+			     EGI_PLOG(LOGLV_ERROR,"Fail to call pthread_cancel() for page ['%s'] threadID[%d] \n",
+									page->ebox->tag, i);
+			if( pthread_join(page->threadID[i],NULL) !=0 )
+			     EGI_PLOG(LOGLV_ERROR,"Fail to call pthread_join() for page ['%s'] threadID[%d] \n",
+									page->ebox->tag, i);
+			else
+				EGI_PDEBUG(DBG_PAGE,"page ['%s'] runner thread [%d] joined!.\n"
+										,page->ebox->tag,i);
 		}
 	}
 

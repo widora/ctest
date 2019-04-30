@@ -23,6 +23,8 @@ TODO:
    1. It may miss data occassionly, because of network delay OR request interval too big???
 				---try to increase request frequency.
    2. Rule out market close/holidy day.
+   3. If the network is down for a while during market trading, those data will be missing and the
+      chart will NOT show any evidence of this breakdown.
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -123,23 +125,23 @@ int main(int argc, char **argv)
 	/* updd and lower deviation from benchmark */
 	float fupp_dev=0; /* fupp_dev=fdmax-fbench, if fdmax>fbench;  OR fupp_dev=0;  */
 	float flow_dev=0; /* flow_dev=fbench-fdmin, if fdmin<fbench;  OR flow_dev=0;  */
-
-	int   upp_ng=3;	/* upper amplitude grid number */
-	int   low_ng=3;	/* lower amplitude grid number */
 	/*    if(flow_dev<fupp_dev), low_ng=flow_dev/(fupp_dev+flow_dev)+1;
 	 *    else if(flow_dev>fupp_dev), upp_ng=fupp_dev/(fupp_dev+flow_dev)+1;
 	 *    else: keep defalt upp_ng and low_ng
 	 */
+	int   upp_ng=3;	/* upper amplitude grid number */
+	int   low_ng=3;	/* lower amplitude grid number */
+
+	/* chart window position */
 	int   chart_x0=0;  /* char x0 as of LCD FB */
 	int   chart_y0=70; /* chart y0 as of LCD FB */
 	int   offy=chart_y0+hlgap*upp_ng;  /* bench mark line offset value, offset from LCD y=0 */
+
 	/* chart upp limit and low limit value */
 	float   upp_limit; 	/* upper bar of chart */
 	float   low_limit; 	/* low bar of char */
 	float	famp=0.05;      /* Only for initial amplitude of point/price fluctuation */
 	float   funit=wh/2/famp; /* 240/2/famp, pixles per point/price  */
-//	float   unit_upp=240/2.0/10.0; /* init. 12pix/point; only if fdmax>fbench; unit_upp=(wh/2)/(fdmax-fbench) */
-//	float   unit_low=240/2.0/10.0; /* init. 12pix/point; only if fdmin<fbench; unit_low=(wh/2)/(fbench-fdmin) */
 	char strdata[64]={0};
 	char *sname="s_sh000001"; /* Index or stock name */
 //	char *sname="sh600389";/* Index or stock name */
@@ -151,11 +153,15 @@ int main(int argc, char **argv)
 	int px,py;
 	int pn;
 	bool market_closed=true;
+	bool market_recess=true;
+
+	/* timer related */
 	struct tm *tm_local; /* local time */
 	time_t tm_t; /* seconds since 1970 */
 	int mincount; /* tm_local->hour * 60 +tm_local->min */
 	int seccount; /* tm_local->hour*3600+tm_local->min*60+tm_local->sec */
 	int wcount; 	/* counter for while() loop */
+
 	/* generate http request string */
 	memset(strrequest,0,sizeof(strrequest));
 	strcat(strrequest,"/list=");
@@ -229,6 +235,9 @@ while(1)
 	{
 //		EGI_PLOG(LOGLV_INFO,"seccount=%d, start recess...\n",seccount);
 		printf(" <<<<<<<<<<<<<<<<<   Recess at Noon   >>>>>>>>>>>>>>>>> \n");
+		if(!market_recess)
+			market_recess=true;
+
 		/* Do NOT draw chart during noon recession,loop to hold on */
 		if( wcount>0 && fbench!=0 ) {/* first get fbench and last stock index/price, then hold on. */
 			egi_sleep(0,0,500);
@@ -245,6 +254,8 @@ while(1)
 			fbench=0; /* need reset fbench */
 			wcount=0; /* reset wcount */
 		}
+		if(market_recess)
+			market_recess=false;
 	}
 
 
@@ -595,20 +606,23 @@ while(1)
 	else {	symcolor = WEGI_COLOR_GREEN; }	sprintf(strdata,"%+0.2f",data_point[num-1]-fbench);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
         // move with pxy                     	1, 240-70, pxy[num-1].y-20-20, strdata); /* transpcolor, x0,y0, str */
-					1, 90, chart_y0-40, strdata); /* display on top */
+					1, 90, chart_y0-40, strdata); /*fixed position, display on top */
 
 	/* 3.8 write up_down percentage */
 	sprintf(strdata,"%%%+0.2f",(data_point[num-1]-fbench)*100/fbench);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0,y0, str */
+                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0, y0, str */
 
 	printf(" ---> End.  ))) \n");
 
-	/* if market closed */
-	if(market_closed)
+	/* if market recessed or closed */
+	if(market_recess)
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
+						1, 20,chart_y0+wh+10, "Market Recess" );
+	else if(market_closed)
 		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
 						1, 20,chart_y0+wh+10, "Market Closed" );
-	else { /* display favorate stock */
+	else { /* otherwise display favorate stock */
 		//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
 		//				1, 20,320-35, "Trade Time" );
 

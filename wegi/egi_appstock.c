@@ -23,6 +23,8 @@ TODO:
    1. It may miss data occassionly, because of network delay OR request interval too big???
 				---try to increase request frequency.
    2. Rule out market close/holidy day.
+   3. If the network is down for a while during market trading, those data will be missing and the
+      chart will NOT show any evidence of this breakdown.
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -44,47 +46,15 @@ midaszhou@yahoo.com
 #include "egi_log.h"
 #include "egi.h"
 #include "egi_math.h"
+#include "egi_appstock.h"
 
-
-#define REQUEST_INTERVAL_TIMEMS	500 /* request interval time in ms */
-
-
-/* data compression type */
-enum compress_type {
-	none,		/* when new data comes, shift data_point[] to drop data_point[0]
-			 * then savethe latest data in data_point[num-1]
-                         */
-	interpolation,  /* when new data comes, update all data_point[] by interpolation */
-	common_avg,	/* when new data comes, update all data_point[] by different weights */
-	fold_avg,       /* avg data_point[0], then [1], then[2]....  */
-};
 
 /*------------------------------------
- 	    MAIN FUNCTION
+	APP func, thread func
 ------------------------------------*/
-int main(int argc, char **argv)
+void egi_stockchart(EGI_PAGE *page)
 {
 	int i,k;
-
-	/* --- init logger --- */
-#if 1
-  	if(egi_init_log("/tmp/log_color") != 0)
-	{
-		printf("Fail to init logger,quit.\n");
-		return -1;
-	}
-#endif
-
-        /* --- start egi tick --- */
-        tm_start_egitick();
-
-        /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
-
-	/* --- load all symbol pages --- */
-	symbol_load_allpages();
-
 
 /* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  TEST STOCK MARKET DATA  DISPLAY >>>>>>>>>>>>>>>>>>>>>>>>>*/
 
@@ -93,7 +63,7 @@ int main(int argc, char **argv)
         float point,tprice,yprice,volume,turnover;
 	int num=238+1; /* points on chart X axis
 		       * put in form of num=2*N+1, data_point[num] is the latest data, and never compressed,
-		       * fold compression is applied, so num=2*N+1;
+		       * fold compression is applied as num=2*N+1;
 		       */
 	float data_point[240]={0}; /* store stock point/price for every second,or time_gap as set*/
 	int navg_first=2; /* first average number for data compression.
@@ -116,30 +86,30 @@ int main(int argc, char **argv)
 	float fbench=0;		/* Bench value, usually Yesterday's value, or opening price
 				 * Reset with 0 first, It's a token for updating limits and bench value.
 				 */
-	int   wh=210; 		/* height of display window */
+	int   wh=210-60; 		/* height of display window */
 	int   ng=6;		/* number of grids/slots */
 	int   hlgap=wh/ng; 	/* grid H LINE gap */
 
 	/* updd and lower deviation from benchmark */
 	float fupp_dev=0; /* fupp_dev=fdmax-fbench, if fdmax>fbench;  OR fupp_dev=0;  */
 	float flow_dev=0; /* flow_dev=fbench-fdmin, if fdmin<fbench;  OR flow_dev=0;  */
-
-	int   upp_ng=3;	/* upper amplitude grid number */
-	int   low_ng=3;	/* lower amplitude grid number */
 	/*    if(flow_dev<fupp_dev), low_ng=flow_dev/(fupp_dev+flow_dev)+1;
 	 *    else if(flow_dev>fupp_dev), upp_ng=fupp_dev/(fupp_dev+flow_dev)+1;
 	 *    else: keep defalt upp_ng and low_ng
 	 */
+	int   upp_ng=3;	/* upper amplitude grid number */
+	int   low_ng=3;	/* lower amplitude grid number */
+
+	/* chart window position */
 	int   chart_x0=0;  /* char x0 as of LCD FB */
 	int   chart_y0=70; /* chart y0 as of LCD FB */
 	int   offy=chart_y0+hlgap*upp_ng;  /* bench mark line offset value, offset from LCD y=0 */
+
 	/* chart upp limit and low limit value */
 	float   upp_limit; 	/* upper bar of chart */
 	float   low_limit; 	/* low bar of char */
 	float	famp=0.05;      /* Only for initial amplitude of point/price fluctuation */
 	float   funit=wh/2/famp; /* 240/2/famp, pixles per point/price  */
-//	float   unit_upp=240/2.0/10.0; /* init. 12pix/point; only if fdmax>fbench; unit_upp=(wh/2)/(fdmax-fbench) */
-//	float   unit_low=240/2.0/10.0; /* init. 12pix/point; only if fdmin<fbench; unit_low=(wh/2)/(fbench-fdmin) */
 	char strdata[64]={0};
 	char *sname="s_sh000001"; /* Index or stock name */
 //	char *sname="sh600389";/* Index or stock name */
@@ -151,11 +121,15 @@ int main(int argc, char **argv)
 	int px,py;
 	int pn;
 	bool market_closed=true;
+	bool market_recess=true;
+
+	/* timer related */
 	struct tm *tm_local; /* local time */
 	time_t tm_t; /* seconds since 1970 */
 	int mincount; /* tm_local->hour * 60 +tm_local->min */
 	int seccount; /* tm_local->hour*3600+tm_local->min*60+tm_local->sec */
 	int wcount; 	/* counter for while() loop */
+
 	/* generate http request string */
 	memset(strrequest,0,sizeof(strrequest));
 	strcat(strrequest,"/list=");
@@ -168,21 +142,26 @@ int main(int argc, char **argv)
 	}
 	pxy[num-1].x=240-1;
 
+
+        /* --- prepare fb device --- */
+	FBDEV fb_dev;
+        init_dev(&fb_dev);
+
 	/* clear areana */
-	//fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&gv_fb_dev,0,30,240-1,320-1);
-	clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&fb_dev,0,30,240-1,chart_y0+wh);
+	//clear_screen(&fb_dev,WEGI_COLOR_BLACK);
 
 	/* draw grids */
 	fbset_color(WEGI_COLOR_GRAY3);
         for(i=0;i<=wh/hlgap;i++)
-	 	draw_line(&gv_fb_dev,0,offy+wh/2-hlgap*i,240-1,offy+wh/2-hlgap*i);
+	 	draw_line(&fb_dev,0,offy+wh/2-hlgap*i,240-1,offy+wh/2-hlgap*i);
 
 	/* make some dash line effects */
 	for(i=0;i<11;i++)
 	{
 		fbset_color(WEGI_COLOR_BLACK);
-		draw_wline(&gv_fb_dev,20+i*20,40,20+i*20,320-1,9);
+		draw_wline(&fb_dev,20+i*20,40,20+i*20,chart_y0+wh,9);
 	}
 
 /*  <<<<<<<<<<<   Loop reading data and drawing line chart    >>>>>>>>>>  */
@@ -194,19 +173,32 @@ while(1)
 	tm_t=time(NULL);
 	tm_local=localtime(&tm_t);
 	seccount=tm_local->tm_hour*3600+tm_local->tm_min*60+tm_local->tm_sec;
+
 	/*  market close time */
 	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+20 ) /* +20 for transaction lingering ???? */
 	{
-		printf(" <<<<<<<<<<<<<<<<<   Market Closed   >>>>>>>>>>>>>>>> \n");
 		if(!market_closed) { /* toggle token */
 			market_closed=true;
 		}
-		/* get last data and draw, then loop to hold on... */
-		if( wcount>0 && fbench!=0 ) {
+
+		/* if there is plenty of time before market opens, then starts deep sleep...  */
+		if( ( seccount >=15*3600+30 || seccount < 9*3600+30*60 - 10 )
+			&& wcount>=30  && fbench!=0 )  /* get fbench and go some rounds then...*/
+		{
+			printf(" <<<<<<<<<<<<<<<<<   Close Time, Deep Sleep NOW.   >>>>>>>>>>>>>>>> \n");
+			egi_sleep(0,5,0);
+			continue;
+			//exit(1);
+		}
+		/* get last data, set fbench and draw, then loop to wait for market_open */
+		else if( fbench!=0 ) {
+			printf(" <<<<<<<<<<<<<<<<< Market Closed >>>>>>>>>>>>>>>> \n");
+			wcount++;
 			egi_sleep(0,0,500);
-			//tm_delayms(500);
 			continue;
 		}
+
+		/* else if fbench==0, go on to get data and set fbench */
 	}
 	/* recess time */
 	/* Note:
@@ -216,6 +208,9 @@ while(1)
 	{
 //		EGI_PLOG(LOGLV_INFO,"seccount=%d, start recess...\n",seccount);
 		printf(" <<<<<<<<<<<<<<<<<   Recess at Noon   >>>>>>>>>>>>>>>>> \n");
+		if(!market_recess)
+			market_recess=true;
+
 		/* Do NOT draw chart during noon recession,loop to hold on */
 		if( wcount>0 && fbench!=0 ) {/* first get fbench and last stock index/price, then hold on. */
 			egi_sleep(0,0,500);
@@ -230,7 +225,10 @@ while(1)
 		if(market_closed) {   /* toggle token */
 			market_closed=false;
 			fbench=0; /* need reset fbench */
+			wcount=0; /* reset wcount */
 		}
+		if(market_recess)
+			market_recess=false;
 	}
 
 
@@ -381,10 +379,16 @@ while(1)
 		}
 
 		/* just shift followed data */
+#if 0
 		for( ++k; k<num-1; k++)
 		{
 			data_point[k]=data_point[k+1];
 		}
+#else
+		/* k as current [npstore] */
+		memmove(data_point+(k+1), data_point+(k+1)+1, sizeof(data_point[0]) * (num-1-(k+1)) );
+#endif
+
 	}
 	else /* if market closed, do NOT compress data, only for display */
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
@@ -488,41 +492,46 @@ while(1)
 	}
 	printf(" End.\n ");
 
+	wcount++;
+	egi_sleep(2,0,HTTP_REQUEST_INTERVAL); /* tick off!!! */
+        //tm_delayms(REQUEST_INTERVAL_TIMEMS);
+	/* Go on only if wcount%4==0;  wcount>5 to let go at least one time */
+	if( (wcount & 0b11) != 0 && wcount>5 ) continue;
 
 	/* <<<<<<<    Flush FB and Turn on FILO  >>>>>>> */
 	printf("Flush pixel data in FILO, start  ---> ");
-        fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
-        fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
+        fb_filo_flush(&fb_dev); /* flush and restore old FB pixel data */
+        fb_filo_on(&fb_dev); /* start collecting old FB pixel data */
 	printf("End.\n");
 
 	/* 1. Draw bench_mark line according to low_ng and upp_ng */
 	printf("Draw bench mark line, start  ---> ");
 	fbset_color(WEGI_COLOR_GRAY3);
- 	draw_line(&gv_fb_dev,0,offy,240-1,offy);
+ 	draw_line(&fb_dev,0,offy,240-1,offy);
 	printf("End.\n");
 
 	/* 2. Draw poly line of Pxy */
 	printf("Draw poly lines from Pxy[], start  ---> ");
 	fbset_color(WEGI_COLOR_YELLOW);//GREEN);
-	draw_pline(&gv_fb_dev, pxy, num, 0);
+	draw_pline(&fb_dev, pxy, num, 0);
 	printf("End.\n");
 
 	/* 3. ----- Draw marks and symbols ------ */
 	printf("Draw marks and symbols, start  ((( ---> ");
 	/* 3.1 INDEX or STOCK name */
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
                                         	1, 60, 5 ,sname); /* transpcolor, x0,y0, str */
 	/* 3.2 fbench value */
 	sprintf(strdata,"%0.2f",fbench);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
                                         	1, 80, chart_y0+upp_ng*hlgap-20 ,strdata); /* transpcolor, x0,y0, str */
 	/* 3.3 upp_limit value */
 	sprintf(strdata,"%0.2f",upp_limit);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
                                         	1, 80, chart_y0-20 ,strdata); /* transpcolor, x0,y0, str */
 	/* 3.3 low_limit value */
 	sprintf(strdata,"%0.2f",low_limit);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
                                         	1, 80, chart_y0+wh-20, strdata); /* transpcolor, x0,y0, str */
 	/* 3.4 draw fdmax mark and symbol */
 	if(fdmax > fbench) {
@@ -535,9 +544,9 @@ while(1)
 	}
 	symcolor=WEGI_COLOR_RASPBERRY;
 	fbset_color(symcolor);
-	draw_wline(&gv_fb_dev, 0,py,60,py,0);
+	draw_wline(&fb_dev, 0,py,60,py,0);
 	sprintf(strdata,"%0.2f",fdmax); //fbench+(wh/2)/unit_upp);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
                                         	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
 	/* 3.5 draw fdmin mark and symbol*/
 	if(fdmin > fbench) {
@@ -551,40 +560,43 @@ while(1)
 	printf(" draw fdmin mark: fdmin=%0.2f.\n",fdmin);
 	symcolor=WEGI_COLOR_BLUE;
 	fbset_color(symcolor);
-	draw_wline(&gv_fb_dev, 0,py,60,py,0);
+	draw_wline(&fb_dev, 0,py,60,py,0);
 	sprintf(strdata,"%0.2f",fdmin); //fbench+(wh/2)/unit_upp);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
                                         	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
 	/* 3.6 write current point/price value */
 	symcolor=WEGI_COLOR_WHITE;
 	sprintf(strdata,"%0.2f",data_point[num-1]);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
         // move with pxy              	1, 240-70, pxy[num-1].y-20, strdata); /* transpcolor, x0,y0, str */
 					1, 240-70, chart_y0-40, strdata); /* display on top */
 	/* 3.7 write up_down value */
 	/* draw a gray pad */
-	//draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY3,
+	//draw_filled_rect2(&fb_dev, WEGI_COLOR_GRAY3,
 	//			  240-70, pxy[num-1].y-20-15, 240-70+60, pxy[num-1].y-20);
 
 	if(data_point[num-1]>fbench)symcolor=WEGI_COLOR_RED;
 	else {	symcolor = WEGI_COLOR_GREEN; }	sprintf(strdata,"%+0.2f",data_point[num-1]-fbench);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
         // move with pxy                     	1, 240-70, pxy[num-1].y-20-20, strdata); /* transpcolor, x0,y0, str */
-					1, 90, chart_y0-40, strdata); /* display on top */
+					1, 90, chart_y0-40, strdata); /*fixed position, display on top */
 
 	/* 3.8 write up_down percentage */
 	sprintf(strdata,"%%%+0.2f",(data_point[num-1]-fbench)*100/fbench);
-        symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0,y0, str */
+        symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
+                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0, y0, str */
 
 	printf(" ---> End.  ))) \n");
 
-	/* if market closed */
-	if(market_closed)
-		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_RED,
-						1, 20,320-35, "Market Closed" );
-	else { /* display favorate stock */
-		//symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
+	/* if market recessed or closed */
+	if(market_recess)
+		symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_RED,
+						1, 20,chart_y0+wh+10, "Market Recess" );
+	else if(market_closed)
+		symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_RED,
+						1, 20,chart_y0+wh+10, "Market Closed" );
+	else { /* otherwise display favorate stock */
+		//symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
 		//				1, 20,320-35, "Trade Time" );
 
 		/* favorate stock price */
@@ -607,27 +619,21 @@ while(1)
 		if(tprice-yprice>0)symcolor=WEGI_COLOR_RED;
 		else symcolor=WEGI_COLOR_GREEN;
 		sprintf(strdata,"%s   %0.2f   %%%+0.2f",favor_stock[wcount%3],tprice,(tprice-yprice)*100/yprice);
-		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, symcolor,
-						1, 5,320-35, strdata );
+		symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
+						1, 5,chart_y0+wh+10, strdata ); //320-35
 	}
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
-	fb_filo_off(&gv_fb_dev);
+	fb_filo_off(&fb_dev);
 
-	wcount++;
+        /* close fb dev */
+        munmap(fb_dev.map_fb,fb_dev.screensize);
+        close(fb_dev.fdfd);
 
-	egi_sleep(0,0,REQUEST_INTERVAL_TIMEMS);
-        //tm_delayms(REQUEST_INTERVAL_TIMEMS);
+
 }
 
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
-
-  	/* quit logger */
-  	egi_quit_log();
-
-        /* close fb dev */
-        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
-        close(gv_fb_dev.fdfd);
 
 	return 0;
 }

@@ -37,6 +37,7 @@ Midas Zhou
 #include "egi_iwinfo.h"
 #include "egi_pageffplay.h"
 #include "iot/egi_iotclient.h"
+#include "egi_pagestock.h"
 
 static void egi_display_cpuload(EGI_PAGE *page);
 static void egi_display_iotload(EGI_PAGE *page);
@@ -45,6 +46,7 @@ static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
 /*------------- [  PAGE ::   Home Page  ] -------------
@@ -128,6 +130,7 @@ EGI_PAGE *egi_create_homepage(void)
 	home_btns[5]->reaction=egi_homebtn_book;
 
 	egi_ebox_settag(home_btns[6], "btn_chart");
+	home_btns[6]->reaction=egi_homebtn_stock;
 
 	egi_ebox_settag(home_btns[7], "0");//btn_iot"); /* id=7; as for bulb */
 	data_btns[7]->icon_code=11; /* SUB_COLOR + ICON_CODE */
@@ -207,6 +210,7 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->runner[0]=egi_display_cpuload;
 	page_home->runner[1]=egi_display_iotload;
 //	page_home->runner[2]=egi_iotclient;
+//	page_home->runner[3]=display_stock;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_page_routine;
@@ -474,4 +478,32 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	egi_page_free(page_ffplay);
 
 	return pgret_OK; /* return 0 --- for page exit */
+}
+
+/*----------------------------------------------------------------------------
+button_stock chart function:
+for test functions
+-----------------------------------------------------------------------------*/
+static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	/* bypass unwanted touch status */
+	if(touch_data->status != pressing)
+		return btnret_IDLE;
+
+	/* create page and load the page */
+        EGI_PAGE *page_stock=egi_create_pagestock();
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_stock->ebox->tag);
+
+        egi_page_activate(page_stock);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_stock->ebox->tag);
+
+	/* get into routine loop */
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_stock->ebox->tag);
+        page_stock->routine(page_stock);
+
+	/* get out of routine loop */
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_stock->ebox->tag);
+	egi_page_free(page_stock);
+
+	return pgret_OK;
 }
