@@ -480,7 +480,7 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_TOUCH_DATA touch_data;
 
 	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
-	tm_delayms(100);
+	tm_delayms(200);
 
 	/* for time struct */
 //	struct timeval t_start,t_end; /* record two pressing_down time */
@@ -574,10 +574,11 @@ int egi_page_routine(EGI_PAGE *page)
 				/* display touch effect for button */
 				if(hitbtn->type==type_btn) {
 
-					/* remember last hold btn */
-					if(last_status==pressed_hold) last_holdbtn=hitbtn;
+				    /* remember last hold btn */
+				    if(last_status==pressed_hold) last_holdbtn=hitbtn;
 
-					/* call touch_effect() */
+				    /* call touch_effect() */
+				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 
 				}
@@ -609,6 +610,17 @@ int egi_page_routine(EGI_PAGE *page)
 										page->ebox->tag,hitbtn->tag);
 						egi_page_needrefresh(page); /* refresh whole page */
 						egi_page_refresh(page);
+						/* wait for 'release_hold' as begin of a new touch session
+					         * the purpuse is to let last page's touching status pass away,
+						 * especially 'pressed_hold' and 'releasing', which may trigger
+						 * refreshed page again!!!
+						 */
+						do {
+							tm_delayms(200);
+						 	egi_touch_getdata(&touch_data);
+
+						}while(touch_data.status != released_hold);
+
 					}
 					else
 					/* ELSE: for other cases, btnret_OK, btnret_ERR  */

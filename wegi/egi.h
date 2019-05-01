@@ -369,8 +369,10 @@ struct egi_data_btn
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag;             /* to show tag on button or not, default 0, */
 	void (*touch_effect)(EGI_EBOX *, EGI_TOUCH_DATA *);
-                                  /* If not NULL, to be called when the btn is touched,depends on touch status,
-				     default set in egi_btn.c, or to be re-define later. */
+                                  /* If not NULL, to be called when the btn is touched in page routine,
+				   *  depends on touch status.
+				   *  default set in egi_btn.c, or to be re-define later.
+				   */
 
 	void *prvdata;		  /* private data for derivative ebox, slider etc. */
 };

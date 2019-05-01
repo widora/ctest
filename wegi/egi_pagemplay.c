@@ -324,17 +324,19 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		maxx=minx+data_slider->sl;
 
 		/* update slider x0y0, it's coupled with touchbox position */
-		printf("touch_data->dx = %d\n",touch_data->dx);
+		//printf("touch_data->dx = %d\n",touch_data->dx);
 		ebox->x0 = mark+(touch_data->dx);
 		if(ebox->x0 < minx) ebox->x0=minx;
 		else if(ebox->x0 > maxx) ebox->x0=maxx;
 
 		/* adjust volume */
 		vol=100*data_slider->val/data_slider->sl;
+		ffpcm_getset_volume(NULL,&vol);
+#if 0
 		memset(strcmd,0,sizeof(strcmd));
 		sprintf(strcmd,"amixer set PCM %d%%",vol);
 		system(strcmd);
-
+#endif
 	        ebox->need_refresh=true;
 	        ebox->refresh(ebox);
 	}

@@ -625,15 +625,13 @@ while(1)
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */
 	fb_filo_off(&fb_dev);
+}
 
+/* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
         /* close fb dev */
         munmap(fb_dev.map_fb,fb_dev.screensize);
         close(fb_dev.fdfd);
 
-
-}
-
-/* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
 
 	return 0;
 }

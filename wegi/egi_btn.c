@@ -399,17 +399,17 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
         			/* --- draw frame --- */
-       			        if(ebox->frame >= 0) /* 0: simple type */
+       			        if(ebox->frame == 0) /* 0: simple type */
        				{
                 			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
 					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
 			        }
-       			        if(ebox->frame > 0) /* >0: double circle !!! UGLY !!! */
+       			        else if(ebox->frame > 0) /* >0: width=3 circle  */
        				{
                 			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
-					draw_circle( &gv_fb_dev, x0+width/2, y0+height/2,
-								width>height ? (height/2-1):(width/2-1) );
+					draw_filled_annulus( &gv_fb_dev, x0+width/2, y0+height/2,
+								width>height ? (height/2-1):(width/2-1), 3);
 			        }
 
 				break;
@@ -445,9 +445,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
   /* 9. draw ebox->tag on the button if necessary */
    /* 9.1 check whether sympg is set */
-   if(data_btn->font == NULL)
-		printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
 
+   if(data_btn->font == NULL) {
+  		//printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
+   }
    else if(data_btn->showtag==true)
    {
 	/* 9.2 get length of tag */
@@ -500,6 +501,317 @@ use following COLOR:
 
 	return 0;
 }
+
+
+
+
+/*-----------------------------------------------------------------------
+Refresh a group of button type ebox with three for() sessions, the purpose is
+to restore/save bkimgs together and avoid interfering with each other.
+
+  FOR() PART-1: restor original bkimg to fb.
+  FOR() PART-2: save bkimg for updated position.
+  FOR() PART-3: refresh all other elements for each ebox.
+
+@ebox_group:	a group of ebox
+@num:		number eboxes int the group
+
+Return:
+	1	need_refresh=false
+	0	OK
+	<0	fails!
+------------------------------------------------------------------------*/
+int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
+{
+	int n;
+	int i;
+	int bkcolor=SYM_FONT_DEFAULT_TRANSPCOLOR;
+	int symheight;
+	int symwidth;
+	int icon_code=0; /* 0, first ICON */;
+	uint16_t sym_subcolor=0; /* symbol substitute color, 0 as no subcolor */
+	EGI_EBOX *ebox;
+	EGI_DATA_BTN *data_btn;
+	int x0,y0;
+	int height,width;
+
+  /* FOR() PART-1: restor original bkimg to fb */
+  for(n=0;n<num;n++) {
+	ebox=ebox_group[n];
+
+	/* check data */
+        if( ebox == NULL)
+        {
+                printf("egi_btngroup_refresh(): ebox_group[%d] is NULL!\n",n);
+                return -1;
+        }
+
+	/* confirm ebox type */
+        if(ebox->type != type_btn)
+        {
+                printf("egi_btngroup_refresh(): ebox_group[%d] is Not a button type ebox!\n",n);
+                return -1;
+        }
+
+	/*  check the ebox status  */
+	if( ebox->status != status_active )
+	{
+		EGI_PDEBUG(DBG_BTN,"ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
+		return -2;
+	}
+
+	/* only if need_refresh is true */
+	if(!ebox->need_refresh)
+	{
+		EGI_PDEBUG(DBG_BTN,"egi_btngroup_refresh(): ebox '%s' need_refresh=false, abort refresh.\n",
+											ebox->tag);
+		return 1;
+	}
+
+
+   if(ebox->movable) /* only if ebox is movale */
+   {
+	/* 2. restore bk image use old bkbox data, before refresh */
+	#if 0 /* DEBUG */
+	EGI_PDEBUG(DBG_BTN,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+	#endif
+        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
+	{
+		printf("egi_btngroup_refresh(): fail to cpyfrom buf for ebox '%s'.\n",ebox->tag);
+		return -3;
+	}
+   } /* end of movable codes */
+
+  } /* end FOR() PART-1 */
+
+
+  /* FOR() PART-2: save bkimg for updated position */
+  for(n=0;n<num;n++) {
+	ebox=ebox_group[n];
+
+	/* 3. get updated data */
+	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+        if( data_btn == NULL)
+        {
+                printf("egi_btngroup_refresh(): data_btn is NULL!\n");
+                return -1;
+        }
+
+	/* only if it has an icon */
+	if(data_btn->icon != NULL)
+	{
+		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR + CODE */
+//		sym_subcolor = (data_btn->icon_code)>>16;
+
+//		bkcolor=data_btn->icon->bkcolor;
+		symheight=data_btn->icon->symheight;
+		symwidth=data_btn->icon->symwidth[icon_code];
+		/* use bigger size for ebox height and width !!! */
+		if(symheight > ebox->height || symwidth > ebox->width )
+		{
+			ebox->height=symheight;
+			ebox->width=symwidth;
+	 	}
+	}
+	/* else if no icon, use prime shape */
+
+	/* check ebox size */
+        if( ebox->height==0 || ebox->width==0)
+        {
+                printf("egi_btngroup_refresh(): height or width is 0 in ebox '%s'!\n",ebox->tag);
+                return -1;
+        }
+
+	/* origin(left top) for btn H&W x0,y0 is same as ebox */
+	x0=ebox->x0;
+	y0=ebox->y0;
+
+   if(ebox->movable) /* only if ebox is movale */
+   {
+       /* ---- 4. redefine bkimg box range, in case it changes */
+	/* check ebox height and font lines in case it changes, then adjust the height */
+	/* updata bkimg->bkbox according */
+        ebox->bkbox.startxy.x=x0;
+        ebox->bkbox.startxy.y=y0;
+        ebox->bkbox.endxy.x=x0+ebox->width-1;
+        ebox->bkbox.endxy.y=y0+ebox->height-1;
+
+	#if 1 /* DEBUG */
+	EGI_PDEBUG(DBG_BTN,"fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
+	#endif
+        /* ---- 5. store bk image which will be restored when you refresh it later,
+		 ebox position/size changes */
+        if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
+	{
+		printf("egi_btngroup_refresh(): fb_cpyto_buf() fails.\n");
+		return -4;
+	}
+   } /* end of movable codes */
+
+ } /* end FOR() PART -2 */
+
+
+  /* FOR() PART-3: refresh all other elements for each ebox */
+  for(n=0;n<num;n++) {
+	ebox=ebox_group[n];
+
+	/* origin(left top) for btn H&W x0,y0 is same as ebox */
+	x0=ebox->x0;
+	y0=ebox->y0;
+
+	/* get updated data */
+	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+        if( data_btn == NULL)
+        {
+                printf("egi_btngroup_refresh(): data_btn is NULL!\n");
+                return -1;
+        }
+
+	if(data_btn->icon != NULL)
+	{
+		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR + CODE */
+		sym_subcolor = (data_btn->icon_code)>>16;
+
+		bkcolor=data_btn->icon->bkcolor;
+//		symheight=data_btn->icon->symheight;
+//		symwidth=data_btn->icon->symwidth[icon_code];
+	}
+
+        /* ---- 6. set color and drawing shape ----- */
+        if(ebox->prmcolor >= 0 && data_btn->icon == NULL )
+        {
+		height=ebox->height;
+		width=ebox->width;
+
+                /* set color */
+           	fbset_color(ebox->prmcolor);
+		switch(data_btn->shape)
+		{
+			case square:
+			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+        			/* --- draw frame --- */
+       			        if(ebox->frame >= 0) /* 0: simple type */
+       				{
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
+                			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+			        }
+				break;
+			case circle:
+				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
+								width>height?height/2:width/2);
+        			/* --- draw frame --- */
+       			        if(ebox->frame == 0) /* 0: simple type */
+       				{
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
+					draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
+								width>height?height/2:width/2);
+			        }
+       			        else if(ebox->frame > 0) /* >0: width=3 circle  */
+       				{
+                			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
+					draw_filled_annulus( &gv_fb_dev, x0+width/2, y0+height/2,
+								width>height ? (height/2-1):(width/2-1), 3);
+			        }
+
+				break;
+
+			default:
+				printf("egi_btngroup_refresh(): shape not defined! \n");
+				break;
+		}
+        }
+
+	/* 7. draw the button symbol if it has an icon */
+	if(data_btn->icon != NULL)
+	{
+		/* if icon_code = SUB_COLOR + CODE */
+		if( sym_subcolor > 0 ) /* sym_subcolor may be 0xF.., so it should be unsigned ..*/
+		{
+			/* extract SUB_COLOR and CODE for symbol */
+			//printf("egi_btnbox_refresh(): icon_code=SYM_SUB_COLOR + CODE. \n");
+			symbol_writeFB( &gv_fb_dev,data_btn->icon, sym_subcolor, bkcolor,
+							    x0, y0, icon_code, data_btn->opaque );
+		}
+		/* else icon_code = CODE only, sym_subcolor==0 BLACk is NOT applicable !!! */
+		else {
+			symbol_writeFB( &gv_fb_dev,data_btn->icon, SYM_NOSUB_COLOR, bkcolor,
+							     x0, y0, icon_code, data_btn->opaque );
+		}
+	}
+
+	/* 8. decorate functoins  */
+	if(ebox->decorate)
+		ebox->decorate(ebox);
+
+
+  /* 9. draw ebox->tag on the button if necessary */
+   /* 9.1 check whether sympg is set */
+
+   if(data_btn->font == NULL) {
+  		//printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
+   }
+   else if(data_btn->showtag==true)
+   {
+	/* 9.2 get length of tag */
+	int taglen=0;
+	while( ebox->tag[taglen] )
+	{
+		taglen++;
+	}
+	//printf("egi_btnbox_refresh(): length of ebox->tag:'%s' is %d (chars).\n", ebox->tag, taglen);
+
+	/* only if tag has content */
+	if(taglen>0)
+	{
+		int strwidth=0; /* total number of pixels of all char in ebox->tag */
+		// int symheight=data_btn->icon->symheight; already above assigned.
+		int shx=0, shy=0; /* shift x,y to fit the tag just in middle of ebox shape */
+		/* WARNIGN: Do not mess up with sympg icon!  sympy font is right here! */
+		int *wdata=data_btn->font->symwidth; /*symwidth data */
+		int  fontheight=data_btn->font->symheight;
+
+		for(i=0;i<taglen;i++)
+		{
+			/* only if in code range */
+			if( (ebox->tag[i]) <= (data_btn->font->maxnum) )
+				strwidth += wdata[ (unsigned int)ebox->tag[i] ];
+		}
+		shx = (ebox->width - strwidth)/2;
+		shx = shx>0 ? shx:0;
+		shy = (ebox->height - fontheight)/2;
+		shy = shy>0 ? shy:0;
+/*
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
+48void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+                int fontcolor, int transpcolor, int x0, int y0, const char* str)
+*/
+		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
+		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
+		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
+ 							ebox->x0+shx, ebox->y0+shy, ebox->tag);
+
+	} /* endif: taglen>0 */
+
+   }/* endif: data_btn->font != NULL */
+
+
+	/* 10. finally, reset need_refresh */
+	ebox->need_refresh=false;
+
+
+ } /* end FOR() PART -3 */
+
+	return 0;
+}
+
+
+
 
 
 /*-------------------------------------------------
@@ -568,9 +880,8 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	}
 
 
-	/* NOTE: In page routine, if a touch is sliding away from a btn(losing focus) it will
+	/* NOTE: In page routine, if a touch is sliding away from a btn(losing focus), it will
 	 *    	 trigger egi_ebox_forcerefresh().
 	 */
 }
-
 
