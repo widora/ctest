@@ -249,7 +249,7 @@ static void iot_keepalive(void)
 		//tm_delayms(IOT_HEARTBEAT_INTERVAL*1000);
 //		EGI_PLOG(LOGLV_WARN,"---------- start egi_sleep %d [%lld] ------------\n",
 //							IOT_HEARTBEAT_INTERVAL, tm_get_tmstampms()/1000 );
-		egi_sleep(1,IOT_HEARTBEAT_INTERVAL,0);
+		egi_sleep(0,IOT_HEARTBEAT_INTERVAL,0);
 //		EGI_PLOG(LOGLV_WARN,"---------- end egi_sleep() [%lld] ----------\n", tm_get_tmstampms()/1000 );
 
 		/* check iot network status */
@@ -313,7 +313,7 @@ static void iot_update_data(void)
        		fd=open("/proc/loadavg", O_RDONLY);
 	        if(fd<0) {
         	        EGI_PLOG(LOGLV_ERROR,"%s: fail to open /proc/loadavg!\n",__func__);
-			egi_sleep(2,1,0);
+			egi_sleep(0,1,0);
                		continue;
         	}
                 lseek(fd,0,SEEK_SET);
@@ -342,7 +342,7 @@ static void iot_update_data(void)
  		json_data=iot_new_datajson( (const int *)id, data, 3);
 		if(json_data==NULL) {
 		    EGI_PLOG(LOGLV_ERROR,"iot_new_datajson() fail to create data json! retry...\n");
-		    egi_sleep(2,0,500);
+		    egi_sleep(0,0,500);
 		    continue;
 		}
 
@@ -373,7 +373,7 @@ static void iot_update_data(void)
 		/* 9. delay and refresh value */
 		close(fd);
 		//tm_delayms(6000);
-		egi_sleep(3, ( 6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1 ), 0);
+		egi_sleep(0, ( 6>IW_TRAFFIC_SAMPLE_SEC ? (6-IW_TRAFFIC_SAMPLE_SEC):1 ), 0);
 	}
 
 }
@@ -885,7 +885,7 @@ void egi_iotclient(EGI_PAGE *page)
 		}
 
 		//tm_delayms(IOT_CLIENT_);
-		egi_sleep(4,0,200);
+		egi_sleep(0,0,200);
 
 	} /* end of while() */
 

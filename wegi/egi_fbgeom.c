@@ -13,6 +13,10 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 Note:
 1. Not thread safe.
 
+TODO:
+    1. fb_cpyto...() and fb_cpyfrom...():
+       In case that block is NOT totally within or out of the FB box.......
+
 Modified and appended by Midas-Zhou
 -----------------------------------------------------------------------------*/
 #include "egi_fbgeom.h"
@@ -44,7 +48,7 @@ Modified and appended by Midas-Zhou
 
 /* global variale, Frame buffer device */
 FBDEV  gv_fb_dev __attribute__(( visibility ("hidden") )) ;
-
+EGI_BOX gv_fb_box;
 
 /* default color set */
 static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
@@ -87,6 +91,13 @@ int init_dev(FBDEV *dev)
 		close(fr_dev->fdfd);
 		return -3;
 	}
+
+	/* assign fb box */
+	gv_fb_box.startxy.x=0;
+	gv_fb_box.startxy.y=0;
+	gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
+	gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
+
 
 //      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
 	printf(" \n------- FB Parameters -------\n");
@@ -159,6 +170,12 @@ void fb_filo_flush(FBDEV *dev)
 }
 
 
+/*  set color for every dot */
+inline void fbset_color(uint16_t color)
+{
+	fb_color=color;
+}
+
 
 /*------------------------------------
  check if (px,py) in box(x1,y1,x2,y2)
@@ -190,12 +207,135 @@ bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 		return false;
 }
 
+/*---------------------------------------------------------------
+Check wether the box is totally WITHIN the container
+If there is an overlap of any sides, it is deemed as NOT within!
 
-/*  set color for every dot */
-inline void fbset_color(uint16_t color)
+----------------------------------------------------------------*/
+bool  box_inbox(EGI_BOX* inbox, EGI_BOX* container)
 {
-	fb_color=color;
+	int xcu,xcd; /*u-max, d-min*/
+	int xiu,xid;
+	int ycu,ycd;
+	int yiu,yid;
+
+
+	/* 1. get Max. and Min X coord of the container */
+     	if( container->startxy.x > container->endxy.x ) {
+		xcu=container->startxy.x;
+		xcd=container->endxy.x;
+	}
+	else {
+		xcu=container->endxy.x;
+		xcd=container->startxy.x;
+	}
+
+	/* 2. get Max. and Min X coord of the inbox */
+     	if( inbox->startxy.x > inbox->endxy.x ) {
+		xiu=inbox->startxy.x;
+		xid=inbox->endxy.x;
+	}
+	else {
+		xiu=inbox->endxy.x;
+		xid=inbox->startxy.x;
+	}
+
+	/* 3. compare X coord */
+	if( !(xcd<xid) || !(xcu>xiu) )
+		return false;
+
+	/* 4. get Max. and Min Y coord of the container */
+     	if( container->startxy.y > container->endxy.y ) {
+		ycu=container->startxy.y;
+		ycd=container->endxy.y;
+	}
+	else {
+		ycu=container->endxy.y;
+		ycd=container->startxy.y;
+	}
+	/* 5. get Max. and Min Y coord of the inbox */
+     	if( inbox->startxy.y > inbox->endxy.y ) {
+		yiu=inbox->startxy.y;
+		yid=inbox->endxy.y;
+	}
+	else {
+		yiu=inbox->endxy.y;
+		yid=inbox->startxy.y;
+	}
+	/* 6. compare Y coord */
+	if( !(ycd<yid) || !(ycu>yiu) )
+		return false;
+
+
+	return true;
 }
+
+
+/*--------------------------------------------------------------------
+Check wether the box is totally out of the container
+If there is an overlap of any sides, it is deemed as NOT totally out!
+
+--------------------------------------------------------------------*/
+bool  box_outbox(EGI_BOX* inbox, EGI_BOX* container)
+{
+	int xcu,xcd; /*u-max, d-min*/
+	int xiu,xid;
+	int ycu,ycd;
+	int yiu,yid;
+
+
+	/* 1. get Max. and Min X coord of the container */
+     	if( container->startxy.x > container->endxy.x ) {
+		xcu=container->startxy.x;
+		xcd=container->endxy.x;
+	}
+	else {
+		xcu=container->endxy.x;
+		xcd=container->startxy.x;
+	}
+
+	/* 2. get Max. and Min X coord of the inbox */
+     	if( inbox->startxy.x > inbox->endxy.x ) {
+		xiu=inbox->startxy.x;
+		xid=inbox->endxy.x;
+	}
+	else {
+		xiu=inbox->endxy.x;
+		xid=inbox->startxy.x;
+	}
+
+	/* 3. compare X coord */
+	if( !( xcd>xiu || xcu<xid ) )
+		return false;
+
+
+	/* 4. get Max. and Min Y coord of the container */
+     	if( container->startxy.y > container->endxy.y ) {
+		ycu=container->startxy.y;
+		ycd=container->endxy.y;
+	}
+	else {
+		ycu=container->endxy.y;
+		ycd=container->startxy.y;
+	}
+	/* 5. get Max. and Min Y coord of the inbox */
+     	if( inbox->startxy.y > inbox->endxy.y ) {
+		yiu=inbox->startxy.y;
+		yid=inbox->endxy.y;
+	}
+	else {
+		yiu=inbox->endxy.y;
+		yid=inbox->startxy.y;
+	}
+	/* 6. compare Y coord */
+	if( !( ycd>yiu || ycu<yid ) )
+		return false;
+
+
+	return true;
+}
+
+
 
 
 /*---------------------------------------------
@@ -960,6 +1100,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
    buf:		  data dest.
 
    Return
+		2	area out of FB mem
 		1	partial area out of FB mem boundary
 		0	OK
 		-1	fails
@@ -1002,13 +1143,14 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	}
 
 
+
+#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
+
 	/* ---------  copy mem --------- */
 	for(i=yd;i<=yu;i++)
 	{
         	for(j=xl;j<=xr;j++)
 		{
-
-#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
 			/* map i,j to LCD(Y,X) */
 			if(i<0) /* map Y */
 			{
@@ -1033,13 +1175,31 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
+			/* copy to buf */
+        		*buf = *((uint16_t *)(fb_dev->map_fb+location));
+			 buf++;
+		}
+	}
 
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
+
+	if(yd<0)yd=0;
+	if(yu>yres-1)yu=yres-1;
+
+	if(xl<0)xl=0;
+	if(xr>xres-1)xr=xres-1;
+
+	/* ---------  copy mem --------- */
+	for(i=yd;i<=yu;i++)
+	{
+        	for(j=xl;j<=xr;j++)
+		{
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
 				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
+
 			/* map i,j to LCD(Y,X) */
 			if(i>yres-1) /* map Y */
 				tmpy=yres-1;
@@ -1058,13 +1218,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
-#endif
 			/* copy to buf */
         		*buf = *((uint16_t *)(fb_dev->map_fb+location));
 			 buf++;
 		}
 	}
-//	printf(" fb_cpyfrom_buf = %d\n", ret);
+
+#endif
 
 	return ret;
    }
@@ -1120,13 +1280,15 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	}
 
 
+
+
+#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
+
 	/* ------------ copy mem ------------*/
 	for(i=yd;i<=yu;i++)
 	{
         	for(j=xl;j<=xr;j++)
-		{
-#ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
-			/* map i,j to LCD(Y,X) */
+		{			/* map i,j to LCD(Y,X) */
 			if(i<0) /* map Y */
 			{
 				tmpy=yres-(-i)%yres; /* here tmpy=1-320 */
@@ -1150,8 +1312,24 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
+			/* --- copy to fb ---*/
+        		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
+			buf++;
+		}
+	}
+
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
-			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
+	if(yd<0)yd=0;
+	if(yu>yres-1)yu=yres-1;
+
+	if(xl<0)xl=0;
+	if(xr>xres-1)xr=xres-1;
+
+	/* ------------ copy mem ------------*/
+	for(i=yd;i<=yu;i++)
+	{
+        	for(j=xl;j<=xr;j++)
+		{			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
 				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
@@ -1173,14 +1351,17 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 			location=(tmpx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
-#endif
+
 			/* --- copy to fb ---*/
         		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
 			buf++;
 		}
 	}
 
+#endif
+
 	return ret;
+
    }
 
 

@@ -30,7 +30,7 @@ EGI_EBOX * egi_btnbox_new( char *tag,
 
 int egi_btnbox_activate(EGI_EBOX *ebox);
 int egi_btnbox_refresh(EGI_EBOX *ebox);
-int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num);
+void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num);
 void egi_free_data_btn(EGI_DATA_BTN *data_btn);
 
 

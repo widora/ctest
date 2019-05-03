@@ -24,6 +24,7 @@ Midas Zhou
 #include "egi.h"
 #include "egi_debug.h"
 #include "egi_log.h"
+#include "egi_timer.h"
 #include "egi_color.h"
 #include "egi_txt.h"
 #include "egi_objtxt.h"
@@ -215,8 +216,8 @@ EGI_PAGE *egi_create_homepage(void)
 		        		0, /* bool movable, True if need refresh */
 				        0, 320-40, /* int x0, int y0 */
 					240,40, /* int width, int height */
-		       			-1, /* int frame */
-       					-1 /*int prmcolor */
+		       			0, /* int frame */
+       					0 /*int prmcolor, >=0 if to show box*/
 				   );
 
 	home_slider->reaction=react_slider;
@@ -575,12 +576,17 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         static int mark[9*HOME_PAGE_MAX]; /* >= nc*nr */
 	int ns; /* start grid: 0,1,2,... */
+	int step=0;
+	int ntp;
+	int token=0;
+	int tmp;
 	enum egi_touch_status status;
-        int i,j,k;
+        int i,j,k,m;
+	EGI_TOUCH_DATA touch;
 
 	status=touch_data->status;
 
-        /* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
+        /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(status==pressing)
         {
                 printf("pagehome react_slider(): pressing sliding bar....\n");
@@ -589,23 +595,84 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 		return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
+	/* 2. adjust button position and refresh */
         else if( status==pressed_hold )
 	{
-		for(i=0;i<npg*nc*nr;i++) {
-			home_btns[i]->x0 = mark[i] + ( touch_data->dx << 1); /* x2 accelerate sliding speed */
-			egi_ebox_needrefresh(home_btns[i]);
-			//egi_ebox_forcerefresh(home_btns[i]);
+
+#if 1  /* slide by dx value */
+		//tmp=touch_data->dx/20;
+		//if(step != tmp ) {
+			step=tmp;
+			for(i=0;i<npg*nc*nr;i++) {
+				home_btns[i]->x0 = mark[i] +  (touch_data->dx <<1); /* x2 accelerate sliding speed */
+				//if( home_btns[i]->x0 > (0-home_btns[i]->width) && home_btns[i]->x0 < 240 )
+				egi_ebox_needrefresh(home_btns[i]);
+			}
+			/* group refresh to avoid bkimg interference */
+			egi_btngroup_refresh(home_btns, npg*nc*nr);
+			tm_delayms(75);
+		//}
+
+#else  /* auto slide if dx great that a threshold value */
+		if( touch_data->dx > 15 )
+			token=1;
+		else  if(touch_data->dx < -15 )
+			token=-1;
+		else
+			token=0;
+
+		if(token != 0) {
+	    	    for(step=1; step < 240/40+1; step++) {
+			for(i=0;i<npg*nc*nr;i++) {
+				home_btns[i]->x0 = mark[i] + token*step*40; //( touch_data->dx << 1); /* x2 accelerate sliding speed */
+				//if( home_btns[i]->x0 > (0-home_btns[i]->width) && home_btns[i]->x0 < 240 )
+				egi_ebox_needrefresh(home_btns[i]);
+			}
+			/* group refresh to avoid bkimg interference */
+			egi_btngroup_refresh(home_btns, npg*nc*nr);
+			tm_delayms(75);
+		   }
+
+		   /* wait for release_hold to pass following pressed_hold status */
+		   do {
+                   	tm_delayms(55);
+                   	egi_touch_getdata(&touch);
+                   }while(touch.status != released_hold);
+
 		}
-		/* group refresh to avoid bkimg interference */
-		egi_btngroup_refresh(home_btns, npg*nc*nr);
+#endif
 
 		return btnret_OK;
 	}
-	/* re_align all btns in 3X3 grids */
+
+	/* 3. re_align all btns in 3X3 grids OR re_align to a PAGE  */
 	else if( status==releasing )
    	{
 		/* align X0 to PAGE */
-		ns=(home_btns[0]->x0 - 100)/240; /* 80 threshold */
+		ns=( home_btns[0]->x0 - 100)/240; /* 80 threshold */
+
+		/* motion effect: take m steps to move buttons to the position
+	         */
+		step=20; /* move 20 pixels per step */
+		ntp= ( (ns*240+15) - home_btns[0]->x0 )/step;
+
+		if(ntp<0) {
+			ntp=-ntp;
+			step=-step;
+		}
+
+		if(ntp>0){
+			for(m=1; m<=ntp; m++) {
+				for(i=0; i<npg*nr*nc; i++) {
+					home_btns[i]->x0 += step;
+					egi_ebox_needrefresh(home_btns[i]);
+				}
+				egi_btngroup_refresh(home_btns, npg*nc*nr);
+				tm_delayms(25);
+			}
+		}
+
+		/* final position */
 		for(k=0; k<npg; k++) {
 			for(i=0; i<nr; i++) {
 				for(j=0; j<nc; j++) {

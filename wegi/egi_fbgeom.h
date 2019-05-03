@@ -48,6 +48,7 @@ typedef struct fbpixel {
 
 /* global variale, Frame buffer device */
 extern FBDEV   gv_fb_dev;
+extern EGI_BOX gv_fb_box;
 
 /* functions */
 int 	init_dev(FBDEV *dev);
@@ -56,6 +57,8 @@ void 	fb_filo_flush(FBDEV *dev);
 inline void fb_filo_on(FBDEV *dev);
 inline void fb_filo_off(FBDEV *dev);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
+bool    box_inbox(EGI_BOX* box, EGI_BOX* container);
+bool    box_outbox(EGI_BOX* box, EGI_BOX* container);
 void 	fbset_color(uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);
 //////////////// draw function ////////////

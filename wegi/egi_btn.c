@@ -220,10 +220,18 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	EGI_PDEBUG(DBG_BTN," button activating... fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 	#endif
-	/* 5. store bk image which will be restored when this ebox position/size changes */
-	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)
-		return -3;
+	/* 5. store bk image which will be restored when this ebox position/size changes
+	 *    when bkbox is NOT totally out of the FB BOX
+	 */
+	if( !box_outbox(&ebox->bkbox, &gv_fb_box) ) {
+  	     if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0) {
+		  return -3;
+	     }
+	     ebox->bkimg_valid=true;
+	}
+	else
+	    ebox->bkimg_valid=false;
 
     } /* end of movable codes */
 
@@ -301,7 +309,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	}
 
 
-   if(ebox->movable) /* only if ebox is movale */
+   if(ebox->movable && ebox->bkimg_valid) /* only if ebox is movale and bkimg valid */
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
@@ -367,12 +375,18 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
 		this ebox position/size changes */
-        if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+        if(!box_outbox(&ebox->bkbox, &gv_fb_box)) {   /* If bkbox NOT totally out of FB box */
+         	if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-	{
-		printf("egi_btnbox_refresh(): fb_cpyto_buf() fails.\n");
-		return -4;
+		{
+			printf("egi_btnbox_refresh(): fb_cpyto_buf() fails.\n");
+			return -4;
+		}
+		ebox->bkimg_valid=true;
 	}
+	else
+		ebox->bkimg_valid=false;
+
    } /* end of movable codes */
 
 
@@ -521,7 +535,7 @@ Return:
 	0	OK
 	<0	fails!
 ------------------------------------------------------------------------*/
-int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
+void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
 {
 	int n;
 	int i;
@@ -543,21 +557,21 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
         if( ebox == NULL)
         {
                 printf("egi_btngroup_refresh(): ebox_group[%d] is NULL!\n",n);
-                return -1;
+                continue; //return -1;
         }
 
 	/* confirm ebox type */
         if(ebox->type != type_btn)
         {
                 printf("egi_btngroup_refresh(): ebox_group[%d] is Not a button type ebox!\n",n);
-                return -1;
+                continue; //return -1;
         }
 
 	/*  check the ebox status  */
 	if( ebox->status != status_active )
 	{
 		EGI_PDEBUG(DBG_BTN,"ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
-		return -2;
+		continue; //return -2;
 	}
 
 	/* only if need_refresh is true */
@@ -565,11 +579,11 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
 	{
 		EGI_PDEBUG(DBG_BTN,"egi_btngroup_refresh(): ebox '%s' need_refresh=false, abort refresh.\n",
 											ebox->tag);
-		return 1;
+		continue; //return 1;
 	}
 
 
-   if(ebox->movable) /* only if ebox is movale */
+   if(ebox->movable && ebox->bkimg_valid) /* only if ebox is movale and bkimg is valid*/
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
@@ -580,7 +594,7 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 	{
 		printf("egi_btngroup_refresh(): fail to cpyfrom buf for ebox '%s'.\n",ebox->tag);
-		return -3;
+		continue; //return -3;
 	}
    } /* end of movable codes */
 
@@ -596,7 +610,7 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
         if( data_btn == NULL)
         {
                 printf("egi_btngroup_refresh(): data_btn is NULL!\n");
-                return -1;
+                continue; //return -1;
         }
 
 	/* only if it has an icon */
@@ -621,7 +635,7 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
         if( ebox->height==0 || ebox->width==0)
         {
                 printf("egi_btngroup_refresh(): height or width is 0 in ebox '%s'!\n",ebox->tag);
-                return -1;
+                continue; //return -1;
         }
 
 	/* origin(left top) for btn H&W x0,y0 is same as ebox */
@@ -643,13 +657,20 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
-		 ebox position/size changes */
-        if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+	 *	 ebox position/size changes */
+        if(!box_outbox(&ebox->bkbox, &gv_fb_box)) {   /* If bkbox NOT totally out of FB box */
+	        if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-	{
-		printf("egi_btngroup_refresh(): fb_cpyto_buf() fails.\n");
-		return -4;
+	        {
+		     printf("egi_btngroup_refresh(): fb_cpyto_buf() fails.\n");
+		     continue; //return -4;
+	        }
+
+		ebox->bkimg_valid=true;
 	}
+	else /* if bkbox is outof FB box */
+		ebox->bkimg_valid=false;
+
    } /* end of movable codes */
 
  } /* end FOR() PART -2 */
@@ -668,7 +689,7 @@ int egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
         if( data_btn == NULL)
         {
                 printf("egi_btngroup_refresh(): data_btn is NULL!\n");
-                return -1;
+                continue; //return -1;
         }
 
 	if(data_btn->icon != NULL)
@@ -800,17 +821,12 @@ use following COLOR:
 
    }/* endif: data_btn->font != NULL */
 
-
 	/* 10. finally, reset need_refresh */
 	ebox->need_refresh=false;
 
-
  } /* end FOR() PART -3 */
 
-	return 0;
 }
-
-
 
 
 

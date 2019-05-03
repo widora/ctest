@@ -32,6 +32,9 @@ int main(int argc, char ** argv)
 	EGI_16BIT_COLOR color;
 	struct timeval tms,tme;
 
+
+
+
 //   for(i=0;i<30;i++) {
 //	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
 //  }
@@ -53,7 +56,26 @@ int main(int argc, char ** argv)
 	symbol_load_allpages();
 
 
-#if 1  /* <<<<<<<<<<<<<<  test draw trianle  <<<<<<<<<<<<<<<*/
+
+#if 1  /* <<<<<<<<<<<<<<  test inbox  <<<<<<<<<<<<<<<*/
+	EGI_BOX inbox[4];
+	inbox[0]= (EGI_BOX){(EGI_POINT){0,0}, (EGI_POINT){23,45} };
+	inbox[1]= (EGI_BOX){(EGI_POINT){23,59}, (EGI_POINT){20,310} };
+	inbox[2]= (EGI_BOX){(EGI_POINT){200,200}, (EGI_POINT){30,120} };
+	inbox[3]= (EGI_BOX){(EGI_POINT){200,200}, (EGI_POINT){230,319} };
+
+	for(i=0;i<4;i++) {
+		if(box_inbox(inbox+i, &gv_fb_box))
+			printf("inbox[%d] is within FB box!\n",i);
+		else
+			printf("inbox[%d] is NOT within FB box!\n",i);
+	}
+
+	exit(0);
+#endif
+
+
+#if 0  /* <<<<<<<<<<<<<<  test draw trianle  <<<<<<<<<<<<<<<*/
 
 	EGI_BOX box={0,0,239,319};
 	EGI_BOX tri_box;
@@ -78,7 +100,7 @@ while(1) {
 
 
 
-#if 1  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
+#if 0  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
 	int w;
 
 	if(argc>1) w=atoi(argv[1]);

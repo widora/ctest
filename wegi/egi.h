@@ -222,6 +222,7 @@ struct egi_element_box
 	   4.Not applicable for an immovable ebox.
       */
 	uint16_t *bkimg;
+	bool bkimg_valid; /* to indicate that the holding bkimg shall NOT write back to FB */
 
 	/* tracking box coordinates for image backup
 		to be used in object method	*/
@@ -538,9 +539,10 @@ struct egi_page
 	struct list_head list_head; /* list head for child eboxes */
 
 	/* --- !!! page routine function : threads pusher and job pusher ----
-	   1. detect pen_touch and trigger buttons.
-	   2. refresh page (wallpaper and ebox in list).
-	*/
+         *  1. detect pen_touch and trigger buttons.
+	 *  2. refresh page (wallpaper and ebox in list).
+	 *  3. Default func is defined in egi_page.c, or to be re_defined.
+	 */
 	int (*routine)(EGI_PAGE *page);
 
 	/* if NOT NULL, always do the miscelaneous job when refresh the page in the routine func */
