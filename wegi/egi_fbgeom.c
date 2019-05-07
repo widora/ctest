@@ -14,8 +14,6 @@ Note:
 1. Not thread safe.
 
 TODO:
-    1. fb_cpyto...() and fb_cpyfrom...():
-       In case that block is NOT totally within or out of the FB box.......
 
 Modified and appended by Midas-Zhou
 -----------------------------------------------------------------------------*/
@@ -47,7 +45,7 @@ Modified and appended by Midas-Zhou
 
 
 /* global variale, Frame buffer device */
-FBDEV  gv_fb_dev __attribute__(( visibility ("hidden") )) ;
+FBDEV   gv_fb_dev __attribute__(( visibility ("hidden") )) ;
 EGI_BOX gv_fb_box;
 
 /* default color set */
@@ -62,13 +60,13 @@ int init_dev(FBDEV *dev)
 {
         FBDEV *fr_dev=dev;
 
-        fr_dev->fdfd=open("/dev/fb0",O_RDWR);
+        fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR);
 	if(fr_dev<0) {
 	  printf("Open /dev/fb0: %s\n",strerror(errno));
 	  return -1;
 	}
 
-//      printf("the framebuffer device was opended successfully.\n");
+        printf("Framebuffer device was opended successfully.\n");
         ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
         ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
@@ -98,7 +96,6 @@ int init_dev(FBDEV *dev)
 	gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
 	gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
 
-
 //      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
 	printf(" \n------- FB Parameters -------\n");
 	printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
@@ -125,11 +122,13 @@ void release_dev(FBDEV *dev)
 	close(dev->fdfd);
 }
 
+
 /*-------------------------------------------------------------
 Put fb->filo_on to 1, as turn on FB FILO.
 
 Note:
 1. To activate FB FILO, depends also on FB_writing handle codes.
+
 Midas Zhou
 --------------------------------------------------------------*/
 inline void fb_filo_on(FBDEV *dev)
@@ -151,7 +150,7 @@ inline void fb_filo_off(FBDEV *dev)
 
 
 /*----------------------------------------------
-Pop out all FBFIXs in the fb filo
+Pop out all FBPIXs in the fb filo
 Midas Zhou
 ----------------------------------------------*/
 void fb_filo_flush(FBDEV *dev)
@@ -208,9 +207,9 @@ bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 }
 
 /*---------------------------------------------------------------
-Check wether the box is totally WITHIN the container
+Check whether the box is totally WITHIN the container.
 If there is an overlap of any sides, it is deemed as NOT within!
-
+Midas
 ----------------------------------------------------------------*/
 bool  box_inbox(EGI_BOX* inbox, EGI_BOX* container)
 {
@@ -272,9 +271,9 @@ bool  box_inbox(EGI_BOX* inbox, EGI_BOX* container)
 
 
 /*--------------------------------------------------------------------
-Check wether the box is totally out of the container
+Check whether the box is totally out of the container.
 If there is an overlap of any sides, it is deemed as NOT totally out!
-
+Midas
 --------------------------------------------------------------------*/
 bool  box_outbox(EGI_BOX* inbox, EGI_BOX* container)
 {
@@ -400,7 +399,10 @@ int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 		fy=yres-(-fy)%yres;
 		fy=fy%yres; /* here fy=1-320 */
 	}
+
+
 #else /* NO ROLLBACK */
+
 	/* ignore out_ranged points */
 	if( fx>(xres-1) || fx<0) {
 		return -1;
@@ -663,7 +665,6 @@ void draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned int w)
 	draw_filled_circle(dev, x1, y1, r);
 	draw_filled_circle(dev, x2, y2, r);
 }
-
 
 
 
@@ -1183,6 +1184,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
 
+	/* normalize x,y */
 	if(yd<0)yd=0;
 	if(yu>yres-1)yu=yres-1;
 
@@ -1194,12 +1196,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	{
         	for(j=xl;j<=xr;j++)
 		{
+#if 0 /* This shall never happen now! */
 			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
 				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
-
+#endif
 			/* map i,j to LCD(Y,X) */
 			if(i>yres-1) /* map Y */
 				tmpy=yres-1;
@@ -1319,6 +1322,8 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	}
 
 #else  /* -----------------  NO ROLLBACK  ------------------------*/
+
+	/* normalize x,y */
 	if(yd<0)yd=0;
 	if(yu>yres-1)yu=yres-1;
 
@@ -1329,11 +1334,14 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	for(i=yd;i<=yu;i++)
 	{
         	for(j=xl;j<=xr;j++)
-		{			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
+		{
+#if 0 /* This shall never happen now */
+			if( i<0 || j<0 || i>yres-1 || j>xres-1 )
 			{
 				EGI_PDEBUG(DBG_FBGEOM,"WARNING: fb_cpyfrom_buf(): coordinates out of range!\n");
 				ret=1;
 			}
+#endif
 			/* map i,j to LCD(Y,X) */
 			if(i>yres-1) /* map Y */
 				tmpy=yres-1;
@@ -1712,11 +1720,6 @@ int egi_randp_boxsides(EGI_POINT *pr, const EGI_BOX *box)
 
 
 
-
-
-
-
-/////////////////////////////////////////////////////////////////
 /*----------------------------------------------
 With param color
 Midas Zhou

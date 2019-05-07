@@ -3,7 +3,7 @@
 
 #include "egi.h"
 
-#define HOME_PAGE_MAX	3	/* max home page num. */
+#define HOME_PAGE_MAX	5	/* max home page num. */
 
 EGI_PAGE *egi_create_homepage(void);
 

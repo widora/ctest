@@ -55,8 +55,8 @@ OBJS := $(OBJS:test_color.o=)
 OBJS := $(OBJS:test_sym.o=)
 OBJS := $(OBJS:test_geom.o=)
 OBJS := $(OBJS:test_stock.o=)
-#OBJS := $(OBJS:test_bigiot.o=)
-OBJS := $(OBJS:tmp_app.o=)
+OBJS := $(OBJS:test_bigiot.o=)
+#OBJS := $(OBJS:tmp_app.o=)
 OBJS := $(OBJS:test_bmpjpg.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
@@ -65,8 +65,8 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 #APPS = test_bmpjpg
 #APPS = test_geom
 #APPS = test_sym
-#APPS = tmp_app
-APPS = test_bigiot
+APPS = tmp_app
+#APPS = test_bigiot
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \

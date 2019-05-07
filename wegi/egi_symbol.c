@@ -42,6 +42,7 @@ Midas Zhou
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include "egi_fbgeom.h"
 #include "egi_symbol.h"
 #include "egi_debug.h"
 #include "egi_log.h"
@@ -624,11 +625,12 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				mapy=y0+i;
 
 #else /*--- if  NO ROLLBACK ---*/
-			/* ignore out ranged points */
+
 			mapx=x0+j;
+			mapy=y0+i;
+			/* ignore out ranged points */
 			if(mapx>(xres-1) || mapx<0 )
 				continue;
-			mapy=y0+i;
 			if(mapy>(yres-1) || mapy<0 )
 				continue;
 

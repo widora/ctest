@@ -24,9 +24,10 @@ Modified and appended by: Midas Zhou
 #include "egi.h"
 #include "egi_filo.h"
 
+#define EGI_FBDEV_NAME "/dev/fb0"
+
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
-
 
 typedef struct fbdev{
         int fdfd; /* file descriptor, open "dev/fb0" */
@@ -51,11 +52,12 @@ extern FBDEV   gv_fb_dev;
 extern EGI_BOX gv_fb_box;
 
 /* functions */
-int 	init_dev(FBDEV *dev);
-void 	release_dev(FBDEV *dev);
-void 	fb_filo_flush(FBDEV *dev);
-inline void fb_filo_on(FBDEV *dev);
-inline void fb_filo_off(FBDEV *dev);
+int 		init_dev(FBDEV *dev);
+void 		release_dev(FBDEV *dev);
+inline void 	fbset_homepage_loop(bool loop);
+void 		fb_filo_flush(FBDEV *dev);
+inline void 	fb_filo_on(FBDEV *dev);
+inline void 	fb_filo_off(FBDEV *dev);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 bool    box_inbox(EGI_BOX* box, EGI_BOX* container);
 bool    box_outbox(EGI_BOX* box, EGI_BOX* container);
@@ -83,7 +85,6 @@ void 	draw_filled_circle(FBDEV *dev, int x, int y, int r);
 void draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
 void draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color);
 void draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
-
 
 
 int 	fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
