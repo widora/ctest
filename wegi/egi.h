@@ -5,6 +5,7 @@ published by the Free Software Foundation.
 
 
 Midas Zhou
+midaszhou@yahoo.com
 ------------------------------------------------------------------*/
 #ifndef __EGI_H__
 #define __EGI_H__
@@ -544,6 +545,9 @@ struct egi_page
 	 *  3. Default func is defined in egi_page.c, or to be re_defined.
 	 */
 	int (*routine)(EGI_PAGE *page);
+
+	/* if a touch sliding handler is defined */
+	int (*slide_handler)(EGI_PAGE *page, EGI_TOUCH_DATA *touch_data);
 
 	/* if NOT NULL, always do the miscelaneous job when refresh the page in the routine func */
 	int (*page_refresh_misc)(EGI_PAGE *page);

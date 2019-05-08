@@ -1,22 +1,24 @@
-/*-------------------------------------------------------------------
+/*--------------------------------------------------------------------------------
 page creation jobs:
 1. egi_create_XXXpage() function.
-   1.1 creating eboxes and page.
+   1.1 create eboxes and page.
    1.2 assign thread-runner to the page.
    1.3 assign routine to the page.
    1.4 assign button functions to corresponding eboxes in page.
-2. thread-runner functions.
-3. egi_XXX_routine() function if not use default egi_page_routine().
-4. add button reaction functins, mainly for creating pages.
-5. group buttons for sliding.
+2. Define thread-runner functions.
+3. Define egi_XXX_routine() function if not use default egi_page_routine().
+4. Define reaction functins for each button, mainly for creating pages.
+5. Define touch_slide handler.
+5. Group buttons for sliding.
+
 
 TODO:
 	1. different values for button return, and page return,
 	   that egi_page_routine() can distinguish.
-	2. pack page activate and free action.
+	2. Pack page activate and free action.
 
 Midas Zhou
---------------------------------------------------------------------*/
+----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -49,7 +51,8 @@ static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+//static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
 static	EGI_EBOX *home_btns[9*HOME_PAGE_MAX]; 		/* set MAX */
@@ -79,9 +82,10 @@ EGI_PAGE *egi_create_homepage(void)
 {
 	int k; /*number of pages */
 	int i,j;
+	int nid;
 	int nicode; /* icon code number */
 	struct symbol_page *sympg=NULL;
-
+	char strtmp[30];
 
 	/* -------- 1. create button eboxes -------- */
   for(k=0; k<npg; k++) /* page number */
@@ -90,9 +94,11 @@ EGI_PAGE *egi_create_homepage(void)
         {
                 for(j=0;j<nc;j++) /* column of buttons */
                 {
+			nid=k*nr*nc+nc*i+j;
+
 			/* for PAGE 1,2,3 */
 			if(k<3) {
-				nicode=k*nr*nc+nc*i+j;
+				nicode=nid;
 				sympg=&sympg_buttons;
 			}
 			/* for PAGE 4 */
@@ -102,14 +108,14 @@ EGI_PAGE *egi_create_homepage(void)
 			}
 
 			/* 1.1 create new data_btns */
-			data_btns[k*nr*nc+i*nc+j]=egi_btndata_new(k*nr*nc+i*nc+j, /* int id */
+			data_btns[nid]=egi_btndata_new(nid, /* int id */
 							square, /* enum egi_btn_type shape */
 							sympg, /* struct symbol_page *icon */
 							nicode, /* int icon_code */
 							&sympg_testfont /* for ebox->tag font */
 						);
 			/* if fail, try again ... */
-			if(data_btns[k*nr*nc+i*nc+j]==NULL)
+			if(data_btns[nid]==NULL)
 			{
 				printf("egi_create_homepage(): fail to call egi_btndata_new() for data_btns[%d]. retry...\n", 3*i+j);
 				if(j>0)j--;
@@ -117,8 +123,8 @@ EGI_PAGE *egi_create_homepage(void)
 			}
 
 			/* 2.2 create new btn eboxes */
-			home_btns[k*nr*nc+i*nc+j]=egi_btnbox_new(NULL, /* put tag later */
-							data_btns[k*nr*nc+i*nc+j], /* EGI_DATA_BTN *egi_data */
+			home_btns[nid]=egi_btnbox_new(NULL, /* put tag later */
+							data_btns[nid], /* EGI_DATA_BTN *egi_data */
 				        		1, /* bool movable */
 						        15+(15+60)*j + 240*k, /* int x0 */
 							90+(15+60)*i, /* int y0 */
@@ -128,15 +134,19 @@ EGI_PAGE *egi_create_homepage(void)
 						   );
 
 			/* if fail, try again ... */
-			if(home_btns[k*nr*nc+i*nc+j]==NULL)
+			if(home_btns[nid]==NULL)
 			{
 				printf("egi_create_homepage(): fail to call egi_btnbox_new() for home_btns[%d]. retry...\n", 3*i+j);
-				free(data_btns[k*nr*nc+i*nc+j]);
-				data_btns[k*nr*nc+i*nc+j]=NULL;
+				free(data_btns[nid]);
+				data_btns[nid]=NULL;
 
 				if(j>0)j--;
 				continue;
 			}
+
+			/* set default tag */
+			sprintf(strtmp,"btn_%d",nid);
+			egi_ebox_settag(home_btns[nid],strtmp);
 		}
 	}
    }
@@ -180,7 +190,6 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[10], "btn_net");
 
 	/* the 4th page */
-	char strtmp[30];
 	for(i=3*2*3; i<18+6; i++) {
 		sprintf(strtmp,"btn_%d",i);
 		data_btns[i]->icon_code=9;
@@ -206,7 +215,7 @@ EGI_PAGE *egi_create_homepage(void)
        					0 /*int prmcolor, >=0 if to show box*/
 				   );
 
-	home_slider->reaction=react_slider;
+//	home_slider->reaction=react_slider;
 
         /* --------- 2. create home head-bar --------- */
         /* create head_txt */
@@ -259,10 +268,13 @@ EGI_PAGE *egi_create_homepage(void)
 //	page_home->runner[3]=display_stock;
 
 	/* 3.3 set default routine job */
-	page_home->routine=egi_page_routine;
+	page_home->routine=egi_homepage_routine;
 
 	/* 3.4 set wallpaper */
 	page_home->fpath="/tmp/home.jpg";
+
+	/* 3.5 set touch sliding handler */
+	page_home->slide_handler=slide_handler;
 
 	/* add ebox to home page */
 	/* beware of the sequence of the ebox list */
@@ -552,7 +564,8 @@ static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 Home Sliding bar reaction
 return
 ---------------------------------------------------------------------*/
-static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+//static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 {
         static int mark[9*HOME_PAGE_MAX]; /* >= nc*nr */
 	int ns; /* start grid: 0,1,2,... */
@@ -565,59 +578,54 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         int i,j,k,m;
 	//EGI_TOUCH_DATA touch;
 
-
 	status=touch_data->status;
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(status==pressing)
         {
-                printf("pagehome react_slider(): pressing sliding bar....\n");
+                printf("active homepage slide touch handler....\n");
 		for(i=0;i<npg*nc*nr;i++)
 	                mark[i]=home_btns[i]->x0;
 
 		return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
+
 	/* 2. adjust button position and refresh */
         else if( status==pressed_hold )
 	{
 
 #if 1  /* SLIDE_ALGRITHM 1: slide by dx value */
-		//tmp=touch_data->dx/20;
-		//if(step != tmp ) {
-			step=tmp;
+		step=tmp;
+		/* check PAGE_0 RIGHT POSITION limit */
+		limit=mark[0] + (touch_data->dx<<1);
+		if( limit > 160 || limit < -3*240 - 160 )
+			return btnret_OK;
 
-			/* check PAGE_0 RIGHT POSITION limit */
-			limit=mark[0] + (touch_data->dx ); //<<1);
-			if( limit > 160 || limit < -3*240 - 160 )
-				return btnret_OK;
+		for(i=0;i<npg*nc*nr;i++) {
+			/* check limit */
+			home_btns[i]->x0 = mark[i] +  (touch_data->dx<<1); /* x2 accelerate sliding speed */
+			egi_ebox_needrefresh(home_btns[i]);
+		}
 
-			for(i=0;i<npg*nc*nr;i++) {
-				/* check limit */
-				home_btns[i]->x0 = mark[i] +  (touch_data->dx);// <<1); /* x2 accelerate sliding speed */
-				//if( home_btns[i]->x0 > (0-home_btns[i]->width) && home_btns[i]->x0 < 240 )
-				egi_ebox_needrefresh(home_btns[i]);
+
+#if 0   /* Test  loopback */
+	/* Pending !!!!: X positon of pages are NOT continous any more!!!  */
+		for(i=0;i<npg;i++) {
+			if(home_btns[i*nc*nr]->x0 < -240*3 ) { /* 3,NOT 4! */
+				for(j=0;j<nc*nr;j++)
+					home_btns[i*nc*nr+j]->x0 += 240*4;
 			}
-
-
-#if 0  /* make a loopback */
-		/* Pending !!!!: X positon of pages are NOT continous any more!!!  */
-			for(i=0;i<npg;i++) {
-				if(home_btns[i*nc*nr]->x0 < -240*3 ) { /* 3,NOT 4! */
-					for(j=0;j<nc*nr;j++)
-						home_btns[i*nc*nr+j]->x0 += 240*4;
-				}
-
-				else if( home_btns[i*nc*nr+nc-1]->x0 + home_btns[0]->width > 240*4-1 ) {
-					for(j=0;j<nc*nr;j++)
-						home_btns[i*nc*nr+j]->x0 -= 240*4;
-				}
+			else if( home_btns[i*nc*nr+nc-1]->x0 + home_btns[0]->width > 240*4-1 ) {
+				for(j=0;j<nc*nr;j++)
+					home_btns[i*nc*nr+j]->x0 -= 240*4;
 			}
+		}
 #endif
 
-			/* group refresh to avoid bkimg interference */
-			egi_btngroup_refresh(home_btns, npg*nc*nr);
-			tm_delayms(75);
-		//}
+		/* group refresh to avoid bkimg interference */
+		egi_btngroup_refresh(home_btns, npg*nc*nr);
+		tm_delayms(75);
+
 
 #else  /* SLIDE_ALGRITHM 2: auto slide if dx great that a threshold value */
 		if( touch_data->dx > 15 )
@@ -651,6 +659,7 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		return btnret_OK;
 	}
 
+
 	/* 3. re_align all btns in 2X3 grids OR re_align to a PAGE  */
 	else if( status==releasing )
    	{
@@ -666,7 +675,6 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 			ntp=-ntp;
 			step=-step;
 		}
-
 		if(ntp>0){
 			for(m=1; m<=ntp; m++) {
 				for(i=0; i<npg*nr*nc; i++) {
@@ -674,11 +682,9 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 					egi_ebox_needrefresh(home_btns[i]);
 				}
 				egi_btngroup_refresh(home_btns, npg*nc*nr);
-				//egi_sleep(0,0,75);
 				tm_delayms(35);
 			}
 		}
-
 
 #if 1
 		/* final position */
@@ -693,7 +699,6 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		/* group refresh to avoid bkimg interference */
 		egi_btngroup_refresh(home_btns, npg*nc*nr);
 #endif
-
 
 		return btnret_OK; /* refresh page */
 

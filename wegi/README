@@ -1,9 +1,5 @@
 NOTE:
-1. Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
-2. Black_and_While font images show sharply in contrasting color backgroud, while Gray font images show softly
-   and smoothly in simlar color backgroup.  When replace default font color with a given one, the Gray img font may 
-   getting worse. that because all non-zero color vaule will be replaced by the SAME given value.
-
+Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
 
 	----- main source files ( GPL if applicable ) -----
 
@@ -39,6 +35,8 @@ egi_pagemplay.c	        PAGE mplayer
 egi_pageopenwrt.c	PAGE openwrt info.
 egi_pagetest.c		PAGE test
 egi_pageslide.c		PAGE sliding bar test
+
+egi_appstock.c		a real time stock data display app.
 
 
 Midas Zhou

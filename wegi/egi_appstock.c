@@ -48,7 +48,6 @@ midaszhou@yahoo.com
 #include "egi_math.h"
 #include "egi_appstock.h"
 
-
 /*------------------------------------
 	APP func, thread func
 ------------------------------------*/
@@ -174,7 +173,7 @@ while(1)
 	tm_local=localtime(&tm_t);
 	seccount=tm_local->tm_hour*3600+tm_local->tm_min*60+tm_local->tm_sec;
 
-	/*  market close time */
+	/* << 1 >> market close time */
 	if( seccount < 9*3600+30*60+0 || seccount >=15*3600+20 ) /* +20 for transaction lingering ???? */
 	{
 		if(!market_closed) { /* toggle token */
@@ -200,7 +199,7 @@ while(1)
 
 		/* else if fbench==0, go on to get data and set fbench */
 	}
-	/* recess time */
+	/* << 2 >> recess time */
 	/* Note:
          *	1. Noon recess starts at 11:30:10, while data stream stop updating. ---2019-4-19
 	*/
@@ -219,10 +218,10 @@ while(1)
 		}
 	}
 
-	/*  market trade time */
+	/* << 3 >>  market trade time */
 	else {
 		printf(" <<<<<<<<<<<<<<<<<   Trade Time   >>>>>>>>>>>>>>>>> \n");
-		if(market_closed) {   /* toggle token */
+		if(market_closed) {   /* toggle token, reset all data */
 			market_closed=false;
 			fbench=0; /* need reset fbench */
 			wcount=0; /* reset wcount */
@@ -323,24 +322,22 @@ while(1)
      printf("Start data save and compression  ((( ---> ");
 #if 0		/* METHOD 1: shift data and push point value into data_point[num-1] */
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
-#endif
 
-#if 0		/* METHOD 2: Common_Average compression, but keep lastest data_point[num-1]  */
+
+#elif 0		/* METHOD 2: Common_Average compression, but keep lastest data_point[num-1]  */
 		for(i=0;i<num-1;i++) {
 			//data_point[i]=(data_point[i]+data_point[i+1])/2.0; /* AVERAGE */
 			//data_point[i]=(data_point[i]*10.0+data_point[i+1])/11.0; /* SMOOTH_BIA AVERAGE */
 			data_point[i]=( data_point[i]*( (num-i)*1 )+ data_point[i+1])
 							/ ( (num-i)*1+1 ); /* SMOOTH_BIA AVERAGE */
 		}
-#endif
 
-#if 0		/* METHOD 3: Interpolation compression  */
+#elif 0		/* METHOD 3: Interpolation compression  */
 		for(i=0;i<num-1;i++) { /* data_point[num-1] unchanged */
 			data_point[i]=data_point[i]*(num-2-i)/(num-2)+data_point[i+1]*i/(num-2);
 		}
-#endif
 
-#if 1	/* METHOD 4: Fold_Average Compression */
+#elif 1	/* METHOD 4: Fold_Average Compression */
 
 	if( !market_closed && !buff_filled )  /* first, update all data_point[] */
 	{
@@ -393,7 +390,7 @@ while(1)
 	else /* if market closed, do NOT compress data, only for display */
 		memmove(data_point,data_point+1,sizeof(data_point)-sizeof(data_point[0]));
 
-#endif
+#endif /* end of press methods selection */
 
      printf(" ---> End.  ))) \n");
 

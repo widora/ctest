@@ -36,8 +36,7 @@ return:
 ------------------------------------------*/
 bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 {
-	if(!live_touch_data.updated)
-	{
+	if(!live_touch_data.updated) {
 		data->updated=false;
 		return false;
 	}
@@ -50,6 +49,31 @@ bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 	//printf("--------- touch get data -----------\n");
 
 	return true;
+}
+
+/*------------------------------------------
+Check the touch status, but do NOT read out.
+------------------------------------------*/
+EGI_TOUCH_DATA egi_touch_peekdata(void)
+{
+	while(!live_touch_data.updated) {
+        	tm_delayms(2);
+	}
+
+	return live_touch_data;
+}
+
+/*-------------------------------------------
+Check dx, but do NOT read out or reset token.
+Usually use it to check touch_slide condition.
+--------------------------------------------*/
+int egi_touch_peekdx(void)
+{
+	while(!live_touch_data.updated) {
+        	tm_delayms(2);
+	}
+
+	return live_touch_data.dx;
 }
 
 

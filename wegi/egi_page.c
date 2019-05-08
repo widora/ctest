@@ -6,7 +6,6 @@ published by the Free Software Foundation.
 
 Midas Zhou
 ---------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -166,7 +165,6 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox)
 		printf("egi_page_addlist(): input ebox is NULL!\n");
 		return 1;
 	}
-
 
 	/* set ebox->container */
 	ebox->container=page;
@@ -527,7 +525,7 @@ int egi_page_routine(EGI_PAGE *page)
 
  	 /* ----------------    Touch Event Handling   ----------------  */
 
-	/* discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
+	/* Try to discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
 	egi_touch_getdata(&touch_data);
 
 	while(1)
@@ -665,6 +663,205 @@ int egi_page_routine(EGI_PAGE *page)
 	                printf("--------egi_page: egi_sleep 900ms ------------\n");
 			egi_sleep(4,0,900);
 	                printf("--------egi_page:  end egi_sleep 900ms------------\n");
+#endif
+			/* loop in refreshing listed eboxes */
+		}
+
+	}/* end while() */
+
+	return pgret_OK;
+	//return 0;
+}
+
+
+/*-----------------------------------------------------
+Home page routine job
+
+return:
+	loop or >=0  	OK
+	<0		fails
+-----------------------------------------------------*/
+int egi_homepage_routine(EGI_PAGE *page)
+{
+	int i;
+	int ret;
+	uint16_t sx,sy;
+	enum egi_touch_status last_status=released_hold;
+	enum egi_touch_status check_status;
+	EGI_TOUCH_DATA touch_data;
+	int tdx,tdy;
+	bool slide_touch=false;
+
+	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
+	tm_delayms(200);
+
+	/* for time struct */
+//	struct timeval t_start,t_end; /* record two pressing_down time */
+//	long tus;
+
+	EGI_EBOX  *hitbtn=NULL; /* hit button_ebox */
+	EGI_EBOX  *last_holdbtn=NULL; /* remember last hold btn */
+
+	/* 1. check data */
+	EGI_PDEBUG(DBG_PAGE,"start to check data for page.\n");
+	if(page==NULL || page->ebox==NULL)
+	{
+		printf("egi_homepage_routine(): input page OR page->ebox  is NULL!\n");
+		return -1;
+	}
+
+	/* 2. check list */
+	EGI_PDEBUG(DBG_PAGE,"start to check ebox list for page.\n");
+	if(list_empty(&page->list_head))
+	{
+		printf("egi_homepage_routine(): WARNING!!! page '%s' has an empty ebox list_head .\n",page->ebox->tag);
+	}
+
+	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
+
+	/* 3. load page runner threads */
+	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag);
+	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
+	{
+		if( page->runner[i] !=0 )
+		{
+			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
+			{
+				page->thread_running[i]=true;
+				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",
+								i, (unsigned int)page->threadID[i]);
+			}
+			else
+			   printf("egi_page_routine(): fail to create pthread for runner[%d] of page[%s] \n",
+					i,page->ebox->tag );
+		}
+	}
+
+ 	 /* ----------------    Touch Event Handling   ----------------  */
+
+	/* Try to discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
+	egi_touch_getdata(&touch_data);
+
+	while(1)
+	{
+		/* 1. read touch data */
+		if(!egi_touch_getdata(&touch_data) )
+		{
+//			EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): egi_touch_getdata() no updated touch data found, retry...\n");
+			continue;
+		}
+		sx=touch_data.coord.x;
+		sy=touch_data.coord.y;
+		last_status=touch_data.status;
+
+		/* 2. trigger touch handling process then */
+		if(last_status !=released_hold )
+		{
+			/* 2.1 check if sliding operation */
+			if(last_status==pressing) {
+				/* peek next touch dx, but do not read out */
+				tm_delayms(100);
+				tdx=egi_touch_peekdx();
+				/* if sliding, trap into page sliding handle func */
+				if(tdx > 3 || tdx < -3 ) {
+					//printf("------------ start DX sliding ----------\n");
+					slide_touch=true;
+				}
+				/* else, pass down pressing status... */
+				else {
+					slide_touch=false;
+				}
+			}
+
+			/* 2.2 sliding handling func */
+			if(slide_touch ) //&& ( last_status==pressed_hold || last_status==pressing || last_status==releasing) )
+			{
+				page->slide_handler(page, &touch_data);
+				continue;
+			}
+			else
+				slide_touch=false;
+
+			/* 2.3 check if any ebox was hit */
+		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
+
+			/* 2.4 check if last hold btn losing foucs */
+			if( last_holdbtn != NULL && last_holdbtn != hitbtn) {
+				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				last_holdbtn=NULL;
+			}
+
+			/* 2.5 trap into button reaction functions */
+	       	 	if(hitbtn != NULL)
+			{
+				/* display touch effect for button */
+				if(hitbtn->type==type_btn) {
+
+				    /* remember last hold btn */
+				    if(last_status==pressed_hold) last_holdbtn=hitbtn;
+
+				    /* call touch_effect() */
+				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
+					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
+
+				}
+
+				/* trigger reaction func */
+ 				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
+								   last_status==pressing ||
+								   last_status==releasing ||
+								   last_status==db_pressing  )  )
+				{
+					/*if ret<0, button pressed to exit current page
+					   usually fall back to its page's routine caller to release page...
+					*/
+					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
+
+					/* IF: a button request to exit current page routine */
+					if( ret==btnret_REQUEST_EXIT_PAGE )
+					{
+				       printf("[page '%s'] [button '%s'] ret: request to exit host page.\n",
+										page->ebox->tag, hitbtn->tag);
+						return pgret_OK; // or break;
+					}
+
+					/* ELSE IF: a button activated page returns. */
+					else if ( ret==pgret_OK || ret==pgret_ERR )
+					{
+	  printf("[page '%s'] [button '%s'] ret: return from a button activated page, set needrefresh flag.\n",
+										page->ebox->tag,hitbtn->tag);
+						egi_page_needrefresh(page); /* refresh whole page */
+						egi_page_refresh(page);
+						/* wait for 'release_hold' as begin of a new touch session
+					         * the purpuse is to let last page's touching status pass away,
+						 * especially 'pressed_hold' and 'releasing', which may trigger
+						 * refreshed page again!!!
+						 */
+						do {
+							tm_delayms(100);
+						 	egi_touch_getdata(&touch_data);
+
+						}while(touch_data.status != released_hold);
+
+					}
+					else
+					/* ELSE: for other cases, btnret_OK, btnret_ERR  */
+					{
+					/* needfresh flags for page or eboxes to be set by btn react. func. */
+					    //let btn do it:	egi_page_needrefresh(page);
+					}
+				}
+
+			 } /* end of hitbtn reaction, hitbtn != NULL */
+		}
+
+		else /* last_status == released_hold */
+		{
+#if 1
+			tm_delayms(75); //55
+#endif
+#if 0 /* conflict with timer */
+			egi_sleep(0,0,900);
 #endif
 			/* loop in refreshing listed eboxes */
 		}
