@@ -336,7 +336,10 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 	pw=data_list->pw;
 	nwin=data_list->nwin;
 
-	/* activate those in displaying windows only */
+	/* seet host ebox need_refresh */
+	ebox->need_refresh=true;
+
+	/* activate all items */
 	for(i=0; i<nwin; i++)
 	{
 		itnum=pw+i;	/* displaying from first item pw */
@@ -416,6 +419,10 @@ int egi_listbox_refresh(EGI_EBOX *ebox)
                 printf("egi_listbox_refresh(): input ebox->egi_data is NULL! fail to activate.");
                 return -2;
         }
+
+	/* check host ebox need_refresh */
+	if(!ebox->need_refresh)
+		return -3;
 
         data_list=(EGI_DATA_LIST *)ebox->egi_data;
         inum=data_list->inum;

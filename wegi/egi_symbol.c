@@ -93,8 +93,7 @@ static int numbfont_width[16*8] = /* check with maxnum */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	15,15,15,15,15,15,15,15,15,15,15,0,0,0,0,0, /* 0123456789: */
 };
-
-/* symbole page struct for testfont */
+/* symbole page struct for numbfont */
 struct symbol_page sympg_numbfont=
 {
 	.symtype=type_font,
@@ -108,16 +107,15 @@ struct symbol_page sympg_numbfont=
 };
 
 
-/*--------------------------(  buttons  )-----------------------------------*/
+/*--------------------------(  buttons H60 )-----------------------------------*/
 static int buttons_width[4*5] =  /* check with maxnum */
 {
 	60,60,60,60,
 	60,60,60,60,
 	60,60,60,60,
-	48,48,48,48,
-	48,48,48,48,
+	60,60,60,60,
+	60,60,60,60,
 };
-/* symbole page struct for testfont */
 struct symbol_page sympg_buttons=
 {
 	.symtype=type_icon,
@@ -128,6 +126,26 @@ struct symbol_page sympg_buttons=
 	.sqrow=4, /* 4 icons per row */
 	.symheight=60,
 	.symwidth=buttons_width, /* width list */
+};
+
+
+/*--------------------------(  small buttons W48H60 )-----------------------------------*/
+static int sbuttons_width[5*3] =  /* check with maxnum */
+{
+	48,48,48,48,
+	48,48,48,48,
+	48,48,48,48,
+};
+struct symbol_page sympg_sbuttons=
+{
+	.symtype=type_icon,
+	.path="/home/sbuttons.img",
+	.bkcolor=0x0000,
+	.data=NULL,
+	.maxnum=5*3-1, /* 5 rows of ioncs */
+	.sqrow=5, /* 4 icons per row */
+	.symheight=60,
+	.symwidth=sbuttons_width, /* width list */
 };
 
 
@@ -145,8 +163,6 @@ static int icons_width[8*12] =  /* element number MUST >= maxnum */
         30,30,30,30,30,30,30,30,
         30,30,30,30,30,30,30,30,
 };
-
-/* symbole page struct for testfont */
 struct symbol_page sympg_icons=
 {
         .symtype=type_font,
@@ -223,12 +239,15 @@ int symbol_load_allpages(void)
         /* load buttons icons */
         if(symbol_load_page(&sympg_buttons)==NULL)
                 return -3;
+        /* load small buttons icons */
+        if(symbol_load_page(&sympg_sbuttons)==NULL)
+                return -4;
         /* load icons for home head-bar*/
         if(symbol_load_page(&sympg_icons)==NULL)
-                return -4;
+                return -5;
         /* load icons for PLAYERs */
         if(symbol_load_page(&sympg_icons_2)==NULL)
-                return -5;
+                return -6;
 
 	return 0;
 }

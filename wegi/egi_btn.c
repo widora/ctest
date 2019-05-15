@@ -461,16 +461,19 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
    /* 9.1 check whether sympg is set */
 
    if(data_btn->font == NULL) {
+		/* do nothing */
   		//printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
    }
    else if(data_btn->showtag==true)
    {
 	/* 9.2 get length of tag */
 	int taglen=0;
-	while( ebox->tag[taglen] )
-	{
-		taglen++;
-	}
+	taglen=strlen(ebox->tag);
+
+//	while( ebox->tag[taglen] )
+//	{
+//		taglen++;
+//	}
 	//printf("egi_btnbox_refresh(): length of ebox->tag:'%s' is %d (chars).\n", ebox->tag, taglen);
 
 	/* only if tag has content */
@@ -502,6 +505,8 @@ use following COLOR:
 */
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
+
+		/* tag_color shall NOT be the same as symbol bkcolor, OR it will NOT display */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
  							ebox->x0+shx, ebox->y0+shy, ebox->tag);
 

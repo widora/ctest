@@ -1,9 +1,15 @@
-/*-----------------------------------------------------------------------------
-Note:
-	1. Record sound and encode it to mp3 by shine. use Ctrl+C to interrupt.
-	2. Usage: recmp3 save_path
+/*--------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
 
-			<< Glossary >>
+
+Note:
+1. Record sound and encode it to mp3 by shine. use Ctrl+C to interrupt.
+2. Usage: recmp3 save_path
+
+
+			<<   Glossary  >>
 
 Sample:		usually 8bits or 16bits, one sample data width.
 Channel: 	1-Mono. 2-Stereo
@@ -18,23 +24,26 @@ Interleaved mode:	record period data frame by frame, such as
 	 		frame1(Left sample,Right sample), frame2(), ......
 Uninterleaved mode:	record period data channel by channel, such as
 			period(Left sample,Left ,left...), period(right,right...),
-			, period()...
+			period()...
+snd_pcm_uframes_t	unsigned long
+snd_pcm_sframes_t	signed long
 
 
 Midas Zhou
--------------------------------------------------------------------------------*/
+---------------------------------------------------------------------*/
 #include <stdio.h>
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <shine/layer3.h>
 #include <signal.h>
-#include "pcm2wav.h"
+//#include "pcm2wav.h"
 
 
 bool sig_stop=false;
 
 void new_sighandler(int signum, siginfo_t *info, void *myact);
 int init_shine_mono(shine_t *pshine, shine_config_t *psh_config, int sample_rate,int bitrate);
+
 
 int main(int argc, char** argv)
 {
@@ -50,7 +59,7 @@ int main(int argc, char** argv)
 	int sample_rate=8000; 		/* HZ,sample rate */
 	bool enable_resample=true;	/* whether to enable resample */
 	int latency=500000;		/* required overall latency in us */
-	snd_pcm_uframes_t period_size;  /* max numbers of frames that HW can hanle each time */
+	//snd_pcm_uframes_t period_size;  /* max numbers of frames that HW can hanle each time */
 
 	/* for CAPTURE, period_size=1536 frames, while for PLAYBACK: 278 frames */
 	snd_pcm_uframes_t chunk_frames=32; /*in frame, expected frames for readi/writei each time, to be modified by ... */
@@ -60,14 +69,14 @@ int main(int argc, char** argv)
 	/* chunk_frames=576, */
 	int16_t buff[SHINE_MAX_SAMPLES]; /* enough size of buff to hold pcm raw data AND encoding results */
 	int16_t *pbuf=buff;
-	int count;
+	unsigned long count;
 
 	/* for shine encoder */
 	shine_t	sh_shine;		/* handle to shine encoder */
 	shine_config_t	sh_config; 	/* config structure for shine */
 	int sh_bitrate=16; 		/* kbit */
 	int ssamples_per_chanl; /* expected shine_samples (16bit depth) per channel to feed to the shine encoder each session */
-	int ssamples_per_pass;	/* nchanl*ssamples_per_chanl, for each encoding pass/session */
+//	int ssamples_per_pass;	/* nchanl*ssamples_per_chanl, for each encoding pass/session */
 	unsigned char *mp3_pout; /* pointer to mp3 data after each encoding pass */
 	int mp3_count;		/* byte counter for shine mp3 output per pass */
 
@@ -90,29 +99,12 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	/* adjust record volume */
-	system("amixer -D hw:0 set Capture 90%");
-	system("amixer -D hw:0 set 'ADC PCM' 85%");
-
-	/* init shine */
-	init_shine_mono(&sh_shine, &sh_config, sample_rate, sh_bitrate);
-
-	/* get number of ssamples per channel, to feed to the encoder */
-	ssamples_per_chanl=shine_samples_per_pass(sh_shine); /* return audio ssamples expected  */
-	printf("%s: MONO ssamples_per_chanl=%d frames for Shine encoder.\n",__func__, ssamples_per_chanl);
-	/* change to frames for snd_pcm_readi() */
-	chunk_frames=ssamples_per_chanl*16/bits_per_sample*nchanl; /* 16bits for a shine input sample */
-	chunk_size=chunk_frames*frame_size;
-	printf("Expected pcm readi chunk_frames for the shine encoder is %d frames per pass.\n",chunk_frames);
-	printf("SHINE_MAX_SAMPLES = %d \n",SHINE_MAX_SAMPLES);
-	printf("Shine bitrate:%d kbps\n",sh_config.mpeg.bitr);
 
 	/* open pcm captrue device */
 	if( snd_pcm_open(&pcm_handle, "plughw:0,0", SND_PCM_STREAM_CAPTURE, 0) <0 ) {
 		printf("Fail to open pcm captrue device!\n");
 		return -1;
 	}
-
 
 	/* set params for pcm capture handle */
 	if( snd_pcm_set_params( pcm_handle, format, SND_PCM_ACCESS_RW_INTERLEAVED,
@@ -130,10 +122,32 @@ int main(int argc, char** argv)
 		return -3;
 	}
 
+
+	/* adjust record volume */
+	system("amixer -D hw:0 set Capture 90%");
+	system("amixer -D hw:0 set 'ADC PCM' 85%");
+
+	/* init shine */
+	if( init_shine_mono(&sh_shine, &sh_config, sample_rate, sh_bitrate) <0 ) {
+		snd_pcm_close(pcm_handle);
+		return -4;
+	}
+
+	/* get number of ssamples per channel, to feed to the encoder */
+	ssamples_per_chanl=shine_samples_per_pass(sh_shine); /* return audio ssamples expected  */
+	printf("%s: MONO ssamples_per_chanl=%d frames for Shine encoder.\n",__func__, ssamples_per_chanl);
+	/* change to frames for snd_pcm_readi() */
+	chunk_frames=ssamples_per_chanl*16/bits_per_sample*nchanl; /* 16bits for a shine input sample */
+	chunk_size=chunk_frames*frame_size;
+	printf("Expected pcm readi chunk_frames for the shine encoder is %ld frames per pass.\n",chunk_frames);
+	printf("SHINE_MAX_SAMPLES = %d \n",SHINE_MAX_SAMPLES);
+	printf("Shine bitrate:%d kbps\n",sh_config.mpeg.bitr);
+
+
 	/* capture pcm */
 	count=0;
 	printf("Start recording and encoding ...\n");
-	while(1) //(count<record_size)
+	while(1) /* let user to interrupt, or if(count<record_size) */
 	{
 		/* snd_pcm_sframes_t snd_pcm_readi (snd_pcm_t pcm, void buffer, snd_pcm_uframes_t size) */
 		ret=snd_pcm_readi(pcm_handle, buff, chunk_frames);  /* return number of frames, 1 chan, 1 frame=size of a sample (S16_Le)  */
@@ -150,7 +164,7 @@ int main(int argc, char** argv)
 		}
 		/* CAUTION: short read may cause trouble! Let it carry on though. */
 		else if(ret != chunk_frames) {
-			printf("snd_pcm_readi: read end or short read ocuurs! get only %d of %d expected frame data.\n",
+			printf("snd_pcm_readi: read end or short read ocuurs! get only %d of %ld expected frame data.\n",
 										ret, chunk_frames);
 			/* pad 0 to chunk_frames */
 			if( ret<chunk_frames ) {  /* >chunk_frames NOT possible? */
@@ -161,18 +175,16 @@ int main(int argc, char** argv)
 		/* pcm raw data count */
 		count += chunk_size;
 
-                 /* 		------	Shine Start -----
+                 /* 	------	Shine Start -----
 		  * unsigned char* shine_encode_buffer(shine_t s, int16_t **data, int *written);
                   * unsigned char* shine_encode_buffer_interleaved(shinet_t s, int16_t *data, int *written);
                   * ONLY 16bit depth sample is accepted by shine_encoder
                   * chanl_samples_per_pass*chanl_val samples encoded
 		  */
 
-//		  printf("start shine_encode_buffer...\n");
                   mp3_pout=shine_encode_buffer(sh_shine, &pbuf, &mp3_count);
-//		  printf("Ok, get mp3_count=%d \n",mp3_count);
 
-		/*	 	----- Shine End -----  	*/
+		/* 	----- Shine End -----  	*/
 
 		 /* write to mp3 file */
 		 fwrite(mp3_pout, mp3_count, sizeof(unsigned char), fmp3);
@@ -185,17 +197,18 @@ int main(int argc, char** argv)
 
 	} /* end of capture while() */
 
-	printf(" %d bytes raw pcm data recorded and enconded, plus %d more bytes for sync.\n",
-										count, 32*chunk_size);
+	/* flush out remain mp3 */
+	mp3_pout=shine_flush(sh_shine,&mp3_count);
 
 	/* encode more chunks to sync for useful data */
+	memset(buff,0, chunk_size);
 	for(i=0;i<32;i++) {
-		memset(buff,0, chunk_size);
 	        mp3_pout=shine_encode_buffer(sh_shine, &pbuf, &mp3_count);
 		fwrite(mp3_pout, mp3_count, sizeof(unsigned char), fmp3);
 	}
-	/* flush out remain mp3 */
-	mp3_pout=shine_flush(sh_shine,&mp3_count);
+
+	printf(" %ld bytes raw pcm data recorded and enconded, plus %d more bytes for sync.\n",
+										count, 32*chunk_size);
 
 	/* close files and release soruces */
 	fclose(fmp3);
@@ -204,6 +217,7 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+
 
 
 

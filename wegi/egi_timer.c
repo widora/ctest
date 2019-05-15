@@ -17,6 +17,9 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include "dict.h"
 
+
+#define EGI_ENABLE_TICK 1
+
 struct itimerval tm_val, tm_oval;
 
 char tm_strbuf[50]={0};
@@ -40,10 +43,11 @@ long long unsigned int tm_get_tmstampms(void)
 }
 
 
-/*----------------------------------
+/*---------------------------------------------
  get local time in string in format:
  		H:M:S
-------------------------------------*/
+ The caller must ensure enough space for tmbuf.
+---------------------------------------------*/
 void tm_get_strtime(char *tmbuf)
 {
 	time_t tm_t; /* time in seconds */
@@ -56,15 +60,16 @@ void tm_get_strtime(char *tmbuf)
 		tm_s->tm_year start from 1900
 		tm_s->tm_mon start from 0
 	*/
-	sprintf(tmbuf,"%02d:%02d:%02d\n",tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
+	sprintf(tmbuf,"%02d:%02d:%02d",tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
 }
 
 
-/*----------------------------------
+/*--------------------------------------------
 Get local time in string,
   in format of:
  	Year_Mon_Day  Weekday
-------------------------------------*/
+ The caller must ensure enough space for tmbuf.
+---------------------------------------------*/
 void tm_get_strday(char *tmdaybuf)
 {
 	time_t tm_t; /* time in seconds */
@@ -73,7 +78,7 @@ void tm_get_strday(char *tmdaybuf)
 	time(&tm_t);
 	tm_s=localtime(&tm_t);
 
-	sprintf(tmdaybuf,"%d-%d-%d   %s\n",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
+	sprintf(tmdaybuf,"%d-%d-%d   %s",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
 			str_weekday[tm_s->tm_wday] );
 }
 
@@ -136,11 +141,13 @@ static void tm_tick_settimer(int us)
 	setitimer(ITIMER_REAL,&tm_tick_val,NULL); /* NULL get rid of old time value */
 }
 
-/* -----------------------------
+/* -------------------------------------
   global tick timer routine
--------------------------------*/
+--------------------------------------*/
 static void tm_tick_sigroutine(int signo)
 {
+
+#if EGI_ENABLE_TICK
 	if(signo == SIGALRM)
 	{
 		tm_tick_count+=1;
@@ -148,11 +155,12 @@ static void tm_tick_sigroutine(int signo)
 
 	/* restore tm_sigroutine */
 	signal(SIGALRM, tm_tick_sigroutine);
+#endif
 
 }
 
 /*-------------------------------
- start egi_system tick 
+    start egi_system tick
 -------------------------------*/
 void tm_start_egitick(void)
 {
@@ -162,7 +170,7 @@ void tm_start_egitick(void)
 
 
 /*-----------------------------
-	return tm_tick_count
+    return tm_tick_count
 ------------------------------*/
 long long unsigned int tm_get_tickcount(void)
 {
@@ -176,6 +184,7 @@ if ms<0, return.
 -----------------------------------------*/
 void tm_delayms(long ms)
 {
+#if EGI_ENABLE_TICK
 	unsigned int nticks;
 
 	if(ms < TM_TICK_INTERVAL/1000)
@@ -190,6 +199,12 @@ void tm_delayms(long ms)
 		usleep(1000);
 
 	}
+
+#else
+	egi_sleep(0,0,ms);
+
+#endif
+
 }
 
 

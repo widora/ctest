@@ -43,8 +43,10 @@ Midas Zhou
 #include "iot/egi_iotclient.h"
 #include "egi_pagestock.h"
 
-static void egi_display_cpuload(EGI_PAGE *page);
-static void egi_display_iotload(EGI_PAGE *page);
+static void display_cpuload(EGI_PAGE *page);
+static void display_iotload(EGI_PAGE *page);
+static void update_clocktime(EGI_PAGE *page);
+
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -57,11 +59,18 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 static	EGI_EBOX *home_btns[9*HOME_PAGE_MAX]; 		/* set MAX */
 static	EGI_DATA_BTN *data_btns[9*HOME_PAGE_MAX];	/* set MAX */
-static	EGI_EBOX *home_slider;
-static	EGI_DATA_BTN *data_slider;
+static	EGI_EBOX *home_clock;
+static	EGI_DATA_BTN *data_clock;
 
 static	EGI_DATA_TXT *head_txt;
 static	EGI_EBOX  *ebox_headbar;
+
+static EGI_DATA_TXT *time_txt;
+static EGI_EBOX *time_box;
+static EGI_DATA_TXT *date_txt;
+static EGI_EBOX *date_box;
+
+
 
 static  int npg=(4 < HOME_PAGE_MAX ? 4 : HOME_PAGE_MAX ); /* set MAX page number */
 
@@ -196,26 +205,43 @@ EGI_PAGE *egi_create_homepage(void)
 		egi_ebox_settag(home_btns[i],strtmp);
 	}
 
+        /* --------- 1.4 create a time txt  --------- */
+        time_txt=egi_txtdata_new(
+                        0,0, /* offset X,Y */
+                        1, /*int nl, lines  */
+                        64, /*int llen, chars per line, however also limited by ebox width */
+                        &sympg_testfont, /*struct symbol_page *font */
+                        WEGI_COLOR_WHITE//BLACK /* int16_t color */
+	         );
+        time_box=egi_txtbox_new(
+                        "time_box", /* tag, or put later */
+                        time_txt,  /* EGI_DATA_TXT pointer */
+                        true, /* bool movable, for refresh */
+                        80,40, /* int x0, int y0 */
+                        120,30, /* int width;  int height,which also related with symheight,nl and offy */
+                        -1, /* int frame, 0=simple frmae, -1=no frame */
+                        -1 /*int prmcolor*/
+                );
 
-        /* --------- 1.4 create a sliding area --------- */
-	data_slider=egi_btndata_new(100, /* int id */
-					square, /* enum egi_btn_type shape */
-					NULL, /* struct symbol_page *icon */
-					0, /* int icon_code */
-					NULL /* for ebox->tag font, NULL ignore */
-				);
-	data_slider->touch_effect=NULL; /* disable touch effect */
+        /* --------- 1.5 create a date txt --------- */
+        date_txt=egi_txtdata_new(
+                        0,0, /* offset X,Y */
+                        1, /*int nl, lines  */
+                        64, /*int llen, chars per line, however also limited by ebox width */
+                        &sympg_testfont, /*struct symbol_page *font */
+                        WEGI_COLOR_GRAY//BLACK /* int16_t color */
+                );
 
-	home_slider=egi_btnbox_new("home_slider", /* put tag later */
-					data_slider, /* EGI_DATA_BTN *egi_data */
-		        		0, /* bool movable, True if need refresh */
-				        0, 320-40, /* int x0, int y0 */
-					240,40, /* int width, int height */
-		       			0, /* int frame */
-       					0 /*int prmcolor, >=0 if to show box*/
-				   );
+        date_box=egi_txtbox_new(
+                        "date_box", /* tag, or put later */
+                        date_txt,  /* EGI_DATA_TXT pointer */
+                        true, /* bool movable, for refresh */
+                        20,320-50, /* int x0, int y0 */
+                        220,30, /* int width;  int height,which also related with symheight,nl and offy */
+                        -1, /* int frame, 0=simple frmae, -1=no frame */
+                        -1 /*int prmcolor*/
+                );
 
-//	home_slider->reaction=react_slider;
 
         /* --------- 2. create home head-bar --------- */
         /* create head_txt */
@@ -262,10 +288,11 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->ebox->prmcolor=WEGI_COLOR_OCEAN;
 
 	/* 3.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
-	page_home->runner[0]=egi_display_cpuload;
-	page_home->runner[1]=egi_display_iotload;
-//	page_home->runner[2]=egi_iotclient;
-//	page_home->runner[3]=display_stock;
+	page_home->runner[0]=display_cpuload;
+	page_home->runner[1]=display_iotload;
+	page_home->runner[2]=update_clocktime;
+//	page_home->runner[3]=egi_iotclient;
+//	page_home->runner[4]=display_stock;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_homepage_routine;
@@ -281,9 +308,10 @@ EGI_PAGE *egi_create_homepage(void)
 	for(i=0;i<npg*nr*nc;i++)
 		egi_page_addlist(page_home, home_btns[i]);
 
-//turn_off bulb bkimg	egi_page_addlist(page_home, bkimg_btn7);
+	//turn_off bulb bkimg!	egi_page_addlist(page_home, bkimg_btn7);
 	egi_page_addlist(page_home,ebox_headbar);
-	egi_page_addlist(page_home, home_slider);
+	egi_page_addlist(page_home, time_box);
+	egi_page_addlist(page_home, date_box);
 
 	return page_home;
 }
@@ -295,7 +323,7 @@ display cpu load in home head-bar with motion icons
 	loadavg 1-6,  >5 alarm
 2. corresponding symmic_cpuload[] index from 0-5.
 -------------------------------------------------*/
-static void egi_display_cpuload(EGI_PAGE *page)
+static void display_cpuload(EGI_PAGE *page)
 {
 	int load=0;
 	int fd;
@@ -305,12 +333,12 @@ static void egi_display_cpuload(EGI_PAGE *page)
         fd=open("/proc/loadavg", O_RDONLY);
         if(fd<0)
         {
-                printf("egi_display_cpuload(): fail to open /proc/loadavg!\n");
-                perror("egi_display_cpuload()");
+                printf("display_cpuload(): fail to open /proc/loadavg!\n");
+                perror("display_cpuload()");
                 return;
         }
 
-	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread egi_display_cpuload() is activated!.\n",page->ebox->tag);
+	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread display_cpuload() is activated!.\n",page->ebox->tag);
 	while(1)
 	{
 		lseek(fd,0,SEEK_SET);
@@ -329,16 +357,16 @@ static void egi_display_cpuload(EGI_PAGE *page)
 	}
 }
 
-/*-----------------  RUNNER 2 --------------------------
+/*--------------  RUNNER 2 -----------------
 Display IoT motion icon.
 Display RSSI icon.
--------------------------------------------------------*/
-static void egi_display_iotload(EGI_PAGE *page)
+------------------------------------------*/
+static void display_iotload(EGI_PAGE *page)
 {
 	int rssi;
 	int index; /* index for RSSI of  sympg_icons[index]  */
 
-	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread egi_display_iotload() is activated!.\n"
+	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread display_iotload() is activated!.\n"
 										,page->ebox->tag);
 	while(1)
 	{
@@ -359,6 +387,36 @@ static void egi_display_iotload(EGI_PAGE *page)
 		 * WARNING: use global FB dev may cause rase condition
 		 */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
+	}
+}
+
+
+/*-----------------  RUNNER 3 --------------------------
+Update time tag for the home_clock,but do NOT refresh
+Let page routine do refreshing.
+-------------------------------------------------------*/
+static void update_clocktime(EGI_PAGE *page)
+{
+	char strtm[32];
+	char strday[32];
+
+	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread update_clocktime() is activated!.\n"
+										,page->ebox->tag);
+	while(1) {
+		/* get time string */
+		tm_get_strtime(strtm);
+		tm_get_strday(strday);
+		//strcat(strtm,strday);
+		//printf("------------ %s -----------\n",strtm);
+
+		/* update time box txt */
+		egi_push_datatxt(time_box, strtm, NULL);
+		egi_ebox_needrefresh(time_box);
+		egi_push_datatxt(date_box, strday, NULL);
+		egi_ebox_needrefresh(date_box);
+
+		//tm_delayms(500);
+		egi_sleep(0,0,500);
 	}
 }
 

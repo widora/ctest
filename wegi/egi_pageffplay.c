@@ -29,14 +29,16 @@ Midas Zhou
 #include "egi_timer.h"
 
 /* icon code for button symbols */
-#define ICON_CODE_PREV 		12
-#define ICON_CODE_PAUSE 	13
-#define ICON_CODE_PLAY 		15
-#define ICON_CODE_NEXT 		14
-#define ICON_CODE_EXIT 		16
-#define ICON_CODE_SHUFFLE	17	/* pick next file randomly */
-#define ICON_CODE_REPEATONE	18	/* repeat current file */
-#define ICON_CODE_LOOPALL	19	/* loop all files in the list */
+#define ICON_CODE_PREV 		0
+#define ICON_CODE_PAUSE 	1
+#define ICON_CODE_STOP		10
+#define ICON_CODE_PLAY 		3
+#define ICON_CODE_NEXT 		2
+#define ICON_CODE_EXIT 		5
+#define ICON_CODE_SHUFFLE	6	/* pick next file randomly */
+#define ICON_CODE_REPEATONE	7	/* repeat current file */
+#define ICON_CODE_LOOPALL	8	/* loop all files in the list */
+#define ICON_CODE_GOHOME	9
 
 static uint16_t btn_symcolor;
 
@@ -67,7 +69,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(i, /* int id */
 						square, /* enum egi_btn_type shape */
-						&sympg_buttons, /* struct symbol_page *icon. If NULL, use geometry. */
+						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */
 						);

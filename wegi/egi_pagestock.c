@@ -31,22 +31,17 @@ Midas Zhou
 #include "egi_pagestock.h"
 
 /* icon code for button symbols */
-#define ICON_CODE_PREV 		12
-#define ICON_CODE_PAUSE 	13
-#define ICON_CODE_PLAY 		15
-#define ICON_CODE_NEXT 		14
-#define ICON_CODE_EXIT 		16
-#define ICON_CODE_SHUFFLE	17	/* pick next file randomly */
-#define ICON_CODE_REPEATONE	18	/* repeat current file */
-#define ICON_CODE_LOOPALL	19	/* loop all files in the list */
+#define ICON_CODE_PREV 		0
+#define ICON_CODE_HOME	 	9
+#define ICON_CODE_NEXT 		2
+#define ICON_CODE_LIST 		11
 
 static uint16_t btn_symcolor;
 
 static int stock_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int stock_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int stock_gohome(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int stock_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int stock_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int stock_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int stock_list(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
@@ -59,9 +54,9 @@ Return
 EGI_PAGE *egi_create_pagestock(void)
 {
 	int i;
-	int btnum=5;
-	EGI_EBOX *stock_btns[5];
-	EGI_DATA_BTN *data_btns[5];
+	int btnum=4;
+	EGI_EBOX *stock_btns[4];
+	EGI_DATA_BTN *data_btns[4];
 
 	/* --------- 1. create buttons --------- */
         for(i=0;i<btnum;i++) /* row of buttons*/
@@ -69,7 +64,7 @@ EGI_PAGE *egi_create_pagestock(void)
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(i, /* int id */
 						square, /* enum egi_btn_type shape */
-						&sympg_buttons, /* struct symbol_page *icon. If NULL, use geometry. */
+						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */
 						);
@@ -89,7 +84,7 @@ EGI_PAGE *egi_create_pagestock(void)
 		stock_btns[i]=egi_btnbox_new(NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
 				        	1, /* bool movable */
-					        48*i, 320-(60-5), /* int x0, int y0 */
+					        (48+10)*i+10, 320-(60-5), /* int x0, int y0 */
 						48,60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
 		       				egi_color_random(medium) /*int prmcolor, for geom button only. */
@@ -97,7 +92,7 @@ EGI_PAGE *egi_create_pagestock(void)
 		/* if fail, try again ... */
 		if(stock_btns[i]==NULL)
 		{
-			printf("%s: fail to call egi_btnbox_new() for stock_btns[%d]. retry...\n", i, __func__);
+			printf("%s: fail to call egi_btnbox_new() for stock_btns[%d]. retry...\n",__func__,i);
 			free(data_btns[i]);
 			data_btns[i]=NULL;
 			i--;
@@ -106,7 +101,8 @@ EGI_PAGE *egi_create_pagestock(void)
 	}
 
 	/* get a random color for the icon */
-	btn_symcolor=egi_color_random(medium);
+	//btn_symcolor=egi_color_random(medium);
+	btn_symcolor=WEGI_COLOR_WHITE;
 	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
 
 	/* add tags,set icon_code and reaction function here */
@@ -114,22 +110,17 @@ EGI_PAGE *egi_create_pagestock(void)
 	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
 	stock_btns[0]->reaction=stock_prev;
 
-	egi_ebox_settag(stock_btns[1], "Play&Pause");
-	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY; /* 13--pause, 15--play */
-	stock_btns[1]->reaction=stock_playpause;
+	egi_ebox_settag(stock_btns[1], "Home");
+	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_HOME;
+	stock_btns[1]->reaction=stock_gohome;
 
 	egi_ebox_settag(stock_btns[2], "Next");
 	data_btns[2]->icon_code=(btn_symcolor<<16)+ICON_CODE_NEXT;
 	stock_btns[2]->reaction=stock_next;
 
-	egi_ebox_settag(stock_btns[3], "Exit");
-	data_btns[3]->icon_code=(btn_symcolor<<16)+ICON_CODE_EXIT;
-	stock_btns[3]->reaction=stock_exit;
-
-	egi_ebox_settag(stock_btns[4], "Playmode");
-	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_SHUFFLE;
-	stock_btns[4]->reaction=stock_playmode;
-
+	egi_ebox_settag(stock_btns[3], "List");
+	data_btns[3]->icon_code=(btn_symcolor<<16)+ICON_CODE_LIST;
+	stock_btns[3]->reaction=stock_list;
 
 
 	/* --------- 2. create title bar --------- */
@@ -181,10 +172,11 @@ static void page_runner(EGI_PAGE *page)
 
 }
 
-/*--------------------------------------------------------------------
+
+/*----------------------------
 Stock PREV
 return
-----------------------------------------------------------------------*/
+----------------------------*/
 static int stock_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
@@ -195,35 +187,28 @@ static int stock_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 }
 
-/*--------------------------------------------------------------------
-stock palypause
+
+
+/*------------------------------------------------------
+stock gohome
+???? do NOT call long sleep function in button functions.
 return
-----------------------------------------------------------------------*/
-static int stock_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+-------------------------------------------------------*/
+static int stock_gohome(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	/* only react to status 'pressing' */
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
-
-	/* toggle the icon between play and pause */
-	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 )
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;
-	else
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;
-
-	/* set refresh flag for this ebox */
-	egi_ebox_needrefresh(ebox);
-
-	return btnret_OK;
+        egi_msgbox_create("Message:\n   Click! Start to exit stock page!", 300, WEGI_COLOR_ORANGE);
+        return btnret_REQUEST_EXIT_PAGE;
 }
 
-/*--------------------------------------------------------------------
-stock exit
+
+/*----------------------------------
+stock next
 return
-----------------------------------------------------------------------*/
+----------------------------------*/
 static int stock_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
@@ -233,45 +218,19 @@ static int stock_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 }
 
-/*--------------------------------------------------------------------
-stock play mode
-return
-----------------------------------------------------------------------*/
-static int stock_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
-{
-	static int count=0;
 
+
+/*----------------------------------------
+stock show list
+return
+----------------------------------------*/
+static int stock_list(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
-
-	/* only react to status 'pressing' */
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
-
-	count++;
-	if(count>2)
-		count=count>>3;
-
-	/* rotate code: SHUFFLE -> REPEATONE -> LOOPALL -> */
-	data_btn->icon_code=(btn_symcolor<<16)+(ICON_CODE_SHUFFLE+count%3);
-
-	/* set refresh flag for this ebox */
-	egi_ebox_needrefresh(ebox);
 
 	return btnret_OK;
 }
 
-/*--------------------------------------------------------------------
-stock exit
-???? do NOT call long sleep function in button functions.
-return
-----------------------------------------------------------------------*/
-static int stock_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
-{
-        /* bypass unwanted touch status */
-        if(touch_data->status != pressing)
-                return btnret_IDLE;
 
-        egi_msgbox_create("Message:\n   Click! Start to exit stock page!", 300, WEGI_COLOR_ORANGE);
-        return btnret_REQUEST_EXIT_PAGE;
-}

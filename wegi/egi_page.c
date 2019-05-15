@@ -282,14 +282,14 @@ int egi_page_activate(EGI_PAGE *page)
 
 return:
 	1	need_refresh=false
-	0	OK
+	0	If any ebox has been refreshed.
 	<0	fails
 --------------------------------------------------------*/
 int egi_page_refresh(EGI_PAGE *page)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
-	int ret;
+	int ret=1; /* set 1 first! */
 	int xres __attribute__((__unused__))=gv_fb_dev.vinfo.xres;
 	int yres __attribute__((__unused__))=gv_fb_dev.vinfo.yres;
 
@@ -325,6 +325,9 @@ int egi_page_refresh(EGI_PAGE *page)
 
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
+
+		/* set ret */
+		ret=0;
 	}
 
 
@@ -333,14 +336,14 @@ int egi_page_refresh(EGI_PAGE *page)
 	if(list_empty(&page->list_head))
 	{
 		printf("egi_page_refresh(): page '%s' has an empty list_head .\n",page->ebox->tag);
-		return -2;
+		return -1*ret;
 	}
 
 	/* traverse the list and activate list eboxes, not safe */
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		ret=ebox->refresh(ebox);
+		ret *= ebox->refresh(ebox);
 #if 0 /* debug only */
 		if(ret==0)
 		    EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
@@ -351,7 +354,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* reset need_refresh */
 	page->ebox->need_refresh=false;
 
-	return 0;
+	return ret; /* if any ebox refreshed, return 0 */
 }
 
 /*--------------------------------------------------------------
@@ -762,7 +765,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 				/* peek next touch dx, but do not read out */
 				tm_delayms(100);
 				tdx=egi_touch_peekdx();
-				/* if sliding, trap into page sliding handle func */
 				if(tdx > 3 || tdx < -3 ) {
 					//printf("------------ start DX sliding ----------\n");
 					slide_touch=true;
@@ -777,6 +779,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			if(slide_touch ) //&& ( last_status==pressed_hold || last_status==pressing || last_status==releasing) )
 			{
 				page->slide_handler(page, &touch_data);
+				egi_page_refresh(page); /* refresh page for other eboxes!!!  */
 				continue;
 			}
 			else
@@ -803,7 +806,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 				    /* call touch_effect() */
 				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
-
 				}
 
 				/* trigger reaction func */
@@ -857,14 +859,18 @@ int egi_homepage_routine(EGI_PAGE *page)
 
 		else /* last_status == released_hold */
 		{
+			/* refresh page, OR sleep a while */
+			if(egi_page_refresh(page)!=0) {
 #if 1
-			tm_delayms(75); //55
+				tm_delayms(75); //55
 #endif
 #if 0 /* conflict with timer */
-			egi_sleep(0,0,900);
+				egi_sleep(0,0,900);
 #endif
-			/* loop in refreshing listed eboxes */
+
+			}
 		}
+
 
 	}/* end while() */
 

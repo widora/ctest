@@ -90,6 +90,7 @@ struct symbol_page
 extern struct symbol_page sympg_testfont;
 extern struct symbol_page sympg_numbfont;
 extern struct symbol_page sympg_buttons;
+extern struct symbol_page sympg_sbuttons;
 extern struct symbol_page sympg_icons;
 extern struct symbol_page sympg_icons_2;
 extern char symmic_cpuload[6][5];

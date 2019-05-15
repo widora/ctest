@@ -896,12 +896,12 @@ void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
 
 
 
-/*----------------------------------------------------------
+/*--------------------------------------------------------------------
 push txt to ebox->data_txt->txt[]
 
 data_txt:	the target txt data
 buf:		the source buffer
-*pnl:		return number of lines used for written.
+*pnl:		return number of lines used for written, ignore if NULL.
 		<=nl, OK.
 		>nl, not enough space for char *buf.
 
@@ -914,7 +914,7 @@ buf:		the source buffer
 return:
 	>0	bytes of char pushed
 	<0	fails
-----------------------------------------------------------*/
+--------------------------------------------------------------------*/
 int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 {
 	/* check ebox type first */
