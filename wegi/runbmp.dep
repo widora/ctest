@@ -1,3 +1,0 @@
-runbmp : runbmp.c fbmp_op.h egi_bmpjpg.h include/jpeglib.h \
- include/jconfig.h include/jmorecfg.h include/jerror.h egi_fbgeom.h egi.h \
- sys_list.h

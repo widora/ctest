@@ -123,6 +123,8 @@ use following COLOR:
 ----------------------------------------------------------------------------------------------*/
 void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
 
+int symbol_string_pixlen(char *str, const struct symbol_page *font);
+
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque);
 

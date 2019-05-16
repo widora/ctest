@@ -19,6 +19,8 @@ Midas Zhou
 
 /* shared data */
 extern struct itimerval tm_val, tm_oval;
+extern const char *str_weekday[];
+extern const char *str_month[];
 extern char tm_strbuf[];
 
 

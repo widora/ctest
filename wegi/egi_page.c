@@ -763,7 +763,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			/* 2.1 check if sliding operation */
 			if(last_status==pressing) {
 				/* peek next touch dx, but do not read out */
-				tm_delayms(100);
+				tm_delayms(200);
 				tdx=egi_touch_peekdx();
 				if(tdx > 3 || tdx < -3 ) {
 					//printf("------------ start DX sliding ----------\n");

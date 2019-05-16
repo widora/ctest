@@ -23,7 +23,9 @@ Midas Zhou
 struct itimerval tm_val, tm_oval;
 
 char tm_strbuf[50]={0};
-const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
+const char *str_weekday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+//const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
+const char *str_month[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Oct","Nov","Sub"};
 
 /* global tick */
 static struct itimerval tm_tick_val; //tm_tick_oval;

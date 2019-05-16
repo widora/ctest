@@ -138,12 +138,11 @@ struct egi_ebox_method
 	int (*activate)(EGI_EBOX *);
 	int (*refresh)(EGI_EBOX *);
 	int (*decorate)(EGI_EBOX *);
-	int (*play)(EGI_EBOX *); /* for motion pic ebox, or.. */
+	int (*play)(EGI_EBOX *); 	/* for motion pic ebox, or.. */
 	int (*sleep)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); /* enum egi_touch_status */
 };
-
 
 /*
 	-----  structs ebox, is basic element of egi. -----
@@ -232,6 +231,9 @@ struct egi_element_box
 	/* data pointer to different types of struct egi_data_xxx */
 	void *egi_data;
 
+	/* private data, for concept ebox */
+	void *prvdata;
+
 	/* child defined method, or use default method */
 	EGI_METHOD method;
 
@@ -272,7 +274,6 @@ struct egi_element_box
 	int (*sleep)(EGI_EBOX *);
 
 	/* --- free:
-
 	*/
 	int (*free)(EGI_EBOX *);
 

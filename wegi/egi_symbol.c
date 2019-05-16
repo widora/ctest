@@ -543,6 +543,30 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 
 }
 
+/*------------------------------------------
+	Get string length in pixel.
+@str	string
+@font	font for the string
+-------------------------------------------*/
+int symbol_string_pixlen(char *str, const struct symbol_page *font)
+{
+	int i;
+        int len=strlen(str);
+	int pixlen=0;
+
+	if( len==0 || font==NULL)
+		return 0;
+
+        for(i=0;i<len;i++)
+        {
+                /* only if in code range */
+                if( str[i] <= font->maxnum )
+                           pixlen += font->symwidth[ (unsigned int)str[i] ];
+        }
+
+	return pixlen;
+}
+
 
 /*----------------------------------------------------------------------------------
 	write a symbol/font pixel data to FB device

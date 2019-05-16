@@ -793,12 +793,12 @@ void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
 	/* only if tag has content */
 	if(taglen>0)
 	{
+
+#if 0
 		int strwidth=0; /* total number of pixels of all char in ebox->tag */
 		// int symheight=data_btn->icon->symheight; already above assigned.
-		int shx=0, shy=0; /* shift x,y to fit the tag just in middle of ebox shape */
 		/* WARNIGN: Do not mess up with sympg icon!  sympy font is right here! */
 		int *wdata=data_btn->font->symwidth; /*symwidth data */
-		int  fontheight=data_btn->font->symheight;
 
 		for(i=0;i<taglen;i++)
 		{
@@ -806,6 +806,11 @@ void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
 			if( (ebox->tag[i]) <= (data_btn->font->maxnum) )
 				strwidth += wdata[ (unsigned int)ebox->tag[i] ];
 		}
+#endif
+		int strwidth=symbol_string_pixlen(ebox->tag, data_btn->font);
+		int shx=0, shy=0; /* shift x,y to fit the tag just in middle of ebox shape */
+		int  fontheight=data_btn->font->symheight;
+
 		shx = (ebox->width - strwidth)/2;
 		shx = shx>0 ? shx:0;
 		shy = (ebox->height - fontheight)/2;

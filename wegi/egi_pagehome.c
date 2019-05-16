@@ -1,4 +1,4 @@
-/*--------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
 page creation jobs:
 1. egi_create_XXXpage() function.
    1.1 create eboxes and page.
@@ -11,14 +11,13 @@ page creation jobs:
 5. Define touch_slide handler.
 5. Group buttons for sliding.
 
-
 TODO:
 	1. different values for button return, and page return,
 	   that egi_page_routine() can distinguish.
 	2. Pack page activate and free action.
 
 Midas Zhou
-----------------------------------------------------------------------------*/
+-------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -43,6 +42,8 @@ Midas Zhou
 #include "iot/egi_iotclient.h"
 #include "egi_pagestock.h"
 
+#define CALENDAR_BTN_ID	2
+
 static void display_cpuload(EGI_PAGE *page);
 static void display_iotload(EGI_PAGE *page);
 static void update_clocktime(EGI_PAGE *page);
@@ -53,23 +54,25 @@ static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-//static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
+static int deco_calendar(EGI_EBOX *ebox);
 
 static	EGI_EBOX *home_btns[9*HOME_PAGE_MAX]; 		/* set MAX */
 static	EGI_DATA_BTN *data_btns[9*HOME_PAGE_MAX];	/* set MAX */
-static	EGI_EBOX *home_clock;
-static	EGI_DATA_BTN *data_clock;
 
 static	EGI_DATA_TXT *head_txt;
 static	EGI_EBOX  *ebox_headbar;
 
 static EGI_DATA_TXT *time_txt;
 static EGI_EBOX *time_box;
-static EGI_DATA_TXT *date_txt;
-static EGI_EBOX *date_box;
 
+static struct calendar_data
+{
+	char month[3+1];
+	char week[3+1];
+	char day[2+1];
+} caldata={0};
 
 
 static  int npg=(4 < HOME_PAGE_MAX ? 4 : HOME_PAGE_MAX ); /* set MAX page number */
@@ -218,29 +221,13 @@ EGI_PAGE *egi_create_homepage(void)
                         time_txt,  /* EGI_DATA_TXT pointer */
                         true, /* bool movable, for refresh */
                         80,40, /* int x0, int y0 */
-                        120,30, /* int width;  int height,which also related with symheight,nl and offy */
+                        100,20, /* int width;  int height,which also related with symheight,nl and offy */
                         -1, /* int frame, 0=simple frmae, -1=no frame */
                         -1 /*int prmcolor*/
                 );
 
-        /* --------- 1.5 create a date txt --------- */
-        date_txt=egi_txtdata_new(
-                        0,0, /* offset X,Y */
-                        1, /*int nl, lines  */
-                        64, /*int llen, chars per line, however also limited by ebox width */
-                        &sympg_testfont, /*struct symbol_page *font */
-                        WEGI_COLOR_GRAY//BLACK /* int16_t color */
-                );
-
-        date_box=egi_txtbox_new(
-                        "date_box", /* tag, or put later */
-                        date_txt,  /* EGI_DATA_TXT pointer */
-                        true, /* bool movable, for refresh */
-                        20,320-50, /* int x0, int y0 */
-                        220,30, /* int width;  int height,which also related with symheight,nl and offy */
-                        -1, /* int frame, 0=simple frmae, -1=no frame */
-                        -1 /*int prmcolor*/
-                );
+        /* --------- 1.5 set deco for calendar ebox --------- */
+	home_btns[CALENDAR_BTN_ID]->method.decorate=deco_calendar;
 
 
         /* --------- 2. create home head-bar --------- */
@@ -311,7 +298,7 @@ EGI_PAGE *egi_create_homepage(void)
 	//turn_off bulb bkimg!	egi_page_addlist(page_home, bkimg_btn7);
 	egi_page_addlist(page_home,ebox_headbar);
 	egi_page_addlist(page_home, time_box);
-	egi_page_addlist(page_home, date_box);
+//	egi_page_addlist(page_home, calendar_box);
 
 	return page_home;
 }
@@ -398,28 +385,78 @@ Let page routine do refreshing.
 static void update_clocktime(EGI_PAGE *page)
 {
 	char strtm[32];
-	char strday[32];
+
+        time_t tm_t; /* time in seconds */
+        struct tm *tm_s; /* time in struct */
 
 	EGI_PDEBUG(DBG_PAGE,"page '%s':  runner thread update_clocktime() is activated!.\n"
 										,page->ebox->tag);
+	/* put init string in caldata */
+        time(&tm_t);
+        tm_s=localtime(&tm_t);
+        snprintf((char *)(caldata.month),3+1,"%s", str_month[tm_s->tm_mon] );
+        snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
+        snprintf((char *)(caldata.day),2+1,"%d", tm_s->tm_mday);
+	egi_ebox_needrefresh(home_btns[CALENDAR_BTN_ID]);
+
+	/* loop updating data */
 	while(1) {
 		/* get time string */
 		tm_get_strtime(strtm);
-		tm_get_strday(strday);
 		//strcat(strtm,strday);
-		//printf("------------ %s -----------\n",strtm);
 
 		/* update time box txt */
 		egi_push_datatxt(time_box, strtm, NULL);
 		egi_ebox_needrefresh(time_box);
-		egi_push_datatxt(date_box, strday, NULL);
-		egi_ebox_needrefresh(date_box);
 
-		//tm_delayms(500);
+		/* update calendar every minute */
+		if(atoi(strtm+6)==0) {
+		        time(&tm_t);
+		        tm_s=localtime(&tm_t);
+		        snprintf((char *)caldata.month,3+1,"%s", str_month[tm_s->tm_mon]);
+		        snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
+		        snprintf((char *)caldata.day,2+1,"%d", tm_s->tm_mday);
+
+			egi_ebox_needrefresh(home_btns[CALENDAR_BTN_ID]);
+		}
+
 		egi_sleep(0,0,500);
+		printf("----[ %s-%s  %s ]------\n", caldata.month, caldata.day,strtm);
 	}
 }
 
+
+/*----------------------------------
+Ebox deco function for calendar.
+-----------------------------------*/
+static int deco_calendar(EGI_EBOX *ebox)
+{
+	int x0,y0;
+	int pixlen;
+
+	/* month */
+	pixlen=symbol_string_pixlen(caldata.month, &sympg_testfont);
+	x0=ebox->x0+((60-pixlen)>>1);
+	y0=ebox->y0-5;
+	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month);
+
+	/* week */
+	pixlen=symbol_string_pixlen(caldata.week, &sympg_testfont);
+	x0=ebox->x0+((60-pixlen)>>1);
+	y0=ebox->y0+40;
+	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week);
+
+	/* day */
+	pixlen=symbol_string_pixlen(caldata.day, &sympg_numbfont);
+	x0=ebox->x0+((60-pixlen)>>1);
+	y0=ebox->y0+22;
+	symbol_string_writeFB(&gv_fb_dev, &sympg_numbfont, WEGI_COLOR_BLACK,
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.day);
+
+	return 0;
+}
 
 
 /*----------------------------------------------
@@ -765,3 +802,6 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
               return btnret_IDLE;
 
 }
+
+
+
