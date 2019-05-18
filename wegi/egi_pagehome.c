@@ -421,7 +421,7 @@ static void update_clocktime(EGI_PAGE *page)
 		}
 
 		egi_sleep(0,0,500);
-		printf("----[ %s-%s  %s ]------\n", caldata.month, caldata.day,strtm);
+		//printf("----[ %s-%s  %s ]------\n", caldata.month, caldata.day,strtm);
 	}
 }
 
@@ -698,7 +698,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		for(i=0;i<npg*nc*nr;i++) {
 			/* check limit */
-			home_btns[i]->x0 = mark[i] +  (touch_data->dx<<1); /* x2 accelerate sliding speed */
+			home_btns[i]->x0 = mark[i] + touch_data->dx + (touch_data->dx>>1); /* x2 accelerate sliding speed */
 			egi_ebox_needrefresh(home_btns[i]);
 		}
 

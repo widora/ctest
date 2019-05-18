@@ -319,8 +319,12 @@ static void iot_update_data(void)
                 lseek(fd,0,SEEK_SET);
                 read(fd,strload,4);
                 load=atof(strload);/* for symmic_cpuload[], index from 0 to 5 */
+
 		/* 2. get wifi actual speed bytes/s */
+		EGI_PLOG(LOGLV_INFO,"---------  trap into iw_get_speed( )  -------- >>>>> \n");
 		iw_get_speed(&ws);
+		EGI_PLOG(LOGLV_INFO,"---------  get out of iw_get_speed( )  ---------- <<<<< \n");
+
 		/* 3. get VM size */
 		getrusage(RUSAGE_SELF,&r_usage);
                 maxrss=r_usage.ru_maxrss;

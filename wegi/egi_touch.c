@@ -52,7 +52,7 @@ bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 }
 
 /*------------------------------------------
-Check the touch status, but do NOT read out.
+Check the touch data, but do NOT read out.
 ------------------------------------------*/
 EGI_TOUCH_DATA egi_touch_peekdata(void)
 {
@@ -62,6 +62,7 @@ EGI_TOUCH_DATA egi_touch_peekdata(void)
 
 	return live_touch_data;
 }
+
 
 /*-------------------------------------------
 Check dx, but do NOT read out or reset token.
@@ -75,6 +76,20 @@ int egi_touch_peekdx(void)
 
 	return live_touch_data.dx;
 }
+
+
+/*------------------------------------------
+Check the touch status, but do NOT read out.
+------------------------------------------*/
+enum egi_touch_status egi_touch_peekstatus(void)
+{
+	while(!live_touch_data.updated) {
+        	tm_delayms(2);
+	}
+
+	return live_touch_data.status;
+}
+
 
 
 /*-------------------------------------------------------------------

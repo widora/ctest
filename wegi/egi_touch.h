@@ -16,6 +16,7 @@ Midas Zhou
 bool egi_touch_getdata(EGI_TOUCH_DATA *data);
 EGI_TOUCH_DATA egi_touch_peekdata(void);
 int egi_touch_peekdx(void);
+enum egi_touch_status egi_touch_peekstatus(void);
 void egi_touch_loopread(void); /* for thread func */
 
 

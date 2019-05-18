@@ -760,12 +760,13 @@ int egi_homepage_routine(EGI_PAGE *page)
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
 		{
-			/* 2.1 check if sliding operation */
-			if(last_status==pressing) {
+			/* 2.1 check if sliding operation, and update slide_touch here !!!!  */
+			if(last_status==pressing || last_status==pressed_hold ) {
 				/* peek next touch dx, but do not read out */
-				tm_delayms(200);
+				tm_delayms(100);
 				tdx=egi_touch_peekdx();
-				if(tdx > 3 || tdx < -3 ) {
+				/* check peek tdx, and also peek if 'releasing' after 'pressed_hold' */
+				if(tdx > 3 || tdx < -3 || egi_touch_peekstatus()==releasing) {
 					//printf("------------ start DX sliding ----------\n");
 					slide_touch=true;
 				}
@@ -782,8 +783,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 				egi_page_refresh(page); /* refresh page for other eboxes!!!  */
 				continue;
 			}
-			else
-				slide_touch=false;
 
 			/* 2.3 check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);

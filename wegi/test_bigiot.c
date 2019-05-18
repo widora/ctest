@@ -37,7 +37,7 @@ int main(void)
 #endif
 
         /* --- start egi tick --- */
-        tm_start_egitick();
+//        tm_start_egitick();
 
         /* --- prepare fb device --- */
 //       gv_fb_dev.fdfd=-1;
