@@ -689,6 +689,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 	int i;
 	int ret;
 	uint16_t sx,sy;
+	enum egi_touch_status flip_status; /* for 'releasing' or 'pressing' */
 	enum egi_touch_status last_status=released_hold;
 	enum egi_touch_status check_status;
 	EGI_TOUCH_DATA touch_data;
@@ -747,6 +748,16 @@ int egi_homepage_routine(EGI_PAGE *page)
 
 	while(1)
 	{
+		/* 0. backup old touch status */
+		if( touch_data.status==releasing ) {
+			printf(" --- 'releasing' --- \n");
+			flip_status=releasing;
+		}
+		else if ( touch_data.status==pressing ) {
+			printf(" --- 'pressing' --- \n");
+			flip_status=pressing;
+		}
+
 		/* 1. read touch data */
 		if(!egi_touch_getdata(&touch_data) )
 		{
@@ -757,38 +768,73 @@ int egi_homepage_routine(EGI_PAGE *page)
 		sy=touch_data.coord.y;
 		last_status=touch_data.status;
 
+
+		/*	-----  restore missing status  ------
+		 *   The 'pressing' and 'releasing' signal may be missed due to current egi_touch.c
+		 *  algrithm, especially when you add pressing force slowly at the screen.
+		 *  we need to restore 'pressing' status and pass down the status.
+		 */
+		if( flip_status != pressing && last_status==pressed_hold ) {
+		    /* restore 'pressing' status then*/
+		    printf(" --- restore 'pressing' --- \n");
+		    last_status=pressing;
+		    flip_status=pressing;
+		}
+		else if(flip_status != releasing && last_status==released_hold) {
+		    /* restore 'releasing' status then*/
+		    printf(" --- restore 'releasing' --- \n");
+		    last_status=releasing;
+		    flip_status=releasing;
+		}
+
+
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
 		{
-			/* 2.1 check if sliding operation, and update slide_touch here !!!!  */
-			if(last_status==pressing || last_status==pressed_hold ) {
+			/* 2.1 Check if sliding operation begins, and update 'slide_touch' here !
+			 *     1. Remind that 'pressing' is the only triggering signal for sliding operation,
+			 *     and the handler will initialize data only at this signal.
+			 *     2. If not dx detected within given time, sliding operation will never triggered
+			 *       then.???
+			 */
+		        if( last_status==pressing || flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
 				tm_delayms(100);
 				tdx=egi_touch_peekdx();
 				/* check peek tdx, and also peek if 'releasing' after 'pressed_hold' */
-				if(tdx > 3 || tdx < -3 || egi_touch_peekstatus()==releasing) {
-					//printf("------------ start DX sliding ----------\n");
+				if(tdx > 3 || tdx < -3 ) {  //|| egi_touch_peekstatus()==releasing) {
+					printf("--- start sliding ---\n");
 					slide_touch=true;
 				}
 				/* else, pass down pressing status... */
-				else {
-					slide_touch=false;
-				}
+//				else {
+//					slide_touch=false;
+//				}
 			}
 
 			/* 2.2 sliding handling func */
 			if(slide_touch ) //&& ( last_status==pressed_hold || last_status==pressing || last_status==releasing) )
 			{
+				/* OR to ignore 'releasing' to let button icons stop at current position */
+				if(last_status==releasing)
+					printf(" --- sliding release! --- \n");
+
 				page->slide_handler(page, &touch_data);
 				egi_page_refresh(page); /* refresh page for other eboxes!!!  */
-				continue;
+
+				if(last_status==releasing)  /* 'releasing' is and end to sliding operation */
+					slide_touch=false;
+				else
+					continue;
 			}
+
 
 			/* 2.3 check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
 			/* 2.4 check if last hold btn losing foucs */
 			if( last_holdbtn != NULL && last_holdbtn != hitbtn) {
+				printf(" --- btn lose focus! --- \n");
 				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
 				last_holdbtn=NULL;
 			}

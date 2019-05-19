@@ -32,6 +32,9 @@ static struct itimerval tm_tick_val; //tm_tick_oval;
 static long long unsigned int tm_tick_count=0;
 
 
+//   struct timespec ts;
+//   clock_gettime(CLOCK_MONOTONIC, &ts);
+
 /*-------------------------------------
 Get time stamp in ms
 --------------------------------------*/

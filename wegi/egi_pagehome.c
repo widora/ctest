@@ -702,8 +702,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 			egi_ebox_needrefresh(home_btns[i]);
 		}
 
-
-#if 0   /* Test  loopback */
+    #if 0   /* Test  loopback */
 	/* Pending !!!!: X positon of pages are NOT continous any more!!!  */
 		for(i=0;i<npg;i++) {
 			if(home_btns[i*nc*nr]->x0 < -240*3 ) { /* 3,NOT 4! */
@@ -715,7 +714,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 					home_btns[i*nc*nr+j]->x0 -= 240*4;
 			}
 		}
-#endif
+    #endif   /* end loop test */
 
 		/* group refresh to avoid bkimg interference */
 		egi_btngroup_refresh(home_btns, npg*nc*nr);
@@ -798,6 +797,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		return btnret_OK; /* refresh page */
 
    	}
+
    	else /* bypass unwanted touch status */
               return btnret_IDLE;
 
