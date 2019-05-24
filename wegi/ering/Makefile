@@ -10,11 +10,14 @@ LDFLAGS += -L$(COMMON_USRDIR)/lib
 
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
-all:	egi_ring
+all:	ering_server ering_client
 
-egi_ring:	egi_ring.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) egi_ring.c -o egi_ring
+ering_server:	ering_server.c
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) ering_server.c -o ering_server
+
+ering_client:	ering_client.c
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) ering_client.c -o ering_client
 
 clean:
-	rm -rf *.o egi_ring
+	rm -rf *.o ering_server ering_client
 
