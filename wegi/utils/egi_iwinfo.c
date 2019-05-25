@@ -255,11 +255,12 @@ int  iw_http_request(char *host, char *request, char *reply)
 	strcat(strmsg,request);
 	strcat(strmsg," HTTP/1.1\r\n");
 	//SVR NOT SUPPORT strcat(strmsg," Content-Type: charset=uft-8\r\n");
+	strcat(strmsg,"User-Agent: Mozilla/5.0 \r\n");
 	strcat(strmsg,"HOST: ");
 
 	strcat(strmsg,host);
 	strcat(strmsg,"\r\n\r\n");
-	//printf("%s REQUEST string: %s\n",__func__,strmsg);
+	printf("%s REQUEST string: %s\n",__func__,strmsg);
 
 	sock=socket(AF_INET,SOCK_STREAM,0);
 	if(sock<0) {
@@ -267,18 +268,21 @@ int  iw_http_request(char *host, char *request, char *reply)
 		return -3;
 	}
 
+	printf("connect to host... \n");
 	ret=connect(sock, (struct sockaddr *)&host_addr, sizeof(host_addr));
 	if(ret<0) {
 		printf("%s() connect error: %s \n",__func__, strerror(errno));
 		return -4;
 	}
 
+	printf("send strmsg to host...\n");
 	ret=send(sock,strmsg,strlen(strmsg),0);
 	if(ret<=0) {
 		printf("%s() send error: %s \n",__func__, strerror(errno));
 		return -5;
 	}
 
+	printf("receive reply from host...\n");
 	ret=recv(sock,reply,256-1,0);
 	if(ret<=0) {
 		printf("%s() recv error: %s \n",__func__, strerror(errno));
