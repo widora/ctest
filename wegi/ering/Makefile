@@ -12,11 +12,14 @@ LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
 all:	ering_server ering_client
 
-ering_server:	ering_server.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) ering_server.c -o ering_server
+ering_server:	ering_server.c egi_ring.h egi_ring.o
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) egi_ring.o ering_server.c -o ering_server
 
-ering_client:	ering_client.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) ering_client.c -o ering_client
+ering_client:	ering_client.c egi_ring.h egi_ring.o
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) egi_ring.o ering_client.c -o ering_client
+
+egi_ring.o:	egi_ring.c egi_ring.h
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_ring.c
 
 clean:
 	rm -rf *.o ering_server ering_client

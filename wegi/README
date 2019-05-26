@@ -1,7 +1,7 @@
 NOTE:
 Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
 
-	----- main source files ( GPL if applicable ) -----
+	----- main source files ( GPL ) -----
 
 egi_fbgeom.c	fb and basic geometry functions
 xtp2046.c	touch controller interface funcs
@@ -17,6 +17,7 @@ egi_math.c	a common math function module
 egi_fifo.c	a common fifo module for EGI
 egi_filo.c	a common filo module for EGI
 egi_iotclient.c		A BIGIOT client application.
+egi_ring.c	a ERING mechanism for process communication between UI and APPs.
 
 egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
