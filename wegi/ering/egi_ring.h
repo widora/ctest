@@ -73,9 +73,8 @@ struct egi_ring_return
 /* ering command and return msg handler */
 typedef void(*ering_cmdret_handler_t)(EGI_RING_CMD *, EGI_RING_RET *);
 
-//void 	ering_run_host(const char *ering_host);
-void 	ering_run_host(const char *ering_host, ering_cmdret_handler_t ehandler);
-int 	ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd);
+void 	ering_run_host(const char *ering_host, ering_cmdret_handler_t handler);
+int 	ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd,ering_cmdret_handler_t handler);
 int 	ering_read_ret(EGI_RING_RET *eret);
 void	ering_clear_ret(EGI_RING_RET *eret);
 void	ering_clear_cmd(EGI_RING_CMD *ecmd);

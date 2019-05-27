@@ -24,19 +24,32 @@ midaszhou@yahoo.com
 
 int count=1;
 
-void msg_parser(EGI_RING_CMD *ering_cmd, EGI_RING_RET *ering_ret)
+/*----------------------------------------------------------
+This is a ering_cmdret_handler_t type callback function.
+Parse and process ering_cmd from the caller and prepare
+ering_ret which will then be feeded back to the ering caller.
+
+ering_cmd:	ering command received from any ering caller.
+ering_ret:	return ering msg for the ering caller.
+-----------------------------------------------------------*/
+void request_parser(EGI_RING_CMD *ering_cmd, EGI_RING_RET *ering_ret)
 {
-//	printf("start to parse request cmd .. \n");
+	/* 1. check received ering_cmd */
 	/* already clear ering_cmd in EGI_RING module */
+	printf("Request from caller: ");
 	if(ering_cmd->cmd_valid[ERING_CMD_ID])
-		printf("cmd id: %d,  ",ering_cmd->cmd_id);
+		printf("id=%d, ",ering_cmd->cmd_id);
 	if(ering_cmd->cmd_valid[ERING_CMD_DATA])
-		printf("data: %d,  ",ering_cmd->cmd_data);
+		printf("data=%d, ",ering_cmd->cmd_data);
 	if(ering_cmd->cmd_valid[ERING_CMD_MSG])
-		printf("msg: %s \n",ering_cmd->cmd_msg);
+		printf("msg='%s' \n",ering_cmd->cmd_msg);
 
 
-//	printf("start to prepare return msg ... \n");
+	/* 2. execute request method.... */
+
+
+
+	/* 3. feed back result ering_ret */
 	/* already clear ering_ret in EGI_RING module */
 	ering_ret->ret_valid[ERING_RET_CODE]=true;
 	ering_ret->ret_code=count++;
@@ -44,13 +57,19 @@ void msg_parser(EGI_RING_CMD *ering_cmd, EGI_RING_RET *ering_ret)
 	ering_ret->ret_data=555555;
 	ering_ret->ret_valid[ERING_RET_MSG]=true;
 	ering_ret->ret_msg=strdup("Request deferred!");
-
 }
 
 void main(void)
 {
-//	EGI_RING_CMD
+
+        /* init egi logger */
+        tm_start_egitick();
+        if(egi_init_log("/mmc/log_ering") != 0)
+        {
+                printf("Fail to init log_ering,quit.\n");
+                return;
+        }
 
 	/* ERING uloop */
-	ering_run_host("ering.APP", msg_parser);
+	ering_run_host("ering.APP", request_parser);
 }

@@ -16,6 +16,8 @@ published by the Free Software Foundation.
 
 4. For one socket, there shall be only one recv_thread and one send_thread running at the same time.
 
+5. WARNING!!! Consider to balance between egi_sleep(), tm_delayms() and egi_log();
+
 
 			------	(( Glossary ))  ------
 MTU:	    A maximum transmission unit(MTU) is the largest packet or frame size,IP uses MTU to determine

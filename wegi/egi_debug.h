@@ -32,6 +32,7 @@ Midas Zhou
 #define DBG_FFPLAY	(1<<13)
 #define DBG_IOT		(1<<14)
 #define DBG_FIFO	(1<<15)
+#define DBG_ERING	(1<<16)
 
 #define DBG_TEST	(1<<16)
 

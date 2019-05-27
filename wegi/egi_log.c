@@ -110,7 +110,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	time_t t=time(NULL);
 	struct tm *tm=localtime(&t);
 
-	/*??? may be replaced by __DATE__,__TIME__??? prepare time stamp string and log_level */
+	/* prepare time stamp string and log_level */
 	sprintf(strlog, "[%d-%02d-%02d %02d:%02d:%02d] [%s] ",
 				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec,
 				egi_loglv_to_string(log_level) );
@@ -182,7 +182,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 		/* copy log string to log_buf */
 	/*
 		printf("egi_push_log(): start strncpy...  log_buff_count=%d, strlen(strlog)=%d\n",
-										log_buff_count, strlen(strlog) );
+									log_buff_count, strlen(strlog) );
 	*/
 		memset(log_buff[log_buff_count],0,EGI_LOG_MAX_ITEMLEN); /* clear buff item */
 		strncpy((char *)log_buff[log_buff_count],strlog,strlen(strlog));

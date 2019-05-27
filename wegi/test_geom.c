@@ -38,15 +38,15 @@ int main(int argc, char ** argv)
 //   for(i=0;i<30;i++) {
 //	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
 //  }
+        /* --- start egi tick --- */
+        tm_start_egitick();
+
 	/* --- init logger --- */
   	if(egi_init_log("/tmp/log_geom") != 0)
 	{
 		printf("Fail to init logger,quit.\n");
 		return -1;
 	}
-
-        /* --- start egi tick --- */
-        tm_start_egitick();
 
         /* --- prepare fb device --- */
         gv_fb_dev.fdfd=-1;

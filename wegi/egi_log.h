@@ -12,7 +12,7 @@ Midas Zhou
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EGI_LOGFILE_PATH "/mmc/egi_log"
+#define EGI_LOGFILE_PATH "/mmc/egi_log"	/* default */
 
 #define ENABLE_LOGBUFF_PRINT 	1	/* enable to print log buff content */
 #define EGI_LOG_MAX_BUFFITEMS	128 	/* MAX. number of log buff items */
@@ -37,7 +37,7 @@ enum egi_log_level
 /* Only log levels included in DEFAULT_LOG_LEVELS will be effective in EGI_PLOG() */
 #define DEFAULT_LOG_LEVELS   (LOGLV_NONE|LOGLV_TEST|LOGLV_INFO|LOGLV_WARN|LOGLV_ERROR|LOGLV_CRITICAL)
 
-/* Only log level gets threshold(>=) that will be written to log file directly with nobuffer */
+/* Only log level gets threshold(>=) that will be written to log file directly without buffer */
 #define LOGLV_NOBUFF_THRESHOLD		LOGLV_ERROR
 
 

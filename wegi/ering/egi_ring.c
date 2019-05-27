@@ -6,10 +6,11 @@ published by the Free Software Foundation.
 Create an ERING mechanism for process communication betwee EGI UI and APP.
 
 NOTE:
-1. !!!! There should be only ONE host and/or ONE caller instance running, for
-   ering_cmd and ering_ret is commonly shared. Need to be imporved....
+1. ERING HOST and ERING CALLER should NOT be running at the same time in
+   the same instance/process, for ering_cmd and ering_ret are commonly shared
+   for HOST and CALLER functions here below.
 
-2. Through ERING/UBUS/LPC you may avoid contanimation from GPL.
+2. Through ERING/UBUS/LPC you may avoid contanimation from GPL.??
 
 
 Midas Zhou
@@ -19,23 +20,20 @@ midaszhou@yahoo.com
 #include <libubus.h>
 #include <libubox/blobmsg_json.h>
 #include "egi_ring.h"
+#include "egi_debug.h"
+#include "egi_log.h"
 
 
-/* ERING CALLER: ering command  */
-// To be provided by the caller: static EGI_RING_CMD ering_cmd;
-
-/* ERING HOST:
- *  wait for caller's msg ---> ering_cmd ---> wait for host_thread respond --> ering_ret ---> feedback to caller
- */
-//static EGI_RING_CMD ering_cmd;	/* host recevied ERING command */
-static EGI_RING_RET ering_ret;	/* host process prepared ERING return message, after process ering_cmd */
-static EGI_RING_CMD ering_cmd;
-static ering_cmdret_handler_t	host_handler;	/* ering_cmd/ret handler for the ering host
+static EGI_RING_RET ering_ret;	/* ering return(feedback) msg, by and from HOST */
+static EGI_RING_CMD ering_cmd;	/* ering request command msg, by and from CALLER */
+static ering_cmdret_handler_t	host_handler;	/* To be set/provided by host process.
+						 * ering_cmd/ret handler for the ering host
 						 * parse ering_cmd received and and prepare ering_ret
 						 * for feedback to the caller.
 						 */
-static ering_cmdret_handler_t	caller_handler;	/* ering_cmd/ret handler for the ering caller
-						 * normally ONLY check ering_ret from the host!!!
+static ering_cmdret_handler_t	caller_handler;	/* To be set/provided by caller process.
+						 * ering_cmd/ret handler for the ering caller
+						 * to check/confirm ering_ret from the host,
 						 */
 
 static int count; /* for test.... */
@@ -70,11 +68,9 @@ static const struct ubus_method ering_methods[] =
         UBUS_METHOD("ering_cmd", ering_handler, ering_cmd_policy),
 };
 
-
 /* ERING HOST: Ubus object type */
 static struct ubus_object_type ering_obj_type =
 	UBUS_OBJECT_TYPE("ering_uobj", ering_methods);
-
 
 /*------------------------------------
 	Return ubus strerror
@@ -91,12 +87,12 @@ Start a ubus host.
 
 Params:
 @ering_host     host name to be used as ubus object name.
-@cmd_to_host	a pointer to EGI_RING_CMD, that will pass command
-                from ering_caller to the function caller.
+@ehandler	handler function provided by the host process, this handler will
+                parse ering_cmd and prpare ering_ret for feedback to ering caller
 
 Return:
 ----------------------------=-------------------------------------------------*/
-void ering_run_host(const char *ering_host, ering_cmdret_handler_t ehandler)
+void ering_run_host(const char *ering_host, ering_cmdret_handler_t handler)
 {
         struct ubus_context *ctx;
         struct blob_buf bb;
@@ -105,16 +101,16 @@ void ering_run_host(const char *ering_host, ering_cmdret_handler_t ehandler)
         const char *ubus_socket=NULL; /* use default UNIX sock path: /var/run/ubus.sock */
 
 	if( ering_host==NULL ) {
-                printf("%s: Ering host name invalid!\n",__func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Ering host name invalid!\n",__func__);
 		return;
 	}
-	if( ering_handler==NULL ) {
-                printf("%s: ering_handler is invalid!\n",__func__);
+	if( handler==NULL ) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Input ering handler is invalid!\n",__func__);
 		return;
 	}
 
-	/* pass cmd_to_host to module's param host_handler */
-	host_handler=ehandler;
+	/* pass host_process provided handler to module's param: host_handler */
+	host_handler=handler;
 
         struct ubus_object ering_obj=
         {
@@ -131,7 +127,7 @@ void ering_run_host(const char *ering_host, ering_cmdret_handler_t ehandler)
         /* 2. connect to ubusd and get ctx */
         ctx=ubus_connect(ubus_socket);
         if(ctx==NULL) {
-                printf("%s: Fail to connect to ubusd!\n",__func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Fail to connect to ubusd!\n",__func__);
                 return;
         }
 
@@ -141,12 +137,12 @@ void ering_run_host(const char *ering_host, ering_cmdret_handler_t ehandler)
         /* 4. register a usb_object to ubusd */
         ret=ubus_add_object(ctx, &ering_obj);
         if(ret!=0) {
-               printf("%s: Fail to register '%s' to ubus, maybe already registered! Error:%s\n",
+               EGI_PLOG(LOGLV_ERROR,"%s: Fail to register '%s' to ubus, maybe already registered! Error:%s\n",
                                                 __func__, ering_obj.name, ering_strerror(ret));
                 goto UBUS_FAIL;
 
         } else {
-                printf("%s: Add '%s' to ubus successfully.\n",__func__,ering_obj.name);
+                EGI_PDEBUG(DBG_ERING,"Add '%s' to ubus successfully.\n",ering_obj.name);
         }
 
         /* 5. uloop routine: events monitoring and callback provoking */
@@ -159,7 +155,7 @@ UBUS_FAIL:
 }
 
 
-/*-----------------------  ERING HOST  ------------------------
+/*-----------------------  ERING HOST Handler --------------------
 EGI RING common method_call handler, once host receive ering msg
 from the caller this function will be trigged.
 
@@ -192,27 +188,19 @@ static int ering_handler( struct ubus_context *ctx, struct ubus_object *obj,
         if(tb[ERING_CMD_ID]) {
 	     ering_cmd.cmd_valid[ERING_CMD_ID]=true;
 	     ering_cmd.cmd_id=blobmsg_get_u16(tb[ERING_CMD_ID]);
-             printf("%s: From @%u, ERING_CMD_ID: %u \n",
-						__func__, obj->id, blobmsg_get_u16(tb[ERING_CMD_ID]));
 	}
         if(tb[ERING_CMD_DATA]) {
 	     ering_cmd.cmd_valid[ERING_CMD_DATA]=true;
 	     ering_cmd.cmd_data=blobmsg_get_u32(tb[ERING_CMD_DATA]);
-             printf("%s: From @%u, ERING_CMD_DATA: %u \n",
-						__func__, obj->id, blobmsg_get_u32(tb[ERING_CMD_DATA]));
 	}
         if(tb[ERING_CMD_MSG]) {
 	     ering_cmd.cmd_valid[ERING_CMD_MSG]=true;
 	     ering_cmd.cmd_msg=strdup(blobmsg_data(tb[ERING_CMD_MSG]) );
-             printf("%s: From @%u, ERING_CMD_MSG: '%s' \n",
-						__func__, obj->id, blobmsg_data(tb[ERING_CMD_MSG]));
 	}
-
 
 	/* run host defined command/return msg handler */
 	(*host_handler)(&ering_cmd, &ering_ret);
 
-////// following to be done by the host_handler ......
         /* send back result of method_call to the caller,  with data in ering_ret
 	 * as per ering_ret_policy[ ]
          */
@@ -228,25 +216,9 @@ static int ering_handler( struct ubus_context *ctx, struct ubus_object *obj,
 	if(ering_ret.ret_valid[ERING_RET_MSG]) {
 		blobmsg_add_string(&bb, "msg",ering_ret.ret_msg);
 	}
-#if 0
-	memset(&ering_ret,0,sizeof(ering_ret));
-	printf("------ put id ------\n");
-	ering_ret.ret_code=ering_cmd.cmd_id;
-        blobmsg_add_u16(&bb, "code", ering_ret.ret_code);		/* put return code */
 
-	printf("------ put data ------\n");
-	count++;
-	ering_ret.ret_data=count; /* for test......*/
-        blobmsg_add_u32(&bb, "data", ering_ret.ret_data);		/* put return data */
-
-	printf("------ put msg ------\n");
-        if(ering_ret.ret_msg)
-              blobmsg_add_string(&bb, "msg", ering_ret.ret_msg);	/* put return msg */
-#endif
-
-
+	/* send reply data */
         ubus_send_reply(ctx, req, bb.head);
-
 
        	/*      -----  reply proceed results  -----
          * NOTE: we may put proceeding job in a timeout task, just to speed up service response.
@@ -256,38 +228,41 @@ static int ering_handler( struct ubus_context *ctx, struct ubus_object *obj,
         ubus_complete_deferred_request(ctx, req, UBUS_STATUS_OK);
 
 	blob_buf_free(&bb);
-/*
-enum ubus_msg_status {
-        UBUS_STATUS_OK,
-        UBUS_STATUS_INVALID_COMMAND,
-        UBUS_STATUS_INVALID_ARGUMENT,
-        UBUS_STATUS_METHOD_NOT_FOUND,
-        UBUS_STATUS_NOT_FOUND,
-        UBUS_STATUS_NO_DATA,
-        UBUS_STATUS_PERMISSION_DENIED,
-        UBUS_STATUS_TIMEOUT,
-        UBUS_STATUS_NOT_SUPPORTED,
-        UBUS_STATUS_UNKNOWN_ERROR,
-        UBUS_STATUS_CONNECTION_FAILED,
-        __UBUS_STATUS_LAST
-};
-*/
+
+	/*
+	enum ubus_msg_status {
+       	 	UBUS_STATUS_OK,
+	        UBUS_STATUS_INVALID_COMMAND,
+       	 	UBUS_STATUS_INVALID_ARGUMENT,
+	        UBUS_STATUS_METHOD_NOT_FOUND,
+       		UBUS_STATUS_NOT_FOUND,
+		UBUS_STATUS_NO_DATA,
+	        UBUS_STATUS_PERMISSION_DENIED,
+	        UBUS_STATUS_TIMEOUT,
+	        UBUS_STATUS_NOT_SUPPORTED,
+	        UBUS_STATUS_UNKNOWN_ERROR,
+	        UBUS_STATUS_CONNECTION_FAILED,
+	        __UBUS_STATUS_LAST
+	};
+	*/
 }
 
 
-/*----------------  ERING CALLER  --------------------
+/*----------------  ERING CALLER  --------------------------------
 Send ering command to an APP and get its reply.
 params:
 @ering_host	ering host (APP) name
-@ering_cmd	ering command
-TODO @ering_ret	ering returned result
+@ecmd		ering command to ering host.
+@ehandler	handler function provided by the call process, it
+		check/parse ering_ret feedbacked by the ering host.
 
 return:
 	0	OK, and host reply OK.
 	<0	Function fails
 	>0	Ering host reply fails.
---------------------------------------------------------*/
-int ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd) /* EGI_RING_RET *ering_ret */
+------------------------------------------------------------------*/
+int ering_call_host(const char *ering_host, EGI_RING_CMD *ecmd,
+ 					ering_cmdret_handler_t handler) /* EGI_RING_RET *ering_ret */
 {
 	int ret;
 	struct ubus_context *ctx;
@@ -298,14 +273,24 @@ int ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd) /* EGI_RING
                 .grow=NULL,     /* NULL, or blob_buf_init() will fail! */
         };
 
-	if(ering_cmd==NULL)
+	if(ecmd==NULL) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Input ering_cmd is invalid!\n",__func__);
 		return -1;
+	}
+	if( handler==NULL ) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Input ering handler is invalid!\n",__func__);
+		return -2;
+	}
+
+	/* pass caller_process provided handler to module's param: caller_handler */
+	caller_handler=handler;
 
 	/* put caller's name, though if name is NULL also OK. */
 	struct ubus_object ering_obj=
 	{
-		.name=ering_cmd->caller,
+		.name=ecmd->caller,
 	};
+
 
 	/* 1. create an epoll instatnce descriptor poll_fd */
 	uloop_init();
@@ -313,7 +298,7 @@ int ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd) /* EGI_RING
 	/* 2. connect to ubusd and get ctx */
 	ctx=ubus_connect(ubus_socket);
 	if(ctx==NULL) {
-		printf("%s: Fail to connect to ubusd!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to connect to ubusd!\n",__func__);
 		return -1;
 	}
 
@@ -323,40 +308,51 @@ int ering_call_host(const char *ering_host, EGI_RING_CMD *ering_cmd) /* EGI_RING
 	/* 4. register a usb_object to ubusd */
 	ret=ubus_add_object(ctx, &ering_obj);
 	if(ret!=0) {
-		printf("%s: Fail to register ering_obj, Error: %s\n",__func__, ering_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to register ering_obj, Error: %s\n",__func__, ering_strerror(ret));
 		ret=-2;
 		goto UBUS_FAIL;
 
 	} else {
-		printf("%s: Ering caller '%s' to ubus successfully.\n",__func__,ering_obj.name);
+		EGI_PDEBUG(DBG_ERING,"Ering caller '%s' to ubus successfully.\n",__func__,ering_obj.name);
 	}
 
 	/* 5 search a registered object with a given name */
 	if( ubus_lookup_id(ctx, ering_host, &host_id) ) {
-		printf("%s: Ering host '%s' is NOT found in ubus!\n",__func__, ering_host);
+		EGI_PLOG(LOGLV_ERROR,"%s: Ering host '%s' is NOT found in ubus!\n",__func__, ering_host);
 		ret=-3;
 		goto UBUS_FAIL;
 	}
-	printf("%s: Get ering host '%s' id=%u\n",__func__, ering_host, host_id);
+	EGI_PDEBUG(DBG_ERING,"Get ering host '%s' id=%u\n",ering_host, host_id);
 
-	/* 6. pack data to blob_buf
+	/* 6. pack cmd data to blob_buf and copy ecmd to module param: ering_cmd
 	 *    as per ering_cmd[]::ering_cmd_policy[]
 	 */
 	blob_buf_init(&bb,0);
 
-	if(ering_cmd->cmd_valid[ERING_CMD_ID])
-		blobmsg_add_u16(&bb, "id", ering_cmd->cmd_id);
-	if(ering_cmd->cmd_valid[ERING_CMD_DATA])
-		blobmsg_add_u32(&bb, "data", ering_cmd->cmd_data);
-	if( ering_cmd->cmd_valid[ERING_CMD_MSG]  &&  ering_cmd->cmd_msg != NULL )
-		blobmsg_add_string(&bb, "msg", ering_cmd->cmd_msg);
+	ering_clear_cmd(&ering_cmd); /* clear ering_cmd first */
+
+	if(ecmd->cmd_valid[ERING_CMD_ID]) {
+		ering_cmd.cmd_valid[ERING_CMD_ID]=true;
+		ering_cmd.cmd_id=ecmd->cmd_id;
+		blobmsg_add_u16(&bb, "id", ecmd->cmd_id);
+	}
+	if(ecmd->cmd_valid[ERING_CMD_DATA]) {
+		ering_cmd.cmd_valid[ERING_CMD_DATA]=true;
+		ering_cmd.cmd_data=ecmd->cmd_data;
+		blobmsg_add_u32(&bb, "data", ecmd->cmd_data);
+	}
+	if( ecmd->cmd_valid[ERING_CMD_MSG]  &&  ecmd->cmd_msg != NULL ) {
+		ering_cmd.cmd_valid[ERING_CMD_MSG]=true;
+		ering_cmd.cmd_msg=strdup(ecmd->cmd_msg);
+		blobmsg_add_string(&bb, "msg", ecmd->cmd_msg);
+	}
 
 	/* 7. invoke a ering command session
 	 *    call the ubus host object with a specified method.
  	 */
 	ret=ubus_invoke(ctx, host_id, "ering_cmd", bb.head, result_data_handler, 0, 0);
 	if(ret!=0)
-		printf("%s Fail to call ering host '%s': %s\n",__func__, ubus_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s Fail to call ering host '%s': %s\n",__func__, ubus_strerror(ret));
 
 	/* DO NOT DO uloop: 	uloop_run(); */
 
@@ -374,7 +370,7 @@ UBUS_FAIL:
 TYPE: ubus_data_handler_t
 Host feedback data handler
 
----------------------------------------*/
+--------------------------------------------*/
 static void result_data_handler(struct ubus_request *req, int type, struct blob_attr *msg)
 {
 	int i;
@@ -384,10 +380,11 @@ static void result_data_handler(struct ubus_request *req, int type, struct blob_
 	if(!msg)
 		return;
 
-	/* print in format of json string */
+#if 0	/* for test, print in format of json string */
 	strmsg=blobmsg_format_json_indent(msg,true, 0); /* 0 type of format */
 	printf("%s\n", strmsg);
 	free(strmsg); /* need to free strmsg */
+#endif
 
         /* parse returned msg */
         blobmsg_parse(ering_ret_policy, ARRAY_SIZE(ering_ret_policy), tb, blob_data(msg), blob_len(msg));
@@ -398,25 +395,26 @@ static void result_data_handler(struct ubus_request *req, int type, struct blob_
 	}
 
 	/* put returned data to ering_ret for caller to read */
+
+	ering_clear_ret(&ering_ret); /* clear ering_ret before input new data */
+
         if(tb[ERING_RET_CODE]) {
 		ering_ret.ret_valid[ERING_RET_CODE]=true;
 		ering_ret.ret_code=blobmsg_get_u16(tb[ERING_RET_CODE]);
-             	printf("%s: ERING_RET_CODE: %u \n", __func__, blobmsg_get_u16(tb[ERING_RET_CODE]));
 	}
         if(tb[ERING_RET_DATA]) {
 		ering_ret.ret_valid[ERING_RET_DATA]=true;
 		ering_ret.ret_data=blobmsg_get_u32(tb[ERING_RET_DATA]);
-             	printf("%s: ERING_RET_DATA: %u \n", __func__, blobmsg_get_u32(tb[ERING_RET_DATA]));
 	}
         if(tb[ERING_RET_MSG]) {
 		ering_ret.ret_valid[ERING_RET_MSG]=true;
 		ering_ret.ret_msg=strdup(blobmsg_data(tb[ERING_RET_MSG]));
-           	printf("%s: ERING_RET_MSG: '%s' \n", __func__, blobmsg_data(tb[ERING_RET_MSG]));
 	}
 
+	/* parse ering_cmd and ering_ret by caller_provided handler */
+	(* caller_handler)( &ering_cmd, &ering_ret); /* as we alread copied ering_cmd in ering_call_host()*/
+
 	/* TODO better way to pass EGI_RING_RET to the caller ???? */
-
-
 }
 
 
@@ -470,7 +468,6 @@ int ering_read_ret(EGI_RING_RET *eret)
 
 /*------------------------------------------------------
 Clear a ering_ret struct: reset ret_valid and free msg.
-Do not clear
 -------------------------------------------------------*/
 void ering_clear_ret(EGI_RING_RET *eret)
 {
@@ -494,7 +491,6 @@ void ering_clear_ret(EGI_RING_RET *eret)
 
 /*------------------------------------------------------
 Clear a ering_cmd struct: reset cmd_valid and free msg.
-Do not clear cmd_handler
 -------------------------------------------------------*/
 void ering_clear_cmd(EGI_RING_CMD *ecmd)
 {
