@@ -180,7 +180,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 			ps=cstr_trim_space(line_buff);
 			/* get rid of all_space/empty line */
 			if(ps==NULL) {
-				printf("config file:: Line:%d is an empty line!\n", lnum);
+//				printf("config file:: Line:%d is an empty line!\n", lnum);
 				continue;
 			}
 			else if( *ps=='#') {

@@ -115,7 +115,7 @@ $(APPS): $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
 
 #### ----- 清除目标 -----
 clean:
-	rm -rf $(OBJS) $(EXTRA_OBJS) $(APPS) $(DEP_FILES)
+	rm -rf test_*.o $(OBJS) $(EXTRA_OBJS) $(APPS) $(DEP_FILES)
 
 
 include $(DEP_FILES)

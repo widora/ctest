@@ -40,5 +40,14 @@ egi_pageslide.c		PAGE sliding bar test
 egi_appstock.c		a real time stock data display app.
 
 
+Dependency Libs:
+libcurl, 
+libpng, libjpeg, 
+libjson-c, 
+libubus, libubox, 
+libshine,libasound,
+... ... 
+
+
 Midas Zhou
 midaszhou@yahoo.com

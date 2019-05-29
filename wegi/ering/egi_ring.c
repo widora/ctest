@@ -90,7 +90,6 @@ Params:
 @ehandler	handler function provided by the host process, this handler will
                 parse ering_cmd and prpare ering_ret for feedback to ering caller
 
-Return:
 ----------------------------=-------------------------------------------------*/
 void ering_run_host(const char *ering_host, ering_cmdret_handler_t handler)
 {
@@ -161,7 +160,7 @@ from the caller this function will be trigged.
 
 type: ubus_handler_t
 --------------------------------------------------------------*/
-static int ering_handler( struct ubus_context *ctx, struct ubus_object *obj,
+static int ering_handler( struct ubus_context *ctx, struct ubus_object *obj, /* obj referts to host */
                           struct ubus_request_data *req, const char *method,
                           struct blob_attr *msg )
 {
