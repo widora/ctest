@@ -53,7 +53,7 @@ extern EGI_BOX gv_fb_box;
 
 /* functions */
 int 		init_dev(FBDEV *dev);
-void 		release_dev(FBDEV *dev);
+void 		release_fbdev(FBDEV *dev);
 inline void 	fbset_homepage_loop(bool loop);
 void 		fb_filo_flush(FBDEV *dev);
 inline void 	fb_filo_on(FBDEV *dev);

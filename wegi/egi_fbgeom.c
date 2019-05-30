@@ -45,7 +45,7 @@ Modified and appended by Midas-Zhou
 
 
 /* global variale, Frame buffer device */
-FBDEV   gv_fb_dev __attribute__(( visibility ("hidden") )) ;
+FBDEV   gv_fb_dev; //__attribute__(( visibility ("hidden") )) ;
 EGI_BOX gv_fb_box;
 
 /* default color set */
@@ -112,7 +112,7 @@ int init_dev(FBDEV *dev)
 /*-------------------------
 Release FB and free map
 --------------------------*/
-void release_dev(FBDEV *dev)
+void release_fbdev(FBDEV *dev)
 {
 	if(!dev || !dev->map_fb)
 		return;

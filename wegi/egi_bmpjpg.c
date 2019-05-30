@@ -383,7 +383,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	unsigned char *dat;
 	uint16_t color;
 	long int location = 0;
-	int btypp=2; /* bytes per pixel */
+	int bytpp=2; /* bytes per pixel */
 	int i,j;
 	FILE *infile=NULL;
 
@@ -400,13 +400,13 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	EGI_PDEBUG(DBG_BMPJPG,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
 								fpath,egi_imgbuf->width,egi_imgbuf->height);
 	/* alloc imgbuf */
-	egi_imgbuf->imgbuf=malloc(width*height*btypp);
+	egi_imgbuf->imgbuf=malloc(width*height*bytpp);
 	if(egi_imgbuf->imgbuf==NULL)
 	{
 		printf("egi_imgbuf_loadjpg(): fail to malloc imgbuf.\n");
 		return -2;
 	}
-	memset(egi_imgbuf->imgbuf,0,width*height*btypp);
+	memset(egi_imgbuf->imgbuf,0,width*height*bytpp);
 
 	/* TODO: WARNING: need to be improve here: converting 8bit to 24bit color*/
 	if(components==1) /* 8bit color */
@@ -422,10 +422,10 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	{
 		for(j=0;j<width;j++)
 		{
-			location= (height-i-1)*width*btypp + j*btypp;
+			location= (height-i-1)*width*bytpp + j*bytpp;
 
 			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
-			*(uint16_t *)(egi_imgbuf->imgbuf+location/btypp )=color;
+			*(uint16_t *)(egi_imgbuf->imgbuf+location/bytpp )=color;
 			dat +=3;
 		}
 	}
@@ -440,8 +440,18 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 -------------------------------------------------------------------------*/
 void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 {
-	if(egi_imgbuf != NULL && egi_imgbuf->imgbuf != NULL)
+	if(egi_imgbuf == NULL)
+		return;
+
+	if(egi_imgbuf->imgbuf != NULL) {
 		free(egi_imgbuf->imgbuf);
+		egi_imgbuf->imgbuf=NULL;
+	}
+
+	if(egi_imgbuf->alpha != NULL) {
+		free(egi_imgbuf->alpha);
+		egi_imgbuf->alpha=NULL;
+	}
 }
 
 
@@ -478,16 +488,16 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 	uint16_t *imgbuf = egi_imgbuf->imgbuf;
 	long int locfb=0; /* location of FB mmap, in byte */
 	long int locimg=0; /* location of image buf, in byte */
-	int btypp=2; /* bytes per pixel */
+	int bytpp=2; /* bytes per pixel */
 
 	for(i=0;i<yres;i++) /* FB row */
 	{
 		for(j=0;j<xres;j++) /* FB column */
 		{
 			/* FB location */
-			locfb = i*xres*btypp+j*btypp;
+			locfb = i*xres*bytpp+j*bytpp;
 			/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
-                	if( locfb<0 || locfb>(fb_dev->screensize-btypp) )
+                	if( locfb<0 || locfb>(fb_dev->screensize-bytpp) )
                 	{
                                  printf("show_bmp(): WARNING: point location out of fb mem.!\n");
                                  return -2;
@@ -500,9 +510,9 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 			}
 			else
 			{
-				locimg= (i+yp)*imgw*btypp+(j+xp)*btypp; /* image location */
+				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp; /* image location */
 				/*  FB from EGI_IMGBUF */
-				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 			}
 		}
 	}
@@ -526,7 +536,9 @@ egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
 		the coordinate system of the picture(also origin at left top).
 (xw,yw):	displaying window origin, relate to the LCD coord system.
 winw,winh:	width and height(row/column for fb) of the displaying window.
----------------------------------------------------------------------------------------*/
+		!!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
+		waste time calling draw_dot() for pixels outsie FB zone.
+------------------------------------------------------------------------------------------*/
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
 				int xw, int yw, int winw, int winh)
 {
@@ -553,7 +565,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 	uint16_t *imgbuf = egi_imgbuf->imgbuf;
 	long int locfb=0; /* location of FB mmap, in byte */
 	long int locimg=0; /* location of image buf, in byte */
-	int btypp=2; /* bytes per pixel */
+	int bytpp=2; /* bytes per pixel */
 
 	//for(i=0;i<yres;i++) /* FB row */
 	for(i=0;i<winh;i++) /* row of the displaying window */
@@ -562,7 +574,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 		for(j=0;j<winw;j++)
 		{
 			/* FB data location */
-//replaced by draw_dot()	locfb = (i+yw)*xres*btypp+(j+xw)*btypp;
+//replaced by draw_dot()	locfb = (i+yw)*xres*bytpp+(j+xw)*bytpp;
 
 			/* check if exceed image boundary */
 			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
@@ -574,12 +586,12 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 			else
 			{
 				/* image data location */
-				locimg= (i+yp)*imgw*btypp+(j+xp)*btypp;
+				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp;
 				/*  FB from EGI_IMGBUF */
-//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/btypp);
+//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
 				/*  ---- draw_dot() here ---- */
-				fbset_color(*(uint16_t *)(imgbuf+locimg/btypp));
+				fbset_color(*(uint16_t *)(imgbuf+locimg/bytpp));
 				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
 			}
 		}

@@ -1336,8 +1336,9 @@ if(enable_avfilter) /* free filter resources */
 
 	/*   finally clean up all  */
 	/* close fb dev */
-        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
-        close(gv_fb_dev.fdfd);
+//        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
+//        close(gv_fb_dev.fdfd);
+	release_fbdev(&gv_fb_dev);
 
         /* close spi dev */
         SPI_Close();

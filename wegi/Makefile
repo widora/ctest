@@ -58,7 +58,7 @@ OBJS := $(OBJS:test_stock.o=)
 OBJS := $(OBJS:test_bigiot.o=)
 OBJS := $(OBJS:tmp_app.o=)
 OBJS := $(OBJS:test_bmpjpg.o=)
-#OBJS := $(OBJS:test_weather.o=)
+OBJS := $(OBJS:test_weather.o=)
 
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
@@ -68,11 +68,11 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 #APPS = test_sym
 #APPS = tmp_app
 #APPS = test_bigiot
-APPS = test_weather
+#APPS = test_weather
 
 #buttons.o
 EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
-	     utils/egi_filo.o utils/egi_cstring.o	\
+	     utils/egi_filo.o utils/egi_cstring.o \
 	     ffmpeg/ff_pcm.o
 
 #### -----  编译标志 -----
@@ -102,6 +102,9 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
+
+egi_lib:
+	$(CC) -shared -fPIC -Wl,-soname,libegi.so.1 $(OBJS)  $(EXTRA_OBJS)  -o libegi.so.1.0.0
 
 
 $(APPS): $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
