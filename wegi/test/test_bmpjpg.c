@@ -17,7 +17,7 @@ Midas Zhou
 #include "egi_color.h"
 #include "egi_log.h"
 #include "egi.h"
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 
 int main(int argc, char **argv)
 {

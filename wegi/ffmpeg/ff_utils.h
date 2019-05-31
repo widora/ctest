@@ -18,7 +18,7 @@ Midas_Zhou
 #define  __FF_UTILS_H__
 
 #include <stdio.h>
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 //#include "egi_log.h"
 //#include "play_ffpcm.h"
 #include "egi.h"

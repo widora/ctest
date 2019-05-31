@@ -142,8 +142,7 @@ int main(int argc, char *argv[])
         SPI_Open();
 
         /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 
         /* ---- set timer for time display ---- */
 #if 0

@@ -45,7 +45,7 @@ Modified and appended by Midas-Zhou
 
 
 /* global variale, Frame buffer device */
-FBDEV   gv_fb_dev; //__attribute__(( visibility ("hidden") )) ;
+FBDEV   gv_fb_dev={ .fdfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
 EGI_BOX gv_fb_box;
 
 /* default color set */
@@ -56,9 +56,14 @@ Return:
 	0	OK
 	<0	Fails
 ---------------------------------------*/
-int init_dev(FBDEV *dev)
+int init_fbdev(FBDEV *dev)
 {
         FBDEV *fr_dev=dev;
+
+	if(fr_dev->fdfd>0) {
+	   printf("Input FBDEV already open!\n");
+	   return -1;
+	}
 
         fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR);
 	if(fr_dev<0) {
@@ -118,8 +123,11 @@ void release_fbdev(FBDEV *dev)
 		return;
 
 	egi_free_filo(dev->fb_filo);
+
 	munmap(dev->map_fb,dev->screensize);
+
 	close(dev->fdfd);
+	dev->fdfd=-1;
 }
 
 

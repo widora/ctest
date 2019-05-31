@@ -9,7 +9,7 @@ Midas Zhou
 #include <signal.h>
 #include <string.h>
 #include <time.h>
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 #include "egi_color.h"
 #include "egi.h"
 #include "egi_txt.h"

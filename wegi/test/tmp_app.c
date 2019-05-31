@@ -46,7 +46,7 @@ Midas Zhou
 #include "egi_pagehome.h"
 //#include "egi_pagemplay.h"
 #include "xpt2046.h"
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 //#include "dict.h"
 #include "egi_symbol.h"
 #include "egi_objlist.h"

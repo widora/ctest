@@ -18,8 +18,8 @@ TODO:
 
 Midas Zhou
 -----------------------------------------------------------------------*/
-#ifndef __EGI_BMPJPG_H__
-#define __EGI_BMPJPG_H__
+#ifndef __EGI_BJP_H__
+#define __EGI_BJP_H__
 
 
 #include <unistd.h>
@@ -27,13 +27,13 @@ Midas Zhou
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
-#include <linux/fb.h> //u
+#include <linux/fb.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <jpeglib.h>
 #include <jerror.h>
-#include "egi.h"
+//#include "egi.h"
 #include "egi_image.h"
 #include "egi_fbgeom.h"
 
@@ -73,22 +73,12 @@ typedef struct
 }__attribute__((packed)) PIXEL;//颜色模式RGB
 
 
-/* struct for 16bits_color image buffer */
-/*
-typedef struct
-{
-	int height;
-	int width;
-	uint16_t *imgbuf;
-} EGI_IMGBUF;
-*/
-
 
 #define SHOW_BLACK_TRANSP	1
 #define SHOW_BLACK_NOTRANSP	0
 
 /* functions */
-unsigned char *open_jpgImg(char *filename, int *w, int *h, int *components, FILE **fil);
+unsigned char *open_jpgImg(char *filename, int *w, int *h, int *components);
 void close_jpgImg(unsigned char *imgbuf);
 
 int show_bmp(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
@@ -96,6 +86,8 @@ int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 
 //int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_loadjpg(char* fpath, EGI_IMGBUF *egi_imgbuf);
+int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf);
+
 void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf);
 
 /* display picture buffer with full screen */

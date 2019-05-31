@@ -110,7 +110,7 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include "egi_debug.h"
 #include "egi_log.h"
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 #include "egi_log.h"
 #include "egi_symbol.h"
 
@@ -368,8 +368,7 @@ int main(int argc, char *argv[])
         //SPI_Open();
 
         /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 	//clear_screen(&gv_fb_dev, 0);
 
 	/* --- load sympages --- */

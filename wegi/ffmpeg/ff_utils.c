@@ -17,7 +17,7 @@ Midas_Zhou
 #include <limits.h> /* system: NAME_MAX 255; PATH_MAX 4096 */
 
 #include "egi.h"
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 #include "egi_log.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"

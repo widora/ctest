@@ -1,4 +1,9 @@
 #-------------------------------------------------------------------------------------------------------------
+#	This program is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License version 2 as
+#	published by the Free Software Foundation.
+#
+#	Midas Zhou
 # 一个Makefile文件通常所包含的内容和步骤：
 #	1. 指定路径  VPATH
 #	2. 源文件和目标文件列表，如：
@@ -22,8 +27,6 @@
 #	8.安装方法
 #
 #
-#
-#
 #                                ----- 自动依赖跟踪例子 -----
 #
 # 1. make会从头到尾一次次分析Makefile（从树根捋到每个树叉），每分析完一遍确定一个可以解决的目标或未知量，
@@ -38,20 +41,50 @@
 #
 #---------------------------------------------------------------------------------------------------------------
 
-CC=/home/midas-zhou/openwrt_widora/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
+export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
+COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr/
 
+CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
 #### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
+
+##--- exclude some objs !!!BEWARE, :NO SPACE ----
+OBJS := $(OBJS:test_color.o=)
+OBJS := $(OBJS:test_sym.o=)
+OBJS := $(OBJS:test_geom.o=)
+OBJS := $(OBJS:test_stock.o=)
+OBJS := $(OBJS:test_bigiot.o=)
+OBJS := $(OBJS:tmp_app.o=)
+OBJS := $(OBJS:test_bmpjpg.o=)
+OBJS := $(OBJS:test_weather.o=)
+
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
-APPS = tmp_app
+
+#APPS  = test_stock
+#APPS = test_bmpjpg
+#APPS = test_geom
+#APPS = test_sym
+#APPS = tmp_app
+#APPS = test_bigiot
+#APPS = test_weather
+
+#buttons.o
+EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
+	     utils/egi_filo.o utils/egi_cstring.o \
+	     ffmpeg/ff_pcm.o
 
 #### -----  编译标志 -----
-CFLAGS = -Wall
-CFLAGS += -I./ -I./include
-LDFLAGS = -L./lib -ljpeg -lm
+## -Wall for __attribut__ // -I$(COMMON_USRDIR)/include (for jpeg)
+CFLAGS = -I./ -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS += -Wall -O2
+#CFLAGS += -I./ -I./include
+#### --- for debug, put before LDFLAGS!!!! ----
+#CFLAGS += -O -g -DEGI_DEBUG
 
+LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
+LIBS += -ljpeg -lm -lpthread -ljson-c -lasound
 
 #----- 打印依赖文件  include $(DEP_FILES)
 #-----如果前面有include命令，那么make命令只会执行下面all中的第一个依赖文件，除非用make all完整命令
@@ -69,18 +102,23 @@ $(warning "----- %:%.c -----")
 
 #### ------ 手动设置特定目标生成规则  ------
 ####----- !!!! manually edit here !!!! -----
-tmp_app: $(OBJS)    ###touch.o spi.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o tmp_app
+
+egi_lib:
+	$(CC) -shared -fPIC -Wl,-soname,libegi.so.1 $(OBJS)  $(EXTRA_OBJS)  -o libegi.so.1.0.0
+
+
+$(APPS): $(OBJS) $(EXTRA_OBJS)  #buttons.o egi_iotclient.o ###touch.o spi.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $(EXTRA_OBJS) -o $(APPS)
 
 
 #### ----- 目标文件自动生成规则 -----
-%:%.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c
+%:%.c $(DEP_FILES)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $@.c
 
 
 #### ----- 清除目标 -----
 clean:
-	rm -rf $(OBJS) $(APPS) $(DEP_FILES)
+	rm -rf test_*.o $(OBJS) $(EXTRA_OBJS) $(APPS) $(DEP_FILES)
 
 
 include $(DEP_FILES)

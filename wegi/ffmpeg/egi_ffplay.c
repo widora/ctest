@@ -348,8 +348,7 @@ int main(int argc, char *argv[])
         //SPI_Open();
 
         /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 	//clear_screen(&gv_fb_dev, 0);
 
 	/* --- fill display area with BLACK --- */

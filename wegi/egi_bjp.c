@@ -32,9 +32,10 @@ Modified by Midas Zhou
 #include <jpeglib.h>
 #include <jerror.h>
 #include <dirent.h>
+#include <png.h>
 #include "egi_image.h"
 #include "egi_debug.h"
-#include "egi_bmpjpg.h"
+#include "egi_bjp.h"
 #include "egi_color.h"
 #include "egi_timer.h"
 
@@ -43,28 +44,47 @@ Modified by Midas Zhou
 
 /*--------------------------------------------------------------
  open jpg file and return decompressed image buffer pointer
- int *w,*h:   with and height of the image
- int *components:  out color components
+ int *w,*h:   		with and height of the image
+ int *components:  	out color components
+ fil			pointer to FILE.
  return:
 	=NULL fail
 	>0 decompressed image buffer pointer
 --------------------------------------------------------------*/
-unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FILE **fil)
+unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
 {
-        struct jpeg_decompress_struct cinfo;
+	unsigned char header[2];
+	struct jpeg_decompress_struct cinfo;
         struct jpeg_error_mgr jerr;
         FILE *infile;
         unsigned char *buffer;
         unsigned char *temp;
+
 
         if (( infile = fopen(filename, "rb")) == NULL) {
                 fprintf(stderr, "open %s failed\n", filename);
                 return NULL;
         }
 
-	/* return FILE */
-	*fil = infile;
+	/* To confirm JPEG/JPG type, simple way. */
+	fread(header,1,2,infile); /* start of image 0xFF D8 */
+	if(header[0] != 0xFF || header[1] != 0xD8) {
+		//printf("SOI: header[0]=0x%x, header[1]=0x%x\n",header[0], header[1]);
+		fprintf(stderr, "File %s is NOT a recognizable JPG/JPEG file!\n", filename);
+		fclose(infile);
+		return NULL;
+	}
+	fseek(infile,-2,SEEK_END); /* start of image 0xFF D9 */
+	fread(header,1,2,infile);
+	if(header[0] != 0xFF || header[1] != 0xD9) {
+		fprintf(stderr, "File %s is NOT a recognizable JPG/JPEG file!\n", filename);
+		fclose(infile);
+		return NULL;
+	}
+	fseek(infile,0,SEEK_SET); /* Must reset seek for jpeg decompressor! */
 
+
+	/* decompress jpeg data */
         cinfo.err = jpeg_std_error(&jerr);
         jpeg_create_decompress(&cinfo);
 
@@ -99,12 +119,13 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components, FI
                 buffer += cinfo.output_width * cinfo.output_components;
         }
 
+	printf("start jpeg_finish_decompress()...\n");
         jpeg_finish_decompress(&cinfo);
         jpeg_destroy_decompress(&cinfo);
 
-        return temp;
-
         fclose(infile);
+
+        return temp;
 }
 
 /*    release mem for decompressed jpeg image buffer */
@@ -293,12 +314,10 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	long int location = 0;
 	int line_x,line_y;
 
-	FILE *infile=NULL;
-
 	/* get fb map */
 	unsigned char *fbp =fb_dev->map_fb;
 
-	imgbuf=open_jpgImg(fpath,&width,&height,&components, &infile);
+	imgbuf=open_jpgImg(fpath,&width,&height,&components );
 
 	if(imgbuf==NULL) {
 		printf("open_jpgImg fails!\n");
@@ -353,21 +372,18 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	}
 #endif
 	close_jpgImg(imgbuf);
-	fclose(infile);
 	return 0;
 }
 
 
 /*------------------------------------------------------------------------
-allocate memory for egi_imgbuf, and then load a jpg image to it.
+Allocate memory for a EGI_IMGBUF,then read JPG image data and load to it.
 
-fpath:		jpg file path
+fpath:		JPG file path
+egi_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color
 
-//fb_dev:		if not NULL, then write to FB,
-
-imgbuf:		buf to hold the image data, in 16bits color
-		input:  an EGI_IMGBUF
-		output: a pointer to the image data
+Note:
+	1. only for case components=3.
 
 Return
 		0	OK
@@ -383,12 +399,11 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	unsigned char *dat;
 	uint16_t color;
 	long int location = 0;
-	int bytpp=2; /* bytes per pixel */
+	int bytpp=2; /* bytes per pixel, 16bits color only */
 	int i,j;
-	FILE *infile=NULL;
 
 	/* open jpg and get parameters */
-	imgbuf=open_jpgImg(fpath,&width,&height,&components, &infile);
+	imgbuf=open_jpgImg(fpath,&width,&height,&components);
 	if(imgbuf==NULL) {
 		printf("egi_imgbuf_loadjpg(): open_jpgImg() fails!\n");
 		return -1;
@@ -417,23 +432,200 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 
 	/* flip picture to be same data sequence of BMP file */
 	dat=imgbuf;
-
 	for(i=height-1;i>=0;i--) /* row */
 	{
 		for(j=0;j<width;j++)
 		{
-			location= (height-i-1)*width*bytpp + j*bytpp;
+//			location= (height-i-1)*width*bytpp + j*bytpp;
+			location= (height-i-1)*width + j;
 
 			color=COLOR_RGB_TO16BITS(*dat,*(dat+1),*(dat+2));
-			*(uint16_t *)(egi_imgbuf->imgbuf+location/bytpp )=color;
+			*(uint16_t *)(egi_imgbuf->imgbuf+location )=color;
 			dat +=3;
 		}
 	}
 
 	close_jpgImg(imgbuf);
-	fclose(infile);
 	return 0;
 }
+
+
+/*------------------------------------------------------------------------
+Allocate memory for a EGI_IMGBUF, and read PNG image data and load to it.
+
+fpath:		PNG file path
+eg_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color
+
+Note:
+1. color_type,  Bit depth,       Description
+   0            1,2,4,8,16       each pixel is a grayscale sample
+   2            8,16             each pixel is an RGB triple.
+   3            1,2,4,8          each pixel is a platte index
+   4            8,16             a grayscale pixel followed by an alpha sample
+   6            8,16             a RGB triple pixel followed by an alpha sample
+   Referring to: https//www.w3.org/TR/PNG/
+
+2. Input image is transformed to RGB 24bpp type by setting option PNG_TRANSFORM_EXPAND
+   in png_read_png().
+
+3. After transformation, it only deals with type_2(real_color) and type_6(real_color
+   with alpha channel) PNG file, and bit_depth MUST be 8!
+   TODO:
+
+Return
+		0	OK
+		<0	fails
+-------------------------------------------------------------------------*/
+int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
+{
+	int ret=0;
+        int i,j;
+        char header[8];
+        FILE *fil;
+        png_structp 	png_ptr;
+        png_infop   	info_ptr;
+        png_byte 	color_type;
+        png_byte 	bit_depth;
+        png_byte   	channels;
+        png_byte   	pixel_depth;
+        png_bytep 	*row_ptr;
+
+        int bytpp; /* bytes per pixel */
+        int     width;
+        int     height;
+	long	pos;
+
+        /* open PNG file */
+        fil=fopen(fpath,"rb");
+        if(fil==NULL) {
+                printf("Fail to open png file:%s.\n", fpath);
+                return -1;
+        }
+
+        /* to confirm it's a PNG file */
+        fread(header,1, 8, fil);
+        if(png_sig_cmp((png_bytep)header,0,8)) {
+                printf("Input file %s is NOT a recognizable PNG file!\n", fpath);
+                ret=-2;
+                goto INIT_FAIL;
+        }
+
+        /* Initiate/prepare png srtuct for read */
+        png_ptr=png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
+        if(png_ptr==NULL) {
+                printf("png_create_read_struct failed!\n");
+                ret=-3;
+                goto INIT_FAIL;
+        }
+        info_ptr=png_create_info_struct(png_ptr);
+        if(info_ptr==NULL) {
+                printf("png_create_info_struct failed!\n");
+                ret=-4;
+                goto INIT_FAIL;
+        }
+        if( setjmp(png_jmpbuf(png_ptr)) != 0) {
+                printf("setjmp(png_jmpbuf(png_ptr)) failed!\n");
+                ret=-5;
+                goto INIT_FAIL;
+        }
+        /* assign IO pointer: png_ptr->io_ptr = (png_voidp)fp */
+        png_init_io(png_ptr,fil);
+        /* Tells libpng that we have already handled the first 8 bytes
+         * of the PNG file signature.
+         */
+        png_set_sig_bytes(png_ptr, 8); /* 8 is Max */
+
+        /*  try more options for transforms...
+         *  PNG_TRANSFORM_GRAY_TO_RGB, PNG_TRANSFORM_INVERT_ALPHA, PNG_TRANSFORM_BGR
+         *  PNG_TRANSFORM_EXPAND: transform to RGB 24bpp.
+         */
+        png_read_png(png_ptr,info_ptr, PNG_TRANSFORM_EXPAND|PNG_TRANSFORM_GRAY_TO_RGB, 0);
+        /* read png info: size, type, bit_depth
+         * Contents of row_info:
+         *  png_uint_32 width      width of row
+         *  png_uint_32 rowbytes   number of bytes in row
+         *  png_byte color_type    color type of pixels
+         *  png_byte bit_depth     bit depth of samples
+         *  png_byte channels      number of channels (1-4)
+         *  png_byte pixel_depth   bits per pixel (depth*channels)
+         */
+        width=png_get_image_width(png_ptr, info_ptr);
+        height=png_get_image_height(png_ptr,info_ptr);
+        color_type=png_get_color_type(png_ptr, info_ptr);
+        bit_depth=png_get_bit_depth(png_ptr, info_ptr);
+        pixel_depth=info_ptr->pixel_depth;
+        channels=png_get_channels(png_ptr, info_ptr);
+        printf("PNG file '%s', Image data info after transform_expand:\n", fpath);
+        printf("Width=%d, Height=%d, color_type=%d \n", width, height, color_type);
+        printf("bit_depth=%d, channels=%d,  pixel_depth=%d \n", bit_depth, channels, pixel_depth);
+
+        /*   Now, we only deal with type_2(real_color) and type_6(real_color with alpha channel) PNG file,
+         *       and bit_depth must be 8.
+         */
+        if(bit_depth!=8 || (color_type !=2 && color_type !=6) ){
+                printf(" Only support PNG color_type=2(real color) \n");
+                printf(" and color_type=6 (real color with alpha channel), bit_depth must be 8.\n");
+                ret=-6;
+                goto READ_FAIL;
+        }
+
+        /* alloc RBG image buffer */
+        egi_imgbuf->height=height;
+        egi_imgbuf->width=width;
+        egi_imgbuf->imgbuf=calloc(1, width*height*2);
+        if(egi_imgbuf->imgbuf==NULL) {
+                printf("Fail to calloc egi_imgbuf->imgbuf!\n");
+                ret=-7;
+                goto READ_FAIL;
+        }
+       /* alloc Alpha channel data */
+        if(color_type==6) {
+                egi_imgbuf->alpha=calloc(1,width*height);
+                if(egi_imgbuf->alpha==NULL) {
+			free(egi_imgbuf->imgbuf); /* free imgbuf */
+                        printf("Fail to calloc egi_imgbuf->alpha!\n");
+                        ret=-8;
+                        goto READ_FAIL;
+                }
+        }
+
+        /* read RGB data into image buffer */
+        row_ptr=png_get_rows(png_ptr,info_ptr);
+        if(color_type==2) /*data: RGB*/
+                bytpp=3;
+        else if(color_type==6) /*data: RGBA*/
+                bytpp=4;
+        pos=0;
+        for(i=0; i<height; i++) {
+                for(j=0; j<bytpp*width; j+=bytpp ) {
+                        /* row_ptr[i][j];    Red
+                           row_ptr[i][j+1];  Green
+                           row_ptr[i][j+2];  Blue
+                           row_ptr[i][j+3];  Alpha */
+                    *(egi_imgbuf->imgbuf+pos)=COLOR_RGB_TO16BITS(row_ptr[i][j], row_ptr[i][j+1],row_ptr[i][j+2]);
+                    /* get alpha value(0-255):
+		     * 0--transparent,100% bk imgae,
+		     * 255--100% png image
+   		     */
+                    if(color_type==6) {
+                        *(egi_imgbuf->alpha+pos)=row_ptr[i][j+3];
+                    }
+
+                    pos++;
+                }
+        }
+
+
+READ_FAIL:
+        png_destroy_read_struct(&png_ptr, &info_ptr,0);
+INIT_FAIL:
+        fclose(fil);
+
+	return ret;
+}
+
+
+
 
 /*------------------------------------------------------------------------
 	Release imgbuf of an EGI_IMGBUf struct.
@@ -565,7 +757,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 	uint16_t *imgbuf = egi_imgbuf->imgbuf;
 	long int locfb=0; /* location of FB mmap, in byte */
 	long int locimg=0; /* location of image buf, in byte */
-	int bytpp=2; /* bytes per pixel */
+//	int bytpp=2; /* bytes per pixel */
 
 	//for(i=0;i<yres;i++) /* FB row */
 	for(i=0;i<winh;i++) /* row of the displaying window */
@@ -586,13 +778,20 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 			else
 			{
 				/* image data location */
-				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp;
+//				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp;
+				locimg= (i+yp)*imgw+(j+xp);
 				/*  FB from EGI_IMGBUF */
 //replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
 				/*  ---- draw_dot() here ---- */
-				fbset_color(*(uint16_t *)(imgbuf+locimg/bytpp));
-				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+				/* Check alpha value in simple way: display when alpha>0
+				 * TODO: opacity according to alpha value ....
+				 */
+				if( egi_imgbuf->alpha==NULL ||	  /* if no alpha channle, draw dot  */
+				    (egi_imgbuf->alpha !=NULL && egi_imgbuf->alpha[locimg]>0 ) ) {
+					fbset_color(*(uint16_t *)(imgbuf+locimg));
+					draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+				}
 			}
 		}
 	}

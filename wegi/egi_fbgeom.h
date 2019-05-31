@@ -40,7 +40,7 @@ typedef struct fbdev{
 	int filo_on;	/* >0,activate FILO push */
 }FBDEV;
 
-/* distinguished from PIXEL in egi_bmpjpg.h */
+/* distinguished from PIXEL in egi_bjp.h */
 typedef struct fbpixel {
 	long int position;
 	uint16_t color;
@@ -52,7 +52,7 @@ extern FBDEV   gv_fb_dev;
 extern EGI_BOX gv_fb_box;
 
 /* functions */
-int 		init_dev(FBDEV *dev);
+int 		init_fbdev(FBDEV *dev);
 void 		release_fbdev(FBDEV *dev);
 inline void 	fbset_homepage_loop(bool loop);
 void 		fb_filo_flush(FBDEV *dev);

@@ -5,16 +5,12 @@ SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-#OBJS =  ../egi_fbgeom.o ../egi_bmpjpg.o
-OBJS += ../utils/egi_utils.o ../utils/egi_fifo.o ../utils/egi_filo.o
-#OBJS += ../egi_color.o ../egi_symbol.o
-#OBJS += ../egi_page.o ../egi_touch.o
-#OBJS += ../egi.o ../egi_btn.o ../egi_pic.o ../egi_txt.o ../egi_list.o ../egi_slider.o
-#OBJS += ../egi_log.o ../egi_timer.o  ../egi_math.o
-#OBJS += ../spi.o ../xpt2046.o
+#OBJS += ../utils/egi_utils.o ../utils/egi_fifo.o ../utils/egi_filo.o
 
-CFLAGS  += -I$(COMMON_USRDIR)/include	-I../. -I../utils/
+CFLAGS  = -I$(COMMON_USRDIR)/include	-I../. -I../utils/
+CFLAGS += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
+
 
 LIBS	= -legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg
