@@ -750,24 +750,24 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 
 	int i,j;
 	int xres=fb_dev->vinfo.xres;
-	//int yres=fb_dev->vinfo.yres;
+	int yres=fb_dev->vinfo.yres;
+	long int screen_pixels=xres*yres;
 
 	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
 	unsigned char *fbp =fb_dev->map_fb;
 	uint16_t *imgbuf = egi_imgbuf->imgbuf;
-	long int locfb=0; /* location of FB mmap, in byte */
-	long int locimg=0; /* location of image buf, in byte */
+	unsigned char *alpha=egi_imgbuf->alpha;
+	long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
+	long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
 //	int bytpp=2; /* bytes per pixel */
 
-	//for(i=0;i<yres;i++) /* FB row */
-	for(i=0;i<winh;i++) /* row of the displaying window */
-	{
-		//for(j=0;j<xres;j++) /* FB column */
-		for(j=0;j<winw;j++)
-		{
+  /* if no alpha channle*/
+  if( egi_imgbuf->alpha==NULL )
+  {
+	for(i=0;i<winh;i++) {  /* row of the displaying window */
+		for(j=0;j<winw;j++) {
 			/* FB data location */
-//replaced by draw_dot()	locfb = (i+yw)*xres*bytpp+(j+xw)*bytpp;
-
+			locfb = (i+yw)*xres+(j+xw);
 			/* check if exceed image boundary */
 			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
 			{
@@ -775,28 +775,64 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 				fbset_color(0); /* black for outside */
 				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
 			}
-			else
-			{
+			else {
 				/* image data location */
 //				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp;
 				locimg= (i+yp)*imgw+(j+xp);
 				/*  FB from EGI_IMGBUF */
 //replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
-				/*  ---- draw_dot() here ---- */
-				/* Check alpha value in simple way: display when alpha>0
-				 * TODO: opacity according to alpha value ....
-				 */
-				if( egi_imgbuf->alpha==NULL ||	  /* if no alpha channle, draw dot  */
-				    (egi_imgbuf->alpha !=NULL && egi_imgbuf->alpha[locimg]>0 ) ) {
-					fbset_color(*(uint16_t *)(imgbuf+locimg));
-					draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-				}
+			    /*  ---- draw_dot(), only within screen  ---- */
+			    if( locfb <= (screen_pixels-1) ) {
+				fbset_color(*(uint16_t *)(imgbuf+locimg));
+				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+			    }
 			}
 		}
 	}
+  }
+  else /* with alpha channel */
+  {
+	for(i=0;i<winh;i++)  { /* row of the displaying window */
+		for(j=0;j<winw;j++)  {
+			/* FB data location */
+			locfb = (i+yw)*xres+(j+xw); /* 2 bytes per pixel */
+			/* check if exceed image boundary */
+			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
+			{
+				fbset_color(0); /* black for outside */
+				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+			}
+			else
+			{
+				/* image data location, 2 bytes per pixel */
+				locimg= (i+yp)*imgw+(j+xp);
+				/*  FB from EGI_IMGBUF */
+//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
-	return 0;
+			    /*  ---- draw_dot() only within screen  ---- */
+			    if( locfb <= (screen_pixels-1) ) {
+				if(alpha[locimg]==0) 		/* use backgroud color */
+					fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+				else if(alpha[locimg]==255)  	/* use front color */
+					fbset_color(*(uint16_t *)(imgbuf+locimg));
+				else {				/* blend */
+				   fbset_color(
+					COLOR_16BITS_BLEND( *(uint16_t *)(imgbuf+locimg),   /* front pixel */
+							    *(uint16_t *)(fbp+(locfb<<1)),	   /* background pixel */
+							     alpha[locimg]  )		/* alpha value */
+				   );
+				}
+
+				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+			    }
+
+			}
+		}
+	}
+  }
+
+  return 0;
 }
 
 

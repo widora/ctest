@@ -20,9 +20,19 @@ typedef uint16_t			 EGI_16BIT_COLOR;
 typedef uint32_t			 EGI_24BIT_COLOR;
 
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
-#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( (r>>3)<<11 ) | ( (g>>2)<<5 ) | (b>>3) ))
+#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
 #define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
 #define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
+
+/* front_color(16bits), background_color(16bits), alpha channel value(0-255) */
+#define COLOR_16BITS_BLEND(front, back, alpha)							\
+		COLOR_RGB_TO16BITS (								\
+			  ( ((front&0xF800)>>8)*alpha + ((back&0xF800)>>8)*(255-alpha) )/255, 	\
+			  ( ((front&0x7E0)>>3)*alpha + ((back&0x7E0)>>3)*(255-alpha) )/255,   	\
+			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
+		)										\
+
+
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)
 #define WEGI_COLOR_WHITE 		 COLOR_RGB_TO16BITS(255,255,255)

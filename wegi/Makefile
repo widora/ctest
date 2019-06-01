@@ -35,11 +35,9 @@ CFLAGS += -Wall -O2 -fPIC
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
 LIBS += -ljpeg -lm -lpthread #-ljson-c -lasound
 
-
 #### ------ 手动设置特定目标生成规则  ------
 egi_lib: $(OBJS)
 	$(LD) -shared -soname libegi.so.1 $(OBJS) -o libegi.so.1.0.0
-
 
 install: libegi.so.1.0.0
 	cd $(SRC_PATH)

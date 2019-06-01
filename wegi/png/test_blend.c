@@ -3,9 +3,9 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-A simple test for displaying PNG files.
+A simple test for displaying PNG files with input alpha value for deducing.
 
-Usage: test_png path
+Usage: test_blend path alpha_value
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -27,6 +27,8 @@ int main(int argc, char **argv)
 {
 	int ret=0;
 	int py;
+	int da; /* delta alpha */
+	int i;
 	EGI_IMGBUF  eimg={0};
 
 	if( argc<2 ) {
@@ -37,6 +39,10 @@ int main(int argc, char **argv)
 		py=atoi(argv[2]);
 	else
 		py=0;
+	if( argc > 3)
+		da=atoi(argv[3]);
+	else
+		da=0;
 
         /* --- prepare fb device --- */
         init_fbdev(&gv_fb_dev);
@@ -50,6 +56,15 @@ int main(int argc, char **argv)
 		return -2;
 	}
 
+	/* adjust opacity */
+	for(i=0; i< (eimg.width * eimg.height); i++) {
+		if(eimg.alpha[i]!=0) {
+		   if((int)eimg.alpha[i]<da)
+			eimg.alpha[i]=0;
+		   else
+			eimg.alpha[i]-=da;
+		}
+	}
 
         /* window_position displaying */
 #if 1

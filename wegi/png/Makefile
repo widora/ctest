@@ -17,14 +17,26 @@ LIBS	+= -lpng -lz -lm -pthread -ljpeg
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
 #LIBS	+= -lcurl -lssl -lcrypto -pthread
 
-all:	test_png pngtest
+APPS = test_png test_blend loop_show
 
-pngtest:	pngtest.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) pngtest.c -o pngtest
 
-test_png:	test_png.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_png.c -o test_png
+all:	$(APPS)
+
+
+%:%.c
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) $@.c -o $@
+
+
+#loop_show:	loop_show.c
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) loop_show.c -o loop_show
+
+#test_png:	test_png.c
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_png.c -o test_png
+
+#test_alpha:	test_alpha.c
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_alpha.c -o test_alpha
+
 
 clean:
-	rm -rf *.o pngtest test_png
+	rm -rf *.o pngtest test_png $(APPS)
 
