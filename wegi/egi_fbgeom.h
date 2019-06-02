@@ -21,13 +21,17 @@ Modified and appended by: Midas Zhou
 #include <linux/fb.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "egi_fbdev.h"
 #include "egi.h"
 #include "egi_filo.h"
 
-#define EGI_FBDEV_NAME "/dev/fb0"
-
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
+
+
+#if 0//////////////////////////////////////
+#define EGI_FBDEV_NAME "/dev/fb0"
+
 
 typedef struct fbdev{
         int fdfd; /* file descriptor, open "dev/fb0" */
@@ -49,7 +53,11 @@ typedef struct fbpixel {
 
 /* global variale, Frame buffer device */
 extern FBDEV   gv_fb_dev;
+
+#endif ////////////////////////////////////////////////////////
+
 extern EGI_BOX gv_fb_box;
+
 
 /* functions */
 int 		init_fbdev(FBDEV *dev);
@@ -58,13 +66,17 @@ inline void 	fbset_homepage_loop(bool loop);
 void 		fb_filo_flush(FBDEV *dev);
 inline void 	fb_filo_on(FBDEV *dev);
 inline void 	fb_filo_off(FBDEV *dev);
+
+
+//////////////////////////////////////////////////////////
+void 	fbset_color(uint16_t color);
+void 	clear_screen(FBDEV *dev, uint16_t color);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 bool    box_inbox(EGI_BOX* box, EGI_BOX* container);
 bool    box_outbox(EGI_BOX* box, EGI_BOX* container);
-void 	fbset_color(uint16_t color);
-void 	clear_screen(FBDEV *dev, uint16_t color);
 //////////////// draw function ////////////
-int 	draw_dot(FBDEV *dev,int x,int y);
+
+inline int 	draw_dot(FBDEV *dev,int x,int y);
 void 	draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
 void 	draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);

@@ -5,7 +5,7 @@ published by the Free Software Foundation.
 
 A simple test for displaying PNG/JPG files.
 
-Usage: loop_show   path/*
+Usage: loop_show   path/*.*
 
 
 Midas Zhou
@@ -60,9 +60,10 @@ int main(int argc, char **argv)
 	int dw,dh; /* displaying window width and height */
 	dw=eimg.width>240?240:eimg.width;
 	dh=eimg.height>320?320:eimg.height;
-        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, 0, 0, 0, 0, dw, dh);
+        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1, 0, 0, 0, 0, dw, dh);
+//        egi_imgbuf_windisplay2(&eimg, &gv_fb_dev, 0, 0, 0, 0, dw, dh);
 #else
-        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, 0, 0, 70, 220, eimg.width, eimg.height);
+        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1,0, 0, 70, 220, eimg.width, eimg.height);
 #endif
 	sleep(1);
 	egi_imgbuf_release(&eimg);

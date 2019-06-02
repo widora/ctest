@@ -644,6 +644,9 @@ void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 		free(egi_imgbuf->alpha);
 		egi_imgbuf->alpha=NULL;
 	}
+
+	egi_imgbuf->height=0;
+	egi_imgbuf->width=0;
 }
 
 
@@ -714,6 +717,7 @@ int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int 
 #endif
 
 
+#if 0 //////////////////////////////// move to egi_image.c //////////////////////////////
 /*-------------------------     SCREEN WINDOW   -----------------------------------------
 For 16bits color only!!!!
 
@@ -812,8 +816,10 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 
 			    /*  ---- draw_dot() only within screen  ---- */
 			    if( locfb <= (screen_pixels-1) ) {
-				if(alpha[locimg]==0) 		/* use backgroud color */
-					fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+				if(alpha[locimg]==0) {		/* use backgroud color */
+					/* Transparent for background, do nothing */
+					//fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+				}
 				else if(alpha[locimg]==255)  	/* use front color */
 					fbset_color(*(uint16_t *)(imgbuf+locimg));
 				else {				/* blend */
@@ -834,10 +840,13 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, i
 
   return 0;
 }
+#endif ///////////////////////////////////////////////////////////
+
+
 
 
 /*--------------------------------------------------------------------------------
-Roam a picture in a displaying window
+Roam a jpg picture in a displaying window
 
 path:		jpg file path
 step:		roaming step length, in pixel
@@ -891,7 +900,7 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                         /* get interpolate point */
                         egi_getpoit_interpol2p(&pn, step*i, &pa, &pb);
 			/* display in the window */
-                        egi_imgbuf_windisplay( &imgbuf, &gv_fb_dev, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
+                        egi_imgbuf_windisplay( &imgbuf, &gv_fb_dev, -1, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
                         tm_delayms(55);
                 }
         }

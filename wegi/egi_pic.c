@@ -453,7 +453,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	/*  display imgbuf if not NULL */
 	if( data_pic->imgbuf != NULL && data_pic->imgbuf->imgbuf != NULL )
 	{
-		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev,
+		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev, -1,    /* -1, no substituting color */
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
 	}

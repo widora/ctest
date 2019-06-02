@@ -1,6 +1,7 @@
 #ifndef __EGI_IMAGE_H__
 #define __EGI_IMAGE_H__
 
+#include "egi_fbdev.h"
 #include "egi_color.h"
 
 typedef struct
@@ -11,6 +12,13 @@ typedef struct
 	void *data; 		 /* color data, for pixel format other than RGB565 */
 	unsigned char *alpha;    /* 8bit, alpha channel value, if applicable */
 } EGI_IMGBUF;
+
+
+int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+                                        int xp, int yp, int xw, int yw, int winw, int winh);
+
+int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+                                        int xp, int yp, int xw, int yw, int winw, int winh);
 
 
 #endif

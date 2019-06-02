@@ -381,7 +381,7 @@ void clear_screen(FBDEV *dev, uint16_t color)
 	0	OK
 	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
 --------------------------------------------------------*/
-int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
+inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 {
         FBDEV *fr_dev=dev;
 	int fx=x;
