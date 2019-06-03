@@ -8,7 +8,10 @@ Midas Zhou
 #include <stdio.h>
 #include <curl/curl.h>
 #include <string.h>
+#include <json-c/json.h>
+#include <json-c/json_object.h>
 #include "egi_cstring.h"
+
 
 #define _SKIP_PEER_VERIFICATION
 #define _SKIP_HOSTNAME_VERIFICATION
@@ -16,13 +19,14 @@ Midas Zhou
 const char host[]= "free-api.heweather.net";
 char request[256]="https://free-api.heweather.net/s6/weather/now?location=shanghai&key=";
 char strkey[256];
+
 char buff[1024*1024];
 
 
 /* a callback function to handler returned data */
 size_t callback_get(void *ptr, size_t size, size_t nmemb, void *userp)
 {
-	strcat(userp,ptr);
+	strcat(userp, ptr);
 	return size*nmemb;
 }
 
@@ -32,6 +36,8 @@ int main(void)
   int i=0;
   CURL *curl;
   CURLcode res;
+
+
 
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
@@ -89,10 +95,11 @@ int main(void)
     curl_easy_cleanup(curl);
   }
 
+  curl_global_cleanup();
+
   printf("------------------- result --------------\n");
   printf("%s\n", buff);
 
-  curl_global_cleanup();
 
   return 0;
 }

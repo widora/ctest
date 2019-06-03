@@ -22,6 +22,10 @@ subcolor:	substituting color, only applicable when >0.
 winw,winh:      width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
                 waste time calling draw_dot() for pixels outsie FB zone.
+
+Return:
+		0	OK
+		<0	fails
 ------------------------------------------------------------------------------------------*/
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
@@ -91,6 +95,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
   }
   else /* with alpha channel */
   {
+	printf("----- alpha ON -----\n");
         for(i=0;i<winh;i++)  { /* row of the displaying window */
                 for(j=0;j<winw;j++)  {
                         /* FB data location, in pixel */
@@ -110,12 +115,12 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
                             /*  ---- draw_dot() only within screen  ---- */
                             if( locfb <= (screen_pixels-1) ) {
 
-                                if(alpha[locimg]==0) {           /* use backgroud color */
+                                if(alpha[locimg]==0) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */
                                         //fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
                                 }
-				else if(subcolor<0) {
-                                     if(alpha[locimg]==255) {    /* use front color */
+				else if(subcolor<0) {	/* ---- No subcolor ---- */
+                                     if(alpha[locimg]==255) {    /* 100% front color */
                                           fbset_color(*(uint16_t *)(imgbuf+locimg));
 				     }
                                      else {                           /* blend */
@@ -128,9 +133,18 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
                                      draw_dot(fb_dev,j+xw,i+yw);
 
 				}
-				else  {  /* use subcolor */
-					fbset_color(subcolor);
-	                                draw_dot(fb_dev,j+xw,i+yw);
+				else  {  		/* ---- use subcolor ----- */
+                                    if(alpha[locimg]==255) {    /* 100% subcolor as front color */
+                                          fbset_color(subcolor);
+				     }
+                                     else {                           /* blend */
+                                          fbset_color(
+                                              COLOR_16BITS_BLEND( subcolor,   /* subcolor as front pixel */
+                                                            *(uint16_t *)(fbp+(locfb<<1)),  /* background */
+                                                             alpha[locimg]  )               /* alpha value */
+                                             );
+                                     }
+                                     draw_dot(fb_dev,j+xw,i+yw);
 				}
 
                             }
@@ -164,6 +178,10 @@ fb_dev:		FB device
 winw,winh:      width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
                 waste time calling draw_dot() for pixels outsie FB zone.
+
+Return:
+		0	OK
+		<0	fails
 ------------------------------------------------------------------------------------------*/
 int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
@@ -259,8 +277,41 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 }
 
 
+/*-----------------------------------------------------------------------------------
+Write a sub image in the EGI_IMGBUF to FB.
 
+egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
+fb_dev:		FB device
+subnum:		number of the sub image
+subcolor:	substituting color, only applicable when >0.
+(x0,y0):        displaying window origin, relate to the LCD coord system.
 
+Return:
+		0	OK
+		<0	fails
+-------------------------------------------------------------------------------------*/
+int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
+							int subcolor, int x0,	int y0)
+{
+	int ret;
+	int xp,yp;
+	int w,h;
 
+	if(egi_imgbuf==NULL || egi_imgbuf->subimgs==NULL) {
+		printf("%s: EGI_IMGBUF is invalid!\n",__func__);
+		return -1;;
+	}
+	if(egi_imgbuf->subtotal-1 < subnum ) {
+		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
+		return -2;
+	}
 
+	xp=egi_imgbuf->subimgs[subnum].x0;
+	yp=egi_imgbuf->subimgs[subnum].y0;
+	w=egi_imgbuf->subimgs[subnum].w;
+	h=egi_imgbuf->subimgs[subnum].h;
 
+	ret=egi_imgbuf_windisplay(egi_imgbuf, fb_dev, subcolor, xp, yp, x0, y0, w, h);
+
+	return ret;
+}

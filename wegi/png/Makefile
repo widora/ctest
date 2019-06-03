@@ -38,5 +38,5 @@ all:	$(APPS)
 
 
 clean:
-	rm -rf *.o pngtest test_png $(APPS)
+	rm -rf *.o $(APPS)
 

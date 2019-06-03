@@ -41,6 +41,7 @@ int main(int argc, char **argv)
         /* --- prepare fb device --- */
         init_fbdev(&gv_fb_dev);
 
+
 	/* load image data to EGI_IMGBUF */
 	if( egi_imgbuf_loadpng(argv[1], &eimg ) ==0 ) {
 	}
@@ -51,19 +52,27 @@ int main(int argc, char **argv)
 	}
 
 
-        /* window_position displaying */
-#if 1
+#if 0  /* window_position displaying */
 	int dw,dh; /* displaying window width and height */
 	dw=eimg.width>240?240:eimg.width;
 	dh=eimg.height>320?320:eimg.height;
 //        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1, 0, 0, 0, py, dw, dh);
         egi_imgbuf_windisplay2(&eimg, &gv_fb_dev, 0, 0, 0, py, dw, dh);
+
+#elif 1  /* test subimage and subcolor */
+	EGI_IMGBOX subimg;
+	subimg.x0=0; subimg.y0=0;
+	subimg.w=100; subimg.h=100;
+	eimg.subimgs=&subimg;
+	eimg.subtotal=1;
+//	egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, -1, 70, 220);
+	egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 70, 220);
 #else
         egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1,0, 0, 70, 220, eimg.width, eimg.height);
 #endif
 
-
 	egi_imgbuf_release(&eimg);
+
 	release_fbdev(&gv_fb_dev);
 
 	return ret;
