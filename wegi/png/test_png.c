@@ -52,6 +52,7 @@ int main(int argc, char **argv)
 	}
 
 
+
 #if 0  /* window_position displaying */
 	int dw,dh; /* displaying window width and height */
 	dw=eimg.width>240?240:eimg.width;

@@ -69,18 +69,19 @@ int main(int argc, char **argv)
 #elif 1  /* test subimage and subcolor */
         EGI_IMGBOX subimg;
         subimg.x0=0; subimg.y0=0;
-        subimg.w=100; subimg.h=100;
+        subimg.w=eimg.width; subimg.h=eimg.height;
         eimg.subimgs=&subimg;
         eimg.subtotal=1;
 //      egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, -1, 70, 220);
-        egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 70, 220);
+        egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 93, 240);
 #else
         egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1,0, 0, 70, 220, eimg.width, eimg.height);
 #endif
       	/* <<<<<<<    Turn off FILO  >>>>>>> */
         fb_filo_off(&gv_fb_dev);
 
-	sleep(1);
+	//sleep(1);
+	usleep(500000);
 	egi_imgbuf_release(&eimg);
 
 	/* loop ... */

@@ -17,7 +17,8 @@ Midas Zhou
 #define _SKIP_HOSTNAME_VERIFICATION
 
 const char host[]= "free-api.heweather.net";
-char request[256]="https://free-api.heweather.net/s6/weather/now?location=shanghai&key=";
+char request[256]="https://free-api.heweather.net/s6/weather/forecast?location=shanghai&key=";
+//char request[256]="https://free-api.heweather.net/s6/weather/now?location=shanghai&key=";
 char strkey[256];
 
 char buff[1024*1024];
@@ -40,7 +41,6 @@ int main(void)
 
 
   curl_global_init(CURL_GLOBAL_DEFAULT);
-
   curl = curl_easy_init();
 
   /* read key from EGI config file */

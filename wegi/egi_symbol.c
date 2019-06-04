@@ -43,6 +43,7 @@ Midas Zhou
 #include <string.h>
 #include <errno.h>
 #include "egi_fbgeom.h"
+#include "egi_image.h"
 #include "egi_symbol.h"
 #include "egi_debug.h"
 #include "egi_log.h"
@@ -192,9 +193,8 @@ char symmic_iotload[9]=
 { 16,17,18,19,20,21,22,23,0}; /* with end token /0 */
 
 
-
 /*------------------(  60x60 icons for PLAYS and ARROWS )-----------------*/
-static int icons_2_width[4*6] =  /* element number MUST >= maxnum */
+static int icons_2_width[4*5] =  /* element number MUST >= maxnum */
 {
 	60,60,60,60,
 	60,60,60,60,
@@ -209,16 +209,78 @@ struct symbol_page sympg_icons_2=
         .path="/home/icons_2.img",
         .bkcolor=0x0000,
         .data=NULL,
-        .maxnum=4*5-1, /* 11 rows of ioncs */
+        .maxnum=4*5-1, /* 5 rows of ioncs */
         .sqrow=4, /* 8 icons per row */
         .symheight=60,
         .symwidth=icons_2_width, /* width list */
 };
 
 
+/* for HeWeather Icons */
+static int heweather_width[1*1] =
+{
+	60
+};
+struct symbol_page sympg_heweather =
+{
+        .symtype=type_icon,
+        .path=NULL,			/* NOT applied */
+        .bkcolor=-1,			/* <0, no transpcolor applied */
+        .data=NULL,			/* 16bit per pixle image data */
+	.alpha=NULL,			/* 8bit per pixle alpha data */
+        .maxnum=1*1-1,
+        .sqrow=1, 			/* 1 icons per row */
+        .symheight=60,
+        .symwidth=heweather_width, 	/* width list */
+};
+
+
+
 /* -----  All static functions ----- */
 static uint16_t *symbol_load_page(struct symbol_page *sym_page);
 static void symbol_free_page(struct symbol_page *sym_page);
+
+/* -------------------------------------------------------------
+load a symbol_page struct from a EGI_IMGBUF
+@sym_page:   pointer to a symbol_page.
+@imgbuf:     a EGI_IMGBUF holding that image data
+
+Return:
+	0	ok
+	<0	fails
+--------------------------------------------------------------*/
+int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf)
+{
+	if(imgbuf==NULL || imgbuf->data==NULL || sym_page==NULL) {
+		printf("%s: Invalid input data!\n",__func__);
+		return -1;
+	}
+	int data_size=imgbuf->height*imgbuf->width*2; /* 16bpp color */
+
+	/* copy color data */
+	sym_page->data=calloc(1,data_size);
+	if(sym_page->data==NULL) {
+		printf("%s: Fail to alloc sym_page->data!\n",__func__);
+		return -2;
+	}
+	memcpy(sym_page->data, imgbuf->data, data_size);
+
+	/* copy alpha */
+	if(imgbuf->alpha) {
+		sym_page->alpha=calloc(1,data_size>>1); /* 8bpp for alpha */
+		if(sym_page->alpha==NULL) {
+			printf("%s: Fail to alloc sym_page->alpha!\n",__func__);
+			free(sym_page->data);
+			return -3;
+		}
+		memcpy(sym_page->alpha, imgbuf->data, data_size);
+		sym_page->bkcolor=-1; /* use alpha instead of bkcolor */
+	}
+
+	return 0;
+}
+
+
 
 
 /*-------------------------------------------------------
@@ -288,6 +350,9 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 	int offset=0; /* in pixel, offset of data mem for each symbol, NOT of img file */
 	int all_height; /* height for all symbol in a page */
 	int width; /* width of a symbol */
+
+	if(sym_page==NULL)
+		return NULL;
 
 	/* open symbol image file */
 	fd=open(sym_page->path, O_RDONLY);
@@ -441,18 +506,23 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 ---------------------------------------------------*/
 static void symbol_free_page(struct symbol_page *sym_page)
 {
-	if(sym_page->data != NULL)
-	{
+	if(sym_page->data != NULL) {
 		free(sym_page->data);
 		sym_page->data=NULL;
 	}
-	if(sym_page->symwidth != NULL)
-	{
+	if(sym_page->alpha !=NULL) {
+		free(sym_page->alpha);
+		sym_page->alpha=NULL;
+	}
+	if(sym_page->symwidth != NULL) {
 		free(sym_page->symwidth);
 		sym_page->symwidth=NULL;
 	}
 
 }
+
+
+
 
 /*-----------------------------------------------------------------------
 check integrity of a ((loaded)) page structure
@@ -609,8 +679,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int yres=dev->vinfo.yres;
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
+	unsigned char palpha=0;
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
 	int offset=sym_page->symoffset[sym_code];
+	long poff;
 	int height=sym_page->symheight;
 	int width=sym_page->symwidth[sym_code];
 	//long int screensize=fb_dev->screensize;
@@ -622,12 +694,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 #endif
 
 	/* check sym_code */
-	if( sym_code < 0 || sym_code > sym_page->maxnum )
-	{
+	if( sym_code < 0 || sym_code > sym_page->maxnum ) {
 		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range! sympg->path: %s\n", sym_page->path);
 		return;
 	}
-
 
 	/* get symbol pixel and copy it to FB mem */
 	for(i=0;i<height;i++)
@@ -678,10 +748,14 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				continue;
 
 #endif
+
 			/*x(i,j),y(i,j) mapped to LCD(xy),
 				however, pos may also be out of FB screensize  */
-			pos=mapy*xres+mapx; /* in pixel, LCD fb mem position */
-			pcolor=*(data+offset+width*i+j);/* get symbol pixel in page data */
+			pos=mapy*xres+mapx; 	/* in pixel, LCD fb mem position */
+			poff=offset+width*i+j; 	/* offset to pixel data */
+			pcolor=*(data+poff);   	/* get symbol pixel in page data */
+			if(sym_page->alpha)
+				palpha=*(sym_page->alpha+poff);  	/*  get alpha */
 
 			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
@@ -690,8 +764,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			{
 				/* push original fb data to FB FILO, before write new color */
 //				if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
-				if(fb_dev->filo_on)
-				{
+				if(fb_dev->filo_on) {
 					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
 					fpix.color=*(uint16_t *)(dev->map_fb+(pos<<1));
 					//printf("symbol push FILO: pos=%ld.\n",fpix.position);
@@ -699,8 +772,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				}
 
 				/* if use complementary color */
-				if(TESTFONT_COLOR_FLIP)
-				{
+				if(TESTFONT_COLOR_FLIP) {
 					pcolor = ~pcolor;
 				}
 
@@ -718,7 +790,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				/*  if use given symbol/font color  */
 				if(fontcolor>=0)
 					pcolor=(uint16_t)fontcolor;
-
+				/* if apply alpha: front pixel, background pixel,alpha value */
+				if(sym_page->alpha) {
+                    			pcolor=COLOR_16BITS_BLEND(  pcolor,
+								    *(uint16_t *)(dev->map_fb+pos),
+								    palpha );
+				}
+				/* write to FB */
 				*(uint16_t *)(dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
 			}
 		}
@@ -761,7 +839,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	/* if the symbol is font then use symbol back color as transparent tunnel */
 	//if(tspcolor >0 && sym_page->symtype == type_font )
 
-	/* use bkcolor for both font and icon anyway!!! */
+	/* transpcolor applied for both font and icon anyway!!! */
 	if(transpcolor>=0)
 		transpcolor=sym_page->bkcolor;
 

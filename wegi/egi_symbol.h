@@ -11,7 +11,7 @@ Midas Zhou
 #ifndef __EGI_SYMBOL_H__
 #define __EGI_SYMBOL_H__
 
-
+#include "egi_image.h"
 #include "egi_fbgeom.h"
 #include "egi.h"
 
@@ -63,6 +63,8 @@ struct symbol_page
 	uint16_t  bkcolor;
 	/* page symbol mem data, store each symbol data consecutively, no hole. while img page file may have hole or blank row*/
 	uint16_t *data;
+	/* alpha data */
+	unsigned char *alpha;
 	/* maximum number of symbols in this page, start from 0 */
 	int  maxnum; /* maxnum+1 = total number */
 	/* total symbol number for  each row, each row has 240 pixels. */
@@ -106,7 +108,7 @@ void symbol_free_allpages(void);
 //static void symbol_free_page(struct symbol_page *sym_page);
 int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
-
+int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf);
 
 /*--------------------------------------------------------------------------------------------
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
