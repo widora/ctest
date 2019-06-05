@@ -67,6 +67,7 @@ EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
 	data_btn->icon=icon;
 	data_btn->icon_code=icon_code;
 	data_btn->font=font;
+	data_btn->opaque=-1; /*, <0, No alpha effect */
 	data_btn->touch_effect=egi_btn_touch_effect;
 	//data_btn->font_color=0; /* black as default */
 
@@ -508,7 +509,7 @@ use following COLOR:
 
 		/* tag_color shall NOT be the same as symbol bkcolor, OR it will NOT display */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
- 							ebox->x0+shx, ebox->y0+shy, ebox->tag);
+ 							ebox->x0+shx, ebox->y0+shy, ebox->tag, -1);
 
 	} /* endif: taglen>0 */
 
@@ -825,7 +826,7 @@ use following COLOR:
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
- 							ebox->x0+shx, ebox->y0+shy, ebox->tag);
+ 							ebox->x0+shx, ebox->y0+shy, ebox->tag, -1);
 
 	} /* endif: taglen>0 */
 

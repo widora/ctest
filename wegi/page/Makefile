@@ -2,7 +2,7 @@ export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr/
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
-LD= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ld
+AR= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ar
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
 
@@ -10,15 +10,13 @@ SRC_PATH = /home/midas-zhou/Ctest/wegi
 #### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
-OBJS += utils/egi_utils.o utils/egi_cstring.o utils/egi_fifo.o utils/egi_filo.o utils/egi_iwinfo.o
 
 $(warning "----- OBJS:$(OBJS) -----")
 
 ##--- exclude some objs !!!BEWARE, :NO SPACE ----
 #OBJS := $(OBJS:test_color.o=)
 
-
-DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
+DEP_FILES = $(patsubst %.c, %.dep, $(SRC_FILES))
 
 #EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
 #	     utils/egi_filo.o utils/egi_cstring.o \
@@ -27,24 +25,27 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
 #### -----  编译标志 -----
 ## -Wall for __attribut__
-CFLAGS = -I./ -I./page -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
-CFLAGS += -Wall -O2 -fPIC
+CFLAGS = -I./ -I../ -I../iot -I../ffmpeg -I../utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS += -Wall -O2
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG
 
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
-LIBS += -ljpeg -lm -lpthread #-ljson-c -lasound
+LIBS += -legi -ljpeg -lm -lpthread #-ljson-c -lasound
 
 #### ------ 手动设置特定目标生成规则  ------
-egi_lib: $(OBJS)
-	$(LD) -shared -soname libegi.so.1 $(OBJS) -o libegi.so.1.0.0
+egi_pages: $(OBJS)
+	$(AR) crv libepages.a $(OBJS)
 
-install: libegi.so.1.0.0
-	cd $(SRC_PATH)
-	cp -rf libegi.so.1.0.0 ./lib/libegi.so.1.0.0
-	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so.1
-	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so
-	rm libegi.so.1.0.0
+
+#	$(CC) -shared -soname libegi.so.1 $(OBJS) -o libegi.so.1.0.0
+
+#install: libegi.so.1.0.0
+#	cd $(SRC_PATH)
+#	cp -rf libegi.so.1.0.0 ./lib/libegi.so.1.0.0
+#	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so.1
+#	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so
+#	rm libegi.so.1.0.0
 
 
 #### ----- 目标文件自动生成规则 -----
@@ -54,7 +55,7 @@ install: libegi.so.1.0.0
 
 #### ----- 清除目标 -----
 clean:
-	rm -rf test_*.o $(OBJS) $(APPS) $(DEP_FILES)
+	rm -rf *.o $(OBJS) $(DEP_FILES) libepages.a
 
 
 include $(DEP_FILES)

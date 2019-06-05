@@ -163,7 +163,7 @@ void* thdf_Display_Pic(void * argv)
 			imgbuf.imgbuf=(uint16_t *)pPICbuffs[i];
 
 			/* window_position displaying */
-			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, 0, 0, ppic->Hs, ppic->Vs,
+			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, -1, 0, 0, ppic->Hs, ppic->Vs,
 									imgbuf.width, imgbuf.height);
 		   	/* hold for a while :))) */
 		   	usleep(20000);
@@ -295,7 +295,7 @@ void* thdf_Display_Subtitle(void * argv)
 		     printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
         	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
-                                                                                1, 0, 170, strsub);
+                                                                                1, 0, 170, strsub,-1);
 		/* 5. wait for a right time to let go to erase the sub. */
 		do{
 		     tm_delayms(200);

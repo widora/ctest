@@ -620,7 +620,7 @@ use following COLOR:
                 int fontcolor, int transpcolor, int x0, int y0, const char* str)
 */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
- 							ebox->x0+shx, ebox->y0+shy, ebox->tag);
+ 							ebox->x0+shx, ebox->y0+shy, ebox->tag, -1);
 
 	} /* endif: taglen>0 */
 

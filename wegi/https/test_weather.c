@@ -23,6 +23,7 @@ static char request_now[256]="https://free-api.heweather.net/s6/weather/now?loca
 static char request_forecast[256]="https://free-api.heweather.net/s6/weather/forecast?location=shanghai&key=";
 char strkey[256];
 
+
 char buff[32*1024]; /* for curl return */
 
 char *json_type_str[]=
@@ -156,9 +157,9 @@ char* heweather_get_item(const char *strinput, const char *strsect, const char *
 
 char strpath[256];
 char strtemp[16];
-int temp;
+int  temp;
 char strhum[16];
-int hum;
+int  hum;
 EGI_IMGBUF eimg={0};
 
 int main(void)
@@ -207,8 +208,6 @@ while(1) {
 	if(pstr) {
 		printf("status: %s\n",pstr);
 		free(pstr);
-		sleep(5);
-		continue;
 	}
 
 	pstr=heweather_get_item(buff, "now", "cond_code");
@@ -249,12 +248,11 @@ while(1) {
         fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
 
 //      egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, -1, 70, 220);
-   	egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 20,250); //70, 220);
-
+   	egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 70,250); //70, 220);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
-                                  		1, 70, 250, strtemp);// 	170, 235, strtemp );
+                                  		1, 130, 255, strtemp, 240);// 	170, 235, strtemp );
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
-                                  		1, 70, 275, strhum);
+                                  		1, 130, 280, strhum, 240);
 
         /* <<<  Turn off FILO after writeFB  >>> */
         fb_filo_off(&gv_fb_dev);
@@ -265,7 +263,7 @@ while(1) {
 //	json_object_put(json_ret);
 
 	printf(" --------------------- N:%d ---------------\n", n);
-	sleep(5); /* Limit 1000 per day, 90s per call */
+	sleep(90); /* Limit 1000 per day, 90s per call */
 
 } ///////////////////// LOOP TEST END ///////////////////////
 

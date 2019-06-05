@@ -95,6 +95,7 @@ extern struct symbol_page sympg_buttons;
 extern struct symbol_page sympg_sbuttons;
 extern struct symbol_page sympg_icons;
 extern struct symbol_page sympg_icons_2;
+extern struct symbol_page sympg_heweather;
 extern char symmic_cpuload[6][5];
 extern char symmic_iotload[9];
 
@@ -105,7 +106,7 @@ extern char symmic_iotload[9];
 int symbol_load_allpages(void); //__attribute__((constructor))
 void symbol_free_allpages(void);
 //static uint16_t *symbol_load_page(struct symbol_page *sym_page);
-//static void symbol_free_page(struct symbol_page *sym_page);
+void symbol_free_page(struct symbol_page *sym_page);
 int symbol_check_page(const struct symbol_page *sym_page, char *func);
 void symbol_save_pagemem(struct symbol_page *sym_page);
 int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf);
@@ -131,11 +132,11 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque);
 
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
-                int fontcolor, int transpcolor, int x0, int y0, const char* str);
+                int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);
 
 void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,	\
                              unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,	\
-                             int x0, int y0, const char* str );
+                             int x0, int y0, const char* str, int opaque);
 
 void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
                 	 		int transpcolor, int x0, int y0, const char* str);

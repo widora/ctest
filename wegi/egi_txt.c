@@ -549,7 +549,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
 					1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
-						 y0+offy+font_height*i, txt[i]);
+						 y0+offy+font_height*i, txt[i], -1);
 
 	}
 

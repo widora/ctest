@@ -435,7 +435,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		symbol_string_writeFB(&gv_fb_dev, data_pic->font, SYM_NOSUB_COLOR, SYM_FONT_DEFAULT_TRANSPCOLOR,
 					 ebox->x0+data_pic->offx, ebox->y0 + data_pic->offy/2,
 //			 data_pic->offy > symheight ? (ebox->y0+(data_pic->offy-symheight)/2) : ebox->y0, /*title position */
-				     	 data_pic->title);
+				     	 data_pic->title, -1); /* -1, no alpha */
 	}
 
 

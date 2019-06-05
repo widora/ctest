@@ -368,7 +368,7 @@ struct egi_data_btn
 	uint32_t icon_code; 	  /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */
 	struct symbol_page *font; /* button tag font */
 //	uint16_t font_color; 	use ebox->tag_color instead  /* tag font color, defaul is black */
-	int opaque; 		  /* opaque value for the icon, default 0, 0---totally NOT transparent */
+	int opaque; 		  /* opaque value for the icon, <0 no effect, 0-255 as alpha value */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
 	bool showtag;             /* to show tag on button or not, default 0, */
 	void (*touch_effect)(EGI_EBOX *, EGI_TOUCH_DATA *);

@@ -74,13 +74,12 @@ static struct calendar_data
 	char day[2+1];
 } caldata={0};
 
-
 static  int npg=(4 < HOME_PAGE_MAX ? 4 : HOME_PAGE_MAX ); /* set MAX page number */
-
 
 /* NOTE: 9 buttons for each home page */
 static	int nr=2; /* btn row number */
 static	int nc=3; /* btn column number */
+
 
 /*------------- [  PAGE ::   Home Page  ] -------------
 create home page
@@ -169,6 +168,7 @@ EGI_PAGE *egi_create_homepage(void)
 
 	egi_ebox_settag(home_btns[1], "btn_test");
 	home_btns[1]->reaction=egi_homebtn_test;
+	data_btns[1]->opaque=160;
 
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 
@@ -439,21 +439,21 @@ static int deco_calendar(EGI_EBOX *ebox)
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0-5;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
-				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month);
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month, -1);
 
 	/* week */
 	pixlen=symbol_string_pixlen(caldata.week, &sympg_testfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+40;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
-				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week);
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week, -1);
 
 	/* day */
 	pixlen=symbol_string_pixlen(caldata.day, &sympg_numbfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+22;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_numbfont, WEGI_COLOR_BLACK,
-				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.day);
+				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.day, -1);
 
 	return 0;
 }

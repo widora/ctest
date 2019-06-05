@@ -144,7 +144,7 @@ void egi_stockchart(EGI_PAGE *page)
 
         /* --- prepare fb device --- */
 	FBDEV fb_dev;
-        init_dev(&fb_dev);
+        init_fbdev(&fb_dev);
 
 	/* clear areana */
 	fbset_color(WEGI_COLOR_BLACK);
@@ -517,19 +517,19 @@ while(1)
 	printf("Draw marks and symbols, start  ((( ---> ");
 	/* 3.1 INDEX or STOCK name */
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
-                                        	1, 60, 5 ,sname); /* transpcolor, x0,y0, str */
+                                        	1, 60, 5 ,sname, -1); /* transpcolor, x0,y0, str */
 	/* 3.2 fbench value */
 	sprintf(strdata,"%0.2f",fbench);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
-                                        	1, 80, chart_y0+upp_ng*hlgap-20 ,strdata); /* transpcolor, x0,y0, str */
+                                        	1, 80, chart_y0+upp_ng*hlgap-20 ,strdata ,-1); /* transpcolor, x0,y0, str */
 	/* 3.3 upp_limit value */
 	sprintf(strdata,"%0.2f",upp_limit);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
-                                        	1, 80, chart_y0-20 ,strdata); /* transpcolor, x0,y0, str */
+                                        	1, 80, chart_y0-20 ,strdata,-1); /* transpcolor, x0,y0, str */
 	/* 3.3 low_limit value */
 	sprintf(strdata,"%0.2f",low_limit);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,
-                                        	1, 80, chart_y0+wh-20, strdata); /* transpcolor, x0,y0, str */
+                                        	1, 80, chart_y0+wh-20, strdata, -1); /* transpcolor, x0,y0, str */
 	/* 3.4 draw fdmax mark and symbol */
 	if(fdmax > fbench) {
 		py=offy-(fdmax-fbench)*funit;
@@ -544,7 +544,7 @@ while(1)
 	draw_wline(&fb_dev, 0,py,60,py,0);
 	sprintf(strdata,"%0.2f",fdmax); //fbench+(wh/2)/unit_upp);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
-                                        	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
+                                        	1, 0, py-20 ,strdata, -1); /* transpcolor, x0,y0, str */
 	/* 3.5 draw fdmin mark and symbol*/
 	if(fdmin > fbench) {
 		py=offy-(fdmin-fbench)*funit;
@@ -560,13 +560,13 @@ while(1)
 	draw_wline(&fb_dev, 0,py,60,py,0);
 	sprintf(strdata,"%0.2f",fdmin); //fbench+(wh/2)/unit_upp);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
-                                        	1, 0, py-20 ,strdata); /* transpcolor, x0,y0, str */
+                                        	1, 0, py-20 ,strdata, -1); /* transpcolor, x0,y0, str */
 	/* 3.6 write current point/price value */
 	symcolor=WEGI_COLOR_WHITE;
 	sprintf(strdata,"%0.2f",data_point[num-1]);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
         // move with pxy              	1, 240-70, pxy[num-1].y-20, strdata); /* transpcolor, x0,y0, str */
-					1, 240-70, chart_y0-40, strdata); /* display on top */
+					1, 240-70, chart_y0-40, strdata, -1); /* display on top */
 	/* 3.7 write up_down value */
 	/* draw a gray pad */
 	//draw_filled_rect2(&fb_dev, WEGI_COLOR_GRAY3,
@@ -576,22 +576,22 @@ while(1)
 	else {	symcolor = WEGI_COLOR_GREEN; }	sprintf(strdata,"%+0.2f",data_point[num-1]-fbench);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
         // move with pxy                     	1, 240-70, pxy[num-1].y-20-20, strdata); /* transpcolor, x0,y0, str */
-					1, 90, chart_y0-40, strdata); /*fixed position, display on top */
+					1, 90, chart_y0-40, strdata, -1); /*fixed position, display on top */
 
 	/* 3.8 write up_down percentage */
 	sprintf(strdata,"%%%+0.2f",(data_point[num-1]-fbench)*100/fbench);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
-                                       	1, 0, chart_y0-40, strdata); /* transpcolor, x0, y0, str */
+                                       	1, 0, chart_y0-40, strdata, -1); /* transpcolor, x0, y0, str */
 
 	printf(" ---> End.  ))) \n");
 
 	/* if market recessed or closed */
 	if(market_recess)
 		symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_RED,
-						1, 20,chart_y0+wh+10, "Market Recess" );
+						1, 20,chart_y0+wh+10, "Market Recess", -1);
 	else if(market_closed)
 		symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_RED,
-						1, 20,chart_y0+wh+10, "Market Closed" );
+						1, 20,chart_y0+wh+10, "Market Closed", -1);
 	else { /* otherwise display favorate stock */
 		//symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_WHITE,
 		//				1, 20,320-35, "Trade Time" );
@@ -617,7 +617,7 @@ while(1)
 		else symcolor=WEGI_COLOR_GREEN;
 		sprintf(strdata,"%s   %0.2f   %%%+0.2f",favor_stock[wcount%3],tprice,(tprice-yprice)*100/yprice);
 		symbol_string_writeFB(&fb_dev, &sympg_testfont, symcolor,
-						1, 5,chart_y0+wh+10, strdata ); //320-35
+						1, 5,chart_y0+wh+10, strdata, -1); //320-35
 	}
 
 	/* <<<<<<<    Turn off FILO  >>>>>>> */

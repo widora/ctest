@@ -8,7 +8,6 @@ Test EGI COLOR functions
 
 Midas Zhou
 ------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -16,6 +15,7 @@ Midas Zhou
 #include <string.h>
 #include <errno.h>
 #include "egi_timer.h"
+#include "egi_bjp.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
 #include "egi_color.h"
@@ -60,27 +60,50 @@ int main(void)
 		return -2;
 	}
         /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 
-	/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<  test draw_wline <<<<<<<<<<<<<<<<<<<<<<*/
-#if 0 /////////////////////
+
+#if 1 /////////////////  TEST png symbol  //////////////////
+	EGI_IMGBUF eimg={0};
+	char *path="/mmc/heweather/100.png";
+
+	if( egi_imgbuf_loadpng(path, &eimg ) !=0 ) {
+		printf("Fail to load '%s' to a EGI_IMGBUF!\n", path);
+		return -1;
+	}
+	printf("load page from imgbuf...\n");
+	symbol_load_page_from_imgbuf(&sympg_heweather, &eimg);
+
+	printf("symbol_writeFB.....\n");
+	symbol_writeFB(&gv_fb_dev, &sympg_heweather, WEGI_COLOR_WHITE, -1, 70, 250, 0, 0);
+
+	printf("symbol free page...\n");
+	symbol_free_page(&sympg_heweather);
+
+	egi_imgbuf_release(&eimg);
+
+	sleep(1);
+
+#endif /////////////////  END TEST png symbol  //////////////////
+
+
+#if 0 ///////////////// TEST symbol_strings_wrtieFB //////////////
 	char *strtest="- and he has certain parcels...	\
 you are from God and have overcome them,	\
 for he who is in you is greater than \
 he who is in the world.";
 
-//   for(i=0;i<strlen(strtest);i++)
-   {
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);
- 	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240,subln, -9, WEGI_COLOR_ORANGE,
+ 	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -9, WEGI_COLOR_ORANGE,
 										1, 0,170,strtest+i);
 	tm_delayms(100);
-   };
-   exit(0);
-#endif ////////////////////////////////////////
 
+   exit(0);
+#endif  ///////////////// END TEST symbol_strings_wrtieFB //////////////
+
+
+#if 0 /////////////////  TEST SUBTITLE DISPLAY //////////////////
 while(1)
 {
 	/* open subtitle file */
@@ -151,22 +174,19 @@ while(1)
 	fclose(fil);
 
 }
+#endif /////////////////  END TEST SUBTITLE DISPLAY //////////////////
 
 
 	/* clear areana */
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);
+//	fbset_color(WEGI_COLOR_BLACK);
+//	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,subbox.endxy.x,subbox.endxy.y);
 
   	/* quit logger */
 	printf("quit log...\n");
   	egi_quit_log();
 
         /* close fb dev */
-	printf("unmap fb...\n");
-        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
-
-	printf("clse fb...\n");
-        close(gv_fb_dev.fdfd);
+	release_fbdev(&gv_fb_dev);
 
 	return 0;
 }

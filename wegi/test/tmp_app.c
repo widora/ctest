@@ -1,4 +1,4 @@
-/*-----------------------  touch_home.c ------------------------------
+/*-----------------------------  touch_home.c ----------------------------------
 1. Only first byte read from XPT is meaningful !!!??
 2. Keep enough time-gap for XPT to prepare data in each read-session,
 usleep 3000us seems OK, or the data will be too scattered.
@@ -25,7 +25,7 @@ TODO:
 8. after set tm_timer(), SIGALM will disfunction sleep() and usleep(), try tm_delayms()...
 
 Midas Zhou
-----------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
@@ -136,13 +136,10 @@ int main(int argc, char **argv)
 
 	pthread_t   thread_loopread;
 
-
-
 	/* --- start egi tick --- */
 	tm_start_egitick();
 //	tm_tick_settimer(TM_TICK_INTERVAL);/* set global tick timer */
 //	signal(SIGALRM, tm_tick_sigroutine);
-
 
 	/* test random max */
 #if 0
@@ -157,7 +154,7 @@ int main(int argc, char **argv)
 
 
 	/* --- init log --- */
-	if(egi_init_log("/mmc/egi_log") !=0)
+	if(egi_init_log("/mmc/egi_log") !=0 )
 	{
 	   printf("egi_init_log() fails! \n");
 	   exit(0);
@@ -167,8 +164,7 @@ int main(int argc, char **argv)
 	SPI_Open();
 
 	/* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 
 	//clear_screen(&gv_fb_dev, 0) ;
 	//exit(0);

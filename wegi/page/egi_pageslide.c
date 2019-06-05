@@ -254,7 +254,7 @@ static int colorbtn_react(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		draw_rect(&gv_fb_dev,0,30,240-1,30+60-1);
 		/* write color value */
 		sprintf(string,"16bit_RGB: 0x%X",color);
-		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, 0, 1, 5, 32, string);
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, 0, 1, 5, 32, string, -1);
 
 		/* update ebox parameters */
 		ebox->y0 = ty;

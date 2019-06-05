@@ -238,9 +238,10 @@ struct symbol_page sympg_heweather =
 
 /* -----  All static functions ----- */
 static uint16_t *symbol_load_page(struct symbol_page *sym_page);
-static void symbol_free_page(struct symbol_page *sym_page);
 
 /* -------------------------------------------------------------
+TODO: Only for one symbol NOW!!!!!
+
 load a symbol_page struct from a EGI_IMGBUF
 @sym_page:   pointer to a symbol_page.
 @imgbuf:     a EGI_IMGBUF holding that image data
@@ -251,21 +252,42 @@ Return:
 --------------------------------------------------------------*/
 int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf)
 {
-	if(imgbuf==NULL || imgbuf->data==NULL || sym_page==NULL) {
+	int i;
+	int off;
+	int data_size;
+
+	if(imgbuf==NULL || imgbuf->imgbuf==NULL || sym_page==NULL) {
 		printf("%s: Invalid input data!\n",__func__);
 		return -1;
 	}
-	int data_size=imgbuf->height*imgbuf->width*2; /* 16bpp color */
+	data_size=(imgbuf->height)*(imgbuf->width)*2; /* 16bpp color */
+
+        /* malloc mem for symbol_page.symoffset */
+        sym_page->symoffset = calloc(1, ((sym_page->maxnum)+1) * sizeof(int) );
+        if(sym_page->symoffset == NULL) {
+                        printf("%s: fail to malloc sym_page->symoffset!\n",__func__);
+                        return -1;
+        }
+
+	/* set symoffset */
+        off=0;
+        for(i=0; i<=sym_page->maxnum; i++)
+        {
+                sym_page->symoffset[i]=off;
+                off += sym_page->symwidth[i] * (sym_page->symheight) ;/* in pixel */
+        }
 
 	/* copy color data */
+	printf("copy color data...\n");
 	sym_page->data=calloc(1,data_size);
 	if(sym_page->data==NULL) {
 		printf("%s: Fail to alloc sym_page->data!\n",__func__);
 		return -2;
 	}
-	memcpy(sym_page->data, imgbuf->data, data_size);
+	memcpy(sym_page->data, imgbuf->imgbuf, data_size);
 
 	/* copy alpha */
+	printf("copy alpha value...\n");
 	if(imgbuf->alpha) {
 		sym_page->alpha=calloc(1,data_size>>1); /* 8bpp for alpha */
 		if(sym_page->alpha==NULL) {
@@ -273,7 +295,7 @@ int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbu
 			free(sym_page->data);
 			return -3;
 		}
-		memcpy(sym_page->alpha, imgbuf->data, data_size);
+		memcpy(sym_page->alpha, imgbuf->alpha, data_size>>1);
 		sym_page->bkcolor=-1; /* use alpha instead of bkcolor */
 	}
 
@@ -392,12 +414,9 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 	/* malloc mem for symbol_page.symoffset */
 	sym_page->symoffset = malloc( ((sym_page->maxnum)+1) * sizeof(int) );
-	{
-		if(sym_page->symoffset == NULL)
-		{
+	if(sym_page->symoffset == NULL) {
 			printf("symbol_load_page():fail to malloc sym_page->symoffset!\n");
 			return NULL;
-		}
 	}
 
 	/* calculate symindex->sym_offset for each symbol
@@ -504,7 +523,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 /*--------------------------------------------------
 	Free mem for data in a symbol page
 ---------------------------------------------------*/
-static void symbol_free_page(struct symbol_page *sym_page)
+void symbol_free_page(struct symbol_page *sym_page)
 {
 	if(sym_page->data != NULL) {
 		free(sym_page->data);
@@ -514,14 +533,12 @@ static void symbol_free_page(struct symbol_page *sym_page)
 		free(sym_page->alpha);
 		sym_page->alpha=NULL;
 	}
+
 	if(sym_page->symwidth != NULL) {
 		free(sym_page->symwidth);
 		sym_page->symwidth=NULL;
 	}
-
 }
-
-
 
 
 /*-----------------------------------------------------------------------
@@ -638,8 +655,8 @@ int symbol_string_pixlen(char *str, const struct symbol_page *font)
 }
 
 
-/*----------------------------------------------------------------------------------
-	write a symbol/font pixel data to FB device
+/*--------------------------------------------------------------------------------------
+		write a symbol/font pixel data to FB device
 
 1. Write to FB in unit of symboy_width*pixel if no color treatment applied for symbols,
    or in pixel if color treatment is applied.
@@ -664,10 +681,12 @@ use following COLOR:
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code: 	symbol code number
 
-opaque:		set opaque value
-	0 	display no effect
-	other	...OK.  the greater the value, the vaguer the image.
--------------------------------------------------------------------------------*/
+opaque:		set aplha value (0-255)
+		<0	No effect, or use symbol alpha value.
+		0 	100% back ground color/transparent
+		255	100% front color
+
+-------------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque)
 {
@@ -706,11 +725,11 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		{
 			/*  skip pixels according to opaque value, skipped pixels
 							make trasparent area to the background */
-			if(opaque>0)
-			{
-				if( ((i%2)*(opaque/2)+j)%(opaque) != 0 ) /* make these points transparent */
-					continue;
-			}
+//			if(opaque>0)
+//			{
+//				if( ((i%2)*(opaque/2)+j)%(opaque) != 0 ) /* make these points transparent */
+//					continue;
+//			}
 
 #ifdef FB_SYMOUT_ROLLBACK
 			/*--- map x for every (i,j) symbol pixel---*/
@@ -748,7 +767,6 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				continue;
 
 #endif
-
 			/*x(i,j),y(i,j) mapped to LCD(xy),
 				however, pos may also be out of FB screensize  */
 			pos=mapy*xres+mapx; 	/* in pixel, LCD fb mem position */
@@ -790,12 +808,19 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				/*  if use given symbol/font color  */
 				if(fontcolor>=0)
 					pcolor=(uint16_t)fontcolor;
+
 				/* if apply alpha: front pixel, background pixel,alpha value */
-				if(sym_page->alpha) {
+				if(opaque>=0) {
+                    			pcolor=COLOR_16BITS_BLEND(  pcolor,
+								    *(uint16_t *)(dev->map_fb+pos),
+								    opaque );
+				}
+				else if(sym_page->alpha) {
                     			pcolor=COLOR_16BITS_BLEND(  pcolor,
 								    *(uint16_t *)(dev->map_fb+pos),
 								    palpha );
 				}
+
 				/* write to FB */
 				*(uint16_t *)(dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
 			}
@@ -825,9 +850,14 @@ use following COLOR:
 
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 str:		pointer to a char string(or symbol codes[]);
+
+opaque:		set aplha value (0-255)
+		<0	No effect, or use symbol alpha value.
+		0 	100% back ground color/transparent
+		255	100% front color
 -------------------------------------------------------------------------------*/
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
-		int fontcolor, int transpcolor, int x0, int y0, const char* str)
+		int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque)
 {
 	const char *p=str;
 	int x=x0;
@@ -840,21 +870,22 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	//if(tspcolor >0 && sym_page->symtype == type_font )
 
 	/* transpcolor applied for both font and icon anyway!!! */
-	if(transpcolor>=0)
+	if(transpcolor>=0 && sym_page->bkcolor>=0 )
 		transpcolor=sym_page->bkcolor;
 
 	while(*p) /* code '0' will be deemed as end token here !!! */
 	{
-		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p,0);/* at same line, so y=y0 */
+		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p,opaque);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */
 		p++;
 	}
 }
 
 
+
 /*---------------------------------------------------------------------------
 1. write strings to FB device.
-2. It will auto. return to next line to write if current line is used up,
+2. It will automatically return to next line if current line is used up,
    or if it gets a return code.
 3. If write symbols, just use symbol codes[] for str[].
 4. If it's font, then use symbol bkcolor as transparent tunnel.
@@ -875,10 +906,15 @@ use following COLOR:
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 str:		pointer to a char string(or symbol codes[]);
+
+opaque:		set aplha value (0-255)
+		<0	No effect, or use symbol alpha value.
+		0 	100% back ground color/transparent
+		255	100% front color
 -------------------------------------------------------------------------------*/
 void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
 			     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
-			     int x0, int y0, const char* str )
+			     int x0, int y0, const char* str, int opaque )
 {
 	const char *p=str;
 	int x=x0;
@@ -918,7 +954,7 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 			x = x0;
 			pxl=pixpl;
 		}
-		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y,*p,0);
+		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y,*p,opaque);
 		x+=cw;
 		pxl-=cw;
 		p++;
@@ -956,7 +992,7 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
 
         while(*p) /* code '0' will be deemed as end token here !!! */
        	{
-               	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p,0); /* -1, default font color */
+               	symbol_writeFB(fb_dev,sym_page,SYM_NOSUB_COLOR,transpcolor,x0,y0,*p,-1); /* -1, default font color */
 		tm_delayms(dt);
            	p++;
        	}
