@@ -15,12 +15,12 @@ Midas Zhou
 #include <string.h>
 #include <errno.h>
 #include "egi_header.h"
+#include "utils/egi_utils.h"
 
 int main(int argc, char **argv)
 {
 	int i,j;
 	int ret;
-
 
         /* EGI general init */
         tm_start_egitick();
@@ -34,25 +34,16 @@ int main(int argc, char **argv)
         }
         init_fbdev(&gv_fb_dev);
 
-
-
 	/* -------- to search jpg files ------ */
-	char path[]="/mmc/photos";
-	int maxflen=100; /* max jpg file name length */
-	int maxfnum=20; /* max number of items in fpaths */
-	char **fpaths=NULL; /* jpg file paths */
-	fpaths=malloc(maxfnum*sizeof(char *));
-	memset(fpaths,0,maxfnum*sizeof(char *));
-	for(i=0;i<maxfnum;i++)
-	{
-		fpaths[i]=malloc(maxflen*sizeof(char));
-		memset(fpaths[i], 0, maxflen*sizeof(char));
-	}
+	char *path= argv[1]; //"/mmc/photos";
+	char (*fpaths)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL;
+//	char **fpaths;
 	int count=0;
-	/* search all jpg files in a path */
-	egi_find_jpgfiles(path, &count, fpaths, maxfnum, maxflen);
-	printf("Totally %d jpg files are found.\n",count);
 
+	fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
+	printf("Totally %d files are found.\n",count);
+	for(i=0; i<count; i++)
+		printf("%s\n",fpaths[i]);
 
 	/* ------- display jpg files ------- */
 	int pich=130;
@@ -63,8 +54,8 @@ int main(int argc, char **argv)
 	EGI_DATA_PIC *data_pic=NULL;
 	EGI_EBOX *pic_box=NULL;
 
-	EGI_IMGBUF imgbuf={0};
-	uint16_t  *picbuf=NULL;
+//	EGI_IMGBUF imgbuf={0};
+	EGI_IMGBUF *imgbuf;
 
 	EGI_POINT  pxy;
 	/* set x0y0 of pic in box */
@@ -77,9 +68,9 @@ for(i=0;i<count+1;i++)
 {
 	if(i==count) {
 	   	i=0;
-		/* re_search all jpg files in a path */
-		egi_find_jpgfiles(path, &count, fpaths, maxfnum, maxflen);
-		printf("Totally %d jpg files are found.\n",count);
+		free(fpaths);
+		fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
+		printf("--------- i=%d: Totally %d jpg files found -------.\n",i,count);
 		continue;
 	}
 
@@ -90,7 +81,7 @@ for(i=0;i<count+1;i++)
  	       	                 &sympg_testfont  	/* struct symbol_page *font */
 	                        );
 	/* set title */
-	data_pic->title="Happy New Year 2019!";
+	data_pic->title="Happy Linux EGI!";
 
 	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
@@ -101,35 +92,41 @@ for(i=0;i<count+1;i++)
         			  1,	     /* int frame */
 				  WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
 	);
-	printf("egi_picbox_activate()...\n");
+//	printf("egi_picbox_activate()...\n");
 	egi_picbox_activate(pic_box);
 
-	printf("egi_imgbuf_loadjpg(): %s...\n", fpaths[i]);
+//	printf("egi_imgbuf_loadjpg(): %s...\n", fpaths[i]);
+	imgbuf=egi_imgbuf_new();
 	/* load jpg file to buf */
-	if(egi_imgbuf_loadjpg(fpaths[i], &imgbuf) != 0 )
-	   exit(-1);
+	if(egi_imgbuf_loadjpg(fpaths[i], imgbuf) !=0) {
+		if(egi_imgbuf_loadpng(fpaths[i], imgbuf) !=0) {
+			egi_picbox_sleep(pic_box); /* erase */
+			pic_box->free(pic_box);
+		   	continue;
+		}
+	}
 
 	/* scale pic to data_pic */
-	printf("egi_scale_pixbuf()...\n");
-	fb_scale_pixbuf(imgbuf.width, imgbuf.height, data_pic->imgbuf->width, data_pic->imgbuf->height,
-				imgbuf.imgbuf, data_pic->imgbuf->imgbuf);
+//	printf("egi_scale_pixbuf()...\n");
+	fb_scale_pixbuf(imgbuf->width, imgbuf->height, data_pic->imgbuf->width, data_pic->imgbuf->height,
+				imgbuf->imgbuf, data_pic->imgbuf->imgbuf);
 
 	/* release useless imgbuf then */
-	printf("egi_imgbuf_release...\n");
-	egi_imgbuf_release(&imgbuf);
+//	printf("egi_imgbuf_release...\n");
+//	egi_imgbuf_release(&imgbuf);
+	egi_imgbuf_free(imgbuf);
 
-
- for(j=0;j<10;j++)
+ for(j=0;j<5;j++)
  {
 	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
-	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
+//	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
 	pic_box->x0=pxy.x;
 	pic_box->y0=pxy.y;
 
 
 	/* refresh picbox to show the picture */
-	printf("start egi_picbox_refresh()...\n");
+//	printf("start egi_picbox_refresh()...\n");
 	egi_ebox_needrefresh(pic_box);
 	//printf("egi_picbox_refresh()...\n");
 	egi_picbox_refresh(pic_box);
@@ -143,9 +140,9 @@ for(i=0;i<count+1;i++)
 }
 
 	/* free fpaths */
-	for(i=0;i<maxfnum;i++) {
-		free(fpaths[i]);
-	}
+//	for(i=0;i<maxfnum;i++) {
+//		free(fpaths[i]);
+//	}
 	free(fpaths);
 
 

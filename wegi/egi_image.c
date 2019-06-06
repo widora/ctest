@@ -35,6 +35,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 		egi_imgbuf_release(egi_imgbuf);
 		free(egi_imgbuf);
 	}
+	egi_imgbuf=NULL;
 }
 
 /*--------------------------------------------
