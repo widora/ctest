@@ -18,35 +18,27 @@ $(warning "----- OBJS:$(OBJS) -----")
 
 DEP_FILES = $(patsubst %.c, %.dep, $(SRC_FILES))
 
-#EXTRA_OBJS = iot/egi_iotclient.o utils/egi_utils.o utils/egi_iwinfo.o utils/egi_fifo.o \
-#	     utils/egi_filo.o utils/egi_cstring.o \
-#	     ffmpeg/ff_pcm.o
-
 
 #### -----  编译标志 -----
 ## -Wall for __attribut__
-CFLAGS = -I./ -I../ -I../iot -I../ffmpeg -I../utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS := -I./ -I../ -I../iot -I../ffmpeg -I../utils
+CFLAGS += -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall -O2
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG
 
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
-LIBS += -legi -ljpeg -lm -lpthread #-ljson-c -lasound
+LIBS += -legi -ljpeg -lm -lpthread
+
 
 #### ------ 手动设置特定目标生成规则  ------
-egi_pages: $(OBJS)
+libepages.a: $(OBJS)
 	$(AR) crv libepages.a $(OBJS)
-
 
 #	$(CC) -shared -soname libegi.so.1 $(OBJS) -o libegi.so.1.0.0
 
-#install: libegi.so.1.0.0
-#	cd $(SRC_PATH)
-#	cp -rf libegi.so.1.0.0 ./lib/libegi.so.1.0.0
-#	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so.1
-#	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so
-#	rm libegi.so.1.0.0
-
+install: libepages.a
+	mv libepages.a $(SRC_PATH)/lib
 
 #### ----- 目标文件自动生成规则 -----
 %:%.c $(DEP_FILES)

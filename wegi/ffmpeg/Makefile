@@ -3,33 +3,27 @@ CC = $(STAGING_DIR)/mipsel-openwrt-linux-gcc
 
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr
 
+SRC_PATH = /home/midas-zhou/Ctest/wegi
+
 APP = ffplay6
 #APP = filtering_video
 SOURCE = $(APP).c
-DEPS = ff_utils.h ff_utils.c ff_pcm.h ff_pcm.c
-OBJ = $(APP).o ff_pcm.o ff_utils.o
-#EGI_OBJ = ../egi_timer.o ../egi.o ../egi_math.o ../egi_symbol.o	../egi_pic.o ../egi_log.o ../utils/egi_utils.o\
-#	  ../utils/egi_filo.o	../egi_txt.o ../egi_btn.o ../egi_list.o ../egi_bjp.o ../egi_fbgeom.o ../spi.o \
-#	  ../egi_slider.o ../egi_color.o ../egi_image.o
+DEPS = ff_utils.h ff_utils.c #ff_pcm.h ff_pcm.c
+OBJ = $(APP).o ff_utils.o  #ff_pcm.o
 
 APP2 = alsa_play
 SOURCE2 = $(APP2).c
 
-#INCLUDES += -I/home/midas-zhou/Ctest
-#INCLUDES += -I/home/midas-zhou/Ctest/wegi
-#INCLUDES += -I/home/midas-zhou/Ctest/wegi/include
-INCLUDES += -I/home/midas-zhou/ffmpeg-2.8.15/finish/include
-INCLUDES += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include
-
+CFLAGS   += -I/home/midas-zhou/ffmpeg-2.8.15/finish/include
+CFLAGS   += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/include
+#CFLAGS	 += -I/home/midas-zhou/Ctest/wegi/utils
+CFLAGS   += -I$(COMMON_USRDIR)/include
+CFLAGS   += -I$(SRC_PATH) -I$(SRC_PATH)/sound -I$(SRC_PATH)/utils
 ### for -Wall for __attribute__
 CFLAGS   += -Wall
 
-CFLAGS	 += -I/home/midas-zhou/Ctest/wegi/utils
-CFLAGS   += -I/home/midas-zhou/Ctest/wegi
-CFLAGS   += -I$(COMMON_USRDIR)/include
-
 LDFLAGS  += -L/home/midas-zhou/ffmpeg-2.8.15/finish/lib
-LDFLAGS  += -L/home/midas-zhou/Ctest/wegi/lib
+LDFLAGS  += -L$(SRC_PATH)/lib
 LDFLAGS  += -L/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.28/ipkg-install/usr/lib
 LDFLAGS  += -L$(COMMON_USRDIR)/lib
 
@@ -38,25 +32,25 @@ LIBS     += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpo
 #LIBS     += -lftdi1 -lusb-1.0
 LIBS	 += -lm -lasound -ljpeg
 LIBS	 += -lpthread
-LIBS	 += -legi -lpng -lz
+LIBS	 += -lesound -legi -lpng -lz
 
 #----------------  APP  --------------------
 $(APP): $(OBJ) $(DEPS)
-	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) $(EGI_OBJ) -o $(APP)
+	$(CC) -o $(APP) $(OBJ) $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 $(APP).o: $(SOURCE) $(DEPS)
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
+	$(CC)   $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
 
-ff_pcm.o: ff_pcm.c ff_pcm.h
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_pcm.c
+#ff_pcm.o: ff_pcm.c ff_pcm.h
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_pcm.c
 
 ff_utils.o: ff_utils.c ff_utils.h
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
+	$(CC)   $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
 
 
 #---------------  APP2 -----------------------
-$(APP2):$(SOURCE2) $(DEPS)
-	$(CC)  $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP2) $(SOURCE2)
+$(APP2): $(SOURCE2) $(DEPS)
+	$(CC) -o $(APPS) $(CFLAGS) $(LDFLAGS) $(LIBS) $(SOURCE2)
 
 
 

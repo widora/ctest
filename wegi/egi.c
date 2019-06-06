@@ -90,7 +90,6 @@ int egi_random_max(int max)
         struct timeval tmval;
 
         gettimeofday(&tmval,NULL);
-
         srand(tmval.tv_usec);
         ret = 1+(int)((float)max*rand()/(RAND_MAX+1.0));
         //printf("random max ret=%d\n",ret);

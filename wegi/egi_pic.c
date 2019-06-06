@@ -462,7 +462,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	{
 		/* scale image to fit to the displaying window */
 
-
 		/* keep original picture size */
 
 
@@ -522,20 +521,18 @@ int egi_picbox_sleep(EGI_EBOX *ebox)
 
 
 /*-------------------------------------------------
-release struct egi_data_pic
+     release struct egi_data_pic
 --------------------------------------------------*/
 void egi_free_data_pic(EGI_DATA_PIC *data_pic)
 {
-	if(data_pic != NULL)
-	{
-		if(data_pic->imgbuf != NULL)
-		{
-			if(data_pic->imgbuf->imgbuf != NULL)
-			{
+	if(data_pic != NULL) {
+		if(data_pic->imgbuf != NULL) {
+			if(data_pic->imgbuf->imgbuf != NULL) {
 				free(data_pic->imgbuf->imgbuf);
 			}
 			free(data_pic->imgbuf);
 		}
+
 		free(data_pic);
 	}
 

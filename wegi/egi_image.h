@@ -23,6 +23,9 @@ typedef struct
 	unsigned char *alpha;    /* 8bit, alpha channel value, if applicable */
 } EGI_IMGBUF;
 
+EGI_IMGBUF *egi_imgbuf_new(void);
+void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf); /* free insider data, but not struct */
+void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);    /* free struct */
 
 int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                         int xp, int yp, int xw, int yw, int winw, int winh);

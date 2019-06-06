@@ -24,7 +24,7 @@ Midas_Zhou
 #include "egi_timer.h"
 
 #include "ff_utils.h"
-#include "ff_pcm.h"
+#include "egi_pcm.h"
 
 //#define LCD_MAX_WIDTH 240
 //#define LCD_MAX_HEIGHT 320

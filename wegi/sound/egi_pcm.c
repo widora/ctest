@@ -4,11 +4,6 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
-
-
 Note:
 1. Mplayer will take the pcm device exclusively?? ---NOPE.
 2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
@@ -18,7 +13,7 @@ Note:
 
 Midas Zhou
 -------------------------------------------------------------------*/
-#include "ff_pcm.h"
+#include "egi_pcm.h"
 #include "egi_debug.h"
 #include "egi_log.h"
 #include "egi_timer.h"

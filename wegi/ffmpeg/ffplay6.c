@@ -102,7 +102,8 @@ Midas Zhou
 #include <string.h>
 
 #include "ff_utils.h"
-#include "ff_pcm.h"
+//#include "ff_pcm.h"
+#include "egi_pcm.h"
 
 #include "spi.h"
 #include "egi_color.h"

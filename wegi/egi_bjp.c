@@ -44,9 +44,11 @@ Modified by Midas Zhou
 
 /*--------------------------------------------------------------
  open jpg file and return decompressed image buffer pointer
- int *w,*h:   		with and height of the image
- int *components:  	out color components
- fil			pointer to FILE.
+
+@filename
+@w,h:   		with and height of the image
+@components:  	out color components
+
  return:
 	=NULL fail
 	>0 decompressed image buffer pointer
@@ -57,8 +59,8 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
 	struct jpeg_decompress_struct cinfo;
         struct jpeg_error_mgr jerr;
         FILE *infile;
-        unsigned char *buffer;
-        unsigned char *temp;
+        unsigned char *buffer=NULL;
+        unsigned char *pt=NULL;
 
 
         if (( infile = fopen(filename, "rb")) == NULL) {
@@ -112,11 +114,12 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
 
         buffer = (unsigned char *) malloc(cinfo.output_width *
                         cinfo.output_components * cinfo.output_height);
-        temp = buffer;
+  	pt = buffer;
 
+	/* decompress */
         while (cinfo.output_scanline < cinfo.output_height) {
-                jpeg_read_scanlines(&cinfo, &buffer, 1);
-                buffer += cinfo.output_width * cinfo.output_components;
+                jpeg_read_scanlines(&cinfo, &pt, 1);
+                pt += cinfo.output_width * cinfo.output_components;
         }
 
 	printf("start jpeg_finish_decompress()...\n");
@@ -125,7 +128,8 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
 
         fclose(infile);
 
-        return temp;
+	return buffer;
+
 }
 
 /*    release mem for decompressed jpeg image buffer */
@@ -626,7 +630,7 @@ INIT_FAIL:
 
 
 
-
+#if 0 /////////// move to egi_image.c ////////////
 /*------------------------------------------------------------------------
 	Release imgbuf of an EGI_IMGBUf struct.
 -------------------------------------------------------------------------*/
@@ -648,7 +652,7 @@ void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
 	egi_imgbuf->height=0;
 	egi_imgbuf->width=0;
 }
-
+#endif ///////////////////////////////////////////////////
 
 
 #if 0

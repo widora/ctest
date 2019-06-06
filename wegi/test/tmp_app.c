@@ -43,7 +43,7 @@ Midas Zhou
 #include "egi_pic.h"
 #include "egi_timer.h"
 #include "egi_objtxt.h"
-#include "egi_pagehome.h"
+#include "page/egi_pagehome.h"
 //#include "egi_pagemplay.h"
 #include "xpt2046.h"
 #include "egi_bjp.h"

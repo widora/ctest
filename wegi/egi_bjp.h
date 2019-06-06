@@ -84,11 +84,11 @@ void close_jpgImg(unsigned char *imgbuf);
 int show_bmp(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 
-//int egi_imgbuf_loadjpg(char* fpath, FBDEV *fb_dev, EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_loadjpg(char* fpath, EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf);
 
-void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf);
+//void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf);
+//void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 
 /* display picture buffer with full screen */
 //int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp);

@@ -1530,16 +1530,17 @@ void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t
 
 
 /*-----------------------------------------------------------------------------
-scale a block of pixel buffer.
- owid,ohgt:	old/original width and height of the pixel area
- nwid,nhgt:   new width and height
- obuf:        old data buffer for 16bit color pixels
- nbuf;	scaled data buffer for 16bit color pixels
+Scale a block of pixel buffer.
+@ owid,ohgt:	old/original width and height of the pixel area
+@ nwid,nhgt:   	new width and height
+@ obuf:        	old data buffer for 16bit color pixels
+@ nbuf;		scaled data buffer for 16bit color pixels
 
 Return
 	1	partial area out of FB mem boundary
 	0	OK
-	-1	fails
+	<0	fails
+
 Midas Zhou
 ------------------------------------------------------------------------------*/
 int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, unsigned int nhgt,
@@ -1549,22 +1550,18 @@ int fb_scale_pixbuf(unsigned int owid, unsigned int ohgt, unsigned int nwid, uns
 	int imap,jmap;
 
 	/* 1. check data */
-	if(owid==0 || ohgt==0 || nwid==0 || nhgt==0)
-	{
-		printf("fb_scale_pixbuf(): pixel area is 0! fail to scale.\n");
+	if(owid==0 || ohgt==0 || nwid==0 || nhgt==0) {
+		printf("%s: pixel area is 0! fail to scale.\n",__func__);
 		return -1;
 	}
-	if(obuf==NULL || nbuf==NULL)
-	{
-		printf("fb_scale_pixbuf(): old or new pixel buffer is NULL! fail to scale.\n");
+	if(obuf==NULL || nbuf==NULL) {
+		printf("%s: old or new pixel buffer is NULL! fail to scale.\n",__func__);
 		return -2;
 	}
 
 	/* 2. map pixel from old area to new area */
-	for(i=1;i<nhgt+1;i++) /* pixel row index */
-	{
-		for(j=1;j<nwid+1;j++) /* pixel column index */
-		{
+	for(i=1; i<nhgt+1; i++) { /* pixel row index */
+		for(j=1; j<nwid+1; j++) { /* pixel column index */
 			/* map i,j to old buf index imap,jmap */
 			//imap= round( (float)i/(float)nhgt*(float)ohgt );
 			//jmap= round( (float)j/(float)nwid*(float)owid );

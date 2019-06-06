@@ -2,6 +2,56 @@
 #include "egi_bjp.h"
 
 
+/*---------------------------------------
+Release data in a static EGI_IMGBUF
+----------------------------------------*/
+void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
+{
+        if(egi_imgbuf == NULL)
+                return;
+
+        if(egi_imgbuf->imgbuf != NULL) {
+                free(egi_imgbuf->imgbuf);
+                egi_imgbuf->imgbuf=NULL;
+        }
+        if(egi_imgbuf->alpha != NULL) {
+                free(egi_imgbuf->alpha);
+                egi_imgbuf->alpha=NULL;
+        }
+        if(egi_imgbuf->data != NULL) {
+                free(egi_imgbuf->data);
+                egi_imgbuf->data=NULL;
+        }
+        egi_imgbuf->height=0;
+        egi_imgbuf->width=0;
+}
+
+/*--------------------------------------------
+   	   Free a EGI_IMGBUF
+---------------------------------------------*/
+void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
+{
+	if(egi_imgbuf) {
+		egi_imgbuf_release(egi_imgbuf);
+		free(egi_imgbuf);
+	}
+}
+
+/*--------------------------------------------
+   	   Allocate  a EGI_IMGBUF
+---------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_new(void)
+{
+	EGI_IMGBUF *eimg;
+	eimg=calloc(1, sizeof(EGI_IMGBUF));
+	if(eimg==NULL) {
+		printf("%s: Fail to calloc EGI_IMGBUF.\n",__func__);
+		return NULL;
+	}
+	return eimg;
+}
+
+
 /*-------------------------------------------------------------------------------
 For 16bits color only!!!!
 

@@ -4,19 +4,20 @@ SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-OBJS = ../ffmpeg/ff_pcm.o
+#OBJS = ../ffmpeg/ff_pcm.o
 
-CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils/ -I$(SRC_PATH)/page
+CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils/
+#-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
-LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib  -L$(SRC_PATH)/page
+LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	= -lepages -legi
+LIBS	= -lepages -legi -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
 #LIBS	+= -lcurl -lssl -lcrypto -pthread
 
-APPS = test_sym tmp_app
+APPS = test_sym tmp_app test_pic
 
 all:	$(APPS)
 

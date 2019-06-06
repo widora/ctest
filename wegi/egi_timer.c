@@ -151,17 +151,14 @@ static void tm_tick_settimer(int us)
 --------------------------------------*/
 static void tm_tick_sigroutine(int signo)
 {
-
 #if EGI_ENABLE_TICK
-	if(signo == SIGALRM)
-	{
+	if(signo == SIGALRM) {
 		tm_tick_count+=1;
 	}
 
 	/* restore tm_sigroutine */
 	signal(SIGALRM, tm_tick_sigroutine);
 #endif
-
 }
 
 /*-------------------------------
@@ -209,7 +206,6 @@ void tm_delayms(long ms)
 	egi_sleep(0,0,ms);
 
 #endif
-
 }
 
 

@@ -32,7 +32,7 @@ Midas Zhou
 #include "egi_symbol.h"
 #include "egi_slider.h"
 #include "egi_timer.h"
-#include "ff_pcm.h"
+#include "sound/egi_pcm.h"
 
 
 #define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
