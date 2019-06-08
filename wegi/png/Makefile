@@ -15,7 +15,7 @@ LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 LIBS	= -legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
-#LIBS	+= -lcurl -lssl -lcrypto -pthread
+LIBS	+= -lcurl -lssl -lcrypto -pthread
 
 APPS = test_png test_blend loop_show
 

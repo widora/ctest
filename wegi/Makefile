@@ -11,6 +11,7 @@ SRC_PATH = /home/midas-zhou/Ctest/wegi
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 OBJS += utils/egi_utils.o utils/egi_cstring.o utils/egi_fifo.o utils/egi_filo.o utils/egi_iwinfo.o
+OBJS += utils/egi_https.o
 
 $(warning "----- OBJS:$(OBJS) -----")
 

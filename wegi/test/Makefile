@@ -13,9 +13,9 @@ LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 LIBS	= -lepages -legi -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
+LIBS	+= -lcurl -lssl -lcrypto -pthread
 
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
-#LIBS	+= -lcurl -lssl -lcrypto -pthread
 
 APPS = test_sym tmp_app test_pic
 

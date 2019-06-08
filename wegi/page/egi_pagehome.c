@@ -67,6 +67,10 @@ static	EGI_EBOX  *ebox_headbar;
 static EGI_DATA_TXT *time_txt;
 static EGI_EBOX *time_box;
 
+static EGI_DATA_PIC *data_pic;
+static EGI_EBOX *pic_box;
+
+
 static struct calendar_data
 {
 	char month[3+1];
@@ -226,9 +230,30 @@ EGI_PAGE *egi_create_homepage(void)
                         -1 /*int prmcolor*/
                 );
 
-        /* --------- 1.5 set deco for calendar ebox --------- */
-	home_btns[CALENDAR_BTN_ID]->method.decorate=deco_calendar;
 
+        /* --------- 1.5 create a pic box --------- */
+        /* allocate data_pic */
+        data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
+                                   60, 100,     /* heigth,width of displaying window */
+                                   0,  0,       /* int imgpx, int imgpy */
+				   -1,		/* image canvas color, <0 as transparent */
+                                   NULL     	/* struct symbol_page *font */
+                                );
+        /* set pic_box title */
+        //data_pic->title="Happy Linux EGI!";
+
+        /* get a random point */
+        pic_box=egi_picbox_new( "pic_box", 	/* char *tag, or NULL to ignore */
+                                  data_pic,  	/* EGI_DATA_PIC *egi_data */
+                                  1,         	/* bool movable */
+                                  70, 250, 	/*  x0, y0 for host ebox*/
+                                  1,         	/* int frame */
+                                  -1		/* int prmcolor,applys only if prmcolor>=0  */
+        );
+
+
+        /* --------- 1.6 set deco for calendar ebox --------- */
+	home_btns[CALENDAR_BTN_ID]->method.decorate=deco_calendar;
 
         /* --------- 2. create home head-bar --------- */
         /* create head_txt */
@@ -296,8 +321,9 @@ EGI_PAGE *egi_create_homepage(void)
 		egi_page_addlist(page_home, home_btns[i]);
 
 	//turn_off bulb bkimg!	egi_page_addlist(page_home, bkimg_btn7);
-	egi_page_addlist(page_home,ebox_headbar);
+	egi_page_addlist(page_home, ebox_headbar);
 	egi_page_addlist(page_home, time_box);
+	egi_page_addlist(page_home, pic_box);
 //	egi_page_addlist(page_home, calendar_box);
 
 	return page_home;

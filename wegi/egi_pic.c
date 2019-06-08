@@ -60,6 +60,7 @@ return:
 EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 			       int height, int width,
 			       int imgpx, int imgpy,
+			       int bkcolor,
 			       struct symbol_page *font
 			     )
 {
@@ -71,49 +72,51 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 	}
 
 	/* malloc a EGI_IMGBUF struct */
-	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc EGI_IMGBUF...\n");
-	EGI_IMGBUF *imgbuf = malloc(sizeof(EGI_IMGBUF));
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): egi_imgbuf_new()...\n");
+	EGI_IMGBUF *imgbuf =egi_imgbuf_new(); /* calloc */
 	if(imgbuf == NULL)
         {
-                printf("egi_picdata_new(): fail to malloc EGI_IMGBUF.\n");
+                printf("egi_picdata_new(): egi_imgbuf_new() fails.\n");
 		return NULL;
 	}
-	memset(imgbuf,0,sizeof(EGI_IMGBUF));
-
 	/* set height and width for imgbuf */
 	imgbuf->height=height;
 	imgbuf->width=width;
 
-	/* malloc imgbuf->imgbuf */
-	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc imgbuf->imgbuf...\n");
-	imgbuf->imgbuf = malloc(height*width*sizeof(uint16_t));
+	/* calloc imgbuf->imgbuf */
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc imgbuf->imgbuf...\n");
+	imgbuf->imgbuf = calloc(1,height*width*sizeof(uint16_t));
 	if(imgbuf->imgbuf == NULL)
 	{
-		printf("egi_picdata_new(): fail to malloc imgbuf->imgbuf.\n");
-		free(imgbuf);
+		printf("egi_picdata_new(): fail to calloc imgbuf->imgbuf.\n");
+		egi_imgbuf_free(imgbuf);
 		return NULL;
 	}
-	memset(imgbuf->imgbuf,0,height*width*sizeof(uint16_t));
+	/* calloc imgbuf->alpha, alpha=0, 100% canvan color. */
+	imgbuf->alpha= calloc(1, height*width); /* alpha value 8bpp */
+	if(imgbuf->alpha == NULL)
+	{
+		printf("egi_picdata_new(): fail to calloc imgbuf->alpha.\n");
+		egi_imgbuf_free(imgbuf);
+		return NULL;
+	}
 
-
-        /* malloc a egi_data_pic struct */
-        EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): malloc data_pic ...\n");
-        EGI_DATA_PIC *data_pic=malloc(sizeof(EGI_DATA_PIC));
+        /* calloc a egi_data_pic struct */
+        EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc data_pic ...\n");
+        EGI_DATA_PIC *data_pic=calloc(1, sizeof(EGI_DATA_PIC));
         if(data_pic==NULL)
         {
-                printf("egi_picdata_new(): fail to malloc egi_data_pic.\n");
-		free(imgbuf->imgbuf);
-		free(imgbuf);
+                printf("egi_picdata_new(): fail to calloc egi_data_pic.\n");
+		egi_imgbuf_free(imgbuf);
 		return NULL;
 	}
-	/* clear data */
-	memset(data_pic,0,sizeof(EGI_DATA_PIC));
 
 	/* assign struct number */
 	data_pic->offx=offx;
 	data_pic->offy=offy;
 	data_pic->imgpx=imgpx;
 	data_pic->imgpy=imgpy;
+	data_pic->bkcolor=bkcolor;
 	data_pic->font=font;
 	data_pic->imgbuf=imgbuf;
 	data_pic->title=NULL;
@@ -409,7 +412,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	}
    } /* end of movable codes */
 
-
         /* 6. set prime color and drawing shape  */
         if(ebox->prmcolor >= 0 )
         {
@@ -418,16 +420,14 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		/* draw ebox  */
 	        draw_filled_rect(&gv_fb_dev, ebox->x0, ebox->y0,
 						ebox->x0+ebox->width-1, ebox->y0+ebox->height-1);
-
-        	/* draw frame */
-       		if(ebox->frame >= 0) /* 0: simple type */
-       		{
-                	fbset_color(0); /* use black as frame color  */
-                	draw_rect(&gv_fb_dev, ebox->x0, ebox->y0,
-						ebox->x0+ebox->width-1, ebox->y0+ebox->height-1);
-		}
+	}
+       	/* draw frame */
+    	if(ebox->frame >= 0) /* 0: simple type */
+       	{
+               	fbset_color(0); /* use black as frame color  */
+               	draw_rect(&gv_fb_dev, ebox->x0, ebox->y0,
+					ebox->x0+ebox->width-1, ebox->y0+ebox->height-1);
         }
-
 
 	/* 7. put title  */
 	if(data_pic->title != NULL && data_pic->font != NULL)
@@ -437,7 +437,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 //			 data_pic->offy > symheight ? (ebox->y0+(data_pic->offy-symheight)/2) : ebox->y0, /*title position */
 				     	 data_pic->title, -1); /* -1, no alpha */
 	}
-
 
   	/* 8. draw picture in the displaying ebox window */
 	/*-------------------------------------------------------------------------------------
@@ -456,6 +455,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev, -1,    /* -1, no substituting color */
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
+		printf("%s: finish egi_imgbuf_windisplay()....\n", __func__);
 	}
 	/* else if fpath != 0, load jpg file */
 	else if(data_pic->fpath != NULL)
@@ -466,12 +466,11 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
 
 	}
-	else /* draw a black window if imgbuf is NULL */
+	else if( data_pic->bkcolor >=0 ) /* draw canvan if imgbuf is NULL */
 	{
                	fbset_color(0); /* use black as frame color  */
                	draw_filled_rect(&gv_fb_dev,wx0,wy0,wx0+imgw-1,wy0+imgh-1);
 	}
-
 
 	/* 9. decorate functoins */
 	if(ebox->decorate)
@@ -527,15 +526,10 @@ void egi_free_data_pic(EGI_DATA_PIC *data_pic)
 {
 	if(data_pic != NULL) {
 		if(data_pic->imgbuf != NULL) {
-			if(data_pic->imgbuf->imgbuf != NULL) {
-				free(data_pic->imgbuf->imgbuf);
-			}
-			free(data_pic->imgbuf);
+			egi_imgbuf_free(data_pic->imgbuf);
 		}
-
 		free(data_pic);
+		data_pic=NULL;
 	}
-
-	data_pic=NULL;
 }
 

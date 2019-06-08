@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 		printf("%s\n",fpaths[i]);
 
 	/* ------- display jpg files ------- */
-	int pich=130;
+	int pich=230;
 	int picw=230;
 	int poffx=4;
 	int poffy=4;
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 
 for(i=0;i<count+1;i++)
 {
-	if(i==count) {
+	if(i==count) { /* reload file paths */
 	   	i=0;
 		free(fpaths);
 		fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
@@ -74,14 +74,32 @@ for(i=0;i<count+1;i++)
 		continue;
 	}
 
+	imgbuf=egi_imgbuf_new();
+	/* load jpg file to buf */
+	if(egi_imgbuf_loadjpg(fpaths[i], imgbuf) !=0) {
+		if(egi_imgbuf_loadpng(fpaths[i], imgbuf) !=0) {
+			printf(" load imgbuf fail, try egi_imgbuf_free...\n");
+			egi_imgbuf_free(imgbuf);
+		   	continue;
+		}
+	}
+
 	/* allocate data_pic */
         data_pic= egi_picdata_new( poffx, poffy,    	/* int offx, int offy */
- 	               		 pich, picw, 		/* heigth,width of displaying window */
+ 	               		 imgbuf->height, imgbuf->width, //pich, picw, /* heigth,width of displaying window */
                        		 0,0,	   		/* int imgpx, int imgpy */
+				 -1,			/* image canvan color, <0 for transparent */
  	       	                 &sympg_testfont  	/* struct symbol_page *font */
 	                        );
 	/* set title */
-	data_pic->title="Happy Linux EGI!";
+	data_pic->title="EGI_PIC";
+	/* copy image data and aplha */
+	memcpy(data_pic->imgbuf->imgbuf, imgbuf->imgbuf, (imgbuf->height)*(imgbuf->width)*2);
+	if(imgbuf->alpha != NULL)
+		memcpy(data_pic->imgbuf->alpha, imgbuf->alpha, imgbuf->height*imgbuf->width); /* only if alpha available */
+
+	egi_imgbuf_free(imgbuf);
+
 
 	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
@@ -89,47 +107,41 @@ for(i=0;i<count+1;i++)
        				  data_pic,  /* EGI_DATA_PIC *egi_data */
 			          1,	     /* bool movable */
 			   	  pxy.x,pxy.y,//10,100,    /*  x0, y0 for host ebox*/
-        			  1,	     /* int frame */
-				  WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
+        			  -1,	     /* int frame */
+				  -1	//WEGI_COLOR_GRAY /* int prmcolor,applys only if prmcolor>=0  */
 	);
-//	printf("egi_picbox_activate()...\n");
+	printf("egi_picbox_activate()...\n");
 	egi_picbox_activate(pic_box);
-
-//	printf("egi_imgbuf_loadjpg(): %s...\n", fpaths[i]);
-	imgbuf=egi_imgbuf_new();
-	/* load jpg file to buf */
-	if(egi_imgbuf_loadjpg(fpaths[i], imgbuf) !=0) {
-		if(egi_imgbuf_loadpng(fpaths[i], imgbuf) !=0) {
-			egi_picbox_sleep(pic_box); /* erase */
-			pic_box->free(pic_box);
-		   	continue;
-		}
-	}
 
 	/* scale pic to data_pic */
 //	printf("egi_scale_pixbuf()...\n");
-	fb_scale_pixbuf(imgbuf->width, imgbuf->height, data_pic->imgbuf->width, data_pic->imgbuf->height,
-				imgbuf->imgbuf, data_pic->imgbuf->imgbuf);
+//	fb_scale_pixbuf(imgbuf->width, imgbuf->height, data_pic->imgbuf->width, data_pic->imgbuf->height,
+//						imgbuf->imgbuf, data_pic->imgbuf->imgbuf); /* imgbuf */
+	/* enforce alpha to be 0xff */
+//	memset(data_pic->imgbuf->alpha,0xff, (data_pic->imgbuf->width)*(data_pic->imgbuf->height));
 
 	/* release useless imgbuf then */
 //	printf("egi_imgbuf_release...\n");
 //	egi_imgbuf_release(&imgbuf);
-	egi_imgbuf_free(imgbuf);
+//	egi_imgbuf_free(imgbuf);
 
- for(j=0;j<5;j++)
+
+ for(j=0; j<5; j++)
  {
 	/* get a random point */
+	printf("Start egi_randp_inbox()...\n");
 	egi_randp_inbox(&pxy, &box);
-//	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
+	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
 	pic_box->x0=pxy.x;
 	pic_box->y0=pxy.y;
 
 
 	/* refresh picbox to show the picture */
-//	printf("start egi_picbox_refresh()...\n");
+	printf("start egi_picbox_refresh()...\n");
 	egi_ebox_needrefresh(pic_box);
-	//printf("egi_picbox_refresh()...\n");
+	printf("egi_picbox_refresh()...\n");
 	egi_picbox_refresh(pic_box);
+	printf("tm_delayms...\n");
 	tm_delayms(500);
   }
 
@@ -144,7 +156,6 @@ for(i=0;i<count+1;i++)
 //		free(fpaths[i]);
 //	}
 	free(fpaths);
-
 
 	release_fbdev(&gv_fb_dev);
 	symbol_free_allpages();

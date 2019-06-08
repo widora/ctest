@@ -164,7 +164,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
 //replaced by draw_dor()        *(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
                             /*  ---- draw_dot() only within screen  ---- */
-                            if( locfb <= (screen_pixels-1) ) {
+                            if(  locfb>=0 && locfb<screen_pixels ) {
 
                                 if(alpha[locimg]==0) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */

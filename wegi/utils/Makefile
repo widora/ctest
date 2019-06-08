@@ -13,6 +13,7 @@ OBJS= egi_utils.o egi_fifo.o egi_filo.o egi_iwinfo.o egi_cstring.o ../egi_log.o 
 CFLAGS += -Wall -I../ -I../utils -I$(COMMON_USRDIR)/include
 LDFLAGS += -L$(COMMON_USRDIR)/lib
 LIBS += -lpthread
+LIBS += -lcurl -lssl -lcrypto
 
 read_conf: read_conf.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) read_conf.c -o read_conf
@@ -41,11 +42,14 @@ egi_utils.o: egi_utils.h egi_utils.c
 egi_iwinfo.o: egi_iwinfo.h egi_iwinfo.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_iwinfo.c
 
+egi_https.o: egi_https.h egi_https.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_https.c
+
 
 .PHONY:	clean
 clean:
-	rm -rf $(APP) $(APP).o egi_utils.o egi_fifo.o egi_iwinfo.o egi_filo.o egi_cstring.o
-	rm -rf test_fifo test_filo test_fsearch
+	rm -rf $(APP) $(APP).o *.o
+	rm -rf test_fifo test_filo test_fsearch read_conf
 
 #CFLAGS += $(shell pkg-config --cflags json-c)
 #LDFLAGS += $(shell pkg-config --libs json-c)

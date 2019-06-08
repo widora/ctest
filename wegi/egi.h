@@ -496,6 +496,9 @@ struct egi_data_pic
 	int offx; /* for left and right side space between host ebox*/
 	int offy; /* for up and down side space between host ebox */
 
+	/* image background/canvas color,  <0 as transparent,  */
+	int bkcolor;
+
 	/* title of the picture,
 	   1. for only one line!
 	 */

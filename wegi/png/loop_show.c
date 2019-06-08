@@ -72,8 +72,8 @@ int main(int argc, char **argv)
         subimg.w=eimg.width; subimg.h=eimg.height;
         eimg.subimgs=&subimg;
         eimg.subtotal=1;
-//      egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, -1, 70, 220);
-        egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 93, 240);
+        egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, -1, 0, 0);
+//        egi_subimg_writeFB(&eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 93, 240);
 #else
         egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1,0, 0, 70, 220, eimg.width, eimg.height);
 #endif

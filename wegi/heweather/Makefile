@@ -14,15 +14,15 @@ LDFLAGS += -L$(COMMON_USRDIR)/lib  -L../lib/
 LIBS    =  -legi -ljpeg -lpng -lz
 LIBS	+= -lcurl -lssl -lcrypto -pthread -ljson-c
 
-all:	https test_weather
+all:	test_weather
 
-https:	https.c
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) https.c -o https
+#https:	https.c
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) https.c -o https
 
 test_weather:	test_weather.c
 	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_weather.c -o test_weather
 
 
 clean:
-	rm -rf *.o https test_weather
+	rm -rf *.o  test_weather
 

@@ -20,7 +20,7 @@ typedef struct
 	EGI_IMGBOX *subimgs;	 /* sub_image boxes */
 	int subtotal;		 /* total number of subimgs!!! */
 	void *data; 		 /* color data, for pixel format other than RGB565 */
-	unsigned char *alpha;    /* 8bit, alpha channel value, if applicable */
+	unsigned char *alpha;    /* 8bit, alpha channel value, if applicable: alpha=0,100%backcolor, alpha=1, 100% frontcolor */
 } EGI_IMGBUF;
 
 EGI_IMGBUF *egi_imgbuf_new(void);
