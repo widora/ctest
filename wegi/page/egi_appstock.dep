@@ -1,0 +1,5 @@
+egi_appstock : egi_appstock.c ../egi_timer.h ../utils/egi_iwinfo.h \
+ ../utils/egi_cstring.h ../egi_fbgeom.h ../egi_fbdev.h \
+ ../utils/egi_filo.h ../egi.h ../sys_list.h ../egi_image.h ../egi_color.h \
+ ../egi_symbol.h ../egi_fbgeom.h ../egi_color.h ../egi_log.h ../egi.h \
+ ../egi_math.h egi_appstock.h

@@ -64,15 +64,15 @@ int main(void)
 
 
 #if 1 /////////////////  TEST png symbol  //////////////////
-	EGI_IMGBUF eimg={0};
+	EGI_IMGBUF *eimg=egi_imgbuf_new();
 	char *path="/mmc/heweather/100.png";
 
-	if( egi_imgbuf_loadpng(path, &eimg ) !=0 ) {
+	if( egi_imgbuf_loadpng(path, eimg ) !=0 ) {
 		printf("Fail to load '%s' to a EGI_IMGBUF!\n", path);
 		return -1;
 	}
 	printf("load page from imgbuf...\n");
-	symbol_load_page_from_imgbuf(&sympg_heweather, &eimg);
+	symbol_load_page_from_imgbuf(&sympg_heweather, eimg);
 
 	printf("symbol_writeFB.....\n");
 	symbol_writeFB(&gv_fb_dev, &sympg_heweather, WEGI_COLOR_WHITE, -1, 70, 250, 0, 0);
@@ -80,7 +80,7 @@ int main(void)
 	printf("symbol free page...\n");
 	symbol_free_page(&sympg_heweather);
 
-	egi_imgbuf_release(&eimg);
+	egi_imgbuf_free(eimg);
 
 	sleep(1);
 

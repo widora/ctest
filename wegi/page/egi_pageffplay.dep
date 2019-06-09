@@ -1,0 +1,5 @@
+egi_pageffplay : egi_pageffplay.c ../egi.h ../sys_list.h ../egi_image.h \
+ ../egi_fbdev.h ../utils/egi_filo.h ../egi_color.h ../egi_color.h \
+ ../egi_txt.h ../egi.h ../egi_objtxt.h ../egi_btn.h ../egi_symbol.h \
+ ../egi_fbgeom.h ../egi_page.h ../egi_symbol.h ../egi_log.h \
+ ../egi_timer.h

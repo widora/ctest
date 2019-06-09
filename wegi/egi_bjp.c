@@ -413,6 +413,13 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 		return -1;
 	}
 
+        /* get mutex lock */
+        if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
+        {
+                printf("%s:fail to get mutex lock.\n",__func__);
+                return -2;
+        }
+
 	/* prepare image buffer */
 	egi_imgbuf->height=height;
 	egi_imgbuf->width=width;
@@ -423,7 +430,8 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	if(egi_imgbuf->imgbuf==NULL)
 	{
 		printf("egi_imgbuf_loadjpg(): fail to malloc imgbuf.\n");
-		return -2;
+	        pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+		return -3;
 	}
 	memset(egi_imgbuf->imgbuf,0,width*height*bytpp);
 
@@ -449,7 +457,11 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 		}
 	}
 
+	/* put image mutex lock */
+        pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
 	close_jpgImg(imgbuf);
+
 	return 0;
 }
 
@@ -472,9 +484,8 @@ Note:
 2. Input image is transformed to RGB 24bpp type by setting option PNG_TRANSFORM_EXPAND
    in png_read_png().
 
-3. After transformation, it only deals with type_2(real_color) and type_6(real_color
+3. TODO: After transformation, it only deals with type_2(real_color) and type_6(real_color
    with alpha channel) PNG file, and bit_depth MUST be 8!
-   TODO:
 
 Return
 		0	OK
@@ -482,6 +493,11 @@ Return
 -------------------------------------------------------------------------*/
 int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 {
+	if(egi_imgbuf==NULL) {
+		printf("%s: Input egi_imgbuf is NULL!\n",__func__);
+		return -1;
+	}
+
 	int ret=0;
         int i,j;
         char header[8];
@@ -494,7 +510,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         png_byte   	pixel_depth;
         png_bytep 	*row_ptr;
 
-        int bytpp; /* bytes per pixel */
+        int bytpp=3; /* now only support 3 or 4 bpp, */
         int     width;
         int     height;
 	long	pos;
@@ -573,12 +589,23 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 goto READ_FAIL;
         }
 
+        /* get mutex lock */
+        if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
+        {
+                printf("%s: fail to get mutex lock.\n",__func__);
+                return -1;
+        }
+
+	/* free data and reset egi_imgbuf */
+	egi_imgbuf_freedata(egi_imgbuf);
+
         /* alloc RBG image buffer */
         egi_imgbuf->height=height;
         egi_imgbuf->width=width;
         egi_imgbuf->imgbuf=calloc(1, width*height*2);
         if(egi_imgbuf->imgbuf==NULL) {
                 printf("Fail to calloc egi_imgbuf->imgbuf!\n");
+		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                 ret=-7;
                 goto READ_FAIL;
         }
@@ -588,6 +615,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 if(egi_imgbuf->alpha==NULL) {
 			free(egi_imgbuf->imgbuf); /* free imgbuf */
                         printf("Fail to calloc egi_imgbuf->alpha!\n");
+			pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                         ret=-8;
                         goto READ_FAIL;
                 }
@@ -599,6 +627,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 bytpp=3;
         else if(color_type==6) /*data: RGBA*/
                 bytpp=4;
+
         pos=0;
         for(i=0; i<height; i++) {
                 for(j=0; j<bytpp*width; j+=bytpp ) {
@@ -619,6 +648,8 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 }
         }
 
+	/* put image mutex */
+	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 
 READ_FAIL:
         png_destroy_read_struct(&png_ptr, &info_ptr,0);
@@ -629,228 +660,8 @@ INIT_FAIL:
 }
 
 
-
-#if 0 /////////// move to egi_image.c ////////////
-/*------------------------------------------------------------------------
-	Release imgbuf of an EGI_IMGBUf struct.
--------------------------------------------------------------------------*/
-void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
-{
-	if(egi_imgbuf == NULL)
-		return;
-
-	if(egi_imgbuf->imgbuf != NULL) {
-		free(egi_imgbuf->imgbuf);
-		egi_imgbuf->imgbuf=NULL;
-	}
-
-	if(egi_imgbuf->alpha != NULL) {
-		free(egi_imgbuf->alpha);
-		egi_imgbuf->alpha=NULL;
-	}
-
-	egi_imgbuf->height=0;
-	egi_imgbuf->width=0;
-}
-#endif ///////////////////////////////////////////////////
-
-
-#if 0
-/*---------------------- FULL SCREEN : OBSELET!!! ------------------------------------
-For 16bits color only!!!!
-
-Write image data of an EGI_IMGBUF to FB to display it.
-
-egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
-(xp,yp):	coodinate of the origin(left top) point of LCD relative to
-		the coordinate system of the picture(also origin at left top).
-Return:
-		0 	ok
-		<0	fails
----------------------------------------------------------------------------------------*/
-int egi_imgbuf_display(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp)
-{
-	/* check data */
-	if(egi_imgbuf == NULL)
-	{
-		printf("egi_imgbuf_display(): egi_imgbuf is NULL. fail to display.\n");
-		return -1;
-	}
-
-	int i,j;
-	int xres=fb_dev->vinfo.xres;
-	int yres=fb_dev->vinfo.yres;
-	int imgw=egi_imgbuf->width;	/* image Width and Height */
-	int imgh=egi_imgbuf->height;
-	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
-	unsigned char *fbp =fb_dev->map_fb;
-	uint16_t *imgbuf = egi_imgbuf->imgbuf;
-	long int locfb=0; /* location of FB mmap, in byte */
-	long int locimg=0; /* location of image buf, in byte */
-	int bytpp=2; /* bytes per pixel */
-
-	for(i=0;i<yres;i++) /* FB row */
-	{
-		for(j=0;j<xres;j++) /* FB column */
-		{
-			/* FB location */
-			locfb = i*xres*bytpp+j*bytpp;
-			/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
-                	if( locfb<0 || locfb>(fb_dev->screensize-bytpp) )
-                	{
-                                 printf("show_bmp(): WARNING: point location out of fb mem.!\n");
-                                 return -2;
-                	}
-
-			/* check if exceed image boundary */
-			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
-			{
-				*(uint16_t *)(fbp+locfb)=0; /* black for outside */
-			}
-			else
-			{
-				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp; /* image location */
-				/*  FB from EGI_IMGBUF */
-				*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
-			}
-		}
-	}
-
-	return 0;
-}
-#endif
-
-
-#if 0 //////////////////////////////// move to egi_image.c //////////////////////////////
-/*-------------------------     SCREEN WINDOW   -----------------------------------------
-For 16bits color only!!!!
-
-1. Write image data of an EGI_IMGBUF to a window of FB to display it.
-2. Set outside color as black.
-3. window(xw,yw) defines a looking window to the original picture, (xp,yp) is the left_top
-   start point of the window. If the looking window covers area ouside of the picture,then
-   those area will be filled with BLACK.
-
-egi_imgbuf:	an EGI_IMGBUF struct which hold bits_color image data of a picture.
-(xp,yp):	coodinate of the displaying window origin(left top) point, relative to
-		the coordinate system of the picture(also origin at left top).
-(xw,yw):	displaying window origin, relate to the LCD coord system.
-winw,winh:	width and height(row/column for fb) of the displaying window.
-		!!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
-		waste time calling draw_dot() for pixels outsie FB zone.
-------------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int xp, int yp,
-				int xw, int yw, int winw, int winh)
-{
-	/* check data */
-	if(egi_imgbuf == NULL)
-	{
-		printf("egi_imgbuf_display(): egi_imgbuf is NULL. fail to display.\n");
-		return -1;
-	}
-	int imgw=egi_imgbuf->width;	/* image Width and Height */
-	int imgh=egi_imgbuf->height;
-	if( imgw<0 || imgh<0 )
-	{
-		printf("egi_imgbuf_display(): egi_imgbuf->width or height is negative. fail to display.\n");
-		return -1;
-	}
-
-	int i,j;
-	int xres=fb_dev->vinfo.xres;
-	int yres=fb_dev->vinfo.yres;
-	long int screen_pixels=xres*yres;
-
-	//printf("egi_imgbuf_display(): imgW=%d, imgH=%d. \n",imgw, imgh);
-	unsigned char *fbp =fb_dev->map_fb;
-	uint16_t *imgbuf = egi_imgbuf->imgbuf;
-	unsigned char *alpha=egi_imgbuf->alpha;
-	long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
-	long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
-//	int bytpp=2; /* bytes per pixel */
-
-  /* if no alpha channle*/
-  if( egi_imgbuf->alpha==NULL )
-  {
-	for(i=0;i<winh;i++) {  /* row of the displaying window */
-		for(j=0;j<winw;j++) {
-			/* FB data location */
-			locfb = (i+yw)*xres+(j+xw);
-			/* check if exceed image boundary */
-			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
-			{
-//replaced by draw_dot()	*(uint16_t *)(fbp+locfb)=0; /* black for outside */
-				fbset_color(0); /* black for outside */
-				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-			}
-			else {
-				/* image data location */
-//				locimg= (i+yp)*imgw*bytpp+(j+xp)*bytpp;
-				locimg= (i+yp)*imgw+(j+xp);
-				/*  FB from EGI_IMGBUF */
-//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
-
-			    /*  ---- draw_dot(), only within screen  ---- */
-			    if( locfb <= (screen_pixels-1) ) {
-				fbset_color(*(uint16_t *)(imgbuf+locimg));
-				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-			    }
-			}
-		}
-	}
-  }
-  else /* with alpha channel */
-  {
-	for(i=0;i<winh;i++)  { /* row of the displaying window */
-		for(j=0;j<winw;j++)  {
-			/* FB data location */
-			locfb = (i+yw)*xres+(j+xw); /* 2 bytes per pixel */
-			/* check if exceed image boundary */
-			if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
-			{
-				fbset_color(0); /* black for outside */
-				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-			}
-			else
-			{
-				/* image data location, 2 bytes per pixel */
-				locimg= (i+yp)*imgw+(j+xp);
-				/*  FB from EGI_IMGBUF */
-//replaced by draw_dor()	*(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
-
-			    /*  ---- draw_dot() only within screen  ---- */
-			    if( locfb <= (screen_pixels-1) ) {
-				if(alpha[locimg]==0) {		/* use backgroud color */
-					/* Transparent for background, do nothing */
-					//fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
-				}
-				else if(alpha[locimg]==255)  	/* use front color */
-					fbset_color(*(uint16_t *)(imgbuf+locimg));
-				else {				/* blend */
-				   fbset_color(
-					COLOR_16BITS_BLEND( *(uint16_t *)(imgbuf+locimg),   /* front pixel */
-							    *(uint16_t *)(fbp+(locfb<<1)),	   /* background pixel */
-							     alpha[locimg]  )		/* alpha value */
-				   );
-				}
-
-				draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-			    }
-
-			}
-		}
-	}
-  }
-
-  return 0;
-}
-#endif ///////////////////////////////////////////////////////////
-
-
-
-
 /*--------------------------------------------------------------------------------
-Roam a jpg picture in a displaying window
+Roam a JPG or PNG picture in a displaying window
 
 path:		jpg file path
 step:		roaming step length, in pixel
@@ -866,16 +677,28 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
 
         EGI_POINT pa,pb; /* 2 points define a picture image box */
         EGI_POINT pn; /* origin point of displaying window */
-        EGI_IMGBUF  imgbuf={0}; /* u16 color image buffer */
+        EGI_IMGBUF *imgbuf=NULL; /*private var, no need for mutex operation */
+
+	/* new EGI_IMGBUF */
+	imgbuf=egi_imgbuf_new();
+	if(imgbuf==NULL) {
+		printf("%s: Fail to run egi_imgbuf_new().\n",__func__);
+		return -1;
+	}
 
 	/* load jpg image to the image buffer */
-        egi_imgbuf_loadjpg(path, &imgbuf);
+        if( egi_imgbuf_loadjpg(path, imgbuf) !=0 ) {
+		if( egi_imgbuf_loadpng(path,imgbuf)!=0 ) {
+			printf("%s: Input file is NOT a recognizable JPG or PNG type.\n",__func__);
+			egi_imgbuf_free(imgbuf);
+		}
+	}
 
         /* define left_top and right_bottom point of the picture */
         pa.x=0;
         pa.y=0;
-        pb.x=imgbuf.width-1;
-        pb.y=imgbuf.height-1;
+        pb.x=imgbuf->width-1;
+        pb.y=imgbuf->height-1;
 
         /* define a box, within which the displaying origin(xp,yp) related to the picture is limited */
         EGI_BOX box={ pa, {pb.x-winw,pb.y-winh}};
@@ -904,12 +727,12 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                         /* get interpolate point */
                         egi_getpoit_interpol2p(&pn, step*i, &pa, &pb);
 			/* display in the window */
-                        egi_imgbuf_windisplay( &imgbuf, &gv_fb_dev, -1, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
+                        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
                         tm_delayms(55);
                 }
         }
 
-        egi_imgbuf_release( &imgbuf );
+        egi_imgbuf_free(imgbuf);
 
 	return 0;
 }

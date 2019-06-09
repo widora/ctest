@@ -79,6 +79,16 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
                 printf("egi_picdata_new(): egi_imgbuf_new() fails.\n");
 		return NULL;
 	}
+
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): egi_imgbuf_init()...\n");
+	if ( egi_imgbuf_init(imgbuf, height, width)!=0 ) {	/* no mutex lock needed */
+		printf("%s: egi_imgbuf_init() fails!\n",__func__);
+		egi_imgbuf_free(imgbuf);
+		return NULL;
+	}
+
+
+#if 0
 	/* set height and width for imgbuf */
 	imgbuf->height=height;
 	imgbuf->width=width;
@@ -100,6 +110,8 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 		egi_imgbuf_free(imgbuf);
 		return NULL;
 	}
+#endif
+
 
         /* calloc a egi_data_pic struct */
         EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc data_pic ...\n");
@@ -125,7 +137,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 }
 
 
-/*-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------
 Dynamically create a new pic type ebox
 
 egi_data: pic data
@@ -134,12 +146,18 @@ x0,y0:    host ebox origin position.
 frame:	  frame type of the host ebox.
 prmcolor:  prime color for the host ebox.
 
+NOTE:
+1. egi_data->imgbuf MUST not be NULL!
+2. Ebox height/width is decided by egi_data image size and title font/symbol.
+3. WARNING: The init image size shall be big enough for EBOX (see 2.) It will mess up
+   if the image size is enlarged later.
+
 return:
         poiter          OK
         NULL            fail
------------------------------------------------------------------------------*/
+----------------------------------------------------------------------------------*/
 EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
-        EGI_DATA_PIC *egi_data,
+        EGI_DATA_PIC *data_pic,
         bool movable,
         int x0, int y0,
         int frame,
@@ -149,17 +167,23 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
         EGI_EBOX *ebox;
 
         /* 0. check egi_data */
-        if(egi_data==NULL)
+        if(data_pic==NULL || data_pic->imgbuf==NULL )
         {
-                printf("egi_picbox_new(): egi_data is NULL. \n");
+                printf("egi_picbox_new(): data_pic or its imgbuf is NULL. \n");
                 return NULL;
+        }
+        /* get imgbuf mutex lock */
+        if(pthread_mutex_lock(&(data_pic->imgbuf->img_mutex)) !=0 ){
+       	        printf("%s: Fail to lock image mutex!\n", __func__);
+            	return NULL;
         }
 
         /* 1. create a new common ebox */
         EGI_PDEBUG(DBG_PIC,"egi_picbox_new(): start to egi_ebox_new(type_pic)...\n");
-        ebox=egi_ebox_new(type_pic);// egi_data NOT allocated in egi_ebox_new()!!!
+        ebox=egi_ebox_new(type_pic);// data_pic NOT allocated in egi_ebox_new()!!!
         if(ebox==NULL)
 	{
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
                 printf("egi_picbox_new(): fail to execute egi_ebox_new(type_pic). \n");
                 return NULL;
 	}
@@ -172,24 +196,24 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
 
         /* 4. fill in elements for concept ebox */
 	egi_ebox_settag(ebox,tag);
-        ebox->egi_data=egi_data; /* ----- assign egi data here !!!!! */
+        ebox->egi_data=data_pic; /* ----- assign egi data here !!!!! */
         ebox->movable=movable;
         ebox->x0=x0;
 	ebox->y0=y0;
 
 	/* 5. host ebox size is according to pic offx,offy and symheight */
 	int symheight=0;
-	if(egi_data->font != NULL)
+	if(data_pic->font != NULL)
 	{
-		symheight=egi_data->font->symheight;
+		symheight=data_pic->font->symheight;
 	}
 
-	ebox->width=egi_data->imgbuf->width+2*(egi_data->offx);
+	ebox->width=data_pic->imgbuf->width+2*(data_pic->offx);
 
-	if(egi_data->font != NULL && egi_data->title != NULL)
-		ebox->height=egi_data->imgbuf->height+2*(egi_data->offy)+symheight;/* one line of title string */
+	if(data_pic->font != NULL && data_pic->title != NULL)
+		ebox->height=data_pic->imgbuf->height+2*(data_pic->offy)+symheight;/* one line of title string */
 	else
-		ebox->height=egi_data->imgbuf->height+2*(egi_data->offy);
+		ebox->height=data_pic->imgbuf->height+2*(data_pic->offy);
 
 	/* 6. set frame and color */
         ebox->frame=frame;
@@ -197,6 +221,9 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
 
         /* 7. set pointer default value*/
         //ebox->bkimg=NULL; Not neccessary, already set by memset() to 0 in egi_ebox_new().
+
+	/* put image mutex lock */
+        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 
         return ebox;
 }
@@ -230,30 +257,36 @@ int egi_picbox_activate(EGI_EBOX *ebox)
                 return -1;
         }
 
+        /* get imgbuf mutex lock */
+        if(pthread_mutex_lock( &(data_pic->imgbuf->img_mutex)) !=0 ) {
+       	        printf("%s: Fail to lock image mutex!\n",__func__);
+            	return -1;
+        }
 
 	/* 1. confirm ebox type */
         if(ebox->type != type_pic)
         {
-                printf("egi_picbox_activate(): Not button type ebox!\n");
+                printf("egi_picbox_activate(): Not PIC type ebox!\n");
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
                 return -1;
         }
 
 	/* host ebox size alread assigned according to pic offx,offy and symheight in egi_picbox_new() ...*/
 
-
 	/* 2. verify pic data if necessary. --No need here*/
         if( ebox->height==0 || ebox->width==0)
         {
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
                 printf("egi_picbox_activate(): height or width is 0 in ebox '%s'! fail to activate.\n",ebox->tag);
                 return -1;
         }
-
 
    if(ebox->movable) /* only if ebox is movale */
    {
 	/* 3. malloc bkimg for the host ebox */
 	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
 	{
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 		printf("egi_picbox_activate(): fail to egi_alloc_bkimg()!\n");
 		return -2;
 	}
@@ -271,9 +304,11 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 
 	/* 5. store bk image which will be restored when this ebox's position/size changes */
 	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)
+				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0) {
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
+		printf("%s: fail to fb_cpyto_buf()!\n",__func__);
 		return -3;
-
+	}
     } /* end of movable codes */
 
 	/* 6. set status */
@@ -282,10 +317,12 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 	/* 7. set need_refresh */
 	ebox->need_refresh=true; /* if not, ignore refresh */
 
+
 	/* 8. refresh pic ebox */
+      pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex)); /* egi_picbox_refresh() will deal with mutex lock */
+
 	if( egi_picbox_refresh(ebox) != 0)
 		return -4;
-
 
 	EGI_PDEBUG(DBG_PIC,"egi_picbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
@@ -324,14 +361,12 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
                 printf("egi_picbox_refresh(): ebox is NULL!\n");
                 return -1;
         }
-
 	/* confirm ebox type */
         if(ebox->type != type_pic)
         {
                 printf("egi_picbox_refresh(): Not pic type ebox!\n");
                 return -2;
         }
-
 	/*  check the ebox status  */
 	if( ebox->status != status_active )
 	{
@@ -356,6 +391,8 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -3;
+
+
    } /* end of movable codes */
 
 
@@ -366,9 +403,17 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
                 printf("egi_picbox_refresh(): data_pic is NULL!\n");
                 return -4;
         }
+
+        /* get imgbuf mutex lock */
+        if(pthread_mutex_lock( &(data_pic->imgbuf->img_mutex)) !=0 ) {
+       	        printf("%s: Fail to lock image mutex!\n",__func__);
+            	return -5;
+        }
+
 	/* check ebox size */
         if( ebox->height==0 || ebox->width==0)
         {
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
                 printf("egi_btnbox_refresh(): height or width is 0 in ebox '%s'!\n",ebox->tag);
                 return -1;
         }
@@ -393,10 +438,14 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
        /* ---- 4. redefine bkimg box range, in case it changes... */
 	/* check ebox height and font lines in case it changes, then adjust the height */
 	/* updata bkimg->bkbox according */
+
+
         ebox->bkbox.startxy.x=ebox->x0;
         ebox->bkbox.startxy.y=ebox->y0;
         ebox->bkbox.endxy.x=ebox->x0+ebox->width-1;
         ebox->bkbox.endxy.y=ebox->y0+ebox->height-1;
+
+	/* TODO: reallocate ebox->bkimg */
 
 	#if 0 /* DEBUG */
 	EGI_PDEBUG(DBG_PIC,"egi_picbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
@@ -407,6 +456,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 	{
+	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 		printf("egi_picbox_refresh(): fb_cpyto_buf() fails.\n");
 		return -4;
 	}
@@ -450,12 +500,15 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
                                 int xw, int yw, int winw, int winh)
 	---------------------------------------------------------------------------------------*/
 	/*  display imgbuf if not NULL */
+
+	/* MUST unlock image mutex, egi_imgbuf_windisplay() also need mutex lock!!! */
+        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 	if( data_pic->imgbuf != NULL && data_pic->imgbuf->imgbuf != NULL )
 	{
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev, -1,    /* -1, no substituting color */
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
-		printf("%s: finish egi_imgbuf_windisplay()....\n", __func__);
+//		printf("%s: finish egi_imgbuf_windisplay()....\n", __func__);
 	}
 	/* else if fpath != 0, load jpg file */
 	else if(data_pic->fpath != NULL)
@@ -478,6 +531,9 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
 	/* 10. finally, reset need_refresh */
 	ebox->need_refresh=false;
+
+	/* put image mutex lock */
+//Not necessary now        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 
 	return 0;
 }

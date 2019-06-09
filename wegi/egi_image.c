@@ -1,42 +1,7 @@
+#include <pthread.h>
 #include "egi_image.h"
 #include "egi_bjp.h"
 
-
-/*---------------------------------------
-Release data in a static EGI_IMGBUF
-----------------------------------------*/
-void egi_imgbuf_release(EGI_IMGBUF *egi_imgbuf)
-{
-        if(egi_imgbuf == NULL)
-                return;
-
-        if(egi_imgbuf->imgbuf != NULL) {
-                free(egi_imgbuf->imgbuf);
-                egi_imgbuf->imgbuf=NULL;
-        }
-        if(egi_imgbuf->alpha != NULL) {
-                free(egi_imgbuf->alpha);
-                egi_imgbuf->alpha=NULL;
-        }
-        if(egi_imgbuf->data != NULL) {
-                free(egi_imgbuf->data);
-                egi_imgbuf->data=NULL;
-        }
-        egi_imgbuf->height=0;
-        egi_imgbuf->width=0;
-}
-
-/*--------------------------------------------
-   	   Free a EGI_IMGBUF
----------------------------------------------*/
-void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
-{
-	if(egi_imgbuf) {
-		egi_imgbuf_release(egi_imgbuf);
-		free(egi_imgbuf);
-	}
-	egi_imgbuf=NULL;
-}
 
 /*--------------------------------------------
    	   Allocate  a EGI_IMGBUF
@@ -49,8 +14,118 @@ EGI_IMGBUF *egi_imgbuf_new(void)
 		printf("%s: Fail to calloc EGI_IMGBUF.\n",__func__);
 		return NULL;
 	}
+
+        /* init imgbuf mutex */
+        if(pthread_mutex_init(&eimg->img_mutex,NULL) != 0)
+        {
+                printf("%s: fail to initiate img_mutex.\n",__func__);
+		free(eimg);
+                return NULL;
+        }
+
 	return eimg;
 }
+
+
+/*------------------------------------------------------------
+Free data in EGI_IMGBUF, but only itself!
+
+NOTE:
+  1. WARNING!!!: No mutex operation here, the caller shall take
+     care of imgbuf mutex lock.
+
+-------------------------------------------------------------*/
+void egi_imgbuf_freedata(EGI_IMGBUF *egi_imgbuf)
+{
+	if(egi_imgbuf != NULL) {
+	        if(egi_imgbuf->imgbuf != NULL) {
+        	        free(egi_imgbuf->imgbuf);
+                	egi_imgbuf->imgbuf=NULL;
+        	}
+     	   	if(egi_imgbuf->alpha != NULL) {
+        	        free(egi_imgbuf->alpha);
+                	egi_imgbuf->alpha=NULL;
+        	}
+       		if(egi_imgbuf->data != NULL) {
+               	 	free(egi_imgbuf->data);
+                	egi_imgbuf->data=NULL;
+        	}
+		if(egi_imgbuf->subimgs != NULL) {
+			free(egi_imgbuf->subimgs);
+			egi_imgbuf->subimgs=NULL;
+		}
+
+		/* reset size and submax */
+		egi_imgbuf->height=0;
+		egi_imgbuf->width=0;
+		egi_imgbuf->submax=0;
+	}
+}
+
+/*---------------------------------------
+Free EGI_IMGBUF and its data
+----------------------------------------*/
+void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
+{
+        if(egi_imgbuf == NULL)
+                return;
+
+	/* Hope there is no other user */
+	printf("%s: try to get mutex lock for free...\n",__func__);
+	pthread_mutex_lock(&egi_imgbuf->img_mutex);
+
+	/* free data inside */
+	egi_imgbuf_freedata(egi_imgbuf);
+
+	free(egi_imgbuf);
+	egi_imgbuf=NULL;
+}
+
+
+/*-------------------------------------------------------------
+Initiate/alloc imgbuf as an image canvas, with all alpha=0
+
+NOTE:
+  1. WARNING!!!: No mutex operation here, the caller shall take
+     care of imgbuf mutex lock.
+
+@height		height of image
+@width		width of image
+
+Return:
+	0	OK
+	<0	Fails
+----------------------------------------------------------------*/
+int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
+{
+	if(egi_imgbuf==NULL)
+		return -1;
+
+	/* empty old data */
+	egi_imgbuf_freedata(egi_imgbuf);
+
+        /* calloc imgbuf->imgbuf */
+        egi_imgbuf->imgbuf = calloc(1,height*width*sizeof(uint16_t));
+        if(egi_imgbuf->imgbuf == NULL) {
+                printf("%s: fail to calloc egi_imgbuf->imgbuf.\n",__func__);
+		return -2;
+        }
+
+        /* calloc imgbuf->alpha, alpha=0, 100% canvas color. */
+        egi_imgbuf->alpha= calloc(1, height*width); /* alpha value 8bpp */
+        if(egi_imgbuf->alpha == NULL) {
+                printf("%s: fail to calloc egi_imgbuf->alpha.\n",__func__);
+		free(egi_imgbuf->imgbuf);
+                return -3;
+        }
+
+        /* retset height and width for imgbuf */
+        egi_imgbuf->height=height;
+        egi_imgbuf->width=width;
+
+	return 0;
+}
+
 
 
 /*-------------------------------------------------------------------------------
@@ -78,7 +153,7 @@ Return:
 		0	OK
 		<0	fails
 ------------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
 {
         /* check data */
@@ -87,11 +162,19 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
                 printf("%s: egi_imgbuf is NULL. fail to display.\n",__func__);
                 return -1;
         }
+
+	/* get mutex lock */
+	if(pthread_mutex_lock(&egi_imgbuf->img_mutex) !=0){
+		printf("%s: Fail to lock image mutex!\n",__func__);
+		return -1;
+	}
+
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;
         if( imgw<0 || imgh<0 )
         {
                 printf("%s: egi_imgbuf->width or height is negative. fail to display.\n",__func__);
+		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                 return -2;
         }
 
@@ -101,6 +184,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
         long int screen_pixels=xres*yres;
 
         unsigned char *fbp =fb_dev->map_fb;
+
         uint16_t *imgbuf = egi_imgbuf->imgbuf;
         unsigned char *alpha=egi_imgbuf->alpha;
         long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
@@ -204,6 +288,9 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
         }/* for()  */
   }/* end alpha case */
 
+  /* put mutex lock */
+  pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
   return 0;
 }
 
@@ -213,7 +300,7 @@ int egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subco
 /*------------------------------------------------------------------------------------------
 For 16bits color only!!!!
 
-Note: No subcolor and write directly to FB
+Note: No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
 
 1. Write image data of an EGI_IMGBUF to a window in FB.
 2. Set outside color as black.
@@ -234,7 +321,7 @@ Return:
 		0	OK
 		<0	fails
 ------------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
 {
         /* check data */
@@ -243,12 +330,20 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                 printf("%s: egi_imgbuf is NULL. fail to display.\n",__func__);
                 return -1;
         }
+
+	/* get mutex lock */
+	if( pthread_mutex_lock(&egi_imgbuf->img_mutex)!=0 ){
+		printf("%s: Fail to lock image mutex!\n",__func__);
+		return -2;
+	}
+
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;
         if( imgw<0 || imgh<0 )
         {
                 printf("%s: egi_imgbuf->width or height is negative. fail to display.\n",__func__);
-                return -2;
+		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+                return -3;
         }
 
         int i,j;
@@ -324,6 +419,9 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
         }/* for()  */
   }/* end alpha case */
 
+  /* put mutex lock */
+  pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
   return 0;
 }
 
@@ -341,20 +439,33 @@ Return:
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------------------*/
-int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
+int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 							int subcolor, int x0,	int y0)
 {
 	int ret;
 	int xp,yp;
 	int w,h;
 
-	if(egi_imgbuf==NULL || egi_imgbuf->subimgs==NULL) {
+	if(egi_imgbuf==NULL) {
 		printf("%s: EGI_IMGBUF is invalid!\n",__func__);
 		return -1;;
 	}
-	if(egi_imgbuf->subtotal-1 < subnum ) {
-		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
+	/* get mutex lock */
+	if( pthread_mutex_lock(&egi_imgbuf->img_mutex)!=0 ){
+		printf("%s: Fail to lock image mutex!\n",__func__);
 		return -2;
+	}
+
+	if(egi_imgbuf==NULL || egi_imgbuf->subimgs==NULL) {
+		printf("%s: egi_imgbuf->subimgs is NULL!\n",__func__);
+	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+		return -3;;
+	}
+
+	if(egi_imgbuf->submax < subnum ) {
+		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
+	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+		return -4;
 	}
 
 	xp=egi_imgbuf->subimgs[subnum].x0;
@@ -362,6 +473,10 @@ int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 	w=egi_imgbuf->subimgs[subnum].w;
 	h=egi_imgbuf->subimgs[subnum].h;
 
+  	/* put mutex lock */
+  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
+	/* egi_imgbuf_windisplay() will get/put image mutex by itself */
 	ret=egi_imgbuf_windisplay(egi_imgbuf, fb_dev, subcolor, xp, yp, x0, y0, w, h);
 
 	return ret;

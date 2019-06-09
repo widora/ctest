@@ -83,26 +83,35 @@ for(i=0;i<count+1;i++)
 		   	continue;
 		}
 	}
+	printf("finish load image file...\n");
 
+	/* WARNING, MUTEX LOCK FOR IMGBUF IS IGNORED HERE .... */
 	/* allocate data_pic */
+	printf("start egi_picdata_new()....\n");
         data_pic= egi_picdata_new( poffx, poffy,    	/* int offx, int offy */
  	               		 imgbuf->height, imgbuf->width, //pich, picw, /* heigth,width of displaying window */
                        		 0,0,	   		/* int imgpx, int imgpy */
 				 -1,			/* image canvan color, <0 for transparent */
  	       	                 &sympg_testfont  	/* struct symbol_page *font */
 	                        );
+
 	/* set title */
 	data_pic->title="EGI_PIC";
+
 	/* copy image data and aplha */
+	printf("start img memcpy()....\n");
 	memcpy(data_pic->imgbuf->imgbuf, imgbuf->imgbuf, (imgbuf->height)*(imgbuf->width)*2);
 	if(imgbuf->alpha != NULL)
 		memcpy(data_pic->imgbuf->alpha, imgbuf->alpha, imgbuf->height*imgbuf->width); /* only if alpha available */
 
+	/* free imgbuf */
+	printf("start egi_imgbuf_free()....\n");
 	egi_imgbuf_free(imgbuf);
 
 
 	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
+	printf("start egi_picbox_new()....\n");
 	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
        				  data_pic,  /* EGI_DATA_PIC *egi_data */
 			          1,	     /* bool movable */
