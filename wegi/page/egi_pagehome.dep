@@ -1,7 +1,0 @@
-egi_pagehome : egi_pagehome.c ../egi.h ../sys_list.h ../egi_image.h \
- ../egi_fbdev.h ../utils/egi_filo.h ../egi_color.h ../egi_debug.h \
- ../egi_log.h ../egi_timer.h ../egi_color.h ../egi_txt.h ../egi.h \
- ../egi_objtxt.h ../egi_btn.h ../egi_symbol.h ../egi_fbgeom.h \
- ../egi_page.h ../egi_symbol.h egi_pagetest.h egi_pagehome.h \
- egi_pagemplay.h egi_pageopenwrt.h egi_pagebook.h ../utils/egi_iwinfo.h \
- egi_pageffplay.h ../iot/egi_iotclient.h egi_pagestock.h
