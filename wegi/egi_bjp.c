@@ -484,7 +484,9 @@ Note:
 2. Input image is transformed to RGB 24bpp type by setting option PNG_TRANSFORM_EXPAND
    in png_read_png().
 
-3. TODO: After transformation, it only deals with type_2(real_color) and type_6(real_color
+3. Data in egi_imgbuf will be freeed by egi_imgbuf_freedata();
+
+4. TODO: After transformation, it only deals with type_2(real_color) and type_6(real_color
    with alpha channel) PNG file, and bit_depth MUST be 8!
 
 Return

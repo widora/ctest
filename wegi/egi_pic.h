@@ -13,9 +13,10 @@ Midas Zhou
 
 #include "egi.h"
 #include "egi_symbol.h"
+#include "egi_image.h"
 
 EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
-                               int height, int width,
+			       EGI_IMGBUF *imgbuf,
                                int imgpx, int imgpy,
 			       int bkcolor,
                                struct symbol_page *font

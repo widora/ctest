@@ -234,7 +234,7 @@ EGI_PAGE *egi_create_homepage(void)
         /* --------- 1.5 create a pic box --------- */
         /* allocate data_pic */
         data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
-                                   60, 100,     /* heigth,width of displaying window */
+//                                   60, 100,     /* heigth,width of displaying window */
                                    0,  0,       /* int imgpx, int imgpy */
 				   -1,		/* image canvas color, <0 as transparent */
                                    NULL     	/* struct symbol_page *font */

@@ -71,13 +71,13 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
                 return;
 
 	/* Hope there is no other user */
-	printf("%s: try to get mutex lock for free...\n",__func__);
 	pthread_mutex_lock(&egi_imgbuf->img_mutex);
 
 	/* free data inside */
 	egi_imgbuf_freedata(egi_imgbuf);
 
 	free(egi_imgbuf);
+
 	egi_imgbuf=NULL;
 }
 
@@ -128,14 +128,15 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 
 
 
-/*-------------------------------------------------------------------------------
+/*--------------------------------------------------------------------------------------
 For 16bits color only!!!!
 
-Note: draw_dot() for FILO, or write directly to FB.
-
-1. Write image data of an EGI_IMGBUF to a window in FB.
-2. Set outside color as black.
-3. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
+Note:
+1. Advantage: call draw_dot(), it is effective for FILO,
+2. Advantage: draw_dot() will ensure x,y range within screen.
+3. Write image data of an EGI_IMGBUF to a window in FB.
+4. Set outside color as black.
+5. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
    start point of the window. If the looking window covers area ouside of the picture,then
    those area will be filled with BLACK.
 
@@ -198,6 +199,10 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 for(j=0;j<winw;j++) {
                         /* FB data location */
                         locfb = (i+yw)*xres+(j+xw);
+
+                     /*  ---- draw only within screen  ---- */
+                     if( locfb>=0 && locfb <= (screen_pixels-1) ) {
+
                         /* check if exceed image boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
@@ -212,8 +217,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                 /*  FB from EGI_IMGBUF */
 //replaced by draw_dor()        *(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
-                             /*  ---- draw_dot(), only within screen  ---- */
-                             if( locfb <= (screen_pixels-1) ) {
+//                             /*  ---- draw_dot(), only within screen  ---- */
+//                             if( locfb <= (screen_pixels-1) ) {
 
 				if(subcolor<0) {
 	                                fbset_color(*(uint16_t *)(imgbuf+locimg));
@@ -223,8 +228,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 				}
 
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
-                            }
-                        }
+                         }
+                     } /* if within screen */
                 }
         }
   }
@@ -235,6 +240,10 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 for(j=0;j<winw;j++)  {
                         /* FB data location, in pixel */
                         locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
+
+                     /*  ---- draw_dot() only within screen  ---- */
+                     if(  locfb>=0 && locfb<screen_pixels ) {
+
                         /* check if exceed image boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
@@ -247,8 +256,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                 /*  FB from EGI_IMGBUF */
 //replaced by draw_dor()        *(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
 
-                            /*  ---- draw_dot() only within screen  ---- */
-                            if(  locfb>=0 && locfb<screen_pixels ) {
+//                            /*  ---- draw_dot() only within screen  ---- */
+//                            if(  locfb>=0 && locfb<screen_pixels ) {
 
                                 if(alpha[locimg]==0) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */
@@ -279,11 +288,11 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                                              alpha[locimg]  )               /* alpha value */
                                              );
                                      }
-                                     draw_dot(fb_dev,j+xw,i+yw);
+                                     draw_dot(fb_dev,j+xw,i+yw);  
 				}
 
                             }
-                        }
+                        }  /* if within screen */
                 } /* for() */
         }/* for()  */
   }/* end alpha case */
@@ -296,15 +305,20 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 
 
 
-
-/*------------------------------------------------------------------------------------------
+#if 0
+/*-------------------------- TODO: limit check --------------------------------------------------
 For 16bits color only!!!!
 
-Note: No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
+WARING:
+1. Writing directly to FB without calling draw_dot()!!!
+2. Take care of image boudary check and locfb check to avoid outrange points skipping
+   to next line !!!!
 
-1. Write image data of an EGI_IMGBUF to a window in FB.
-2. Set outside color as black.
-3. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
+Note:
+1 .No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
+2. Write image data of an EGI_IMGBUF to a window in FB.
+3. Set outside color as black.
+4. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
    start point of the window. If the looking window covers area ouside of the picture,then
    those area will be filled with BLACK.
 
@@ -358,6 +372,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
         long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
 //      int bytpp=2; /* bytes per pixel */
 
+
   /* if no alpha channle*/
   if( egi_imgbuf->alpha==NULL )
   {
@@ -365,6 +380,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                 for(j=0;j<winw;j++) {
                         /* FB data location */
                         locfb = (i+yw)*xres+(j+xw);
+
                         /* check if exceed image boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
@@ -374,11 +390,8 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                 /* image data location */
                                 locimg= (i+yp)*imgw+(j+xp);
 
-                                /*  only within FB  */
-                             if( locfb <= (screen_pixels-1) ) {
 			         *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
                             }
-                        }
                 }
         }
   }
@@ -388,17 +401,17 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                 for(j=0;j<winw;j++)  {
                         /* FB data location, in pixel */
                         locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
-                        /* check if exceed image boundary */
+
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
-       				*(uint16_t *)(fbp+locfb*2)=0;
+       				*(uint16_t *)(fbp+locfb*2)=0;   /* black */
                         }
                         else {
                             /* image data location, 2 bytes per pixel */
                             locimg= (i+yp)*imgw+(j+xp);
 
                             /*  ---- draw only within screen  ---- */
-                            if( locfb <= (screen_pixels-1) ) {
+                            if( locfb>=0 && locfb <= (screen_pixels-1) ) {
 
                                 if(alpha[locimg]==0) {           /* use backgroud color */
                                         /* Transparent for background, do nothing */
@@ -414,7 +427,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                                         alpha[locimg]  );               /* alpha value */
 				}
                             }
-                       }
+                       } /* if  within screen */
                 } /* for() */
         }/* for()  */
   }/* end alpha case */
@@ -424,6 +437,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
   return 0;
 }
+#endif
 
 
 /*-----------------------------------------------------------------------------------
@@ -432,6 +446,7 @@ Write a sub image in the EGI_IMGBUF to FB.
 egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
 fb_dev:		FB device
 subnum:		number of the sub image
+		if subnum<0 or subimgs==NULL, only one image in data.
 subcolor:	substituting color, only applicable when >0.
 (x0,y0):        displaying window origin, relate to the LCD coord system.
 
@@ -446,8 +461,8 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 	int xp,yp;
 	int w,h;
 
-	if(egi_imgbuf==NULL) {
-		printf("%s: EGI_IMGBUF is invalid!\n",__func__);
+	if(egi_imgbuf==NULL || egi_imgbuf->imgbuf==NULL ) {
+		printf("%s: egi_imbug or egi_imgbuf->imgbuf is NULL!\n",__func__);
 		return -1;;
 	}
 	/* get mutex lock */
@@ -456,28 +471,31 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 		return -2;
 	}
 
-	if(egi_imgbuf==NULL || egi_imgbuf->subimgs==NULL) {
-		printf("%s: egi_imgbuf->subimgs is NULL!\n",__func__);
-	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
-		return -3;;
-	}
-
 	if(egi_imgbuf->submax < subnum ) {
 		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
 	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 		return -4;
 	}
 
-	xp=egi_imgbuf->subimgs[subnum].x0;
-	yp=egi_imgbuf->subimgs[subnum].y0;
-	w=egi_imgbuf->subimgs[subnum].w;
-	h=egi_imgbuf->subimgs[subnum].h;
+	/* get position and size of the subimage */
+	if( subnum<0 || egi_imgbuf->subimgs==NULL ) {	/* No subimg, only one image */
+		xp=0;
+		yp=0;
+		w=egi_imgbuf->width;
+		h=egi_imgbuf->height;
+	}
+	else {				/* otherwise, get subimg size and location in image data */
+		xp=egi_imgbuf->subimgs[subnum].x0;
+		yp=egi_imgbuf->subimgs[subnum].y0;
+		w=egi_imgbuf->subimgs[subnum].w;
+		h=egi_imgbuf->subimgs[subnum].h;
+	}
 
   	/* put mutex lock */
   	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 
-	/* egi_imgbuf_windisplay() will get/put image mutex by itself */
-	ret=egi_imgbuf_windisplay(egi_imgbuf, fb_dev, subcolor, xp, yp, x0, y0, w, h);
+	/* !!!! egi_imgbuf_windisplay() will get/put image mutex by itself */
+	ret=egi_imgbuf_windisplay(egi_imgbuf, fb_dev, subcolor, xp, yp, x0, y0, w, h); /* with mutex lock */
 
 	return ret;
 }

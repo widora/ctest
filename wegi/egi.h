@@ -65,18 +65,20 @@ enum egi_ebox_type
 {
 	type_page=1,
 	type_txt=1<<1,
-	type_btn=1<<2, /* button */
+	type_btn=1<<2, 	  /* button, resize(enlarge) a movable btn will corrupt bkimg */
 	type_list=1<<3,
 	type_slider=1<<4, /* sliding bar */
 	type_chart=1<<5,
-	type_pic=1<<6, /* still picture or motion picture */
+	type_pic=1<<6, 	  /* still picture or motion picture, resize is OK!!! its ebox size is depended 
+			    on its pic size.  */
 };
 
 /* element box status */
 enum egi_ebox_status
 {
 	status_nobody=0,
-	status_sleep,
+	status_sleep,	     /* WARNING!!! It's dangerous to make any modification to a sleeping EBOX!,
+				for example: resize, renew egi_data etc. */
 	status_active,
 	status_page_exiting, /* to inform page runner */
 };
@@ -572,6 +574,7 @@ struct egi_page
 const char *egi_str_touch_status(enum egi_touch_status touch_status);
 int egi_random_max(int max);
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
+void *egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
 EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);

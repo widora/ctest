@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 	int py;
 	int da; /* delta alpha */
 	int i;
-	EGI_IMGBUF  eimg={0};
+	EGI_IMGBUF  *eimg=egi_imgbuf_new();
 
 	if( argc<2 ) {
 		printf("Please enter png file name!\n");
@@ -48,36 +48,37 @@ int main(int argc, char **argv)
         init_fbdev(&gv_fb_dev);
 
 	/* load image data to EGI_IMGBUF */
-	if( egi_imgbuf_loadpng(argv[1], &eimg ) ==0 ) {
+	if( egi_imgbuf_loadpng(argv[1], eimg ) ==0 ) {
 	}
-	else if( egi_imgbuf_loadjpg(argv[1], &eimg ) ==0 ) {
+	else if( egi_imgbuf_loadjpg(argv[1], eimg ) ==0 ) {
 	}
 	else {
+		egi_imgbuf_free(eimg);
 		return -2;
 	}
 
 	/* adjust opacity */
-	for(i=0; i< (eimg.width * eimg.height); i++) {
-		if(eimg.alpha[i]!=0) {
-		   if((int)eimg.alpha[i]<da)
-			eimg.alpha[i]=0;
+	for(i=0; i< (eimg->width * eimg->height); i++) {
+		if(eimg->alpha[i]!=0) {
+		   if((int)(eimg->alpha)[i] < da)
+			(eimg->alpha)[i]=0;
 		   else
-			eimg.alpha[i]-=da;
+			(eimg->alpha)[i]-=da;
 		}
 	}
 
         /* window_position displaying */
 #if 1
 	int dw,dh; /* displaying window width and height */
-	dw=eimg.width>240?240:eimg.width;
-	dh=eimg.height>320?320:eimg.height;
-        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, -1, 0, 0, 0, py, dw, dh);
+	dw=eimg->width>240?240:eimg->width;
+	dh=eimg->height>320?320:eimg->height;
+        egi_imgbuf_windisplay(eimg, &gv_fb_dev, -1, 0, 0, 0, py, dw, dh);
 #else
-        egi_imgbuf_windisplay(&eimg, &gv_fb_dev, 0, 0, 70, 220, eimg.width, eimg.height);
+        egi_imgbuf_windisplay(eimg, &gv_fb_dev, 0, 0, 70, 220, eimg->width, eimg->height);
 #endif
 
 
-	egi_imgbuf_release(&eimg);
+	egi_imgbuf_free(eimg);
 	release_fbdev(&gv_fb_dev);
 
 	return ret;

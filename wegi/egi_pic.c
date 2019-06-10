@@ -38,14 +38,17 @@ static EGI_METHOD picbox_method=
 /*-----------------------------------------------------------------------------
 Dynamically create pic_data struct
 
+Note:
+	1.EBOX size is depended on data_pic.
+
 font_code:
-int offx: 		offset from host ebox left top
-int offy:
-int height:		height and width for a EGI_IMGBUF
-int width:
-//char *title: 		title of the the picture showing above the window, or NULL
-			default NULL
-font: 			symbol page for the title, or NULL
+@offx, offy: 		offset from host ebox left top
+@height,widht:		height and width for a EGI_IMGBUF
+@imgpx, imgpy:		origin of the image focusing/looking window, relating to
+			image coord system.
+//char *title: 		title of the the picture showing above the window,
+			default NULL, to ignore.
+font: 			symbol page for the title, or NULL to ignore title.
 
 //EGI_IMGBUF imgbuf:	image buffer for a picture, in R5G6B5 pixel format
 			1.imgbuf->width or height must >0
@@ -58,19 +61,23 @@ return:
         NULL            fail
 -----------------------------------------------------------------------------*/
 EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
-			       int height, int width,
+				EGI_IMGBUF *imgbuf,
 			       int imgpx, int imgpy,
 			       int bkcolor,
 			       struct symbol_page *font
 			     )
 {
 	/* check data */
-	if(height==0 || width==0 )
-	{
-		printf("egi_picdata_new(): EGI_DATA_PIC height or width is 0, fail to proceed.\n");
+	if(imgbuf==NULL) {
+		printf("%s: Input imgbuf is NULL, fail to proceed. \n",__func__);
+		return NULL;
+	}
+	if( imgbuf->height<=0 || imgbuf->width<=0 ) {
+		printf("%s: imgbuf->height or width is invalid, fail to proceed. \n",__func__);
 		return NULL;
 	}
 
+#if 0///////////////////////  DELETED, as imgbuf becomes one of input param  ////////////
 	/* malloc a EGI_IMGBUF struct */
 	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): egi_imgbuf_new()...\n");
 	EGI_IMGBUF *imgbuf =egi_imgbuf_new(); /* calloc */
@@ -87,8 +94,6 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 		return NULL;
 	}
 
-
-#if 0
 	/* set height and width for imgbuf */
 	imgbuf->height=height;
 	imgbuf->width=width;
@@ -110,8 +115,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 		egi_imgbuf_free(imgbuf);
 		return NULL;
 	}
-#endif
-
+#endif/////////////////////////////////////////////////////
 
         /* calloc a egi_data_pic struct */
         EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc data_pic ...\n");
@@ -126,14 +130,72 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 	/* assign struct number */
 	data_pic->offx=offx;
 	data_pic->offy=offy;
+	data_pic->imgbuf=imgbuf;
+	imgbuf=NULL;		/* !!! Ownership is transfered !!! */
 	data_pic->imgpx=imgpx;
 	data_pic->imgpy=imgpy;
 	data_pic->bkcolor=bkcolor;
 	data_pic->font=font;
-	data_pic->imgbuf=imgbuf;
 	data_pic->title=NULL;
 
 	return data_pic;
+}
+
+
+/*------------------------------------------------------
+Free and renew imgbuf in ebox->data_pic
+
+Note: The Ownership of imgbuf will be transfered
+      to the ebox, and eimg reset to NULL.
+
+@ebox	a PIC type ebox.
+@eimg	a EGI_IMGBUF struct with image data.
+
+Reutrn:
+	0	OK
+	<0	Fails
+-------------------------------------------------------*/
+int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg)
+{
+
+	/* check data */
+	if( eimg==NULL || eimg->imgbuf==NULL) {
+                printf("%s: input imgbuf is NULL, or its image data is NULL!\n",__func__);
+		return -1;
+	}
+
+        if( ebox == NULL ) {
+                printf("%s: ebox is NULL!\n",__func__);
+                return -1;
+        }
+	/* confirm ebox type */
+        if(ebox->type != type_pic) {
+                printf("%s: Not a PIC type ebox!\n",__func__);
+                return -2;
+        }
+	EGI_DATA_PIC *data_pic=(EGI_DATA_PIC *)(ebox->egi_data);
+        if( data_pic == NULL) {
+                printf("%s: data_pic is NULL!\n",__func__);
+                return -3;
+        }
+
+	/* free old imgbuf, !!! image mutex inside the func !!! */
+	egi_imgbuf_free(data_pic->imgbuf);
+
+        /* get input imgbuf's mutex lock */
+        if(pthread_mutex_lock(&eimg->img_mutex)!=0) {
+       	        printf("%s: Fail to lock image mutex!\n", __func__);
+            	return -4;
+        }
+
+	/* renew imgbuf, ownership transfered */
+	data_pic->imgbuf=eimg;
+	eimg=NULL;
+
+	/* !!!NOTE: ownership transfered, eimg is NULL! */
+	pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
+
+	return 0;
 }
 
 
@@ -283,11 +345,11 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 
    if(ebox->movable) /* only if ebox is movale */
    {
-	/* 3. malloc bkimg for the host ebox */
-	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
+	/* 3. realloc bkimg for the host ebox, it may re_enter after sleep */
+	if(egi_realloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
 	{
 	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
-		printf("egi_picbox_activate(): fail to egi_alloc_bkimg()!\n");
+		printf("egi_picbox_activate(): fail to egi_realloc_bkimg()!\n");
 		return -2;
 	}
 
@@ -316,7 +378,6 @@ int egi_picbox_activate(EGI_EBOX *ebox)
 
 	/* 7. set need_refresh */
 	ebox->need_refresh=true; /* if not, ignore refresh */
-
 
 	/* 8. refresh pic ebox */
       pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex)); /* egi_picbox_refresh() will deal with mutex lock */
@@ -411,12 +472,14 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         }
 
 	/* check ebox size */
-        if( ebox->height==0 || ebox->width==0)
+        if( ebox->height<=0 || ebox->width<=0)
         {
 	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
-                printf("egi_btnbox_refresh(): height or width is 0 in ebox '%s'!\n",ebox->tag);
+                printf("%s: height or width is invalid in PIC ebox '%s'!\n",__func__, ebox->tag);
                 return -1;
         }
+	int old_height=ebox->height;
+	int old_width=ebox->width;
 
 	/* get parameters */
 	int symheight=0;
@@ -432,20 +495,33 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	int imgh=data_pic->imgbuf->height;
 	int imgw=data_pic->imgbuf->width;
 
+	/* resize ebox: ebox size modified according to pic offx,offy and symheight */
+	ebox->width=imgw+2*(data_pic->offx);
+	if(data_pic->font != NULL && data_pic->title != NULL)
+		ebox->height=imgh+2*(data_pic->offy)+symheight;/* one line of title string */
+	else
+		ebox->height=imgh+2*(data_pic->offy);
+
 
    if(ebox->movable) /* only if ebox is movale */
    {
        /* ---- 4. redefine bkimg box range, in case it changes... */
 	/* check ebox height and font lines in case it changes, then adjust the height */
 	/* updata bkimg->bkbox according */
-
-
         ebox->bkbox.startxy.x=ebox->x0;
         ebox->bkbox.startxy.y=ebox->y0;
         ebox->bkbox.endxy.x=ebox->x0+ebox->width-1;
         ebox->bkbox.endxy.y=ebox->y0+ebox->height-1;
 
-	/* TODO: reallocate ebox->bkimg */
+	/* if size changed, reallocate ebox->bkimg */
+	if( old_height != ebox->height || old_width != ebox->width )
+	{
+		if(egi_realloc_bkimg(ebox, ebox->height, ebox->width)==NULL) {
+	       	 	pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
+			printf("%s: fail to egi_realloc_bkimg()!\n",__func__);
+			return -2;
+		}
+	}
 
 	#if 0 /* DEBUG */
 	EGI_PDEBUG(DBG_PIC,"egi_picbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
@@ -508,6 +584,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev, -1,    /* -1, no substituting color */
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
+
 //		printf("%s: finish egi_imgbuf_windisplay()....\n", __func__);
 	}
 	/* else if fpath != 0, load jpg file */
@@ -588,4 +665,5 @@ void egi_free_data_pic(EGI_DATA_PIC *data_pic)
 		data_pic=NULL;
 	}
 }
+
 

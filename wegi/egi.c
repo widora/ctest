@@ -118,16 +118,13 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 		printf("egi_alloc_bkimg(): ebox height or width is <=0!\n");
 		return NULL;
 	}
-
 	/* 2. malloc exbo->bkimg for bk image storing */
 	if( ebox->bkimg != NULL)
 	{
 		printf("egi_alloc_bkimg(): ebox->bkimg is not NULL, fail to malloc!\n");
 		return NULL;
 	}
-
 	/* 3. alloc memory */
-
 	EGI_PDEBUG(DBG_EGI,"egi_alloc_bkimg(): start to malloc() ....!\n");
 	ebox->bkimg=malloc(height*width*sizeof(uint16_t));
 
@@ -136,8 +133,47 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 		printf("egi_alloc_bkimg(): fail to malloc for ebox->bkimg!\n");
 		return NULL;
 	}
-
 	EGI_PDEBUG(DBG_EGI,"egi_alloc_bkimg(): finish!\n");
+
+	return ebox->bkimg;
+}
+
+
+/*-------------------------------------------------------------------------
+re_allocate memory for ebox->bkimg with specified H and W, in 16bit color.
+
+NOTE:
+1. "The contents will be unchanged in the range from the start of the region
+up to the minimum of the old and new sizes.  If the new size is larger than
+the old size, the added memory will not be initialized."  - man realloc
+
+2. If it fails, the original mem of ebox->bkimg will not be changed or moved.
+
+ebox:	pointer to an ebox
+height: height of an image.
+width: width of an image.
+
+Return:
+	pointer to the mem.	OK
+	NULL			fail
+-------------------------------------------------------------------------*/
+void *egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height)
+{
+	/* 1. check data */
+	if( height<=0 || width <=0 )
+	{
+		printf("egi_alloc_bkimg(): ebox height or width is <=0!\n");
+		return NULL;
+	}
+	/* 2. reallocate memory */
+	EGI_PDEBUG(DBG_EGI,"egi_realloc_bkimg(): start to realloc() ....!\n");
+	ebox->bkimg=realloc(ebox->bkimg, height*width*sizeof(uint16_t));
+	if(ebox->bkimg == NULL)
+	{
+		printf("egi_realloc_bkimg(): fail to realloc for ebox->bkimg!\n");
+		return NULL;
+	}
+	EGI_PDEBUG(DBG_EGI,"egi_ralloc_bkimg(): finish!\n");
 
 	return ebox->bkimg;
 }

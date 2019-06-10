@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 for(i=0;i<count+1;i++)
 {
 	if(i==count) { /* reload file paths */
-	   	i=0;
+	   	i=0-1;
 		free(fpaths);
 		fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
 		printf("--------- i=%d: Totally %d jpg files found -------.\n",i,count);
@@ -85,11 +85,15 @@ for(i=0;i<count+1;i++)
 	}
 	printf("finish load image file...\n");
 
-	/* WARNING, MUTEX LOCK FOR IMGBUF IS IGNORED HERE .... */
 	/* allocate data_pic */
+	/* NOTE:
+	   1. WARNING, MUTEX LOCK FOR IMGBUF IS IGNORED HERE ....
+	   2. egi_picdata_new() initiate a data_pic with imgbuf AND alpha with 100% transparent !!!!
+	*/
 	printf("start egi_picdata_new()....\n");
         data_pic= egi_picdata_new( poffx, poffy,    	/* int offx, int offy */
- 	               		 imgbuf->height, imgbuf->width, //pich, picw, /* heigth,width of displaying window */
+				  imgbuf,		/* Ownership transfered, and reset to NULL */
+ 	               		 //imgbuf->height, imgbuf->width, //pich, picw, /* heigth,width of displaying window */
                        		 0,0,	   		/* int imgpx, int imgpy */
 				 -1,			/* image canvan color, <0 for transparent */
  	       	                 &sympg_testfont  	/* struct symbol_page *font */
@@ -99,17 +103,19 @@ for(i=0;i<count+1;i++)
 	data_pic->title="EGI_PIC";
 
 	/* copy image data and aplha */
+#if 0
 	printf("start img memcpy()....\n");
 	memcpy(data_pic->imgbuf->imgbuf, imgbuf->imgbuf, (imgbuf->height)*(imgbuf->width)*2);
 	if(imgbuf->alpha != NULL)
 		memcpy(data_pic->imgbuf->alpha, imgbuf->alpha, imgbuf->height*imgbuf->width); /* only if alpha available */
+	else   /* otherwise set alpha 100% frontcolor */
+		memset(data_pic->imgbuf->alpha, 0xff, imgbuf->height*imgbuf->width);
 
 	/* free imgbuf */
 	printf("start egi_imgbuf_free()....\n");
 	egi_imgbuf_free(imgbuf);
+#endif
 
-
-	/* get a random point */
 	egi_randp_inbox(&pxy, &box);
 	printf("start egi_picbox_new()....\n");
 	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
