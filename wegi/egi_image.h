@@ -32,8 +32,9 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
-int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
-                                        int xp, int yp, int xw, int yw, int winw, int winh);
+//int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+//                                        int xp, int yp, int xw, int yw, int winw, int winh);
+
 /* display sub_image in a EGI_IMAGBUF */
 int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
                                                         int subcolor, int x0,   int y0);

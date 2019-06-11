@@ -49,11 +49,12 @@ while(1) {
 	n++;
 
 	/* get NOW weather data */
-	heweather_httpget_data(weather_data, data_now);
+	heweather_httpget_data(data_now);
 
         /* <<< Flush FB and Turn on FILO before wirteFB >>>*/
         printf("Flush pixel data in FILO, start  ---> ");
         fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+        printf(" <--- finish!\n");
         fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
 
    	egi_subimg_writeFB(weather_data[0].eimg, &gv_fb_dev, 0, WEGI_COLOR_WHITE, 70,250); //70, 220);

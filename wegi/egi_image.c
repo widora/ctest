@@ -76,6 +76,9 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	/* free data inside */
 	egi_imgbuf_freedata(egi_imgbuf);
 
+	/* TODO :  ??????? necesssary ????? */
+	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
 	free(egi_imgbuf);
 
 	egi_imgbuf=NULL;
@@ -158,9 +161,12 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
 {
         /* check data */
-        if(egi_imgbuf == NULL)
-        {
+        if(egi_imgbuf == NULL) {
                 printf("%s: egi_imgbuf is NULL. fail to display.\n",__func__);
+                return -1;
+        }
+        if(egi_imgbuf->imgbuf == NULL) {
+                printf("%s: egi_imgbuf->imgbuf is NULL. fail to display.\n",__func__);
                 return -1;
         }
 
@@ -172,9 +178,9 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;
-        if( imgw<0 || imgh<0 )
+        if( imgw<=0 || imgh<=0 )
         {
-                printf("%s: egi_imgbuf->width or height is negative. fail to display.\n",__func__);
+                printf("%s: egi_imgbuf->width or height is <=0. fail to display.\n",__func__);
 		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                 return -2;
         }

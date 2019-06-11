@@ -31,7 +31,7 @@ enum heweather_data_type {
 };
 
 typedef struct  heweather_data {
-	EGI_IMGBUF	*eimg; /* weather icon */
+	EGI_IMGBUF	*eimg; /* weather Info image */
 	int		temp;  /* temperature */
 	int		temp_max;
 	int		temp_min;
@@ -40,10 +40,14 @@ typedef struct  heweather_data {
 	int		hum_min;
 }EGI_WEATHER_DATA;
 
+/* 0=now;
+   Forcast: 1=today;  2=tomorrow; 3=the day aft. tomorrow */
 extern EGI_WEATHER_DATA weather_data[4];
 
+/* function */
 char * heweather_get_objitem(const char *strinput, const char *strsect, const char *strkey);
 char * heweather_get_forecast(const char *strinput, int index, const char *strkey);
+int heweather_httpget_data(enum heweather_data_type data_type);
 
 
 #endif

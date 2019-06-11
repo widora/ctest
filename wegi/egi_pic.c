@@ -41,20 +41,13 @@ Dynamically create pic_data struct
 Note:
 	1.EBOX size is depended on data_pic.
 
-font_code:
 @offx, offy: 		offset from host ebox left top
-@height,widht:		height and width for a EGI_IMGBUF
+@imgbuf:		image buffer fro data_pic, if NULL, call egi_imgbuf_new()
+			and egi_imgbuf_init() with default H*W=60*60
+@bkcolor		bkcolor for data_pic
 @imgpx, imgpy:		origin of the image focusing/looking window, relating to
 			image coord system.
-//char *title: 		title of the the picture showing above the window,
-			default NULL, to ignore.
 font: 			symbol page for the title, or NULL to ignore title.
-
-//EGI_IMGBUF imgbuf:	image buffer for a picture, in R5G6B5 pixel format
-			1.imgbuf->width or height must >0
-			2.imgbuf->imgbuf may be NULL.
-
-//char *fpath:		fpath to a picture file, or NULL
 
 return:
         poiter          OK
@@ -67,55 +60,39 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 			       struct symbol_page *font
 			     )
 {
-	/* check data */
-	if(imgbuf==NULL) {
-		printf("%s: Input imgbuf is NULL, fail to proceed. \n",__func__);
-		return NULL;
-	}
-	if( imgbuf->height<=0 || imgbuf->width<=0 ) {
-		printf("%s: imgbuf->height or width is invalid, fail to proceed. \n",__func__);
-		return NULL;
-	}
+	EGI_IMGBUF *eimg=NULL;
 
-#if 0///////////////////////  DELETED, as imgbuf becomes one of input param  ////////////
+	/* check data */
+//	if(imgbuf==NULL) {
+//		printf("%s: Input imgbuf is NULL, fail to proceed. \n",__func__);
+//		return NULL;
+//	}
+
+//	if( imgbuf->height<=0 || imgbuf->width<=0 ) {
+//		printf("%s: imgbuf->height or width is invalid, fail to proceed. \n",__func__);
+//		return NULL;
+//	}
+
+    /* Create a default 60x60 imgbuf if NULL */
+    if(imgbuf==NULL)
+    {
 	/* malloc a EGI_IMGBUF struct */
-	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): egi_imgbuf_new()...\n");
-	EGI_IMGBUF *imgbuf =egi_imgbuf_new(); /* calloc */
-	if(imgbuf == NULL)
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): input imgbuf==NULL, egi_imgbuf_new()...\n");
+	eimg =egi_imgbuf_new(); /* calloc */
+	if(eimg == NULL)
         {
                 printf("egi_picdata_new(): egi_imgbuf_new() fails.\n");
 		return NULL;
 	}
 
+	/* set default height and width for imgbuf */
 	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): egi_imgbuf_init()...\n");
-	if ( egi_imgbuf_init(imgbuf, height, width)!=0 ) {	/* no mutex lock needed */
+	if ( egi_imgbuf_init(eimg, 60, 120)!=0 ) {	/* no mutex lock needed */
 		printf("%s: egi_imgbuf_init() fails!\n",__func__);
-		egi_imgbuf_free(imgbuf);
+		egi_imgbuf_free(eimg);
 		return NULL;
 	}
-
-	/* set height and width for imgbuf */
-	imgbuf->height=height;
-	imgbuf->width=width;
-
-	/* calloc imgbuf->imgbuf */
-	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc imgbuf->imgbuf...\n");
-	imgbuf->imgbuf = calloc(1,height*width*sizeof(uint16_t));
-	if(imgbuf->imgbuf == NULL)
-	{
-		printf("egi_picdata_new(): fail to calloc imgbuf->imgbuf.\n");
-		egi_imgbuf_free(imgbuf);
-		return NULL;
-	}
-	/* calloc imgbuf->alpha, alpha=0, 100% canvan color. */
-	imgbuf->alpha= calloc(1, height*width); /* alpha value 8bpp */
-	if(imgbuf->alpha == NULL)
-	{
-		printf("egi_picdata_new(): fail to calloc imgbuf->alpha.\n");
-		egi_imgbuf_free(imgbuf);
-		return NULL;
-	}
-#endif/////////////////////////////////////////////////////
+    }
 
         /* calloc a egi_data_pic struct */
         EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): calloc data_pic ...\n");
@@ -123,15 +100,30 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
         if(data_pic==NULL)
         {
                 printf("egi_picdata_new(): fail to calloc egi_data_pic.\n");
-		egi_imgbuf_free(imgbuf);
+		egi_imgbuf_free(eimg);
 		return NULL;
 	}
 
-	/* assign struct number */
+	/* assign data_pic->imgbuf */
+   	if(imgbuf == NULL) {
+		data_pic->imgbuf=eimg;
+   	}
+   	else /* IF imgbuf != NULL */
+   	{
+		/* transfer Ownership of data in imgbuf to data_pic->imgbuf */
+		if( pthread_mutex_lock(&imgbuf->img_mutex) !=0 ) {
+       	        	printf("%s: Fail to lock image mutex!\n", __func__);
+			return NULL;
+		}
+		data_pic->imgbuf=imgbuf;
+		imgbuf=NULL;		/* !!! Ownership is transfered !!! */
+		/* !!!NOTE: ownership transfered, imgbuf is NULL! */
+		pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
+    	}
+
+	/* assign other struct numbers */
 	data_pic->offx=offx;
 	data_pic->offy=offy;
-	data_pic->imgbuf=imgbuf;
-	imgbuf=NULL;		/* !!! Ownership is transfered !!! */
 	data_pic->imgpx=imgpx;
 	data_pic->imgpy=imgpy;
 	data_pic->bkcolor=bkcolor;
@@ -157,17 +149,16 @@ Reutrn:
 -------------------------------------------------------*/
 int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg)
 {
-
 	/* check data */
+        if( ebox == NULL ) {
+                printf("%s: ebox is NULL!\n",__func__);
+                return -1;
+        }
 	if( eimg==NULL || eimg->imgbuf==NULL) {
                 printf("%s: input imgbuf is NULL, or its image data is NULL!\n",__func__);
 		return -1;
 	}
 
-        if( ebox == NULL ) {
-                printf("%s: ebox is NULL!\n",__func__);
-                return -1;
-        }
 	/* confirm ebox type */
         if(ebox->type != type_pic) {
                 printf("%s: Not a PIC type ebox!\n",__func__);
@@ -180,9 +171,12 @@ int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg)
         }
 
 	/* free old imgbuf, !!! image mutex inside the func !!! */
+        EGI_PDEBUG(DBG_PIC,"start to egi_imgbuf_free() old imgbuf...\n");
 	egi_imgbuf_free(data_pic->imgbuf);
 
+
         /* get input imgbuf's mutex lock */
+        EGI_PDEBUG(DBG_PIC,"start to mutex lock input eimg ...\n");
         if(pthread_mutex_lock(&eimg->img_mutex)!=0) {
        	        printf("%s: Fail to lock image mutex!\n", __func__);
             	return -4;
@@ -415,6 +409,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 //	int symheight;
 //	int symwidth;
 
+	EGI_PDEBUG(DBG_PIC,"Start to refresh ebox '%s'. \n",ebox->tag);
 
 	/* check data */
         if( ebox == NULL)
@@ -466,6 +461,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         }
 
         /* get imgbuf mutex lock */
+        EGI_PDEBUG(DBG_PIC,"start to mutex lock data_pic...\n");
         if(pthread_mutex_lock( &(data_pic->imgbuf->img_mutex)) !=0 ) {
        	        printf("%s: Fail to lock image mutex!\n",__func__);
             	return -5;

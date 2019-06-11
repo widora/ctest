@@ -300,7 +300,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		return -1;
 	}
 
-	/* --------------- ***** FOR 'PAGE' REFRESH ***** ------------ */
+	/* --------------- ***** FOR 'PAGE' REFRESH, wallpaper etc. ***** ------------ */
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
@@ -329,7 +329,6 @@ int egi_page_refresh(EGI_PAGE *page)
 		/* set ret */
 		ret=0;
 	}
-
 
 	/* --------------- ***** FOR PAGE CHILD REFRESH ***** ------------*/
 	/* check list */
@@ -422,13 +421,17 @@ int egi_page_needrefresh(EGI_PAGE *page)
 
 
 /*----------------------------------------------------------------------------------
-pick an ebox pointer by its type and id number
+pick a btn or slider pointer by its type and id number
+
+@page	a page struct holding eboxes.
+@type	type_btn OR type_slider
+@id	NOTE: id of a EGI_DATA_BTN
 
 return:
 	pointer 	OK
-	NULL		fails not no match
+	NULL		fails,or no match
 -----------------------------------------------------------------------------------*/
-EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
+EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
 {
 	struct list_head *tnode;
 	EGI_EBOX *ebox;
@@ -453,7 +456,7 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		if( ebox->type==type && ((EGI_DATA_BTN *)(ebox->egi_data))->id == id )
 		{
-		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with id=%d in page '%s'. \n",
+		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with data_btn->id=%d in page '%s'. \n",
 									__func__, ebox->tag,id,page->ebox->tag);
 			return ebox;
 		}
@@ -463,6 +466,60 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 									__func__, ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
+
+
+/*----------------------------------------------------------------------------------
+pick a ebox pointer by its type and id number
+
+@page	a page struct holding eboxes.
+@type	type of ebox
+@id	ID of the ebox.  ebox->id
+
+return:
+	pointer 	OK
+	NULL		fails, or no match
+-----------------------------------------------------------------------------------*/
+EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
+{
+	struct list_head *tnode;
+	EGI_EBOX *ebox;
+
+	/* 1. check data */
+	if(id==0)
+	{
+		printf("%s: invalid for id=0!\n",__func__);
+		return NULL;
+	}
+	if(page==NULL || page->ebox==NULL )
+	{
+		printf("%s: input page or page->ebox is NULL!\n",__func__);
+		return NULL;
+	}
+
+	/* 2. check list */
+	if(list_empty(&page->list_head))
+	{
+		printf("%s: page '%s' has an empty list_head.\n",__func__,page->ebox->tag);
+		return NULL;
+	}
+
+	/* 3. traverse the list to find ebox that matches the given id */
+	list_for_each(tnode, &page->list_head)
+	{
+		ebox=list_entry(tnode, EGI_EBOX, node);
+		if( ebox->type==type && ebox->id == id )
+		{
+		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with ebox->id=%d in page '%s'. \n",
+									__func__, ebox->tag,id,page->ebox->tag);
+			return ebox;
+		}
+	}
+
+	EGI_PLOG(LOGLV_WARN,"%s: ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+									__func__, ebox->tag,id,page->ebox->tag);
+	return NULL;
+}
+
 
 
 /*-----------------------------------------------------

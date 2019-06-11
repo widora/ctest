@@ -371,7 +371,6 @@ inline void egi_ebox_needrefresh(EGI_EBOX *ebox)
 }
 
 
-
 /*---------------------------------------
 	set touch area
 ---------------------------------------*/
@@ -422,6 +421,8 @@ int egi_ebox_forcerefresh(EGI_EBOX *ebox)
 		ebox->need_refresh=true;
 	        return egi_ebox_refresh(ebox);
 	}
+
+	return -1;
 }
 
 

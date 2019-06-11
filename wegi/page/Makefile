@@ -21,7 +21,7 @@ DEP_FILES = $(patsubst %.c, %.dep, $(SRC_FILES))
 
 #### -----  编译标志 -----
 ## -Wall for __attribut__
-CFLAGS := -I./ -I../ -I../iot -I../ffmpeg -I../utils
+CFLAGS := -I./ -I../ -I../iot -I../ffmpeg -I../utils  -I../heweather
 CFLAGS += -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall -O2
 #### --- for debug, put before LDFLAGS!!!! ----

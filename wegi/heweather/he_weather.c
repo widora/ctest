@@ -14,12 +14,13 @@ Midas Zhou
 #include <json-c/json_object.h>
 #include "egi_cstring.h"
 #include "egi_image.h"
+#include "egi_bjp.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
 #include "egi_https.h"
 #include "he_weather.h"
 
-EGI_WEATHER_DATA weather_data[4]; /* 0=now; forcast: 1=today; 2=tomorrow; 3=the day aft. tomorrow */
+EGI_WEATHER_DATA weather_data[4]={0}; /* 0=now; forcast: 1=today; 2=tomorrow; 3=the day aft. tomorrow */
 
 static char strrequest_mode[4][256]=
 {
@@ -181,19 +182,15 @@ Note:
 2. If hwdata[]->eimg is NOT null, then egi_imgbuf_freedata() will be called
    to empty its old data before put new data into it.
 
-
-@hwdata:	an array of EGI_WEATHER_DATA
 @data_type:	weather data type to be requested
 
 Return:
 	0	Ok
 	<0	Fails
 ----------------------------------------------------------------------*/
-int heweather_httpget_data(EGI_WEATHER_DATA *hwdata, enum heweather_data_type data_type)
+int heweather_httpget_data(enum heweather_data_type data_type)
 {
   	int i=0;
-	int index;
-//        int n=0;
 	char *pstr=NULL;
 	char strrequest[256+64];
 	char strpath[256];
@@ -201,16 +198,11 @@ int heweather_httpget_data(EGI_WEATHER_DATA *hwdata, enum heweather_data_type da
 	int  temp;
 	char strhum[16];
 	int  hum;
-//	EGI_IMGBUF *eimg=NULL;
-
-	if(hwdata==NULL) {
-		printf("%s: input hwdata is NULL!\n",__func__);
-		return -1;
-	}
 
 	/* read key from EGI config file */
 	egi_get_config_value("EGI_WEATHER", "key", strkey);
 	sprintf(strrequest,"%s%s", strrequest_mode[data_type], strkey);
+	printf("strrequest:%s\n", strrequest);
 
 	/* Get request */
 	memset(buff,0,sizeof(buff));
@@ -260,23 +252,31 @@ int heweather_httpget_data(EGI_WEATHER_DATA *hwdata, enum heweather_data_type da
 
  	printf("Temp:%dC  Hum:%%%d\n",temp,hum);
 
-	/* fill into EGI_WEATHER_DATA */
-	if(hwdata[0].eimg==NULL) {
-		hwdata[0].eimg=egi_imgbuf_new();
-		if(hwdata[0].eimg==NULL) {
-			printf("%s: fail to call egi_imgbuf_new()!\n");
+	/* create a new EGI_IMGBUF if NULL */
+	if(weather_data[0].eimg==NULL) {
+		weather_data[0].eimg=egi_imgbuf_new();
+		if(weather_data[0].eimg==NULL) {
+			printf("%s: fail to call egi_imgbuf_new()!\n",__func__);
 			return -2;
 		}
 	}
-	/* empty old data */
-	egi_imgbuf_freedata(hwdata[0].eimg);
+
+	/* empty old data if any */
+        if(pthread_mutex_lock(&((weather_data[0].eimg)->img_mutex))!=0) {
+                printf("%s: Fail to lock image mutex to free img data!\n", __func__);
+                return -3;
+        }
+	egi_imgbuf_freedata(weather_data[0].eimg); /* no mutex inside */
+	pthread_mutex_unlock(&(weather_data[0].eimg)->img_mutex);
+
 	/* load png file acoordingly */
-   	if( egi_imgbuf_loadpng(strpath, hwdata[0].eimg ) !=0 ) {
+   	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside */
 		printf("%s: Fail to loadpng %s!\n", __func__, strpath);
 		return -3;
    	}
-	hwdata[0].temp=temp;
-	hwdata[0].hum=hum;
+	weather_data[0].temp=temp;
+	weather_data[0].hum=hum;
+        printf("%s: ---OK---!\n", __func__);
 
    }
 
@@ -298,7 +298,7 @@ int heweather_httpget_data(EGI_WEATHER_DATA *hwdata, enum heweather_data_type da
   }
 */
 
-  else if(data_type=data_forecast)
+  else if(data_type==data_forecast)
   {
 	printf("Daily_forecast ");
 	for(i=0;i<3;i++) {

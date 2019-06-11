@@ -28,45 +28,17 @@ Modified and appended by: Midas Zhou
 /* for draw_dot(), roll back to start if reach boundary of FB mem */
 #define no_FB_DOTOUT_ROLLBACK /* also check FB_SYMBOUT_ROLLBACK in symbol.h */
 
-
-#if 0//////////////////////////////////////
-#define EGI_FBDEV_NAME "/dev/fb0"
-
-
-typedef struct fbdev{
-        int fdfd; /* file descriptor, open "dev/fb0" */
-        struct fb_var_screeninfo vinfo;
-        struct fb_fix_screeninfo finfo;
-        long int screensize;
-        unsigned char *map_fb;
-	/* pthread_mutex_t fbmap_lock; */
-	EGI_FILO *fb_filo;
-	int filo_on;	/* >0,activate FILO push */
-}FBDEV;
-
-/* distinguished from PIXEL in egi_bjp.h */
-typedef struct fbpixel {
-	long int position;
-	uint16_t color;
-}FBPIX;
-
-
-/* global variale, Frame buffer device */
-extern FBDEV   gv_fb_dev;
-
-#endif ////////////////////////////////////////////////////////
-
 extern EGI_BOX gv_fb_box;
 
-
 /* functions */
+#if 0
 int 		init_fbdev(FBDEV *dev);
 void 		release_fbdev(FBDEV *dev);
 inline void 	fbset_homepage_loop(bool loop);
 void 		fb_filo_flush(FBDEV *dev);
 inline void 	fb_filo_on(FBDEV *dev);
 inline void 	fb_filo_off(FBDEV *dev);
-
+#endif
 
 //////////////////////////////////////////////////////////
 void 	fbset_color(uint16_t color);

@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Color classification method:
 	Douglas.R.Jacobs' RGB Hex Triplet Color Chart
   	http://www.jakesan.com
@@ -23,6 +22,7 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
 #define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
 #define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
+
 
 /* front_color(16bits), background_color(16bits), alpha channel value(0-255) */
 #define COLOR_16BITS_BLEND(front, back, alpha)							\

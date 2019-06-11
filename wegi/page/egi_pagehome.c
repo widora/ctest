@@ -22,31 +22,25 @@ Midas Zhou
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h> /* usleep */
-#include "egi.h"
-#include "egi_debug.h"
-#include "egi_log.h"
-#include "egi_timer.h"
-#include "egi_color.h"
-#include "egi_txt.h"
-#include "egi_objtxt.h"
-#include "egi_btn.h"
-#include "egi_page.h"
-#include "egi_symbol.h"
-#include "egi_pagetest.h"
+#include "egi_header.h"
 #include "egi_pagehome.h"
+#include "egi_pagetest.h"
 #include "egi_pagemplay.h"
 #include "egi_pageopenwrt.h"
 #include "egi_pagebook.h"
-#include "egi_iwinfo.h"
 #include "egi_pageffplay.h"
 #include "iot/egi_iotclient.h"
+#include "utils/egi_iwinfo.h"
 #include "egi_pagestock.h"
+#include "he_weather.h"
 
 #define CALENDAR_BTN_ID	2
+#define PIC_EBOX_ID	1234
 
 static void display_cpuload(EGI_PAGE *page);
 static void display_iotload(EGI_PAGE *page);
 static void update_clocktime(EGI_PAGE *page);
+static void update_heweather(EGI_PAGE *page);
 
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -230,18 +224,17 @@ EGI_PAGE *egi_create_homepage(void)
                         -1 /*int prmcolor*/
                 );
 
-
         /* --------- 1.5 create a pic box --------- */
+	printf("Create PIC ebox for weather Info...\n");
         /* allocate data_pic */
         data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
-//                                   60, 100,     /* heigth,width of displaying window */
+                                   NULL,        //  60, 100,     /* EGI_IMGBUF * */
                                    0,  0,       /* int imgpx, int imgpy */
 				   -1,		/* image canvas color, <0 as transparent */
                                    NULL     	/* struct symbol_page *font */
                                 );
         /* set pic_box title */
         //data_pic->title="Happy Linux EGI!";
-
         /* get a random point */
         pic_box=egi_picbox_new( "pic_box", 	/* char *tag, or NULL to ignore */
                                   data_pic,  	/* EGI_DATA_PIC *egi_data */
@@ -250,12 +243,14 @@ EGI_PAGE *egi_create_homepage(void)
                                   1,         	/* int frame */
                                   -1		/* int prmcolor,applys only if prmcolor>=0  */
         );
+	pic_box->id=PIC_EBOX_ID; /* set ebox ID */
 
 
         /* --------- 1.6 set deco for calendar ebox --------- */
 	home_btns[CALENDAR_BTN_ID]->method.decorate=deco_calendar;
 
         /* --------- 2. create home head-bar --------- */
+	printf("Create home head-bar...\n");
         /* create head_txt */
         head_txt=egi_txtdata_new(
                 0,0, /* offset X,Y */
@@ -303,7 +298,7 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->runner[0]=display_cpuload;
 	page_home->runner[1]=display_iotload;
 	page_home->runner[2]=update_clocktime;
-//	page_home->runner[3]=egi_iotclient;
+//	page_home->runner[3]=update_heweather; //egi_iotclient;
 //	page_home->runner[4]=display_stock;
 
 	/* 3.3 set default routine job */
@@ -460,21 +455,21 @@ static int deco_calendar(EGI_EBOX *ebox)
 	int x0,y0;
 	int pixlen;
 
-	/* month */
+	/* Month */
 	pixlen=symbol_string_pixlen(caldata.month, &sympg_testfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0-5;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
 				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month, -1);
 
-	/* week */
+	/* Week */
 	pixlen=symbol_string_pixlen(caldata.week, &sympg_testfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+40;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
 				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week, -1);
 
-	/* day */
+	/* Day */
 	pixlen=symbol_string_pixlen(caldata.day, &sympg_numbfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+22;
@@ -483,6 +478,44 @@ static int deco_calendar(EGI_EBOX *ebox)
 
 	return 0;
 }
+
+
+/*-----------------  RUNNER 4 --------------------------
+Update heweather data
+-------------------------------------------------------*/
+static void update_heweather(EGI_PAGE *page)
+{
+  EGI_EBOX *ebox;
+
+//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
+   tm_delayms(1000);
+
+   /* HTTPS GET HeWeather Data periodically */
+   while(1) {
+	/* update imgbuf and data in weather_data */
+	printf("%s: Start heweather_httpget_data() ....\n",__func__);
+        if( heweather_httpget_data(data_now) ==0 ) {
+
+		ebox=egi_page_pickebox(page,type_pic, PIC_EBOX_ID);
+		if(ebox !=NULL) {
+			/* renew image, Owner transfered! eimg reset to NULL */
+			printf("%s: renew image for PIC ebox with weather_data[]...\n",__func__);
+			if(egi_picbox_renewimg(ebox, weather_data[0].eimg)!=0) {
+				printf("%s: Fail to renew imgbuf for PIC ebox.\n",__func__);
+			}
+			printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
+			egi_ebox_needrefresh(ebox);
+		}
+	}
+	else {
+		printf("%s: Fail to update weather_data!\n",__func__);
+	}
+	printf("%s: Start Delay or Sleep ....\n",__func__);
+	tm_delayms(5000);
+//	egi_sleep(0,5,0); /* 5s */
+  }
+}
+
 
 
 /*----------------------------------------------

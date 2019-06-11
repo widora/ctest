@@ -22,6 +22,7 @@ int egi_page_routine(EGI_PAGE *page);
 int egi_homepage_routine(EGI_PAGE *page);
 int egi_page_flag_needrefresh(EGI_PAGE *page);
 int egi_page_needrefresh(EGI_PAGE *page);
+EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page, enum egi_ebox_type type,unsigned int id);
 EGI_EBOX *egi_page_pickebox(EGI_PAGE *page, enum egi_ebox_type type, unsigned int id);
 
 #endif

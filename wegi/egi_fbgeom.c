@@ -30,27 +30,13 @@ Modified and appended by Midas-Zhou
 #include <math.h>
 #include <stdlib.h>
 
-//#ifndef _TYPE_FBDEV_
-//#define _TYPE_FBDEV_
-#if 0
-    typedef struct fbdev{
-        int fdfd; //open "dev/fb0"
-        struct fb_var_screeninfo vinfo;
-        struct fb_fix_screeninfo finfo;
-        long int screensize;
-        char *map_fb;
-    }FBDEV;
-#endif 
-//#endif
-
-
 /* global variale, Frame buffer device */
-FBDEV   gv_fb_dev={ .fdfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
 EGI_BOX gv_fb_box;
 
 /* default color set */
 static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
 
+#if 0 /////////////////// move to egi_fbdev.c ////////////////////
 /*-------------------------------------
 Return:
 	0	OK
@@ -113,7 +99,6 @@ int init_fbdev(FBDEV *dev)
 	return 0;
 }
 
-
 /*-------------------------
 Release FB and free map
 --------------------------*/
@@ -156,7 +141,6 @@ inline void fb_filo_off(FBDEV *dev)
 }
 
 
-
 /*----------------------------------------------
 Pop out all FBPIXs in the fb filo
 Midas Zhou
@@ -175,14 +159,13 @@ void fb_filo_flush(FBDEV *dev)
 		*((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
 	}
 }
-
+#endif ///////////////////////////////////////////////////
 
 /*  set color for every dot */
 inline void fbset_color(uint16_t color)
 {
 	fb_color=color;
 }
-
 
 /*------------------------------------
  check if (px,py) in box(x1,y1,x2,y2)

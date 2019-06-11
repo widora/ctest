@@ -154,6 +154,9 @@ struct egi_ebox_method
 */
 struct egi_element_box
 {
+	/* ID */
+	unsigned int id; /* MUST >0, 0 as ignored */
+
 	/* ebox type */
 	enum egi_ebox_type type;
 
@@ -359,12 +362,17 @@ struct egi_data_txt
 };
 
 
-/* egi data for a botton type ebox */
+/* egi data for a botton type ebox
+ * !!! a slider type ebox also has egi_data->egi_data_btn !!!
+*/
 //typedef struct egi_data_btn EGI_DATA_BTN;
+
 struct egi_data_btn
 {
 	//char tag[32]; 	  /* short description of the button */
-	unsigned int id; 	  /* unique id number for btn, MUST >0, default 0 for ignored  */
+	unsigned int id; 	  /* unique id number for btn, MUST >0, default 0 for ignored
+				   *
+				   */
 	enum egi_btn_type shape;  /* button shape type, square or circle */
 	struct symbol_page *icon; /* button icon */
 	uint32_t icon_code; 	  /* SYM_SUB_COLOR(16)+CODE(16) code number of the symbol in the symbol_page */

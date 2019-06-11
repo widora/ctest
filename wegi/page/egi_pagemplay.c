@@ -185,7 +185,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	int pvol; /* percent value */
 	ffpcm_getset_volume(&pvol,NULL);
 	//printf("-------pvol=%%%d-----\n",pvol);
-	EGI_DATA_BTN *data_slider=egi_sliderdata_new(
+	EGI_DATA_BTN *data_slider=egi_sliderdata_new(	/* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
 	                                /* for btnbox */
         	                        SLIDER_ID, square,  	/* int id, enum egi_btn_type shape */
                 	                NULL,		/* struct symbol_page *icon */
@@ -265,7 +265,7 @@ static void check_volume_runner(EGI_PAGE *page)
      int sval=0;
      int buf;
 
-     EGI_EBOX *slider=egi_page_pickebox(page, type_slider, SLIDER_ID);
+     EGI_EBOX *slider=egi_page_pickbtn(page, type_slider, SLIDER_ID);
      EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(slider->egi_data);
      EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
@@ -496,7 +496,7 @@ static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	unlink(MPFIFO_NAME);
 
 	/* change play/pause_button tag to 'play'  */
-	EGI_EBOX *btn_play=egi_page_pickebox(ebox->container, type_btn, 1);  /* id for play/pause btn is 1 */
+	EGI_EBOX *btn_play=egi_page_pickbtn(ebox->container, type_btn, 1);  /* id for play/pause btn is 1 */
 	egi_ebox_settag(btn_play,"Play");
 	egi_ebox_forcerefresh(btn_play);
 

@@ -21,12 +21,22 @@ Modified and appended by: Midas Zhou
 #include <linux/fb.h>
 #include <stdint.h>
 #include <stdbool.h>
+//#include "egi.h"  /* a conflict here */
 #include "egi_filo.h"
 
 #define EGI_FBDEV_NAME "/dev/fb0"
 
 typedef struct fbdev{
+
         int fdfd; /* file descriptor, open "dev/fb0" */
+
+        bool virt;              /* True: virtural fbdev, it maps to an EGI_IMGBUF
+                                   and fdfd will be ineffective.
+				   vinfo.xres and vinfo.yres MUST set.
+
+				   False: maps to true FB device, fdfd is effective.
+                                */
+
         struct fb_var_screeninfo vinfo;
         struct fb_fix_screeninfo finfo;
         long int screensize;
@@ -42,8 +52,15 @@ typedef struct fbpixel {
 	uint16_t color;
 }FBPIX;
 
-
 /* global variale, Frame buffer device */
 extern FBDEV   gv_fb_dev;
+
+/* functions */
+int             init_fbdev(FBDEV *dev);
+void            release_fbdev(FBDEV *dev);
+inline void     fb_filo_on(FBDEV *dev);
+inline void     fb_filo_off(FBDEV *dev);
+void            fb_filo_flush(FBDEV *dev);
+
 
 #endif
