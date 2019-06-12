@@ -29,7 +29,7 @@ EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */
         int frame,
         int prmcolor /* applys only if prmcolor>=0 and egi_data->icon != NULL */
 );
-int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg);
+int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF **peimg);
 int egi_picbox_activate(EGI_EBOX *ebox);
 int egi_picbox_refresh(EGI_EBOX *ebox);
 int egi_picbox_sleep(EGI_EBOX *ebox);

@@ -10,6 +10,7 @@ Midas-Zhou
 #include "egi_fbgeom.h"
 #include "egi_math.h"
 #include "egi_debug.h"
+#include "egi_timer.h"
 #include <sys/mman.h>
 #include <string.h>
 #include <math.h>
@@ -465,7 +466,7 @@ while(1) {
 
         }
 }
-        return 0;
+
 
 /* 2. transform coordinate origin back to X0Y0  */
 	for(i=0;i<n*n;i++)

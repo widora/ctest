@@ -592,6 +592,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
         /* get mutex lock */
+	printf("%s: start pthread_mutex_lock() egi_imgbuf....\n",__func__);
         if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
         {
                 printf("%s: fail to get mutex lock.\n",__func__);
@@ -599,6 +600,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
 	/* free data and reset egi_imgbuf */
+	printf("%s: start egi_imgbuf_freedata(egi_imgbuf)....\n",__func__);
 	egi_imgbuf_freedata(egi_imgbuf);
 
         /* alloc RBG image buffer */
@@ -623,6 +625,8 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 }
         }
 
+
+	printf("%s: start read RGB/alpha data into egi_imgbuf....\n",__func__);
         /* read RGB data into image buffer */
         row_ptr=png_get_rows(png_ptr,info_ptr);
         if(color_type==2) /*data: RGB*/
@@ -651,6 +655,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
 	/* put image mutex */
+	printf("%s: start pthread_mutex_unlock() egi_imgbuf....\n",__func__);
 	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 
 READ_FAIL:

@@ -262,12 +262,12 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	}
 
 	/* empty old data if any */
-        if(pthread_mutex_lock(&((weather_data[0].eimg)->img_mutex))!=0) {
-                printf("%s: Fail to lock image mutex to free img data!\n", __func__);
-                return -3;
-        }
+//        if(pthread_mutex_lock(&((weather_data[0].eimg)->img_mutex))!=0) {
+//                printf("%s: Fail to lock image mutex to free img data!\n", __func__);
+//                return -3;
+//        }
 	egi_imgbuf_freedata(weather_data[0].eimg); /* no mutex inside */
-	pthread_mutex_unlock(&(weather_data[0].eimg)->img_mutex);
+//	pthread_mutex_unlock(&(weather_data[0].eimg)->img_mutex);
 
 	/* load png file acoordingly */
    	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside */

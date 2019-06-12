@@ -115,7 +115,7 @@ void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 	/* 1. check data */
 	if( height<=0 || width <=0 )
 	{
-		printf("egi_alloc_bkimg(): ebox height or width is <=0!\n");
+		printf("egi_alloc_bkimg(): ebox height(%d) or width(%d) is <=0!\n",height,width);
 		return NULL;
 	}
 	/* 2. malloc exbo->bkimg for bk image storing */
@@ -162,7 +162,7 @@ void *egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height)
 	/* 1. check data */
 	if( height<=0 || width <=0 )
 	{
-		printf("egi_alloc_bkimg(): ebox height or width is <=0!\n");
+		printf("egi_realloc_bkimg(): ebox height(%d) or width(%d) is <=0!\n",height,width);
 		return NULL;
 	}
 	/* 2. reallocate memory */
@@ -173,7 +173,7 @@ void *egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height)
 		printf("egi_realloc_bkimg(): fail to realloc for ebox->bkimg!\n");
 		return NULL;
 	}
-	EGI_PDEBUG(DBG_EGI,"egi_ralloc_bkimg(): finish!\n");
+	EGI_PDEBUG(DBG_EGI,"egi_realloc_bkimg(): finish!\n");
 
 	return ebox->bkimg;
 }

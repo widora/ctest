@@ -147,14 +147,14 @@ Reutrn:
 	0	OK
 	<0	Fails
 -------------------------------------------------------*/
-int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg)
+int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF **peimg)
 {
 	/* check data */
         if( ebox == NULL ) {
                 printf("%s: ebox is NULL!\n",__func__);
                 return -1;
         }
-	if( eimg==NULL || eimg->imgbuf==NULL) {
+	if( *peimg==NULL || (*peimg)->imgbuf==NULL) {
                 printf("%s: input imgbuf is NULL, or its image data is NULL!\n",__func__);
 		return -1;
 	}
@@ -174,19 +174,20 @@ int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF *eimg)
         EGI_PDEBUG(DBG_PIC,"start to egi_imgbuf_free() old imgbuf...\n");
 	egi_imgbuf_free(data_pic->imgbuf);
 
-
         /* get input imgbuf's mutex lock */
         EGI_PDEBUG(DBG_PIC,"start to mutex lock input eimg ...\n");
-        if(pthread_mutex_lock(&eimg->img_mutex)!=0) {
+        if( *peimg==NULL || pthread_mutex_lock(&(*peimg)->img_mutex)!=0) { /* reasure eimg!=NULL */
        	        printf("%s: Fail to lock image mutex!\n", __func__);
             	return -4;
         }
-
 	/* renew imgbuf, ownership transfered */
-	data_pic->imgbuf=eimg;
-	eimg=NULL;
+	data_pic->imgbuf=*peimg;
+	*peimg=NULL;
+	EGI_PDEBUG(DBG_PIC,"data_pic->imgbuf renewed with height=%d, width=%d.\n",
+				data_pic->imgbuf->height, data_pic->imgbuf->width);
 
 	/* !!!NOTE: ownership transfered, eimg is NULL! */
+        EGI_PDEBUG(DBG_PIC,"start to mutex unlock eimg ...\n");
 	pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 
 	return 0;
@@ -409,7 +410,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 //	int symheight;
 //	int symwidth;
 
-	EGI_PDEBUG(DBG_PIC,"Start to refresh ebox '%s'. \n",ebox->tag);
 
 	/* check data */
         if( ebox == NULL)
@@ -433,9 +433,10 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	/* only if need_refresh is true */
 	if(!ebox->need_refresh)
 	{
-		EGI_PDEBUG(DBG_PIC,"egi_picbox_refresh(): need_refresh=false, refresh action is ignored.\n");
+		EGI_PDEBUG(DBG_PIC,"need_refresh=false, refresh action is ignored.\n");
 		return 1;
 	}
+
 
    if(ebox->movable) /* only if ebox is movale */
    {
@@ -451,6 +452,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
    } /* end of movable codes */
 
+	EGI_PDEBUG(DBG_PIC,"Extract ebox->egi_data and start to refresh PIC ebox '%s'. \n",ebox->tag);
 
 	/* 3. get updated data */
 	EGI_DATA_PIC *data_pic=(EGI_DATA_PIC *)(ebox->egi_data);
@@ -462,7 +464,10 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
         /* get imgbuf mutex lock */
         EGI_PDEBUG(DBG_PIC,"start to mutex lock data_pic...\n");
-        if(pthread_mutex_lock( &(data_pic->imgbuf->img_mutex)) !=0 ) {
+//        if(pthread_mutex_lock( &(data_pic->imgbuf->img_mutex)) !=0 ) {
+        if( (data_pic->imgbuf == NULL)   /* !!!!! reasure imgbuf */
+	     ||  pthread_mutex_trylock( &(data_pic->imgbuf->img_mutex)) !=0 ) /* just trylock */
+	{
        	        printf("%s: Fail to lock image mutex!\n",__func__);
             	return -5;
         }
@@ -471,7 +476,8 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         if( ebox->height<=0 || ebox->width<=0)
         {
 	        pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
-                printf("%s: height or width is invalid in PIC ebox '%s'!\n",__func__, ebox->tag);
+                printf("%s: height(%d) or width(%d) is invalid in PIC ebox '%s'!\n"
+				,__func__, ebox->height, ebox->width, ebox->tag);
                 return -1;
         }
 	int old_height=ebox->height;
@@ -497,7 +503,8 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		ebox->height=imgh+2*(data_pic->offy)+symheight;/* one line of title string */
 	else
 		ebox->height=imgh+2*(data_pic->offy);
-
+	EGI_PDEBUG(DBG_PIC,"Resize ebox as per data_pic: ebox.height=%d, ebox.width=%d\n",
+						ebox->height, ebox->width);
 
    if(ebox->movable) /* only if ebox is movale */
    {

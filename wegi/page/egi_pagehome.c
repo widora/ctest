@@ -298,7 +298,7 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->runner[0]=display_cpuload;
 	page_home->runner[1]=display_iotload;
 	page_home->runner[2]=update_clocktime;
-//	page_home->runner[3]=update_heweather; //egi_iotclient;
+	page_home->runner[3]=update_heweather; //egi_iotclient;
 //	page_home->runner[4]=display_stock;
 
 	/* 3.3 set default routine job */
@@ -485,18 +485,22 @@ Update heweather data
 -------------------------------------------------------*/
 static void update_heweather(EGI_PAGE *page)
 {
-  EGI_EBOX *ebox;
+   int i, j;
+   unsigned int off;
+   EGI_EBOX *ebox=NULL;
+   EGI_IMGBUF *eimg=NULL;
+   char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
-   tm_delayms(1000);
+   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
+
+#if 0  //////////////// Thread error  ///////////////
 	/* update imgbuf and data in weather_data */
 	printf("%s: Start heweather_httpget_data() ....\n",__func__);
         if( heweather_httpget_data(data_now) ==0 ) {
-
-		ebox=egi_page_pickebox(page,type_pic, PIC_EBOX_ID);
+		ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
 		if(ebox !=NULL) {
 			/* renew image, Owner transfered! eimg reset to NULL */
 			printf("%s: renew image for PIC ebox with weather_data[]...\n",__func__);
@@ -510,9 +514,47 @@ static void update_heweather(EGI_PAGE *page)
 	else {
 		printf("%s: Fail to update weather_data!\n",__func__);
 	}
+#endif
+	/* fetch PCI ebox for heweather */
+	ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
+	if(ebox == NULL) {
+		goto SLEEP_WAITING;
+	}
+
+	/* allocate eimg, the ownership will be deprived by egi_picbox_renewimg() later */
+	if(eimg==NULL) {
+		printf("eimg=egi_imgbuf_new()!\n");
+		eimg=egi_imgbuf_new();
+	}
+
+        /* load weather icon png file */
+        if( egi_imgbuf_loadpng( heweather_path, eimg) !=0 ) {   /* mutex inside */
+                printf("%s: Fail to loadpng at '%s'!\n", __func__, heweather_path);
+		goto SLEEP_WAITING;
+        }else{
+		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
+							eimg->height, eimg->width);
+		/* substitue icon color with WHITE, No mutex lock here! */
+		for(i=0; i<eimg->height; i++) {
+			for(j=0; j<eimg->width; j++) {
+				off=i*(eimg->width)+j;
+				*(EGI_16BIT_COLOR *)(eimg->imgbuf+off)=WEGI_COLOR_WHITE;
+			}
+		}
+	}
+	/* renew image in PIC box, !!!ownership of imgbuf transfered!!! */
+	if(egi_picbox_renewimg(ebox, &eimg)!=0) {
+		printf("%s: Fail to renew imgbuf for PIC ebox.\n",__func__);
+		goto SLEEP_WAITING;
+	}else{
+		printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
+		egi_ebox_needrefresh(ebox);
+	}
+
+SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);
-	tm_delayms(5000);
-//	egi_sleep(0,5,0); /* 5s */
+//	tm_delayms(5000);
+	egi_sleep(0,5,0); /* 5s */
   }
 }
 
