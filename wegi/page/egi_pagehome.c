@@ -32,7 +32,6 @@ Midas Zhou
 #include "iot/egi_iotclient.h"
 #include "utils/egi_iwinfo.h"
 #include "egi_pagestock.h"
-#include "he_weather.h"
 
 #define CALENDAR_BTN_ID	2
 #define PIC_EBOX_ID	1234
@@ -228,18 +227,17 @@ EGI_PAGE *egi_create_homepage(void)
 	printf("Create PIC ebox for weather Info...\n");
         /* allocate data_pic */
         data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
-                                   NULL,        //  60, 100,     /* EGI_IMGBUF * */
+                                   NULL,        //  /* EGI_IMGBUF  default 60, 120 */
                                    0,  0,       /* int imgpx, int imgpy */
 				   -1,		/* image canvas color, <0 as transparent */
                                    NULL     	/* struct symbol_page *font */
                                 );
         /* set pic_box title */
         //data_pic->title="Happy Linux EGI!";
-        /* get a random point */
         pic_box=egi_picbox_new( "pic_box", 	/* char *tag, or NULL to ignore */
                                   data_pic,  	/* EGI_DATA_PIC *egi_data */
                                   1,         	/* bool movable */
-                                  70, 250, 	/*  x0, y0 for host ebox*/
+                                  70, 240, 	/*  x0, y0 for host ebox*/
                                   1,         	/* int frame */
                                   -1		/* int prmcolor,applys only if prmcolor>=0  */
         );
@@ -491,30 +489,10 @@ static void update_heweather(EGI_PAGE *page)
    EGI_IMGBUF *eimg=NULL;
    char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
+//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
-
-#if 0  //////////////// Thread error  ///////////////
-	/* update imgbuf and data in weather_data */
-	printf("%s: Start heweather_httpget_data() ....\n",__func__);
-        if( heweather_httpget_data(data_now) ==0 ) {
-		ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
-		if(ebox !=NULL) {
-			/* renew image, Owner transfered! eimg reset to NULL */
-			printf("%s: renew image for PIC ebox with weather_data[]...\n",__func__);
-			if(egi_picbox_renewimg(ebox, weather_data[0].eimg)!=0) {
-				printf("%s: Fail to renew imgbuf for PIC ebox.\n",__func__);
-			}
-			printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
-			egi_ebox_needrefresh(ebox);
-		}
-	}
-	else {
-		printf("%s: Fail to update weather_data!\n",__func__);
-	}
-#endif
 	/* fetch PCI ebox for heweather */
 	ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
 	if(ebox == NULL) {
@@ -553,8 +531,7 @@ static void update_heweather(EGI_PAGE *page)
 
 SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);
-//	tm_delayms(5000);
-	egi_sleep(0,5,0); /* 5s */
+	egi_sleep(0,1,0); /* 5s */
   }
 }
 

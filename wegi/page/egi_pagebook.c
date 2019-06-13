@@ -42,8 +42,7 @@ static int book_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
-
-#define BOOK_TXT_ID 	1
+#define BOOK_EBOX_ID    12
 
 /*------------- [  PAGE ::   Home Book  ] -------------
 create book page
@@ -70,7 +69,6 @@ EGI_PAGE *egi_create_bookpage(void)
         	&sympg_testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
-	book_txt->id=BOOK_TXT_ID; /* set unique id */
 
 	/* 2. set book txt fpath */
 	book_txt->fpath="/home/memo.txt";
@@ -86,6 +84,7 @@ EGI_PAGE *egi_create_bookpage(void)
         	-1, /* int frame, -1=no frame */
         	WEGI_COLOR_ORANGE /*int prmcolor*/
 	);
+	ebox_book->id=BOOK_EBOX_ID;
 
         /* 4. create title bar */
         title_bar= create_ebox_titlebar(
@@ -182,9 +181,7 @@ EGI_PAGE *egi_create_bookpage(void)
 }
 
 
-
 /*-----------------  RUNNER 1 --------------------------
-
 -------------------------------------------------------*/
 static void egi_pagebook_runner(EGI_PAGE *page)
 {
@@ -210,10 +207,10 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* find the txt ebox in the page
 	    egi_page_pickbtn() will verify the integrity of the page*/
-	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_TXT_ID); //book_id);
+	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_EBOX_ID); //book_id);
 	if(txt_ebox == NULL) {
 		printf("[page '%s'] book_forward(): fail to find txt_ebox with id=%d .\n",
-									page->ebox->tag,BOOK_TXT_ID);
+									page->ebox->tag,BOOK_EBOX_ID);
 		return btnret_ERR;
 	}
 
@@ -248,10 +245,10 @@ static int book_backward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* find the txt ebox in the page
 	 *   egi_page_pickbtn() will verify the integrity of the page
          */
-	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_TXT_ID); //book_id);
+	txt_ebox=egi_page_pickebox(page, type_txt, BOOK_EBOX_ID); //book_id);
 	if(txt_ebox == NULL) {
-		printf("[page '%s'] book_backward(): fail to find txt_ebox with id=%d .\n",
-									page->ebox->tag,BOOK_TXT_ID);
+		printf("[page '%s'] book_backward(): fail to find txt ebox with id=%d .\n",
+									page->ebox->tag,BOOK_EBOX_ID);
 		return btnret_ERR;
 	}
 

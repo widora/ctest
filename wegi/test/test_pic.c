@@ -37,10 +37,9 @@ int main(int argc, char **argv)
 	/* -------- to search jpg files ------ */
 	char *path= argv[1]; //"/mmc/photos";
 	char (*fpaths)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL;
-//	char **fpaths;
 	int count=0;
 
-	fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
+	fpaths=egi_alloc_search_files(path, ".jpg .png .jpeg", &count);
 	printf("Totally %d files are found.\n",count);
 	for(i=0; i<count; i++)
 		printf("%s\n",fpaths[i]);
@@ -53,12 +52,10 @@ int main(int argc, char **argv)
 	int symh=26;
 	EGI_DATA_PIC *data_pic=NULL;
 	EGI_EBOX *pic_box=NULL;
-
-//	EGI_IMGBUF imgbuf={0};
 	EGI_IMGBUF *imgbuf;
 
 	EGI_POINT  pxy;
-	/* set x0y0 of pic in box */
+	/* box for x0y0 range...*/
 	EGI_BOX	 box={ {0-230/2,0-130/2}, {240-230/2-1,320-130/2-1} };
 	//EGI_BOX  box={ {0-100,0-150},{240-1-100,320-1-150} };
 	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
@@ -83,20 +80,19 @@ for(i=0;i<count+1;i++)
 		   	continue;
 		}
 	}
-	printf("finish load image file...\n");
+	printf("Finish loading image file...\n");
 
 	/* allocate data_pic */
 	/* NOTE:
 	   1. WARNING, MUTEX LOCK FOR IMGBUF IS IGNORED HERE ....
 	   2. egi_picdata_new() initiate a data_pic with imgbuf AND alpha with 100% transparent !!!!
 	*/
-	printf("start egi_picdata_new()....\n");
+	printf("Start egi_picdata_new()....\n");
         data_pic= egi_picdata_new( poffx, poffy,    	/* int offx, int offy */
-				  imgbuf,		/* Ownership transfered, and reset to NULL */
- 	               		 //imgbuf->height, imgbuf->width, //pich, picw, /* heigth,width of displaying window */
-                       		 0,0,	   		/* int imgpx, int imgpy */
-				 -1,			/* image canvan color, <0 for transparent */
- 	       	                 &sympg_testfont  	/* struct symbol_page *font */
+				   &imgbuf,		/* !!!! Ownership transfered, and reset to NULL */
+                       		   0,0,	   		/* int imgpx, int imgpy */
+				   -1,			/* image canvan color, <0 for transparent */
+ 	       	                   &sympg_testfont  	/* struct symbol_page *font */
 	                        );
 
 	/* set title */
@@ -141,6 +137,7 @@ for(i=0;i<count+1;i++)
 //	egi_imgbuf_free(imgbuf);
 
 
+ /* display in several position */
  for(j=0; j<5; j++)
  {
 	/* get a random point */
@@ -149,7 +146,6 @@ for(i=0;i<count+1;i++)
 	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
 	pic_box->x0=pxy.x;
 	pic_box->y0=pxy.y;
-
 
 	/* refresh picbox to show the picture */
 	printf("start egi_picbox_refresh()...\n");

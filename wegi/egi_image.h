@@ -26,7 +26,7 @@ typedef struct
 
 
 EGI_IMGBUF *egi_imgbuf_new(void);
-void egi_imgbuf_freedata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
+void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,

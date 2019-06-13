@@ -8,11 +8,9 @@ An example for www.heweahter.com https interface.
 Midas Zhou
 -------------------------------------------------------------------*/
 #include <stdio.h>
-//#include <curl/curl.h>
-//#include <string.h>
-//#include <json-c/json.h>
-//#include <json-c/json_object.h>
-//#include "egi_cstring.h"
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "egi_log.h"
 #include "egi_image.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
@@ -30,6 +28,12 @@ int main(int argc, char **argv)
 	char strhum[16];
 	int  hum;
 
+        /* --- init log --- */
+        if(egi_init_log("/mmc/log_weather") !=0 )
+        {
+           printf("egi_init_log() fails! \n");
+           exit(0);
+        }
 	/* display png cond image */
    	init_fbdev(&gv_fb_dev); /* init FB dev */
         /* --- load all symbol pages --- */
@@ -44,13 +48,32 @@ int main(int argc, char **argv)
 	else	index=0;
 
 
+	/* create dir for heweather */
+	if(access("/tmp/.egi/heweather",F_OK)==-1) {
+		if(mkdir("/tmp/.egi/heweather",0755)) {
+			printf("%s: Fail to create dir for heweather!\n");
+			return -1;
+		}
+	}
+
+
 ///////////////////////   LOOP TEST  //////////////////////
 while(1) {
 	n++;
 
 	/* get NOW weather data */
-	heweather_httpget_data(data_now);
+	if(heweather_httpget_data(data_now) !=0)
+		goto SLEEP_WAIT;
 
+	/* put icon file in the dedicated directory for the EGI to fetch */
+	printf("HeWeather NOW icon: '%s'\n", weather_data[data_now].icon_path);
+	if(egi_copy_file(weather_data[data_now].icon_path, "/tmp/.egi/heweather/now.png")) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to copy weather icon: '%s'!\n",__func__,
+								weather_data[data_now].icon_path);
+		goto SLEEP_WAIT;
+	}
+
+#if 0
         /* <<< Flush FB and Turn on FILO before wirteFB >>>*/
         printf("Flush pixel data in FILO, start  ---> ");
         fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
@@ -68,9 +91,11 @@ while(1) {
 
         /* <<<  Turn off FILO after writeFB  >>> */
         fb_filo_off(&gv_fb_dev);
+#endif
 
+SLEEP_WAIT:
 	printf(" --------------------- N:%d ---------------\n", n);
-	sleep(90); /* Limit 1000 per day, 90s per call */
+	sleep(90); //90); /* Limit 1000 per day, 90s per call */
 
 } ///////////////////// LOOP TEST END ///////////////////////
 

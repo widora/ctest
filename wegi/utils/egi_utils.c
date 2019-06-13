@@ -16,6 +16,45 @@ Midas Zhou
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+
+/*---------------------------------------------
+Copy file fsrc_path to fdest_path
+@fsrc_path	source file path
+@fdest_path	dest file path
+Return:
+	0	ok
+	<0	fails
+---------------------------------------------*/
+int egi_copy_file(char const *fsrc_path, char const *fdest_path)
+{
+	unsigned char buff[1024];
+	int fd_src, fd_dest;
+	int len;
+
+	fd_src=open(fsrc_path,O_RDWR);
+	if(fd_src<0) {
+		perror("egi_copy_file() open source file");
+		return -1;
+	}
+
+	fd_dest=open(fdest_path,O_RDWR|O_CREAT);
+	if(fd_dest<0) {
+		perror("egi_copy_file() open dest file");
+		return -1;
+	}
+
+	len=0;
+	while( (len = read(fd_src, buff, 1024)) ) {
+		write(fd_dest, buff, len);
+	}
+
+	close(fd_src);
+	close(fd_dest);
+	return 0;
+}
+
 
 
 /*---------------------------------------------------------------------

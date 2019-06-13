@@ -39,11 +39,15 @@ static EGI_METHOD picbox_method=
 Dynamically create pic_data struct
 
 Note:
-	1.EBOX size is depended on data_pic.
+     1. EBOX size is depended on data_pic.
+     2. *pimgbuf will be reset to NULL, as ownership is transfered to data_pic->imgbuf.
+     3. !!!! It will segmentfault if you try to dereference pimgbuf when it'is NULL. !!!
 
 @offx, offy: 		offset from host ebox left top
-@imgbuf:		image buffer fro data_pic, if NULL, call egi_imgbuf_new()
-			and egi_imgbuf_init() with default H*W=60*60
+@**pimgbuf:		image buffer for data_pic, if NULL, call egi_imgbuf_new()
+			and egi_imgbuf_init() with default H*W=60*120
+			*pimgbuf will be reset to NULL, as ownership transfered to
+			data_pic->imgbuf.
 @bkcolor		bkcolor for data_pic
 @imgpx, imgpy:		origin of the image focusing/looking window, relating to
 			image coord system.
@@ -54,7 +58,7 @@ return:
         NULL            fail
 -----------------------------------------------------------------------------*/
 EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
-				EGI_IMGBUF *imgbuf,
+			       EGI_IMGBUF **pimgbuf,
 			       int imgpx, int imgpy,
 			       int bkcolor,
 			       struct symbol_page *font
@@ -73,8 +77,8 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 //		return NULL;
 //	}
 
-    /* Create a default 60x60 imgbuf if NULL */
-    if(imgbuf==NULL)
+    /* Create a default 60x120 imgbuf if NULL */
+    if(pimgbuf==NULL || *pimgbuf==NULL)
     {
 	/* malloc a EGI_IMGBUF struct */
 	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): input imgbuf==NULL, egi_imgbuf_new()...\n");
@@ -105,18 +109,18 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 	}
 
 	/* assign data_pic->imgbuf */
-   	if(imgbuf == NULL) {
+   	if(pimgbuf==NULL || *pimgbuf == NULL) {
 		data_pic->imgbuf=eimg;
    	}
    	else /* IF imgbuf != NULL */
    	{
 		/* transfer Ownership of data in imgbuf to data_pic->imgbuf */
-		if( pthread_mutex_lock(&imgbuf->img_mutex) !=0 ) {
+		if( pthread_mutex_lock(&(*pimgbuf)->img_mutex) !=0 ) {
        	        	printf("%s: Fail to lock image mutex!\n", __func__);
 			return NULL;
 		}
-		data_pic->imgbuf=imgbuf;
-		imgbuf=NULL;		/* !!! Ownership is transfered !!! */
+		data_pic->imgbuf=*pimgbuf;
+		*pimgbuf=NULL;		/* !!! Ownership is transfered !!! */
 		/* !!!NOTE: ownership transfered, imgbuf is NULL! */
 		pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
     	}
@@ -134,26 +138,32 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 }
 
 
-/*------------------------------------------------------
+/*---------------------------------------------------------------------------------
 Free and renew imgbuf in ebox->data_pic
 
-Note: The Ownership of imgbuf will be transfered
-      to the ebox, and eimg reset to NULL.
+Note:
+     1. The Ownership of imgbuf will be transfered to the ebox, and eimg reset to NULL.
+     3. !!! It will segmentfault if you try to dereference peimg when it'is NULL. !!!
 
 @ebox	a PIC type ebox.
-@eimg	a EGI_IMGBUF struct with image data.
+@**eimg	a EGI_IMGBUF struct with image data.
 
 Reutrn:
 	0	OK
 	<0	Fails
--------------------------------------------------------*/
+----------------------------------------------------------------------------------*/
 int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF **peimg)
 {
 	/* check data */
+
         if( ebox == NULL ) {
                 printf("%s: ebox is NULL!\n",__func__);
                 return -1;
         }
+	if( peimg==NULL ) {
+		printf("%s: input peimg is NULL!\n",__func__);
+		return -1;
+	}
 	if( *peimg==NULL || (*peimg)->imgbuf==NULL) {
                 printf("%s: input imgbuf is NULL, or its image data is NULL!\n",__func__);
 		return -1;
@@ -433,7 +443,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	/* only if need_refresh is true */
 	if(!ebox->need_refresh)
 	{
-		EGI_PDEBUG(DBG_PIC,"need_refresh=false, refresh action is ignored.\n");
+//		EGI_PDEBUG(DBG_PIC,"need_refresh=false, refresh action is ignored.\n");
 		return 1;
 	}
 
@@ -451,8 +461,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 
 
    } /* end of movable codes */
-
-	EGI_PDEBUG(DBG_PIC,"Extract ebox->egi_data and start to refresh PIC ebox '%s'. \n",ebox->tag);
 
 	/* 3. get updated data */
 	EGI_DATA_PIC *data_pic=(EGI_DATA_PIC *)(ebox->egi_data);
@@ -519,6 +527,7 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 	/* if size changed, reallocate ebox->bkimg */
 	if( old_height != ebox->height || old_width != ebox->width )
 	{
+		EGI_PDEBUG(DBG_PIC,"ebox size changed, call egi_realloc_bkimg()...\n");
 		if(egi_realloc_bkimg(ebox, ebox->height, ebox->width)==NULL) {
 	       	 	pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 			printf("%s: fail to egi_realloc_bkimg()!\n",__func__);

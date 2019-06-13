@@ -35,7 +35,7 @@ NOTE:
      care of imgbuf mutex lock.
 
 -------------------------------------------------------------*/
-void egi_imgbuf_freedata(EGI_IMGBUF *egi_imgbuf)
+void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf)
 {
 	if(egi_imgbuf != NULL) {
 	        if(egi_imgbuf->imgbuf != NULL) {
@@ -74,7 +74,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	pthread_mutex_lock(&egi_imgbuf->img_mutex);
 
 	/* free data inside */
-	egi_imgbuf_freedata(egi_imgbuf);
+	egi_imgbuf_cleardata(egi_imgbuf);
 
 	/* TODO :  ??????? necesssary ????? */
 	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
@@ -105,7 +105,7 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 		return -1;
 
 	/* empty old data */
-	egi_imgbuf_freedata(egi_imgbuf);
+	egi_imgbuf_cleardata(egi_imgbuf);
 
         /* calloc imgbuf->imgbuf */
         egi_imgbuf->imgbuf = calloc(1,height*width*sizeof(uint16_t));

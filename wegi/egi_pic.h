@@ -16,7 +16,7 @@ Midas Zhou
 #include "egi_image.h"
 
 EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
-			       EGI_IMGBUF *imgbuf,
+			       EGI_IMGBUF **imgbuf,
                                int imgpx, int imgpy,
 			       int bkcolor,
                                struct symbol_page *font

@@ -1,4 +1,15 @@
-NOTE:
+Some concetps:
+1. The EGI mainly focus on EGI_IMG type data processing and PAGE managing/displaying, 
+   Always try to avoid processing other type data and handling other events.
+2. The APP will handle/process its own business data, and convert it to EGI_IMG type if
+   it needs graphic displaying.
+3. or, The EGI prepare/set PAGE environment according to APP's request, then the APP
+   will use EGI interface to displaying any content by itself. ERING will be applied
+   as a way of IPC.
+4. The APP may consists of two components: a BTN/PAGE in the EGI, and an APP process.
+   they work interactively to maintain its UI arena in the EGI.
+
+
 Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
 
 	----- main source files ( GPL ) -----
@@ -13,12 +24,12 @@ egi_timer.c	timer and delay
 egi_debug.c	for debug
 egi_log.c	for logger operation 
 egi_utils.c	some helper functions
+egi_https.c	curl https API
 egi_math.c	a common math function module
 egi_fifo.c	a common fifo module for EGI
 egi_filo.c	a common filo module for EGI
 egi_iotclient.c		A BIGIOT client application.
 egi_ring.c	a ERING mechanism for process communication between UI and APPs.
-
 egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
 egi_slider.c	type_slier ebox, for sliding bar.
@@ -38,6 +49,8 @@ egi_pagetest.c		PAGE test
 egi_pageslide.c		PAGE sliding bar test
 
 egi_appstock.c		a real time stock data display app.
+
+he_weather.c		API for www.heweather.com 
 
 
 Dependency Libs:

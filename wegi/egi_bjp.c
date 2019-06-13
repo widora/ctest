@@ -484,7 +484,7 @@ Note:
 2. Input image is transformed to RGB 24bpp type by setting option PNG_TRANSFORM_EXPAND
    in png_read_png().
 
-3. Data in egi_imgbuf will be freeed by egi_imgbuf_freedata();
+3. Data in egi_imgbuf will be cleared by egi_imgbuf_cleardata() before load data;
 
 4. TODO: After transformation, it only deals with type_2(real_color) and type_6(real_color
    with alpha channel) PNG file, and bit_depth MUST be 8!
@@ -592,7 +592,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
         /* get mutex lock */
-	printf("%s: start pthread_mutex_lock() egi_imgbuf....\n",__func__);
+//	printf("%s: start pthread_mutex_lock() egi_imgbuf....\n",__func__);
         if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
         {
                 printf("%s: fail to get mutex lock.\n",__func__);
@@ -600,8 +600,8 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
 	/* free data and reset egi_imgbuf */
-	printf("%s: start egi_imgbuf_freedata(egi_imgbuf)....\n",__func__);
-	egi_imgbuf_freedata(egi_imgbuf);
+//	printf("%s: start egi_imgbuf_cleardata(egi_imgbuf)....\n",__func__);
+	egi_imgbuf_cleardata(egi_imgbuf);
 
         /* alloc RBG image buffer */
         egi_imgbuf->height=height;
@@ -626,7 +626,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
 
-	printf("%s: start read RGB/alpha data into egi_imgbuf....\n",__func__);
+//	printf("%s: start read RGB/alpha data into egi_imgbuf....\n",__func__);
         /* read RGB data into image buffer */
         row_ptr=png_get_rows(png_ptr,info_ptr);
         if(color_type==2) /*data: RGB*/
@@ -655,7 +655,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         }
 
 	/* put image mutex */
-	printf("%s: start pthread_mutex_unlock() egi_imgbuf....\n",__func__);
+//	printf("%s: start pthread_mutex_unlock() egi_imgbuf....\n",__func__);
 	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 
 READ_FAIL:

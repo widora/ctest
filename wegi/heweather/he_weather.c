@@ -12,6 +12,7 @@ Midas Zhou
 #include <string.h>
 #include <json-c/json.h>
 #include <json-c/json_object.h>
+#include "egi_log.h"
 #include "egi_cstring.h"
 #include "egi_image.h"
 #include "egi_bjp.h"
@@ -44,6 +45,26 @@ char *json_type_str[]=
      "json_type_string"
 };
 #endif
+
+/*---------------------------------------------------
+ 	Clear data in EGI_WEATHER_DATA
+Free ->eimg and ->icon_path
+
+Note: weather_data is static now!!!
+------------------------------------------------------*/
+void heweather_data_clear(EGI_WEATHER_DATA *weather_data)
+{
+	if(weather_data!=NULL) {
+		if(weather_data->eimg !=NULL) {
+			 /* clear data only!!! */
+			 egi_imgbuf_cleardata(weather_data->eimg);
+		}
+		if(weather_data->icon_path !=NULL) {
+			free(weather_data->icon_path);
+			weather_data->icon_path=NULL;
+		}
+	}
+}
 
 /*---------------------------------------------
 A callback function to deal with replied data.
@@ -179,8 +200,9 @@ Get weather data from HeWeather.com
 Note:
 1. If hwdata[]->eimg is NULL, then egi_imgbuf_new() will be called to allocatge
    it.
-2. If hwdata[]->eimg is NOT null, then egi_imgbuf_freedata() will be called
+2. If hwdata[]->eimg is NOT null, then egi_imgbuf_cleardata() will be called
    to empty its old data before put new data into it.
+3. Do NOT forget to free
 
 @data_type:	weather data type to be requested
 
@@ -206,14 +228,17 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 
 	/* Get request */
 	memset(buff,0,sizeof(buff));
-	https_curl_request(strrequest, buff, NULL, curlget_callback);
+	if(https_curl_request(strrequest, buff, NULL, curlget_callback)!=0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call https_curl_request()!\n",__func__);
+		return -1;
+	}
 	printf("%s: get curl reply: %s\n",__func__, buff);
 
 	/* Extract section item 'status' string */
 	pstr=heweather_get_objitem(buff,"status",NULL);
 	if(pstr) {
 		printf("status: %s\n",pstr);
-		free(pstr);
+		free(pstr); pstr=NULL;
 	}
 
 /*---------   (  PARSE Request_NOW  )   ------------
@@ -233,21 +258,21 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	pstr=heweather_get_objitem(buff, "now","cond_code");
 	if(pstr!=NULL)
 		sprintf(strpath,"%s/%s.png",HEWEATHER_ICON_PATH,pstr);
-	free(pstr);
+	free(pstr); pstr=NULL;
  	printf("strpath:%s\n",strpath);
 
 	/* Extract key item 'tmp' in section 'now' */
 	pstr=heweather_get_objitem(buff,"now", "tmp");
 	if(pstr!=NULL)
 		sprintf(strtemp,"%sC", pstr);
-	free(pstr);
+	free(pstr); pstr=NULL;
 	temp=atoi(strtemp);
 
 	/* Extract key item 'hum' in section 'now' */
 	pstr=heweather_get_objitem(buff, "now", "hum");
 	if(pstr!=NULL)
 		sprintf(strhum,"%s", pstr);
-	free(pstr);
+	free(pstr); pstr=NULL;
 	hum=atoi(strhum);
 
  	printf("Temp:%dC  Hum:%%%d\n",temp,hum);
@@ -261,21 +286,17 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 		}
 	}
 
-	/* empty old data if any */
-//        if(pthread_mutex_lock(&((weather_data[0].eimg)->img_mutex))!=0) {
-//                printf("%s: Fail to lock image mutex to free img data!\n", __func__);
-//                return -3;
-//        }
-	egi_imgbuf_freedata(weather_data[0].eimg); /* no mutex inside */
-//	pthread_mutex_unlock(&(weather_data[0].eimg)->img_mutex);
+	/* Always do! empty old data if any, some strdup() data will be cleared  */
+	heweather_data_clear(&weather_data[0]);
 
 	/* load png file acoordingly */
-   	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside */
+   	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside, */
 		printf("%s: Fail to loadpng %s!\n", __func__, strpath);
 		return -3;
    	}
 	weather_data[0].temp=temp;
 	weather_data[0].hum=hum;
+	weather_data[0].icon_path=strdup(strpath); /* !!! to free by heweather_data_clear() later */
         printf("%s: ---OK---!\n", __func__);
 
    }
