@@ -374,7 +374,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		//printf("--------- start mplayer ------\n");
          sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
 									MPFIFO_NAME,str_playlist[nlist] );
-		pfil=popen(strcmd,"w");
+		pfil=popen(strcmd,"we");
 		if(pfil!=NULL) {
 			EGI_PLOG(LOGLV_INFO,"%s: Succeed to pipe_open mplayer!\n",__func__);
 			status=mp_playing;
@@ -383,7 +383,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		}
 
 		/* open fifo for command input */
-		pfd=open(MPFIFO_NAME,O_WRONLY);//|O_NONBLOCK);
+		pfd=open(MPFIFO_NAME,O_WRONLY|O_CLOEXEC);//|O_NONBLOCK);
 		if(pfd==-1) {
 			printf("%s:Fail to open mkfifo. \n",__func__);
 		       	 return btnret_ERR;

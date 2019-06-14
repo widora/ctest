@@ -203,13 +203,18 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
   {
         for(i=0;i<winh;i++) {  /* row of the displaying window */
                 for(j=0;j<winw;j++) {
+
+			/* Rule out points which are out of the SCREEN boundary */
+			if( i+yw<0 || i+yw>yres-1 || j+xw<0 || j+xw>xres-1 )
+				continue;
+
                         /* FB data location */
                         locfb = (i+yw)*xres+(j+xw);
 
                      /*  ---- draw only within screen  ---- */
                      if( locfb>=0 && locfb <= (screen_pixels-1) ) {
 
-                        /* check if exceed image boundary */
+                        /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
 //replaced by draw_dot()        *(uint16_t *)(fbp+locfb)=0; /* black for outside */
@@ -244,13 +249,18 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 	printf("----- alpha ON -----\n");
         for(i=0;i<winh;i++)  { /* row of the displaying window */
                 for(j=0;j<winw;j++)  {
+
+			/* Rule out points which are out of the SCREEN boundary */
+			if( i+yw<0 || i+yw>yres-1 || j+xw<0 || j+xw>xres-1 )
+				continue;
+
                         /* FB data location, in pixel */
                         locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
 
                      /*  ---- draw_dot() only within screen  ---- */
                      if(  locfb>=0 && locfb<screen_pixels ) {
 
-                        /* check if exceed image boundary */
+                        /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
                                 fbset_color(0); /* black for outside */
@@ -311,8 +321,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 
 
 
-#if 0
-/*-------------------------- TODO: limit check --------------------------------------------------
+#if 1 ////////////////////////// TODO: range limit check ///////////////////////////
+/*---------------------------------------------------------------------------------------
 For 16bits color only!!!!
 
 WARING:
@@ -384,6 +394,11 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
   {
         for(i=0;i<winh;i++) {  /* row of the displaying window */
                 for(j=0;j<winw;j++) {
+
+			/* Rule out points which are out of the SCREEN boundary */
+			if( i+yw<0 || i+yw>yres-1 || j+xw<0 || j+xw>xres-1 )
+				continue;
+
                         /* FB data location */
                         locfb = (i+yw)*xres+(j+xw);
 
@@ -405,6 +420,11 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
   {
         for(i=0;i<winh;i++)  { /* row of the displaying window */
                 for(j=0;j<winw;j++)  {
+
+			/* Rule out points which are out of the SCREEN boundary */
+			if( i+yw<0 || i+yw>yres-1 || j+xw<0 || j+xw>xres-1 )
+				continue;
+
                         /* FB data location, in pixel */
                         locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
 
@@ -443,7 +463,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
   return 0;
 }
-#endif
+#endif ///////////////////////////////////////////////////////////////////////
 
 
 /*-----------------------------------------------------------------------------------

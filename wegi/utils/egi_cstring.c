@@ -152,7 +152,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 	}
 
 	/* open config file */
-	fil=fopen( EGI_CONFIG_PATH, "r");
+	fil=fopen( EGI_CONFIG_PATH, "re");
 	if(fil==NULL) {
 		printf("Fail to open config file '%s', %s\n",EGI_CONFIG_PATH, strerror(errno));
 		return -2;

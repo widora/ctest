@@ -8,6 +8,7 @@ APP=egi_iotclient
 
 INCLUDES += -I../ -I../utils -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -Wall
+CFLAGS += -D_GNU_SOURCE         ## for O_CLOEXEC flag ##
 LDFLAGS += -L$(COMMON_USRDIR)/lib
 LIBS += -ljson-c -lpthread
 

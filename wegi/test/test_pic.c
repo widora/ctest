@@ -34,17 +34,10 @@ int main(int argc, char **argv)
         }
         init_fbdev(&gv_fb_dev);
 
-	/* -------- to search jpg files ------ */
 	char *path= argv[1]; //"/mmc/photos";
 	char (*fpaths)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL;
 	int count=0;
 
-	fpaths=egi_alloc_search_files(path, ".jpg .png .jpeg", &count);
-	printf("Totally %d files are found.\n",count);
-	for(i=0; i<count; i++)
-		printf("%s\n",fpaths[i]);
-
-	/* ------- display jpg files ------- */
 	int pich=230;
 	int picw=230;
 	int poffx=4;
@@ -57,19 +50,23 @@ int main(int argc, char **argv)
 	EGI_POINT  pxy;
 	/* box for x0y0 range...*/
 	EGI_BOX	 box={ {0-230/2,0-130/2}, {240-230/2-1,320-130/2-1} };
+	int dex,dey; /* extended deviation */ 
 	//EGI_BOX  box={ {0-100,0-150},{240-1-100,320-1-150} };
 	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
 
 
-for(i=0;i<count+1;i++)
-{
-	if(i==count) { /* reload file paths */
-	   	i=0-1;
-		free(fpaths);
-		fpaths=egi_alloc_search_files(path, ".jpg, .png; .jpeg", &count);
-		printf("--------- i=%d: Totally %d jpg files found -------.\n",i,count);
-		continue;
-	}
+while(1) {
+
+   /* buff all jpg and png file path */
+   fpaths=egi_alloc_search_files(path, ".jpg .png .jpeg", &count);
+   printf("Totally %d files are found.\n",count);
+   for(i=0; i<count; i++)
+   	printf("%s\n",fpaths[i]);
+
+   /* display file one by one */
+   for(i=0;i<count+1;i++)
+   {
+	printf("---------- loading '%s' -----------\n", fpaths[i]);
 
 	imgbuf=egi_imgbuf_new();
 	/* load jpg file to buf */
@@ -98,20 +95,6 @@ for(i=0;i<count+1;i++)
 	/* set title */
 	data_pic->title="EGI_PIC";
 
-	/* copy image data and aplha */
-#if 0
-	printf("start img memcpy()....\n");
-	memcpy(data_pic->imgbuf->imgbuf, imgbuf->imgbuf, (imgbuf->height)*(imgbuf->width)*2);
-	if(imgbuf->alpha != NULL)
-		memcpy(data_pic->imgbuf->alpha, imgbuf->alpha, imgbuf->height*imgbuf->width); /* only if alpha available */
-	else   /* otherwise set alpha 100% frontcolor */
-		memset(data_pic->imgbuf->alpha, 0xff, imgbuf->height*imgbuf->width);
-
-	/* free imgbuf */
-	printf("start egi_imgbuf_free()....\n");
-	egi_imgbuf_free(imgbuf);
-#endif
-
 	egi_randp_inbox(&pxy, &box);
 	printf("start egi_picbox_new()....\n");
 	pic_box=egi_picbox_new( "pic_box", /* char *tag, or NULL to ignore */
@@ -124,49 +107,42 @@ for(i=0;i<count+1;i++)
 	printf("egi_picbox_activate()...\n");
 	egi_picbox_activate(pic_box);
 
-	/* scale pic to data_pic */
-//	printf("egi_scale_pixbuf()...\n");
-//	fb_scale_pixbuf(imgbuf->width, imgbuf->height, data_pic->imgbuf->width, data_pic->imgbuf->height,
-//						imgbuf->imgbuf, data_pic->imgbuf->imgbuf); /* imgbuf */
-	/* enforce alpha to be 0xff */
-//	memset(data_pic->imgbuf->alpha,0xff, (data_pic->imgbuf->width)*(data_pic->imgbuf->height));
-
-	/* release useless imgbuf then */
-//	printf("egi_imgbuf_release...\n");
-//	egi_imgbuf_release(&imgbuf);
-//	egi_imgbuf_free(imgbuf);
+	/* TODO: scale pic to data_pic */
 
 
- /* display in several position */
- for(j=0; j<5; j++)
- {
-	/* get a random point */
-	printf("Start egi_randp_inbox()...\n");
-	egi_randp_inbox(&pxy, &box);
-	printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
-	pic_box->x0=pxy.x;
-	pic_box->y0=pxy.y;
+	/* re_set random point picking box */
+	dex=(240/3 > (pic_box->width)/3) ? (pic_box->width)/3 : (240/3);
+	dey=(320/3 > (pic_box->height)/3) ? (pic_box->height)/3 : (320/3);
+	box.startxy=(EGI_POINT){ 240-(pic_box->width)-dex, 320-(pic_box->height)+dey }; /* -x(dex) ,+y(dey) */
+	box.endxy= (EGI_POINT){0+dex, 0-dey};  /* +x(dex), -y(dey) */
 
-	/* refresh picbox to show the picture */
-	printf("start egi_picbox_refresh()...\n");
-	egi_ebox_needrefresh(pic_box);
-	printf("egi_picbox_refresh()...\n");
-	egi_picbox_refresh(pic_box);
-	printf("tm_delayms...\n");
-	tm_delayms(500);
-  }
+//	box.startxy=(EGI_POINT){ 240-(pic_box->width)-100, 320-(pic_box->height)+150 }; /* -x(100) ,+y(150) */
+//	box.endxy= (EGI_POINT){0+100, 0-150};  /* +x(100), -y(150) */
+
+ 	/* display in several position */
+	 for(j=0; j<8; j++)
+ 	{
+		/* get a random point */
+		egi_randp_inbox(&pxy, &box);
+		printf("egi_randp_inbox: pxy(%d,%d)\n", pxy.x, pxy.y);
+		pic_box->x0=pxy.x;
+		pic_box->y0=pxy.y;
+
+		/* refresh picbox to show the picture */
+		egi_ebox_needrefresh(pic_box);
+		egi_picbox_refresh(pic_box);
+		tm_delayms(1000);
+  	}/* end displaying one file */
 
 	/* sleep to erase the image */
 	egi_picbox_sleep(pic_box);
 	/* release it */
 	pic_box->free(pic_box);
-}
+   }/* end displaying all files */
 
 	/* free fpaths */
-//	for(i=0;i<maxfnum;i++) {
-//		free(fpaths[i]);
-//	}
 	free(fpaths);
+} /* end of while() */
 
 	release_fbdev(&gv_fb_dev);
 	symbol_free_allpages();

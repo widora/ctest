@@ -319,7 +319,7 @@ int egi_init_log(const char *fpath)
 	log_buff_count=0;
 
 	/* 4. open log file */
-	egi_log_fp=fopen(fpath,"a+");//EGI_LOGFILE_PATH,"a+");
+	egi_log_fp=fopen(fpath,"ae+");//EGI_LOGFILE_PATH,"a+");
 	if(egi_log_fp==NULL)
 	{
 		printf("egi_init_log():fail to open log file %s\n",EGI_LOGFILE_PATH);

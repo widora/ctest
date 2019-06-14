@@ -336,7 +336,7 @@ static void display_cpuload(EGI_PAGE *page)
 	char strload[5]={0}; /* read in 4 byte */
 
         /* open symbol image file */
-        fd=open("/proc/loadavg", O_RDONLY);
+        fd=open("/proc/loadavg", O_RDONLY|O_CLOEXEC);
         if(fd<0)
         {
                 printf("display_cpuload(): fail to open /proc/loadavg!\n");
@@ -525,7 +525,7 @@ static void update_heweather(EGI_PAGE *page)
 		printf("%s: Fail to renew imgbuf for PIC ebox.\n",__func__);
 		goto SLEEP_WAITING;
 	}else{
-		printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
+//		printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
 		egi_ebox_needrefresh(ebox);
 	}
 

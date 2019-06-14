@@ -33,13 +33,13 @@ int egi_copy_file(char const *fsrc_path, char const *fdest_path)
 	int fd_src, fd_dest;
 	int len;
 
-	fd_src=open(fsrc_path,O_RDWR);
+	fd_src=open(fsrc_path,O_RDWR|O_CLOEXEC);
 	if(fd_src<0) {
 		perror("egi_copy_file() open source file");
 		return -1;
 	}
 
-	fd_dest=open(fdest_path,O_RDWR|O_CREAT);
+	fd_dest=open(fdest_path,O_RDWR|O_CREAT|O_CLOEXEC);
 	if(fd_dest<0) {
 		perror("egi_copy_file() open dest file");
 		return -1;

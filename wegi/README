@@ -8,6 +8,14 @@ Some concetps:
    as a way of IPC.
 4. The APP may consists of two components: a BTN/PAGE in the EGI, and an APP process.
    they work interactively to maintain its UI arena in the EGI.
+5. All child processes to be handled by ULOOP_PROCESSE as possible.
+
+
+NOTE:
+1. Difference between OpenWRT uClibc and Glibc may cause some trouble!?
+2. In uClibc calling malloc(0) returns NULL, while Glibc returs a vlid pointer? same
+   situation for realloc().
+3. uClibc runs on MMU-less systems.
 
 
 Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.

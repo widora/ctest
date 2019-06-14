@@ -35,6 +35,8 @@ TODO:
 
 Midas Zhou
 ----------------------------------------------------------------------------*/
+//#define _GNU_SOURCE	/* for O_CLOEXEC flag */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h> /*close*/
@@ -49,6 +51,7 @@ Midas Zhou
 #include "egi_log.h"
 #include "egi_timer.h"
 #include "egi_math.h"
+
 
 /*--------------------(  testfont  )------------------------
   1.  ascii 0-127 symbol width,
@@ -377,7 +380,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		return NULL;
 
 	/* open symbol image file */
-	fd=open(sym_page->path, O_RDONLY);
+	fd=open(sym_page->path, O_RDONLY|O_CLOEXEC);
 	if(fd<0)
 	{
 		printf("fail to open symbol file %s!\n",sym_page->path);

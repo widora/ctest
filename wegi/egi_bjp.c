@@ -63,7 +63,7 @@ unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
         unsigned char *pt=NULL;
 
 
-        if (( infile = fopen(filename, "rb")) == NULL) {
+        if (( infile = fopen(filename, "rbe")) == NULL) {
                 fprintf(stderr, "open %s failed\n", filename);
                 return NULL;
         }
@@ -180,7 +180,7 @@ int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 	unsigned char *fbp =fb_dev->map_fb;
 
 	printf("fpath=%s\n",fpath);
-	fp = fopen( fpath, "rb" );
+	fp = fopen( fpath, "rbe" );
 	if (fp == NULL)
 	{
 		return -1;
@@ -518,7 +518,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	long	pos;
 
         /* open PNG file */
-        fil=fopen(fpath,"rb");
+        fil=fopen(fpath,"rbe");
         if(fil==NULL) {
                 printf("Fail to open png file:%s.\n", fpath);
                 return -1;
@@ -858,7 +858,7 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 */
 
 	/* open file for write */
-	fil=fopen(fpath,"w");
+	fil=fopen(fpath,"we");
 	if(fil==NULL) {
 		printf("%s: Fail to open %s for write.\n",__func__,fpath);
 		return -1;

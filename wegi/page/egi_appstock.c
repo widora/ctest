@@ -259,7 +259,7 @@ while(1)
 			pt=cstr_split_nstr(data,",",pn+1); /* get deviation pointer */
 			if(pt==NULL) {
 				printf("%s: reply data format error.\n",__func__);
-				return -1;
+				return ;//-1;
 			}
 			fbench = data_point[num-1]-atof(pt);  /* yesterday's point=current-dev */
 			printf("Yesterday's Index: fbench=%0.2f\n",fbench);
@@ -271,7 +271,7 @@ while(1)
 			pt=cstr_split_nstr(data,",",pn); /* get yesterday closing price pointer */
 			if(pt==NULL) {
 				printf("%s: reply data format error.\n",__func__);
-				return -2;
+				return ;//-2;
 			}
 			fbench=atof(pt);
 			printf("Yestearday's Price: fbench=%0.2f\n",fbench);
@@ -630,6 +630,6 @@ while(1)
         close(fb_dev.fdfd);
 
 
-	return 0;
+	return ;//0;
 }
 

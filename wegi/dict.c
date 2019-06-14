@@ -73,7 +73,7 @@ void dict_display_img(FBDEV *fb_dev,char *path)
 	uint16_t buf;
 
 	/* open dict img file */
-	fd=open(path,O_RDONLY);
+	fd=open(path,O_RDONLY|O_CLOEXEC);
 	if(fd<0) {
 		perror("open dict file");
 		//printf("Fail to open dict file %s!\n",path);
@@ -119,7 +119,7 @@ uint16_t *dict_load_h20w15(char *path)
 	dict=dict_h20w15;
 
 	/* open dict img file */
-	fd=open(path,O_RDONLY);
+	fd=open(path,O_RDONLY|O_CLOEXEC);
 	if(fd<0) {
 		perror("open dict file");
 		//printf("Fail to open dict file %s!\n",path);

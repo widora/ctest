@@ -181,11 +181,11 @@ int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF **peimg)
         }
 
 	/* free old imgbuf, !!! image mutex inside the func !!! */
-        EGI_PDEBUG(DBG_PIC,"start to egi_imgbuf_free() old imgbuf...\n");
+//        EGI_PDEBUG(DBG_PIC,"start to egi_imgbuf_free() old imgbuf...\n");
 	egi_imgbuf_free(data_pic->imgbuf);
 
         /* get input imgbuf's mutex lock */
-        EGI_PDEBUG(DBG_PIC,"start to mutex lock input eimg ...\n");
+//        EGI_PDEBUG(DBG_PIC,"start to mutex lock input eimg ...\n");
         if( *peimg==NULL || pthread_mutex_lock(&(*peimg)->img_mutex)!=0) { /* reasure eimg!=NULL */
        	        printf("%s: Fail to lock image mutex!\n", __func__);
             	return -4;
@@ -197,7 +197,7 @@ int egi_picbox_renewimg(EGI_EBOX *ebox, EGI_IMGBUF **peimg)
 				data_pic->imgbuf->height, data_pic->imgbuf->width);
 
 	/* !!!NOTE: ownership transfered, eimg is NULL! */
-        EGI_PDEBUG(DBG_PIC,"start to mutex unlock eimg ...\n");
+//        EGI_PDEBUG(DBG_PIC,"start to mutex unlock eimg ...\n");
 	pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 
 	return 0;
@@ -447,7 +447,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		return 1;
 	}
 
-
    if(ebox->movable) /* only if ebox is movale */
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
@@ -458,7 +457,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -3;
-
 
    } /* end of movable codes */
 
@@ -593,10 +591,16 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
         pthread_mutex_unlock(&(data_pic->imgbuf->img_mutex));
 	if( data_pic->imgbuf != NULL && data_pic->imgbuf->imgbuf != NULL )
 	{
+#if 0
 		egi_imgbuf_windisplay(data_pic->imgbuf, &gv_fb_dev, -1,    /* -1, no substituting color */
 					data_pic->imgpx, data_pic->imgpy,
 					wx0, wy0, imgw, imgh );
-
+#else
+		/* egi_imgbuf_windisplay2() to speed up, without FB FILO support and SUBCOLOR*/
+		egi_imgbuf_windisplay2(data_pic->imgbuf, &gv_fb_dev,    /* -1, no substituting color */
+					data_pic->imgpx, data_pic->imgpy,
+					wx0, wy0, imgw, imgh );
+#endif
 //		printf("%s: finish egi_imgbuf_windisplay()....\n", __func__);
 	}
 	/* else if fpath != 0, load jpg file */

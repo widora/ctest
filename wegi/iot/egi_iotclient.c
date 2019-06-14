@@ -312,7 +312,7 @@ static void iot_update_data(void)
 	while(1)
 	{
 	        /* 1. open proc file and read avgload */
-       		fd=open("/proc/loadavg", O_RDONLY);
+       		fd=open("/proc/loadavg", O_RDONLY|O_CLOEXEC);
 	        if(fd<0) {
         	        EGI_PLOG(LOGLV_ERROR,"%s: fail to open /proc/loadavg!\n",__func__);
 			egi_sleep(0,1,0);

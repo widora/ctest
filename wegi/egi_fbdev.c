@@ -29,7 +29,7 @@ int init_fbdev(FBDEV *dev)
            return -1;
         }
 
-        fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR);
+        fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
         if(fr_dev<0) {
           printf("Open /dev/fb0: %s\n",strerror(errno));
           return -1;

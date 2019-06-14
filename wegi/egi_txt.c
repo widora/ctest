@@ -668,7 +668,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	/* reset txt buf and open file */
 	for(i=0;i<nl;i++)
 		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
-	fil=fopen(path,"rb");
+	fil=fopen(path,"rbe");
 	if(fil==NULL) {
 		perror("egi_txtbox_readfile()");
 		return -2;

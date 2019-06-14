@@ -218,7 +218,7 @@ int SPI_Open(void)
 	if (g_SPI_Fd != 0) /* 设备已打开 */
 		return 0xF1;
 
-	fd = open(spi_fdev, O_RDWR);
+	fd = open(spi_fdev, O_RDWR|O_CLOEXEC);
 	if (fd < 0){
 		perror(" Can't open device");
 		return -1;
