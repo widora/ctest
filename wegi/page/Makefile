@@ -45,7 +45,6 @@ install: libepages.a
 %:%.c $(DEP_FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c -o $@ $@.c
 
-
 #### ----- 清除目标 -----
 clean:
 	rm -rf *.o $(OBJS) $(DEP_FILES) libepages.a

@@ -19,11 +19,11 @@ Midas Zhou
 
 /* set main parameters */
 const char *spi_fdev = "/dev/spidev32766.2";
-uint8_t spi_mode = 3;//3;
-uint8_t spi_bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
-uint32_t spi_speed = 2*1000*1000;/* min.1M 设置传输速度, 2M for touch XPT2064  */
-uint16_t spi_delay = 0;
-int g_SPI_Fd = 0; //SPI device file descriptor
+static uint8_t spi_mode = 3;//3;
+static uint8_t spi_bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
+static uint32_t spi_speed = 2*1000*1000;/* min.1M 设置传输速度, 2M for touch XPT2064  */
+static uint16_t spi_delay = 0;
+static int g_SPI_Fd = -1; //SPI device file descriptor
 
 /* print a system error message then abort */
 void pabort(const char *s) {
@@ -46,7 +46,7 @@ int SPI_Transfer( const uint8_t *TxBuf,  uint8_t *RxBuf, int len, int ns)
 		.tx_buf = (unsigned long) TxBuf,
 		.rx_buf = (unsigned long) RxBuf,
 		.len =len, // len of TxBuf and RxBuf to be the same
-		.delay_usecs = spi_delay, //defined in spi.h
+		.delay_usecs = spi_delay,
 	};
 
 	ret = ioctl(fd, SPI_IOC_MESSAGE(ns), &tr); // repeat the message ns times
@@ -215,7 +215,7 @@ int SPI_Open(void)
 	int fd;
 	int ret = 0;
 
-	if (g_SPI_Fd != 0) /* 设备已打开 */
+	if (g_SPI_Fd != -1) /* 设备已打开 */
 		return 0xF1;
 
 	fd = open(spi_fdev, O_RDWR|O_CLOEXEC);
@@ -225,7 +225,6 @@ int SPI_Open(void)
 	}
 	else
 		printf("SPI Open succeed. Start init SPI...\n");
-
 
 	g_SPI_Fd = fd;
 
@@ -271,13 +270,13 @@ int SPI_Open(void)
 ---------------------------------------*/
 int SPI_Close(void)
 {
-	int fd = g_SPI_Fd;
+//	int fd = g_SPI_Fd;
 
-	if (fd == 0) //fd closed already
-		return 0;
+	if (g_SPI_Fd == -1) //fd closed already
+		return -1;
 
-	close(fd);
-	g_SPI_Fd = 0;
+	close(g_SPI_Fd);
+	g_SPI_Fd = -1;
 
 	return 0;
 }

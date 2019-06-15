@@ -109,15 +109,19 @@ enum egi_touch_status
 	undefined=7,		/* as for limit */
 };
 
-/* button and page return value */
+/* egi button  return value */
 enum egi_retval
 {
-	btnret_OK,			/* trigger normal reaction */
-	btnret_ERR,			/* reation fails */
+
+	pgret_ERR=-2,			/* page routine return with failure */
+	btnret_ERR=-1,			/* reation fails */
+
+	btnret_OK=0,			/* trigger normal reaction */
 	btnret_IDLE, 			/* trigger no reaction, just bypass btn reaction func */
 	btnret_REQUEST_EXIT_PAGE, 	/* return to request the host page to exit */
+
 	pgret_OK,			/* page routine normally quit and free  */
-	pgret_ERR,			/* page routine return with failure */
+
 };
 
 

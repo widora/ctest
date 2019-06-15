@@ -18,6 +18,7 @@ Midas Zhou
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include "egi.h"
 #include "egi_color.h"
 #include "egi_txt.h"
@@ -272,6 +273,16 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+#if 1
+	/*TEST: send HUP signal to iteself */
+	kill(getpid(), SIGSTOP);
+	if( kill( getpid(),SIGSTOP) < 0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGSTOP to self.\n",__func__);
+	}
+	return btnret_IDLE;
+
+#else
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);
         return btnret_REQUEST_EXIT_PAGE;
+#endif
 }

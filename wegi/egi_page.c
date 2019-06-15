@@ -937,7 +937,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 						egi_page_needrefresh(page); /* refresh whole page */
 						egi_page_refresh(page);
 						/* wait for 'release_hold' as begin of a new touch session
-					         * the purpuse is to let last page's touching status pass away,
+					         * the purpose is to let last page's touching status pass away,
 						 * especially 'pressed_hold' and 'releasing', which may trigger
 						 * refreshed page again!!!
 						 */

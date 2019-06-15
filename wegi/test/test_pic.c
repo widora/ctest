@@ -14,7 +14,7 @@ Midas Zhou
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
-#include "egi_header.h"
+#include "egi_common.h"
 #include "utils/egi_utils.h"
 
 int main(int argc, char **argv)

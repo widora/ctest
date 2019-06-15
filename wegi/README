@@ -1,14 +1,21 @@
-Some concetps:
+Some concepts:
 1. The EGI mainly focus on EGI_IMG type data processing and PAGE managing/displaying, 
    Always try to avoid processing other type data and handling other events.
+
 2. The APP will handle/process its own business data, and convert it to EGI_IMG type if
    it needs graphic displaying.
+
 3. or, The EGI prepare/set PAGE environment according to APP's request, then the APP
    will use EGI interface to displaying any content by itself. ERING will be applied
    as a way of IPC.
-4. The APP may consists of two components: a BTN/PAGE in the EGI, and an APP process.
-   they work interactively to maintain its UI arena in the EGI.
-5. All child processes to be handled by ULOOP_PROCESSE as possible.
+
+4. The APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
+   They will be forked and launched as child processes of homepage program.
+   By such a way that we can code and develop APPs independently, To install them, we only
+   need to inform homepage programe its icons and bin file location/address.
+   An example: wegi/app/app_ffplay 
+
+5. All child processes to be handled by ULOOP_PROCESSE, as possible?.
 
 
 NOTE:
@@ -16,6 +23,7 @@ NOTE:
 2. In uClibc calling malloc(0) returns NULL, while Glibc returs a vlid pointer? same
    situation for realloc().
 3. uClibc runs on MMU-less systems.
+
 
 
 Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
@@ -61,6 +69,11 @@ egi_appstock.c		a real time stock data display app.
 he_weather.c		API for www.heweather.com 
 
 
+--- APPS ----
+app_ffplay.c + egi_pageffplay.c		
+
+
+
 Dependency Libs:
 libcurl, 
 libpng, libjpeg, 
@@ -72,3 +85,5 @@ libshine,libasound,
 
 Midas Zhou
 midaszhou@yahoo.com
+
+Don't forget why we began! ---Just for FUN!
