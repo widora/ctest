@@ -205,7 +205,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		printf("egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
+//		EGI_PDEBUG(DBG_PAGE,"egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 
@@ -278,7 +278,8 @@ int egi_page_activate(EGI_PAGE *page)
 
 /*---------------------------------------------------------
 1. check need_refresh flag for page and refresh it if true.
-2. refresh page's child eboxes.
+2. refresh each of page's child eboxes only if its needrefresh
+   flag is true.
 
 return:
 	1	need_refresh=false
@@ -413,7 +414,7 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ebox->need_refresh=true;
-		EGI_PDEBUG(DBG_PAGE,"find child --- ebox: '%s' --- \n",ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"find child ebox: '%s' \n",ebox->tag);
 	}
 
 	return 0;
@@ -509,14 +510,14 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		if( ebox->type==type && ebox->id == id )
 		{
-		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with ebox->id=%d in page '%s'. \n",
-									__func__, ebox->tag,id,page->ebox->tag);
+//		   EGI_PDEBUG(DBG_PAGE,"Find an ebox '%s' with ebox->id=%d in page '%s'. \n",
+//									ebox->tag,id,page->ebox->tag);
 			return ebox;
 		}
 	}
 
-	EGI_PLOG(LOGLV_WARN,"%s: ebox '%s' with id=%d can NOT be found in page '%s'. \n",
-									__func__, ebox->tag,id,page->ebox->tag);
+	EGI_PLOG(LOGLV_WARN,"ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+									ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
 
@@ -604,11 +605,17 @@ int egi_page_routine(EGI_PAGE *page)
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
 		{
+			EGI_PDEBUG(DBG_PAGE,"last_status=%d \n",last_status);
 			/* check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
+			EGI_PDEBUG(DBG_PAGE,"hitbtn is '%s' \n", (hitbtn==NULL) ? "NULL" : hitbtn->tag);
+
 			/* check if last hold btn losing foucs */
-			if( last_holdbtn != NULL && last_holdbtn != hitbtn) {
+			if( last_holdbtn != NULL && last_holdbtn != hitbtn )
+						 //&& last_holdbtn->need_refresh==false )
+			{
+				EGI_PDEBUG(DBG_PAGE,"last_holdbtn losed focus, refresh it...\n");
 				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
 				last_holdbtn=NULL;
 			}
@@ -634,8 +641,19 @@ int egi_page_routine(EGI_PAGE *page)
 				    /* remember last hold btn */
 				    if(last_status==pressed_hold) last_holdbtn=hitbtn;
 
+
+ /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
+   *    will be received one after another, and the signal handler will call egi_page_needrefresh().
+   *    But 'releasing' will trigger btn refresh by egi_btn_touch_effect() just before page refresh.
+   *    After refreshed, need_refresh will be reset for this btn, so when egi_page_refresh() is called
+   *    later to refresh other elements, this btn will erased by page bkcolor/wallpaper.
+   * 2. The 'releasing' status here is NOT a real pen_releasing action, but a status changing signal.
+   *    Example: when status transfers from 'pressed_hold' to PEN_UP etc
+   * 3. So, we need to bypass 'releasing' here by checking hitbtn->need_refresh!
+   */
 				    /* call touch_effect() */
-				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
+		                    if( hitbtn->need_refresh==false   /* In case SIGCONT triggered */
+                                        && ( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL ) )
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 
 				}
@@ -709,16 +727,20 @@ int egi_page_routine(EGI_PAGE *page)
 			* location waiting for a 'releasing' to activate it. WOW.... It is activated at once!!!
 			* Conclusion: activating touch_status(signal) for all eboxes shall be the same type!
 	               */
-//			egi_page_refresh(page); /* only page->eboxs with needrefresh flag */
 
-			/* hold on for a while, otherwise the screen will be  ...heheheheheh...
-			 *
-			 */
+			/* refresh page, OR sleep a while */
+			if(egi_page_refresh(page)!=0) {
+				/* hold on for a while, otherwise the screen will be  ...heheheheheh... */
 #if 1
-//	                printf("--------egi_page: tm_delayms 100ms ------------\n");
-			tm_delayms(75); //55
-//	                printf("--------egi_page: end tm_delayms()------------\n");
+				tm_delayms(75); //55
 #endif
+#if 0 /* conflict with timer */
+				egi_sleep(0,0,900);
+#endif
+
+			}
+
+
 #if 0 /* conflict with timer */
 	                printf("--------egi_page: egi_sleep 900ms ------------\n");
 			egi_sleep(4,0,900);
@@ -890,8 +912,10 @@ int egi_homepage_routine(EGI_PAGE *page)
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
 			/* 2.4 check if last hold btn losing foucs */
-			if( last_holdbtn != NULL && last_holdbtn != hitbtn) {
-				printf(" --- btn lose focus! --- \n");
+			if( last_holdbtn != NULL && last_holdbtn != hitbtn )
+				 	// && last_holdbtn->need_refresh==false )
+			{
+				//printf(" --- btn lose focus! --- \n");
 				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
 				last_holdbtn=NULL;
 			}
@@ -905,7 +929,10 @@ int egi_homepage_routine(EGI_PAGE *page)
 				    /* remember last hold btn */
 				    if(last_status==pressed_hold) last_holdbtn=hitbtn;
 
-				    /* call touch_effect() */
+				    /* call touch_effect()
+				     * 'releasing' will trigger ebox refresh in egi_btn_touch_effect() !!!
+				     */
+//		                    if( hitbtn->need_refresh==false  &&  /* In case SIGCONT triggered */
 				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 				}

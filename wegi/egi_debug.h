@@ -28,7 +28,7 @@ Midas Zhou
 #define DBG_OBJTXT	(1<<9)
 #define DBG_FBGEOM	(1<<10)
 #define DBG_TOUCH	(1<<11)
-#define DBG_BMPJPG	(1<<12)
+#define DBG_BJP		(1<<12)
 #define DBG_FFPLAY	(1<<13)
 #define DBG_IOT		(1<<14)
 #define DBG_FIFO	(1<<15)

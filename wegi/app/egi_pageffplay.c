@@ -167,6 +167,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	/* 3.5 add ebox to home page */
 	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ffplay, ffplay_btns[i]);
+
 	egi_page_addlist(page_ffplay, title_bar); /* add title bar */
 
 
@@ -275,10 +276,23 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 #if 1
 	/*TEST: send HUP signal to iteself */
-	kill(getpid(), SIGSTOP);
-	if( kill( getpid(),SIGSTOP) < 0) {
+//	if( kill( getpid(),SIGSTOP) < 0) {
+	if(raise(SIGSTOP) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGSTOP to self.\n",__func__);
 	}
+	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSTOP), return to page routine...\n",__func__);
+
+  /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
+   *    will be received one after another, and the signal handler will call egi_page_needrefresh().
+   *    But 'releasing' will trigger btn refresh by egi_btn_touch_effect() just before page refresh.
+   *    After refreshed, need_refresh will be reset for this btn, so when egi_page_refresh() is called
+   *    later to refresh other elements, this btn will erased by page bkcolor/wallpaper.
+   * 2. The 'releasing' status here is NOT a real pen_releasing action, but a status changing signal.
+   *    Example: when status transfers from 'pressed_hold' to PEN_UP etc
+   * 3. To be handled by page routine.
+   */
+
+
 	return btnret_IDLE;
 
 #else

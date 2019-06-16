@@ -423,7 +423,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	/* prepare image buffer */
 	egi_imgbuf->height=height;
 	egi_imgbuf->width=width;
-	EGI_PDEBUG(DBG_BMPJPG,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
+	EGI_PDEBUG(DBG_BJP,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
 								fpath,egi_imgbuf->width,egi_imgbuf->height);
 	/* alloc imgbuf */
 	egi_imgbuf->imgbuf=malloc(width*height*bytpp);
@@ -577,9 +577,9 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         bit_depth=png_get_bit_depth(png_ptr, info_ptr);
         pixel_depth=info_ptr->pixel_depth;
         channels=png_get_channels(png_ptr, info_ptr);
-        printf("PNG file '%s', Image data info after transform_expand:\n", fpath);
-        printf("Width=%d, Height=%d, color_type=%d \n", width, height, color_type);
-        printf("bit_depth=%d, channels=%d,  pixel_depth=%d \n", bit_depth, channels, pixel_depth);
+        EGI_PDEBUG(DBG_BJP,"PNG file '%s', Image data info after transform_expand:\n", fpath);
+        EGI_PDEBUG(DBG_BJP,"Width=%d, Height=%d, color_type=%d \n", width, height, color_type);
+        EGI_PDEBUG(DBG_BJP,"bit_depth=%d, channels=%d,  pixel_depth=%d \n", bit_depth, channels, pixel_depth);
 
         /*   Now, we only deal with type_2(real_color) and type_6(real_color with alpha channel) PNG file,
          *       and bit_depth must be 8.

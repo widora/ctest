@@ -7,25 +7,53 @@
 static char app_name[]="app_ffplay";
 static EGI_PAGE *page_ffplay=NULL;
 
+#define APP_FFPLAY_SIGNALS	SIGUSR1|SIGUSR2|SIGTERM
 static struct sigaction sigact;
+static struct sigaction osigact;
 
-/*---------------------------------------------
-		signal handler
-----------------------------------------------*/
+
+/*----------------------------------------------------
+		Signal handler
+
+SIGCONT:	To continue the process.
+SIGUSR1:
+SIGUSR2:
+SIGTERM:	To terminate the process.
+
+-----------------------------------------------------*/
 static void app_sighandler( int signum, siginfo_t *info, void *ucont )
 {
-	pid_t spid;
+	pid_t spid=info->si_pid;/* get sender's pid */
 
-	/* Signal continue */
-	if( signum==SIGCONT ) {
-		spid=info->si_pid;/* get sender's pid */
-	        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from PID[%d] process.\n",
-							app_name, __func__, spid);
-//		kill(getpid(),SIGCONT);
-		tm_delayms(10);
-		egi_page_needrefresh(page_ffplay);
+	switch(signum)
+	{
+		case SIGCONT:
+		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
+									app_name, __func__, spid);
+			/* set page refresh flag and send SIGCONT to itself */
+			egi_page_needrefresh(page_ffplay);
+
+//			if(kill(getpid(),SIGCONT)<0) {
+//				EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to send SIGCONT by kill().\n",
+//	                                                                        app_name, __func__);
+//			}
+
+			break;
+
+		case SIGUSR1:
+		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR2 received from process [PID:%d].\n",
+									app_name, __func__, spid);
+			break;
+		case SIGTERM:
+		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGTERM received from process [PID:%d].\n",
+									app_name, __func__, spid);
+			break;
+		default:
+			break;
 	}
 }
+
+
 
 #if 0  ////////////////////////////////////////////////////////////////////////
 siginfo_t {
@@ -71,11 +99,11 @@ int main(int argc, char **argv)
 
         /* --- 0. set signal handler for SIGCONT --- */
         sigemptyset(&sigact.sa_mask);
-        sigact.sa_flags=SA_SIGINFO; /* then use sa_sigaction instead of sa_handler */
-	sigact.sa_flags|=SA_NODEFER; /* Do not block set signal */
+        sigact.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
+	sigact.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
         sigact.sa_sigaction=app_sighandler;
-        if(sigaction(SIGCONT, &sigact, NULL) <0 ){
-                perror("Set sigation error");
+        if(sigaction(SIGCONT, &sigact, &osigact) <0 ){
+	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction().\n", app_name, __func__);
                 return -1;
         }
 

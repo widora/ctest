@@ -503,7 +503,7 @@ static void update_heweather(EGI_PAGE *page)
 
 	/* allocate eimg, the ownership will be deprived by egi_picbox_renewimg() later */
 	if(eimg==NULL) {
-		printf("eimg=egi_imgbuf_new()!\n");
+//		printf("eimg=egi_imgbuf_new()!\n");
 		eimg=egi_imgbuf_new();
 	}
 
@@ -512,8 +512,8 @@ static void update_heweather(EGI_PAGE *page)
                 printf("%s: Fail to loadpng at '%s'!\n", __func__, heweather_path);
 		goto SLEEP_WAITING;
         }else{
-		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
-							eimg->height, eimg->width);
+//		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
+//							eimg->height, eimg->width);
 		/* substitue icon color with WHITE, No mutex lock here! */
 		for(i=0; i<eimg->height; i++) {
 			for(j=0; j<eimg->width; j++) {
@@ -532,7 +532,7 @@ static void update_heweather(EGI_PAGE *page)
 	}
 
 SLEEP_WAITING:
-	printf("%s: Start Delay or Sleep ....\n",__func__);
+//	printf("%s: Start Delay or Sleep ....\n",__func__);
 	egi_sleep(0,1,0); /* 5s */
   }
 }
@@ -710,8 +710,14 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 #else  //////// (  USE FORK() TO CREATE A CHILD PROCESS ) ///////////
 
+   /* TODO: SIGCHLD handler for exiting child processes
+	NOTE: STOP/CONTINUE/EXIT of a child process will produce signal SIGCHLD!
 
-  /* Need to create new pid for FFPLAY */
+    */
+
+
+
+  /* If app_ffplay not running, need to create new pid for FFPLAY */
   if(pid_ffplay<0) {
 
 	pid_ffplay=fork();
@@ -736,27 +742,30 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay forked successfully!\n",__func__);
 	}
     }
-    /* send SIGCONT to activate a stopped process */
+    /* Else if app_ffplay is stopped, send SIGCONT to activate a stopped process */
     else {
-               	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate pid %d \n",__func__, pid_ffplay);
+               	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate app_ffplay[pid:%d] \n",
+										__func__, pid_ffplay);
 		if( kill(pid_ffplay,SIGCONT)<0 ) {
-			EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to pid_ffplay.\n", __func__);
+			EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to pid_ffplay[pid:%d].\n",
+										__func__, pid_ffplay);
 			return pgret_ERR;
 		}
     }
 
     /* Wait pid_ffplay if it's legitimate, whether newly created or already exists */
     if(pid_ffplay>0) {
+		/* wait for status changes */
 		waitpid(pid_ffplay, &status, WUNTRACED);
 
 	       /* In EGI_TOUCH: parse return status */
 		/* 1. Exit normally */
         	if(WIFEXITED(status)){
                 	ret=WEXITSTATUS(status);
-                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay exit with value: %d\n",__func__, ret);
+                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay exits with ret value: %d\n",__func__, ret);
 			pid_ffplay=-1; /* retset */
         	}
-		/* 2. Terminated by signal */
+		/* 2. Terminated by signal, in case pid_ffplay already terminated. */
 	        else if(WIFSIGNALED(status)) {
         	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay terminated by signal number: %d\n",
 										__func__, WTERMSIG(status));

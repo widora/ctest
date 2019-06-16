@@ -12,7 +12,8 @@ Some concepts:
 4. The APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
    They will be forked and launched as child processes of homepage program.
    By such a way that we can code and develop APPs independently, To install them, we only
-   need to inform homepage programe its icons and bin file location/address.
+   need to inform homepage programe its icons and bin file location/address. It can also
+   run independently without homepage.
    An example: wegi/app/app_ffplay 
 
 5. All child processes to be handled by ULOOP_PROCESSE, as possible?.
