@@ -539,7 +539,7 @@ struct SwrContext *swr_alloc_set_opts( swr ,
 				/* push data to pic buff for SPI LCD displaying */
 				//gettimeofday(&tm_start,NULL);
 				//printf(" start Load_Pic2Buff()....\n");
-				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
+				if( load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					printf("PICBuffs are full! The video frame is dropped!\n");
 
 				/* print playing time */

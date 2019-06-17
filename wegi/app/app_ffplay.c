@@ -1,5 +1,16 @@
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+A EGI APP program for FFPLAY.
+
+
+Midas Zhou
+midaszhou@yahoo.com
+------------------------------------------------------------------*/
 #include "egi_common.h"
-#include "spi.h"
+#include "egi_ffplay.h"
 #include "egi_pageffplay.h"
 #include <signal.h>
 #include <sys/types.h>
@@ -16,6 +27,7 @@ static struct sigaction osigact;
 		Signal handler
 
 SIGCONT:	To continue the process.
+		SIGCONT can't not be blocked.
 SIGUSR1:
 SIGUSR2:
 SIGTERM:	To terminate the process.
@@ -30,13 +42,8 @@ static void app_sighandler( int signum, siginfo_t *info, void *ucont )
 		case SIGCONT:
 		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
 									app_name, __func__, spid);
-			/* set page refresh flag and send SIGCONT to itself */
+			/* set page refresh flag */
 			egi_page_needrefresh(page_ffplay);
-
-//			if(kill(getpid(),SIGCONT)<0) {
-//				EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to send SIGCONT by kill().\n",
-//	                                                                        app_name, __func__);
-//			}
 
 			break;
 
@@ -95,6 +102,7 @@ siginfo_t {
 ----------------------------*/
 int main(int argc, char **argv)
 {
+	int ret=0;
 	pthread_t thread_loopread;
 
         /* --- 0. set signal handler for SIGCONT --- */
@@ -115,7 +123,8 @@ int main(int argc, char **argv)
         }
         if(symbol_load_allpages() !=0 ) {
                 printf("Fail to load sym pages,quit.\n");
-                return -2;
+                ret=-2;
+		goto FF_FAIL;
         }
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */
@@ -123,10 +132,24 @@ int main(int argc, char **argv)
         if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
         {
                 printf("%s: pthread_create(... egi_touch_loopread() ... ) fails!\n",app_name);
-                return -3;
+                ret=-3;
+		goto FF_FAIL;
         }
 
 
+	/*  --- set ffplay context --- */
+	printf(" start set ffplay context....\n");
+	FFplay_Ctx=calloc(1, sizeof(struct FFplay_Context));
+	if(FFplay_Ctx==NULL) {
+		printf("%s: Fail to calloc FFplay_Context!\n",__func__);
+		goto FF_FAIL;
+	}
+	FFplay_Ctx->ftotal=1;
+	FFplay_Ctx->fpath=calloc(FFplay_Ctx->ftotal,sizeof(char *));
+	char strpath[]="/mmc/ross_f10_240x100.avi";
+	FFplay_Ctx->fpath[0]=strpath;
+
+	printf(" start page creation....\n");
 	/*  ---  2. EGI PAGE creation  ---  */
         /* create page and load the page */
         page_ffplay=egi_create_ffplaypage();
@@ -147,8 +170,15 @@ int main(int argc, char **argv)
 	tm_delayms(200); /* let LOG finish */
         egi_page_free(page_ffplay);
 
+	ret=pgret_OK;
+
+FF_FAIL:
+       	release_fbdev(&gv_fb_dev);
+        symbol_free_allpages();
+	SPI_Close();
+        egi_quit_log();
 
 	/* NOTE: APP ends, screen need refresh by the father process!! */
-	return pgret_OK;
+	return ret;
 
 }

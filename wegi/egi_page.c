@@ -51,6 +51,8 @@ EGI_PAGE * egi_page_new(char *tag)
 		printf("egi_page_init(): egi_ebox_new() fails.\n");
 		return NULL;
 	}
+	/* set page as its container */
+	page->ebox->container=page;
 
 	/* 4. put tag here */
 	egi_ebox_settag(page->ebox,tag);
@@ -262,6 +264,8 @@ int egi_page_activate(EGI_PAGE *page)
 		}
         }
 
+	/* decroating job if any */
+	egi_ebox_decorate(page->ebox);
 
 	/* traverse the list and activate list eboxes, not safe */
 	list_for_each(tnode, &page->list_head)
@@ -323,6 +327,9 @@ int egi_page_refresh(EGI_PAGE *page)
 				clear_screen(&gv_fb_dev, page->ebox->prmcolor);
 			}
 		}
+
+		/* decroating job if any */
+		egi_ebox_decorate(page->ebox);
 
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
@@ -571,7 +578,7 @@ int egi_page_routine(EGI_PAGE *page)
 	{
 		if( page->runner[i] !=0 )
 		{
-			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
+			if( pthread_create( &page->threadID[i], NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
 				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",
@@ -611,9 +618,20 @@ int egi_page_routine(EGI_PAGE *page)
 
 			EGI_PDEBUG(DBG_PAGE,"hitbtn is '%s' \n", (hitbtn==NULL) ? "NULL" : hitbtn->tag);
 
-			/* check if last hold btn losing foucs */
-			if( last_holdbtn != NULL && last_holdbtn != hitbtn )
-						 //&& last_holdbtn->need_refresh==false )
+			/* check if last hold btn losing foucs
+			 * Note:
+			 *	1. If it re_enters from SIGSTOP, this will trigger the very hitbtn
+			 *	   which rasied SIGSTOP signal, to refresh and reset its need_refresh
+			 *	   flag. So, when elements of the page are refreshed as SIGCONT
+			 *	   handler expected, this hitbtn will dispear!!!
+			 *	   We need to confirm 'last_holdbtn->need_refresh==false' here to rule
+			 *	   out the situation, and make sure when egi_page_refresh(page) is called
+			 *	   all elements are to refreshed in order.
+			 */
+
+
+			if( last_holdbtn != NULL && last_holdbtn != hitbtn
+						 && last_holdbtn->need_refresh==false )
 			{
 				EGI_PDEBUG(DBG_PAGE,"last_holdbtn losed focus, refresh it...\n");
 				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
@@ -643,7 +661,8 @@ int egi_page_routine(EGI_PAGE *page)
 
 
  /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
-   *    will be received one after another, and the signal handler will call egi_page_needrefresh().
+   *    will be received one after another,In rare case, it may receive 2 'pressed_hold'.
+   *	and the signal handler will call egi_page_needrefresh().
    *    But 'releasing' will trigger btn refresh by egi_btn_touch_effect() just before page refresh.
    *    After refreshed, need_refresh will be reset for this btn, so when egi_page_refresh() is called
    *    later to refresh other elements, this btn will erased by page bkcolor/wallpaper.
@@ -913,7 +932,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 
 			/* 2.4 check if last hold btn losing foucs */
 			if( last_holdbtn != NULL && last_holdbtn != hitbtn )
-				 	// && last_holdbtn->need_refresh==false )
+				 	  // && last_holdbtn->need_refresh==false )
 			{
 				//printf(" --- btn lose focus! --- \n");
 				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */

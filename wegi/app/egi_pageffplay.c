@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*-------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -13,21 +13,19 @@ page creation jobs:
 3. egi_XXX_routine() function if not use default egi_page_routine().
 4. button reaction functins
 
+TODO:
+1.
+
+
 Midas Zhou
----------------------------------------------------------------------------*/
+-------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include "egi.h"
-#include "egi_color.h"
-#include "egi_txt.h"
-#include "egi_objtxt.h"
-#include "egi_btn.h"
-#include "egi_page.h"
-#include "egi_symbol.h"
-#include "egi_log.h"
-#include "egi_timer.h"
+
+#include "egi_common.h"
+#include "egi_ffplay.h"
 
 /* icon code for button symbols */
 #define ICON_CODE_PREV 		0
@@ -48,6 +46,7 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int pageffplay_decorate(EGI_EBOX *ebox);
 
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
@@ -68,12 +67,12 @@ EGI_PAGE *egi_create_ffplaypage(void)
         for(i=0;i<btnum;i++) /* row of buttons*/
         {
 		/* 1. create new data_btns */
-		data_btns[i]=egi_btndata_new(i, /* int id */
+		data_btns[i]=egi_btndata_new(	i, /* int id */
 						square, /* enum egi_btn_type shape */
 						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */
-						);
+					);
 		/* if fail, try again ... */
 		if(data_btns[i]==NULL)
 		{
@@ -86,11 +85,11 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		data_btns[i]->showtag=false;
 
 		/* 2. create new btn eboxes */
-		ffplay_btns[i]=egi_btnbox_new(NULL, /* put tag later */
+		ffplay_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
 				        	1, /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
-						48,60, /* int width, int height */
+						48, 60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
 		       				egi_color_random(medium) /*int prmcolor, for geom button only. */
 					   );
@@ -106,10 +105,11 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	}
 
 	/* get a random color for the icon */
-	btn_symcolor=egi_color_random(medium);
-	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
+//	btn_symcolor=egi_color_random(medium);
+//	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
+	btn_symcolor=WEGI_COLOR_BLACK;//ORANGE;
 
-	/* add tags,set icon_code and reaction function here */
+	/* add tags, set icon_code and reaction function here */
 	egi_ebox_settag(ffplay_btns[0], "Prev");
 	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
 	ffplay_btns[0]->reaction=egi_ffplay_prev;
@@ -131,11 +131,10 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	ffplay_btns[4]->reaction=egi_ffplay_playmode;
 
 
-
 	/* --------- 2. create title bar --------- */
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
-        	0, 2,  /* int offx, int offy */
+        	0, 2,  /* int offx, int offy, offset for txt */
 		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
@@ -151,11 +150,13 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		page_ffplay=egi_page_new("page_ffplay");
 		tm_delayms(10);
 	}
-
 	page_ffplay->ebox->prmcolor=WEGI_COLOR_BLACK;
 
+	/* decoration */
+	page_ffplay->ebox->method.decorate=pageffplay_decorate;
+
         /* 3.2 put pthread runner */
-        //page_ffplay->runner[0]= ;
+        page_ffplay->runner[0]= egi_thread_ffplay;
 
         /* 3.3 set default routine job */
         page_ffplay->routine=egi_page_routine; /* use default routine function */
@@ -283,7 +284,8 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSTOP), return to page routine...\n",__func__);
 
   /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
-   *    will be received one after another, and the signal handler will call egi_page_needrefresh().
+   *    will be received one after another,(In rarea case, it may receive 2 'preesed_hold')
+   *	and the signal handler will call egi_page_needrefresh().
    *    But 'releasing' will trigger btn refresh by egi_btn_touch_effect() just before page refresh.
    *    After refreshed, need_refresh will be reset for this btn, so when egi_page_refresh() is called
    *    later to refresh other elements, this btn will erased by page bkcolor/wallpaper.
@@ -299,4 +301,17 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);
         return btnret_REQUEST_EXIT_PAGE;
 #endif
+}
+
+
+/*-----------------------------------------
+	Decoration for the page
+-----------------------------------------*/
+static int pageffplay_decorate(EGI_EBOX *ebox)
+{
+	/* bkcolor for bottom buttons */
+	fbset_color(WEGI_COLOR_GRAY3);
+        draw_filled_rect(&gv_fb_dev,0,261+5,239,319);
+
+	return 0;
 }

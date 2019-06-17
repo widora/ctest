@@ -7,6 +7,7 @@ SRC_PATH = /home/midas-zhou/Ctest/wegi
 
 APP = ffplay6
 #APP = filtering_video
+
 SOURCE = $(APP).c
 DEPS = ff_utils.h ff_utils.c #ff_pcm.h ff_pcm.c
 OBJ = $(APP).o ff_utils.o  #ff_pcm.o
@@ -33,19 +34,23 @@ LIBS     += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpo
 LIBS	 += -lm -lasound -ljpeg
 LIBS	 += -lpthread
 LIBS	 += -lesound -legi -lpng -lz
+LIBS 	 += -lcurl -lssl -lcrypto
+
 
 #----------------  APP  --------------------
+all:	$(APP)
+
 $(APP): $(OBJ) $(DEPS)
 	$(CC) -o $(APP) $(OBJ) $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 $(APP).o: $(SOURCE) $(DEPS)
-	$(CC)   $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(SOURCE)
 
-#ff_pcm.o: ff_pcm.c ff_pcm.h
-#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_pcm.c
+egi_ffplay.o:	egi_ffplay.c egi_ffplay.h ff_utils.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_ffplay.c
 
 ff_utils.o: ff_utils.c ff_utils.h
-	$(CC)   $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
 
 
 #---------------  APP2 -----------------------
@@ -53,9 +58,8 @@ $(APP2): $(SOURCE2) $(DEPS)
 	$(CC) -o $(APPS) $(CFLAGS) $(LDFLAGS) $(LIBS) $(SOURCE2)
 
 
-
-PHONY:all
-all:$(APP) $(APP2)
+#%:%.c   $(SOURCE) $(DEPS)
+#	$(CC)   $(CFLAGS) $(LDFLAGS) $(LIBS) -c $@.c
 
 clean:
 	rm -rf $(APP) $(APP2) *.o

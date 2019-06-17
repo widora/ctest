@@ -73,12 +73,12 @@ struct PicInfo {
 
 /*  functions	*/
 uint8_t**  malloc_PICbuffs(int width, int height, int pixel_size );
-void free_PicBuffs(void);
-int get_FreePicBuff(void);
-void* thdf_Display_Pic(void * argv);
-int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
-void* thdf_Display_Subtitle(void * argv);
-long seek_subtitle_tmstamp(char *subpath, unsigned int tmsec);
+void 	   free_PicBuffs(void);
+int 	   get_FreePicBuff(void);
+void* 	   thdf_Display_Pic(void * argv);
+int 	   load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
+void* 	   thdf_Display_Subtitle(void * argv);
+long 	   seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
 
 
 

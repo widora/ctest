@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Based on:
           FFmpeg examples in code sources.
 				       --- FFmpeg ORG
@@ -33,7 +32,7 @@ TODO:
 	...
 
 NOTE:
-1.  A simpley example of opening a video file then decode frames and send RGB data to LCD for display.
+1.  A simpley example of opening a video file/stream then decode frames and send RGB data to LCD for display.
     Files without audio stream can also be played.
 2.  Decode audio frames and playback by alsa PCM.
 3.  DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,
@@ -96,25 +95,16 @@ Usage:
 
 
 Midas Zhou
+midaszhou@yahoo.com
 -----------------------------------------------------------------------------------------------------------*/
 #include <signal.h>
 #include <math.h>
 #include <string.h>
 
+#include "egi_common.h"
+#include "sound/egi_pcm.h"
+
 #include "ff_utils.h"
-//#include "ff_pcm.h"
-#include "egi_pcm.h"
-
-#include "spi.h"
-#include "egi_color.h"
-#include "egi_timer.h"
-#include "egi_fbgeom.h"
-#include "egi_debug.h"
-#include "egi_log.h"
-#include "egi_bjp.h"
-#include "egi_log.h"
-#include "egi_symbol.h"
-
 #include "libavutil/avutil.h"
 #include "libavutil/time.h"
 #include "libavutil/timestamp.h"
@@ -1068,7 +1058,7 @@ if(enable_avfilter)
 					}
 					/* push data to pic buff for SPI LCD displaying */
 					//printf(" start Load_Pic2Buff()....\n");
-					if( Load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
+					if( load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
 						EGI_PDEBUG(DBG_FFPLAY,"ffplay: [%lld] PICBuffs are full! video frame is dropped!\n",
 									tm_get_tmstampms());
 
@@ -1088,7 +1078,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 				/* push data to pic buff for SPI LCD displaying */
 				//printf(" start Load_Pic2Buff()....\n");
-				if( Load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
+				if( load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					EGI_PDEBUG(DBG_FFPLAY,"ffplay: [%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
 } /* end of AVFilter ON/OFF */

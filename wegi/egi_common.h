@@ -2,6 +2,7 @@
 #define __EGI_HEADER_H__
 
 #include "egi.h"
+#include "spi.h"
 #include "egi_page.h"
 #include "egi_fbdev.h"
 #include "egi_fbgeom.h"
@@ -19,5 +20,8 @@
 #include "egi_list.h"
 #include "egi_btn.h"
 #include "egi_slider.h"
+#include "egi_objbtn.h"
+#include "egi_objlist.h"
+#include "egi_objtxt.h"
 
 #endif

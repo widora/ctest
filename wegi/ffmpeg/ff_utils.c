@@ -16,19 +16,19 @@ Midas_Zhou
 #include <dirent.h>
 #include <limits.h> /* system: NAME_MAX 255; PATH_MAX 4096 */
 
+#if 0////////////////////////
 #include "egi.h"
 #include "egi_bjp.h"
 #include "egi_log.h"
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
 #include "egi_timer.h"
+#endif //////////////////////////
+
+#include "egi_common.h"
+#include "sound/egi_pcm.h"
 
 #include "ff_utils.h"
-#include "egi_pcm.h"
-
-//#define LCD_MAX_WIDTH 240
-//#define LCD_MAX_HEIGHT 320
-//#define FFPLAY_MUSIC_PATH "/mmc/"
 
 /* in seconds, playing time elapsed for Video */
 int ff_sec_Velapsed;
@@ -139,15 +139,20 @@ void* thdf_Display_Pic(void * argv)
    int i;
    struct PicInfo *ppic =(struct PicInfo *) argv;
 
-   EGI_IMGBUF imgbuf;
-   imgbuf.width=ppic->He - ppic->Hs +1;
-   imgbuf.height=ppic->Ve - ppic->Vs +1;
+   EGI_IMGBUF *imgbuf=egi_imgbuf_new();
+   if(imgbuf==NULL) {
+	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_new_imgbuf().\n",__func__);
+	return (void *)-1;
+   }
 
-   printf("FFPLAY: -------thdf_Display_Pic(): imgbuf.width=%d, imgbuf.height=%d \n",
-						imgbuf.width, imgbuf.height );
+   imgbuf->width=ppic->He - ppic->Hs +1;
+   imgbuf->height=ppic->Ve - ppic->Vs +1;
+
+   EGI_PLOG(LOGLV_INFO,"%s: thdf_Display_Pic(): imgbuf width=%d, imgbuf height=%d \n",
+						__func__, imgbuf->width, imgbuf->height );
 
    /* check size limit */
-   if(imgbuf.width>LCD_MAX_WIDTH || imgbuf.height>LCD_MAX_HEIGHT)
+   if(imgbuf->width>LCD_MAX_WIDTH || imgbuf->height>LCD_MAX_HEIGHT)
    {
 	EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
 	//exit(-1);
@@ -160,11 +165,11 @@ void* thdf_Display_Pic(void * argv)
 		if( !IsFree_PICbuff[i] ) /* only if pic data is loaded in the buff */
 		{
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
-			imgbuf.imgbuf=(uint16_t *)pPICbuffs[i];
+			imgbuf->imgbuf=(uint16_t *)pPICbuffs[i];
 
 			/* window_position displaying */
-			egi_imgbuf_windisplay(&imgbuf, &gv_fb_dev, -1, 0, 0, ppic->Hs, ppic->Vs,
-									imgbuf.width, imgbuf.height);
+			egi_imgbuf_windisplay(imgbuf, &gv_fb_dev, -1,
+					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
 		   	/* hold for a while :))) */
 		   	usleep(20000);
 
@@ -179,6 +184,9 @@ void* thdf_Display_Pic(void * argv)
 
 	   usleep(2000);
   }
+
+ egi_imgbuf_free(imgbuf);
+
   return (void *)0;
 }
 
@@ -194,7 +202,7 @@ void* thdf_Display_Pic(void * argv)
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
 ------------------------------------------------------------------------*/
-int Load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
+int load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 
@@ -253,7 +261,7 @@ void* thdf_Display_Subtitle(void * argv)
         }
 
 	/* seek to the start position */
-	off=seek_subtitle_tmstamp(subpath, ff_start_tmsecs);
+	off=seek_Subtitle_TmStamp(subpath, ff_start_tmsecs);
 	fseek(fil,off,SEEK_SET);
 
        	/* read subtitle section by section */
@@ -263,11 +271,11 @@ void* thdf_Display_Subtitle(void * argv)
 	        memset(strtm,0,sizeof(strtm));
 	        fgets(strtm,sizeof(strtm),fil);/* time stamp */
 	        if(strstr(strtm,"-->")!=NULL) {  /* to confirm the stime stamp string */
-	                printf("time stamp: %s\n",strtm);
+//	                printf("time stamp: %s\n",strtm);
         	        start_secs=atoi(strtm)*3600+atoi(strtm+3)*60+atoi(strtm+6);
-                	printf("Start(sec): %d\n",start_secs);
+//                	printf("Start(sec): %d\n",start_secs);
                        	end_secs=atoi(strtm+17)*3600+atoi(strtm+20)*60+atoi(strtm+23);
-                       	printf("End(sec): %d\n",end_secs);
+//                     	printf("End(sec): %d\n",end_secs);
 	        }
 		else
 			continue;
@@ -283,7 +291,7 @@ void* thdf_Display_Subtitle(void * argv)
 	        do {   /* read a section of subtitle */
         	       pt=fgets(strsub+len,subln*32-len-1,fil);
                        if(pt==NULL)break;
-	               printf("fgets pt:%s\n",pt);
+//	               printf("fgets pt:%s\n",pt);
         	       len+=strlen(pt); /* fgets also add a '\0\ */
                        if(len>=subln*32-1)
                         	        break;
@@ -292,14 +300,14 @@ void* thdf_Display_Subtitle(void * argv)
 		/* 4. wait for a right time to display the subtitles */
 		do{
 		     tm_delayms(200);
-		     printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
+//		     printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
         	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
                                                                                 1, 0, 170, strsub,-1);
 		/* 5. wait for a right time to let go to erase the sub. */
 		do{
 		     tm_delayms(200);
-		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
+//		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
 		} while( end_secs > ff_sec_Velapsed - ff_sub_delays );
 
 		/* 6. check if any command comes */
@@ -313,7 +321,7 @@ void* thdf_Display_Subtitle(void * argv)
        	                continue;  /* or continue if its a return */
           	else {
                    	 nsect=atoi(strtm);
-                         printf("Section: %d\n",nsect);
+//                       printf("Section: %d\n",nsect);
                 }
 
 
@@ -334,14 +342,13 @@ return:
 	>0 	OK, offset
 	<0 	Fails
 ----------------------------------------------------*/
-long seek_subtitle_tmstamp(char *subpath, unsigned int tmsec)
+long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
 {
         char strtm[32]={0}; /* time stamp */
         int  start_secs=0; /* sub section start time, in seconds */
         int  end_secs=0; /* sub section end time, in seconds */
 	long off=-1;
 	FILE *fil;
-
 
 	/* check data */
 	if(subpath==NULL) return -2;

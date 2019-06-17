@@ -577,7 +577,7 @@ struct egi_page
 	*/
 	pthread_t threadID[EGI_PAGE_MAXTHREADS];
 	bool thread_running[EGI_PAGE_MAXTHREADS]; /* indicating whether the thread is running */
-	void (*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);
+	void * (*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);
 };
 
 
