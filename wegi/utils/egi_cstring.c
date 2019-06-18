@@ -16,6 +16,57 @@ Midas Zhou
 #include "egi_log.h"
 
 
+/*------------------------------------------------------------------
+Duplicate a file path string,then replace the extension name
+with the given one.
+
+fpath:		a file path string.
+new_extname:	new extension name for the fpath.
+
+NOTE:
+	1. The old extension name MUST have only one '.' char.
+	   or the last '.' will be deemed as start of extension name!
+	2. The new_extname MUST start with '.' !
+	3. Remember to free the new_fpath later after call!
+
+Return:
+	pointer	to new string	OK
+        NULL			Fail, or not found.
+-------------------------------------------------------------------*/
+char * cstr_dup_repextname(char *fpath, char *new_extname)
+{
+	char *pt=NULL;
+	char *ptt=NULL;
+	char *new_fpath;
+	int  len,fplen;
+
+	if(fpath==NULL || new_extname==NULL)
+	return NULL;
+
+	pt=strstr(fpath,".");
+	if(pt==NULL)
+		return NULL;
+
+	/* Make sure its the last '.' in fpath */
+	for( ; ( ptt=strstr(pt+1,".") ) ; pt=ptt)
+	{ };
+
+	/* duplicate and replace */
+	len= (long)pt - (long)fpath +1;
+	fplen= len + strlen(new_extname) +2;
+
+	new_fpath=calloc(1, fplen*sizeof(char));
+	if(new_fpath==NULL)
+		return NULL;
+
+	snprintf(new_fpath,len,fpath);
+	strcat(new_fpath,new_extname);
+
+	return new_fpath;
+}
+
+
+
 /*--------------------------------------------------------
 Get pointer to the first char after Nth split char.
 

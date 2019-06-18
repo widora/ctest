@@ -24,8 +24,8 @@ test_fifo: test_fifo.c $(OBJS)
 test_filo: test_filo.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_filo.c -o test_filo
 
-test_fsearch: test_fsearch.c $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_fsearch.c -o test_fsearch
+test_cstring: test_cstring.c $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) test_cstring.c -o test_cstring
 
 egi_cstring.o:  egi_cstring.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_cstring.c
@@ -49,7 +49,7 @@ egi_https.o: egi_https.h egi_https.c
 .PHONY:	clean
 clean:
 	rm -rf $(APP) $(APP).o *.o
-	rm -rf test_fifo test_filo test_fsearch read_conf
+	rm -rf test_fifo test_filo test_cstring read_conf
 
 #CFLAGS += $(shell pkg-config --cflags json-c)
 #LDFLAGS += $(shell pkg-config --libs json-c)

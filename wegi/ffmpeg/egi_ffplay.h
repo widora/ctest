@@ -57,14 +57,23 @@ extern enum ffplay_mode playmode;
 /* param: subtitle path */
 extern char *subpath;
 
-struct FFplay_Context
+/* starting position */
+extern long ff_start_tmsecs;
+
+
+typedef struct FFplay_Context
 {
 	int	  ftotal;    	/* Total number of media files path in array 'fpath' */
 	char     **fpath;   	/* Array of media file paths */
 
-};
+	enum ff_control_cmd ffcmd;      /* 0 default none*/
+	enum ffplay_mode    ffmode;	/* 0 default mode_loop_all */
+	enum ffplay_status  ffstatus;	/* 0 default mode_stop */
+}FFPLAY_CONTEXT;
 
-extern struct FFplay_Context *FFplay_Ctx;
+FFPLAY_CONTEXT *FFplay_Ctx;
+
+
 /*------------------------------------------------------------------
 		A Thread Function
 Note:
@@ -72,4 +81,3 @@ Note:
 
 -------------------------------------------------------------------*/
 void * egi_thread_ffplay(EGI_PAGE *page);
-//pthread_create( thd_ffplay, NULL, egi_thread_ffplay, (void *)page)

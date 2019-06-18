@@ -885,7 +885,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    flip_status=releasing;
 		}
 
-
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
 		{
@@ -925,7 +924,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 				else
 					continue;
 			}
-
 
 			/* 2.3 check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);

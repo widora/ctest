@@ -19,11 +19,7 @@ Midas_Zhou
 
 #include <stdio.h>
 #include "egi_bjp.h"
-//#include "egi_log.h"
-//#include "play_ffpcm.h"
 #include "egi.h"
-//#include "egi_fbgeom.h"
-//#include "egi_symbol.h"
 #include "egi_timer.h"
 
 #define LCD_MAX_WIDTH 240
@@ -38,23 +34,29 @@ extern long ff_start_tmsecs; /* starting position */
 
 /* ffplay control command signal */
 enum ff_control_cmd {
-        cmd_none,
+        cmd_none=0,
         cmd_play,
         cmd_pause,
         cmd_quit, /* release all resource and quit ffplay */
         cmd_forward,
         cmd_prev,
 
-        cmd_exit_display_thread, /* stop display thread */
+        cmd_exit_display_thread,   /* stop display thread */
+	cmd_exit_subtitle_thread    /* stop subtitle tread */
 };
-
-/* ffplay mode */
 enum ffplay_mode
 {
-        mode_loop_all,   /* loop all files in the list */
+        mode_loop_all=0,   /* loop all files in the list */
         mode_repeat_one, /* repeat current file */
         mode_shuffle,    /* pick next file randomly */
 };
+enum ffplay_status
+{
+	status_stop=0,
+	status_playing,
+	status_pausing,
+};
+
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define PIC_BUFF_NUM  4  /* total number of RGB picture data buffers. */
@@ -79,7 +81,6 @@ void* 	   thdf_Display_Pic(void * argv);
 int 	   load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   thdf_Display_Subtitle(void * argv);
 long 	   seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
-
 
 
 #endif

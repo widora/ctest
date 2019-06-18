@@ -134,6 +134,7 @@ Note:
  *	2.
 */
 
+long ff_start_tmsecs=60*95; /* starting position */
 
 // in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
 

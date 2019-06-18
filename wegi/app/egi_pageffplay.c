@@ -212,8 +212,13 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
 
 	/* toggle the icon between play and pause */
-	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 )
+	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
 		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;
+
+//		if( stop )
+//		if( pausing ):
+
+	}
 	else
 		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;
 
