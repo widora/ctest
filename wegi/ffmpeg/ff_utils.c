@@ -26,10 +26,10 @@ int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 
 /* seek position */
-//long ff_start_tmsecs=60*95; /* starting position */
+//long start_tmsecs=60*95; /* starting position */
 
 /* ff control command */
-enum ff_control_cmd control_cmd;
+enum ffplay_cmd control_cmd;
 
 static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
 
@@ -127,6 +127,11 @@ WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 ----------------------------------------------------------*/
 void* thdf_Display_Pic(void * argv)
 {
+   if(FFplay_Ctx==NULL) {
+	printf("%s: FFplay_Ctx is NULL!\n",__func__);
+	return (void *)-1;
+   }
+
    int i;
    struct PicInfo *ppic =(struct PicInfo *) argv;
 
@@ -232,29 +237,33 @@ WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 -------------------------------------------------------------*/
 void* thdf_Display_Subtitle(void * argv)
 {
-        int subln=4; /* lines for subtitle */
+	if(FFplay_Ctx==NULL) {
+		printf("%s: FFplay_Ctx is NULL!\n",__func__);
+		return (void *)-1;
+	}
 
+        int subln=4; 				/* lines for subtitle displaying */
         FILE *fil;
-        char *subpath=(char *)argv; // "/mmc/ross.srt";
+        char *subpath=(char *)argv;
         char *pt=NULL;
-        int  len; /* length of fgets string */
-        char strtm[32]={0}; /* time stamp */
-        int  nsect; /* section number */
-        int  start_secs=0; /* sub section start time, in seconds */
-        int  end_secs=0; /* sub section end time, in seconds */
-	long off; /* offset to start position */
-        char strsub[32*4]={0}; /* 64_chars x 4_lines, for subtitle content */
+        int  len; 				/* length of fgets string */
+        char strtm[32]={0}; 			/* time stamp */
+        int  nsect; 				/* section number */
+        int  start_secs=0; 			/* sub section start time, in seconds */
+        int  end_secs=0; 			/* sub section end time, in seconds */
+	long off; 				/* offset to start position */
+        char strsub[32*4]={0}; 			/* 64_chars x 4_lines, for subtitle content */
         EGI_BOX subbox={{0,150}, {240-1, 260}}; /* box area for subtitle display */
 
         /* open subtitle file */
        	fil=fopen(subpath,"r");
         if(fil==NULL) {
        	        printf("Fail to open subtitle:%s\n",strerror(errno));
-               	return (void *)-1;
+               	return (void *)-2;
         }
 
 	/* seek to the start position */
-	off=seek_Subtitle_TmStamp(subpath, ff_start_tmsecs);
+	off=seek_Subtitle_TmStamp(subpath, FFplay_Ctx->start_tmsecs);
 	fseek(fil,off,SEEK_SET);
 
        	/* read subtitle section by section */

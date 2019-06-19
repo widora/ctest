@@ -137,20 +137,32 @@ int main(int argc, char **argv)
         }
 
 
-	/*  --- set ffplay context --- */
+	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
 	FFplay_Ctx=calloc(1, sizeof(struct FFplay_Context));
 	if(FFplay_Ctx==NULL) {
 		printf("%s: Fail to calloc FFplay_Context!\n",__func__);
 		goto FF_FAIL;
 	}
-	FFplay_Ctx->ftotal=1;
+	FFplay_Ctx->ftotal=10;
 	FFplay_Ctx->fpath=calloc(FFplay_Ctx->ftotal,sizeof(char *));
-	char strpath[]="/mmc/ross_f10_240x100.avi";
-	FFplay_Ctx->fpath[0]=strpath;
+	char *strpath[10]= {
+"/mmc/?? ??? - ??????.mp3",
+"/mmc/Lemon Tree.mp3",
+"/mmc/??? - ???.mp3",
+"/mmc/??? - ????.mp3",
+"/mmc/??? - ?????.mp3",
+"/mmc/??? - ????????.mp3",
+"/mmc/????101 - ???.mp3",
+"/mmc/Strauss2.mp3",
+"/mmc/xxx.mp3",
+"/mmc/tomorrow.avi"
+	};
+	FFplay_Ctx->fpath=strpath;
+	// TODO: init and free FFplay_Ctx
 
-	printf(" start page creation....\n");
 	/*  ---  2. EGI PAGE creation  ---  */
+	printf(" start page creation....\n");
         /* create page and load the page */
         page_ffplay=egi_create_ffplaypage();
         EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffplay->ebox->tag);
@@ -171,6 +183,7 @@ int main(int argc, char **argv)
         egi_page_free(page_ffplay);
 
 	ret=pgret_OK;
+
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

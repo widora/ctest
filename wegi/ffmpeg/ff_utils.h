@@ -21,6 +21,7 @@ Midas_Zhou
 #include "egi_bjp.h"
 #include "egi.h"
 #include "egi_timer.h"
+#include "egi_ffplay.h"
 
 #define LCD_MAX_WIDTH 240
 #define LCD_MAX_HEIGHT 320
@@ -29,34 +30,10 @@ Midas_Zhou
 /* in seconds, playing time elapsed for Video */
 extern int ff_sec_Velapsed;
 extern int ff_sub_delays; /* delay sub display in seconds, relating to ff_sec_Velapsed */
-extern enum ff_control_cmd control_cmd;
-extern long ff_start_tmsecs; /* starting position */
+extern enum ffplay_cmd control_cmd;
+//extern long start_tmsecs; /* starting position */
 
-/* ffplay control command signal */
-enum ff_control_cmd {
-        cmd_none=0,
-        cmd_play,
-        cmd_pause,
-        cmd_quit, /* release all resource and quit ffplay */
-        cmd_forward,
-        cmd_prev,
-
-        cmd_exit_display_thread,   /* stop display thread */
-	cmd_exit_subtitle_thread    /* stop subtitle tread */
-};
-enum ffplay_mode
-{
-        mode_loop_all=0,   /* loop all files in the list */
-        mode_repeat_one, /* repeat current file */
-        mode_shuffle,    /* pick next file randomly */
-};
-enum ffplay_status
-{
-	status_stop=0,
-	status_playing,
-	status_pausing,
-};
-
+extern FFPLAY_CONTEXT *FFplay_Ctx;
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define PIC_BUFF_NUM  4  /* total number of RGB picture data buffers. */

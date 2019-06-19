@@ -164,7 +164,6 @@ EGI_PAGE *egi_create_ffplaypage(void)
         /* 3.4 set wallpaper */
         page_ffplay->fpath=NULL; //"/tmp/mplay.jpg";
 
-
 	/* 3.5 add ebox to home page */
 	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ffplay, ffplay_btns[i]);
@@ -194,6 +193,9 @@ static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
+	FFplay_Ctx->ffcmd=cmd_prev;
+
 	/* only react to status 'pressing' */
 	return btnret_OK;
 }
@@ -213,14 +215,17 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* toggle the icon between play and pause */
 	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;
+		/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
+		FFplay_Ctx->ffcmd=cmd_play;
 
-//		if( stop )
-//		if( pausing ):
-
+		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
 	}
-	else
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;
+	else {
+		/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
+		FFplay_Ctx->ffcmd=cmd_pause;
+
+		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;  /* toggle icon */
+	}
 
 	/* set refresh flag for this ebox */
 	egi_ebox_needrefresh(ebox);
@@ -237,6 +242,9 @@ static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
+
+	/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
+	FFplay_Ctx->ffcmd=cmd_next;
 
 	return btnret_OK;
 }
@@ -258,10 +266,20 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	count++;
 	if(count>2)
-		count=count>>3;
+		count=0;
 
-	/* rotate code: SHUFFLE -> REPEATONE -> LOOPALL -> */
-	data_btn->icon_code=(btn_symcolor<<16)+(ICON_CODE_SHUFFLE+count%3);
+	/* Default LOOPALL, rotate code:  LOOPALL -> REPEATONE -> SHUFFLE */
+	data_btn->icon_code=(btn_symcolor<<16)+(ICON_CODE_LOOPALL-count%3);
+
+	/* command for ffplay, ffplay will reset it */
+	if(count==0) {					/* LOOP ALL */
+		FFplay_Ctx->ffmode=mode_loop_all;
+		FFplay_Ctx->ffcmd=cmd_mode;
+	}
+	else if(count==1) { 				/* REPEAT ONE */
+		FFplay_Ctx->ffmode=mode_repeat_one;
+		FFplay_Ctx->ffcmd=cmd_mode;
+	}
 
 	/* set refresh flag for this ebox */
 	egi_ebox_needrefresh(ebox);

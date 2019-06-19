@@ -142,18 +142,22 @@ Note:
 */
 // in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
 
+/*--------  FFPLAY ENVIRONTMENT SET  ------------
+To set it up first before you call egi_ffplay()
+-----------------------------------------------*/
 FFPLAY_CONTEXT *FFplay_Ctx=NULL;
+
 
 /* expected display window size, LCD will be adjusted in the function */
 int show_w= 240; //185; /* LCD row pixels */
-int show_h= 144; //240; //185;/* LCD column pixels */
+int show_h= 200; //144; //240; //185;/* LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 int offx;
 int offy;
 
 /* seek position */
-long ff_start_tmsecs=60*55; /*in sec, starting position */
+//long start_tmsecs=60*55; /*in sec, starting position */
 
 /* param: ( enable_avfilter )
  *   if 1:	display_window rotation and size will be adjusted according to avfilter descr.
@@ -184,7 +188,7 @@ static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! 
  *   if 1:	stretch the image to fit for expected H&W, original image ratio is ignored.
  *   if 0:	keep original ratio.
  */
-static bool enable_stretch=true;
+static bool enable_stretch=false;
 
 /* param: ( enable_seek_loop )
  *   if 1:	loop one single file/stream forever.
@@ -222,7 +226,6 @@ static bool enable_clip_test=false;
 enum ffplay_mode playmode=mode_loop_all;
 
 /* param: subtitle path */
-char *subpath="/mmc/ross.srt";
 
 /*-----------------------------------------------------
 FFplay for most type of media files:
@@ -231,8 +234,6 @@ FFplay for most type of media files:
 void * egi_thread_ffplay(EGI_PAGE *page)
 //void * egi_thread_ffplay(FFPLAY_CONTEXT *FFplay_Ctx)
 {
-
-
 	/* Check ffplay context */
 	if(FFplay_Ctx==NULL || FFplay_Ctx->ftotal<=0 || FFplay_Ctx->fpath==NULL
 						     || FFplay_Ctx->fpath[0]==NULL)
@@ -240,6 +241,8 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is invalid!\n", __func__);
 		return (void *)-1;
 	}
+	printf("-------------start at: %ld -----------\n", FFplay_Ctx->start_tmsecs);
+
 
 	int ftotal=FFplay_Ctx->ftotal; /* number of multimedia files input from shell */
 	int fnum;		/* Index number of files in array FFplay_Ctx->fpah */
@@ -338,6 +341,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	pthread_t pthd_displayPic;
 	pthread_t pthd_displaySub;
 	bool pthd_displayPic_running=false;
+	bool pthd_subtitle_running=false;
 
 	char *pfsub=NULL; /* subtitle path */
 	int ret;
@@ -355,9 +359,9 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 			printf("ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
 	}
 
-	/* addjust offset of display window */
-	offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
-	offy=50;//40;
+	/*MOVED: addjust offset of display window */
+	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
+	//offy=50;//40;
 
 
         /* prepare fb device just for FFPLAY */
@@ -367,7 +371,8 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 
 	/* --- fill display area with BLACK --- */
 	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
+	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
+	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
@@ -393,7 +398,7 @@ while(1) {
 	ff_sec_Velapsed=0;
 
 	/* Open media stream or file */
-	EGI_PLOG(LOGLV_INFO,"%s: Start to open file %s...\n", __func__, fpath[fnum]);
+	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...\n", __func__, fnum, fpath[fnum]);
 	if(avformat_open_input(&pFormatCtx, fpath[fnum], NULL, NULL)!=0)
 	{
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open the file, or file type is not recognizable.\n",__func__);
@@ -570,7 +575,7 @@ if(disable_audio)
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
 											__func__);
-				goto ff_fail;
+				goto FAIL_OR_TERM;
 			}
 		}
 		else
@@ -580,7 +585,7 @@ if(disable_audio)
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
 											__func__);
-				goto ff_fail;
+				goto FAIL_OR_TERM;
 			}
 		}
 
@@ -775,6 +780,11 @@ else
 	printf("%s: Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
 										display_width,display_height);
 
+	/* Addjust displaying window position */
+	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
+	offy=50;
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
@@ -835,6 +845,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 }
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
+/* Even if no video stream */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
 		return (void *)-1;
@@ -851,14 +862,20 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 		pfsub=NULL;
 	}
 	pfsub=cstr_dup_repextname(fpath[fnum],".srt");
-	printf("Subtitle file: %s, Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
+	printf("Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
 	if( pfsub != NULL && access(pfsub,F_OK)==0 ) {
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
 			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
+			pthd_subtitle_running=false;
 			//Go on anyway. //return (void *)-1;
 		}
-		else
+		else {
 			EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread for displaying subtitles.\n");
+			pthd_subtitle_running=true;
+		}
+	}
+	else {
+		pthd_subtitle_running=false;
 	}
 
 
@@ -894,7 +911,7 @@ if(enable_avfilter)
    	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
    	{
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n",__func__);
-		goto ff_fail;
+		goto FAIL_OR_TERM;
    	}
 	//printf("start avliter_inout_alloc()... \n");
    	avFltIO_InPuts=avfilter_inout_alloc();
@@ -904,7 +921,7 @@ if(enable_avfilter)
 	if( !avFltIO_InPuts | !avFltIO_OutPuts | !filter_graph )
 	{
 		EGI_PLOG(LOGLV_ERROR,"fail to alloc filter inputs/outputs or graph.\n");
-		goto ff_fail;
+		goto FAIL_OR_TERM;
 	}
 
 
@@ -926,7 +943,7 @@ if(enable_avfilter)
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
 		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
 							__FILE__, __FUNCTION__ );
-		goto ff_fail;
+		goto FAIL_OR_TERM;
    	}
 
    	/* create sink(out) filter in the filter chain graph */
@@ -936,7 +953,7 @@ if(enable_avfilter)
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
 		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
 							__FILE__, __FUNCTION__ );
-		goto ff_fail;
+		goto FAIL_OR_TERM;
    	}
 
    	/* set output pix format */
@@ -955,7 +972,7 @@ if(enable_avfilter)
    	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
 		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
-        	goto ff_fail;
+        	goto FAIL_OR_TERM;
     	}
    	/* set the endpoints for the filter graph --- Source */
    	/* in the view of Caller | in the view of Filter */
@@ -982,14 +999,14 @@ if(enable_avfilter)
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
 		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
 							__FILE__, __FUNCTION__);
-        	goto ff_fail;
+        	goto FAIL_OR_TERM;
     	}
     	/* configure the filter graph */
     	ret=avfilter_graph_config(filter_graph,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
 		EGI_PLOG(LOGLV_ERROR,"Fail to call avfilter_graph_config() to configure filter graph.\n");
-        	goto ff_fail;
+        	goto FAIL_OR_TERM;
     	}
     	/* free temp. vars */
     	avfilter_inout_free(&avFltIO_InPuts);
@@ -1017,12 +1034,19 @@ SEEK_LOOP_START:
 if(enable_seekloop)
 {
 	/* seek starting point */
+	EGI_PDEBUG(DBG_FFPLAY,"av_seek_frame() to the starting point...\n");
         av_seek_frame(pFormatCtx, 0, 0, AVSEEK_FLAG_ANY);
 }
 else
-	//pFormatCtx->streams[videoStream]->time_base
-	/* seek to the position */
-	av_seek_frame(pFormatCtx, videoStream,ff_start_tmsecs*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+{	//pFormatCtx->streams[videoStream]->time_base
+	/* Seek to the Video position,
+	 * Note:
+	 * 1. For MP3, to call av_seek_frame() will fail!
+	 */
+	if(FFplay_Ctx->start_tmsecs !=0 ) {
+	  av_seek_frame(pFormatCtx, videoStream,(FFplay_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+	}
+}
 
 	EGI_PDEBUG(DBG_FFPLAY,"Start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
@@ -1064,10 +1088,10 @@ if(enable_avfilter)
 					{
 				    		EGI_PLOG(LOGLV_WARN, "AVFlilter operation av_buffersink_get_frame()<0, break while()...\n");
 						break; /* try to carry on */
-						//goto ff_fail;
+						//goto FAIL_OR_TERM;
 					}
 					/* push data to pic buff for SPI LCD displaying */
-					//printf(" start Load_Pic2Buff()....\n");
+					printf(" start Load_Pic2Buff()....\n");
 					if( load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
 						EGI_PDEBUG(DBG_FFPLAY," [%lld] PICBuffs are full! video frame is dropped!\n",
 									tm_get_tmstampms());
@@ -1115,6 +1139,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 	/*----------------//////   process audio stream   \\\\\\\-----------------*/
 		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
+			//printf("processing audio stream...\n");
 			/* bytes_used: indicates how many bytes of the data was consumed for decoding.
 			         when provided with a self contained packet, it should be used completely.
 			*  sb_size: hold the sample buffer size, on return the number of produced samples is stored.
@@ -1194,7 +1219,49 @@ if(enable_clip_test)
 		}
 }
 
+	/*----------------<<<<< Check and parse commands >>>>>-----------------*/
+		if( FFplay_Ctx->ffcmd != cmd_none )
+		{
+		    /* 1. parse PAUSE/PLAY first */
+		    if(FFplay_Ctx->ffcmd==cmd_pause) {
+			do {
+				egi_sleep(0,0,100);
+			} while(FFplay_Ctx->ffcmd==cmd_pause); // !=cmd_play;
+
+			/* Don not reset, pass down curretn cmd */
+
+		    }
+	  	    /* 2. shift mode */
+		    else if( FFplay_Ctx->ffcmd==cmd_mode) {
+			    if(FFplay_Ctx->ffmode==mode_repeat_one) {
+				enable_seekloop=true;
+				//enable_filesloop=false;
+			    }
+			    else if(FFplay_Ctx->ffmode==mode_loop_all) {
+				enable_seekloop=false;
+				//enable_filesloop=true;  !!! Or will break at the bottom !!
+			    }
+	 		    FFplay_Ctx->ffcmd=cmd_none;
+		    }
+		    /* 3. parse PREV/NEXT  */
+		    else if(FFplay_Ctx->ffcmd==cmd_next) {
+		    	FFplay_Ctx->ffcmd=cmd_none;
+			goto FAIL_OR_TERM;
+		    }
+		    else if(FFplay_Ctx->ffcmd==cmd_prev) {
+			FFplay_Ctx->ffcmd=cmd_none;
+			fnum-=2;
+			goto FAIL_OR_TERM;
+		    }
+
+		    /* reset as cmd_none at last */
+		    else
+			FFplay_Ctx->ffcmd=cmd_none;
+		}
+
+
 	}/*  end of while()  <<--- end of one file playing --->> */
+
 
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(FF_LOOP_TIMEGAP>0)
@@ -1206,6 +1273,7 @@ if(enable_clip_test)
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve);
 
+
 /* if loop playing one file, then got to seek start  */
 if(enable_seekloop)
 {
@@ -1213,7 +1281,7 @@ if(enable_seekloop)
 	goto SEEK_LOOP_START;
 }
 
-ff_fail:
+FAIL_OR_TERM:
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{
@@ -1222,8 +1290,13 @@ ff_fail:
 		/* give a command to exit display_thread, before exiting subtitle_thread!! */
 		control_cmd = cmd_exit_display_thread;
 		pthread_join(pthd_displayPic,NULL);
-                control_cmd = cmd_exit_subtitle_thread;
-		pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
+
+		if(pthd_subtitle_running) {
+			EGI_PDEBUG(DBG_FFPLAY,"Try to joint subtitle displaying thread ...\n");
+	                control_cmd = cmd_exit_subtitle_thread;
+			pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
+		}
+
 		control_cmd = cmd_none;/* call off command */
 
 		/* free PICbuffs */

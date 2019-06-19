@@ -5,7 +5,7 @@ COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+ds
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
 
-APP = ffplay6
+#APP = ffplay6
 #APP = filtering_video
 
 SOURCE = $(APP).c

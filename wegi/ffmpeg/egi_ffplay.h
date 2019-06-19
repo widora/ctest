@@ -17,13 +17,42 @@ Based on:
 Midas Zhou
 midaszhou@yahoo.com
 -----------------------------------------------------------------------------------------------------------*/
+#ifndef __EGI_FFPLAY_H__
+#define __EGI_FFPLAY_H__
+
 #include <signal.h>
 #include <math.h>
 #include <string.h>
 
 #include "egi_common.h"
 #include "sound/egi_pcm.h"
-#include "ff_utils.h"
+
+/* ffplay control command signal */
+enum ffplay_cmd {
+        cmd_none=0,
+        cmd_play,
+        cmd_pause,
+        cmd_quit, /* release all resource and quit ffplay */
+        cmd_next,
+        cmd_prev,
+	cmd_mode,
+
+        cmd_exit_display_thread,   /* stop display thread */
+        cmd_exit_subtitle_thread    /* stop subtitle tread */
+};
+enum ffplay_mode
+{
+        mode_loop_all=0,   /* loop all files in the list */
+        mode_repeat_one, /* repeat current file */
+        mode_shuffle,    /* pick next file randomly */
+};
+enum ffplay_status
+{
+        status_stop=0,
+        status_playing,
+        status_pausing,
+};
+
 
 /* param: ( enable_seek_loop )
  *   if 1:	loop one single file/stream forever.
@@ -57,21 +86,20 @@ extern enum ffplay_mode playmode;
 /* param: subtitle path */
 extern char *subpath;
 
-/* starting position */
-extern long ff_start_tmsecs;
-
 
 typedef struct FFplay_Context
 {
 	int	  ftotal;    	/* Total number of media files path in array 'fpath' */
 	char     **fpath;   	/* Array of media file paths */
 
-	enum ff_control_cmd ffcmd;      /* 0 default none*/
+	long start_tmsecs;  	/* start time, default 0 */
+
+	enum ffplay_cmd     ffcmd;      /* 0 default none*/
 	enum ffplay_mode    ffmode;	/* 0 default mode_loop_all */
 	enum ffplay_status  ffstatus;	/* 0 default mode_stop */
 }FFPLAY_CONTEXT;
 
-FFPLAY_CONTEXT *FFplay_Ctx;
+extern FFPLAY_CONTEXT *FFplay_Ctx;
 
 
 /*------------------------------------------------------------------
@@ -81,3 +109,7 @@ Note:
 
 -------------------------------------------------------------------*/
 void * egi_thread_ffplay(EGI_PAGE *page);
+
+
+
+#endif
