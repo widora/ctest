@@ -17,7 +17,7 @@ Based on:
 [Y50 - Y(50+Image Height-1)]
 [Y150-Y260] Sub_displaying
 [Y265-Y319] Buttons
- 
+{{0,150}, {240-1, 260}}; --box area for subtitle display
 
 TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
@@ -37,25 +37,26 @@ TODO:
 	...
 
 NOTE:
-1.  A simpley example of opening a video file/stream then decode frames and send RGB data to LCD for display.
-    Files without audio stream can also be played.
+1.  A simpley example of opening a media file/stream then decode frames and send RGB data to LCD for display.
+    Files without audio stream can also be played, or audio files.
 2.  Decode audio frames and playback by alsa PCM.
 3.  DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,
     DivX is nearly perfect.
 4.  It plays video files smoothly with format of 480*320*24bit FP20, encoded by DivX.
-    Decoding speed also depends on AVstream data rate of the file.
+    Decoding speed also depends on AVstream data rate of the file. ( for USB Bridged )
 5.  The speed of whole procedure depends on ffmpeg decoding speed, FB wirte speed and LCD display speed.
 6.  Please also notice the speed limit of your LCD controller, It's 500M bps for ILI9488???
 7.  Cost_time test codes will slow down processing and cause choppy.
 8.  Use unstripped ffmpeg libs.
-9.  Try to play mp3 :)
+9.  Try to play mp3 with album picture. :)
 10. For stream media, avformat_open_input() will fail if key_frame is corrupted.
 11. Change AVFilter descr to set clock or cclock, var. transpos_colock is vague.
 12. If logo.png is too big....?!!!!
 13. The final display windown H/W(row/column pixel numbers) must be multiples of 16 if AVFilter applied,
     and multiples of 2 while software scaler applied.
 14. When display a picture, you shall wait for a while after finish
-15. Put the subtitle file at the same directory of the media file. only srt type is supported now. 
+15. Put the subtitle file at the same directory as of the media file, the program will automatically get it
+    if it exists, Only 'srt' type subtitle file is supported.
 
 
 		 (((  -------- Glossary --------  )))
@@ -110,6 +111,7 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "sound/egi_pcm.h"
 #include "utils/egi_cstring.h"
+#include "utils/egi_utils.h"
 #include "ff_utils.h"
 #include "egi_ffplay.h"
 
@@ -125,8 +127,10 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FF_LOOP_TIMEGAP 0 /* in second, hold_on time after ffplaying a file, especially for a picture.. */
-#define FF_CLIP_PLAYTIME 5 /* in second, set clip play time */
+#define FF_LOOP_TIMEGAP  0  /* in second, hold_on time after ffplaying a file, especially for a picture.. */
+#define FF_CLIP_PLAYTIME 5  /* in second, set clip play time */
+#define ENABLE_MEDIA_LOOP
+
 
 /*
 ffplay() parameters:
@@ -143,8 +147,8 @@ Note:
 // in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
 
 /*--------  FFPLAY ENVIRONTMENT SET  ------------
-To set it up first before you call egi_ffplay()
------------------------------------------------*/
+ To set it up first before you call egi_ffplay()
+------------------------------------------------*/
 FFPLAY_CONTEXT *FFplay_Ctx=NULL;
 
 
@@ -225,7 +229,52 @@ static bool enable_clip_test=false;
  */
 enum ffplay_mode playmode=mode_loop_all;
 
-/* param: subtitle path */
+
+/*-----------------------------------------------------
+Init FFplay context, allocate FFplay_Ctx, and sort out
+all media files in path.
+
+@path           path for media files
+@fext:          File extension name, MUST exclude ".",
+                Example: "avi","mp3", "jpg, avi, mp3"
+
+return:
+        0       OK
+        <0    Fails
+------------------------------------------------------*/
+int egi_init_ffplayCtx(char *path, char *fext)
+{
+        int fcount;
+
+        FFplay_Ctx=calloc(1,sizeof(FFPLAY_CONTEXT));
+        if(FFplay_Ctx==NULL) {
+                printf("%s: Fail to calloc FFplay_Ctx.\n",__func__);
+                return -1;
+        }
+
+        /* search for files and put to ffCtx->fpath */
+        FFplay_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFplay_Ctx->ftotal=fcount;
+
+        return 0;
+}
+
+
+/*-----------------------------------------
+	Free a FFPLAY_CONTEXT struct
+-----------------------------------------*/
+void egi_free_ffplayCtx(void)
+{
+        if(FFplay_Ctx==NULL) return;
+
+        if( FFplay_Ctx->ftotal > 0 )
+                egi_free_buff2D((unsigned char **)FFplay_Ctx->fpath, FFplay_Ctx->ftotal);
+
+        free(FFplay_Ctx);
+
+        FFplay_Ctx=NULL;
+}
+
 
 /*-----------------------------------------------------
 FFplay for most type of media files:
@@ -421,7 +470,8 @@ while(1) {
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
 		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
-#if ENABLE_MEDIA_LOOP
+
+#ifdef ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
 		continue;
@@ -540,6 +590,7 @@ if(disable_audio)
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
 			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
 #endif
+
 #if 0 /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
 	/* Function definition:
 	struct SwrContext *swr_alloc_set_opts( swr ,
@@ -557,6 +608,7 @@ if(disable_audio)
 			/* how to dither ...?? */
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
+
 
 			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...\n", __func__);
 			swr_init(swr);
@@ -793,7 +845,7 @@ else
 	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
-	if(malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
+	if(ff_malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return (void *)-1;
 	}
@@ -951,8 +1003,8 @@ if(enable_avfilter)
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
-							__FILE__, __FUNCTION__ );
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
+							__func__);
 		goto FAIL_OR_TERM;
    	}
 
@@ -997,8 +1049,8 @@ if(enable_avfilter)
     	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
-							__FILE__, __FUNCTION__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
+							__func__);
         	goto FAIL_OR_TERM;
     	}
     	/* configure the filter graph */
@@ -1092,7 +1144,7 @@ if(enable_avfilter)
 					}
 					/* push data to pic buff for SPI LCD displaying */
 					printf(" start Load_Pic2Buff()....\n");
-					if( load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
+					if( ff_load_Pic2Buff(&pic,filt_pFrame->data[0],numBytes) <0 )
 						EGI_PDEBUG(DBG_FFPLAY," [%lld] PICBuffs are full! video frame is dropped!\n",
 									tm_get_tmstampms());
 
@@ -1112,7 +1164,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 				/* push data to pic buff for SPI LCD displaying */
 				//printf(" start Load_Pic2Buff()....\n");
-				if( load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
+				if( ff_load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
 } /* end of AVFilter ON/OFF */
@@ -1258,7 +1310,6 @@ if(enable_clip_test)
 		    else
 			FFplay_Ctx->ffcmd=cmd_none;
 		}
-
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 

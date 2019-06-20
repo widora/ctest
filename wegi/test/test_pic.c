@@ -3,8 +3,9 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Test EGI_PIC functions
+
+Usage:	test_pic /photos/
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -35,7 +36,7 @@ int main(int argc, char **argv)
         init_fbdev(&gv_fb_dev);
 
 	char *path= argv[1]; //"/mmc/photos";
-	char (*fpaths)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL;
+	char **fpaths;
 	int count=0;
 
 	int pich=230;
@@ -71,13 +72,19 @@ while(1) {
 	imgbuf=egi_imgbuf_new();
 	/* load jpg file to buf */
 	if(egi_imgbuf_loadjpg(fpaths[i], imgbuf) !=0) {
+		printf("Load JPG imgbuf fail, try egi_imgbuf_loadpng()...\n");
 		if(egi_imgbuf_loadpng(fpaths[i], imgbuf) !=0) {
-			printf(" load imgbuf fail, try egi_imgbuf_free...\n");
+			printf("Load PNG imgbuf fail, try egi_imgbuf_free...\n");
 			egi_imgbuf_free(imgbuf);
 		   	continue;
 		}
+		else {
+			printf("Finish loading PNG image file...\n");
+		}
 	}
-	printf("Finish loading image file...\n");
+	else {
+		printf("Finish loading JPG image file...\n");
+	}
 
 	/* allocate data_pic */
 	/* NOTE:
@@ -141,7 +148,9 @@ while(1) {
    }/* end displaying all files */
 
 	/* free fpaths */
-	free(fpaths);
+	egi_free_buff2D((unsigned char **) fpaths, count);
+
+
 } /* end of while() */
 
 	release_fbdev(&gv_fb_dev);

@@ -21,6 +21,8 @@ LDFLAGS += -L../lib -L$(COMMON_USRDIR)/lib
 #LDFLAGS += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.2/ipkg-install/usr/lib
 
 LIBS	 += -lasound  -lshine -legi -lpng -ljpeg -lz
+LIBS += -lcurl -lssl -lcrypto
+
 
 all:	$(APP) libesound.a
 

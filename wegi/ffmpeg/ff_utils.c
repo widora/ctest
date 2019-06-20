@@ -17,6 +17,7 @@ Midas_Zhou
 #include <limits.h> /* system: NAME_MAX 255; PATH_MAX 4096 */
 
 #include "egi_common.h"
+#include "utils/egi_utils.h"
 #include "sound/egi_pcm.h"
 
 #include "ff_utils.h"
@@ -38,6 +39,10 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiabil
 						    * thdf_Display_Pic() put 'true' tag,
 						    */
 
+static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
+
+
+
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
@@ -49,7 +54,7 @@ Return value:
 	 NULL   --- fails
 	!NULL 	--- OK
 ----------------------------------------------------------------*/
-uint8_t**  malloc_PICbuffs(int width, int height, int pixel_size )
+uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
 {
         int i,k;
 
@@ -84,7 +89,7 @@ Return value:
         >=0  OK
         <0   fails
 ---------------------------------------------*/
-int get_FreePicBuff(void)
+int ff_get_FreePicBuff(void)
 {
         int i;
         for(i=0;i<PIC_BUFF_NUM;i++) {
@@ -99,7 +104,7 @@ int get_FreePicBuff(void)
 /*----------------------------------
    free pPICbuffs
 ----------------------------------*/
-void free_PicBuffs(void)
+void ff_free_PicBuffs(void)
 {
         int i;
 
@@ -200,11 +205,11 @@ void* thdf_Display_Pic(void * argv)
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
 ------------------------------------------------------------------------*/
-int load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
+int ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 
-	nbuff=get_FreePicBuff(); /* get a slot number */
+	nbuff=ff_get_FreePicBuff(); /* get a slot number */
 	ppic->nPICbuff=nbuff;
 	//printf("Load_Pic2Buff(): get_FreePicBuff() =%d\n",nbuff);
 
@@ -301,24 +306,37 @@ void* thdf_Display_Subtitle(void * argv)
 
 		/* 4. wait for a right time to display the subtitles */
 		do{
+		     /* check if any command comes */
+		     if(control_cmd == cmd_exit_subtitle_thread ) {
+			  EGI_PDEBUG(DBG_FFPLAY,"Exit commmand is received, exit thread now...!\n");
+			  fclose(fil);
+                	  pthread_exit( (void *)-1);
+		     }
+
 		     tm_delayms(200);
 //		     printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
-        	symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
+
+		/* 5. Disply subtitle */
+       	        symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
                                                                                 1, 0, 170, strsub,-1);
-		/* 5. wait for a right time to let go to erase the sub. */
+
+		/* 6. wait for a right time to let go to erase the sub. */
 		do{
+		     /* check if any command comes */
+		     if(control_cmd == cmd_exit_subtitle_thread ) {
+			  EGI_PDEBUG(DBG_FFPLAY,"%s: exit commmand is received, exit thread now...!\n",
+												__func__);
+			  fclose(fil);
+                	  pthread_exit( (void *)-2);
+		     }
+
 		     tm_delayms(200);
 //		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
 		} while( end_secs > ff_sec_Velapsed - ff_sub_delays );
 
-		/* 6. check if any command comes */
-	        if(control_cmd == cmd_exit_display_thread ) {
-			EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
-                	break;
-		}
 
-       	        /* 1. section number or a return code, ignore it. */
+       	        /* 7. section number or a return code, ignore it. */
                 memset(strtm,0,sizeof(strtm));
        	        fgets(strtm,32,fil);
                 if(*strtm=='\n' || *strtm=='\t')
@@ -345,7 +363,7 @@ return:
 	>0 	OK, offset
 	<0 	Fails
 ----------------------------------------------------*/
-long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
+static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
 {
         char strtm[32]={0}; /* time stamp */
         int  start_secs=0; /* sub section start time, seconds part */

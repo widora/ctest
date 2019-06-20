@@ -139,27 +139,10 @@ int main(int argc, char **argv)
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-	FFplay_Ctx=calloc(1, sizeof(struct FFplay_Context));
-	if(FFplay_Ctx==NULL) {
-		printf("%s: Fail to calloc FFplay_Context!\n",__func__);
-		goto FF_FAIL;
+	if( egi_init_ffplayCtx("/mmc", "mp3, avi, jpg") ) {
+	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
+		return pgret_ERR;
 	}
-	FFplay_Ctx->ftotal=10;
-	FFplay_Ctx->fpath=calloc(FFplay_Ctx->ftotal,sizeof(char *));
-	char *strpath[10]= {
-"/mmc/?? ??? - ??????.mp3",
-"/mmc/Lemon Tree.mp3",
-"/mmc/??? - ???.mp3",
-"/mmc/??? - ????.mp3",
-"/mmc/??? - ?????.mp3",
-"/mmc/??? - ????????.mp3",
-"/mmc/????101 - ???.mp3",
-"/mmc/Strauss2.mp3",
-"/mmc/xxx.mp3",
-"/mmc/tomorrow.avi"
-	};
-	FFplay_Ctx->fpath=strpath;
-	// TODO: init and free FFplay_Ctx
 
 	/*  ---  2. EGI PAGE creation  ---  */
 	printf(" start page creation....\n");
@@ -180,10 +163,12 @@ int main(int argc, char **argv)
 		                                                app_name,page_ffplay->ebox->tag);
 
 	tm_delayms(200); /* let LOG finish */
-        egi_page_free(page_ffplay);
 
+        egi_page_free(page_ffplay);
 	ret=pgret_OK;
 
+	/* free FFLAY_CONTEXT */
+	egi_free_ffplayCtx();
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

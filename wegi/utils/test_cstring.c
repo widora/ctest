@@ -28,7 +28,7 @@ int main(void)
 
 	while(1)
 	{
-		path=egi_alloc_search_files("/mmc/","mp3", &total);
+		path=egi_alloc_search_files("/mmc/","mp3, wav, png", &total);
 		printf("Find %d files.\n", total);
   		for(i=0;i<total;i++)
 			printf("%s\n",path+i);
@@ -38,8 +38,29 @@ int main(void)
 	}
 #endif
 
+#if 1 //////////////////  1. TEST: egi_alloc_search_file2() //////////////
 
-#if 1 //////////////////  2. TEST: cstr_dup_repextname()  ////////////////
+	int i;
+	char **path;
+	int total;
+
+	while(1)
+	{
+		path=egi_alloc_search_files("/mmc/",".mp3,    .avi,  .png", &total);
+		printf("Find %d files.\n", total);
+//  		for(i=0;i<total;i++)
+//			printf("%s\n",path[i]);
+
+		/* free path */
+		egi_free_buff2D((unsigned char **) path, total);
+
+  		tm_delayms(100);
+	}
+#endif
+
+
+
+#if 0 //////////////////  2. TEST: cstr_dup_repextname()  ////////////////
 int i;
 char *newpath=NULL;
 

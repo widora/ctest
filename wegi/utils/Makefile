@@ -11,6 +11,7 @@ OBJS= egi_utils.o egi_fifo.o egi_filo.o egi_iwinfo.o egi_cstring.o ../egi_log.o 
 
 ## Shall also include all sys libs head file dir
 CFLAGS += -Wall -I../ -I../utils -I$(COMMON_USRDIR)/include
+CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
 LDFLAGS += -L$(COMMON_USRDIR)/lib
 LIBS += -lpthread
 LIBS += -lcurl -lssl -lcrypto

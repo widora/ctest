@@ -52,6 +52,9 @@ egi_ffplay.o:	egi_ffplay.c egi_ffplay.h ff_utils.o
 ff_utils.o: ff_utils.c ff_utils.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c ff_utils.c
 
+test_ffutils:  test_ffutils.c ff_utils.o egi_ffplay.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS)  ff_utils.o egi_ffplay.o ../sound/egi_pcm.o -o test_ffutils  test_ffutils.c
+
 
 #---------------  APP2 -----------------------
 $(APP2): $(SOURCE2) $(DEPS)

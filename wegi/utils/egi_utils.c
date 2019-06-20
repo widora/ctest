@@ -12,8 +12,8 @@ Midas Zhou
 #include "egi_log.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <string.h>
 #include <dirent.h>
 #include <errno.h>
@@ -54,7 +54,6 @@ int egi_copy_file(char const *fsrc_path, char const *fdest_path)
 	close(fd_dest);
 	return 0;
 }
-
 
 
 /*---------------------------------------------------------------------
@@ -186,9 +185,8 @@ int egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int 
 }
 
 
-
 /*----------------------------------------------------
-free 2 dimension buff.
+	free 2 dimension buff.
 ----------------------------------------------------*/
 void egi_free_buff2D(unsigned char **buff, int items)
 {
@@ -222,32 +220,35 @@ void egi_free_buff2D(unsigned char **buff, int items)
 }
 
 
-/*------------------------------------------------------------------------------------------
+/*-----------------------------------------------------------------------------------------------------
 1. Find out all files with specified type in a specified directory and push them into allocated fpbuff,
-then return the fpbuff pointer.
+   then return the fpbuff pointer.
 2. The fpbuff will expend its memory double each time when no space left for more file paths.
 3. !!! Remind to free the fpbuff at last whatever the result !!!
+4. Call egi_free_buff2D() to free result array of string.
 
 @path:           Sear path without extension name.
-@fext:		File extension name, MUST exclude ".", Example: "wav" or "mp3"...
+@fext:		 File extension name, separated by '.', ' ', '.', or';'.
+		 Example: "jpg", ".bmp, .doc", "avi; jpg .wav",....
 @pcount:         Total number of files found, NULL to ignore.
 		-1, search fails.
 
 return value:
-         pointer to char (*)[EGI_PATH_MAX+EGI_NAME_MAX]   	OK
+         Array of char string				 	OK
          NULL && pcount=-1;					Fails
 	 NULL && pcount=0;					no file matches
 --------------------------------------------------------------------------------------------*/
 char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount )
 {
-        DIR *dir;
-        struct dirent *file;
-        int num=0; /* file numbers */
-	char *pt=NULL; /* pointer to '.', as for extension name */
-	char (*fpbuff)[EGI_PATH_MAX+EGI_NAME_MAX]=NULL; /* pointer to final full_path buff */
-	int km=0; /* doubling memory times */
-	char *ptmp;
-	bool	ext_matched=false;
+        DIR 	*dir;
+        struct 	dirent *file;
+        int 	num=0; 			/* file numbers */
+	char 	*pt=NULL; 		/* pointer to '.', as for extension name */
+	char 	**fpbuff=NULL; 		/* pointer to final full_path buff */
+	int 	km=0; 			/* doubling memory times */
+	char 	**ptmp;
+	bool	ext_matched=false; 	/* extension name matched */
+	int	len_path;		/* strlen of path */
 
 	/* for extension name buffer */
 	int k;
@@ -268,13 +269,15 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 	}
 
 	/* 2. check input path leng */
-	if( strlen(path) > EGI_PATH_MAX-1 )
+	len_path=strlen(path);
+	if( len_path > EGI_PATH_MAX-1 )
 	{
 		EGI_PLOG(LOGLV_ERROR, "egi_alloc_search_files(): Input path length > EGI_PATH_MAX(%d). \n",
 											EGI_PATH_MAX);
 		if(pcount!=NULL)*pcount=-1;
 		return NULL;
 	}
+
 
 	/* get separated extension name list */
 	strbuf=strdup(fext);
@@ -297,17 +300,17 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
         {
                 EGI_PLOG(LOGLV_ERROR,"egi_alloc_search_files(): %s, error open dir: %s!\n",strerror(errno),path);
 
-		if(pcount!=NULL)*pcount=-1;
+		if(pcount!=NULL) *pcount=-1;
                 return NULL;
         }
 
 	/* 4. calloc one slot buff first */
-	fpbuff= calloc(1,EGI_PATH_MAX+EGI_NAME_MAX);
+	fpbuff= calloc(1, sizeof(char *));
 	if(fpbuff==NULL)
 	{
 		EGI_PLOG(LOGLV_ERROR,"egi_alloc_search_files(): Fail to callo fpbuff!.\n");
 
-		if(pcount!=NULL)*pcount=-1;
+		if(pcount!=NULL) *pcount=-1;
 		return NULL;
 	}
 	km=0; /* 2^0, first double */
@@ -326,9 +329,10 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 		{
 			/* double memory */
 			km++;
-			ptmp=(char *)realloc((char *)fpbuff,(1<<km)*(EGI_PATH_MAX+EGI_NAME_MAX) );
+			//ptmp=(char *)realloc((char *)fpbuff,(1<<km)*(EGI_PATH_MAX+EGI_NAME_MAX) );
+			ptmp=realloc(fpbuff,(1<<km)*(sizeof(char *)));
 
-			/* if doubling mem fails */
+			/* If doubling mem fails */
 			if(ptmp==NULL)
 			{
 				EGI_PLOG(LOGLV_ERROR,"egi_alloc_search_files(): Fail to realloc mem for fpbuff.\n");
@@ -337,7 +341,8 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 			}
 
 			/* get new pointer to the buff */
-			fpbuff=( char(*)[EGI_PATH_MAX+EGI_NAME_MAX])ptmp;
+			//fpbuff=( char(*)[EGI_PATH_MAX+EGI_NAME_MAX])ptmp;
+			fpbuff=ptmp;
 			ptmp=NULL;
 
 			EGI_PLOG(LOGLV_INFO,"egi_alloc_search_files(): fpbuff[] is reallocated with capacity to buffer totally %d items of full_path.\n",
@@ -353,11 +358,13 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 		}
 
 
+		/* TODO: skip mid '.' */
 		pt=strstr(file->d_name,"."); /* get '.' pointer */
 		if(pt==NULL){
 			//printf("ff_find_files(): no extension '.' for %s\n",file->d_name);
 			continue;
 		}
+
 
 		/* compare file extension  with items in ext_list[] */
 		ext_matched=false;
@@ -371,9 +378,9 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 			continue;
 
 		/* Clear buff and save full path of the matched files */
-		memset((char *)(fpbuff+num), 0, (EGI_PATH_MAX+EGI_NAME_MAX)*sizeof(char) );
-		sprintf((char *)(fpbuff+num), "%s/%s", path, file->d_name);
-		//printf("egi_alloc_search_files(): push %s ...OK\n",fpbuff+num);
+		fpbuff[num]=calloc(1, len_path+strlen(file->d_name)+2);
+		sprintf(fpbuff[num], "%s/%s", path, file->d_name);
+		//printf("egi_alloc_search_files2(): push %s ...OK\n",fpbuff[num]);
 
                 num++;
         }
@@ -393,8 +400,6 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
          closedir(dir);
 
 	/* 9. return pointer to the buff */
-         return (char **)fpbuff;
+         return fpbuff;
 }
-
-
 
