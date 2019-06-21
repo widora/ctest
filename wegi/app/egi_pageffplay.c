@@ -13,8 +13,24 @@ page creation jobs:
 3. egi_XXX_routine() function if not use default egi_page_routine().
 4. button reaction functins
 
+
+
+                        (((  --------  PAGE DIVISION  --------  )))
+[Y0-Y29]
+{0,0},{240-1, 29}               ---  Head title bar
+
+[Y30-Y260]
+{0,30}, {240-1, 260}            --- Image/subtitle Displaying Zone
+[Y150-Y260] Sub_displaying
+
+[Y150-Y265]
+{0,150}, {240-1, 260}           --- box area for subtitle display
+
+[Y266-Y319]
+{0,266}, {240-1, 320-1}         --- Buttons
+
+
 TODO:
-1.
 
 
 Midas Zhou
@@ -127,7 +143,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	ffplay_btns[3]->reaction=egi_ffplay_exit;
 
 	egi_ebox_settag(ffplay_btns[4], "Playmode");
-	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_SHUFFLE;
+	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
 	ffplay_btns[4]->reaction=egi_ffplay_playmode;
 
 
@@ -274,12 +290,17 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* command for ffplay, ffplay will reset it */
 	if(count==0) {					/* LOOP ALL */
 		FFplay_Ctx->ffmode=mode_loop_all;
-		FFplay_Ctx->ffcmd=cmd_mode;
+		FFplay_Ctx->ffcmd=cmd_mode;		/* set cmd_mode at last!!! as for LOCK. */
 	}
 	else if(count==1) { 				/* REPEAT ONE */
 		FFplay_Ctx->ffmode=mode_repeat_one;
 		FFplay_Ctx->ffcmd=cmd_mode;
 	}
+	else if(count==2) { 				/* SHUFFLE */
+		FFplay_Ctx->ffmode=mode_shuffle;
+		FFplay_Ctx->ffcmd=cmd_mode;
+	}
+
 
 	/* set refresh flag for this ebox */
 	egi_ebox_needrefresh(ebox);
@@ -300,20 +321,22 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 #if 1
 	/*TEST: send HUP signal to iteself */
-//	if( kill( getpid(),SIGSTOP) < 0) {
-	if(raise(SIGSTOP) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGSTOP to self.\n",__func__);
+
+	/* save current page image */
+
+	if(raise(SIGUSR1) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.\n",__func__);
 	}
-	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSTOP), return to page routine...\n",__func__);
+	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...\n",__func__);
 
   /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
-   *    will be received one after another,(In rarea case, it may receive 2 'preesed_hold')
+   *    will be received one after another,(In rare circumstances, it may receive 2 'preesed_hold')
    *	and the signal handler will call egi_page_needrefresh().
    *    But 'releasing' will trigger btn refresh by egi_btn_touch_effect() just before page refresh.
    *    After refreshed, need_refresh will be reset for this btn, so when egi_page_refresh() is called
    *    later to refresh other elements, this btn will erased by page bkcolor/wallpaper.
    * 2. The 'releasing' status here is NOT a real pen_releasing action, but a status changing signal.
-   *    Example: when status transfers from 'pressed_hold' to PEN_UP etc
+   *    Example: when status transfers from 'pressed_hold' to PEN_UP.
    * 3. To be handled by page routine.
    */
 
@@ -334,7 +357,7 @@ static int pageffplay_decorate(EGI_EBOX *ebox)
 {
 	/* bkcolor for bottom buttons */
 	fbset_color(WEGI_COLOR_GRAY3);
-        draw_filled_rect(&gv_fb_dev,0,261+5,239,319);
+        draw_filled_rect(&gv_fb_dev,0,266,239,319);
 
 	return 0;
 }

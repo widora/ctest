@@ -78,7 +78,7 @@ int main(void)
 	symbol_writeFB(&gv_fb_dev, &sympg_heweather, WEGI_COLOR_WHITE, -1, 70, 250, 0, 0);
 
 	printf("symbol free page...\n");
-	symbol_free_page(&sympg_heweather);
+	symbol_release_page(&sympg_heweather);
 
 	egi_imgbuf_free(eimg);
 

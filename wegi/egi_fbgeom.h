@@ -46,8 +46,9 @@ void 	clear_screen(FBDEV *dev, uint16_t color);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 bool    box_inbox(EGI_BOX* box, EGI_BOX* container);
 bool    box_outbox(EGI_BOX* box, EGI_BOX* container);
-//////////////// draw function ////////////
 
+////////////////  Draw function   ///////////////
+   /******  NOTE: for 16bit color only!  ******/
 inline int 	draw_dot(FBDEV *dev,int x,int y);
 void 	draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
@@ -70,10 +71,10 @@ void draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
 void draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color);
 void draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
 
-
 int 	fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
 int 	fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf);
-
+int 	fb_buffer_FBimg(FBDEV *fb_dev, int nb);
+int 	fb_restore_FBimg(FBDEV *fb_dev, int nb, bool clean);
 
 /* square mapping */
 void fb_drawimg_SQMap(int n, struct egi_point_coord x0y0, const uint16_t *image,

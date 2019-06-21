@@ -12,12 +12,7 @@ Based on:
 				       ---  by Martin Runge
 	  www.xuebuyuan.com/1624253.html
 				       ---  by niwenxian
-[Y0-Y29]
-[offy=50]
-[Y50 - Y(50+Image Height-1)]
-[Y150-Y260] Sub_displaying
-[Y265-Y319] Buttons
-{{0,150}, {240-1, 260}}; --box area for subtitle display
+
 
 TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
@@ -59,7 +54,23 @@ NOTE:
     if it exists, Only 'srt' type subtitle file is supported.
 
 
-		 (((  -------- Glossary --------  )))
+
+		 	(((  --------  PAGE DIVISION  --------  )))
+[Y0-Y29]
+{0,0},{240-1, 29}  		--- Head titlebar
+
+[Y30-Y260]
+{0,30}, {240-1, 260}  		--- Image/subtitle Displaying Zone
+[Y150-Y260] Sub_displaying
+
+[Y150-Y265]
+{0,150}, {240-1, 260} 		--- box area for subtitle display
+
+[Y266-Y319]
+{0,266}, {240-1, 320-1}  	--- Buttons
+
+
+			 (((  --------  Glossary  --------  )))
 
 FPS:		Frame Per Second
 PAR:		Pixel Aspect Ratio
@@ -80,15 +91,13 @@ display_height,display_width:
 	   	(NOT image upright size!!!)
 
 
-
-		 (((  -------- Data Flow --------  )))
+		 	 (((  --------  Data Flow  --------  )))
 
 The data flow of a movie is like this:
   (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
   (thread)  pPICBuff ----> FB (~xxxms per frame) ---> Display
   (thread)  display subtitle
   (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
-
 
 
 Usage:
@@ -195,32 +204,41 @@ static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! 
 static bool enable_stretch=false;
 
 /* param: ( enable_seek_loop )
- *   if 1:	loop one single file/stream forever.
- *   if 0:	play one time only.
- *   NOTE: if TRUE, then curretn input seek postin will be ignored.!!! It always start from the
+ *   True:	loop one single file/stream forever.
+ *   False:	play one time only.
+ *   NOTE: 1. if TRUE, then curretn input seek postin will be ignored.!!! It always start from the
  *     	   very beginning of the file.
+ *	   2. if enable_shuffle set to be true, then enable_seekloop will be false, and viceversa.
  */
 /* loop seeking and playing from the start of the same file */
-bool enable_seekloop=false;
+static bool enable_seekloop=false;
+
+/* param: ( enable_shuffle )
+ *   True:	play files in the list randomly.
+ *   False:	play files in order.
+ *   Note:	if enable_shuffle set to be true, then enable_seekloop will be false, and viceversa.
+ */
+static bool enable_shuffle=false;
 
 /* param: ( enable_filesloop )
- *   if 1:	loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
+ *   Ture:      Loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
  *		and continue to try next one.
- *   if 0:	play one time for every file in playlist.
+ *   False:	play one time for every file in playlist.
  */
-bool enable_filesloop=true;
+static bool enable_filesloop=true;
 
 /* param: ( enable_audio )
  *   if 1:	enable audio playback.
  *   if 0:	disable audio playback.
  */
-bool disable_audio=false;
+static bool disable_audio=false;
 
 /* param: ( enable_clip_test )
  *   if 1:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
  *   if 0:	disable clip test.
  */
 static bool enable_clip_test=false;
+
 
 /* param: ( play mode )
  *   mode_loop_all:	loop all files in the list
@@ -439,6 +457,11 @@ while(1) {
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
    {
+	/* check if enable_shuffle */
+	if(enable_shuffle) {
+		fnum=egi_random_max(ftotal)-1;
+	}
+
 	/* reset display window size */
 	display_height=show_h;
 	display_width=show_w;
@@ -466,7 +489,8 @@ while(1) {
 	/* Retrieve stream information, !!!!!  time consuming  !!!! */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):  Retrieving stream information... \n", tm_get_tmstampms());
 	/* ---- seems no use! ---- */
-	//pFormatCtx->probesize2=128*1024;
+	//
+pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
 		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
@@ -886,7 +910,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 				  pCodecCtx->pix_fmt,
 				  display_width, //scwidth,/* scaled output size */
 				  display_height, //scheight,
-				  PIX_FMT_RGB565LE,
+				  AV_PIX_FMT_RGB565LE,
 				  SWS_BILINEAR,
 				  NULL,
 				  NULL,
@@ -1285,14 +1309,23 @@ if(enable_clip_test)
 		    }
 	  	    /* 2. shift mode */
 		    else if( FFplay_Ctx->ffcmd==cmd_mode) {
+			    /* Note:
+			     *      1. Default enable_filesloop is true.
+			     *	    2. mode_loop_all means loop in order.
+			     */
 			    if(FFplay_Ctx->ffmode==mode_repeat_one) {
 				enable_seekloop=true;
-				//enable_filesloop=false;
+				enable_shuffle=false;
+			    }
+			    else if(FFplay_Ctx->ffmode==mode_shuffle) {
+				enable_shuffle=true;
+				enable_seekloop=false;
 			    }
 			    else if(FFplay_Ctx->ffmode==mode_loop_all) {
 				enable_seekloop=false;
-				//enable_filesloop=true;  !!! Or will break at the bottom !!
+				enable_shuffle=false;
 			    }
+			    /* reset */
 	 		    FFplay_Ctx->ffcmd=cmd_none;
 		    }
 		    /* 3. parse PREV/NEXT  */
@@ -1379,8 +1412,10 @@ FAIL_OR_TERM:
 	}
 
 	/* close pcm device */
-	EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
-	close_ffpcm_device();
+	if(audioStream >= 0) {
+		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
+		close_ffpcm_device();
+	}
 
 	/* free outputBuffer */
 	if(outputBuffer != NULL)
@@ -1421,8 +1456,10 @@ if(enable_avfilter) /* free filter resources */
 
 	/* Close the video file */
 	EGI_PDEBUG(DBG_FFPLAY,"avformat_close_input()...\n");
-	avformat_close_input(&pFormatCtx);
-	pFormatCtx=NULL;
+	if(pFormatCtx != NULL) {
+		avformat_close_input(&pFormatCtx);
+		pFormatCtx=NULL;
+	}
 
 	if(audioStream >= 0)
 	{

@@ -1,14 +1,28 @@
-/*------------------------------------------------------------------
+/*-------------------------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 A EGI APP program for FFPLAY.
 
+   [  EGI_UI ]
+	|
+	|____ [ BUTTON ]
+		  |
+		  |
+           <<<  signal  >>>
+		  |
+		  |
+	      [ SUBPROCESS ] app_ffplay.c
+				|
+	        		|____ [ UI_PAGE ] egi_pageffplay.c
+							|
+							|_____ [ OBJ_FUNC ] egi_ffplay.c
+
 
 Midas Zhou
 midaszhou@yahoo.com
-------------------------------------------------------------------*/
+---------------------------------------------------------------------------------------*/
 #include "egi_common.h"
 #include "egi_ffplay.h"
 #include "egi_pageffplay.h"
@@ -18,13 +32,16 @@ midaszhou@yahoo.com
 static char app_name[]="app_ffplay";
 static EGI_PAGE *page_ffplay=NULL;
 
-#define APP_FFPLAY_SIGNALS	SIGUSR1|SIGUSR2|SIGTERM
-static struct sigaction sigact;
-static struct sigaction osigact;
+static struct sigaction sigact_cont;
+static struct sigaction osigact_cont;
+
+static struct sigaction sigact_usr;
+static struct sigaction osigact_usr;
+
 
 
 /*----------------------------------------------------
-		Signal handler
+		Signal handler for SIGCONT
 
 SIGCONT:	To continue the process.
 		SIGCONT can't not be blocked.
@@ -33,33 +50,74 @@ SIGUSR2:
 SIGTERM:	To terminate the process.
 
 -----------------------------------------------------*/
-static void app_sighandler( int signum, siginfo_t *info, void *ucont )
+static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 {
 	pid_t spid=info->si_pid;/* get sender's pid */
 
-	switch(signum)
-	{
-		case SIGCONT:
-		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
-									app_name, __func__, spid);
-			/* set page refresh flag */
-			egi_page_needrefresh(page_ffplay);
 
-			break;
+   if(signum==SIGCONT) {
+        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
+								app_name, __func__, spid);
+	/* set page refresh flag */
+//	egi_page_needrefresh(page_ffplay);
 
-		case SIGUSR1:
-		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR2 received from process [PID:%d].\n",
-									app_name, __func__, spid);
-			break;
-		case SIGTERM:
-		        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGTERM received from process [PID:%d].\n",
-									app_name, __func__, spid);
-			break;
-		default:
-			break;
-	}
+	/* restore FBDEV buffer[0] to FB, do not clear buffer */
+	fb_restore_FBimg(&gv_fb_dev, 0, false);
+  }
+
 }
 
+
+/*----------------------------------------------------
+		Signal handler for SIGUSR1
+-----------------------------------------------------*/
+static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
+{
+	pid_t spid=info->si_pid;/* get sender's pid */
+
+  if(signum==SIGUSR1) {
+	/* restore FBDEV buffer[0] to FB, do not clear buffer */
+        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR1 received from process [PID:%d].\n", app_name, __func__, spid);
+
+	/* buffer FB image */
+	fb_buffer_FBimg(&gv_fb_dev, 0);
+
+	/* raise SIGSTOP */
+        if(raise(SIGSTOP) !=0 ) {
+                EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to raise(SIGSTOP) to itself.\n",app_name, __func__);
+        }
+ }
+
+}
+
+
+/*----------------------------------------------------
+	assign signal actions
+-----------------------------------------------------*/
+static int assign_signal_actions(void)
+{
+        /* 1. set signal action for SIGCONT */
+        sigemptyset(&sigact_cont.sa_mask);
+        sigact_cont.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
+	sigact_cont.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
+        sigact_cont.sa_sigaction=sigcont_handler;
+        if(sigaction(SIGCONT, &sigact_cont, &osigact_cont) <0 ){
+	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGCONT.\n", app_name, __func__);
+                return -1;
+        }
+
+        /* 2. set signal handler for SIGUSR1 */
+        sigemptyset(&sigact_usr.sa_mask);
+        sigact_usr.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
+	sigact_usr.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
+        sigact_usr.sa_sigaction=sigusr_handler;
+        if(sigaction(SIGUSR1, &sigact_usr, &osigact_usr) <0 ){
+	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGUSR1.\n", app_name, __func__);
+                return -2;
+        }
+
+	return 0;
+}
 
 
 #if 0  ////////////////////////////////////////////////////////////////////////
@@ -97,6 +155,7 @@ siginfo_t {
 #endif////////////////////////////////////////////////////////////////////////////
 
 
+
 /*----------------------------
 	     MAIN
 ----------------------------*/
@@ -105,15 +164,21 @@ int main(int argc, char **argv)
 	int ret=0;
 	pthread_t thread_loopread;
 
-        /* --- 0. set signal handler for SIGCONT --- */
-        sigemptyset(&sigact.sa_mask);
-        sigact.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
-	sigact.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
-        sigact.sa_sigaction=app_sighandler;
-        if(sigaction(SIGCONT, &sigact, &osigact) <0 ){
+
+        /*  ---  0. assign signal actions  --- */
+	assign_signal_actions();
+
+#if 0
+        sigemptyset(&sigact_cont.sa_mask);
+        sigact_cont.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
+	sigact_cont.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
+        sigact_cont.sa_sigaction=sigcont_handler;
+        if(sigaction(SIGCONT, &sigact_cont, &osigact_cont) <0 ){
 	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction().\n", app_name, __func__);
                 return -1;
         }
+
+#endif
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
@@ -135,7 +200,6 @@ int main(int argc, char **argv)
                 ret=-3;
 		goto FF_FAIL;
         }
-
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
@@ -172,7 +236,7 @@ int main(int argc, char **argv)
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);
-        symbol_free_allpages();
+        symbol_release_allpages();
 	SPI_Close();
         egi_quit_log();
 

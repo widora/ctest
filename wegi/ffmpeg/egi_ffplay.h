@@ -27,7 +27,11 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "sound/egi_pcm.h"
 
-/* ffplay control command signal */
+/* ffplay control command signal
+ * !!! Note: pthread lock not applied here, when you need to set
+ *           ffplay_mode, set 'cmd_mode' as last, as egi_thread_ffplay()
+ *           will check 'cmd_mode' first!
+ */
 enum ffplay_cmd {
         cmd_none=0,
         cmd_play,
@@ -40,7 +44,10 @@ enum ffplay_cmd {
         cmd_exit_display_thread,    /* stop display thread */
         cmd_exit_subtitle_thread    /* stop subtitle tread */
 };
-/* set ffplay_cmd as 'cmd_mode' before set ffplay_mode */
+/* set ffplay_cmd as 'cmd_mode' before set ffplay_mode
+ * !!! Note: pthread lock not applied here, set 'cmd_mode' as last,
+             as egi_thread_ffplay() will check 'cmd_mode' first!
+ */
 enum ffplay_mode
 {
         mode_loop_all=0,   /* loop all files in the list */

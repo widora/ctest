@@ -82,7 +82,7 @@ struct symbol_page
 	 Each row has same number of symbols, so you can use code number to locate a row in a img page
 	 Code is a unique encoding number for each symbol in a page, like ASCII number.
 	*/
-	int *symb_code; /*default NULL if not applicable */
+	int *symb_code; /*default NULL, if not applicable */
 };
 
 
@@ -100,16 +100,14 @@ extern char symmic_cpuload[6][5];
 extern char symmic_iotload[9];
 
 
-
-
 /*------------------- functions ---------------------*/
-int symbol_load_allpages(void); //__attribute__((constructor))
-void symbol_free_allpages(void);
+int 	symbol_load_allpages(void); //__attribute__((constructor))
+void 	symbol_release_allpages(void);
 //static uint16_t *symbol_load_page(struct symbol_page *sym_page);
-void symbol_free_page(struct symbol_page *sym_page);
-int symbol_check_page(const struct symbol_page *sym_page, char *func);
-void symbol_save_pagemem(struct symbol_page *sym_page);
-int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf);
+void 	symbol_release_page(struct symbol_page *sym_page);
+int 	symbol_check_page(const struct symbol_page *sym_page, char *func);
+void 	symbol_save_pagemem(struct symbol_page *sym_page);
+int 	symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf);
 
 /*--------------------------------------------------------------------------------------------
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.

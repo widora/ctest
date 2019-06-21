@@ -16,7 +16,7 @@ LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
-APPS = test_sym tmp_app test_pic
+APPS = test_fb test_sym tmp_app test_pic
 
 all:	$(APPS)
 

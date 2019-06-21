@@ -18,7 +18,6 @@ Midas Zhou
 #include "egi_log.h"
 #include "egi_timer.h"
 
-/* definition of global varriable: g_ffpcm_handle */
 static snd_pcm_t *g_ffpcm_handle;
 static bool g_blInterleaved;
 
@@ -80,19 +79,19 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
 	/* sampling rate */
 	snd_pcm_hw_params_set_rate_near(g_ffpcm_handle, params, &srate, &dir);
 	if(dir != 0)
-		printf(" Actual sampling rate is set to %d HZ!\n",srate);
+		printf("%s: Actual sampling rate is set to %d HZ!\n",__func__, srate);
 
 	/* set HW params */
 	rc=snd_pcm_hw_params(g_ffpcm_handle,params);
 	if(rc<0) /* rc=0 on success */
 	{
-		fprintf(stderr,"unable to set hw parameter: %s\n",snd_strerror(rc));
+		EGI_PLOG(LOGLV_ERROR,"unable to set hw parameter: %s\n",snd_strerror(rc));
 		return rc;
 	}
 
 	/* get period size */
 	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
-	printf("snd pcm period size = %d frames\n",(int)frames);
+	EGI_PDEBUG(DBG_PCM, "%s: snd pcm period size = %d frames\n",__func__, (int)frames);
 
 	return rc;
 }
@@ -106,6 +105,7 @@ void close_ffpcm_device(void)
 	if(g_ffpcm_handle != NULL) {
 		snd_pcm_drain(g_ffpcm_handle);
 		snd_pcm_close(g_ffpcm_handle);
+		g_ffpcm_handle=NULL;
 	}
 }
 
@@ -135,7 +135,7 @@ void  play_ffpcm_buff(void ** buffer, int nf)
         {
             /* EPIPE means underrun */
             //fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-            EGI_PDEBUG(DBG_FFPLAY,"[%lld]: snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n",
+            EGI_PDEBUG(DBG_PCM,"[%lld]: snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n",
             						tm_get_tmstampms() );
 	    snd_pcm_prepare(g_ffpcm_handle);
         }
@@ -184,7 +184,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* open an empty mixer */
 	ret=snd_mixer_open(&handle,0); /* 0 unused param*/
 	if(ret!=0){
-		printf("Open mixer fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR, "Open mixer fails: %s",snd_strerror(ret));
 		ret=-1;
 		goto FAILS;
 	}
@@ -192,7 +192,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Attach an HCTL specified with the CTL device name to an opened mixer */
 	ret=snd_mixer_attach(handle,card);
 	if(ret!=0){
-		printf("Mixer attach fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR, "Mixer attach fails: %s",snd_strerror(ret));
 		ret=-2;
 		goto FAILS;
 	}
@@ -200,7 +200,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Register mixer simple element class */
 	ret=snd_mixer_selem_register(handle,NULL,NULL);
 	if(ret!=0){
-		printf("Mixer simple element class register fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"Mixer simple element class register fails: %s",snd_strerror(ret));
 		ret=-3;
 		goto FAILS;
 	}
@@ -208,7 +208,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Load a mixer element	*/
 	ret=snd_mixer_load(handle);
 	if(ret!=0){
-		printf("Load mixer element fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"Load mixer element fails: %s",snd_strerror(ret));
 		ret=-4;
 		goto FAILS;
 	}
@@ -223,7 +223,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Find a mixer simple element */
 	elem=snd_mixer_find_selem(handle,sid);
 	if(elem==NULL){
-		printf("Find mixer simple element fails.\n");
+		EGI_PLOG(LOGLV_ERROR, "Find mixer simple element fails.\n");
 		ret=-5;
 		goto FAILS;
 	}
@@ -231,7 +231,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Get range for playback volume of a mixer simple element */
 	snd_mixer_selem_get_playback_volume_range(elem,&min,&max);
 	if( min<0 || max<0 ){
-		printf("Get range of volume fails.!\n");
+		EGI_PLOG(LOGLV_ERROR,"Get range of volume fails.!\n");
 		ret=-6;
 		goto FAILS;
 	}
@@ -244,7 +244,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
                         continue;
 		ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol);
 		if(ret<0) {
-			printf("Get palyback volume error on channle %d.\n",chn);
+			EGI_PLOG(LOGLV_ERROR,"Get palyback volume error on channle %d.\n",chn);
 			ret=-7;
 			goto FAILS;
 		}

@@ -342,13 +342,14 @@ int symbol_load_allpages(void)
 /* --------------------------------------
 	Free all mem pages
 ----------------------------------------*/
-void symbol_free_allpages(void)
+void symbol_release_allpages(void)
 {
-	symbol_free_page(&sympg_testfont);
-	symbol_free_page(&sympg_numbfont);
-	symbol_free_page(&sympg_buttons);
-	symbol_free_page(&sympg_icons);
-	symbol_free_page(&sympg_icons_2);
+	symbol_release_page(&sympg_testfont);
+	symbol_release_page(&sympg_numbfont);
+	symbol_release_page(&sympg_buttons);
+	symbol_release_page(&sympg_sbuttons);
+	symbol_release_page(&sympg_icons);
+	symbol_release_page(&sympg_icons_2);
 }
 
 
@@ -437,7 +438,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		if(sym_page->data == NULL)
 		{
 			EGI_PLOG(LOGLV_ERROR,"symbol_load_page(): fail to malloc sym_page->data! ???Maybe element number of symwidth[] is less than symbol_page.maxnum \n");
-			symbol_free_page(sym_page);
+			symbol_release_page(sym_page);
 			return NULL;
 		}
 	}
@@ -452,7 +453,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 		if( sym_page->symwidth[i]==0 )
 		{
 			printf("symbol_load_page(): sym_page->symwidth[%d]=0!, a symbol width MUST NOT be zero!\n",i);
-			symbol_free_page(sym_page);
+			symbol_release_page(sym_page);
 			return NULL;
 		}
 */
@@ -481,7 +482,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
                         {
                                 perror("lseek symbol image file");
 				//EGI_PLOG(LOGLV_ERROR,"lseek symbol image fails.%s \n",strerror(errno));
-				symbol_free_page(sym_page);
+				symbol_release_page(sym_page);
                                 return NULL;
                         }
 
@@ -490,7 +491,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
                         if( read(fd, (uint8_t *)(sym_page->data+offset+width*j), width*2) < width*2 )
                         {
                                 perror("read symbol image file");
-	 			symbol_free_page(sym_page);
+	 			symbol_release_page(sym_page);
                                 return NULL;
                         }
 
@@ -524,23 +525,37 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 
 
 /*--------------------------------------------------
-	Free mem for data in a symbol page
+	Release data in a symbol page
 ---------------------------------------------------*/
-void symbol_free_page(struct symbol_page *sym_page)
+void symbol_release_page(struct symbol_page *sym_page)
 {
+	if(sym_page==NULL)
+		return;
+
 	if(sym_page->data != NULL) {
+		printf("%s: free(sym_page->data) ...\n",__func__);
 		free(sym_page->data);
 		sym_page->data=NULL;
 	}
-	if(sym_page->alpha !=NULL) {
+
+	if(sym_page->alpha != NULL) {
+		printf("%s: free(sym_page->alpah) ...\n",__func__);
 		free(sym_page->alpha);
 		sym_page->alpha=NULL;
 	}
 
-	if(sym_page->symwidth != NULL) {
-		free(sym_page->symwidth);
-		sym_page->symwidth=NULL;
+	if(sym_page->symoffset != NULL) {
+		printf("%s: free(sym_page->symoffset) ...\n",__func__);
+		free(sym_page->symoffset);
+		sym_page->symoffset=NULL;
 	}
+
+//	if(sym_page->symwidth != NULL) {
+//		printf("%s: free(sym_page->symwidth) ...\n",__func__);
+//		free(sym_page->symwidth);
+//		sym_page->symwidth=NULL;
+//	}
+
 }
 
 

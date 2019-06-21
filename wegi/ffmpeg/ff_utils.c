@@ -104,7 +104,7 @@ int ff_get_FreePicBuff(void)
 /*----------------------------------
    free pPICbuffs
 ----------------------------------*/
-void ff_free_PicBuffs(void)
+static void ff_free_PicBuffs(void)
 {
         int i;
 
@@ -114,8 +114,10 @@ void ff_free_PicBuffs(void)
         for(i=0; i<PIC_BUFF_NUM; i++)
 	{
 		//printf("PIC_BUFF_NUM: %d/%d start to free...\n",i,PIC_BUFF_NUM);
-		if(pPICbuffs[i] != NULL)
+		if(pPICbuffs[i] != NULL) {
 	                free(pPICbuffs[i]);
+			pPICbuffs[i]=NULL;
+		}
 		//printf("PIC_BUFF_NUM: %d/%d freed.\n",i,PIC_BUFF_NUM);
 	}
         free(pPICbuffs);
@@ -187,6 +189,9 @@ void* thdf_Display_Pic(void * argv)
 
 	   usleep(2000);
   }
+
+  ff_free_PicBuffs();
+  imgbuf->imgbuf=NULL; /* since freed by ff_free_PicBuffs() */
 
   egi_imgbuf_free(imgbuf);
 

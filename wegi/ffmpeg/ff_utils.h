@@ -52,7 +52,7 @@ struct PicInfo {
 
 /*  functions	*/
 uint8_t**  	ff_malloc_PICbuffs(int width, int height, int pixel_size );
-void 	   	ff_free_PicBuffs(void);
+//static void  	ff_free_PicBuffs(void);
 int 	   	ff_get_FreePicBuff(void);
 int 	   	ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   	thdf_Display_Pic(void * argv);

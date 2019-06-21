@@ -33,6 +33,7 @@ Midas Zhou
 #define DBG_IOT		(1<<14)
 #define DBG_FIFO	(1<<15)
 #define DBG_ERING	(1<<16)
+#define DBG_PCM		(1<<17)
 
 #define DBG_TEST	(1<<16)
 

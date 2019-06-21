@@ -100,17 +100,30 @@ int init_fbdev(FBDEV *dev)
 }
 
 /*-------------------------
-Release FB and free map
+  Release FB and free map
 --------------------------*/
 void release_fbdev(FBDEV *dev)
 {
+	int i;
+
 	if(!dev || !dev->map_fb)
 		return;
 
+	/* free FILO, reset fb_filo to NULL inside */
 	egi_free_filo(dev->fb_filo);
 
+	/* unmap FB */
 	munmap(dev->map_fb,dev->screensize);
 
+	/* free buffer */
+	if(i=0; i<FBDEV_MAX_BUFFER; i++) {
+		if( dev->buffer[i] != NULL ) {
+			free(dev->buffer[i]);
+			dev->buffer[i]=NULL;
+		}
+	}
+
+	/* close FB dev file */
 	close(dev->fdfd);
 	dev->fdfd=-1;
 }
@@ -1274,8 +1287,6 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	}
 
 
-
-
 #ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
 
 	/* ------------ copy mem ------------*/
@@ -1364,6 +1375,69 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
    }
 
 
+
+
+/*--------------------------------------------
+Save whole data of FB to buffer.
+@fb_dev:	pointer to FB dev.
+@nb:		index of FBDEV.buffer[]
+Return
+                0       OK
+                <0 	fails
+Midas Zhou
+----------------------------------------------*/
+int fb_buffer_FBimg(FBDEV *fb_dev, int nb)
+{
+	if(fb_dev==NULL || nb<0 || nb > FBDEV_MAX_BUFFER-1 )
+		return -1;
+
+	int xres=fb_dev->vinfo.xres;
+	int yres=fb_dev->vinfo.yres;
+
+	/* callc buffer if it's NULL */
+	if(fb_dev->buffer[nb]==NULL) {
+		fb_dev->buffer[nb]=calloc(1,fb_dev->screensize); /* 2bytes color */
+		if(fb_dev->buffer[nb]==NULL) {
+			printf("%s: fail to calloc fb_dev->buffer[%d].\n",__func__, nb);
+			return -2;
+		}
+	}
+
+	if( fb_cpyto_buf(fb_dev, 0, 0, xres-1, yres-1, fb_dev->buffer[nb]) !=0 )
+		return -2;
+
+	else
+		return 0;
+}
+
+/*----------------------------------------------------
+Restor buffed data to FB.
+@fb_dev:	pointer to FB dev.
+@nb:		index of FBDEV.buffer[]
+@clear:		if TRUE, clear buffer after restore.
+Return
+                0       OK
+                <0  	fails
+Midas Zhou
+------------------------------------------------------*/
+int fb_restore_FBimg(FBDEV *fb_dev, int nb, bool clean)
+{
+	if(fb_dev==NULL || nb<0 || nb > FBDEV_MAX_BUFFER-1 )
+		return -1;
+
+	int xres=fb_dev->vinfo.xres;
+	int yres=fb_dev->vinfo.yres;
+
+   	if ( fb_cpyfrom_buf(fb_dev, 0, 0, xres-1, yres-1, fb_dev->buffer[nb]) !=0 )
+		return -2;
+
+	if(clean) {
+		free(fb_dev->buffer[nb]);
+		fb_dev->buffer[nb]=NULL;
+	}
+
+	return 0;
+}
 
 
 /*--------------------------------------- Method 1 -------------------------------------------
@@ -1513,11 +1587,13 @@ void fb_drawimg_ANMap(int n, int ni, struct egi_point_coord x0y0, const uint16_t
 
 
 /*-----------------------------------------------------------------------------
-Scale a block of pixel buffer.
+Scale a block of pixel buffer in a simple way.
 @ owid,ohgt:	old/original width and height of the pixel area
 @ nwid,nhgt:   	new width and height
 @ obuf:        	old data buffer for 16bit color pixels
 @ nbuf;		scaled data buffer for 16bit color pixels
+
+TODO:  interpolation mapping
 
 Return
 	1	partial area out of FB mem boundary

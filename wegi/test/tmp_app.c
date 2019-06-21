@@ -876,7 +876,7 @@ while(1)
 	egi_page_free(page_mplay);
 
 	/* release symbol mem page */
-	symbol_free_allpages();
+	symbol_release_allpages();
 
 	/* close fb dev */
 //      munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

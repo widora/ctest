@@ -20,9 +20,10 @@ Return:
         0       OK
         <0      Fails
 ---------------------------------------*/
-int init_fbdev(FBDEV *dev)
+int init_fbdev(FBDEV *fr_dev)
 {
-        FBDEV *fr_dev=dev;
+//        FBDEV *fr_dev=dev;
+	int i;
 
         if(fr_dev->fdfd>0) {
            printf("Input FBDEV already open!\n");
@@ -51,7 +52,7 @@ int init_fbdev(FBDEV *dev)
         fr_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
         if(fr_dev->fb_filo==NULL) {
                 printf("Fail to malloc FB FILO!\n");
-                munmap(dev->map_fb,dev->screensize);
+                munmap(fr_dev->map_fb,fr_dev->screensize);
                 close(fr_dev->fdfd);
                 return -3;
         }
@@ -60,6 +61,11 @@ int init_fbdev(FBDEV *dev)
         gv_fb_box.startxy.y=0;
         gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
         gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
+
+	/* clear buffer */
+	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+		fr_dev->buffer[i]=NULL;
+	}
 
 //      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
         printf(" \n------- FB Parameters -------\n");

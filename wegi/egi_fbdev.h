@@ -26,15 +26,17 @@ Modified and appended by: Midas Zhou
 
 #define EGI_FBDEV_NAME "/dev/fb0"
 
+#define FBDEV_MAX_BUFFER 3
+
 typedef struct fbdev{
 
         int fdfd; /* file descriptor, open "dev/fb0" */
 
-        bool virt;              /* True: virtural fbdev, it maps to an EGI_IMGBUF
+        bool virt;              /* 1. TRUE: virtural fbdev, it maps to an EGI_IMGBUF
                                    and fdfd will be ineffective.
-				   vinfo.xres and vinfo.yres MUST set.
+				   vinfo.xres,vinfo.yres and vinfo.screensize MUST set.
 
-				   False: maps to true FB device, fdfd is effective.
+				   2. FALSE: maps to true FB device, fdfd is effective.
                                 */
 
         struct fb_var_screeninfo vinfo;
@@ -43,7 +45,9 @@ typedef struct fbdev{
         unsigned char *map_fb;
 	/* pthread_mutex_t fbmap_lock; */
 	EGI_FILO *fb_filo;
-	int filo_on;	/* >0,activate FILO push */
+	int filo_on;	/* >0, activate FILO push */
+
+	uint16_t *buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
 }FBDEV;
 
 /* distinguished from PIXEL in egi_bjp.h */
