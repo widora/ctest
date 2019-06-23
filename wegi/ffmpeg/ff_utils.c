@@ -42,6 +42,15 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiabil
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
 
 
+#if 0
+/* check if it's image */
+#define IS_IMAGE_CODEC(vcodecID)  ( vcodecID == AV_CODEC_ID_MJPEG    || vcodecID == AV_CODEC_ID_BMP  ||
+          			    vcodecID == AV_CODEC_ID_MJPEGB   || vcodecID == AV_CODEC_ID_PNG  ||
+          			    vcodecID == AV_CODEC_ID_JPEG2000 || vcodecID == AV_CODEC_ID_GIF  ||
+          			    vcodecID == AV_CODEC_ID_TIFF     || vcodecID == AV_CODEC_ID_GIF  ||
+          			    vcodecID == AV_CODEC_ID_LJPEG    || vcodecID == AV_CODEC_ID_JPEGLS   )
+#endif
+
 
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
@@ -62,7 +71,7 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                pPICbuffs[i]=(uint8_t *)malloc(width*height*pixel_size); /* for 16bits color */
+                pPICbuffs[i]=(uint8_t *)calloc(1,width*height*pixel_size); /* default BLACK */
 
                 /* if fails, free those buffs */
                 if(pPICbuffs[i] == NULL) {
@@ -114,7 +123,7 @@ static void ff_free_PicBuffs(void)
         for(i=0; i<PIC_BUFF_NUM; i++)
 	{
 		//printf("PIC_BUFF_NUM: %d/%d start to free...\n",i,PIC_BUFF_NUM);
-		if(pPICbuffs[i] != NULL) {
+		if(pPICbuffs[i] != NULL)  {
 	                free(pPICbuffs[i]);
 			pPICbuffs[i]=NULL;
 		}
@@ -139,7 +148,12 @@ void* thdf_Display_Pic(void * argv)
 	return (void *)-1;
    }
 
-   int i;
+   int 	i;
+//   int 	key;		/* key frame to play */
+//   bool idle_round;	/* no new frame for round playing */
+//   int  last=0;		/* last available frame number */
+   bool still_image;
+
    struct PicInfo *ppic =(struct PicInfo *) argv;
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_new();
@@ -154,6 +168,13 @@ void* thdf_Display_Pic(void * argv)
    EGI_PLOG(LOGLV_INFO,"%s: imgbuf width=%d, imgbuf height=%d \n",
 						__func__, imgbuf->width, imgbuf->height );
 
+   /* check if it's image, TODO: still or motion image */
+   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
+	  still_image=true;
+   }  else {
+	  still_image=false;
+   }
+
    /* check size limit */
    if(imgbuf->width>LCD_MAX_WIDTH || imgbuf->height>LCD_MAX_HEIGHT)
    {
@@ -165,21 +186,28 @@ void* thdf_Display_Pic(void * argv)
    {
 	   for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
 	   {
-		if( !IsFree_PICbuff[i] ) /* only if pic data is loaded in the buff */
-		{
+		if( !IsFree_PICbuff[i] ) { 	/* If new frame available */
+
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
 			imgbuf->imgbuf=(uint16_t *)pPICbuffs[i]; /* Ownership transfered! */
 
 			/* window_position displaying */
 			egi_imgbuf_windisplay(imgbuf, &gv_fb_dev, -1,
 					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
-		   	/* hold for a while :))) */
-		   	usleep(20000);
+
+			tm_delayms(25);
+	   		//usleep(20000);
 
 		   	/* put a FREE tag after display, then it can be overwritten. */
 	  	   	IsFree_PICbuff[i]=true;
 		}
 	   }
+
+  	  /* revive slot [0] for still image */
+	  if( still_image )  {
+		tm_delayms(500);
+		IsFree_PICbuff[0]=false;
+	  }
 
 	   /* quit ffplay */
 	   if(control_cmd == cmd_exit_display_thread ) {
@@ -187,7 +215,8 @@ void* thdf_Display_Pic(void * argv)
 		break;
 	   }
 
-	   usleep(2000);
+	  tm_delayms(25);
+	  //usleep(2000);
   }
 
   ff_free_PicBuffs();

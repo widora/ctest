@@ -14,7 +14,6 @@ page creation jobs:
 4. button reaction functins
 
 
-
                         (((  --------  PAGE DIVISION  --------  )))
 [Y0-Y29]
 {0,0},{240-1, 29}               ---  Head title bar
@@ -131,7 +130,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	ffplay_btns[0]->reaction=egi_ffplay_prev;
 
 	egi_ebox_settag(ffplay_btns[1], "Play&Pause");
-	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY; /* 13--pause, 15--play */
+	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* default status is playing*/
 	ffplay_btns[1]->reaction=egi_ffplay_playpause;
 
 	egi_ebox_settag(ffplay_btns[2], "Next");
@@ -230,7 +229,8 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
 
 	/* toggle the icon between play and pause */
-	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
+//	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
+	if( (data_btn->icon_code & 0x0ffff ) == ICON_CODE_PLAY ) {
 		/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
 		FFplay_Ctx->ffcmd=cmd_play;
 
@@ -321,9 +321,6 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 #if 1
 	/*TEST: send HUP signal to iteself */
-
-	/* save current page image */
-
 	if(raise(SIGUSR1) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.\n",__func__);
 	}
@@ -340,12 +337,11 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
    * 3. To be handled by page routine.
    */
 
-
-	return btnret_IDLE;
+	return pgret_OK; /* need refresh page */
 
 #else
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);
-        return btnret_REQUEST_EXIT_PAGE;
+        return btnret_REQUEST_EXIT_PAGE;  /* end process */
 #endif
 }
 

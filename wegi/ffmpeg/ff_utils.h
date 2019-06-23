@@ -22,16 +22,16 @@ Midas_Zhou
 #include "egi.h"
 #include "egi_timer.h"
 #include "egi_ffplay.h"
+#include "libavcodec/avcodec.h"
 
 #define LCD_MAX_WIDTH 240
 #define LCD_MAX_HEIGHT 320
-#define FFPLAY_MUSIC_PATH "/mmc/"
+//#define FFPLAY_MUSIC_PATH "/mmc/"
 
 /* in seconds, playing time elapsed for Video */
 extern int ff_sec_Velapsed;
 extern int ff_sub_delays; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 extern enum ffplay_cmd control_cmd;
-//extern long start_tmsecs; /* starting position */
 
 extern FFPLAY_CONTEXT *FFplay_Ctx;
 
@@ -48,7 +48,15 @@ struct PicInfo {
 	int nPICbuff; /* slot number of buff data in pPICbuffs[] */
 	uint8_t *data; /* RGB data, pointer to pPICbuffs[] page */
 	int numBytes;  /* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
+	enum AVCodecID vcodecID; /* Video codec ID */
 };
+
+/* check if it's image */
+#define IS_IMAGE_CODEC(vcodecID)  ( vcodecID == AV_CODEC_ID_MJPEG    || vcodecID == AV_CODEC_ID_BMP  ||	\
+                                    vcodecID == AV_CODEC_ID_MJPEGB   || vcodecID == AV_CODEC_ID_PNG  ||	\
+                                    vcodecID == AV_CODEC_ID_JPEG2000 || vcodecID == AV_CODEC_ID_GIF  ||	\
+                                    vcodecID == AV_CODEC_ID_TIFF     || vcodecID == AV_CODEC_ID_GIF  ||	\
+                                    vcodecID == AV_CODEC_ID_LJPEG    || vcodecID == AV_CODEC_ID_JPEGLS   )
 
 /*  functions	*/
 uint8_t**  	ff_malloc_PICbuffs(int width, int height, int pixel_size );

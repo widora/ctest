@@ -276,7 +276,7 @@ struct egi_element_box
 	/* --- sleep:
 	   1. Remove the ebox from the screen and restore the bkimg.
 	   2. and set status as sleep.
-	   3. if an immovale ebox sleeps, it should not dispear ??!!!
+	   3. if an immovale ebox sleeps, it should not disappear ??!!!
 	   4. sleeping ebox will not react to touching.
 
 	*/
@@ -605,7 +605,7 @@ int egi_ebox_sleep(EGI_EBOX *ebox);
 int egi_ebox_free(EGI_EBOX *ebox);
 
 /* for egi page */
-int egi_page_dispear(EGI_EBOX *ebox);
+int egi_page_disappear(EGI_EBOX *ebox);
 
 /* for button ebox */
 int egi_btnbox_activate(EGI_EBOX *ebox);

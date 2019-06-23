@@ -136,7 +136,9 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FF_LOOP_TIMEGAP  0  /* in second, hold_on time after ffplaying a file, especially for a picture.. */
+#define FF_LOOP_TIMEGAP  1  /* in second, hold_on time after ffplaying a file, especially for a picture.
+			     *  set before FAIL_OR_TERM.
+			     */
 #define FF_CLIP_PLAYTIME 5  /* in second, set clip play time */
 #define ENABLE_MEDIA_LOOP
 
@@ -314,7 +316,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int ftotal=FFplay_Ctx->ftotal; /* number of multimedia files input from shell */
 	int fnum;		/* Index number of files in array FFplay_Ctx->fpah */
 
-	char **fpath=FFplay_Ctx->fpath;  /* array of media file path */
+	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
 
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
@@ -359,6 +361,12 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	AVCodecContext		*aCodecCtx=NULL;
 	AVCodec			*aCodec=NULL;
 	AVFrame			*pAudioFrame=NULL;
+
+	/* for AVCodecDescriptor */
+	enum AVCodecID		 vcodecID,acodecID;
+	const AVCodecDescriptor	 *vcodecDespt=NULL;
+	const AVCodecDescriptor	 *acodecDespt=NULL;
+
 	int			frame_size;
 	int 			sample_rate;
 	int			out_sample_rate; /* after conversion, for ffplaypcm */
@@ -446,6 +454,15 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
 while(1) {
 
+	/* For Each Loop:  Check ffplay context and re_gain fpath */
+	if(FFplay_Ctx==NULL || FFplay_Ctx->ftotal<=0 || FFplay_Ctx->fpath==NULL
+						     || FFplay_Ctx->fpath[0]==NULL)
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is invalid!\n", __func__);
+		return (void *)-1;
+	}
+	fpath=FFplay_Ctx->fpath;  /* array of media file path */
+
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
    	av_register_all();
@@ -468,6 +485,8 @@ while(1) {
 
 	/* reset elaped time recorder */
 	ff_sec_Velapsed=0;
+
+	vcodecID=AV_CODEC_ID_NONE;
 
 	/* Open media stream or file */
 	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...\n", __func__, fnum, fpath[fnum]);
@@ -516,11 +535,25 @@ pFormatCtx->probesize2=128*1024;
 	audioStream=-1;
 
 	//printf("%d streams found.\n",pFormatCtx->nb_streams);
+	/* find the first available stream of VIDEO and AUDIO */
 	for(i=0; i<pFormatCtx->nb_streams; i++) {
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
 		   if( videoStream < 0) {
 			videoStream=i;
 			printf("Video is found in stream[%d], to be accepted.\n",i);
+			vcodecID=pFormatCtx->streams[i]->codec->codec_id;
+			/*----------- Picture ----------
+			 	AV_CODEC_ID_MJPEG
+			 	AV_CODEC_ID_MJPEGB
+			 	AV_CODEC_ID_LJPEG
+				AV_CODEC_ID_JPEGLS
+				AV_CODEC_ID_BMP
+				AV_CODEC_ID_PNG
+			-------------------------------*/
+		        vcodecDespt=avcodec_descriptor_get(vcodecID);
+			if(vcodecDespt != NULL) {
+				printf("Video codec name: %s, %s\n", vcodecDespt->name, vcodecDespt->long_name);
+			}
 		   }
 		   else
 			printf("Video is also found in stream[%d], to be ignored.\n",i);
@@ -858,7 +891,10 @@ else
 
 	/* Addjust displaying window position */
 	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
-	offy=50;
+	if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
+		offy=((265-29-display_height)>>1) +30;
+	else					/* for MOTION PIC */
+		offy=50;
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 
@@ -895,6 +931,7 @@ else
 	 Vb=offy;
 	 pic.Hs=Hb; pic.He=Hb+display_width-1;
 	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
+	 pic.vcodecID=vcodecID;
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
@@ -1044,7 +1081,7 @@ if(enable_avfilter)
    	* @param flags  search flags
    	*/
    	ret=av_opt_set_int_list(avFltCtx_BufferSink, "pix_fmts", outputs_pix_fmts,
-        	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
+		        	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
    	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
 		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
@@ -1482,7 +1519,7 @@ if(enable_avfilter) /* free filter resources */
 
 	EGI_PLOG(LOGLV_INFO,"%s: End of playing file %s\n", __func__, fpath[fnum]);
 
-	/* sleep, to let sys release cache ....*/
+	/* sleep, to let sys release cache ....???? */
 	tm_delayms(1000);
 
    } /* end of for(...), loop playing input files*/

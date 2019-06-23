@@ -623,7 +623,7 @@ int egi_page_routine(EGI_PAGE *page)
 			 *	1. If it re_enters from SIGSTOP, this will trigger the very hitbtn
 			 *	   which rasied SIGSTOP signal, to refresh and reset its need_refresh
 			 *	   flag. So, when elements of the page are refreshed as SIGCONT
-			 *	   handler expected, this hitbtn will dispear!!!
+			 *	   handler expected, this hitbtn will dissapear!!!
 			 *	   We need to confirm 'last_holdbtn->need_refresh==false' here to rule
 			 *	   out the situation, and make sure when egi_page_refresh(page) is called
 			 *	   all elements are to refreshed in order.

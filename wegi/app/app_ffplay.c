@@ -39,7 +39,6 @@ static struct sigaction sigact_usr;
 static struct sigaction osigact_usr;
 
 
-
 /*----------------------------------------------------
 		Signal handler for SIGCONT
 
@@ -55,22 +54,24 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 	pid_t spid=info->si_pid;/* get sender's pid */
 
 
-   if(signum==SIGCONT) {
-        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
+   	if(signum==SIGCONT) {
+        	EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
 								app_name, __func__, spid);
+
 	/* set page refresh flag */
 //	egi_page_needrefresh(page_ffplay);
+	//page_ffplay->ebox->need_refresh=false; /* Do not refresh page bkcolor */
 
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
-	fb_restore_FBimg(&gv_fb_dev, 0, false);
-  }
+//	fb_restore_FBimg(&gv_fb_dev, 0, false);
 
+  }
 }
 
 
-/*----------------------------------------------------
-		Signal handler for SIGUSR1
------------------------------------------------------*/
+/*-------------------------------------------------------------------
+		   Signal handler for SIGUSR1
+-------------------------------------------------------------------*/
 static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
 {
 	pid_t spid=info->si_pid;/* get sender's pid */
@@ -80,7 +81,11 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
         EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR1 received from process [PID:%d].\n", app_name, __func__, spid);
 
 	/* buffer FB image */
-	fb_buffer_FBimg(&gv_fb_dev, 0);
+//	tm_delayms(1500);
+                         /* Delay to let touch_effect disappear before buffering the page image,
+			 * It seems need rather long time!
+			 */
+//	fb_buffer_FBimg(&gv_fb_dev, 0);
 
 	/* raise SIGSTOP */
         if(raise(SIGSTOP) !=0 ) {
@@ -91,9 +96,9 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
 }
 
 
-/*----------------------------------------------------
+/*------------------------------------
 	assign signal actions
------------------------------------------------------*/
+------------------------------------*/
 static int assign_signal_actions(void)
 {
         /* 1. set signal action for SIGCONT */
@@ -168,17 +173,6 @@ int main(int argc, char **argv)
         /*  ---  0. assign signal actions  --- */
 	assign_signal_actions();
 
-#if 0
-        sigemptyset(&sigact_cont.sa_mask);
-        sigact_cont.sa_flags=SA_SIGINFO; /*  use sa_sigaction instead of sa_handler */
-	sigact_cont.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
-        sigact_cont.sa_sigaction=sigcont_handler;
-        if(sigaction(SIGCONT, &sigact_cont, &osigact_cont) <0 ){
-	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction().\n", app_name, __func__);
-                return -1;
-        }
-
-#endif
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
@@ -203,7 +197,7 @@ int main(int argc, char **argv)
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-	if( egi_init_ffplayCtx("/mmc", "mp3, avi, jpg") ) {
+	if( egi_init_ffplayCtx("/mmc/ffplay", "mp3, avi, jpg, png") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
 		return pgret_ERR;
 	}
@@ -233,6 +227,7 @@ int main(int argc, char **argv)
 
 	/* free FFLAY_CONTEXT */
 	egi_free_ffplayCtx();
+
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

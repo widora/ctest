@@ -91,8 +91,8 @@ extern FFPLAY_CONTEXT *FFplay_Ctx;	/* a global ctx */
 
 
 /* Functions */
-int egi_init_ffplayCtx(char *path, char *fext);
-void egi_free_ffplayCtx(void);
+int 	egi_init_ffplayCtx(char *path, char *fext);
+void 	egi_free_ffplayCtx(void);
 
 /**
  *			A Thread Function

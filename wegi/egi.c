@@ -641,14 +641,14 @@ EGI_EBOX * egi_ebox_new(enum egi_ebox_type type)  //, void *egi_data)
 
 
 /*------------------------------------------------------------------
-dispearing effect for a full egi page, zoom out the page image to the top
+disappearing effect for a full egi page, zoom out the page image to the top
 left point
 
 return:
 	0		OK
 	<0		fail
 --------------------------------------------------------------------*/
-int egi_page_dispear(EGI_EBOX *ebox)
+int egi_page_disappear(EGI_EBOX *ebox)
 {
         int wid,hgt;
 	int bkwid,bkhgt; /* wid and hgt for backup */
@@ -665,19 +665,19 @@ int egi_page_dispear(EGI_EBOX *ebox)
 	buf=malloc(screensize);
 	if(buf==NULL)
 	{
-		printf("egi_page_dispear(): fail to malloc buf.\n");
+		printf("egi_page_disappear(): fail to malloc buf.\n");
 		return -1;
 	}
 	sbuf=malloc(screensize);
 	if(sbuf==NULL)
 	{
-		printf("egi_page_dispear(): fail to malloc sbuf.\n");
+		printf("egi_page_disappear(): fail to malloc sbuf.\n");
 		return -2;
 	}
 	bkimg=malloc(screensize);
 	if(bkimg==NULL)
 	{
-		printf("egi_page_dispear(): fail to malloc bkimg.\n");
+		printf("egi_page_disappear(): fail to malloc bkimg.\n");
 		return -3;
 	}
 
