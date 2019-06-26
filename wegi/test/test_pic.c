@@ -154,7 +154,7 @@ while(1) {
 } /* end of while() */
 
 	release_fbdev(&gv_fb_dev);
-	symbol_free_allpages();
+	symbol_release_allpages();
 	egi_quit_log();
 
 	return 0;

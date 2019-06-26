@@ -42,15 +42,6 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiabil
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
 
 
-#if 0
-/* check if it's image */
-#define IS_IMAGE_CODEC(vcodecID)  ( vcodecID == AV_CODEC_ID_MJPEG    || vcodecID == AV_CODEC_ID_BMP  ||
-          			    vcodecID == AV_CODEC_ID_MJPEGB   || vcodecID == AV_CODEC_ID_PNG  ||
-          			    vcodecID == AV_CODEC_ID_JPEG2000 || vcodecID == AV_CODEC_ID_GIF  ||
-          			    vcodecID == AV_CODEC_ID_TIFF     || vcodecID == AV_CODEC_ID_GIF  ||
-          			    vcodecID == AV_CODEC_ID_LJPEG    || vcodecID == AV_CODEC_ID_JPEGLS   )
-#endif
-
 
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
