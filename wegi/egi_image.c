@@ -89,7 +89,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 Initiate/alloc imgbuf as an image canvas, with all alpha=0
 
 NOTE:
-  1. WARNING!!!: No mutex operation here, the caller shall take
+  1. !!!!WARNING!!!: No mutex operation here, the caller shall take
      care of imgbuf mutex lock.
 
 @height		height of image
@@ -104,7 +104,7 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 	if(egi_imgbuf==NULL)
 		return -1;
 
-	/* empty old data */
+	/* empty old data if any */
 	egi_imgbuf_cleardata(egi_imgbuf);
 
         /* calloc imgbuf->imgbuf */
