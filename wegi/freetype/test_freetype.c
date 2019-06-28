@@ -56,12 +56,15 @@ typedef struct  FT_GlyphSlotRec_
 
 
 TODO:
-	1. Bitmap alpha value and gray value relationship?
 
 Note:
 1. Default code is UFT-8 for both input and output, as also for FreeType
    default set.
- 
+2. Refer to: zenozeng.github.io/Free-Chinese-Fonts for more GPL fonts.
+3. Input text with chinese traditional style when use some chinese fonts, like
+   WHZ fonts etc, or it may not be found in its font library.
+4. SourceHanSans support both simple and traditional Chineses text entry.
+
 Midas Zhou
 ------------------------------------------------------------------------*/
 #include <stdio.h>
@@ -72,6 +75,7 @@ Midas Zhou
 #include <freetype2/ft2build.h>
 #include "egi_common.h"
 #include "egi_image.h"
+#include "egi_utils.h"
 
 #include FT_FREETYPE_H
 
@@ -184,8 +188,12 @@ int egi_imgbuf_load_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap
 
 			/* blend color	*/
 			if( subcolor>=0 ) {	/* use subcolor */
-				//color=subcolor;
-				color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
+				color=subcolor;
+				/* !!!WARNG!!! 16bit color blend will cause some unexpected gray
+				 * areas/lines on bright color chars. So just directly assign it
+				 * with subcolor!!
+				 */
+				//color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
 							/* front, background, alpha */
 			}
 			else {			/* use Font bitmap gray value */
@@ -222,13 +230,19 @@ main( int     argc,
   char*         font_path;
   char*         text;
 
-  //wchar_t	*wcstr;
+  char**	fpaths;
+  int		count;
 
+  //wchar_t	*wcstr;
+  EGI_16BIT_COLOR font_color;
   int		glyph_index;
   int		deg; /* angle in degree */
   double        angle;
   int           n, num_chars;
-  int 		k,i;
+  int 		i,j,k;
+  float		step; 
+  int		ret;
+
 
 
   EGI_IMGBUF  *eimg=NULL;
@@ -248,7 +262,6 @@ main( int     argc,
         init_fbdev(&gv_fb_dev);
 
 
-
 	/* get input args */
   	if ( argc != 3 )
   	{
@@ -263,9 +276,11 @@ main( int     argc,
 
 #if 1
 //    wchar_t *wcstr=L"Heloolsdfsdf";
-  wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山.";
-#else
+//   wchar_t *wcstr=L"長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山."; /* for traditional chinese */
+   wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山."; /* for simple chinese */
+   char    *cstr="abcdefghijkABCDEFGHIJK";
 
+#else  /* LOCALE configure fails */
    wchar_t *wcstr=NULL;
    wcstr=cstr_to_wcstr(argv[2]);
    if(wcstr==NULL)
@@ -273,6 +288,22 @@ main( int     argc,
 #endif
 
 
+
+   /* buff all ttf font file path */
+   fpaths=egi_alloc_search_files(font_path, ".ttf, .otf", &count); /* NOTE: path for fonts */
+   printf("Totally %d ttf font files are found.\n",count);
+   if(count==0) exit(1);
+   for(i=0; i<count; i++)
+        printf("%s\n",fpaths[i]);
+
+
+/* >>>>>>>>>>>>>>>>>>>>  START FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
+for(j=0; j<=count; j++)
+{
+	if(j==count)
+		j=0;
+
+	printf(" <<<<<<<< fpaths[%d] DEMO FONT TYPE: '%s' >>>>>>> \n",j, fpaths[j]);
 
 	/* 1. initialize FT library */
 	error = FT_Init_FreeType( &library );
@@ -282,7 +313,8 @@ main( int     argc,
 	}
 
 	/* 2. create face object, face_index=0 */
- 	error = FT_New_Face( library, font_path, 0, &face );
+ 	//error = FT_New_Face( library, font_path, 0, &face );
+ 	error = FT_New_Face( library, fpaths[j], 0, &face );
 	if(error==FT_Err_Unknown_File_Format) {
 		printf("%s: Font file opens, but its font format is unsupported!\n",__func__);
 		FT_Done_FreeType( library );
@@ -295,7 +327,7 @@ main( int     argc,
   	/* get pointer to the glyph slot */
   	slot = face->glyph;
 
-	printf("-------- Load font '%s', Index 0 --------\n", font_path);
+	printf("-------- Load font '%s', index[0] --------\n", font_path);
 	printf("   num_faces:		%d\n",	face->num_faces);
 	printf("   face_index:		%d\n",	face->face_index);
 	printf("   style name:		%s\n",	face->style_name);
@@ -313,8 +345,8 @@ main( int     argc,
 	printf("   height:		%d\n",	face->height);
 
 
-
-deg=0;
+deg=15-egi_random_max(30);
+/*
 ////////////////     LOOP TEST     /////////////////
 for( deg=0; deg<90; deg+=10 )
 {
@@ -322,6 +354,7 @@ for( deg=0; deg<90; deg+=10 )
 		 deg=-5;
 		 continue;
 	}
+*/
 
   /* Init eimg before load FTbitmap, old data erased if any. */
   egi_imgbuf_init(eimg, 320, 240);
@@ -339,23 +372,28 @@ for( deg=0; deg<90; deg+=10 )
    * the pen position in 26.6 cartesian space coordinates
      64 units per pixel for pen.x and pen.y   		  */
   pen.x = 5*64; //   300 * 64;
-  pen.y = 5*64-150*64;  //   ( target_height - 200 ) * 64;
+  pen.y = 5*64;  //   ( target_height - 200 ) * 64;
   line_starty=pen.y;
 
   /* clear screen */
   clear_screen(&gv_fb_dev, WEGI_COLOR_GRAYB);
 
-for(k=6; k<35; k++)	/* change font size */
+  /* set font color */
+  font_color=egi_color_random(all);
+
+step=5.0; //1.25;
+for(k=3; k<11; k++)	/* change font size */
 {
    /* 5. set character size in pixels */
-   error = FT_Set_Pixel_Sizes(face, 1.25*k, 1.25*k);
+   error = FT_Set_Pixel_Sizes(face, step*k, step*k);
    /* OR set character size in 26.6 fractional points, and resolution in dpi */
    //error = FT_Set_Char_Size( face, 32*32, 0, 100,0 );
 
-  printf("---------------- k=%d -------------\n",k);
+  printf(" Size change [ k=%d ]\n",k);
 //  printf(" len=%d, wcstr: %s\n", wcslen(wcstr), (char *)wcstr);
   pen.y=line_starty;
-  for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
+  //for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
+  for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
   {
    	/* 6. re_set transformation before loading each wchar,
 	 *    as pen postion and transfer_matrix may changed.
@@ -367,7 +405,8 @@ for(k=6; k<35; k++)	/* change font size */
 	/*** Option 1:  FT_Load_Char( FT_LOAD_RENDER )
     	 *   load glyph image into the slot (erase previous one)
 	 */
-    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
+    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
+    	error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -378,7 +417,8 @@ for(k=6; k<35; k++)	/* change font size */
 	 *    in its native format, then call FT_Render_Glyph() to convert
 	 *    it to bitmap.
          */
-    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
+    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
+    	error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -389,8 +429,11 @@ for(k=6; k<35; k++)	/* change font size */
 #endif
 
 	/* 8. Draw to EGI_IMGBUF */
-	egi_imgbuf_load_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
-						&slot->bitmap, egi_color_random(deep) ); //WEGI_COLOR_BLACK); //ORANGE);
+	ret=egi_imgbuf_load_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
+						&slot->bitmap, font_color); //egi_color_random(deep) );
+	if(ret!=0) {
+		printf(" Fail to fetch Font type '%s' char index [%d]\n", fpaths[j], n);
+	}
 
     	/* 9. increment pen position */
 //	printf("bitmap_left=%d, bitmap_top=%d. \n",slot->bitmap_left, slot->bitmap_top);
@@ -400,10 +443,12 @@ for(k=6; k<35; k++)	/* change font size */
     	pen.y += slot->advance.y; /* same in a line for the same char  */
   }
 	/* 10. skip pen to next line */
-	pen.x = 5<<6;
-	line_starty += ((k+5)<<6); /* for inclined lines */
+	pen.x = 3<<6;
+
+	line_starty += ((int)(step*k)+5)<<6; /* for inclined lines */
 	//pen.y += ((k+5)<<6); /* 1 pixel= 64 units glyph metrics */
-}
+
+}  /* end for() of size change */
 
 
 /*-------------------------------------------------------------------------------------------
@@ -417,15 +462,25 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 	/* Dispay EGI_IMGBUF */
 	egi_imgbuf_windisplay2(eimg, &gv_fb_dev, 0, 0, 0, 0, eimg->width, eimg->height);
 
+	 tm_delayms(2000);
 
-  tm_delayms(1000);
+
+/*
 }
 ////////////////     END LOOP TEST     /////////////////
+*/
 
 
 FT_FAILS:
   FT_Done_Face    ( face );
   FT_Done_FreeType( library );
+
+
+}
+/* >>>>>>>>>>>>>>>>>  END FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
+
+ 	/* free fpaths buffer */
+        egi_free_buff2D((unsigned char **) fpaths, count);
 
 	/* free EGI_IMGBUF */
 	egi_imgbuf_free(eimg);
