@@ -130,6 +130,89 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 }
 
 
+/*------------------------------------------------------------------------------
+Blend two images of EGI_IMGBUF together.
+
+1. The holding eimg should already image data inside, or has been initialized
+   by egi_imgbuf_init() with certain size of a canvas (height x width) inside.
+2. The canvas size of the eimg shall be big enough to hold the bitmap,
+   or pixels out of the canvas will be omitted.
+3. Size of eimg canvas keeps the same after blending.
+
+@eimg           The EGI_IMGBUF to hold blended image.
+@xb,yb          origin of the adding image relative to EGI_IMGBUF canvas coord,
+                left top as origin.
+@addimg		The adding EGI_IMGBUF.
+
+return:
+        0       OK
+        <0      fails
+--------------------------------------------------------------------------------*/
+int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg )
+{
+        int i,j;
+        EGI_16BIT_COLOR color;
+        unsigned char alpha;
+        unsigned long size; /* alpha size */
+        int     sumalpha;
+        int epos,apos;
+
+        if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+                printf("%s: input holding eimg is NULL or uninitiliazed!\n", __func__);
+                return -1;
+        }
+        if( addimg==NULL || addimg->imgbuf==NULL ) {
+                printf("%s: input addimg or its imgbuf is NULL!\n", __func__);
+                return -2;
+        }
+
+        /* calloc and assign alpha, if NULL */
+        if(eimg->alpha==NULL) {
+                size=eimg->height*eimg->width;
+                eimg->alpha = calloc(1, size); /* alpha value 8bpp */
+                if(eimg->alpha==NULL) {
+                        printf("%s: Fail to calloc eimg->alpha\n",__func__);
+                        return -3;
+                }
+                memset(eimg->alpha, 255, size); /* init alpha as 255  */
+        }
+
+        for( i=0; i< addimg->height; i++ ) {            /* traverse bitmap height  */
+                for( j=0; j< addimg->width; j++ ) {   /* traverse bitmap width */
+                        /* check range limit */
+                        if( yb+i <0 || yb+i >= eimg->height ||
+                                    xb+j <0 || xb+j >= eimg->width )
+                                continue;
+
+                        epos=(yb+i)*(eimg->width) + xb+j; /* eimg->imgbuf position */
+			apos=i*addimg->width+j;		  /* addimg->imgbuf position */
+
+			/* get color in addimg */
+                        color=addimg->imgbuf[apos];
+
+			if(addimg->alpha==NULL)
+				alpha=255;
+			else
+				alpha=addimg->alpha[apos];
+
+                        /* blend color (front,back,alpha) */
+                        color=COLOR_16BITS_BLEND( color, eimg->imgbuf[epos], alpha);
+
+			/* assign blended color to imgbuf */
+                        eimg->imgbuf[epos]=color;
+
+                        /* blend alpha value */
+                        sumalpha=eimg->alpha[epos]+alpha;
+                        if( sumalpha > 255 )
+				sumalpha=255;
+                        eimg->alpha[epos]=sumalpha;
+                }
+        }
+
+        return 0;
+}
+
+
 
 /*--------------------------------------------------------------------------------------
 For 16bits color only!!!!

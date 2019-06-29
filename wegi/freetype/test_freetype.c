@@ -4,7 +4,7 @@
 /* FreeType 2 library.                                             */
 
 
-/*---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------
 
 
 typedef struct FT_GlyphSlotRec_*  FT_GlyphSlot;
@@ -50,23 +50,43 @@ typedef struct  FT_GlyphSlotRec_
   } FT_Bitmap;
 
 
-   FT_Get_Char_Index( FT_Face   face,
-        	            FT_ULong  charcode );
-   charcode=FT_Get_Char_Index( face, wchar);
 
 
-TODO:
+			<<<	--- Glossary ---	>>>
 
-Note:
-1. Default code is UFT-8 for both input and output, as also for FreeType
+	( Refering to: https://freetype.org/freetype2/docs/tutorial )
+
+character code:		A unique value that dfines the character for a given encoding.
+
+charmap:		A table in face object that converts character codes to glyph indices.
+			Note:
+			1. Most fonts contains a charmap that converts Unicode character codes to
+		  	   glyph indices.
+			2. FreeType tries to select a Unicode charmp when a new face object
+			   is created. and it emulates a Unicode charmap if the font doesn't
+			   contain such a charmap.
+
+
+
+Notes:
+1. Default encoding is UFT-8 for both input and output, as also for FreeType
    default set.
 2. Refer to: zenozeng.github.io/Free-Chinese-Fonts for more GPL fonts.
 3. Input text with chinese traditional style when use some chinese fonts, like
    WHZ fonts etc, or it may not be found in its font library.
-4. SourceHanSans support both simple and traditional Chineses text entry.
+4. SourceHanSans support both simple and traditional Chineses text encoding.
+5. FT_Load_Char() calls FT_Get_Char_Index() and FT_Load_Glyph().
+6. "For optional rendering on a screen the bitmap should be used as an alpha channle
+   in linear blending with gamma correction." --- FreeType Tutorial 1
+
+7. 				-----  WARNING  -----
+   Due to lack of Gamma Correction(?) in color blend macro, there may be some dark/gray
+   lines/dots after font bitmap and backgroud blending, especially for two contrasting
+   colors. Select a dark color for font and/or a compatible color for backgroud to weaken
+   the effect.
 
 Midas Zhou
-------------------------------------------------------------------------*/
+------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
 #include <locale.h>
@@ -136,14 +156,14 @@ wchar_t * cstr_to_wcstr(const char *cstr)
 
 
 
-/*-------------------------------------------------------------------------------
-        	   Draw FreeType  FT_Bitmap to EGI imgbuf
+/*------------------------------------------------------------------------------
+        	   Add FreeType FT_Bitmap to EGI imgbuf
 
 1. The input eimg should has been initialized by egi_imgbuf_init()
    with certain size of a canvas (height x width) inside.
 
 2. The canvas size of the eimg shall be big enough to hold the bitmap,
-   or the pixels out of the canvas will be omitted.
+   or pixels out of the canvas will be omitted.
 
 @eimg		The EGI_IMGBUF to hold the bitmap
 @xb,yb		coordinates of bitmap relative to EGI_IMGBUF canvas coord,
@@ -156,22 +176,33 @@ return:
 	0	OK
 	<0	fails
 --------------------------------------------------------------------------------*/
-int egi_imgbuf_load_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
+int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
 								EGI_16BIT_COLOR subcolor)
 {
 	int i,j;
 	EGI_16BIT_COLOR color;
 	unsigned char alpha;
+	unsigned long size; /* alpha size */
 	int	sumalpha;
 	int pos;
 
-	if(eimg==NULL | eimg->imgbuf==NULL) {
+	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
 		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
 		return -1;
 	}
 	if( bitmap==NULL || bitmap->buffer==NULL ) {
 		printf("%s: input FT_Bitmap or its buffer is NULL!\n", __func__);
 		return -2;
+	}
+	/* calloc and assign alpha, if NULL */
+	if(eimg->alpha==NULL) {
+		size=eimg->height*eimg->width;
+		eimg->alpha = calloc(1, size); /* alpha value 8bpp */
+		if(eimg->alpha==NULL) {
+			printf("%s: Fail to calloc eimg->alpha\n",__func__);
+			return -3;
+		}
+		memset(eimg->alpha, 255, size); /* assign to 255 */
 	}
 
 	for( i=0; i< bitmap->rows; i++ ) {	      /* traverse bitmap height  */
@@ -188,12 +219,13 @@ int egi_imgbuf_load_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap
 
 			/* blend color	*/
 			if( subcolor>=0 ) {	/* use subcolor */
-				color=subcolor;
-				/* !!!WARNG!!! 16bit color blend will cause some unexpected gray
-				 * areas/lines on bright color chars. So just directly assign it
-				 * with subcolor!!
+				//color=subcolor;
+				/* !!!WARNG!!!  NO Gamma Correctio in color blend macro,
+				 * color blend will cause some unexpected gray
+				 * areas/lines, especially for two contrasting colors.
+				 * Select a suitable backgroud color to weaken this effect.
 				 */
-				//color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
+				color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
 							/* front, background, alpha */
 			}
 			else {			/* use Font bitmap gray value */
@@ -220,6 +252,7 @@ main( int     argc,
 {
   FT_Library    library;
   FT_Face       face;		/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
+  FT_Face	face2;
 
   FT_GlyphSlot  slot;
   FT_Matrix     matrix;         /* transformation matrix */
@@ -232,6 +265,8 @@ main( int     argc,
 
   char**	fpaths;
   int		count;
+  char**	picpaths;
+  int		pcount;
 
   //wchar_t	*wcstr;
   EGI_16BIT_COLOR font_color;
@@ -240,13 +275,20 @@ main( int     argc,
   double        angle;
   int           n, num_chars;
   int 		i,j,k;
-  float		step; 
+  int		np;
+  float		step;
   int		ret;
-
 
 
   EGI_IMGBUF  *eimg=NULL;
   eimg=egi_imgbuf_new();
+
+  EGI_IMGBUF *logo_img=egi_imgbuf_new();
+  if( egi_imgbuf_loadpng("/mmc/logo_openwrt.png", logo_img) )
+		return -1;
+  EGI_IMGBUF *pinguin_img=egi_imgbuf_new();
+  if( egi_imgbuf_loadpng("/mmc/pinguin.png", pinguin_img) )
+		return -1;
 
 
         /* EGI general init */
@@ -276,8 +318,8 @@ main( int     argc,
 
 #if 1
 //    wchar_t *wcstr=L"Heloolsdfsdf";
-//   wchar_t *wcstr=L"長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山."; /* for traditional chinese */
-   wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山."; /* for simple chinese */
+   wchar_t *wcstr=L"長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山."; /* for traditional chinese */
+//   wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山."; /* for simple chinese */
    char    *cstr="abcdefghijkABCDEFGHIJK";
 
 #else  /* LOCALE configure fails */
@@ -287,9 +329,13 @@ main( int     argc,
 	exit(1);
 #endif
 
+   /* buff all png file path */
+   picpaths=egi_alloc_search_files("/mmc/pic", ".png", &pcount); /* NOTE: path for fonts */
+   printf("Totally %d png files are found.\n",pcount);
+   if(pcount==0) exit(1);
 
 
-   /* buff all ttf font file path */
+   /* buff all ttf,otf font file path */
    fpaths=egi_alloc_search_files(font_path, ".ttf, .otf", &count); /* NOTE: path for fonts */
    printf("Totally %d ttf font files are found.\n",count);
    if(count==0) exit(1);
@@ -303,6 +349,8 @@ for(j=0; j<=count; j++)
 	if(j==count)
 		j=0;
 
+	np=egi_random_max(pcount)-1;
+
 	printf(" <<<<<<<< fpaths[%d] DEMO FONT TYPE: '%s' >>>>>>> \n",j, fpaths[j]);
 
 	/* 1. initialize FT library */
@@ -314,6 +362,9 @@ for(j=0; j<=count; j++)
 
 	/* 2. create face object, face_index=0 */
  	//error = FT_New_Face( library, font_path, 0, &face );
+ 	error = FT_New_Face( library, fpaths[0], 0, &face2 );
+	if(error==FT_Err_Unknown_File_Format) return -1;
+
  	error = FT_New_Face( library, fpaths[j], 0, &face );
 	if(error==FT_Err_Unknown_File_Format) {
 		printf("%s: Font file opens, but its font format is unsupported!\n",__func__);
@@ -357,7 +408,17 @@ for( deg=0; deg<90; deg+=10 )
 */
 
   /* Init eimg before load FTbitmap, old data erased if any. */
-  egi_imgbuf_init(eimg, 320, 240);
+  //egi_imgbuf_init(eimg, 320, 240);
+
+   /* load a pic to EGI_IMGBUF as for backgroup */
+   ret=egi_imgbuf_loadpng( picpaths[np], eimg);
+   if(ret!=0) {
+	printf(" Fail to load png file '%s'\n", picpaths[np]);
+	continue;
+   }
+   else {
+	printf(" png '%s', HxW=%dx%d \n", picpaths[np], eimg->height, eimg->width);
+   }
 
 
   /* 3. set up matrix for transformation */
@@ -379,7 +440,7 @@ for( deg=0; deg<90; deg+=10 )
   clear_screen(&gv_fb_dev, WEGI_COLOR_GRAYB);
 
   /* set font color */
-  font_color=egi_color_random(all);
+  font_color= egi_color_random(light);
 
 step=5.0; //1.25;
 for(k=3; k<11; k++)	/* change font size */
@@ -389,11 +450,11 @@ for(k=3; k<11; k++)	/* change font size */
    /* OR set character size in 26.6 fractional points, and resolution in dpi */
    //error = FT_Set_Char_Size( face, 32*32, 0, 100,0 );
 
-  printf(" Size change [ k=%d ]\n",k);
+  //printf(" Size change [ k=%d ]\n",k);
 //  printf(" len=%d, wcstr: %s\n", wcslen(wcstr), (char *)wcstr);
   pen.y=line_starty;
-  //for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
-  for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
+  for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
+  //for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
   {
    	/* 6. re_set transformation before loading each wchar,
 	 *    as pen postion and transfer_matrix may changed.
@@ -401,12 +462,15 @@ for(k=3; k<11; k++)	/* change font size */
     	FT_Set_Transform( face, &matrix, &pen );
 
 	/* 7. load char and render to bitmap  */
+
+//	glyph_index = FT_Get_Char_Index( face, wcstr[n] ); /*  */
+//	printf("charcode[%X] --> glyph index[%d] \n", wcstr[n], glyph_index);
 #if 1
 	/*** Option 1:  FT_Load_Char( FT_LOAD_RENDER )
     	 *   load glyph image into the slot (erase previous one)
 	 */
-    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
-    	error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
+    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
+    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -417,8 +481,8 @@ for(k=3; k<11; k++)	/* change font size */
 	 *    in its native format, then call FT_Render_Glyph() to convert
 	 *    it to bitmap.
          */
-    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
-    	error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
+    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
+    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -428,12 +492,14 @@ for(k=3; k<11; k++)	/* change font size */
 	/* ALSO_Ok: _LIGHT, _NORMAL; 	BlUR: _MONO	LIMIT: _LCD */
 #endif
 
+
 	/* 8. Draw to EGI_IMGBUF */
-	ret=egi_imgbuf_load_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
+	ret=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
 						&slot->bitmap, font_color); //egi_color_random(deep) );
 	if(ret!=0) {
 		printf(" Fail to fetch Font type '%s' char index [%d]\n", fpaths[j], n);
 	}
+
 
     	/* 9. increment pen position */
 //	printf("bitmap_left=%d, bitmap_top=%d. \n",slot->bitmap_left, slot->bitmap_top);
@@ -445,7 +511,7 @@ for(k=3; k<11; k++)	/* change font size */
 	/* 10. skip pen to next line */
 	pen.x = 3<<6;
 
-	line_starty += ((int)(step*k)+5)<<6; /* for inclined lines */
+	line_starty += ((int)(step*k)+15)<<6; /* for inclined lines */
 	//pen.y += ((k+5)<<6); /* 1 pixel= 64 units glyph metrics */
 
 }  /* end for() of size change */
@@ -458,6 +524,10 @@ int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 ----------------------------------------------------------------------------------------------*/
+
+	/* put a logo */
+	egi_imgbuf_blend_imgbuf(eimg, 10, 10, logo_img);
+	egi_imgbuf_blend_imgbuf(eimg, 240-85, 320-85, pinguin_img);
 
 	/* Dispay EGI_IMGBUF */
 	egi_imgbuf_windisplay2(eimg, &gv_fb_dev, 0, 0, 0, 0, eimg->width, eimg->height);
@@ -473,6 +543,7 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
 FT_FAILS:
   FT_Done_Face    ( face );
+  FT_Done_Face    ( face2 );
   FT_Done_FreeType( library );
 
 
@@ -481,9 +552,12 @@ FT_FAILS:
 
  	/* free fpaths buffer */
         egi_free_buff2D((unsigned char **) fpaths, count);
+        egi_free_buff2D((unsigned char **) picpaths, pcount);
 
 	/* free EGI_IMGBUF */
 	egi_imgbuf_free(eimg);
+	egi_imgbuf_free(logo_img);
+	egi_imgbuf_free(pinguin_img);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);

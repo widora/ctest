@@ -5,6 +5,8 @@ COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+ds
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 #CC = gcc
 
+OBJ	= ../egi_image.o
+
 CFLAGS  += -I../ -I../utils
 CFLAGS  += -I$(COMMON_USRDIR)/include
 CFLAGS  += -I$(COMMON_USRDIR)/include/freetype2
@@ -23,7 +25,7 @@ LIBS    += -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 all:	 test_freetype
 
 test_freetype:	test_freetype.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) test_freetype.c -o test_freetype
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_freetype.c -o test_freetype
 
 
 clean:

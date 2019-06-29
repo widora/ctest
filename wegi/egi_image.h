@@ -29,6 +29,7 @@ EGI_IMGBUF *egi_imgbuf_new(void);
 void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
+int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg );
 int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */

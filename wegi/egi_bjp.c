@@ -382,6 +382,7 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 
 /*------------------------------------------------------------------------
 Allocate memory for a EGI_IMGBUF,then read JPG image data and load to it.
+Clear data and realloc if any old data exists.
 
 fpath:		JPG file path
 egi_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color

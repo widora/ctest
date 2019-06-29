@@ -25,13 +25,13 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 
 
 /* front_color(16bits), background_color(16bits), alpha channel value(0-255) */
+/* TODO: GAMMA CORRECTION(?) */
 #define COLOR_16BITS_BLEND(front, back, alpha)							\
 		COLOR_RGB_TO16BITS (								\
 			  ( ((front&0xF800)>>8)*alpha + ((back&0xF800)>>8)*(255-alpha) )/255, 	\
 			  ( ((front&0x7E0)>>3)*alpha + ((back&0x7E0)>>3)*(255-alpha) )/255,   	\
 			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
 		)										\
-
 
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)
