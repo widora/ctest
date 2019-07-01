@@ -4,9 +4,9 @@ SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-#OBJS = ../ffmpeg/ff_pcm.o
+OBJS = ../iot/egi_iotclient.o
 
-CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils/
+CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils  -I../iot
 #-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
@@ -16,12 +16,16 @@ LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
-APPS = test_fb test_sym tmp_app test_pic
+APPS = test_fb test_sym tmp_app test_pic test_bigiot
 
 all:	$(APPS)
 
 tmp:	tmp_app.c
 	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)
+
+test_bigiot:	test_bigiot.c  $(OBJS)
+	$(CC) -o test_bigiot test_bigiot.c $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)
+
 
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS !!!!
 %:%.c

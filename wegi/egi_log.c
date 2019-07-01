@@ -60,8 +60,9 @@ static pthread_t log_write_thread;
 static pthread_mutex_t log_buff_mutex;
 static FILE *egi_log_fp; /* log_buff_mutex lock */
 static unsigned char **log_buff;  /* log_buff_mutex lock */
-static int log_buff_count; /* count number, or number of the first available log buff,log_buffer_mutex lock */
-static bool log_is_running; /* log_buff_mutex lock */
+/* !!! WARNING !!! use volatile to disable compiler optimization to avoid mutex_lock failure */
+volatile static int log_buff_count; /* count number, or number of the first available log buff,log_buffer_mutex lock */
+volatile static bool log_is_running; /* log_buff_mutex lock */
 //static bool write_thread_running;
 
 

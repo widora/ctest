@@ -1,62 +1,18 @@
-/* example1.c                                                      */
-/*                                                                 */
-/* This small program shows how to print a rotated string with the */
-/* FreeType 2 library.                                             */
+/*-------------------------------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License version 2 as published by the Free Software
+Foundation.
 
 
-/*---------------------------------------------------------------------------------
-
-
-typedef struct FT_GlyphSlotRec_*  FT_GlyphSlot;
-
-typedef struct  FT_GlyphSlotRec_
-  {
-    FT_Library        library;
-    FT_Face           face;
-    FT_GlyphSlot      next;
-    FT_UInt           reserved;       	retained for binary compatibility
-    FT_Generic        generic;
-    FT_Glyph_Metrics  metrics;
-    FT_Fixed          linearHoriAdvance;
-    FT_Fixed          linearVertAdvance;
-    FT_Vector         advance;
-    FT_Glyph_Format   format;
-    FT_Bitmap         bitmap;
-    FT_Int            bitmap_left;
-    FT_Int            bitmap_top;
-    FT_Outline        outline;
-    FT_UInt           num_subglyphs;
-    FT_SubGlyph       subglyphs;
-    void*             control_data;
-    long              control_len;
-    FT_Pos            lsb_delta;
-    FT_Pos            rsb_delta;
-    void*             other;
-    FT_Slot_Internal  internal;
-  } FT_GlyphSlotRec;
-
-
- typedef struct  FT_Bitmap_
-  {
-    unsigned int    rows;
-    unsigned int    width;
-    int             pitch;
-    unsigned char*  buffer;
-    unsigned short  num_grays;
-    unsigned char   pixel_mode;
-    unsigned char   palette_mode;
-    void*           palette;
-
-  } FT_Bitmap;
-
-
+An Example of fonts demonstration based on example1.c in FreeType 2 library docs.
+(Note: FreeType 2 is based on FTL/GPLv3 or GPLv2 ).
 
 
 			<<<	--- Glossary ---	>>>
 
 	( Refering to: https://freetype.org/freetype2/docs/tutorial )
 
-character code:		A unique value that dfines the character for a given encoding.
+character code:		A unique value that defines the character for a given encoding.
 
 charmap:		A table in face object that converts character codes to glyph indices.
 			Note:
@@ -66,11 +22,41 @@ charmap:		A table in face object that converts character codes to glyph indices.
 			   is created. and it emulates a Unicode charmap if the font doesn't
 			   contain such a charmap.
 
+units_per_EM           The number of font units per EM square for a face, relevant for scalable
+		       fonts only. Noticed that all characters have the same height.
+		       Typically 1000 for type-1 fonts and 1024 or 2048 for TrueType fonts.
+
+	  typedef struct  FT_CharMapRec_
+	  {
+	    FT_Face      face;
+	    FT_Encoding  encoding;
+	    FT_UShort    platform_id;
+	    FT_UShort    encoding_id;
+	  } FT_CharMapRec;
+
+
+CJK:	Chinese, Japanese, Korean
+TTF:	True Type Font
+TTC:	True Type Collections
+OTF:	Open Type Font (Post-script)
+SIL:	The SIL Open Font License(OFL) is a free, libre and open source license.
+
+
+			<<<	--- Some Open/Free Fonts --- 	>>>
+
+Source_Han_San:		A set of OpenType/CFF Pan-CJK fonts. 		( SIL v1.1 )
+Source_Han_Serif:	A set of OpenType/CFF Pan-CJK fonts. 		( SIL v1.1 )
+Wang_Han_Zong:		A set of traditional/simple chinese fonts.	( GPL v2 )
+
+Liberation-fonts:	A set of western fonts whose layout is compatible to Times New Roman,
+			Arial, and Courier New. 			( SIL v1.1 )
+Bitstream Vera Fonts	A set of western fonts for GNOME. 	( Bitstream Vera Fonts Copyright )
+
 
 
 Notes:
-1. Default encoding is UFT-8 for both input and output, as also for FreeType
-   default set.
+1. Default encoding environment shall be set to be same, UFT-8 etc, for both codes compiling
+   and running.
 2. Refer to: zenozeng.github.io/Free-Chinese-Fonts for more GPL fonts.
 3. Input text with chinese traditional style when use some chinese fonts, like
    WHZ fonts etc, or it may not be found in its font library.
@@ -82,11 +68,13 @@ Notes:
 7. 				-----  WARNING  -----
    Due to lack of Gamma Correction(?) in color blend macro, there may be some dark/gray
    lines/dots after font bitmap and backgroud blending, especially for two contrasting
-   colors. Select a dark color for font and/or a compatible color for backgroud to weaken
-   the effect.
+   colors/bright colors. Select a dark color for font and/or a compatible color for backgroud to
+   weaken the effect.
+
 
 Midas Zhou
-------------------------------------------------------------------------------------*/
+midaszhou@yahoo.com
+--------------------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
 #include <locale.h>
@@ -169,6 +157,18 @@ wchar_t * cstr_to_wcstr(const char *cstr)
 @xb,yb		coordinates of bitmap relative to EGI_IMGBUF canvas coord,
 		left top as origin.
 @bitmap		pointer to a bitmap in a FT_GlyphSlot.
+		typedef struct  FT_Bitmap_
+		{
+			    unsigned int    rows;
+			    unsigned int    width;
+			    int             pitch;
+			    unsigned char*  buffer;
+			    unsigned short  num_grays;
+			    unsigned char   pixel_mode;
+			    unsigned char   palette_mode;
+			    void*           palette;
+		} FT_Bitmap;
+
 @subcolor	>=0 as substituting color
 		<0  use bitmap buffer data as gray value. 0-255 (BLACK-WHITE)
 
@@ -179,6 +179,8 @@ return:
 int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
 								EGI_16BIT_COLOR subcolor)
 {
+
+
 	int i,j;
 	EGI_16BIT_COLOR color;
 	unsigned char alpha;
@@ -245,14 +247,44 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 }
 
 
+/* ---------------     FT_GlyphSlot   ----------------------
 
-int
-main( int     argc,
-      char**  argv )
+typedef struct FT_GlyphSlotRec_*  FT_GlyphSlot;
+typedef struct  FT_GlyphSlotRec_
+  {
+    FT_Library        library;
+    FT_Face           face;
+    FT_GlyphSlot      next;
+    FT_UInt           reserved;       	retained for binary compatibility
+    FT_Generic        generic;
+    FT_Glyph_Metrics  metrics;
+    FT_Fixed          linearHoriAdvance;
+    FT_Fixed          linearVertAdvance;
+    FT_Vector         advance;
+    FT_Glyph_Format   format;
+    FT_Bitmap         bitmap;
+    FT_Int            bitmap_left;
+    FT_Int            bitmap_top;
+    FT_Outline        outline;
+    FT_UInt           num_subglyphs;
+    FT_SubGlyph       subglyphs;
+    void*             control_data;
+    long              control_len;
+    FT_Pos            lsb_delta;
+    FT_Pos            rsb_delta;
+    void*             other;
+    FT_Slot_Internal  internal;
+  } FT_GlyphSlotRec;
+---------------------------------------------*/
+
+int main( int  argc,   char**  argv )
 {
   FT_Library    library;
   FT_Face       face;		/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
   FT_Face	face2;
+  FT_CharMap*   pcharmaps=NULL;
+  char		tag_charmap[6]={0};
+  uint32_t	tag_num;
 
   FT_GlyphSlot  slot;
   FT_Matrix     matrix;         /* transformation matrix */
@@ -279,6 +311,13 @@ main( int     argc,
   float		step;
   int		ret;
 
+#if 0  ////////////////  ENCODING TEST  /////////////////////
+  wchar_t *words=L"严严";
+  printf("0x%X\n", words[0]); 		    /* Print Unicode */
+  printf("0x%X\n", words[1]);
+  printf("0x%X\n", *(wchar_t *)(argv[1]) ); /* print UFT-8 LE, as argv is UFT-8 LE */
+	exit(1);
+#endif ////////////////  END ENCODING TEST  ////////////////
 
   EGI_IMGBUF  *eimg=NULL;
   eimg=egi_imgbuf_new();
@@ -318,7 +357,7 @@ main( int     argc,
 
 #if 1
 //    wchar_t *wcstr=L"Heloolsdfsdf";
-   wchar_t *wcstr=L"長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山."; /* for traditional chinese */
+   wchar_t *wcstr=L"長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山.";   /* for traditional chinese */
 //   wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山."; /* for simple chinese */
    char    *cstr="abcdefghijkABCDEFGHIJK";
 
@@ -381,6 +420,7 @@ for(j=0; j<=count; j++)
 	printf("-------- Load font '%s', index[0] --------\n", font_path);
 	printf("   num_faces:		%d\n",	face->num_faces);
 	printf("   face_index:		%d\n",	face->face_index);
+	printf("   family name:		%s\n",	face->family_name);
 	printf("   style name:		%s\n",	face->style_name);
 	printf("   num_glyphs:		%d\n",	face->num_glyphs);
 	printf("   face_flags: 		0x%08X\n",face->face_flags);
@@ -392,8 +432,21 @@ for(j=0; j<=count; j++)
 							    face->available_sizes[i].width);
 		}
 	}
+	/* ---- print charmaps -----*/
 	printf("   num_charmaps:	%d\n",	face->num_charmaps);
-	printf("   height:		%d\n",	face->height);
+	for(i=0; i< face->num_charmaps; i++) { /* print all charmap tags */
+		pcharmaps=face->charmaps;
+		tag_num=htonl((uint32_t)(*pcharmaps)->encoding );
+		memcpy( tag_charmap, &tag_num, 4); /* 4 bytes */
+		printf("      			[%d] %s\n", i,tag_charmap ); /* unic as for Unicode */
+		pcharmaps++;
+	}
+	tag_num=htonl((uint32_t)( face->charmap->encoding));
+	memcpy( tag_charmap, &tag_num, 4); /* 4 bytes */
+	printf("   charmap in use:	%s\n", tag_charmap ); /* unic as for Unicode */
+
+	/* vertical distance between two consective lines */
+	printf("   height(font units):	%d\n",	face->height);
 
 
 deg=15-egi_random_max(30);
@@ -453,8 +506,8 @@ for(k=3; k<11; k++)	/* change font size */
   //printf(" Size change [ k=%d ]\n",k);
 //  printf(" len=%d, wcstr: %s\n", wcslen(wcstr), (char *)wcstr);
   pen.y=line_starty;
-  for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
-  //for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
+  //for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
+  for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
   {
    	/* 6. re_set transformation before loading each wchar,
 	 *    as pen postion and transfer_matrix may changed.
@@ -469,8 +522,8 @@ for(k=3; k<11; k++)	/* change font size */
 	/*** Option 1:  FT_Load_Char( FT_LOAD_RENDER )
     	 *   load glyph image into the slot (erase previous one)
 	 */
-    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
-    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
+    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_RENDER );
+    	error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -481,8 +534,8 @@ for(k=3; k<11; k++)	/* change font size */
 	 *    in its native format, then call FT_Render_Glyph() to convert
 	 *    it to bitmap.
          */
-    	error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
-    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
+    	//error = FT_Load_Char( face, wcstr[n], FT_LOAD_DEFAULT );
+    	error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
     	if ( error ) {
 		printf("%s: FT_Load_Char() error!\n");
       		continue;                 /* ignore errors */
@@ -499,7 +552,6 @@ for(k=3; k<11; k++)	/* change font size */
 	if(ret!=0) {
 		printf(" Fail to fetch Font type '%s' char index [%d]\n", fpaths[j], n);
 	}
-
 
     	/* 9. increment pen position */
 //	printf("bitmap_left=%d, bitmap_top=%d. \n",slot->bitmap_left, slot->bitmap_top);
@@ -548,6 +600,7 @@ FT_FAILS:
 
 
 }
+
 /* >>>>>>>>>>>>>>>>>  END FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
 
  	/* free fpaths buffer */

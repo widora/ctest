@@ -180,6 +180,7 @@ int  iw_get_speed(int *ws)
 		//EGI_PLOG(LOGLV_INFO,"%s: ....... recvfrom( ) get %d bytes .......\n", __func__, ret);
 
 /* Debug results....
+				-----  BUG  -----
 ......
 egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
 EGI_Logger: [2019-05-18 16:57:28] [LOGLV_INFO] iw_get_speed: ....... recvfrom( ) get 486 bytes .......
@@ -199,6 +200,43 @@ egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return
 EGI_Logger: [2019-05-18 16:57:28] [LOGLV_INFO] iw_get_speed: ....... recvfrom( ) get 486 bytes .......
 egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
 .....
+				-----  BUG  -----
+
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:26:37] [LOGLV_INFO] [2019-06-30 11:26:37] heart_beat msg is sent out.
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:26:37] [LOGLV_INFO] Message from the server: {"M":"checked"}
+
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:27:07] [LOGLV_INFO] [2019-06-30 11:27:07] heart_beat msg is sent out.
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:27:07] [LOGLV_INFO] Message from the server: {"M":"checked"}
+
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:27:37] [LOGLV_INFO] [2019-06-30 11:27:37] heart_beat msg is sent out.
+egi_push_log(): log_buff[] is full, fail to push strlog, unlock mutex and return...
+EGI_Logger: [2019-06-30 11:27:37] [LOGLV_INFO] Message from the server: {"M":"checked"}
+......
+				-----  NORMAL  ---
+
+GI_Logger: [2019-06-30 13:06:34] [LOGLV_INFO] ---------  trap into iw_get_speed( )  -------- >>>>>
+iw_get_speed:----------- start recvfrom() and tm_pulse counting ------------
+EGI_Logger: [2019-06-30 13:06:40] [LOGLV_INFO] egi_iwinfo: tm pulse OK!
+EGI_Logger: [2019-06-30 13:06:40] [LOGLV_INFO] ---------  get out of iw_get_speed( )  ---------- <<<<<
+EGI_Logger: [2019-06-30 13:06:40] [LOGLV_INFO] xxxxxxxxxx   maxrss=2208, ixrss=0, idrss=0, isrss=0    xxxxxxxxx
+EGI_Logger: [2019-06-30 13:06:40] [LOGLV_INFO] raw data for json_data: load=1.700000, ws=21305.000000, maxrss=2208.000000. 
+EGI_Logger: [2019-06-30 13:06:40] [LOGLV_CRITICAL] Finish creating update_json: 
+{
+  "M":"update",
+  "ID":"421",
+  "V":{
+    "546":"1.70",
+    "961":"21305.00",
+    "430":"2208.00"
+  }
+}
+
+
 */
 
 
