@@ -81,6 +81,7 @@ libpng, libjpeg,
 libjson-c, 
 libubus, libubox, 
 libshine,libasound,
+libfreetype
 ... ... 
 
 

@@ -131,9 +131,10 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 
 
 /*------------------------------------------------------------------------------
-Blend two images of EGI_IMGBUF together.
+Blend two images of EGI_IMGBUF together, and allocate alpha if eimg->alpha is
+NULL.
 
-1. The holding eimg should already image data inside, or has been initialized
+1. The holding eimg should already have image data inside, or has been initialized
    by egi_imgbuf_init() with certain size of a canvas (height x width) inside.
 2. The canvas size of the eimg shall be big enough to hold the bitmap,
    or pixels out of the canvas will be omitted.
@@ -167,7 +168,7 @@ int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg
         }
 
         /* calloc and assign alpha, if NULL */
-        if(eimg->alpha==NULL) {
+        if( eimg->alpha==NULL ) {
                 size=eimg->height*eimg->width;
                 eimg->alpha = calloc(1, size); /* alpha value 8bpp */
                 if(eimg->alpha==NULL) {
