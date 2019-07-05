@@ -7,13 +7,20 @@ Foundation.
 An Example of fonts demonstration based on example1.c in FreeType 2 library docs.
 
 1. Size of character bitmap maps to symbol size for struct symbol_page:
-   1.1 height in pixel as in FT_Set_Pixel_Sizes(face,W,H)   --->  symheight  (same height for all symbols)
+   1.1	MAX(base_uppmost)+MAX(base_lowmost)    --->  symheight  (same height for all symbols)
+
+   	Note: Though  W*H in pixels as in FT_Set_Pixel_Sizes(face,W,H) is capable to hold all
+        char images, but it is NOT considered to be aligned with baseline!!!  It shall be
+	bigger in height to hold all aligned chars images!
+
        FT bitmap.rows of 'j' is the biggest in all ascii symbols, and nearly reaches pix size H.
    1.2 slot->advance.x  	 			    --->  symwidth
        Each ascii symbol has different value of its FT bitmap.width.
 
 2. 0-31 ASCII control chars, 32-126 ASCII printable symbols.
 
+Regular type:
+LiberationSans-Regular.ttf
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -76,8 +83,6 @@ return:
 int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
 								EGI_16BIT_COLOR subcolor)
 {
-
-
 	int i,j;
 	EGI_16BIT_COLOR color;
 	unsigned char alpha;
@@ -124,10 +129,12 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 				 * areas/lines, especially for two contrasting colors.
 				 * Select a suitable backgroud color to weaken this effect.
 				 */
+				if(alpha>180)alpha=255;  /* set a limit as for GAMMA correction */
 				color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
 							/* front, background, alpha */
 			}
 			else {			/* use Font bitmap gray value */
+				if(alpha<180)alpha=255; /* set a limit as for GAMMA correction */
 				color=COLOR_16BITS_BLEND( COLOR_RGB_TO16BITS(alpha,alpha,alpha),
 							  eimg->imgbuf[pos], alpha );
 			}
@@ -145,17 +152,20 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 
 
 
+
 int main( int  argc,   char**  argv )
 {
-	FT_Library    library;
-	FT_Face       face;		/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
+	FT_Library    	library;
+	FT_Face       	face;		/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
 
-	FT_GlyphSlot  slot;
-	FT_Matrix     matrix;         /* transformation matrix */
-	FT_Vector     pen;            /* untransformed origin  */
+	FT_GlyphSlot  	slot;
+	FT_Matrix     	matrix;         /* transformation matrix */
+	FT_Vector     	pen;            /* untransformed origin  */
+	FT_Vector	origin;
 	int		line_starty;    /* starting pen Y postion for rotated lines */
-	FT_BBox	bbox;		/* Boundary box */
-	FT_Error      error;
+	FT_BBox		bbox;		/* Boundary box */
+	int		bbox_W, bbox_H; /* Width and Height of the boundary box */
+	FT_Error      	error;
 
 	/* size in pixels */
 	int		nsize=8;
@@ -170,6 +180,13 @@ int main( int  argc,   char**  argv )
 	48,48,
 	64,64
 	};
+
+	/* H for struct symbol_page: H=MAX(base_uppmost)+MAX(base_lowmost) */
+	int base_uppmost; /* from baseline to the uppermost scanline */
+	int base_lowmost; /* from baseline to the lowermost scanline */
+	int HBearX,HBearY; /* horiBearingX and horiBearingY */
+	int x1,y1,x2,y2;
+	int symheight;	 /* symbol height for struct symbol_page */
 
  	FT_CharMap*   pcharmaps=NULL;
   	char          tag_charmap[6]={0};
@@ -187,9 +204,9 @@ int main( int  argc,   char**  argv )
   	EGI_16BIT_COLOR font_color;
   	int		glyph_index;
   	int		deg; /* angle in degree */
-  	double        angle;
-  	int           n, num_chars;
-  	int 		i,j,k;
+  	double          angle;
+  	int             num_chars;
+  	int 		i,j,k,m,n;
   	int		np;
   	float		step;
 	int		ret;
@@ -241,9 +258,12 @@ int main( int  argc,   char**  argv )
 
 
 /* >>>>>>>>>>>>>>>>>>>>  START FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
+j=0;
 for(j=0; j<=count; j++)
 {
 	if(j==count)j=0;
+
+ for(m=0; m<10; m++) {  /* ascii chars shift */
 
 	/* 1. initialize FT library */
 	error = FT_Init_FreeType( &library );
@@ -310,7 +330,7 @@ for(j=0; j<=count; j++)
 	matrix.yx = (FT_Fixed)( sin( angle ) * 0x10000L );
 	matrix.yy = (FT_Fixed)( cos( angle ) * 0x10000L );
 
-	/* 4. set pen position
+	/* 4. re_set pen position
    	 * the pen position in 26.6 cartesian space coordinates
      	 * 64 units per pixel for pen.x and pen.y
  	 */
@@ -329,17 +349,44 @@ for(j=0; j<=count; j++)
 	font_color = WEGI_COLOR_WHITE;
 
 /* select differenct size */
-for(k=0; k< nsize-1; k++) {
-
+for(k=0; k< nsize-1; k++)
+{
    	/* 5. set character size in pixels */
    	error = FT_Set_Pixel_Sizes(face, size_pix[k][0], size_pix[k][1]); /* width,height */
 	/* OR set character size in 26.6 fractional points, and resolution in dpi */
    	//error = FT_Set_Char_Size( face, 32*32, 0, 100, 0 );
 
+	/* ------- Get MAX. base_uppmost, base_lowmost ------- */
+	base_uppmost=0;
+	base_lowmost=0;
+	/* set origin here, so that bitmap_top is aligned */
+	origin.x=0; origin.y=0;
+    	FT_Set_Transform( face, &matrix, &origin);
+	/* tranvser all chars to get MAX height for the boundary box, base line all aligned. */
+	for( n=32; n<=126; n++) {
+
+	    	error = FT_Load_Char( face, n, FT_LOAD_RENDER );
+	    	if ( error ) {
+			printf("%s: FT_Load_Char() error!\n");
+			exit(1);
+		}
+		/* dist from base_line to top */
+		if(base_uppmost < slot->bitmap_top)
+			base_uppmost=slot->bitmap_top;
+		/* dist from base_line to bottum */
+		// if(base_lowmost < size_pix[k][1]-slot->bitmap_top )   /* too big!!! for '_'  */
+		//	base_lowmost=size_pix[k][1]-slot->bitmap_top;
+		if(base_lowmost < slot->bitmap.rows-slot->bitmap_top )     /* ?????  */
+			base_lowmost=slot->bitmap.rows-slot->bitmap_top;
+	}
+	symheight=base_uppmost+base_lowmost+1;
+	//printf(" base_uppmost=%d; base_lowmost=%d\n", base_uppmost, base_lowmost);
+
   	pen.y=line_starty;
 
 	/* load chars in string one by one and process it */
-	for ( n = 0; n < strlen(cstr); n++ )
+//	for ( n = 0; n < strlen(cstr); n++ )
+	for ( n = 32 + 10*m; n <=126; n++ )
 	{
 		   	/* 6. re_set transformation before loading each wchar,
 			 *    as pen postion and transfer_matrix may changed.
@@ -354,7 +401,8 @@ for(k=0; k< nsize-1; k++) {
 			/*** Option 1:  FT_Load_Char( FT_LOAD_RENDER )
 		    	 *   load glyph image into the slot (erase previous one)
 			 */
-		    	error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
+		    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_RENDER );
+		    	error = FT_Load_Char( face, n, FT_LOAD_RENDER );
 		    	if ( error ) {
 				printf("%s: FT_Load_Char() error!\n");
       				continue;                 /* ignore errors */
@@ -365,7 +413,8 @@ for(k=0; k< nsize-1; k++) {
 			 *    in its native format, then call FT_Render_Glyph() to convert
 			 *    it to bitmap.
 		         */
-		    	error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
+		    	//error = FT_Load_Char( face, cstr[n], FT_LOAD_DEFAULT );
+		    	error = FT_Load_Char( face, n, FT_LOAD_DEFAULT );
 		    	if ( error ) {
 				printf("%s: FT_Load_Char() error!\n");
 		      		continue;                 /* ignore errors */
@@ -375,37 +424,93 @@ for(k=0; k< nsize-1; k++) {
 			/* ALSO_Ok: _LIGHT, _NORMAL; 	BlUR: _MONO	LIMIT: _LCD */
 #endif
 
+
+//if( slot->metrics.horiBearingX < 0 )
+{
+	//printf(" '%c'--- W*H=%d*%d \n", cstr[n], size_pix[k][0], size_pix[k][1]);
+	printf(" '%c' --- W*H=%d*%d \n", n, size_pix[k][0], size_pix[k][1]);
+
 	/* get boundary box in grid-fitted pixel coordinates */
-	printf("face boundary box: width=%d, height=%d.\n",
-			face->bbox.xMax - face->bbox.xMin, face->bbox.yMax-face->bbox.yMin );
+	//bbox_W=size_pix[k][0]; //(face->bbox.xMax - face->bbox.xMin)>>6;
+	/* NOTE:
+	 * bbox_W: also include normal char gap
+	 * bbox_H: also include normal line gap.
+         */
+	bbox_W=slot->advance.x>>6;
+	bbox_H=size_pix[k][1]; //(face->bbox.yMax - face->bbox.yMin)>>6;
+	printf("User defined face boundary box: bbox_W=%d, bbox_H=%d  symheight=%d .\n",
+								bbox_W, bbox_H, symheight );
+
+	HBearX=slot->metrics.horiBearingX/64; /* May be minus, so do not use (>>6)!!! */;
+	HBearY=slot->metrics.horiBearingY/64;
+
+	/* for 'f' etc. */
+	if(bbox_W < slot->bitmap.width)
+		bbox_W =slot->bitmap.width;
+
+	/* for 'j'  etc. */
+	if(HBearX<0)
+		bbox_W += -HBearX;
+
+
+	/* draw boundary box */
+	x1=slot->bitmap_left;		// -HBearX;
+	y1=320-slot->bitmap_top;
+	x2=slot->bitmap_left+bbox_W;	// -HBearX;
+	y2=320-slot->bitmap_top +bbox_H;
+	printf("x1=%d, y1=%d;  x2=%d, y2=%d\n", x1,y1,x2,y2);
+	fbset_color(WEGI_COLOR_RED);
+	draw_rect( &gv_fb_dev, x1, y1, x2, y2);
+
+	/* draw symbol_page boundary box */
+	x1=slot->bitmap_left;		// -HBearX;
+	y1=320-(pen.y/64+base_uppmost); //slot->bitmap_top ;
+	x2=slot->bitmap_left+bbox_W;	// -HBearX;
+	y2=320-(pen.y/64-base_lowmost)+bbox_H; //slot->bitmap_top +bbox_H;
+	fbset_color(WEGI_COLOR_GREEN);
+	draw_rect( &gv_fb_dev, x1, y1, x2, y2);
+
 
 	/* Note that even when the glyph image is transformed, the metrics are NOT ! */
-	printf("glyph metrics[in 26.6 format]: width=%d, height=%d.\n",
-					slot->metrics.width, slot->metrics.height);
+	printf("glyph metrics[in 26.6 format]: metrics.width=%d,       	 metrics.height=%d\n",
+					       slot->metrics.width, slot->metrics.height );
+	printf("			       metrics.HBearX=%d, 	 metrics.HBearY=%d\n",
+					       HBearX, HBearY );
+	printf("			       metrics.horiBearingX=%d,  metrics.horiBearingY=%d\n",
+					       slot->metrics.horiBearingX, slot->metrics.horiBearingY );
 
-	printf(" '%c'--- W*H=%d*%d \n", cstr[n], size_pix[k][0], size_pix[k][1]);
-	printf("bitmap.rows=%d, bitmap.width=%d \n", slot->bitmap.rows, slot->bitmap.width);
-	printf("bitmap_left=%d, bitmap_top=%d. \n",slot->bitmap_left, slot->bitmap_top);
-	printf("advance.x=%d\n",slot->advance.x);
+	printf("bitmap.rows=%d, bitmap.width=%d\n", slot->bitmap.rows, slot->bitmap.width);
+	printf("bitmap_left=%d, bitmap_top=%d\n", slot->bitmap_left, slot->bitmap_top);
+
+  	/* Note that 'slot->bitmap_left' and 'slot->bitmap_top' are also used
+	 * to specify the position of the bitmap relative to the current pen
+	 * position (e.g., coordinates (0,0) on the baseline).  Of course,
+	 * 'slot->format' is also changed to @FT_GLYPH_FORMAT_BITMAP.
+	 */
+	printf("advance.x=%d  metrics.horiAdvance=%d\n",slot->advance.x, slot->metrics.horiAdvance);
 	printf("advance.y=%d\n",slot->advance.y);
+}
 
 	/* 8. Draw to EGI_IMGBUF */
-	error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, 220-slot->bitmap_top,
+	error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
+	//error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, slot->bitmap_top,
 						&slot->bitmap, font_color); //egi_color_random(deep) );
 	if(error) {
 		printf(" Fail to fetch Font type '%s' char index [%d]\n", fpaths[j], n);
 	}
 
     	/* 9. increment pen position */
-    	pen.x += slot->advance.x;
+    	pen.x += slot->advance.x + (8<<6);
     	pen.y += slot->advance.y; /* same in a line for the same char  */
 
   } /* end for() load and process chars */
 
+
 	/* 10. skip pen to next line, in font units. */
 	pen.x = 3<<6; /* start X in a new line */
-	line_starty += ((int)(size_pix[k][0])+ 0 )<<6; /* LINE GAP,  +15 */
+	line_starty += ((int)(size_pix[k][1])*3/2 )<<6; /* LINE GAP,  +15 */
 	/* 1 pixel= 64 units glyph metrics */
+
 
 } /* end of k size */
 
@@ -427,6 +532,7 @@ FT_FAILS:
   FT_Done_Face    ( face );
   FT_Done_FreeType( library );
 
+ } /* end for()  ascii char shift */
 
 } /* end fpaths[j] */
 

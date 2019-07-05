@@ -162,12 +162,12 @@ int  iw_get_speed(int *ws)
 		ret=recvfrom(sock,(char *)buf, sizeof(buf), 0, (struct sockaddr *)&addr, (socklen_t *)&len);
 		if(ret<=0) {
 			if( ret == EWOULDBLOCK ) {
-				EGI_PLOG(LOGLV_INFO,"%s: Fail to call recvfrom() ret=EWOULDBLOCK. \n"
+				EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to call recvfrom() ret=EWOULDBLOCK. \n"
 												 , __func__);
 				continue;
 			}
 			else if (ret==EAGAIN) {
-				EGI_PLOG(LOGLV_INFO,"%s: Fail to call recvfrom() ret=EAGAIN. \n",__func__);
+				EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to call recvfrom() ret=EAGAIN. \n",__func__);
 				continue;
 			}
 			else {
