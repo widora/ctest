@@ -8,7 +8,7 @@ An Example of fonts demonstration based on example1.c in FreeType 2 library docs
 
 1. This program is ONLY for horizontal text layout !!!
 
-2. To get the MAX boudary box heigh:symheight, which can contain all characters of the same glyph.
+2. To get the MAX boudary box heigh: symheight, which is capable of containing each character in a font set.
    (symheight as for struct symbol_page)
 
    1.1	base_uppmost + base_lowmost +1    --->  symheight  (same height for all chars)
@@ -34,6 +34,7 @@ An Example of fonts demonstration based on example1.c in FreeType 2 library docs
 				origin).
    5.3 slot->bitmap_left, slot->bitmap_top:  Defines the left top point coordinate of a character bitmap,
 				             relative to the global drawing system origin.
+
 
 Regular type:
 	LiberationSans-Regular.ttf
@@ -196,10 +197,17 @@ int main( int  argc,   char**  argv )
 	64,64
 	};
 
-	/* H for struct symbol_page: H=MAX(base_uppmost)+MAX(base_lowmost) */
-	int base_uppmost; /* in pixels, from baseline to the uppermost scanline */
-	int base_lowmost; /* in pixels, from baseline to the lowermost scanline */
-	int symheight;	  /* in pixels, symbol height for struct symbol_page */
+	int base_uppmost; 	/* in pixels, from baseline to the uppermost scanline */
+	int base_lowmost; 	/* in pixels, from baseline to the lowermost scanline */
+	int symheight;	  	/* in pixels, =base_uppmost+base_lowmost+1, symbol height for struct symbol_page */
+	int symwidth_sum; 	/* sum of all charachter widths, as all symheight are the same,
+			      	 * so symwidth_total*symheight is required mem space */
+	int sympix_total;	/* total pixel number of all symbols in a sympage */
+
+	struct symbol_page	symfont_page={0};
+	int hi,wi;
+	int pos_symdata, pos_bitmap;
+
 
 	int HBearX,HBearY; /* horiBearingX and horiBearingY */
 	int x1,y1,x2,y2; /* 2 points to define a boundary box */
@@ -376,6 +384,8 @@ for(k=0; k< nsize-1; k++)
 
 #if 1	////////////////////////////   Get symbol_page SYMHEIGHT    ///////////////////////////
 
+   	//error = FT_Set_Pixel_Sizes(face, 32, 32); /* size in pixels: width, height */
+
 	/* ------- Get MAX. base_uppmost, base_lowmost ------- */
 	base_uppmost=0;
 	base_lowmost=0;
@@ -384,12 +394,16 @@ for(k=0; k< nsize-1; k++)
 	origin.y=0;
     	FT_Set_Transform( face, &matrix, &origin);
 
+
 	//test_k=7;
 	//FT_Set_Pixel_Sizes(face, size_pix[test_k][0], size_pix[test_k][1]);
-	test_k=k;
+	test_k=5;
+
+	symheight=0;
+	symwidth_sum=0;
 
 	/* Tranvser all chars to get MAX height for the boundary box, base line all aligned. */
-	for( n=32; n<=126; n++) {
+	for( n=0; n<128; n++) {  /* 0-NULL, 32-SPACE, 127-DEL */
 
 	    	error = FT_Load_Char( face, n, FT_LOAD_RENDER );
 	    	if ( error ) {
@@ -427,21 +441,158 @@ for(k=0; k< nsize-1; k++)
 		#endif
 
 		}
+
+		/* For sympage:  Get symwidth, and sum it up */
+		bbox_W=slot->advance.x>>6;
+		if(bbox_W < slot->bitmap.width) /* adjust bbox_W */
+			bbox_W =slot->bitmap.width;
+
+		symwidth_sum += bbox_W;
 	}
 
+	/* For sympage:  Get symheight at last */
 	symheight=base_uppmost+base_lowmost+1;
 	printf("size_pix[] height = %d\n",size_pix[test_k][1]);
 	printf("symheight=%d, base_uppmost=%d; base_lowmost=%d\n", symheight, base_uppmost, base_lowmost);
-//	getchar();
-//	goto FT_FAILS;
-#endif	///////////////////////////   END GET SYMHEIGHT   //////////////////////////////////
+	symfont_page.symheight=symheight;
+
+	/* For sympage: Set Maxnum */
+	symfont_page.maxnum=128-1; /* 0-127 */
+	/* TODO: 0-31 unprintable ascii characters */
+	/* .width, .data, .alpha  .symoffset */
+
+	sympix_total=symheight*symwidth_sum;
+
+	/* For sympage: allcate .data, .alpha, .symwidth, .symoffset */
+	symfont_page.data=calloc(1, sympix_total*sizeof(uint16_t));
+	if(symfont_page.data==NULL) goto FT_FAILS;
+
+	symfont_page.alpha=calloc(1, sympix_total*sizeof(unsigned char));
+	if(symfont_page.alpha==NULL) goto FT_FAILS;
+
+	symfont_page.symwidth=calloc(1, (symfont_page.maxnum+1)*sizeof(int) );
+	if(symfont_page.symwidth==NULL) goto FT_FAILS;
+
+	symfont_page.symoffset=calloc(1, (symfont_page.maxnum+1)*sizeof(int));
+	if(symfont_page.symoffset==NULL) goto FT_FAILS;
+
+#if 1
+	/* Tranvser all chars to get alpha for sympage , ensure that all base_lines are aligned. */
+	/* NOTE:
+	 *	1. TODO: Unprintable ASCII characters will be presented by FT as a box with a cross inside.
+	 *	   We just need to replace with SPACE.
+	 *	2. For font sympage, only .aplha is available, .data is useless!!!
+	 *	3. Symbol font boundary box [ symheight*bbox_W ] is bigger than each slot->bitmap box !
+	 */
+
+	symfont_page.symoffset[0]=0; /* default */
+	for( n=0; n<128; n++) {	/* 0-NULL, 32-SPACE, 127-DEL */
+
+		/* load N to ASCII symbol bitmap */
+	    	error = FT_Load_Char( face, n, FT_LOAD_RENDER );
+	    	if ( error ) {
+			printf("%s: Fail to FT_Load_Char() n=%d as ASCII symbol!\n", n);
+			exit(1);
+		}
+
+		/* Get symwidth */
+		bbox_W=slot->advance.x>>6;
+		if(bbox_W < slot->bitmap.width) /* adjust bbox_W */
+			bbox_W =slot->bitmap.width;
+
+		symfont_page.symwidth[n]=bbox_W;
+
+#if 1 /* ----- TEST ----- */
+		if(n==argv[2][0]) {
+			printf("-------- %c -------\n",n);
+			printf("base_uppmost-slot->bitmap_top:  %d\n", base_uppmost-slot->bitmap_top);
+			printf("slot->bitmap.rows:		%d\n", slot->bitmap.rows);
+			printf("symheight:			%d\n", symheight);
+		}
+#endif
+
+		/* hi: 0-symheight,  wi: 0-bbox_W */
+		/* ASSUME: bitmap start from hi=0 !!! */
+
+		/* 1. From base_uppmost to bitmap_top:
+		 *    All blank lines, just set alpha to 0.
+		 */
+		for( hi=0; hi < base_uppmost-slot->bitmap_top; hi++) {
+			for( wi=0; wi < bbox_W; wi++ ) {
+				pos_symdata=symfont_page.symoffset[n] + hi*bbox_W + wi;
+				/* all default value */
+				symfont_page.alpha[pos_symdata] = 0;
+			}
+		}
+
+		/* 2. From bitmap_top to bitmap bottom,
+		 *    Actual data here.
+		 */
+	     for( hi=base_uppmost-slot->bitmap_top; hi < (base_uppmost-slot->bitmap_top) + slot->bitmap.rows; \
+							 hi++ )
+		{
+
+			/* ROW: within bitmap.width, !!! ASSUME bitmap start from wi=0 !!! */
+			for( wi=0; wi < slot->bitmap.width; wi++ ) {
+				pos_symdata=symfont_page.symoffset[n] + hi*bbox_W +wi;
+				pos_bitmap=(hi-(base_uppmost-slot->bitmap_top))*slot->bitmap.width+wi;
+				symfont_page.alpha[pos_symdata]= slot->bitmap.buffer[pos_bitmap];
+#if 1 /* ------ TEST alpha ------ */
+	  if(n==argv[2][0]) {
+
+		if(symfont_page.alpha[pos_symdata]>0)
+			printf("*");
+		else
+			printf(" ");
+		if( wi==slot->bitmap.width-1 )
+			printf("\n");
+	   }
+#endif
+
+			}
+			/* ROW: blank area in BBOX */
+			for( wi=slot->bitmap.width; wi<bbox_W; wi++ ) {
+				pos_symdata=symfont_page.symoffset[n] + hi*bbox_W +wi;
+				symfont_page.alpha[pos_symdata]=0;
+			}
+		}
+
+		/* 3. From bitmap bottom to symheight( bottom),
+		 *    All blank lines.
+		 */
+		for( hi=(base_uppmost-slot->bitmap_top) + slot->bitmap.rows; hi < symheight; hi++ )
+		{
+			for( wi=0; wi < bbox_W; wi++ ) {
+				pos_symdata=symfont_page.symoffset[n] + hi*bbox_W + wi;
+				/* set only alpha value */
+				symfont_page.alpha[pos_symdata] = 0;
+			}
+		}
+
+		/* move symoffset to next one */
+		if(n<127)
+			symfont_page.symoffset[n+1] = symfont_page.symoffset[n] + bbox_W * symheight;
+
+	} /* end of all ASCII chars */
+#endif
+
+	/* test it */
+	printf("----------- PRINT SYMBOL ---------\n");
+	symbol_print_symbol(&symfont_page, argv[2][0],-1);
+
+	/* release the sympage */
+	symbol_release_page(&symfont_page);
+
+	exit(1);
+
+#endif	///////////////////////////   END GET SYMpage   //////////////////////////////////
 
 
   	pen.y=line_starty;
 
 	/* load chars in string one by one and process it */
 //	for ( n = 0; n < strlen(cstr); n++ )
-	for ( n = 32 + 10*m; n <=126; n++ )
+	for ( n = 0 + 10*m; n<128; n++ ) /* ASCII */
 	{
 		   	/* 6. re_set transformation before loading each wchar,
 			 *    as pen postion and transfer_matrix may changed.
@@ -613,6 +764,9 @@ FT_FAILS:
 
 	/* free EGI_IMGBUF */
 	egi_imgbuf_free(eimg);
+
+	/* release sympage */
+	symbol_release_page(&symfont_page);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);

@@ -62,9 +62,9 @@ struct symbol_page
 	/* back color of the image, a font symbol may use bkcolor as transparent channel */
 	uint16_t  bkcolor;
 	/* page symbol mem data, store each symbol data consecutively, no hole. while img page file may have hole or blank row*/
-	uint16_t *data;
+	uint16_t *data;		/* NOTE: for font sympage, .data is useless */
 	/* alpha data */
-	unsigned char *alpha;
+	unsigned char *alpha;	/* NOTE: for font sympage, .data is useless, only .alpha is available */
 	/* maximum number of symbols in this page, start from 0 */
 	int  maxnum; /* maxnum+1 = total number */
 	/* total symbol number for  each row, each row has 240 pixels. */

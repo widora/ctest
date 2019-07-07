@@ -623,18 +623,35 @@ void symbol_print_symbol( const struct symbol_page *sym_page, int symbol, uint16
 
 	i=symbol;
 
+#if 1 /* TEST ---------- */
+	printf("symheight=%d, symwidth=%d \n", sym_page->symheight, sym_page->symwidth[i]);
+#endif
+
 	for(j=0;j<sym_page->symheight;j++) /*for each row of a symbol */
 	{
 		for(k=0;k<sym_page->symwidth[i];k++)
 		{
 			/* if not transparent color, then print the pixel */
-			if( *(uint16_t *)( sym_page->data+(sym_page->symoffset)[i] \
-					+(sym_page->symwidth)[i]*j +k ) != transpcolor )
-                                       printf("*");
-                               else
-                                       printf(" ");
-                       }
-                       printf("\n"); /* end of each row */
+			if(sym_page->alpha==NULL) {
+				if( *(uint16_t *)( sym_page->data+(sym_page->symoffset)[i] \
+						+(sym_page->symwidth)[i]*j +k ) != transpcolor ) {
+                	                       printf("*");
+				}
+                        	       else
+                                	       printf(" ");
+			}
+			else {  /* use alpha value */
+
+				if( *(unsigned char *)(sym_page->alpha+(sym_page->symoffset)[i] \
+						+(sym_page->symwidth)[i]*j +k ) > 0 )  {
+
+						printf("*");
+				}
+					else
+						printf(" ");
+			}
+		}
+	     	printf("\n"); /* end of each row */
 	}
 }
 
