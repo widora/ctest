@@ -533,28 +533,33 @@ void symbol_release_page(struct symbol_page *sym_page)
 		return;
 
 	if(sym_page->data != NULL) {
-		printf("%s: free(sym_page->data) ...\n",__func__);
+		//printf("%s: free(sym_page->data) ...\n",__func__);
 		free(sym_page->data);
 		sym_page->data=NULL;
 	}
 
 	if(sym_page->alpha != NULL) {
-		printf("%s: free(sym_page->alpah) ...\n",__func__);
+		//printf("%s: free(sym_page->alpah) ...\n",__func__);
 		free(sym_page->alpha);
 		sym_page->alpha=NULL;
 	}
 
 	if(sym_page->symoffset != NULL) {
-		printf("%s: free(sym_page->symoffset) ...\n",__func__);
+		//printf("%s: free(sym_page->symoffset) ...\n",__func__);
 		free(sym_page->symoffset);
 		sym_page->symoffset=NULL;
 	}
 
+	/* TODO:  symwidth is NOT dynamically allocated */
+	sym_page->symwidth=NULL;
 //	if(sym_page->symwidth != NULL) {
 //		printf("%s: free(sym_page->symwidth) ...\n",__func__);
 //		free(sym_page->symwidth);
 //		sym_page->symwidth=NULL;
 //	}
+
+	sym_page->path=NULL;
+
 
 }
 
