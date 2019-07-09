@@ -7,6 +7,7 @@ Color classification method:
 	Douglas.R.Jacobs' RGB Hex Triplet Color Chart
   	http://www.jakesan.com
 
+
 Midas Zhou
 ----------------------------------------------------------------------*/
 #ifndef	__EGI_COLOR_H__
@@ -24,6 +25,11 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 #define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
 
 
+/* get 16bit complementary colour for a 16bit color
+ * !!! NOTE: For 16bit color, it's NOT possible to get a ture complementary color !!!
+ */
+#define COLOR_COMPLEMENT_16BITS(rgb)	 ( 0xFFFF-rgb )
+
 /* front_color(16bits), background_color(16bits), alpha channel value(0-255) */
 /* TODO: GAMMA CORRECTION(?) */
 #define COLOR_16BITS_BLEND(front, back, alpha)							\
@@ -31,7 +37,9 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 			  ( ((front&0xF800)>>8)*alpha + ((back&0xF800)>>8)*(255-alpha) )/255, 	\
 			  ( ((front&0x7E0)>>3)*alpha + ((back&0x7E0)>>3)*(255-alpha) )/255,   	\
 			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
-		)										\
+		)
+
+
 
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)

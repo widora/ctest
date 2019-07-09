@@ -58,18 +58,25 @@ midaszhou@yahoo.com
 Load a ASCII symbol_page struct from a font file by calling FreeType2 libs.
 
 Note:
-1. Load ASCII characters from 0 - 127, unprintable characters are also loaded.
+1. Load ASCII characters from 0 - 127, bitmap data of all unprintable ASCII symbols( 0-31,127)
+   will not be loaded to symfont_page, and their symwidths are set to 0 accordingly.
+
 2. Take default face_index=0 when call FT_New_Face(), you can modify it if
    the font file contains more than one glphy face.
-3. symfont_page->symwidth MUST be freed by calling free() separately,for symwidth is statically
+
+3. Inclination angle for each single character is set to be 0. If you want an oblique effect (for
+   single character ), just assign a certain value to 'deg'.
+
+4. !!! symfont_page->symwidth MUST be freed by calling free() separately,for symwidth is statically
    allocated in most case, and symbol_release_page() will NOT free it.
+
 
 @symfont_page:   pointer to a font symbol_page.
 @font_path:	 font file path.
 @Wp, Hp:	 in pixels, as for FT_Set_Pixel_Sizes(face, Wp, Hp )
 
  !!!! NOTE: Hp is nominal font height and NOT symheight of symbole_page,
-	    which is set to be the same for all symbols in the page.
+	    the later one shall be set to be the same for all symbols in the page.
 
 Return:
         0       ok
@@ -169,7 +176,7 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
    	//error = FT_Set_Char_Size( face, 32*32, 0, 100, 0 );
 
   	/* A6. set char inclination angle and matrix for transformation */
-	deg=10.0;
+	deg=0.0;
   	angle     = ( deg / 360.0 ) * 3.14159 * 2;
   	printf("  font inclination angle: %d, %f ----------\n", deg, angle);
   	matrix.xx = (FT_Fixed)( cos( angle ) * 0x10000L );
@@ -205,10 +212,8 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
 		}
 
 		/* 1.1 base_uppmost: dist from base_line to top */
-		if(base_uppmost < slot->bitmap_top) {
+		if(base_uppmost < slot->bitmap_top)
 			base_uppmost=slot->bitmap_top;
-			printf("upp -------- %c -------\n", n);
-		}
 
 		/* 1.2 base_lowmost: dist from base_line to bottom */
 		/* !!!! unsigned int - signed int */
@@ -217,6 +222,12 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
 		}
 
 		/* 1.3 get symwidth, and sum it up */
+			/* rule out all unpritable characters, except TAB  */
+		if( n<32 || n==127 ) {
+			/* symwidth set to be 0, no mem space for it. */
+			continue;
+		}
+
 		bbox_W=slot->advance.x>>6;
 		if(bbox_W < slot->bitmap.width) /* adjust bbox_W */
 			bbox_W =slot->bitmap.width;
@@ -264,6 +275,14 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
 
 	for( n=0; n<128; n++) {		/* 0-NULL, 32-SPACE, 127-DEL */
 
+
+		/* 5.0 rule out all unpritable characters */
+		if( n<32 || n==127 ) {
+			symfont_page->symwidth[n]=0;
+		        /* Not necessary to change symfont_page->symoffset[x], as its symwidth is 0. */
+			continue;
+		}
+
 		/* 5.1 load N to ASCII symbol bitmap */
 	    	error = FT_Load_Char( face, n, FT_LOAD_RENDER );
 	    	if ( error ) {
@@ -309,23 +328,24 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
 	     for( hi=base_uppmost-slot->bitmap_top; hi < (base_uppmost-slot->bitmap_top) + slot->bitmap.rows; \
 							 hi++ )
 		{
-
 			/* ROW: within bitmap.width, !!! ASSUME bitmap start from wi=0 !!! */
 			for( wi=0; wi < slot->bitmap.width; wi++ ) {
 				pos_symdata=symfont_page->symoffset[n] + hi*bbox_W +wi;
 				pos_bitmap=(hi-(base_uppmost-slot->bitmap_top))*slot->bitmap.width+wi;
 				symfont_page->alpha[pos_symdata]= slot->bitmap.buffer[pos_bitmap];
 
-#if 0 /* ------ TEST ONLY, print alpha here ------ */
-	  if(n=='j') {
-		if(symfont_page->alpha[pos_symdata]>0)
-			printf("*");
-		else
-			printf(" ");
-		if( wi==slot->bitmap.width-1 )
-			printf("\n");
-	   }
-#endif
+#if 0   /* ------ TEST ONLY, print alpha here ------ */
+
+		  	if(n=='j')  {
+				if(symfont_page->alpha[pos_symdata]>0)
+					printf("*");
+				else
+					printf(" ");
+				if( wi==slot->bitmap.width-1 )
+					printf("\n");
+	   		}
+
+#endif /*  -------------   END TEST   -------------- */
 
 			}
 			/* ROW: blank area in BBOX */
@@ -368,12 +388,20 @@ FT_FAILS:
 }
 
 
-
+/*---------------------------------------------------
+			MAIN()
+----------------------------------------------------*/
+#include <sys/stat.h>
 
 int main( int  argc,   char**  argv )
 {
 	int ret;
 	int i;
+
+	int fd;
+	int fsize;
+	struct stat sb;
+	char *fp;
 
   	EGI_16BIT_COLOR font_color;
 
@@ -383,10 +411,28 @@ int main( int  argc,   char**  argv )
 	/* init imgbuf */
 	egi_imgbuf_init(eimg, 320, 240);
 
-        char *strtest=" and he has certain parcels...  	\
-you are from God and have overcome them,\n		\
-for he who is in you is greater than \n			\
+        char *strtest="jjgggiii}||  and he has certain parcels... \n\r  	\
+you are from God and have overcome them,	\
+for he who is in you is greater than 		\
 he who is in the world.";
+
+	/* open and mmap txt book */
+	fd=open("/home/book.txt",O_RDONLY);
+	if(fd<0) {
+		perror("open file");
+		return -1;
+	}
+	/* obtain file stat */
+	if ( fstat(fd,&sb)<0 ) {
+		perror("fstat");
+		return -2;
+	}
+
+	fsize=sb.st_size;
+
+	/* mmap the file */
+	fp=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+
 
 
         /* <<<<  EGI general init >>>> */
@@ -406,40 +452,43 @@ while(1) {  ///////////////////////////   LOOP TEST   ///////////////////////
 
 	/* load symbol page of ASCII */
 	struct symbol_page sympg_ascii={0};
-	ret=symbol_load_asciis_from_fontfile(&sympg_ascii, "/mmc/fonts/vera/Vera.ttf", 18, 18);
+	ret=symbol_load_asciis_from_fontfile(&sympg_ascii, argv[1], 18, 18);
+	//ret=symbol_load_asciis_from_fontfile(&sympg_ascii, "/mmc/fonts/vera/Vera.ttf", 18, 18);
 //ret=symbol_load_asciis_from_fontfile( &sympg_ascii, "/mmc/fonts/hansans/SourceHanSansSC-Regular.otf", 20, 20);
 	if(ret)
 		exit(1);
 
-  	/* clear screen */
-  	clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY5);
-
-
-/*
+/*---------------------------------------------------------------------------------------------------
 void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,     \
-                             unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,     \
+               		     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,     \
                              int x0, int y0, const char* str, int opaque);
-*/
-
+---------------------------------------------------------------------------------------------------------*/
 
   	/* set font color */
-  	font_color= egi_color_random(all);
+  	font_color= egi_color_random(deep);
+
+	/* clear screen */
+ 	clear_screen(&gv_fb_dev, COLOR_COMPLEMENT_16BITS(font_color));
 
 	/* write string to FB */
 	symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, 20, 0, font_color,
-                                                                              -1, 0, 50, strtest,-1);
+                                                                              -1, 5, 50, strtest, -1);
 
 	/* print symbol */
 	for(i=0;i<128;i++)
 		symbol_print_symbol(&sympg_ascii, i,-1);
 
 	/* release the sympage */
-	free(sympg_ascii.symwidth);
+	free(sympg_ascii.symwidth); /* !!! free symwidth separately */
 	symbol_release_page(&sympg_ascii);
 
 	tm_delayms(1000);
 
 }  ////////////////////////////////   END Loop test  ///////////////////////////////
+
+	/* unmap and close file */
+	munmap(fp,fsize);
+	close(fd);
 
 	/* free EGI_IMGBUF */
 	egi_imgbuf_free(eimg);
@@ -448,6 +497,4 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
         release_fbdev(&gv_fb_dev);
         symbol_release_allpages();
         egi_quit_log();
-
-
 }

@@ -951,17 +951,23 @@ opaque:		set aplha value (0-255)
 		<0	No effect, or use symbol alpha value.
 		0 	100% back ground color/transparent
 		255	100% front color
+
+TODO: TAB spaces.
+
 -------------------------------------------------------------------------------*/
 void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
 			     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
 			     int x0, int y0, const char* str, int opaque )
 {
 	const char *p=str;
+	char *tmp;
 	int x=x0;
 	int y=y0;
-	unsigned int pxl=pixpl; /* available pixels in current line */
+	unsigned int pxl=pixpl; /* available pixels remainded in current line */
 	unsigned int ln=0; /* lines used */
-	int cw; /* char width, in pixel */
+	int cw; 	/* char width, in pixel */
+	int ww; 	/* word width, in pixel */
+	bool check_word;
 
 	/* check lines */
 	if(lines==0)return;
@@ -977,9 +983,14 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 	if(transpcolor>=0)
 		transpcolor=sym_page->bkcolor;
 
+	check_word=true;
+
 	while(*p) /* code '0' will be deemed as end token here !!! */
 	{
-		/* 1. Check whether remained space is enough for the char,
+
+#if 0	/////////////  METHOD-1: Check CHARACTER after CHARACTER for necesary space  ////////////
+
+		/* 1. Check whether remained space is enough for the CHARACTER,
   		 * or, if its a return code.
 		 * 2. Note: If the first char for a new line is a return code, it returns again,
 		 * and it may looks not so good!
@@ -994,6 +1005,63 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 			x = x0;
 			pxl=pixpl;
 		}
+
+#else 	/////////////  METHOD-2:  Check WORD after WORD for necessary space  ////////////
+
+	if(check_word) {	/* if a new word begins */
+
+		/* 0. reset tmp and ww */
+		tmp=p;
+		ww=0;
+
+		/* 1. If not SPACE: get length of non_space WORD  */
+		while(*tmp) {
+			if( (*tmp) != ' ' && *tmp != '\n' ) {
+				ww += sym_page->symwidth[(int)(*tmp)];
+				tmp++;
+			}
+			else {
+				break;
+			}
+		}
+		/* 2. If SPACE: each SPACE deemed as one WORD */
+		if( *tmp == ' ' ) {
+				ww += sym_page->symwidth[(int)(*tmp)];
+		}
+
+		/* 3. If not enough space for the WORD, or a RETURN */
+		/* TODO: if WORD length > pixpl */
+		if(pxl < ww || *tmp == '\n' ) {
+			ln++;
+			if(ln>=lines) /* no lines available */
+				return;
+			y += gap + sym_page->symheight;
+			x = x0;
+			pxl=pixpl;
+		}
+
+	        /* reset check_word */
+		check_word=false;
+	}
+
+	/* process current character */
+	cw=sym_page->symwidth[(int)(*p)];
+
+	/*  after each SPACE/control_char, we set check_work again!
+	 *  If current character is not SPACE/control_char, no need to check again.
+	 */
+	if(*p==' ' )
+		check_word=true;
+
+	/* for control character */
+//	if( cw==0 ) {
+//		check_word=true;
+//		p++;
+//		continue;
+//	}
+
+#endif  /////////////////////////  END METHOD SELECTION //////////////////////////
+
 		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y,*p,opaque);
 		x+=cw;
 		pxl-=cw;
@@ -1009,8 +1077,8 @@ sym_page:       a font symbol page
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
                 <0       --- no transparent pixel
 use following COLOR:
-#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font 
-#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font 
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
 
 x0,y0:          start position coordinate in screen, left top point of a symbol.
 str:            pointer to a char string(or symbol codes[]);
