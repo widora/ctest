@@ -132,7 +132,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);
 
-void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,	\
+int symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,	\
                              unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,	\
                              int x0, int y0, const char* str, int opaque);
 

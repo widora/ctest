@@ -402,8 +402,11 @@ int main( int  argc,   char**  argv )
 	int fsize;
 	struct stat sb;
 	char *fp;
+	int nwrite;
+	int gap; 	/* line gap */
 
-  	EGI_16BIT_COLOR font_color;
+  	EGI_16BIT_COLOR font_color, bk_color;
+
 
 	EGI_IMGBUF  *eimg=NULL;
 	eimg=egi_imgbuf_new();
@@ -415,6 +418,8 @@ int main( int  argc,   char**  argv )
 you are from God and have overcome them,	\
 for he who is in you is greater than 		\
 he who is in the world.";
+
+	char *strp=NULL;
 
 	/* open and mmap txt book */
 	fd=open("/home/book.txt",O_RDONLY);
@@ -432,8 +437,11 @@ he who is in the world.";
 
 	/* mmap the file */
 	fp=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
-
-
+	if(fp==MAP_FAILED) {
+		perror("mmap");
+		return -3;
+	}
+	printf("%s\n",fp);
 
         /* <<<<  EGI general init >>>> */
         tm_start_egitick();
@@ -465,18 +473,68 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 ---------------------------------------------------------------------------------------------------------*/
 
   	/* set font color */
-  	font_color= egi_color_random(deep);
+  	font_color= WEGI_COLOR_BLACK;//egi_color_random(deep);
+
+	nwrite=0;
+	strp=fp;
 
 	/* clear screen */
- 	clear_screen(&gv_fb_dev, COLOR_COMPLEMENT_16BITS(font_color));
+ 	clear_screen(&gv_fb_dev, 0x0679); //WEGI_COLOR_GRAYA); //COLOR_COMPLEMENT_16BITS(font_color));
+
+  	/* ------- Display txt book ------ */
+	gap=3;
+
+	/* --- TITLE --- */
+	//symbol_string_writeFB(&gv_fb_dev, &sympg_ascii, font_color, -1,
+	//					10, 15, "The Old Man and the Sea",-1);
+							   /* line_pix=240, lines=11, gap, x0,y0:5,50 */
+	char * title ="The Old Man and the Sea";
+	symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, 2, gap, WEGI_COLOR_WHITE,
+                                                                              -1, 5, 5, title, -1);
+	/* --- CONTENT --- */
+  do {
+	printf("start compare...\n");
+
+	/* clear screen */
+	//bk_color=egi_color_random(light);
+	// 0xFFF3 	light yellow
+	// 0x0679	light blue
+	//bk_color=COLOR_24TO16BITS(0xCCFFFF);
+	bk_color=WEGI_COLOR_GRAY; //GRAY5;//GRAYB;
+	printf("-------- bk color: 0x%04X -------\n", bk_color);
+	draw_filled_rect2(&gv_fb_dev, bk_color, 0, 60-10, 239, 60+5 + 12*(sympg_ascii.symheight+gap) );
+
+// 	clear_screen(&gv_fb_dev, WEGI_COLOR_GRAYB); //COLOR_COMPLEMENT_16BITS(font_color));
 
 	/* write string to FB */
-	symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, 20, 0, font_color,
-                                                                              -1, 5, 50, strtest, -1);
+	printf("start strings writeFB......");
+							   /* line_pix=240, lines=11, gap, x0,y0:5,50 */
+	nwrite=symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, 12, gap, font_color,
+                                                                              -1, 5, 60, strp, -1);
+
+
+	fbset_color(WEGI_COLOR_WHITE); //BLACK);
+	draw_wline_nc(&gv_fb_dev , 0,    60-10,
+				   239,  60-10, 1);
+//	draw_wline_nc(&gv_fb_dev , 0,    60+5 + 10*(sympg_ascii.symheight+5),
+//				   239,  60+5 + 10*(sympg_ascii.symheight+5),  2);
+
+	printf("nwrite=%d bytes.\n",nwrite);
+
+	tm_delayms(2000);
+
+	strp +=nwrite;
+
+//	getchar();
+
+   } while(nwrite>0);
+
 
 	/* print symbol */
+#if 0
 	for(i=0;i<128;i++)
 		symbol_print_symbol(&sympg_ascii, i,-1);
+#endif
 
 	/* release the sympage */
 	free(sympg_ascii.symwidth); /* !!! free symwidth separately */

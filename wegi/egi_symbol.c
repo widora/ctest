@@ -923,12 +923,14 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 
 
-/*---------------------------------------------------------------------------
+/*-----------------------------------------------------------------------------------------
+0. Extended ASCII symbols are not supported now!!!
 1. write strings to FB device.
 2. It will automatically return to next line if current line is used up,
    or if it gets a return code.
 3. If write symbols, just use symbol codes[] for str[].
 4. If it's font, then use symbol bkcolor as transparent tunnel.
+5. Max dent space at each line end is 3 SPACEs, OR modify it.
 
 fbdev: 		FB device
 sym_page: 	a font symbol page
@@ -952,15 +954,18 @@ opaque:		set aplha value (0-255)
 		0 	100% back ground color/transparent
 		255	100% front color
 
-TODO: TAB spaces.
+TODO: TAB as 8*SPACE.
 
--------------------------------------------------------------------------------*/
-void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
+return:
+		>=0   	bytes write to FB
+		<0	fails
+---------------------------------------------------------------------------------------------*/
+int  symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
 			     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
 			     int x0, int y0, const char* str, int opaque )
 {
 	const char *p=str;
-	char *tmp;
+	const char *tmp;
 	int x=x0;
 	int y=y0;
 	unsigned int pxl=pixpl; /* available pixels remainded in current line */
@@ -970,11 +975,12 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 	bool check_word;
 
 	/* check lines */
-	if(lines==0)return;
+	if(lines==0)
+		return -1;
 
 	/* check page data */
 	if(symbol_check_page(sym_page, "symbol_writeFB") != 0)
-		return;
+		return -2;
 
 	/* if the symbol is font then use symbol back color as transparent tunnel */
 	//if(tspcolor >0 && sym_page->symtype == type_font )
@@ -985,8 +991,14 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 
 	check_word=true;
 
+
 	while(*p) /* code '0' will be deemed as end token here !!! */
 	{
+		/* skip extended ASCII symbols */
+		if( *p > 127 ) {
+			p++;
+			continue;
+		}
 
 #if 0	/////////////  METHOD-1: Check CHARACTER after CHARACTER for necesary space  ////////////
 
@@ -1000,7 +1012,7 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		{
 			ln++;
 			if(ln>=lines) /* no lines available */
-				return;
+				return (p-str);
 			y += gap + sym_page->symheight; /* move to next line */
 			x = x0;
 			pxl=pixpl;
@@ -1008,33 +1020,46 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 
 #else 	/////////////  METHOD-2:  Check WORD after WORD for necessary space  ////////////
 
-	if(check_word) {	/* if a new word begins */
+	if( check_word || *p==' ' || *p=='\n' ) {	/* if a new word begins */
 
 		/* 0. reset tmp and ww */
-		tmp=p;
+		tmp=(char *)p;
 		ww=0;
 
-		/* 1. If not SPACE: get length of non_space WORD  */
-		while(*tmp) {
-			if( (*tmp) != ' ' && *tmp != '\n' ) {
-				ww += sym_page->symwidth[(int)(*tmp)];
-				tmp++;
-			}
-			else {
-				break;
+		/* 1. If first char is not SPACE: get length of non_space WORD  */
+		if(*p != ' ') {
+		   	while(*tmp) {
+				if( (*tmp != '\n') && (*tmp != ' ') ) {
+					ww += sym_page->symwidth[(int)(*tmp)];
+					tmp++;
+				}
+				else {
+					break; /* break if SPACE or RETURN, as end of a WORD */
+				}
 			}
 		}
-		/* 2. If SPACE: each SPACE deemed as one WORD */
-		if( *tmp == ' ' ) {
-				ww += sym_page->symwidth[(int)(*tmp)];
+		/* 2. Else if first char is SPACE: each SPACE deemed as one WORD */
+		else {  /* ELSE IF *p == ' ' */
+				ww += sym_page->symwidth[(int)(*p)];
 		}
 
-		/* 3. If not enough space for the WORD, or a RETURN */
-		/* TODO: if WORD length > pixpl */
-		if(pxl < ww || *tmp == '\n' ) {
+		/* 3. If not enough space for the WORD, or a RETURN for the first char */
+		/* 3.1 if WORD length > pixpl */
+		if( ww > pixpl ) {
+			/* Do nothing, do not start a new line */
+		}
+		/* 3.2 set MAX pxl limit here for a long WORD at a line end,
+		 * It will not start a new line here if pxl is big enough, but check cw by cw later.
+		 * Just for good looking!
+		 */
+		else if( pxl < ww  &&  pxl > 3*sym_page->symwidth[' '] ) {   /* Max dents at line end, 3 SPACE */
+			/* Do nothing, do not start a new line */
+		}
+		/* 3.3 Otherwise start a new line */
+		else if( pxl < ww || *p == '\n' ) {
 			ln++;
 			if(ln>=lines) /* no lines available */
-				return;
+				return (p-str);
 			y += gap + sym_page->symheight;
 			x = x0;
 			pxl=pixpl;
@@ -1044,14 +1069,31 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		check_word=false;
 	}
 
+	/*  if current char is SPACE or RETURN, we set check_work again for NEXT WORD!!!!
+	 *  If current character is not SPACE/control_char, no need to check again.
+	 */
+	if( *p==' ' || *p=='\n' )
+		check_word=true;
+
 	/* process current character */
 	cw=sym_page->symwidth[(int)(*p)];
 
-	/*  after each SPACE/control_char, we set check_work again!
-	 *  If current character is not SPACE/control_char, no need to check again.
-	 */
-	if(*p==' ' )
+	/* in case we set limit for ww>pxl in above, cw is a char of that long WORD */
+	if(cw>pxl) {
+
+		/* shift to next line */
+		ln++;
+		if(ln>=lines) /* no lines available */
+			return (p-str);
+		y += gap + sym_page->symheight;
+		x = x0;
+		pxl=pixpl;
+
+		/* set check_word for next char */
 		check_word=true;
+
+		continue;
+	}
 
 	/* for control character */
 //	if( cw==0 ) {
@@ -1067,6 +1109,8 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		pxl-=cw;
 		p++;
 	}
+
+	return p-str;
 }
 
 /*-------------------------------------------------------------------------------
