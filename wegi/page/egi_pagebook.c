@@ -61,12 +61,16 @@ EGI_PAGE *egi_create_bookpage(void)
 	EGI_EBOX	*ebox_book;
         EGI_EBOX  	*title_bar;
 
+	int txtbox_height = 320-30;
+	int offx=5;			/* offset X,Y of txt to the box */
+	int offy=5;
+
 	/* 1. create book_txt */
 	book_txt=egi_txtdata_new(
-		15,5, /* offset X,Y */
-      	  	11, /*int nl, lines  */
-       	 	24, /*int llen, chars per line */
-        	&sympg_testfont, /*struct symbol_page *font */
+		offx,offy, /* offset X,Y */
+      	  	(txtbox_height-offy)/sympg_ascii.symheight, /*11,int nl, lines  */
+       	 	30, /* 24, /*int llen, chars per line */
+        	&sympg_ascii, //testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
@@ -75,14 +79,14 @@ EGI_PAGE *egi_create_bookpage(void)
 
 	/* 3. create txt ebox */
 	ebox_book= egi_txtbox_new(
-		"book", /* tag */
-        	book_txt,  /* EGI_DATA_TXT pointer */
-        	true, /* bool movable */
-       	 	0,30, /* int x0, int y0 */
-		/* tricky, here create a roll-back seam */
-        	240,320-30, /* int width, int height */
-        	-1, /* int frame, -1=no frame */
-        	WEGI_COLOR_ORANGE /*int prmcolor*/
+		"book", 		/* tag */
+        	book_txt,  		/* EGI_DATA_TXT pointer */
+        	true, 			/* bool movable */
+       	 	0,30, 		   	/* int x0, int y0 */
+		/* OBSELETE: tricky, here create a roll-back seam */
+        	240,txtbox_height, 	/* int width, int height */
+        	-1, 		   	/* int frame, -1=no frame */
+        	WEGI_COLOR_ORANGE  	/*int prmcolor*/
 	);
 	ebox_book->id=BOOK_EBOX_ID;
 
@@ -215,7 +219,7 @@ static int book_forward(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	}
 
 	/* set read direction */
-	egi_txtbox_set_direct(txt_ebox, 1); /* > 0 backward */
+	egi_txtbox_set_direct(txt_ebox, 1); /* > 0 foreward */
 
 	/* refresh the txt ebox */
 	/* !!!! as we return pgret_OK, egi_page_routine() will refresh the host page !!!! */

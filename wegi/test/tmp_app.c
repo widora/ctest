@@ -424,6 +424,7 @@ int main(int argc, char **argv)
 #endif
 
 	if(symbol_load_allpages() !=0 ) exit(-2);
+
 #if 0
 	/*------------------ Load Symbols ------------------*/
 	/* load testfont */

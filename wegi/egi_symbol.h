@@ -54,8 +54,9 @@ symbol page struct
 */
 struct symbol_page
 {
-	/* symbol type */
+	/* symbol type, NOT used yet */
 	enum symbol_type symtype;
+
 	/* symbol image file path */
 	/* for a 320x240x2Byte page, 2Bytes for 16bit color */
 	char *path;
@@ -86,8 +87,6 @@ struct symbol_page
 };
 
 
-
-
 /*--------------  shared symbol data  -------------*/
 extern struct symbol_page sympg_testfont;
 extern struct symbol_page sympg_numbfont;
@@ -96,6 +95,9 @@ extern struct symbol_page sympg_sbuttons;
 extern struct symbol_page sympg_icons;
 extern struct symbol_page sympg_icons_2;
 extern struct symbol_page sympg_heweather;
+
+extern struct symbol_page sympg_ascii;
+
 extern char symmic_cpuload[6][5];
 extern char symmic_iotload[9];
 
@@ -142,6 +144,8 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
 void symbol_rotate(const struct symbol_page *sym_page,	\
                                                  int x0, int y0, int sym_code);
 
+int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const char *font_path,
+				       	int Wp, int Hp );
 
 
 #endif

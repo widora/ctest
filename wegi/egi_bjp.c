@@ -146,13 +146,16 @@ image size limit: 320x240
 
 Note:
     1. Read color pixel one by one, is rather slower.
-    2. For BGR type onley, BGRA is not supported. 
+    2. For BGR type onley, BGRA is not supported.
+    3. FB.pos_rotate is NOT supported.
 
 blackoff:   1	 Do NOT wirte black pixels to FB.
 		 (keep original data in FB)
 
 	    0	 Wrtie  black pixels to FB.
 x0,y0:		start point in LCD coordinate system
+
+
 
 Return:
 	    1   file size too big
@@ -301,6 +304,9 @@ blackoff:   1   Do NOT wirte black pixels to FB.
 		 (keep original data in FB,make black a transparent tunnel)
 	    0	 Wrtie  black pixels to FB.
 (x0,y0): 	original coordinate of picture in LCD
+
+NOTE:
+1. FB.pos_rotate is not suppored.
 
 Return:
 	    0	OK

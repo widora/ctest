@@ -380,12 +380,25 @@ void clear_screen(FBDEV *dev, uint16_t color)
 inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 {
         FBDEV *fr_dev=dev;
-	int fx=x;
-	int fy=y;
+	int fx;
+	int fy;
         long int location=0;
 	int xres=fr_dev->vinfo.xres;
 	int yres=fr_dev->vinfo.yres;
 	FBPIX fpix;
+
+	/* check FB.pos_roate
+	* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
+        */
+        if(fr_dev->pos_rotate==1) {
+		fx=(xres-1)-y;
+		fy=x;
+        }
+	else {
+		fx=x;
+		fy=y;
+	}
+
 
 #ifdef FB_DOTOUT_ROLLBACK
 	/* map to LCD(X,Y) */
@@ -1104,6 +1117,9 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
    x1,y1,x2,y2:	  LCD area corresponding to FB mem. block
    buf:		  data dest.
 
+   NOTE:
+ 	1. FB.pos_rotate is not supported.
+
    Return
 		2	area out of FB mem
 		1	partial area out of FB mem boundary
@@ -1243,6 +1259,9 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
    x1,y1,x2,y2:	  LCD area corresponding to FB mem. block
    buf:		  data source
 
+   NOTE:
+ 	1. FB.pos_rotate is not supported.
+
    Return
 		1	partial area out of FB mem boundary
 		0	OK
@@ -1381,6 +1400,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 Save whole data of FB to buffer.
 @fb_dev:	pointer to FB dev.
 @nb:		index of FBDEV.buffer[]
+
+NOTE:
+1. FB.pos_rotate is not supported.
+
 Return
                 0       OK
                 <0 	fails
@@ -1415,6 +1438,11 @@ Restor buffed data to FB.
 @fb_dev:	pointer to FB dev.
 @nb:		index of FBDEV.buffer[]
 @clear:		if TRUE, clear buffer after restore.
+
+NOTE:
+1. FB.pos_rotate is not supported.
+
+
 Return
                 0       OK
                 <0  	fails

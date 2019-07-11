@@ -39,6 +39,7 @@ int init_fbdev(FBDEV *fr_dev)
         ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
         ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
+
         /* mmap FB */
         fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
                                                                                         fr_dev->fdfd,0);
@@ -47,6 +48,10 @@ int init_fbdev(FBDEV *fr_dev)
                 close(fr_dev->fdfd);
                 return -2;
         }
+
+	/* reset pos_rotate */
+	fr_dev->pos_rotate=0;
+
         /* init fb_filo */
         fr_dev->filo_on=0;
         fr_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE

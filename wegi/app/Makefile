@@ -18,7 +18,7 @@ LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpostproc
-
+LIBS 	+= -lfreetype  -lm -lz -lbz2
 
 OBJS = egi_pageffplay.o ../ffmpeg/egi_ffplay.o ../ffmpeg/ff_utils.o ../sound/egi_pcm.o
 APPS = app_ffplay

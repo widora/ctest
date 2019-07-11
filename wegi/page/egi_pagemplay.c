@@ -115,7 +115,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 							btn_type, /* enum egi_btn_type shape */
 							NULL, /* struct symbol_page *icon */
 							0, /* int icon_code */
-							&sympg_testfont /* for ebox->tag font */
+							&sympg_ascii //&sympg_testfont /* for ebox->tag font */
 						);
 			/* if fail, try again ... */
 			if(data_btns[3*i+j]==NULL)

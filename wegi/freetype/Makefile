@@ -22,16 +22,16 @@ LIBS    += -lcurl -lssl -lcrypto -pthread
 LIBS    += -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
 
-all:	 test_freetype get_ascii
+all:	 test_freetype test_asciibook
 
 test_freetype:	test_freetype.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_freetype.c -o test_freetype
 
-get_ascii:	get_ascii.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) get_ascii.c -o get_ascii
+test_asciibook:	test_asciibook.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_asciibook.c -o test_asciibook
 
 
 clean:
-	rm -rf *.o test_freetype get_ascii
+	rm -rf *.o test_freetype test_asciibook
 
 

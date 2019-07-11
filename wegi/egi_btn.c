@@ -463,7 +463,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
    if(data_btn->font == NULL) {
 		/* do nothing */
-  		//printf("egi_btnbox_refresh(): data_btn->font is NULL, fail to put tag on button.\n");
+  		printf("%s: ebox '%s' data_btn->font is NULL, fail to put tag on button.\n",__func__, ebox->tag);
    }
    else if(data_btn->showtag==true)
    {
@@ -507,7 +507,7 @@ use following COLOR:
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, SYM_NOSUB_COLOR, 1,
 		//symbol_string_writeFB(&gv_fb_dev, data_btn->font, data_btn->font_color, 1,
 
-		/* tag_color shall NOT be the same as symbol bkcolor, OR it will NOT display */
+		/* !!!! tag_color shall NOT be the same as symbol bkcolor, OR it will NOT display */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,
  							ebox->x0+shx, ebox->y0+shy, ebox->tag, -1);
 

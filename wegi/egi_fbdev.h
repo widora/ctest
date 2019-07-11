@@ -30,22 +30,29 @@ Modified and appended by: Midas Zhou
 
 typedef struct fbdev{
 
-        int fdfd; /* file descriptor, open "dev/fb0" */
+        int fdfd; 		/* file descriptor, open "dev/fb0" */
 
         bool virt;              /* 1. TRUE: virtural fbdev, it maps to an EGI_IMGBUF
-                                   and fdfd will be ineffective.
-				   vinfo.xres,vinfo.yres and vinfo.screensize MUST set.
-
-				   2. FALSE: maps to true FB device, fdfd is effective.
-                                */
+                                 *   and fdfd will be ineffective.
+				 *   vinfo.xres,vinfo.yres and vinfo.screensize MUST set.
+				 *
+				 *  2. FALSE: maps to true FB device, fdfd is effective.
+                                 */
 
         struct fb_var_screeninfo vinfo;
         struct fb_fix_screeninfo finfo;
         long int screensize;
+
         unsigned char *map_fb;
+
+	int   pos_rotate;	/* 0: default X,Y coordinate of FB
+				 * 1: 90 Deg rotated: Y maps to (vinfo.xres-1)-FB.X,  X maps to FB.Y
+				 * Others: TDB.
+				 */
+
 	/* pthread_mutex_t fbmap_lock; */
 	EGI_FILO *fb_filo;
-	int filo_on;	/* >0, activate FILO push */
+	int filo_on;		/* >0, activate FILO push */
 
 	uint16_t *buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
 }FBDEV;

@@ -29,14 +29,18 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
 #### -----  编译标志 -----
 ## -Wall for __attribut__
-CFLAGS = -I./ -I./page -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include -I$(COMMON_USRDIR)/include/json-c
+CFLAGS  = -I./ -I./page -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include
+CFLAGS += -I$(COMMON_USRDIR)/include/json-c
+CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -Wall -O2 -fPIC
 CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG
 
 LDFLAGS += -L./lib -L$(COMMON_USRDIR)/lib
-LIBS += -ljpeg -lm -lpthread #-ljson-c -lasound
+
+LIBS = -ljpeg -lm -lpthread #-ljson-c -lasound
+LIBS += -lfreetype  -lm -lz -lbz2
 
 #### ------ 手动设置特定目标生成规则  ------
 egi_lib: $(OBJS)

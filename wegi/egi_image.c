@@ -415,10 +415,11 @@ WARING:
    to next line !!!!
 
 Note:
-1 .No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
-2. Write image data of an EGI_IMGBUF to a window in FB.
-3. Set outside color as black.
-4. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
+1. No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
+2. FB.pos_rotate is NOT supported.
+3. Write image data of an EGI_IMGBUF to a window in FB.
+4. Set outside color as black.
+5. window(xw, yw) defines a looking window to the original picture, (xp,yp) is the left_top
    start point of the window. If the looking window covers area ouside of the picture,then
    those area will be filled with BLACK.
 

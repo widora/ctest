@@ -616,8 +616,13 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 {
 	/* check input data here */
 	if( ebox==NULL || ebox->egi_data==NULL ) {
-		printf("egi_txtbox_readfile(): input ebox or its egi_data is NULL!\n");
+		printf("%s: Input ebox or its egi_data is NULL!\n",__func__);
 		return -1;
+	}
+	/* check ebox type */
+	if( ebox->type != type_txt ) {
+		printf("%s: Input ebox is NOT type_txt!\n",__func__);
+		return -2;
 	}
 
 	FILE *fil;
@@ -645,7 +650,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 
 	/* check ebox data here */
 	if( txt==NULL ) {
-		printf("egi_txtbox_readfile(): data_txt->txt is NULL!\n");
+		printf("%s: data_txt->txt is NULL!\n",__func__);
 		return -2;
 	}
 
@@ -668,6 +673,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 	/* reset txt buf and open file */
 	for(i=0;i<nl;i++)
 		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
+
 	fil=fopen(path,"rbe");
 	if(fil==NULL) {
 		perror("egi_txtbox_readfile()");
@@ -712,14 +718,14 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			}
 
 			/* ----- 2. if symbol code out of range */
-			else if( (uint8_t)buf[i] > maxnum ) {
-				printf("egi_txtbox_readfile():symbol/font/assic code number out of range.\n");
+			else if( buf[i] > maxnum ) {
+				printf("%s:symbol/font/assic code number out of range.\n",__func__);
 				continue;
 			}
 
 			/* ----- 3. check available pixel space for current line
 			   Max. pixel number per line = bxwidth 	*/
-			else if( symwidth[ (uint8_t)buf[i] ] > bxwidth-ncount )
+			else if( symwidth[ (int)buf[i] ] > bxwidth-ncount )
 			{
 				nlw +=1; /* new line */
 				nt=0;ncount=0; /*reset line char counter and pixel counter*/
@@ -735,7 +741,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 			/* ----- 4. OK, now push a char to txt[][] */
 			else
 			{
-				ncount+=symwidth[ (uint8_t)buf[i] ]; /*increase total bumber of pixels for current txt line*/
+				ncount+=symwidth[ (int)buf[i] ]; /*increase total bumber of pixels for current txt line*/
 				//EGI_PDEBUG(DBG_TXT,"one line pixel counter: ncount=%d\n",ncount);
 				txt[nlw][nt]=buf[i];
 				nt++;
@@ -744,7 +750,7 @@ int egi_txtbox_readfile(EGI_EBOX *ebox, char *path)
 				 * check Max. char number per line =llen
 				 */
 				if( nt > llen-1 )  { /* txt buf end */
-					nlw +=1; /* new line */
+					nlw +=1;     /* new line */
 					nt=0;ncount=0; /*reset one line char counter and pixel counter*/
 				}
 
@@ -871,7 +877,7 @@ void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
         /* 1. check data */
         if( ebox==NULL || ebox->type != type_txt )
         {
-                printf("egi_txtbox_settitle(): ebox=NULL or not a txt type ebox! fail to set title!\n");
+                printf("%s: ebox=NULL or not a txt type ebox! fail to set title!\n",__func__);
                 return;
         }
 
@@ -879,7 +885,7 @@ void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
 
 	if( data_txt == NULL || data_txt->txt[0]==NULL)
         {
-                printf("egi_txtbox_settitle(): data_txt=NULL or data_txt->txt[0]=NULL! fail to set title!\n");
+                printf("%s: data_txt=NULL or data_txt->txt[0]=NULL! fail to set title!\n",__func__);
                 return;
         }
 

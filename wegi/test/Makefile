@@ -7,14 +7,16 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 OBJS = ../iot/egi_iotclient.o
 
 CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils  -I../iot
+CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 #-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	= -lepages -legi -lesound
+LIBS	=  -lepages -legi -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
+LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS = test_fb test_sym tmp_app test_pic test_bigiot
 
