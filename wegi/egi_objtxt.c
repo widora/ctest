@@ -201,7 +201,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 	for(i=0;i<total;i++)
 	{
 	      EGI_PDEBUG(DBG_OBJTXT,"create ebox notes txtebox[%d].\n",i);
-	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_color_random(light));
+	      txtebox[i]=create_ebox_notes(i, egi_random_max(80), egi_random_max(320-108), egi_color_random(color_light));
 	      if(txtebox[i]==NULL)
 	      {
 			printf("egi_txtbox_demon(): create a txtebox[%d] fails!\n",i);

@@ -106,6 +106,7 @@ int egi_page_free(EGI_PAGE *page)
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
+	/* cancel and join Runners */
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++) {
 		if(page->thread_running[i]) {
 			EGI_PDEBUG(DBG_PAGE,"page ['%s'] wait to join runner thread [%d].\n"
@@ -121,7 +122,13 @@ int egi_page_free(EGI_PAGE *page)
 										,page->ebox->tag,i);
 		}
 	}
-
+	/* Destroy thread mutex locks and conds */
+	if(pthread_mutex_destroy(&page->runner_mutex) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_destroy()!\n", __func__ );
+	}
+	if(pthread_cond_destroy(&page->runner_cond) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_destroy()!\n", __func__ );
+	}
 
 	/*  free every child in list */
 	if(!list_empty(&page->list_head))
@@ -144,6 +151,192 @@ int egi_page_free(EGI_PAGE *page)
 	free(page);
 
 	return ret;
+}
+
+
+/*------------------------------------------------------
+Suspend a runner in a PAGE: set sigSUSPEND for the thread
+and wait until it confirms.
+
+return:
+	0	OK, confirmed.
+	<0	fails
+-------------------------------------------------------*/
+int egi_suspend_runner(EGI_PAGE *page, int runnerID)
+{
+	if(page==NULL)
+		return -1;
+
+	/* runner_ID is invalid or the thread is NOT running */
+	if( runnerID < 0 || runnerID > EGI_PAGE_MAXTHREADS
+	    		 || page->thread_running[runnerID]==false  ) {
+		printf("%s: Runner ID is invalid or it's not running!\n",__func__);
+		return -2;
+	}
+
+	/* 1. -------  set signal SigSUSPEND  ------- */
+
+	if( pthread_mutex_lock(&page->runner_mutex) !=0 ) {
+		printf("%s: Fail to lock pthread mutex!\n",__func__);
+		return -3;
+	}
+/*  1.1 Start of Critical Zone  >>>>>>>>>  */
+
+	/* 1.2 check status */
+	if( page->thread_running[runnerID]==false ) {
+		printf("%s: The page runner thread with runnerID=%d is NOT running!\n",__func__, runnerID);
+		pthread_mutex_unlock(&page->runner_mutex);
+		return -4;
+	}
+	if( page->thread_suspending[runnerID]==true ) {
+		printf("%s: The page runner thread with runnerID=%d is already suspended!\n",__func__, runnerID);
+		pthread_mutex_unlock(&page->runner_mutex);
+		return -5;
+	}
+
+	/* 1.3 set signal sigSUSPEND */
+	page->thread_SigSUSPEND[runnerID]=true;
+
+/*  1.4<<<<<<<<<<  End of Critical Zone */
+	pthread_mutex_unlock(&page->runner_mutex);
+
+#if 0  //// If it gets mutex_lock before the runner_sigSuspend_handler, then it ends in deadlock! ////
+	/* 2. -------  Wait to confirm suspending status  ------- */
+	if( pthread_mutex_lock(&page->runner_mutex) !=0 ) {
+		printf("%s: Fail to lock pthread mutex!\n",__func__);
+		return -3;
+	}
+#endif
+
+/*  2.1 Start of Critical Zone  >>>>>>>>>  */
+
+	/* 2.2 wait to confirm suspending status */
+	printf("%s: waiting runner ID=%d to suspend...\n",__func__, runnerID);
+	while(page->thread_suspending[runnerID] != true) {
+		usleep(5000);
+	}
+
+#if 0
+/*  2.3 <<<<<<<<<<  End of Critical Zone */
+	pthread_mutex_unlock(&page->runner_mutex);
+#endif
+
+	return 0;
+}
+
+
+/*------------------------------------------------------
+Resume a runner from suspending.
+
+return:
+	0	OK.
+	<0	fails
+-------------------------------------------------------*/
+int egi_resume_runner(EGI_PAGE *page, int runnerID)
+{
+
+	if(page==NULL)
+		return -1;
+
+	/* runner_ID is invalid or is NOT running */
+	if( runnerID < 0 || runnerID > EGI_PAGE_MAXTHREADS
+	    		 || page->thread_running[runnerID]==false  ) {
+		printf("%s: Runner ID is invalid or it's not running!\n",__func__);
+		return -2;
+	}
+
+	if( pthread_mutex_lock(&page->runner_mutex) !=0 ) {
+		printf("%s: Fail to lock pthread mutex!\n",__func__);
+		return -3;
+	}
+/*  Start of Critical Zone  >>>>>>>>>  */
+
+	/* Reset SigSUSPEND first!!! then send pthread_cond_signal */
+	EGI_PDEBUG(DBG_PAGE,"Call pthread_cond_signal to resume runner ID=%d.\n",runnerID);
+	/* NOTE: A pthread_cond_signal() can only invoke one thread, When several runners are waiting
+	         for the same condition variable and use differenct predicates to evaluate, the
+		 signal may be received by a runner expecting other predicate, thus this cond_signal
+		 will be wasted! So pthread_cond_signal() is not safe in asynchronous situation, and
+		 use call pthread_cond_broadcast() instead.
+	*/
+	page->thread_SigSUSPEND[runnerID]=false; /* as predicate */
+	//pthread_cond_signal(&page->runner_cond);
+	pthread_cond_broadcast(&page->runner_cond);
+
+
+/*  <<<<<<<<<<  End of Critical Zone */
+	pthread_mutex_unlock(&page->runner_mutex);
+
+	return 0;
+}
+
+/*------------------------------------------------------
+Signal handler for page pthread runners.
+If SigSUSPEND received, then this function will wait until
+get mutex cond signal runner_cond.
+
+ current only for thread_SigSUSPEND[]
+ Add more if enum runner_signals needed.
+
+return:
+	0	OK
+	<0	fails
+------------------------------------------------------*/
+int egi_runner_sigSuspend_handler(EGI_PAGE *page)
+{
+	int i;
+	int runnerID=-1;
+	pthread_t threadID;
+
+	if(page==NULL)
+		return -1;
+
+	/* get thread ID */
+	threadID=pthread_self();
+
+	/* get runner ID */
+	for(i=0; i<EGI_PAGE_MAXTHREADS; i++) {
+		if(threadID==page->threadID[i]) {
+			runnerID=i;
+			break;
+		}
+	}
+	if(runnerID<0) {
+		printf("%s: Fail to get runner ID! Pls ensure the caller is a page runner.\n",__func__);
+		return -2;
+	}
+
+
+	if( pthread_mutex_lock(&page->runner_mutex) !=0 ) {
+		printf("%s: Fail to lock pthread mutex!\n",__func__);
+		return -3;
+	}
+/*  Start of Critical Zone  >>>>>>>>>  */
+
+	/* NOTE: "Some implementations, particularly on a multiprocessor, may sometimes cause multiple
+	 * 	 threads to wake up when the condition variable is signaled simultaneously on different
+	 *	 processors. so whenever a condition wait returns, the thread has to re-evaluate the
+	 *	 predicate associated with the condition wait to determine whether is can safely proceed,
+	 *	 should wait again, or should declare a timeout. It is thus recommend that a condition
+	 *	 wait be enclosed in the equivalent of a "while loop" that checks the predicate "
+	 */
+
+	/* wait thread_SigSUSPEND[] to be reset to FALSE by other thread, who will call
+	 * pthread_cond_signal() after that.
+	 */
+	while ( page->thread_SigSUSPEND[runnerID] ) {
+		page->thread_suspending[runnerID]=true; /* reset status */
+		EGI_PDEBUG(DBG_PAGE,"start pthread_cond_wait() for '%s' runner_cond... \n",page->ebox->tag);
+		pthread_cond_wait(&page->runner_cond, &page->runner_mutex); /* put mutex first, and get mutex again when cond reaches */
+	}
+
+	/* reset status suspending */
+	page->thread_suspending[runnerID]=false;
+
+/*  <<<<<<<<<<  End of Critical Zone */
+	pthread_mutex_unlock(&page->runner_mutex);
+
+	return 0;
 }
 
 
@@ -578,18 +771,29 @@ int egi_page_routine(EGI_PAGE *page)
 	{
 		if( page->runner[i] !=0 )
 		{
-			if( pthread_create( &page->threadID[i], NULL,(void *)page->runner[i],(void *)page)==0)
+			/* launch Runners in order */
+			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
-				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",
-								i, (unsigned int)page->threadID[i]);
+				printf("%s: Create pthreadID[%d]=%u successfully. \n", __func__,
+								i, (unsigned int)page->threadID[i] );
 			}
-			else
-			   printf("egi_page_routine(): fail to create pthread for runner[%d] of page[%s] \n",
-					i,page->ebox->tag );
+			else {
+			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s] \n", __func__,
+					i, page->ebox->tag );
+			      /* carry on anyway..... */
+			}
 		}
 	}
-
+	/* Initiate thread mutex locks, NOTE: also for egi_pagehome_routine() */
+	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
+		return -1;
+	}
+	if(pthread_cond_init(&page->runner_cond,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!\n", __func__ );
+		return -1;
+	}
 
  	 /* ----------------    Touch Event Handling   ----------------  */
 
@@ -827,17 +1031,30 @@ int egi_homepage_routine(EGI_PAGE *page)
 	{
 		if( page->runner[i] !=0 )
 		{
+			/* launch Runners in order */
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
-				printf("egi_page_routine(): create pthreadID[%d]=%u successfully. \n",
-								i, (unsigned int)page->threadID[i]);
+				printf("%s: Create pthreadID[%d]=%u successfully. \n", __func__,
+								i, (unsigned int)page->threadID[i] );
 			}
-			else
-			   printf("egi_page_routine(): fail to create pthread for runner[%d] of page[%s] \n",
-					i,page->ebox->tag );
+			else {
+			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s] \n", __func__,
+					i, page->ebox->tag );
+			      /* carry on anyway..... */
+			}
 		}
 	}
+	/* Initiate thread mutex locks, NOTE: also for egi_page_routine() */
+	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
+		return -1;
+	}
+	if(pthread_cond_init(&page->runner_cond,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!\n", __func__ );
+		return -1;
+	}
+
 
  	 /* ----------------    Touch Event Handling   ----------------  */
 

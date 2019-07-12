@@ -69,7 +69,7 @@ EGI_PAGE *egi_create_bookpage(void)
 	book_txt=egi_txtdata_new(
 		offx,offy, /* offset X,Y */
       	  	(txtbox_height-offy)/sympg_ascii.symheight, /*11,int nl, lines  */
-       	 	30, /* 24, /*int llen, chars per line */
+       	 	30, // 24, /*int llen, chars per line */
         	&sympg_ascii, //testfont, /*struct symbol_page *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);

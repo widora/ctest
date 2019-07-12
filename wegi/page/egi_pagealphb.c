@@ -85,7 +85,7 @@ EGI_PAGE *create_pagealpha(void)
 						        40*j, 80+40*i, /* int x0, int y0 */
 							btnW,btnH, /* int width, int height */
 				       			0,//1, /* int frame,<0 no frame */
-		       					egi_color_random(deep) //color,/*int prmcolor */
+		       					egi_color_random(color_deep) //color,/*int prmcolor */
 					   );
 			/* if fail, try again ... */
 			if(alpha_btns[6*i+j]==NULL)

@@ -38,10 +38,15 @@ Midas Zhou
 #define CALENDAR_BTN_ID	2
 #define PIC_EBOX_ID	1234
 
+#define RUNNER_CPULOAD_ID	0
+#define RUNNER_IOTLOAD_ID	1
+#define RUNNER_CLOCKTIME_ID	2
+#define	RUNNER_WEATHERICON_ID	3
+
 static void display_cpuload(EGI_PAGE *page);
 static void display_iotload(EGI_PAGE *page);
 static void update_clocktime(EGI_PAGE *page);
-static void update_heweather(EGI_PAGE *page);
+static void update_weathericon(EGI_PAGE *page);
 
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -185,6 +190,7 @@ EGI_PAGE *egi_create_homepage(void)
 	/* create a bulb */
 	egi_ebox_settag(home_btns[7], "bulb_frame");
 	data_btns[7]->touch_effect=NULL; /* disable touch effect */
+
 	egi_ebox_settag(home_btns[11], "0");//btn_iot"); /* id=7; as for bulb */
 	data_btns[11]->touch_effect=NULL; /* disable touch effect */
 	data_btns[11]->icon_code=11; /* SUB_COLOR + ICON_CODE, redefine SUB_COLOR later */
@@ -295,11 +301,11 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->ebox->prmcolor=WEGI_COLOR_OCEAN;
 
 	/* 3.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
-	page_home->runner[0]=display_cpuload;
-	page_home->runner[1]=display_iotload;
-	page_home->runner[2]=update_clocktime;
-	page_home->runner[3]=update_heweather; //egi_iotclient;
-//	page_home->runner[4]=display_stock;
+	/* TODO: pause threads 	 */
+	page_home->runner[RUNNER_CPULOAD_ID]=(void *)display_cpuload;
+	page_home->runner[RUNNER_IOTLOAD_ID]=(void *)display_iotload;
+	page_home->runner[RUNNER_CLOCKTIME_ID]=(void *)update_clocktime;
+	page_home->runner[RUNNER_WEATHERICON_ID]=(void *)update_weathericon; //egi_iotclient;
 
 	/* 3.3 set default routine job */
 	page_home->routine=egi_homepage_routine;
@@ -362,6 +368,9 @@ static void display_cpuload(EGI_PAGE *page)
 		 */
   	 	symbol_motion_string(&gv_fb_dev, 155-load*15, &sympg_icons,
 		 					1, 210,0, &symmic_cpuload[load][0]);
+
+		/* handler for signal_suspend, wait until runner_cond comes */
+		egi_runner_sigSuspend_handler(page);
 	}
 }
 
@@ -395,6 +404,9 @@ static void display_iotload(EGI_PAGE *page)
 		 * WARNING: use global FB dev may cause rase condition
 		 */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
+
+		/* handler for signal_suspend, wait until runner_cond comes */
+		egi_runner_sigSuspend_handler(page);
 	}
 }
 
@@ -443,6 +455,9 @@ static void update_clocktime(EGI_PAGE *page)
 
 		egi_sleep(0,0,500);
 		//printf("----[ %s-%s  %s ]------\n", caldata.month, caldata.day,strtm);
+
+		/* handler for signal_suspend, wait until runner_cond comes */
+		egi_runner_sigSuspend_handler(page);
 	}
 }
 
@@ -483,7 +498,7 @@ static int deco_calendar(EGI_EBOX *ebox)
 /*-----------------  RUNNER 4 --------------------------
 Update heweather data
 -------------------------------------------------------*/
-static void update_heweather(EGI_PAGE *page)
+static void update_weathericon(EGI_PAGE *page)
 {
    int i, j;
    unsigned int off;
@@ -495,9 +510,10 @@ static void update_heweather(EGI_PAGE *page)
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
-	/* fetch PCI ebox for heweather */
+	/* fetch PIC ebox for heweather */
 	ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
 	if(ebox == NULL) {
+		printf("%s: egi_page_pickebox() return NULL. sleep and retry later.\n",__func__);
 		goto SLEEP_WAITING;
 	}
 
@@ -512,8 +528,8 @@ static void update_heweather(EGI_PAGE *page)
                 printf("%s: Fail to loadpng at '%s'!\n", __func__, heweather_path);
 		goto SLEEP_WAITING;
         }else{
-//		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
-//							eimg->height, eimg->width);
+		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
+							eimg->height, eimg->width);
 		/* substitue icon color with WHITE, No mutex lock here! */
 		for(i=0; i<eimg->height; i++) {
 			for(j=0; j<eimg->width; j++) {
@@ -532,9 +548,13 @@ static void update_heweather(EGI_PAGE *page)
 	}
 
 SLEEP_WAITING:
-//	printf("%s: Start Delay or Sleep ....\n",__func__);
-	egi_sleep(0,1,0); /* 5s */
+	printf("%s: Start Delay or Sleep ....\n",__func__);
+	egi_sleep(0,10,0); /* 5s */
+
+	/* handler for signal_suspend, wait until runner_cond comes */
+	egi_runner_sigSuspend_handler(page);
   }
+
 }
 
 
@@ -566,6 +586,10 @@ static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	if(touch_data->status != pressing)
 		return btnret_IDLE;
 
+	/* suspend runner CPULOAD */
+	egi_suspend_runner(ebox->container, RUNNER_CPULOAD_ID);
+	egi_suspend_runner(ebox->container, RUNNER_IOTLOAD_ID);
+
 	/* create page and load the page */
         EGI_PAGE *page_mplay=egi_create_mplaypage();
 	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_mplay->ebox->tag);
@@ -581,6 +605,10 @@ static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* get out of routine loop */
 	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_mplay->ebox->tag);
 	egi_page_free(page_mplay);
+
+	/* resume runner CPULOAD */
+	egi_resume_runner(ebox->container, RUNNER_CPULOAD_ID);
+	egi_resume_runner(ebox->container, RUNNER_IOTLOAD_ID);
 
 	return pgret_OK;
 }
@@ -650,7 +678,6 @@ for test functions
 -----------------------------------------------------------------------------*/
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-
 	/* bypass unwanted touch status */
 	if(touch_data->status != pressing)
 		return btnret_IDLE;
@@ -816,7 +843,6 @@ static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	return pgret_OK;
 }
-
 
 
 /*-------------------------------------------------------------------

@@ -458,7 +458,7 @@ while(1) {
         fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
         fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
 
-                fbset_color(egi_color_random(medium));
+                fbset_color(egi_color_random(color_medium));
                 draw_pcircle(&gv_fb_dev, 120, 120, 5*i, 5); //atoi(argv[1]), atoi(argv[2]));
                 tm_delayms(55);
 

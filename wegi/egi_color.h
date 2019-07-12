@@ -74,10 +74,10 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 /* color range */
 enum egi_color_range
 {
-	light=3,
-	medium=2,
-	deep=1,
-	all=0,
+	color_light=3,
+	color_medium=2,
+	color_deep=1,
+	color_all=0,
 };
 
 /* functions */

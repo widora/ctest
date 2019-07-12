@@ -432,18 +432,12 @@ static int egi_free_logbuff(void)
       /* -------------- entering critical zone ---------------- */
 
 	/* free log buff */
-/*
-	if( egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS,EGI_LOG_MAX_ITEMLEN) !=0 )
-	{
-		printf("egi_free_logbuff():fail to free log buff.\n");
-		pthread_mutex_unlock(&log_buff_mutex);
-		return -2;
-	}
-*/
 	egi_free_buff2D(log_buff,EGI_LOG_MAX_BUFFITEMS);
 
 	/* put mutex lock */
 	pthread_mutex_unlock(&log_buff_mutex);
+
+	/* */
 
       /* -------------- exiting critical zone ---------------- */
 
@@ -492,6 +486,11 @@ int egi_quit_log(void)
 	{
 		printf("egi_quit_log():fail to free log_buff .\n");
 		return -1;
+	}
+
+	/* destroy mutex lock */
+	if(pthread_mutex_destroy(&log_buff_mutex)!=0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call pthread_mutex_destroy()!\n",__func__);
 	}
 
 	/* close log file */

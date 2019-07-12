@@ -11,8 +11,9 @@ CFLAGS  += -I$(COMMON_USRDIR)/include	-I../. -I../utils/
 LDFLAGS += -L$(COMMON_USRDIR)/lib  -L../lib/
 
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
-LIBS    =  -legi -ljpeg -lpng -lz
-LIBS	+= -lcurl -lssl -lcrypto -pthread -ljson-c
+LIBS   =  -legi -ljpeg -lpng -lz
+LIBS  +=  -lcurl -lssl -lcrypto -pthread -ljson-c
+LIBS  +=  -lfreetype  -lm -lz -lbz2
 
 all:	test_weather he_weather.o
 

@@ -21,20 +21,20 @@ charmap:		A table in face object that converts character codes to glyph indices.
 			   is created. and it emulates a Unicode charmap if the font doesn't
 			   contain such a charmap.
 
-bitmap_left:		A number of FT_GlyphSlot, the bitmap's left bearing expressed in integer pixels,
+bitmap_left:		A member of FT_GlyphSlot, the bitmap's left bearing expressed in integer pixels,
 			only valid if the format is BITMAP. It's the distance from the origin to the
 			leftmost border of the glyph image.
 
-bitmap_top:		A number of FT_GlyphSlot, the bitmap's top bearing expressed in integer pixels.
+bitmap_top:		A member of FT_GlyphSlot, the bitmap's top bearing expressed in integer pixels.
 			It's the distance from the baseline to the top-most glyph scanline.
-
 
 units_per_EM            The number of font units per EM square for a face, relevant for scalable
 		        fonts only. Noticed that all characters have the same height.
 		        Typically 1000 for type-1 fonts and 1024 or 2048 for TrueType fonts.
+
 DPI:			Dot per inch, 1 point = 1/72 inch.
 PPI:			Pixel per inch, pixel_size = point_size * DPI / 72
-26.6 pixel format:	= 1/64th of a pixel per unit, where 64=^6
+26.6 pixel format:	= 1/64th of a pixel per unit, where 64=2^6
 			And fixed point type 16.16 is 1/65536 per unit, where 65536=2^16
 
 
@@ -472,7 +472,6 @@ for(j=0; j<=count; j++)
 
 	/* vertical distance between two consective lines */
 	printf("   height(V dist, in font units):	%d\n",	face->height);
-
 
 //deg=15-egi_random_max(30);
 deg=0.0;

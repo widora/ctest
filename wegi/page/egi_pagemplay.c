@@ -96,7 +96,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
         {
-		color=egi_color_random(deep);
+		color=egi_color_random(color_deep);
 
                 for(j=0;j<3;j++) /* column of buttons */
                 {
@@ -135,7 +135,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 						        10+(15+60)*j, 150+(15+60)*i, /* int x0, int y0 */
 							btnW,btnH, /* int width, int height */
 				       			-1,//1, /* int frame,<0 no frame */
-		       					egi_color_random(deep) //color,/*int prmcolor */
+		       					egi_color_random(color_deep) //color,/*int prmcolor */
 					   );
 			/* if fail, try again ... */
 			if(mplay_btns[3*i+j]==NULL)
@@ -235,7 +235,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 			page_mplay=egi_page_new("page_mplay");
 			usleep(100000);
 	}
-	page_mplay->ebox->prmcolor=egi_colorgray_random(light);
+	page_mplay->ebox->prmcolor=egi_colorgray_random(color_light);
 
 	/* 4.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
         page_mplay->runner[0]=check_volume_runner;

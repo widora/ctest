@@ -18,8 +18,8 @@ published by the Free Software Foundation.
 
 5. WARNING!!! Consider to balance between egi_sleep(), tm_delayms() and egi_log();
 
-
 			------	(( Glossary ))  ------
+
 MTU:	    A maximum transmission unit(MTU) is the largest packet or frame size,IP uses MTU to determine
    	    the maximum size of each paket in the transmission. Max. 1500-bytes for internet.
 	    A compelet packet:  Capsule(head and tail)+IP Header(20bytes)+TCP Header(20bytes)+Payload( )=Max.1500 bytes.
@@ -27,6 +27,7 @@ MTU:	    A maximum transmission unit(MTU) is the largest packet or frame size,IP
 TCP MSS:    Maximum Segment Size is the payload of a TCP packet.
 	    A complete TCP packet:  TCP Header(20bytes) + TCP MSS=Max.1480 bytes.
 	    < ***** > IPv4 is required to handle Min MSS of 536 bytes, while IPv6 is 1220 bytes.
+
 
 TODO:
 1. Calling recv() may return several IoT commands from socket buffer at one time, especailly in heavy load condition.

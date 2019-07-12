@@ -570,14 +570,37 @@ struct egi_page
 	/* if NOT NULL, always do the miscelaneous job when refresh the page in the routine func */
 	int (*page_refresh_misc)(EGI_PAGE *page);
 
-	/* --- following jobs carried out in routine(),  not in page_refresh() method
-	   pthread runner
-	   thread jobs to be loaded in routine().
-	   and joint in egi_page_free()
+	/* NOTE:
+	 *  1. Runners are launched in PAGE routine(),  not in page activate or refresh methods.
+	 *     and they will be jointed in egi_page_free().
+	 *  2. A runner is a pthread job in a PAGE.
+	 *  3. !!!! WARNING !!! There is a time delay between finish_creating_runner and runner_start_running.
+	 *  4. A runner function shall avoid sleep inside, or as short as possible, in order to keep a quick
+	 *     reaction to Signal SiSUSPEND etc..
 	*/
-	pthread_t threadID[EGI_PAGE_MAXTHREADS];
-	bool thread_running[EGI_PAGE_MAXTHREADS]; /* indicating whether the thread is running */
-	void * (*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);
+	pthread_t	threadID[EGI_PAGE_MAXTHREADS];
+	void * 	  	(*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);
+
+	bool 		thread_running[EGI_PAGE_MAXTHREADS];    /* indicating running status
+								 * Must be set by the owner thread
+								 * others may read it.
+								 */
+	bool		thread_suspending[EGI_PAGE_MAXTHREADS]; /* indicating suspending status
+								 * Must be set by the owner thread
+								 * others may read it.
+								 */
+	bool 		thread_SigSUSPEND[EGI_PAGE_MAXTHREADS]; /* a signal to PAUSE/SUSPEND the thread
+								 * MUST be set by other threads.
+								 * the owner thread will check it while waiting
+								 * for the mutex condition to change.
+								 */
+	/* TBD&TODO: Use enum runner_signal for more signals????!! */
+
+	/* common mutex/cond for all runners in the PAGE, initilized in routine() */
+	pthread_mutex_t runner_mutex;
+	pthread_cond_t  runner_cond;
+	/* TBD: Whether?/When?/Where? to destroy above mutex and cond variables!?!?! */
+
 };
 
 
