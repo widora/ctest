@@ -1,8 +1,7 @@
-/*-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
-
 
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
@@ -16,7 +15,8 @@ Note:
 TODO:
 
 Modified and appended by Midas-Zhou
------------------------------------------------------------------------------*/
+midaszhou@yahoo.com
+----------------------------------------------------------------------------*/
 #include "egi_fbgeom.h"
 #include "egi.h"
 #include "egi_debug.h"
@@ -339,8 +339,6 @@ bool  box_outbox(EGI_BOX* inbox, EGI_BOX* container)
 }
 
 
-
-
 /*---------------------------------------------
     clear screen with given color
       BUG:
@@ -390,13 +388,23 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 	/* check FB.pos_roate
 	* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
         */
-        if(fr_dev->pos_rotate==1) {
-		fx=(xres-1)-y;
-		fy=x;
-        }
-	else {
-		fx=x;
-		fy=y;
+	switch(fr_dev->pos_rotate) {
+		case 0:			/* FB defaul position */
+			fx=x;
+			fy=y;
+			break;
+		case 1:			/* Clockwise 90 deg */
+			fx=(xres-1)-y;
+			fy=x;
+			break;
+		case 2:			/* Clockwise 180 deg */
+			fx=(xres-1)-x;
+			fy=(yres-1)-y;
+			break;
+		case 3:			/* Clockwise 270 deg */
+			fx=y;
+			fy=(yres-1)-x;
+			break;
 	}
 
 
@@ -1253,7 +1261,6 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
    }
 
 
-
  /*----------------------------------------------------------------------------
    copy a block of buffer to FB memory.
    x1,y1,x2,y2:	  LCD area corresponding to FB mem. block
@@ -1386,14 +1393,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			buf++;
 		}
 	}
-
 #endif
 
 	return ret;
-
    }
-
-
 
 
 /*--------------------------------------------
@@ -1432,6 +1435,7 @@ int fb_buffer_FBimg(FBDEV *fb_dev, int nb)
 	else
 		return 0;
 }
+
 
 /*----------------------------------------------------
 Restor buffed data to FB.

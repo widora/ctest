@@ -22,7 +22,7 @@ LIBS    += -lcurl -lssl -lcrypto -pthread
 LIBS    += -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 
 
-all:	 test_freetype test_asciibook
+all:	 test_freetype get_sympgHeight test_asciibook test_wchar
 
 test_freetype:	test_freetype.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_freetype.c -o test_freetype
@@ -30,8 +30,14 @@ test_freetype:	test_freetype.c
 test_asciibook:	test_asciibook.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_asciibook.c -o test_asciibook
 
+get_sympgHeight: get_sympgHeight.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) get_sympgHeight.c -o get_sympgHeight
+
+test_wchar:	test_wchar.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_wchar.c -o test_wchar
+
 
 clean:
-	rm -rf *.o test_freetype test_asciibook
+	rm -rf *.o test_freetype test_asciibook get_sympgHeight test_wchar
 
 

@@ -6,7 +6,10 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 APP=egi_iotclient
 
-INCLUDES += -I../ -I../utils -I$(COMMON_USRDIR)/include/json-c
+CFLAGS  = -I../ -I../utils
+CFLAGS += -I$(COMMON_USRDIR)/include
+CFLAGS += -I$(COMMON_USRDIR)/include/json-c
+CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -Wall
 CFLAGS += -D_GNU_SOURCE         ## for O_CLOEXEC flag ##
 LDFLAGS += -L$(COMMON_USRDIR)/lib
@@ -14,7 +17,7 @@ LIBS += -ljson-c -lpthread
 
 
 $(APP):	$(APP).c
-	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(APP).c
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -c $(APP).c
 
 clean:
 	rm -rf $(APP) $(APP).o

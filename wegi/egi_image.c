@@ -556,8 +556,9 @@ Write a sub image in the EGI_IMGBUF to FB.
 
 egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
 fb_dev:		FB device
-subnum:		number of the sub image
-		if subnum<0 or subimgs==NULL, only one image in data.
+subnum:		index number of the sub image.
+		if subnum<0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
+		egi_imgbuf.
 subcolor:	substituting color, only applicable when >0.
 (x0,y0):        displaying window origin, relate to the LCD coord system.
 
@@ -582,7 +583,7 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 		return -2;
 	}
 
-	if(egi_imgbuf->submax < subnum ) {
+	if(subnum > egi_imgbuf->submax) {
 		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
 	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 		return -4;
@@ -610,3 +611,116 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 
 	return ret;
 }
+
+
+/*------------------------------------------------------------------------------------
+        	   Add FreeType FT_Bitmap to EGI imgbuf
+
+1. The input eimg should has been initialized by egi_imgbuf_init()
+   with certain size of a canvas (height x width) inside.
+
+2. The canvas size of the eimg shall be big enough to hold the bitmap,
+   or pixels out of the canvas will be omitted.
+
+3.   		!!! -----   WARNING   ----- !!!
+   In order to algin all characters in same horizontal level, every char bitmap must be
+   align to the same baseline, i.e. the vertical position of each char's origin
+   (baseline) MUST be the same.
+   So (xb,yb) should NOT be left top coordinate of a char bitmap,
+   while use char's 'origin' coordinate relative to eimg canvan as (xb,yb) can align all
+   chars at the same level !!!
+
+
+@eimg		The EGI_IMGBUF to hold the bitmap
+@xb,yb		coordinates of bitmap origin relative to EGI_IMGBUF canvas coord.!!!!
+
+@bitmap		pointer to a bitmap in a FT_GlyphSlot.
+		typedef struct  FT_Bitmap_
+		{
+			    unsigned int    rows;
+			    unsigned int    width;
+			    int             pitch;
+			    unsigned char*  buffer;
+			    unsigned short  num_grays;
+			    unsigned char   pixel_mode;
+			    unsigned char   palette_mode;
+			    void*           palette;
+		} FT_Bitmap;
+
+@subcolor	>=0 as substituting color
+		<0  use bitmap buffer data as gray value. 0-255 (BLACK-WHITE)
+
+return:
+	0	OK
+	<0	fails
+--------------------------------------------------------------------------------*/
+int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
+								EGI_16BIT_COLOR subcolor)
+{
+	int i,j;
+	EGI_16BIT_COLOR color;
+	unsigned char alpha;
+	unsigned long size; /* alpha size */
+	int	sumalpha;
+	int pos;
+
+	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
+		return -1;
+	}
+	if( bitmap==NULL || bitmap->buffer==NULL ) {
+		printf("%s: input FT_Bitmap or its buffer is NULL!\n", __func__);
+		return -2;
+	}
+	/* calloc and assign alpha, if NULL */
+	if(eimg->alpha==NULL) {
+		size=eimg->height*eimg->width;
+		eimg->alpha = calloc(1, size); /* alpha value 8bpp */
+		if(eimg->alpha==NULL) {
+			printf("%s: Fail to calloc eimg->alpha\n",__func__);
+			return -3;
+		}
+		memset(eimg->alpha, 255, size); /* assign to 255 */
+	}
+
+	for( i=0; i< bitmap->rows; i++ ) {	      /* traverse bitmap height  */
+		for( j=0; j< bitmap->width; j++ ) {   /* traverse bitmap width */
+			/* check range limit */
+			if( yb+i <0 || yb+i >= eimg->height ||
+				    xb+j <0 || xb+j >= eimg->width )
+				continue;
+
+			/* buffer value(0-255) deemed as gray value OR alpha value */
+			alpha=bitmap->buffer[i*bitmap->width+j];
+
+			pos=(yb+i)*(eimg->width) + xb+j; /* eimg->imgbuf position */
+
+			/* blend color	*/
+			if( subcolor>=0 ) {	/* use subcolor */
+				//color=subcolor;
+				/* !!!WARNG!!!  NO Gamma Correctio in color blend macro,
+				 * color blend will cause some unexpected gray
+				 * areas/lines, especially for two contrasting colors.
+				 * Select a suitable backgroud color to weaken this effect.
+				 */
+				if(alpha>180)alpha=255;  /* set a limit as for GAMMA correction, too simple! */
+				color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
+							/* front, background, alpha */
+			}
+			else {			/* use Font bitmap gray value */
+				if(alpha<180)alpha=255; /* set a limit as for GAMMA correction, too simple! */
+				color=COLOR_16BITS_BLEND( COLOR_RGB_TO16BITS(alpha,alpha,alpha),
+							  eimg->imgbuf[pos], alpha );
+			}
+			eimg->imgbuf[pos]=color; /* assign color to imgbuf */
+
+			/* blend alpha value */
+			sumalpha=eimg->alpha[pos]+alpha;
+			if( sumalpha > 255 ) sumalpha=255;
+			eimg->alpha[pos]=sumalpha; //(alpha>0 ? 255:0); //alpha;
+		}
+	}
+
+	return 0;
+}
+

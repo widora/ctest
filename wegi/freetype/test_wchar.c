@@ -97,6 +97,7 @@ midaszhou@yahoo.com
 #include <locale.h>
 #include <math.h>
 #include <wchar.h>
+#include <sys/stat.h>
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 #include "egi_common.h"
@@ -106,59 +107,226 @@ midaszhou@yahoo.com
 #include FT_FREETYPE_H
 
 
-//////////////// TODO: configure Openwrt to support LOCALE ////////////
-/*---------------------------------------------------
-convert a multibyte string to a wide-character string
+
+/*-----------------------------------------------------------------------
+Get length of a character with UTF-8 encoding.
+
+@cp:	A pointer to a character with UTF-8 encoding.
 
 Note:
-	Do not forget to free it after use.
+1. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+2. If illegal coding is found...
 
 Return:
-	Pointer 	OK
-	NULL		Fail
----------------------------------------------------*/
-wchar_t * cstr_to_wcstr(const char *cstr)
+	>0	OK, string length in bytes.
+	<0	Fails
+------------------------------------------------------------------------*/
+inline int cstr_charlen_uft8(const unsigned char *cp)
 {
-	wchar_t *wcstr;
-	int mbslen;
+	if(cp==NULL)
+		return -1;
 
-	if( cstr==NULL )
-		return NULL;
-
-  	/* Apply default locale TODO: not workable in Openwrt */
-#if 1
-        if ( setlocale(LC_ALL, "en_US.utf8") == NULL) {
-		printf("%s: fail to setlocale!\n",__func__);
-	        return NULL;
-        }
-#endif
-
-        //mbslen = strlen(cstr);
-	//printf("%s len is %d\n",cstr,mbslen);
-#if 1
-	mbslen = mbstowcs(NULL, cstr, 0);
-        if ( mbslen == (size_t) -1 ) {
-		printf("%s: mbslen=mbstowcs() invalid!\n",__func__);
-	        return NULL;
-        }
-#endif
-
- 	/* Add 1 to allow for terminating null wide character (L'\0'). */
-        wcstr = calloc(mbslen + 1, sizeof(wchar_t));
-        if (wcstr == NULL) {
-		printf("%s: calloc() fails!\n",__func__);
-		return NULL;
-        }
-
-	/* convert to wide-character string */
-        if ( mbstowcs(wcstr, cstr, mbslen+1) == (size_t) -1 ) {
-		perror("mbstowcs");
-		printf("%s: mbstowcs() fails!\n",__func__);
-		return NULL;
-        }
-
-	return wcstr;
+	if(*cp < 0b10000000)
+		return 1;	/* 1 byte */
+	else if( *cp >= 0b11110000 )
+		return 4;	/* 4 bytes */
+	else if( *cp >= 0b11100000 )
+		return 3;	/* 3 bytes */
+	else if( *cp >= 0b11000000 )
+		return 2;	/* 2 bytes */
+	else
+		return -2;	/* unrecognizable starting byte */
 }
+
+
+
+/*-----------------------------------------------------------------------
+Get total number of character in a string with UTF-8 encoding.
+
+@cp:	A pointer to a string with UTF-8 encoding.
+
+Note:
+1. Count all ASCII characters, both printables and unprintables.
+
+2. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+
+3. If illegal coding is found...
+
+Return:
+	>=0	OK, total numbers of character in the string.
+	<0	Fails
+------------------------------------------------------------------------*/
+int cstr_strcount_uft8(const unsigned char *pstr)
+{
+	unsigned char *cp;
+	int size;	/* in bytes, size of the character with UFT-8 encoding*/
+	int count;
+
+	if(pstr==NULL)
+		return -1;
+
+	cp=(unsigned char *)pstr;
+	count=0;
+	while(*cp) {
+		size=cstr_charlen_uft8(cp);
+		if(size>0) {
+			printf("%d\n",*cp);
+			count++;
+			cp+=size;
+			continue;
+		}
+		else {
+		   printf("%s: WARNGING! unrecognizable starting byte for UFT-8. Try to skip it.\n",__func__);
+		   	cp++;
+		}
+	}
+
+	return count;
+}
+
+
+
+#if 0 /////////////////// OBSELET ///////////////////////
+int cstr_strlen_uft8(const unsigned char *pstr)
+{
+	unsigned char *cp;
+	int count=0;
+
+	if(cp==NULL)
+		return -1;
+
+	cp=(unsigned char *)pstr;
+	while(*cp) {
+		if( *cp>>7 == 0b0  ) {
+#if 0 /*------  Exclude some unprintable ASCIIs  -----*/
+	 		/* Only printable ASCII codes and NL(10), TAB.
+			 * 9-TAB, 10-NextLine(NL), 13-ENTER(ER), 127-DEL
+			 */
+			if( ( *cp>=' ' && *cp !=127 ) || *cp=='\n' || *cp==9 ) {
+				printf("offset=%d, ASCII: %d\n", cp-pstr, *cp);
+				count++;
+				cp++;
+			}
+#else /*------  Count all ASCIIs  -----*/
+			/* count in all ASCII codes */
+			count++;
+			cp++;
+
+#endif
+		}
+		else if ( *cp>>5 == 0b110 ) {
+			count++;
+			cp+=2; /* skip 2 byte to next starting byte */
+		}
+		else if (  *cp>>4 == 0b1110 ) {
+			count++;
+			cp+=3; /* skip 3 bytes */
+		}
+		else if ( *cp>>3 == 0b11110 ) {
+			count++;
+			cp+=4; /* skip 4 bytes */
+		}
+		/* Unrecognizable coding, carry on ... */
+		else {
+			printf("Warning!!! Unrecognizable starting byte 0x%x\n",(unsigned char)(*cp));
+			cp++;
+			continue;
+		}
+	}
+
+	return count;
+}
+#endif ///////////////////////////////////////////////////////////////
+
+
+/*----------------------------------------------------------------------
+Convert a character from UFT-8 to UNICODE.
+
+@src:	A pointer to characters with UFT-8 encoding.
+@dest:	A pointer to mem space to hold converted characters with UNICODE.
+	The caller shall allocate enough space for dest.
+	!!!!TODO: Dest is now supposed to be in little-endian ordering. !!!!
+@n:	Number of characters expected to be converted.
+
+1. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+
+2. If illegal coding is found...
+
+Return:
+	>0 	OK, bytes of src consumed and converted into unicode.
+	<0	Fails
+-----------------------------------------------------------------------*/
+inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
+{
+	unsigned char *cp; /* tmp to dest */
+	unsigned char *sp; /* tmp to src  */
+
+	int size;	/* in bytes, size of the character with UFT-8 encoding*/
+
+	if(src==NULL || dest==NULL )
+		return -1;
+
+	cp=(unsigned char *)dest;
+	sp=(unsigned char *)src;
+
+	size=cstr_charlen_uft8(src);
+
+	if(size<0) {
+		return size;	/* ERROR */
+	}
+
+	/* U+ 0000 - U+ 007F:	0XXXXXXX */
+	else if(size==1) {
+		*dest=0;
+		*cp=*src;	/* The LSB of wchar_t */
+	}
+
+	/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
+	else if(size==2) {
+		/*dest=0;*/
+		*dest= (*(sp+1)&0x3F) + ((*sp&0x1F)<<6);
+	}
+
+	/* U+ 0800 - U+ FFFF:	1110XXXX 10XXXXXX 10XXXXXX */
+	else if(size==3) {
+		*dest= (*(sp+2)&0x3F) + ((*(sp+1)&0x3F)<<6) + ((*sp&0xF)<<12);
+	}
+
+	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
+	else if(size==4) {
+
+		*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
+
+	}
+
+	return size;
+}
+
+
 
 
 
@@ -209,7 +377,7 @@ int main( int  argc,   char**  argv )
   FT_Error      error;
 
   char*         font_path;
-  char*         text;
+//  char*         text;
 
   char**	fpaths;
   int		count;
@@ -226,6 +394,14 @@ int main( int  argc,   char**  argv )
   int		np;
   float		step;
   int		ret;
+
+  int fd;
+  int fsize;
+  struct stat sb;
+  unsigned char *fp;
+  int nread;
+
+  unsigned char *text;
 
   EGI_IMGBUF  *eimg=NULL;
   eimg=egi_imgbuf_new();
@@ -252,30 +428,64 @@ int main( int  argc,   char**  argv )
 
 
 	/* get input args */
-  	if ( argc != 3 )
+  	if ( argc < 3 )
   	{
-    	fprintf ( stderr, "usage: %s font sample-text\n", argv[0] );
+    	fprintf ( stderr, "usage: %s font_path a_letter\n", argv[0] );
    	 	exit( 1 );
   	}
 
   	font_path      = argv[1];                           /* first argument     */
-  	text          = argv[2];                           /* second argument    */
-  	num_chars     = strlen( text );
+  	text           = argv[2];                           /* second argument    */
+	if( strlen(text)<15 ) {
+		printf("Please enter a text more than 15 bytes!\n");
+		exit(1);
+	}
+
+	/* open wchar book file */
+	fd=open("/home/xyj.txt",O_RDONLY);
+	if(fd<0) {
+		perror("open file");
+		return -1;
+	}
+	/* obtain file stat */
+	if( fstat(fd,&sb)<0 ) {
+		perror("fstat");
+		return -2;
+	}
+	fsize=sb.st_size;
+	/* mmap txt file */
+	fp=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+	if(fp==MAP_FAILED) {
+		perror("mmap");
+		return -3;
+	}
+
+/*--------- TEST: */
+  printf("'\\n\':%d; '\\r':%d\n", '\n','\r');
+  printf("words:%s \n char_count=%d.\n", fp, cstr_strcount_uft8(fp) );
+//  exit(1);
 
 
-#if 1
-   	/* TODO: convert char to wchar_t */
+	wchar_t wcstr[25]={0};
+//       wchar_t *wcstr=NULL;
 //     wchar_t *wcstr=L"abcdefghijJKCDEFGH";
-     wchar_t *wcstr=L"AJK長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山.";   /* for traditional chinese */
-//     wchar_t *wcstr=L"长亭外古道边,芳草碧连天,晚风拂柳笛声残,夕阳山外山.";   /* for simple chinese */
-//     char    *cstr="abcdefghijkABCDEFGHIJK";
+//     wchar_t *wcstr=L"AJK長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山.";   /* for traditional chinese */
 
-#else  /* LOCALE configure fails */
-   wchar_t *wcstr=NULL;
-   wcstr=cstr_to_wcstr(argv[2]);
-   if(wcstr==NULL)
-	exit(1);
-#endif
+
+/*--------- TEST: */
+  int offp=0;
+  int size;
+  for(i=0; i<15; i++) {
+	    size=char_uft8_to_unicode(text+offp, wcstr+i);
+	    printf(" Size=%d\n", size);
+	    if(size>0)
+		    offp+=size;
+	    else {
+		i--;
+		offp++;
+	    }
+  }
+ // exit(1);
 
    /* buff all png file path */
    picpaths=egi_alloc_search_files("/mmc/pic", ".png", &pcount); /* NOTE: path for fonts */
@@ -407,16 +617,22 @@ for( deg=0; deg<90; deg+=10 )
   font_color= egi_color_random(color_all);
 
 step=5.0; //1.25;
-for(k=3; k<11; k++)	/* change font size */
+for(k=3; k<11; k++)	/* change font size for each line */
 {
+
+
+
+   //memcpy(wcstr, fp+sizeof(wchar_t)*k*14, (15-1)*sizeof(wchar_t));
+
    /* 5. set character size in pixels */
    error = FT_Set_Pixel_Sizes(face, step*k, step*k);
    /* OR set character size in 26.6 fractional points, and resolution in dpi */
    //error = FT_Set_Char_Size( face, 32*32, 0, 100,0 );
 
   //printf(" Size change [ k=%d ]\n",k);
-  printf(" size k=%d, wcslen=%d, wcstr:'%s'\n", k, wcslen(wcstr), wcstr);
+  printf( "size k=%d, wcslen=%d, wcstr:'%s'\n", k, wcslen(wcstr), wcstr);
   pen.y=line_starty;
+
   for ( n = 0; n < wcslen(wcstr); n++ )	/* load wchar and process one by one */
   //for ( n = 0; n < strlen(cstr); n++ )	/* load wchar and process one by one */
   {
@@ -429,6 +645,7 @@ for(k=3; k<11; k++)	/* change font size */
 
 //	glyph_index = FT_Get_Char_Index( face, wcstr[n] ); /*  */
 //	printf("charcode[%X] --> glyph index[%d] \n", wcstr[n], glyph_index);
+
 #if 1
 	/*** Option 1:  FT_Load_Char( FT_LOAD_RENDER )
     	 *   load glyph image into the slot (erase previous one)
@@ -464,7 +681,6 @@ for(k=3; k<11; k++)	/* change font size */
 	/* Note that even when the glyph image is transformed, the metrics are NOT ! */
 	printf("glyph metrics[in 26.6 format]: width=%d, height=%d.\n",
 					slot->metrics.width, slot->metrics.height);
-
 
 	/* 8. Draw to EGI_IMGBUF */
 	error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
@@ -532,6 +748,10 @@ FT_FAILS:
 	egi_imgbuf_free(eimg);
 	egi_imgbuf_free(logo_img);
 	egi_imgbuf_free(pinguin_img);
+
+	/* unmap and close fd */
+	munmap(fp, fsize);
+	close(fd);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);

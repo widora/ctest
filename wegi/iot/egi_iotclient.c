@@ -780,7 +780,7 @@ void egi_iotclient(EGI_PAGE *page)
 						else {
 							EGI_PDEBUG(DBG_IOT,"Switch bulb ON \n");
 							//subcolor=BULB_ON_COLOR; /* mild white */
-							bulb_color=egi_color_random(medium);
+							bulb_color=egi_color_random(color_medium);
 							subcolor=bulb_color;
 						}
 

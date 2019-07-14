@@ -13,6 +13,7 @@ Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
 
 
 Modified and appended by: Midas Zhou
+midaszhou@yahoo.com
 -----------------------------------------------------------------------------*/
 #ifndef __EGI_FBGEOM_H__
 #define __EGI_FBGEOM_H__
@@ -67,9 +68,9 @@ void 	draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w);
 void 	draw_filled_circle(FBDEV *dev, int x, int y, int r);
 
 //////////////// new draw function, with color /////////////
-void draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
-void draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color);
-void draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
+void 	draw_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
+void 	draw_filled_annulus2(FBDEV *dev, int x0, int y0, int r, unsigned int w, EGI_16BIT_COLOR color);
+void 	draw_filled_circle2(FBDEV *dev, int x, int y, int r, EGI_16BIT_COLOR color);
 
 int 	fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf);
 int 	fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf);

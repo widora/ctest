@@ -154,14 +154,18 @@ int egi_page_free(EGI_PAGE *page)
 }
 
 
-/*------------------------------------------------------
-Suspend a runner in a PAGE: set sigSUSPEND for the thread
-and wait until it confirms.
+/*----------------------------------------------------------
+Suspend a runner of a PAGE, set signal variable sigSUSPEND[]
+of the thread and wait until it confirms.
+
+NOTE:
+      The response time depends on the runner's loop period.
+
 
 return:
-	0	OK, confirmed.
+	0	OK, thread suspended.
 	<0	fails
--------------------------------------------------------*/
+----------------------------------------------------------*/
 int egi_suspend_runner(EGI_PAGE *page, int runnerID)
 {
 	if(page==NULL)

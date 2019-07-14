@@ -3,6 +3,8 @@
 
 #include "egi_fbdev.h"
 #include "egi_color.h"
+#include <freetype2/ft2build.h>
+#include <freetype2/ftglyph.h>
 
 
 typedef	struct {
@@ -36,9 +38,11 @@ int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 
-/* display sub_image in a EGI_IMAGBUF */
+/* display sub_image in an EGI_IMAGBUF */
 int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
                                                         int subcolor, int x0,   int y0);
-
+/* blend an EGI_IMGBUF with a FT_Bitmap */
+int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
+								EGI_16BIT_COLOR subcolor);
 
 #endif

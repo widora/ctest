@@ -54,119 +54,6 @@ midaszhou@yahoo.com
 #include FT_FREETYPE_H
 
 
-/*------------------------------------------------------------------------------------
-        	   Add FreeType FT_Bitmap to EGI imgbuf
-
-1. The input eimg should has been initialized by egi_imgbuf_init()
-   with certain size of a canvas (height x width) inside.
-
-2. The canvas size of the eimg shall be big enough to hold the bitmap,
-   or pixels out of the canvas will be omitted.
-
-3.   		!!! -----   WARNING   ----- !!!
-   In order to algin all characters in same horizontal level, every char bitmap must be
-   align to the same baseline, i.e. the vertical position of each char's origin
-   (baseline) MUST be the same.
-   So (xb,yb) should NOT be left top coordinate of a char bitmap,
-   while use char's 'origin' coordinate relative to eimg canvan as (xb,yb) can align all
-   chars at the same level !!!
-
-
-@eimg		The EGI_IMGBUF to hold the bitmap
-@xb,yb		coordinates of bitmap origin relative to EGI_IMGBUF canvas coord.!!!!
-
-@bitmap		pointer to a bitmap in a FT_GlyphSlot.
-		typedef struct  FT_Bitmap_
-		{
-			    unsigned int    rows;
-			    unsigned int    width;
-			    int             pitch;
-			    unsigned char*  buffer;
-			    unsigned short  num_grays;
-			    unsigned char   pixel_mode;
-			    unsigned char   palette_mode;
-			    void*           palette;
-		} FT_Bitmap;
-
-@subcolor	>=0 as substituting color
-		<0  use bitmap buffer data as gray value. 0-255 (BLACK-WHITE)
-
-return:
-	0	OK
-	<0	fails
---------------------------------------------------------------------------------*/
-int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
-								EGI_16BIT_COLOR subcolor)
-{
-	int i,j;
-	EGI_16BIT_COLOR color;
-	unsigned char alpha;
-	unsigned long size; /* alpha size */
-	int	sumalpha;
-	int pos;
-
-	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
-		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
-		return -1;
-	}
-	if( bitmap==NULL || bitmap->buffer==NULL ) {
-		printf("%s: input FT_Bitmap or its buffer is NULL!\n", __func__);
-		return -2;
-	}
-	/* calloc and assign alpha, if NULL */
-	if(eimg->alpha==NULL) {
-		size=eimg->height*eimg->width;
-		eimg->alpha = calloc(1, size); /* alpha value 8bpp */
-		if(eimg->alpha==NULL) {
-			printf("%s: Fail to calloc eimg->alpha\n",__func__);
-			return -3;
-		}
-		memset(eimg->alpha, 255, size); /* assign to 255 */
-	}
-
-	for( i=0; i< bitmap->rows; i++ ) {	      /* traverse bitmap height  */
-		for( j=0; j< bitmap->width; j++ ) {   /* traverse bitmap width */
-			/* check range limit */
-			if( yb+i <0 || yb+i >= eimg->height ||
-				    xb+j <0 || xb+j >= eimg->width )
-				continue;
-
-			/* buffer value(0-255) deemed as gray value OR alpha value */
-			alpha=bitmap->buffer[i*bitmap->width+j];
-
-			pos=(yb+i)*(eimg->width) + xb+j; /* eimg->imgbuf position */
-
-			/* blend color	*/
-			if( subcolor>=0 ) {	/* use subcolor */
-				//color=subcolor;
-				/* !!!WARNG!!!  NO Gamma Correctio in color blend macro,
-				 * color blend will cause some unexpected gray
-				 * areas/lines, especially for two contrasting colors.
-				 * Select a suitable backgroud color to weaken this effect.
-				 */
-				if(alpha>180)alpha=255;  /* set a limit as for GAMMA correction, too simple! */
-				color=COLOR_16BITS_BLEND( subcolor, eimg->imgbuf[pos], alpha );
-							/* front, background, alpha */
-			}
-			else {			/* use Font bitmap gray value */
-				if(alpha<180)alpha=255; /* set a limit as for GAMMA correction, too simple! */
-				color=COLOR_16BITS_BLEND( COLOR_RGB_TO16BITS(alpha,alpha,alpha),
-							  eimg->imgbuf[pos], alpha );
-			}
-			eimg->imgbuf[pos]=color; /* assign color to imgbuf */
-
-			/* blend alpha value */
-			sumalpha=eimg->alpha[pos]+alpha;
-			if( sumalpha > 255 ) sumalpha=255;
-			eimg->alpha[pos]=sumalpha; //(alpha>0 ? 255:0); //alpha;
-		}
-	}
-
-	return 0;
-}
-
-
-
 int main( int  argc,   char**  argv )
 {
 	FT_Library    	library;
@@ -216,7 +103,7 @@ int main( int  argc,   char**  argv )
 
 
   	char*         font_path;
-  	char*         text;
+//  	char*         text;
 
   	char**	fpaths;
   	int		count;
@@ -249,21 +136,20 @@ int main( int  argc,   char**  argv )
         }
         init_fbdev(&gv_fb_dev);
 
-
 	/* get input args */
-  	if ( argc != 3 )
+  	if ( argc <2 )
   	{
-    	fprintf ( stderr, "usage: %s font sample-text\n", argv[0] );
+    	fprintf ( stderr, "usage: %s font_path  [a_letter]\n", argv[0] );
    	 	exit( 1 );
   	}
 
   	font_path      = argv[1];                           /* first argument     */
-  	text          = argv[2];                           /* second argument    */
-  	num_chars     = strlen( text );
+//  	text          = argv[2];                           /* second argument    */
+//  	num_chars     = strlen( text );
 
 
    	/* TODO: convert char to wchar_t */
-     	char    *cstr="Pause abcefghijJBHKMS_%$^#_{}|:>?";
+     	char    *cstr="abcefghijJBHKMS_%$^#_{}|:>?";
 
 
    /* buff all png file path */
@@ -282,7 +168,7 @@ int main( int  argc,   char**  argv )
 
 /* >>>>>>>>>>>>>>>>>>>>  START FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
 j=0;
-for(j=0; j<=count; j++)
+for(j=0; j<=count; j++) /* transverse font type files */
 {
 	if(j==count)j=0;
 
@@ -375,7 +261,7 @@ for(j=0; j<=count; j++)
 for(k=0; k< nsize-1; k++)
 {
    	/* 5. set character size in pixels */
-   	error = FT_Set_Pixel_Sizes(face, size_pix[k][0], size_pix[k][1]); /* width,height */
+   	error = FT_Set_Pixel_Sizes(face, size_pix[k][0], size_pix[k][1]); /* width, height */
 	/* OR set character size in 26.6 fractional points, and resolution in dpi */
    	//error = FT_Set_Char_Size( face, 32*32, 0, 100, 0 );
 
@@ -391,7 +277,6 @@ for(k=0; k< nsize-1; k++)
 	origin.x=0;
 	origin.y=0;
     	FT_Set_Transform( face, &matrix, &origin);
-
 
 	//test_k=7;
 	//FT_Set_Pixel_Sizes(face, size_pix[test_k][0], size_pix[test_k][1]);
@@ -475,7 +360,7 @@ for(k=0; k< nsize-1; k++)
 	if(symfont_page.symoffset==NULL) goto FT_FAILS;
 
 #if 1
-	/* Tranvser all chars to get alpha for sympage , ensure that all base_lines are aligned. */
+	/* Tranvser all chars to get alpha data for sympage , ensure that all base_lines are aligned. */
 	/* NOTE:
 	 *	1. TODO: Unprintable ASCII characters will be presented by FT as a box with a cross inside.
 	 *	   We just need to replace with SPACE.
@@ -501,13 +386,13 @@ for(k=0; k< nsize-1; k++)
 		symfont_page.symwidth[n]=bbox_W;
 
 #if 1 /* ----- TEST ----- */
-		if(n==argv[2][0]) {
+		if( argc>2 && n==argv[2][0]) {
 			printf("-------- %c -------\n",n);
 			printf("base_uppmost-slot->bitmap_top:  %d\n", base_uppmost-slot->bitmap_top);
 			printf("slot->bitmap.rows:		%d\n", slot->bitmap.rows);
 			printf("symheight:			%d\n", symheight);
 		}
-#endif
+#endif /* TEST end */
 
 		/* hi: 0-symheight,  wi: 0-bbox_W */
 		/* ASSUME: bitmap start from hi=0 !!! */
@@ -535,8 +420,9 @@ for(k=0; k< nsize-1; k++)
 				pos_symdata=symfont_page.symoffset[n] + hi*bbox_W +wi;
 				pos_bitmap=(hi-(base_uppmost-slot->bitmap_top))*slot->bitmap.width+wi;
 				symfont_page.alpha[pos_symdata]= slot->bitmap.buffer[pos_bitmap];
-#if 1 /* ------ TEST alpha ------ */
-	  if(n==argv[2][0]) {
+
+#if 1 /* ------ TEST:  print alpha ------ */
+	  if( argc>2 && n==argv[2][0]) {
 
 		if(symfont_page.alpha[pos_symdata]>0)
 			printf("*");
@@ -581,16 +467,17 @@ for(k=0; k< nsize-1; k++)
 	/* release the sympage */
 	symbol_release_page(&symfont_page);
 
-	exit(1);
 
+//	exit(1);
 #endif	///////////////////////////   END GET SYMpage   //////////////////////////////////
+
 
 
   	pen.y=line_starty;
 
 	/* load chars in string one by one and process it */
 //	for ( n = 0; n < strlen(cstr); n++ )
-	for ( n = 0 + 10*m; n<128; n++ ) /* ASCII */
+	for ( n = 32 + 10*m; n<128; n++ ) /* ASCII */
 	{
 		   	/* 6. re_set transformation before loading each wchar,
 			 *    as pen postion and transfer_matrix may changed.

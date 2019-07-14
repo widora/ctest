@@ -576,7 +576,7 @@ struct egi_page
 	 *  2. A runner is a pthread job in a PAGE.
 	 *  3. !!!! WARNING !!! There is a time delay between finish_creating_runner and runner_start_running.
 	 *  4. A runner function shall avoid sleep inside, or as short as possible, in order to keep a quick
-	 *     reaction to Signal SiSUSPEND etc..
+	 *     response to Signal SiSUSPEND etc..
 	*/
 	pthread_t	threadID[EGI_PAGE_MAXTHREADS];
 	void * 	  	(*runner[EGI_PAGE_MAXTHREADS])(EGI_PAGE *page);

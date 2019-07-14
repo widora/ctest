@@ -31,16 +31,19 @@ int main( int  argc,   char**  argv )
 	int fsize;
 	struct stat sb;
 	char *fp;
+
 	int nwrite;
 	int gap; 	/* line gap */
+	int pos_rotate=0;    /* FB rotation position 0-3: Default,90,180,270 degree */
 
   	EGI_16BIT_COLOR font_color, bk_color;
 
-	EGI_IMGBUF  *eimg=NULL;
-	eimg=egi_imgbuf_new();
-
-	/* init imgbuf */
-	egi_imgbuf_init(eimg, 320, 240);
+	EGI_IMGBUF *logo_img=egi_imgbuf_new();
+  	if( egi_imgbuf_loadpng("/mmc/oldman.png", logo_img) )
+                return -1;
+  	EGI_IMGBUF *penguin_img=egi_imgbuf_new();
+  	if( egi_imgbuf_loadpng("/mmc/penguin.png", penguin_img) )
+                return -1;
 
         char *strtest="jjgggiii}||  and he has certain parcels... \n\r  	\
 you are from God and have overcome them,	\
@@ -97,10 +100,10 @@ while(1) {  ////////////////////////////////   LOOP TEST   /////////////////////
 	}
 
 /*---------------------------------------------------------------------------------------------------
-void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,     \
-               		     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,     \
+void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,  \
+               		     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,  \
                              int x0, int y0, const char* str, int opaque);
----------------------------------------------------------------------------------------------------------*/
+-----------------------------------------------------------------------------------------------------*/
 
   	/* set font color */
   	font_color= WEGI_COLOR_BLACK;//egi_color_random(deep);
@@ -108,31 +111,32 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 	nwrite=0;
 	strp=fp;
 
-	/* rotate FB */
-	gv_fb_dev.pos_rotate=1;
-
 	/* clear screen */
  	clear_screen(&gv_fb_dev, 0x0679); //WEGI_COLOR_GRAYA); //COLOR_COMPLEMENT_16BITS(font_color));
 
 	gap=3;
 
+	/* set rotate FB */
+	gv_fb_dev.pos_rotate=1;
+
   /* -------  Display txt book  ------ */
   do {
+
 	printf("start compare...\n");
 
 	/* --- TITLE --- */
 	char * title ="The Old Man and the Sea";
 
 	/* Clear title zone */
-	if(gv_fb_dev.pos_rotate)
-		draw_filled_rect2(&gv_fb_dev, 0x0679, 0, 0, 319, 40-10 );
+	if( gv_fb_dev.pos_rotate % 2)
+		draw_filled_rect2(&gv_fb_dev, 0x0679, 0, 0, 319, 40-10 ); /* pos_rotate= 1,3 */
 	else
-		draw_filled_rect2(&gv_fb_dev, 0x0679, 0,0, 239, 60-10 );
+		draw_filled_rect2(&gv_fb_dev, 0x0679, 0,0, 239, 60-10 );  /* pos_rotate= 0,2 */
 
 	//int symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
 	//                            unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
 	//                            int x0, int y0, const char* str, int opaque);
-	if(gv_fb_dev.pos_rotate) {
+	if(gv_fb_dev.pos_rotate % 2) {
 		symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 320, 2, gap, WEGI_COLOR_WHITE,
                                                                               -1, 5, 5, title, -1);
 	} else {
@@ -143,14 +147,14 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 
 	/* Clear text board */
 	bk_color=WEGI_COLOR_GRAY; //GRAY5;//GRAYB;
-	if(gv_fb_dev.pos_rotate)					    /* 9 lines */
+	if(gv_fb_dev.pos_rotate % 2)				  /* Landscape Display, 9 lines */
 		draw_filled_rect2(&gv_fb_dev, bk_color, 0, 40-10, 319, 60+5 + 9*(sympg_ascii.symheight+gap) );
-	else								    /* 12 lines */
+	else						    	  /* Portrait Display, 12 lines */
 		draw_filled_rect2(&gv_fb_dev, bk_color, 0, 60-10, 239, 60+5 + 12*(sympg_ascii.symheight+gap) );
 
 	/* Write strings to FB */
 	printf("start strings writeFB......");
-	if(gv_fb_dev.pos_rotate) {
+	if(gv_fb_dev.pos_rotate % 2) {
 							   /* line_pix=320, lines=7, gap, (x0,y0):(5,40) */
 		nwrite=symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 320-5, 9, gap, font_color,
                                                                               -1, 5, 50-10, strp, -1);
@@ -162,7 +166,7 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 
 	/* Draw dividing lines */
 	fbset_color(WEGI_COLOR_WHITE); //BLACK);
-	if(gv_fb_dev.pos_rotate)
+	if(gv_fb_dev.pos_rotate % 2)
 		draw_wline_nc(&gv_fb_dev , 0, 40-10, 319, 40-10, 1); /* 1 width */
 	else
 		draw_wline_nc(&gv_fb_dev , 0, 60-10, 239, 60-10, 1); /* 1 width */
@@ -172,15 +176,27 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 
 	printf("nwrite=%d bytes.\n",nwrite);
 
+	/* Display logo oldman H200xW168 */
+	if(gv_fb_dev.pos_rotate % 2) {		/* Landscape Display */
+	        egi_imgbuf_windisplay(logo_img, &gv_fb_dev,-1, 0, 0, (320-168)/2, 30+(240-30-200)/2,
+							logo_img->width, logo_img->height);
+	} else {				/* Portrait Display */
+	        egi_imgbuf_windisplay(logo_img, &gv_fb_dev,-1, 0, 0, (240-168)/2, 50+(320-50-200)/2,
+							logo_img->width, logo_img->height);
+	}
+
+        /* Display EGI_IMGBUF, alway in default display mode */
+//        egi_imgbuf_windisplay2(penguin_img, &gv_fb_dev, 0, 0, 0, 0, //80, 100,
+//							penguin_img->width, penguin_img->height);
+
 	tm_delayms(2000);
 	strp +=nwrite;
 
-	/* reverse pos_rotate */
-	if(gv_fb_dev.pos_rotate==1)
-		gv_fb_dev.pos_rotate=0;
-	else
-		gv_fb_dev.pos_rotate=1;
+	gv_fb_dev.pos_rotate +=1;
 
+	/* reset pos_rotate */
+	if(gv_fb_dev.pos_rotate==4)
+		gv_fb_dev.pos_rotate=0;
 
    } while(nwrite>0);
 
@@ -206,7 +222,8 @@ void symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 	close(fd);
 
 	/* free EGI_IMGBUF */
-	egi_imgbuf_free(eimg);
+	egi_imgbuf_free(logo_img);
+	egi_imgbuf_free(penguin_img);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);

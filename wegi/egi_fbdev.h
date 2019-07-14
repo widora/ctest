@@ -46,8 +46,9 @@ typedef struct fbdev{
         unsigned char *map_fb;
 
 	int   pos_rotate;	/* 0: default X,Y coordinate of FB
-				 * 1: 90 Deg rotated: Y maps to (vinfo.xres-1)-FB.X,  X maps to FB.Y
-				 * Others: TDB.
+				 * 1: clockwise rotation 90 deg: Y maps to (vinfo.xres-1)-FB.X,  X maps to FB.Y
+			         * 2: clockwise rotation 180 deg
+				 * 3: clockwise rotation 270 deg
 				 */
 
 	/* pthread_mutex_t fbmap_lock; */

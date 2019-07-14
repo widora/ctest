@@ -817,18 +817,32 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				mapy=y0+i;
 
 
+
+
 #else /*--- if  NO ROLLBACK ---*/
-			/* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y */
-			if(fb_dev->pos_rotate==1) {
-				mapy=x0+j;
-				//xres-mapx=y0+i
-				mapx=(xres-1)-(y0+i);
-			}
-			/* Default FB  XY coordinate */
-			else {
-				mapx=x0+j;
-				mapy=y0+i;
-			}
+
+			/* -----  FB ROTATION POSITION MAPPING -----
+			 * IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
+			 */
+		       switch(fb_dev->pos_rotate) {
+        		        case 0:                 /* FB defaul position */
+					mapx=x0+j;
+					mapy=y0+i;
+	                       		 break;
+	        	        case 1:                 /* Clockwise 90 deg */
+					mapx=(xres-1)-(y0+i);
+					mapy=x0+j;
+		                        break;
+        		        case 2:                 /* Clockwise 180 deg */
+					mapx=(xres-1)-(x0+j);
+					mapy=(yres-1)-(y0+i);
+        	               		 break;
+		                case 3:                 /* Clockwise 270 deg */
+					mapx=y0+i;
+					mapy=(yres-1)-(x0+j);
+		                        break;
+		        }
+
 
 			/* ignore out ranged points */
 			if(mapx>(xres-1) || mapx<0 )
@@ -1081,7 +1095,9 @@ int  symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		/* 3. If not enough space for the WORD, or a RETURN for the first char */
 		/* 3.1 if WORD length > pixpl */
 		if( ww > pixpl ) {
-			/* Do nothing, do not start a new line */
+                        /* This WORD is longer than a line!
+			 * Do nothing, do not start a new line.
+			 */
 		}
 		/* 3.2 set MAX pxl limit here for a long WORD at a line end,
 		 * It will not start a new line here if pxl is big enough, but check cw by cw later.
