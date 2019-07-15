@@ -53,6 +53,8 @@ TTC:	True Type Collections
 OTF:	Open Type Font (Post-script)
 SIL:	The SIL Open Font License(OFL) is a free, libre and open source license.
 
+UNICODE HAN DATABASE(UNIHAN): Unicode Standard Annex #38 http://www.unicode.org/reports/tr38/tr38-27.html
+Basic Han Unicode range: U+4E00 - U+9FA5
 
 			<<<	--- Some Open/Free Fonts --- 	>>>
 
@@ -107,6 +109,79 @@ midaszhou@yahoo.com
 #include FT_FREETYPE_H
 
 
+/*-----------------------------------------------------------------------------------------------
+1. Render a character in UNICODE according to the specified face type, then write the bitmap
+to FB.
+2. Xleft will be subtrated by slot->advance.x first anyway, then write to FB only if Xleft >=0.
+
+@fbdev:         FB device
+@face:          A face object in FreeType2 libliary.
+@fh,fw:		Height and width of the wchar.
+@wcode:		UNICODE number for the character.
+@xleft:		Pixel space left in FB X direction (horizontal writing)
+		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
+@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
+@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       no transparent pixel
+
+@fontcolor:     font color(symbol color for a symbol)
+                >= 0,  use given font color.
+                <0  ,  use default color in img data.
+
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
+
+@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
+			will be ignored.
+                <0      Use symbol alpha data, or none.
+                0       100% back ground color/transparent
+                255     100% front color
+
+--------------------------------------------------------------------------------------------------*/
+void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
+				int x0, int y0, int fontcolor, int transpcolor,int opaque)
+{
+  	FT_Error      error;
+  	FT_GlyphSlot slot = face->glyph;
+	struct symbol_page ftsympg={0};	/* a symbol page to hold the character bitmap */
+	ftsympg.symtype=symtype_FT2;
+
+	/* set character size in pixels */
+	error = FT_Set_Pixel_Sizes(face, fw, fh);
+   	/* OR set character size in 26.6 fractional points, and resolution in dpi
+   	   error = FT_Set_Char_Size( face, 32*32, 0, 100,0 ); */
+	if(error) {
+		printf("%s: FT_Set_Pixel_Sizes() fails!\n",__func__);
+		return;
+	}
+
+	/* Do not set transform, keep up_right and pen position(0,0)
+    		FT_Set_Transform( face, &matrix, &pen ); */
+
+	/* Load char and render */
+    	error = FT_Load_Char( face, wcode, FT_LOAD_RENDER );
+    	if (error) {
+		printf("%s: FT_Load_Char() fails!\n");
+		return;
+	}
+
+	/* check whether xleft is used up */
+	*xleft -= (slot->advance.x>>6);
+	if( *xleft < 0 )
+		return;
+
+	/* Assign alpha to ftsympg, Ownership IS NOT transfered! */
+	ftsympg.alpha = slot->bitmap.buffer;
+	ftsympg.symheight = slot->bitmap.rows; //fh; /* font height in pixels is bigger than bitmap.rows! */
+	ftsympg.ftwidth = slot->bitmap.width;
+
+	/* write to FB,  symcode =0, whatever  */
+	printf("start symbol_writeFB, symheight=%d, ftwidth=%d\n",ftsympg.symheight, ftsympg.ftwidth);
+	symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0, y0, 0, -1);
+
+}
+
 
 /*-----------------------------------------------------------------------
 Get length of a character with UTF-8 encoding.
@@ -149,7 +224,7 @@ inline int cstr_charlen_uft8(const unsigned char *cp)
 
 
 /*-----------------------------------------------------------------------
-Get total number of character in a string with UTF-8 encoding.
+Get total number of characters in a string with UTF-8 encoding.
 
 @cp:	A pointer to a string with UTF-8 encoding.
 
@@ -318,9 +393,7 @@ inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
 
 	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
 	else if(size==4) {
-
 		*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
-
 	}
 
 	return size;
@@ -377,14 +450,12 @@ int main( int  argc,   char**  argv )
   FT_Error      error;
 
   char*         font_path;
-//  char*         text;
 
   char**	fpaths;
   int		count;
   char**	picpaths;
   int		pcount;
 
-  //wchar_t	*wcstr;
   EGI_16BIT_COLOR font_color;
   int		glyph_index;
   int		deg; /* angle in degree */
@@ -392,8 +463,12 @@ int main( int  argc,   char**  argv )
   int           n, num_chars;
   int 		i,j,k;
   int		np;
+  uint32_t	ku; 	/* for unicode increament */
   float		step;
   int		ret;
+
+  int xleft=100;
+  wchar_t *wtest=L"东方日出";
 
   int fd;
   int fsize;
@@ -472,7 +547,7 @@ int main( int  argc,   char**  argv )
 //     wchar_t *wcstr=L"AJK長亭外古道邊,芳草碧連天,晚風拂柳笛聲殘,夕陽山外山.";   /* for traditional chinese */
 
 
-/*--------- TEST: */
+/*--------- TEST: input uft-8 text to wcstr */
   int offp=0;
   int size;
   for(i=0; i<15; i++) {
@@ -500,6 +575,8 @@ int main( int  argc,   char**  argv )
    for(i=0; i<count; i++)
         printf("%s\n",fpaths[i]);
 
+
+   ku=0x4E00;
 
 /* >>>>>>>>>>>>>>>>>>>>  START FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
 for(j=0; j<=count; j++) /* transverse all font files */
@@ -568,6 +645,18 @@ for(j=0; j<=count; j++) /* transverse all font files */
 	/* vertical distance between two consective lines */
 	printf("   height(V dist, in font units):	%d\n",	face->height);
 
+/* ----------- TEST: unicode writeFb ----------*/
+	xleft=200;
+	font_color= egi_color_random(color_deep);
+	clear_screen(&gv_fb_dev, COLOR_COMPLEMENT_16BITS(font_color));
+	ku=egi_random_max(0x9FA5-0x4E00-1)+0x4E00-1;
+	symbol_unicode_writeFB(&gv_fb_dev, face, 170, 170, ku, &xleft, //int fw, int fh, wchar_t wcode, int *xleft,
+				 40, 70, font_color , -1, -1 ); 	   //int x0, int y0, int fontcolor, int transpcolor,int opaque)
+	printf(" xleft=%d \n",xleft);
+	tm_delayms(1000);
+	goto FT_FAILS;
+/*-------------TEST END------------------------*/
+
 //deg=15-egi_random_max(30);
 deg=0.0;
 
@@ -582,9 +671,10 @@ for( deg=0; deg<90; deg+=10 )
 */
 
   /* Init eimg before load FTbitmap, old data erased if any. */
-  //egi_imgbuf_init(eimg, 320, 240);
+   egi_imgbuf_init(eimg, 320, 240);
 
    /* load a pic to EGI_IMGBUF as for backgroup */
+#if 0
    ret=egi_imgbuf_loadpng( picpaths[np], eimg);
    if(ret!=0) {
 	printf(" Fail to load png file '%s'\n", picpaths[np]);
@@ -593,7 +683,7 @@ for( deg=0; deg<90; deg+=10 )
    else {
 	printf(" png '%s', HxW=%dx%d \n", picpaths[np], eimg->height, eimg->width);
    }
-
+#endif
 
   /* 3. set up matrix for transformation */
   angle     = ( deg / 360.0 ) * 3.14159 * 2;
@@ -606,23 +696,28 @@ for( deg=0; deg<90; deg+=10 )
   /* 4. set pen position
    * the pen position in 26.6 cartesian space coordinates
      64 units per pixel for pen.x and pen.y   		  */
-  pen.x = 5*64; //   300 * 64;
+  pen.x = 0*64; //   300 * 64;
   pen.y = 5*64;  //   ( target_height - 200 ) * 64;
   line_starty=pen.y;
 
-  /* clear screen */
-  clear_screen(&gv_fb_dev, WEGI_COLOR_GRAYB);
-
   /* set font color */
   font_color= egi_color_random(color_all);
+
 
 step=5.0; //1.25;
 for(k=3; k<11; k++)	/* change font size for each line */
 {
 
-
-
    //memcpy(wcstr, fp+sizeof(wchar_t)*k*14, (15-1)*sizeof(wchar_t));
+
+#if 0  /*--------------- TEST UNICODE HAN CHARACTERS --------- */
+   for( i=0; i<15; i++) {
+		wcstr[i]=ku;
+		ku++;
+		if(ku==0x9FA5)
+			ku=0x4E00;
+   }
+#endif
 
    /* 5. set character size in pixels */
    error = FT_Set_Pixel_Sizes(face, step*k, step*k);
@@ -683,7 +778,11 @@ for(k=3; k<11; k++)	/* change font size for each line */
 					slot->metrics.width, slot->metrics.height);
 
 	/* 8. Draw to EGI_IMGBUF */
-	error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left, 320-slot->bitmap_top,
+	/*   bitmap origin coords(relative to LCD):   5,320
+	 *   so bitmap left top coords(relative to LCD): slot->bitmap_left+0, 320-slot->bitmpa_top
+	 *
+ 	 */
+	error=egi_imgbuf_blend_FTbitmap(eimg, slot->bitmap_left+5, 320-slot->bitmap_top,
 						&slot->bitmap, font_color); //egi_color_random(deep) );
 	if(error) {
 		printf(" Fail to fetch Font type '%s' char index [%d]\n", fpaths[j], n);
@@ -702,7 +801,7 @@ for(k=3; k<11; k++)	/* change font size for each line */
 	/* 10. skip pen to next line, in font units. */
 	pen.x = 3<<6;
 
-	line_starty += ((int)(step*k)+0)<<6; /* LINE GAP,  +15 */
+	line_starty += ((int)(1.15*step*k))<<6; /* LINE GAP,  +15 */
 	/* 1 pixel= 64 units glyph metrics */
 
 }  /* end for() of size change */
@@ -717,8 +816,11 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 ----------------------------------------------------------------------------------------------*/
 
 	/* put a logo */
-	egi_imgbuf_blend_imgbuf(eimg, 10, 10, logo_img);
+	egi_imgbuf_blend_imgbuf(eimg, 0, -10, logo_img);
 	egi_imgbuf_blend_imgbuf(eimg, 240-85, 320-85, pinguin_img);
+
+  	/* clear screen */
+	 clear_screen(&gv_fb_dev, COLOR_COMPLEMENT_16BITS(font_color)); //WEGI_COLOR_GRAYB);
 
 	/* Dispay EGI_IMGBUF */
 	egi_imgbuf_windisplay2(eimg, &gv_fb_dev, 0, 0, 0, 0, eimg->width, eimg->height);

@@ -44,14 +44,19 @@ Midas Zhou
 /* symbol type */
 enum symbol_type
 {
-        type_font,
-        type_icon,
+        symtype_font,
+        symtype_icon,
+	symtype_FT2	/* freetype2 */
 };
 
 
 /*
-symbol page struct
-*/
+ * symbol page struct
+ * TODO: Cache FT2 characters if possible.
+ * NOTE:
+ *       1. For FT(FreeType2) wchar page, a symbl_page holds only one character. and many memebers
+ *	    are not applicable then.
+ */
 struct symbol_page
 {
 	/* symbol type, NOT used yet */
@@ -63,27 +68,44 @@ struct symbol_page
 	/* back color of the image, a font symbol may use bkcolor as transparent channel */
 	uint16_t  bkcolor;
 	/* page symbol mem data, store each symbol data consecutively, no hole. while img page file may have hole or blank row*/
-	uint16_t *data;		/* NOTE: for font sympage, .data is useless */
+	uint16_t *data;		/* NOTE: for FT sympage, .data is useless */
+
 	/* alpha data */
-	unsigned char *alpha;	/* NOTE: for font sympage, .data is useless, only .alpha is available */
+	unsigned char *alpha;	/* NOTE: for FT sympage, .data is useless, only .alpha is available */
+
 	/* maximum number of symbols in this page, start from 0 */
-	int  maxnum; /* maxnum+1 = total number */
-	/* total symbol number for  each row, each row has 240 pixels. */
+	int  maxnum; /* maxnum+1 = total number,
+		      * NOT applicable for FT page.
+ 		      */
+
+	/* total symbol number for  each row, each row has 240 pixels in a raw img page. */
 	int sqrow; /* for raw img page */
+
 	/*same height for all symbols in a page */
-	int symheight;
+	int symheight; /* For FT page, taken set_font height as in FT_Set_Pixel_Sizes(),
+                          rather than bitmap.rows */
+
 	/* use symb_index to locate a symbol in mem, and get its width */
 	//struct symbol_index *symindex; /* symb_index[x], x is the corresponding code number of the symbol, like ASCII code */
 
 	/* use symoffset[] to locate a symbole in a row */
-	int *symoffset; /* in pixel, offset from uint16_t *data for each smybol!! */
-	int *symwidth; /* in pixel, symbol width may be different, while height MUST be the same */
+	int *symoffset; /* in pixel, offset from uint16_t *data for each smybol!!
+			 * Not applicable for FT page
+			 */
+	int *symwidth; /* in pixel, symbol width may be different, while height MUST be the same
+			* Not applicable for FT page
+			*/
+	int ftwidth;	/* For FT page only, which holds only one character
+			 * taken as slot->advance.x;
+			 */
 
 	/* !!!!! following not used, if symbol encoded from 0, you can use array index number as code number.
 	 Each row has same number of symbols, so you can use code number to locate a row in a img page
 	 Code is a unique encoding number for each symbol in a page, like ASCII number.
 	*/
-	int *symb_code; /*default NULL, if not applicable */
+	int *symb_code; /* default NULL, if not applicable
+			 * MAYBE: applicable for FT page
+			 */
 };
 
 
@@ -129,7 +151,7 @@ void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_
 int symbol_string_pixlen(char *str, const struct symbol_page *font);
 
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
-                int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque);
+                int fontcolor, int transpcolor, int x0, int y0, unsigned int sym_code, int opaque);
 
 void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);

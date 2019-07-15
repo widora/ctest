@@ -34,6 +34,7 @@ TODO:
 5. To read FBDE vinfo to get all screen/fb parameters as in fblines.c, it's improper in other source files.
 
 Midas Zhou
+midaszhou@yahoo.com
 ----------------------------------------------------------------------------*/
 //#define _GNU_SOURCE	/* for O_CLOEXEC flag */
 
@@ -75,7 +76,7 @@ static int testfont_width[16*8] = /* check with maxnum */
 /* symbole page struct for testfont */
 struct symbol_page sympg_testfont=
 {
-	.symtype=type_font,
+	.symtype=symtype_font,
 	.path="/home/testfont.img",
 	.bkcolor=0xffff,
 	.data=NULL,
@@ -100,7 +101,7 @@ static int numbfont_width[16*8] = /* check with maxnum */
 /* symbole page struct for numbfont */
 struct symbol_page sympg_numbfont=
 {
-	.symtype=type_font,
+	.symtype=symtype_font,
 	.path="/home/numbfont.img",
 	.bkcolor=0x0000,
 	.data=NULL,
@@ -122,7 +123,7 @@ static int buttons_width[4*5] =  /* check with maxnum */
 };
 struct symbol_page sympg_buttons=
 {
-	.symtype=type_icon,
+	.symtype=symtype_icon,
 	.path="/home/buttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
@@ -142,7 +143,7 @@ static int sbuttons_width[5*3] =  /* check with maxnum */
 };
 struct symbol_page sympg_sbuttons=
 {
-	.symtype=type_icon,
+	.symtype=symtype_icon,
 	.path="/home/sbuttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
@@ -169,7 +170,7 @@ static int icons_width[8*12] =  /* element number MUST >= maxnum */
 };
 struct symbol_page sympg_icons=
 {
-        .symtype=type_font,
+        .symtype=symtype_font,
         .path="/home/icons.img",
         .bkcolor=0x0000,
         .data=NULL,
@@ -208,7 +209,7 @@ static int icons_2_width[4*5] =  /* element number MUST >= maxnum */
 /* symbole page struct for testfont */
 struct symbol_page sympg_icons_2=
 {
-        .symtype=type_icon,
+        .symtype=symtype_icon,
         .path="/home/icons_2.img",
         .bkcolor=0x0000,
         .data=NULL,
@@ -226,7 +227,7 @@ static int heweather_width[1*1] =
 };
 struct symbol_page sympg_heweather =
 {
-        .symtype=type_icon,
+        .symtype=symtype_icon,
         .path=NULL,			/* NOT applied */
         .bkcolor=-1,			/* <0, no transpcolor applied */
         .data=NULL,			/* 16bit per pixle image data */
@@ -713,22 +714,21 @@ int symbol_string_pixlen(char *str, const struct symbol_page *font)
 }
 
 
-/*--------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------------------
 		write a symbol/font pixel data to FB device
 
-1. Write to FB in unit of symboy_width*pixel if no color treatment applied for symbols,
-   or in pixel if color treatment is applied.
-2. So the method of checking FB left space is different, depending on above mentioned
-   writing methods.
-3. Note: put page check in symbol_string_writeFB()!!!
+1. Write a symbol data to FB.
+2. Only alpha data is available in a FT2 symbol page, use WEGI_COLOR_BLACK as default front
+   color.
+4. Note: put page check in symbol_string_writeFB()!!!
 
-fbdev: 		FB device
-sym_page: 	symbol page
+@fbdev: 		FB device
+@sym_page: 	symbol page
 
-transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
+@transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 	     	<0	 no transparent pixel
 
-fontcolor:	font color(symbol color for a symbol)
+@fontcolor:	font color(symbol color for a symbol)
 		>= 0,  use given font color.
 		<0  ,  use default color in img data.
 
@@ -736,20 +736,25 @@ use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
 
-x0,y0: 		start position coordinate in screen, left top point of a symbol.
-sym_code: 	symbol code number
+@x0,y0: 		start position coordinate in screen, left top point of a symbol.
+@sym_code: 	symbol code number
 
-opaque:		set aplha value (0-255)
+@opaque:	set aplha value (0-255)
 		<0	No effect, or use symbol alpha value.
 		0 	100% back ground color/transparent
 		255	100% front color
 
--------------------------------------------------------------------------------------*/
+-----------------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
-		int fontcolor, int transpcolor, int x0, int y0, int sym_code, int opaque)
+		int fontcolor, int transpcolor, int x0, int y0, unsigned int sym_code, int opaque)
 {
+	/* check data */
+	if( sym_page==NULL || (sym_page->data==NULL && sym_page->alpha==NULL) ) {
+		printf("%s: Input symbol page has no valid data inside.\n",__func__);
+		return;
+	}
+
 	int i,j;
-//	FBDEV *dev = fb_dev;
 	FBPIX fpix;
 	long int pos; /* offset position in fb map */
 	int xres=fb_dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
@@ -757,11 +762,13 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
 	unsigned char palpha=0;
-	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page */
-	int offset=sym_page->symoffset[sym_code];
+	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page, for FT2 sympage, it's NULL! */
+	int offset;
 	long poff;
 	int height=sym_page->symheight;
-	int width=sym_page->symwidth[sym_code];
+	int width;
+
+
 	//long int screensize=fb_dev->screensize;
 
 	/* check page */
@@ -771,9 +778,19 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 #endif
 
 	/* check sym_code */
-	if( sym_code < 0 || sym_code > sym_page->maxnum ) {
+	if( sym_code > sym_page->maxnum && sym_page->symtype!=symtype_FT2 ) {
 		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range! sympg->path: %s\n", sym_page->path);
 		return;
+	}
+
+	/* get symbol/font width, only 1 character in FT2 symbol page NOW!!! */
+	if(sym_page->symtype==symtype_FT2) {
+		width=sym_page->ftwidth;
+		offset=0;
+	}
+	else {
+		width=sym_page->symwidth[sym_code];
+		offset=sym_page->symoffset[sym_code];
 	}
 
 	/* get symbol pixel and copy it to FB mem */
@@ -855,15 +872,25 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				however, pos may also be out of FB screensize  */
 			pos=mapy*xres+mapx; 	/* in pixel, LCD fb mem position */
 			poff=offset+width*i+j; 	/* offset to pixel data */
-			pcolor=*(data+poff);   	/* get symbol pixel in page data */
+
 			if(sym_page->alpha)
 				palpha=*(sym_page->alpha+poff);  	/*  get alpha */
+
+			/* for FT font sympage, only alpah value */
+			if( data==NULL ) {
+				pcolor=WEGI_COLOR_BLACK;
+			}
+			/* get symbol pixel in page data */
+			else {
+				pcolor=*(data+poff);
+			}
 
 			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
 			   1.  alpha value exists.
 			   2.  OR(no transp. color applied)
 			   3.  OR (write only untransparent pixel)
+			   otherwise,if pcolor==transpcolor, DO NOT write to FB
 			*/
 			if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
@@ -956,7 +983,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		return;
 
 	/* if the symbol is font then use symbol back color as transparent tunnel */
-	//if(tspcolor >0 && sym_page->symtype == type_font )
+	//if(tspcolor >0 && sym_page->symtype == symtype_font )
 
 	/* transpcolor applied for both font and icon anyway!!! */
 	if(transpcolor>=0 && sym_page->bkcolor>=0 )
@@ -1032,7 +1059,7 @@ int  symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		return -2;
 
 	/* if the symbol is font then use symbol back color as transparent tunnel */
-	//if(tspcolor >0 && sym_page->symtype == type_font )
+	//if(tspcolor >0 && sym_page->symtype == symtype_font )
 
 	/* use bkcolor for both font and icon anyway!!! */
 	if(transpcolor>=0)
@@ -1322,6 +1349,10 @@ midaszhou@yahoo.com
 Load a ASCII symbol_page struct from a font file by calling FreeType2 libs.
 
 Note:
+0. This is for pure western ASCII alphabets font set.
+   For CJK font set, all alphabets are aligned with same baseline, so it's not necessary to calculate
+   symheight.
+
 1. Load ASCII characters from 0 - 127, bitmap data of all unprintable ASCII symbols( 0-31,127)
    will not be loaded to symfont_page, and their symwidths are set to 0 accordingly.
 
