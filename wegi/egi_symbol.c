@@ -1147,7 +1147,7 @@ int  symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, 
 		check_word=false;
 	}
 
-	/*  if current char is SPACE or RETURN, we set check_work again for NEXT WORD!!!!
+	/*  if current char is SPACE or NEXT_LINE, we set check_work again for NEXT WORD!!!!
 	 *  If current character is not SPACE/control_char, no need to check again.
 	 */
 	if( *p==' ' || *p=='\n' )
@@ -1350,9 +1350,6 @@ Load a ASCII symbol_page struct from a font file by calling FreeType2 libs.
 
 Note:
 0. This is for pure western ASCII alphabets font set.
-   For CJK font set, all alphabets are aligned with same baseline, so it's not necessary to calculate
-   symheight.
-
 1. Load ASCII characters from 0 - 127, bitmap data of all unprintable ASCII symbols( 0-31,127)
    will not be loaded to symfont_page, and their symwidths are set to 0 accordingly.
 
@@ -1596,7 +1593,7 @@ int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const c
 			slot->bitmap image, we divide symheight into 3 parts, with the mid part
 			equals bitmap.rows, and get alpha value accordingly.
 
-			ASSUME: bitmap start from hi=0 !!!
+			ASSUME: bitmap start from wi=0 !!!
 
 			variables range:: { hi: 0-symheight,   wi: 0-bbox_W }
 		*/
