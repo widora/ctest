@@ -94,7 +94,7 @@ while(1) {  ////////////////////////////////   LOOP TEST   /////////////////////
 	//ret=symbol_load_asciis_from_fontfile(&sympg_ascii, argv[1], 18, 18);
 	//ret=symbol_load_asciis_from_fontfile(&sympg_ascii, "/mmc/fonts/vera/Vera.ttf", 18, 18);
   //ret=symbol_load_asciis_from_fontfile( &sympg_ascii, "/mmc/fonts/hansans/SourceHanSansSC-Regular.otf", 18, 18);
-  ret=symbol_load_asciis_from_fontfile( &sympg_ascii, "/mmc/fonts/liber/LiberationMono-Regular.ttf", 18, 18);
+  ret=FTsymbol_load_asciis_from_fontfile( &sympg_ascii, "/mmc/fonts/liber/LiberationMono-Regular.ttf", 18, 18);
 	if(ret) {
 		exit(1);
 	}

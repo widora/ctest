@@ -36,6 +36,7 @@ xtp2046.c	touch controller interface funcs
 egi.c		concept ebox functions
 egi_color.c	color definition and conversion functions
 egi_symbol.c	fonts/icons/symbols...definition and functions
+egi_FTsymbol.c  FreeType2 fonts functions
 egi_bmpjpg.c	funcs for processing bmp and jpg files
 egi_timer.c	timer and delay 
 egi_debug.c	for debug

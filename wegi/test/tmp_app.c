@@ -49,6 +49,7 @@ Midas Zhou
 #include "egi_bjp.h"
 //#include "dict.h"
 #include "egi_symbol.h"
+#include "egi_FTsymbol.h"
 #include "egi_objlist.h"
 #include "egi_iwinfo.h"
 #include "egi_touch.h"
@@ -423,7 +424,14 @@ int main(int argc, char **argv)
 		dict_writeFB_symb20x15(&gv_fb_dev,1,(30<<11|45<<5|10),i,30+i*15,320-40);
 #endif
 
-	if(symbol_load_allpages() !=0 ) exit(-2);
+	printf("Start load symbol page...\n");
+	if( symbol_load_allpages() !=0 ) 
+		exit(-2);
+	printf("Start load FTsymbol page...\n");
+	if( FTsymbol_load_allpages() !=0 ) {
+		printf("Fail to load FT symbol pages!\n");
+		exit(-2);
+	}
 
 #if 0
 	/*------------------ Load Symbols ------------------*/

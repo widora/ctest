@@ -57,6 +57,7 @@ enum symbol_type
  *       1. For FT(FreeType2) wchar page, a symbl_page holds only one character. and many memebers
  *	    are not applicable then.
  */
+typedef struct symbol_page EGI_SYMPAGE;
 struct symbol_page
 {
 	/* symbol type, NOT used yet */
@@ -166,8 +167,6 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
 void symbol_rotate(const struct symbol_page *sym_page,	\
                                                  int x0, int y0, int sym_code);
 
-int  symbol_load_asciis_from_fontfile(	struct symbol_page *symfont_page, const char *font_path,
-				       	int Wp, int Hp );
 
 
 #endif
