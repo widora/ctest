@@ -141,6 +141,174 @@ char * cstr_trim_space(char *buf)
 	return ps;
 }
 
+
+
+/*-----------------------------------------------------------------------
+Get length of a character with UTF-8 encoding.
+
+@cp:	A pointer to a character with UTF-8 encoding.
+
+Note:
+1. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+2. If illegal coding is found...
+
+Return:
+	>0	OK, string length in bytes.
+	<0	Fails
+------------------------------------------------------------------------*/
+inline int cstr_charlen_uft8(const unsigned char *cp)
+{
+	if(cp==NULL)
+		return -1;
+
+	if(*cp < 0b10000000)
+		return 1;	/* 1 byte */
+	else if( *cp >= 0b11110000 )
+		return 4;	/* 4 bytes */
+	else if( *cp >= 0b11100000 )
+		return 3;	/* 3 bytes */
+	else if( *cp >= 0b11000000 )
+		return 2;	/* 2 bytes */
+	else
+		return -2;	/* unrecognizable starting byte */
+}
+
+
+
+/*-----------------------------------------------------------------------
+Get total number of characters in a string with UTF-8 encoding.
+
+@cp:	A pointer to a string with UTF-8 encoding.
+
+Note:
+1. Count all ASCII characters, both printables and unprintables.
+
+2. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+
+3. If illegal coding is found...
+
+Return:
+	>=0	OK, total numbers of character in the string.
+	<0	Fails
+------------------------------------------------------------------------*/
+int cstr_strcount_uft8(const unsigned char *pstr)
+{
+	unsigned char *cp;
+	int size;	/* in bytes, size of the character with UFT-8 encoding*/
+	int count;
+
+	if(pstr==NULL)
+		return -1;
+
+	cp=(unsigned char *)pstr;
+	count=0;
+	while(*cp) {
+		size=cstr_charlen_uft8(cp);
+		if(size>0) {
+			//printf("%d\n",*cp);
+			count++;
+			cp+=size;
+			continue;
+		}
+		else {
+		   printf("%s: WARNGING! unrecognizable starting byte for UFT-8. Try to skip it.\n",__func__);
+		   	cp++;
+		}
+	}
+
+	return count;
+}
+
+
+/*----------------------------------------------------------------------
+Convert a character from UFT-8 to UNICODE.
+
+@src:	A pointer to characters with UFT-8 encoding.
+@dest:	A pointer to mem space to hold converted characters with UNICODE.
+	The caller shall allocate enough space for dest.
+	!!!!TODO: Dest is now supposed to be in little-endian ordering. !!!!
+@n:	Number of characters expected to be converted.
+
+1. UTF-8 maps to UNICODE according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+
+2. If illegal coding is found...
+
+Return:
+	>0 	OK, bytes of src consumed and converted into unicode.
+	<0	Fails
+-----------------------------------------------------------------------*/
+inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
+{
+	unsigned char *cp; /* tmp to dest */
+	unsigned char *sp; /* tmp to src  */
+
+	int size;	/* in bytes, size of the character with UFT-8 encoding*/
+
+	if(src==NULL || dest==NULL )
+		return -1;
+
+	cp=(unsigned char *)dest;
+	sp=(unsigned char *)src;
+
+	size=cstr_charlen_uft8(src);
+
+	if(size<0) {
+		return size;	/* ERROR */
+	}
+
+	/* U+ 0000 - U+ 007F:	0XXXXXXX */
+	else if(size==1) {
+		*dest=0;
+		*cp=*src;	/* The LSB of wchar_t */
+	}
+
+	/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
+	else if(size==2) {
+		/*dest=0;*/
+		*dest= (*(sp+1)&0x3F) + ((*sp&0x1F)<<6);
+	}
+
+	/* U+ 0800 - U+ FFFF:	1110XXXX 10XXXXXX 10XXXXXX */
+	else if(size==3) {
+		*dest= (*(sp+2)&0x3F) + ((*(sp+1)&0x3F)<<6) + ((*sp&0xF)<<12);
+	}
+
+	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
+	else if(size==4) {
+		*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
+	}
+
+	return size;
+}
+
+
+
+
+
 /*----------------------------------------------------------------------------------
 Search given SECTION and KEY string in the config file, copy VALUE
 string to the char *value if found.

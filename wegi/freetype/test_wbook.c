@@ -110,501 +110,43 @@ midaszhou@yahoo.com
 #include FT_FREETYPE_H
 
 
-/*-----------------------------------------------------------------------------------------------
-1. Render a CJK character in UNICODE according to the specified face type, then write the bitmap
-   to FB.
-2. The caller shall check and skip unprintable symbols, and parse ASCII control codes.
-   This function only deal with symbol bitmap if it exists.
-3. Xleft will be subtrated by slot->advance.x first, then check, and write data to FB only if
-   Xleft >=0. However, if bitmap data is NULL for the input unicode, xleft will NOT be changed.
-4. Doundary box is defined as bbox_W=MAX(advanceX,bitmap.width) bbox_H=fh.
-5. CJK wchars may extrude the BBOX a little, and ASCII alphabets will extrude more, especially for
-   'j','g',..etc, so keep enough gap between lines.
-6. Or to get symheight just as in symbol_load_asciis_from_fontfile() as BBOX_H. However it's maybe
-   a good idea to display CJK and wester charatcters separately by calling differenct functions.
-   i.e. symbol_writeFB() for alphabets and symbol_unicode_writeFB() for CJKs.
-
-@fbdev:         FB device
-@face:          A face object in FreeType2 library.
-@fh,fw:		Height and width of the wchar.
-@wcode:		UNICODE number for the character.
-@xleft:		Pixel space left in FB X direction (horizontal writing)
-		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
-@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
-@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
-                <0       no transparent pixel
-
-@fontcolor:     font color(symbol color for a symbol)
-                >= 0,  use given font color.
-                <0  ,  use default color in img data.
-
-use following COLOR:
-#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
-#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
-
-@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
-			will be ignored.
-                <0      Use symbol alpha data, or none.
-                0       100% back ground color/transparent
-                255     100% front color
-
---------------------------------------------------------------------------------------------------*/
-void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
-				int x0, int y0, int fontcolor, int transpcolor,int opaque)
-{
-  	FT_Error      error;
-  	FT_GlyphSlot slot = face->glyph;
-	struct symbol_page ftsympg={0};	/* a symbol page to hold the character bitmap */
-	ftsympg.symtype=symtype_FT2;
-
-	int advanceX;   /* X advance in pixels */
-	int bbox_W;	/* boundary box width, taken bbox_H=fh */
-	int delX;	/* adjust bitmap position in boundary box, according to bitmap_top */
-	int delY;
-
-	/* set character size in pixels */
-	error = FT_Set_Pixel_Sizes(face, fw, fh);
-   	/* OR set character size in 26.6 fractional points, and resolution in dpi
-   	   error = FT_Set_Char_Size( face, 32*32, 0, 100,0 ); */
-	if(error) {
-		printf("%s: FT_Set_Pixel_Sizes() fails!\n",__func__);
-		return;
-	}
-
-	/* Do not set transform, keep up_right and pen position(0,0)
-    		FT_Set_Transform( face, &matrix, &pen ); */
-
-	/* Load char and render, old data in face->glyph will be cleared */
-    	error = FT_Load_Char( face, wcode, FT_LOAD_RENDER );
-    	if (error) {
-		printf("%s: FT_Load_Char() fails!\n");
-		return;
-	}
-
-	/* Assign alpha to ftsympg, Ownership IS NOT transfered! */
-	ftsympg.alpha 	  = slot->bitmap.buffer;
-	ftsympg.symheight = slot->bitmap.rows; //fh; /* font height in pixels is bigger than bitmap.rows! */
-	ftsympg.ftwidth   = slot->bitmap.width; /* ftwidth <= (slot->advance.x>>6) */
-
-	/* Check whether xleft is used up first. */
-	advanceX = slot->advance.x>>6;
-	bbox_W = (advanceX > slot->bitmap.width ? advanceX : slot->bitmap.width);
-
-	/* check bitmap data, we need bbox_W here */
-	if(ftsympg.alpha==NULL) {
-		printf("%s: Alpha data is NULL for unicode=%d\n", __func__, wcode);
-		draw_rect(fb_dev, x0, y0, x0+bbox_W, y0+fh );
-
-		/* ------ SPACE CONTROL ------
-		 * some font file may have NO bitmap data for them!
-	 	 * but it has bitmap.width and advanced defined.
-	 	 */
-		/* If a HALF/FULL Width SPACE */
-	//	if( wcode == 32 || wcode == 12288 ) {
-		       /* Maybe other unicode, it is supposed to have defined bitmap.width and advanceX */
-			*xleft -= bbox_W;
-	//	}
-			return;
-	}
-
-	/* reduce xleft */
-	*xleft -= bbox_W;
-	if( *xleft < 0 )
-		return;
-	/* taken bbox_H as fh */
-
-#if 0 /* ----TEST: Display Boundary BOX------- */
-	/* Note: Assume boundary box start from x0,y0(same as bitmap)
-	 */
-	draw_rect(fb_dev, x0, y0, x0+bbox_W, y0+fh );
-
-#endif
-	/* adjust bitmap position relative to boundary box */
-	delX= slot->bitmap_left;
-	delY= -slot->bitmap_top + fh;
-
-	/* write to FB,  symcode =0, whatever  */
-	symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
-}
-
-
-/*-----------------------------------------------------------------------
-Get length of a character with UTF-8 encoding.
-
-@cp:	A pointer to a character with UTF-8 encoding.
-
-Note:
-1. UTF-8 maps to UNICODE according to following relations:
-				(No endianess problem for UTF-8 conding)
-
-	   --- UNICODE ---	      --- UTF-8 CODING ---
-	U+  0000 - U+  007F:	0XXXXXXX
-	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
-	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
-	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
-
-2. If illegal coding is found...
-
-Return:
-	>0	OK, string length in bytes.
-	<0	Fails
-------------------------------------------------------------------------*/
-inline int cstr_charlen_uft8(const unsigned char *cp)
-{
-	if(cp==NULL)
-		return -1;
-
-	if(*cp < 0b10000000)
-		return 1;	/* 1 byte */
-	else if( *cp >= 0b11110000 )
-		return 4;	/* 4 bytes */
-	else if( *cp >= 0b11100000 )
-		return 3;	/* 3 bytes */
-	else if( *cp >= 0b11000000 )
-		return 2;	/* 2 bytes */
-	else
-		return -2;	/* unrecognizable starting byte */
-}
-
-
-
-/*-----------------------------------------------------------------------
-Get total number of characters in a string with UTF-8 encoding.
-
-@cp:	A pointer to a string with UTF-8 encoding.
-
-Note:
-1. Count all ASCII characters, both printables and unprintables.
-
-2. UTF-8 maps to UNICODE according to following relations:
-				(No endianess problem for UTF-8 conding)
-
-	   --- UNICODE ---	      --- UTF-8 CODING ---
-	U+  0000 - U+  007F:	0XXXXXXX
-	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
-	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
-	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
-
-
-3. If illegal coding is found...
-
-Return:
-	>=0	OK, total numbers of character in the string.
-	<0	Fails
-------------------------------------------------------------------------*/
-int cstr_strcount_uft8(const unsigned char *pstr)
-{
-	unsigned char *cp;
-	int size;	/* in bytes, size of the character with UFT-8 encoding*/
-	int count;
-
-	if(pstr==NULL)
-		return -1;
-
-	cp=(unsigned char *)pstr;
-	count=0;
-	while(*cp) {
-		size=cstr_charlen_uft8(cp);
-		if(size>0) {
-			//printf("%d\n",*cp);
-			count++;
-			cp+=size;
-			continue;
-		}
-		else {
-		   printf("%s: WARNGING! unrecognizable starting byte for UFT-8. Try to skip it.\n",__func__);
-		   	cp++;
-		}
-	}
-
-	return count;
-}
-
-
-
-#if 0 /////////////////// OBSELET ///////////////////////
-int cstr_strlen_uft8(const unsigned char *pstr)
-{
-	unsigned char *cp;
-	int count=0;
-
-	if(cp==NULL)
-		return -1;
-
-	cp=(unsigned char *)pstr;
-	while(*cp) {
-		if( *cp>>7 == 0b0  ) {
-#if 0 /*------  Exclude some unprintable ASCIIs  -----*/
-	 		/* Only printable ASCII codes and NL(10), TAB.
-			 * 9-TAB, 10-NextLine(NL), 13-ENTER(ER), 127-DEL
-			 */
-			if( ( *cp>=' ' && *cp !=127 ) || *cp=='\n' || *cp==9 ) {
-				printf("offset=%d, ASCII: %d\n", cp-pstr, *cp);
-				count++;
-				cp++;
-			}
-#else /*------  Count all ASCIIs  -----*/
-			/* count in all ASCII codes */
-			count++;
-			cp++;
-
-#endif
-		}
-		else if ( *cp>>5 == 0b110 ) {
-			count++;
-			cp+=2; /* skip 2 byte to next starting byte */
-		}
-		else if (  *cp>>4 == 0b1110 ) {
-			count++;
-			cp+=3; /* skip 3 bytes */
-		}
-		else if ( *cp>>3 == 0b11110 ) {
-			count++;
-			cp+=4; /* skip 4 bytes */
-		}
-		/* Unrecognizable coding, carry on ... */
-		else {
-			printf("Warning!!! Unrecognizable starting byte 0x%x\n",(unsigned char)(*cp));
-			cp++;
-			continue;
-		}
-	}
-
-	return count;
-}
-#endif ///////////////////////////////////////////////////////////////
-
-
-/*----------------------------------------------------------------------
-Convert a character from UFT-8 to UNICODE.
-
-@src:	A pointer to characters with UFT-8 encoding.
-@dest:	A pointer to mem space to hold converted characters with UNICODE.
-	The caller shall allocate enough space for dest.
-	!!!!TODO: Dest is now supposed to be in little-endian ordering. !!!!
-@n:	Number of characters expected to be converted.
-
-1. UTF-8 maps to UNICODE according to following relations:
-				(No endianess problem for UTF-8 conding)
-
-	   --- UNICODE ---	      --- UTF-8 CODING ---
-	U+  0000 - U+  007F:	0XXXXXXX
-	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
-	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
-	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
-
-
-2. If illegal coding is found...
-
-Return:
-	>0 	OK, bytes of src consumed and converted into unicode.
-	<0	Fails
------------------------------------------------------------------------*/
-inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
-{
-	unsigned char *cp; /* tmp to dest */
-	unsigned char *sp; /* tmp to src  */
-
-	int size;	/* in bytes, size of the character with UFT-8 encoding*/
-
-	if(src==NULL || dest==NULL )
-		return -1;
-
-	cp=(unsigned char *)dest;
-	sp=(unsigned char *)src;
-
-	size=cstr_charlen_uft8(src);
-
-	if(size<0) {
-		return size;	/* ERROR */
-	}
-
-	/* U+ 0000 - U+ 007F:	0XXXXXXX */
-	else if(size==1) {
-		*dest=0;
-		*cp=*src;	/* The LSB of wchar_t */
-	}
-
-	/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
-	else if(size==2) {
-		/*dest=0;*/
-		*dest= (*(sp+1)&0x3F) + ((*sp&0x1F)<<6);
-	}
-
-	/* U+ 0800 - U+ FFFF:	1110XXXX 10XXXXXX 10XXXXXX */
-	else if(size==3) {
-		*dest= (*(sp+2)&0x3F) + ((*(sp+1)&0x3F)<<6) + ((*sp&0xF)<<12);
-	}
-
-	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
-	else if(size==4) {
-		*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
-	}
-
-	return size;
-}
-
-
-
-
-/*-----------------------------------------------------------------------------------------
-Write a string of charaters with unicode encoding to FB.
-
-
-
-@fbdev:         FB device
-@face:          A face object in FreeType2 library.
-@fh,fw:		Height and width of the wchar.
-@pwstr:         pointer to a wchar_t string.
-@xleft:		Pixel space left in FB X direction (horizontal writing)
-		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
-@pixpl:         pixels per line.
-@lines:         number of lines available.
-@gap:           space between two lines, in pixel.
-@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
-
-@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
-                <0       no transparent pixel
-
-@fontcolor:     font color(symbol color for a symbol)
-                >= 0,  use given font color.
-                <0  ,  use default color in img data.
-
-use following COLOR:
-#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
-#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
-
-@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
-			will be ignored.
-                <0      Use symbol alpha data, or none.
-                0       100% back ground color/transparent
-                255     100% front color
-
-
-return:
-                >=0     bytes write to FB
-                <0      fails
---------------------------------------------------------------------------------------------------*/
-int  FTsymbol_strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const wchart_t *pwstr,
-			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
-                               int x0, int y0,
-			       int fontcolor, int transpcolor, int opaque )
-{
-	int size;
-	int gap;   /* line gap */
-	int offp;
- 	int xleft;
-	int px,py;
- 	int startx, starty;
- 	wchar_t wcstr[1];
-
-
-
-
-
-//void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
-//				int x0, int y0, int fontcolor, int transpcolor,int opaque)
-
-}
-
-
-
-/* ---------------     FT_GlyphSlot   ----------------------
-
-typedef struct FT_GlyphSlotRec_*  FT_GlyphSlot;
-typedef struct  FT_GlyphSlotRec_
-  {
-    FT_Library        library;
-    FT_Face           face;
-    FT_GlyphSlot      next;
-    FT_UInt           reserved;       	retained for binary compatibility
-    FT_Generic        generic;
-    FT_Glyph_Metrics  metrics;
-    FT_Fixed          linearHoriAdvance;
-    FT_Fixed          linearVertAdvance;
-    FT_Vector         advance;
-    FT_Glyph_Format   format;
-    FT_Bitmap         bitmap;
-    FT_Int            bitmap_left;
-    FT_Int            bitmap_top;
-    FT_Outline        outline;
-    FT_UInt           num_subglyphs;
-    FT_SubGlyph       subglyphs;
-    void*             control_data;
-    long              control_len;
-    FT_Pos            lsb_delta;
-    FT_Pos            rsb_delta;
-    void*             other;
-    FT_Slot_Internal  internal;
-  } FT_GlyphSlotRec;
----------------------------------------------*/
-
 int main( int  argc,   char**  argv )
 {
-  FT_Library    library;
-  FT_Face       face;		/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
-  FT_Face	face2;
-  FT_CharMap*   pcharmaps=NULL;
-  char		tag_charmap[6]={0};
-  uint32_t	tag_num;
-
-  FT_GlyphSlot  slot;
-  FT_Matrix     matrix;         /* transformation matrix */
-  FT_Vector     pen;            /* untransformed origin  */
-  int		line_starty;    /* starting pen Y postion for rotated lines */
-  FT_BBox	bbox;		/* Boundary box */
-  FT_Error      error;
-
-  char*         font_path;
-
-  char**	fpaths;
-  int		count;
-  char**	picpaths;
-  int		pcount;
-
   EGI_16BIT_COLOR font_color;
-  int		glyph_index;
-  int		deg; /* angle in degree */
-  double        angle;
-  int           n, num_chars;
   int 		i,j,k;
-  int		np;
-  uint32_t	ku; 	/* for unicode increament */
-  float		step;
   int		ret;
-
 
   int fd;
   int fsize;
   struct stat sb;
   unsigned char *fp;
-  int nread;
 
-  unsigned char *text;
-  int size;
+  wchar_t *wbook=L"人心生一念，天地尽皆知。善恶若无报，乾坤必有私。\
+　　那菩萨闻得此言，满心欢喜，对大圣道：“圣经云：‘出其言善。\
+　　则千里之外应之；出其言不善，则千里之外适之。’你既有此心，待我到了东土大唐国寻一个取经的人来，教他救你。你可跟他做个徒弟，秉教伽持，入我佛门。再修正果，如何？”大圣声声道：“愿去！愿去！”菩萨道：“既有善果，我与你起个法名。”大圣道：“我已有名了，叫做孙悟空。”菩萨又喜道：“我前面也有二人归降，正是‘悟’字排行。你今也是‘悟’字，却与他相合，甚好，甚好。这等也不消叮嘱，我去也。”那大圣见性明心归佛教，这菩萨留情在意访神谱。\
+　　他与木吒离了此处，一直东来，不一日就到了长安大唐国。敛雾收云，师徒们变作两个疥癫游憎，入长安城里，竟不觉天晚。行至大市街旁，见一座土地庙祠，二人径进，唬得那土地心慌，鬼兵胆战。知是菩萨，叩头接入。那土地又急跑报与城隍社令及满长安城各庙神抵，都来参见，告道：“菩萨，恕众神接迟之罪。”菩萨道：“汝等不可走漏消息。我奉佛旨，特来此处寻访取经人。借你庙宇，权住几日，待访着真僧即回。”众神各归本处，把个土地赶到城隍庙里暂住，他师徒们隐遁真形。\
+　　毕竟不知寻出那个取经来，且听下回分解。";
+
   int fh,fw; /* font Height,Width */
+  int lines;
+  int pixpl;
   int gap;   /* line gap */
   int offp;
   int xleft;
-  int px,py;
-  int startx, starty;
+  int x0,y0;
+  int tx0;
   int wtotal;
-  wchar_t wcstr[25]={0};
+  int nwrite;
 
-
-  EGI_IMGBUF  *eimg=NULL;
-  eimg=egi_imgbuf_new();
-
-  EGI_IMGBUF *logo_img=egi_imgbuf_new();
-  if( egi_imgbuf_loadpng("/mmc/logo_openwrt.png", logo_img) )
-		return -1;
-  EGI_IMGBUF *pinguin_img=egi_imgbuf_new();
-  if( egi_imgbuf_loadpng("/mmc/pinguin.png", pinguin_img) )
-		return -1;
+  EGI_IMGBUF *logo_img=NULL;
+  EGI_IMGBUF *penguin_img=NULL;
 
 
         /* EGI general init */
         tm_start_egitick();
+
+while(1) { ///////////////////////  LOOP TEST  ////////////////////////
+
         if(egi_init_log("/mmc/log_wbook") != 0) {
                 printf("Fail to init logger, quit.\n");
                 return -1;
@@ -625,10 +167,18 @@ int main( int  argc,   char**  argv )
 		return -3;
 	}
 
+	/* load png to imgbuf */
+	logo_img=egi_imgbuf_new();
+  	if( egi_imgbuf_loadpng("/mmc/tang2.png", logo_img) )
+		return -1;
+	penguin_img=egi_imgbuf_new();
+  	if( egi_imgbuf_loadpng("/mmc/penguin2.png", penguin_img) )
+		return -1;
 
 
 	/* open wchar book file */
 	fd=open("/mmc/xyj_uft8.txt",O_RDONLY);
+//	fd=open("/home/memo.txt",O_RDONLY);
 	if(fd<0) {
 		perror("open file");
 		return -1;
@@ -646,155 +196,85 @@ int main( int  argc,   char**  argv )
 		return -3;
 	}
 
-/*--------- TEST: */
-  printf("'\\n\':%d; '\\r':%d\n", '\n','\r');
+        /* --- TITLE --- */
+        wchar_t* title =L"大 唐 西 游 记";
 
-   /* buff all png file path */
-   picpaths=egi_alloc_search_files("/mmc/pic", ".png", &pcount); /* NOTE: path for fonts */
-   printf("Totally %d png files are found.\n",pcount);
-   if(pcount==0) exit(1);
+	/* get total wchars in the book */
+ 	wtotal=cstr_strcount_uft8(fp);
+	printf(" Total %d characters in the book.\n",wtotal);
 
-  /* Init eimg before load FTbitmap, old data erased if any. */
-//   egi_imgbuf_init(eimg, 320, 240);
+   EGI_PLOG(LOGLV_CRITICAL,"---------- ebook START --------\n");
 
-   /* load a pic to EGI_IMGBUF as for backgroup */
-#if 0
-   ret=egi_imgbuf_loadpng( picpaths[np], eimg);
-   if(ret!=0) {
-	printf(" Fail to load png file '%s'\n", picpaths[np]);
-	continue;
-   }
-   else {
-	printf(" png '%s', HxW=%dx%d \n", picpaths[np], eimg->height, eimg->width);
-   }
-#endif
-
-
-
-while(1) {  //////////////////  WBOOK  LOOP TEST     ///////////////////////
-
-  //printf( "size k=%d, wcslen=%d, wcstr:'%s'\n", k, wcslen(wcstr), wcstr);
-  offp=0;
-  xleft=240;
-  starty=10;
-  py=starty;
-  fh=20;fw=18;
-  gap=5;
-
-	/* set font color */
-	font_color= WEGI_COLOR_BLACK; //egi_color_random(color_all);
+   fw=18; fh=20;
+   offp=0;
+   lines=10;
+   gap=5;
+   x0=5;y0=60;
+   do {
 	/* clear screen */
 	clear_screen(&gv_fb_dev, 0xfff9); //0x0679); //COLOR_COMPLEMENT_16BITS(font_color));
 
-
-  /* get total wchars in the book */
-  wtotal=cstr_strcount_uft8(fp);
-  printf(" Total wchar: %d\n",wtotal);
-
-  EGI_PLOG(LOGLV_CRITICAL,"---------- Start ebook --------\n");
-
-  for ( n = 0; n < wtotal; n++ )	/* load wchar and process one by one */
-  {
-///////////////////    TEST: symbol_unicode_writeFB()   /////////////////////
-
-	/* start a new page if py gets end */
-	if(py>=320-fh-gap) {
-		tm_delayms(3000);
-		py=starty; xleft=240;
-		clear_screen(&gv_fb_dev, 0xfff9); //0x0679);
+        /* Ajust params according to FB pos_rotate */
+        fbset_color(WEGI_COLOR_BLACK);
+        if(gv_fb_dev.pos_rotate % 2) {
+	        /* Clear title zone */
+                draw_filled_rect2(&gv_fb_dev, 0x0679, 0, 0, 319, 50 ); /* pos_rotate= 1,3 */
+	        /* Draw dividing lines */
+                draw_wline_nc(&gv_fb_dev , 0, 50, 319, 50, 1); /* 1 width */
+		lines=7;
+		pixpl=320;
+		tx0=85;
+	}
+        else {
+	        /* Clear title zone */
+                draw_filled_rect2(&gv_fb_dev, 0x0679, 0,0, 239, 50 );  /* pos_rotate= 0,2 */
+	        /* Draw dividing lines */
+                draw_wline_nc(&gv_fb_dev , 0, 50, 239, 50, 1); /* 1 width */
+		lines=10;
+		pixpl=240;
+		tx0=45;
 	}
 
-	/* convert one character to unicode */
-	size=char_uft8_to_unicode(fp+offp, wcstr);
+	/* write book title  */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.bold,  /* FBdev, fontface */
+					   25, 25, title,		/* fw,fh, pstr */
+                               		   pixpl-45, 1,  gap,		/* pixpl, lines, gap */
+                               		   tx0, 8,			/* x0,y0, */
+                               		   WEGI_COLOR_BLACK, -1, -1); 	/* fontcolor, stranscolor,opaque */
 
-/* ----TEST: print ASCII code */
-	if(size==1)
-		printf("ASCII code: %d \n",*wcstr);
-/*-----TEST END----*/
+	/* write book content: UFT-8 string to FB */
+//	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
+					   fw, fh, wbook+offp, //fp+offp,	/* fw,fh, pstr */
+                               		   pixpl-x0, lines,  gap,		/* pixpl, lines, gap */
+                               		   x0, y0,			/* x0,y0, */
+                               		   WEGI_COLOR_BLACK, -1, -1); 	/* fontcolor, stranscolor,opaque */
+	printf("nwrite=%d bytes\n",nwrite);
+	offp+=nwrite;
 
-	/* shift offset to next wchar */
-	if(size>0) {
-		offp+=size;
-	}
-	else {	/* if fail, step forward to locate next recognizable unicode wchar */
-		offp++;
-		continue;
-	}
+	/* Dispay EGI_IMGBUF */
+	egi_imgbuf_windisplay(penguin_img, &gv_fb_dev, -1, 0, 0, 0, 0, penguin_img->width, penguin_img->height);
+	egi_imgbuf_windisplay2(logo_img, &gv_fb_dev, 0, 0, 30, 80, logo_img->width, logo_img->height);
 
-	/* If return to next line */
-	if(*wcstr=='\n') {
-		printf("ASCII code: Next Line\n");
-		/* change to next line, +gap */
-		xleft=240;
-		py+= fh+gap;
-		continue;
-	}
-	/* If other control code or DEL, skip it */
-	else if( *wcstr < 32 || *wcstr==127  ) {
-		printf(" code=%d\n", *wcstr);
-		continue;
-	}
+	tm_delayms(3000);
 
-	/* write unicode bitmap to FB, and get xleft renewed. */
-	symbol_unicode_writeFB(&gv_fb_dev, egi_sysfonts.regular, fw, fh, *wcstr, &xleft,
-							 240-xleft, py, font_color , -1, -1 );
+        /* reset pos_rotate */
+        gv_fb_dev.pos_rotate +=1;
+        if(gv_fb_dev.pos_rotate==4)
+                gv_fb_dev.pos_rotate=0;
 
-	/* check whether current line space is used up */
-	if(xleft<=0) {
-		if(xleft<0) /* if not written, reel back offp */
-			offp-=size;
-		/* change to next line, +gap */
-		xleft=240;
-		py+= fh+gap;
-		continue;
-	}
+   } while(nwrite>0);
 
-//	tm_delayms(300);
+   EGI_PLOG(LOGLV_CRITICAL,"---------- ebook END --------\n");
 
-//////////////////////   END TEST  symbol_unicode_writeFB()  ///////////////////
-
-  }
-  EGI_PLOG(LOGLV_CRITICAL,"---------- ebook END--------\n");
-
-
-/*-------------------------------------------------------------------------------------------
-int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
-                                        int xp, int yp, int xw, int yw, int winw, int winh);
-// no subcolor, no FB filo
-int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
-                                        int xp, int yp, int xw, int yw, int winw, int winh);
-----------------------------------------------------------------------------------------------*/
 
 	/* put a logo */
 //	egi_imgbuf_blend_imgbuf(eimg, 0, -10, logo_img);
 //	egi_imgbuf_blend_imgbuf(eimg, 240-85, 320-85, pinguin_img);
 
-
-	/* Dispay EGI_IMGBUF */
-	//egi_imgbuf_windisplay2(eimg, &gv_fb_dev, 0, 0, 0, 0, eimg->width, eimg->height);
-
-	 tm_delayms(5000);
-
-}  ////////////////     END LOOP TEST     /////////////////
-
-
-FT_FAILS:
-  FT_Done_Face    ( face );
-  FT_Done_Face    ( face2 );
-  FT_Done_FreeType( library );
-
-//}
-
-/* >>>>>>>>>>>>>>>>>  END FONTS DEMON TEST  >>>>>>>>>>>>>>>>>>>> */
-
- 	/* free fpaths buffer */
-//        egi_free_buff2D((unsigned char **) fpaths, count);
-        egi_free_buff2D((unsigned char **) picpaths, pcount);
-
 	/* free EGI_IMGBUF */
-	egi_imgbuf_free(eimg);
 	egi_imgbuf_free(logo_img);
-	egi_imgbuf_free(pinguin_img);
+	egi_imgbuf_free(penguin_img);
 
 	/* unmap and close fd */
 	munmap(fp, fsize);
@@ -802,12 +282,14 @@ FT_FAILS:
 
 FONT_FAILS:
 	/* Release EGI fonts */
-	FTsymbol_load_library(&egi_sysfonts);
+	FTsymbol_release_library(&egi_sysfonts);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);
         symbol_release_allpages();
         egi_quit_log();
+
+ }  ///////////////////////  LOOP TEST  END  ////////////////////////
 
   return 0;
 }

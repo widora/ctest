@@ -38,8 +38,22 @@ extern EGI_FONTS  egi_sysfonts;
 
 int 	FTsymbol_load_library( EGI_FONTS *symlib );
 void 	FTsymbol_release_library( EGI_FONTS *symlib );
-int  	FTsymbol_load_asciis_from_fontfile( EGI_SYMPAGE *symfont_page, const char *font_path, int Wp, int Hp );
 int	FTsymbol_load_allpages(void);
 void 	FTsymbol_release_allpages(void);
+int  	FTsymbol_load_asciis_from_fontfile( EGI_SYMPAGE *symfont_page, const char *font_path, int Wp, int Hp );
+
+void 	symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
+				int x0, int y0, int fontcolor, int transpcolor,int opaque);
+
+int  	FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const wchar_t *pwchar,
+			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
+                               int x0, int y0,
+			       int fontcolor, int transpcolor, int opaque );
+
+int  	FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const char *pstr,
+			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
+                               int x0, int y0,
+			       int fontcolor, int transpcolor, int opaque );
+
 
 #endif

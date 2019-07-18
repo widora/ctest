@@ -518,3 +518,361 @@ FT_FAILS:
 }
 
 
+/*-----------------------------------------------------------------------------------------------
+1. Render a CJK character presented in UNICODE with the specified face type, then write the 
+   bitmap to FB.
+2. The caller shall check and skip unprintable symbols, and parse ASCII control codes.
+   This function only deal with symbol bitmap if it exists.
+3. Xleft will be subtrated by slot->advance.x first, then check, and write data to FB only if
+   Xleft >=0. However, if bitmap data is NULL for the input unicode, xleft will NOT be changed.
+4. Doundary box is defined as bbox_W=MAX(advanceX,bitmap.width) bbox_H=fh.
+5. CJK wchars may extrude the BBOX a little, and ASCII alphabets will extrude more, especially for
+   'j','g',..etc, so keep enough gap between lines.
+6. Or to get symheight just as in symbol_load_asciis_from_fontfile() as BBOX_H. However it's maybe
+   a good idea to display CJK and wester charatcters separately by calling differenct functions.
+   i.e. symbol_writeFB() for alphabets and symbol_unicode_writeFB() for CJKs.
+
+@fbdev:         FB device
+@face:          A face object in FreeType2 library.
+@fh,fw:		Height and width of the wchar.
+@wcode:		UNICODE number for the character.
+@xleft:		Pixel space left in FB X direction (horizontal writing)
+		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
+@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
+@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       no transparent pixel
+
+@fontcolor:     font color(symbol color for a symbol)
+                >= 0,  use given font color.
+                <0  ,  use default color in img data.
+
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
+
+@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
+			will be ignored.
+                <0      Use symbol alpha data, or none.
+                0       100% back ground color/transparent
+                255     100% front color
+
+--------------------------------------------------------------------------------------------------*/
+void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
+				int x0, int y0, int fontcolor, int transpcolor,int opaque)
+{
+  	FT_Error      error;
+  	FT_GlyphSlot slot = face->glyph;
+	struct symbol_page ftsympg={0};	/* a symbol page to hold the character bitmap */
+	ftsympg.symtype=symtype_FT2;
+
+	int advanceX;   /* X advance in pixels */
+	int bbox_W;	/* boundary box width, taken bbox_H=fh */
+	int delX;	/* adjust bitmap position in boundary box, according to bitmap_top */
+	int delY;
+
+	/* set character size in pixels */
+	error = FT_Set_Pixel_Sizes(face, fw, fh);
+   	/* OR set character size in 26.6 fractional points, and resolution in dpi
+   	   error = FT_Set_Char_Size( face, 32*32, 0, 100,0 ); */
+	if(error) {
+		printf("%s: FT_Set_Pixel_Sizes() fails!\n",__func__);
+		return;
+	}
+
+	/* Do not set transform, keep up_right and pen position(0,0)
+    		FT_Set_Transform( face, &matrix, &pen ); */
+
+	/* Load char and render, old data in face->glyph will be cleared */
+    	error = FT_Load_Char( face, wcode, FT_LOAD_RENDER );
+    	if (error) {
+		printf("%s: FT_Load_Char() fails!\n");
+		return;
+	}
+
+	/* Assign alpha to ftsympg, Ownership IS NOT transfered! */
+	ftsympg.alpha 	  = slot->bitmap.buffer;
+	ftsympg.symheight = slot->bitmap.rows; //fh; /* font height in pixels is bigger than bitmap.rows! */
+	ftsympg.ftwidth   = slot->bitmap.width; /* ftwidth <= (slot->advance.x>>6) */
+
+	/* Check whether xleft is used up first. */
+	advanceX = slot->advance.x>>6;
+	bbox_W = (advanceX > slot->bitmap.width ? advanceX : slot->bitmap.width);
+
+	/* check bitmap data, we need bbox_W here */
+	if(ftsympg.alpha==NULL) {
+//		printf("%s: Alpha data is NULL for unicode=%d\n", __func__, wcode);
+//		draw_rect(fb_dev, x0, y0, x0+bbox_W, y0+fh );
+
+		/* ------ SPACE CONTROL ------
+		 * some font file may have NO bitmap data for them!
+	 	 * but it has bitmap.width and advanced defined.
+	 	 */
+		/* If a HALF/FULL Width SPACE */
+		//if( wcode == 32 || wcode == 12288 ) {
+		/* Maybe other unicode, it is supposed to have defined bitmap.width and advanceX */
+			*xleft -= bbox_W;
+		//}
+			return;
+	}
+
+	/* reduce xleft */
+	*xleft -= bbox_W;
+	if( *xleft < 0 )
+		return;
+	/* taken bbox_H as fh */
+
+#if 0 /* ----TEST: Display Boundary BOX------- */
+	/* Note: Assume boundary box start from x0,y0(same as bitmap)
+	 */
+	draw_rect(fb_dev, x0, y0, x0+bbox_W, y0+fh );
+
+#endif
+	/* adjust bitmap position relative to boundary box */
+	delX= slot->bitmap_left;
+	delY= -slot->bitmap_top + fh;
+
+	/* write to FB,  symcode =0, whatever  */
+	symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
+}
+
+
+
+/*-----------------------------------------------------------------------------------------
+Write a string of wchar_t(unicodes) to FB.
+
+TODO: Alphabetic words are treated letter by letter, and they may be separated at the end of
+      a line, so it looks not good.
+
+
+@fbdev:         FB device
+@face:          A face object in FreeType2 library.
+@fh,fw:		Height and width of the wchar.
+@pwchar:        pointer to a string of wchar_t.
+@xleft:		Pixel space left in FB X direction (horizontal writing)
+		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
+@pixpl:         pixels per line.
+@lines:         number of lines available.
+@gap:           space between two lines, in pixel. may be minus.
+@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
+
+@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       no transparent pixel
+
+@fontcolor:     font color(symbol color for a symbol)
+                >= 0,  use given font color.
+                <0  ,  use default color in img data.
+
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
+
+@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
+			will be ignored.
+                <0      Use symbol alpha data, or none.
+                0       100% back ground color/transparent
+                255     100% front color
+
+
+return:
+                >=0     number of wchat_t write to FB
+                <0      fails
+------------------------------------------------------------------------------------------------*/
+int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const wchar_t *pwchar,
+			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
+                               int x0, int y0,
+			       int fontcolor, int transpcolor, int opaque )
+{
+	int px,py;		/* bitmap insertion origin(BBOX left top), relative to FB */
+	wchar_t *p=(wchar_t *)pwchar;
+        int xleft; 	/* available pixels remainded in current line */
+        unsigned int ln; 	/* lines used */
+
+	/* check input data */
+	if( pixpl==0 || lines==0 || pwchar==NULL )
+		return -1;
+
+	px=x0;
+	py=y0;
+	xleft=pixpl;
+	ln=0;
+
+	while( *p ) {
+
+		/* --- check whether lines are used up --- */
+		if( ln > lines-1) {
+			return p-pwchar;
+		}
+
+		/* CONTROL ASCII CODE:
+		 * If return to next line
+		 */
+		if(*p=='\n') {
+//			printf("%s: ASCII code: Next Line\n", __func__);
+			/* change to next line, +gap */
+			ln++;
+			xleft=pixpl;
+			py+= fh+gap;
+			continue;
+		}
+		/* If other control codes or DEL, skip it */
+		else if( *p < 32 || *p==127  ) {
+//			printf("%s: ASCII control code: %d\n", *p,__func__);
+			continue;
+		}
+
+		/* write unicode bitmap to FB, and get xleft renewed. */
+		px=x0+pixpl-xleft;
+		symbol_unicode_writeFB(fb_dev, face, fw, fh, *p, &xleft,
+							 px, py, fontcolor, transpcolor, opaque );
+
+		/* --- check line space --- */
+		if(xleft<=0) {
+			if(xleft<0) { /* NOT writeFB, reel back pointer p */
+				p--;
+			}
+			/* change to next line, +gap */
+			ln++;
+			xleft=pixpl;
+			py+= fh+gap;
+		}
+
+		p++;
+
+	} /* end while() */
+
+	return p-pwchar;
+}
+
+
+/*-----------------------------------------------------------------------------------------
+Write a string of charaters with UFT-8 encoding to FB.
+
+TODO: Alphabetic words are treated letter by letter, and they may be separated at the end of
+      a line, so it looks not good.
+
+
+@fbdev:         FB device
+@face:          A face object in FreeType2 library.
+@fh,fw:		Height and width of the wchar.
+@pstr:          pointer to a string with UTF-8 encoding.
+@xleft:		Pixel space left in FB X direction (horizontal writing)
+		Xleft will be subtrated by slot->advance.x first anyway, If xleft<0 then, it aborts.
+@pixpl:         pixels per line.
+@lines:         number of lines available.
+@gap:           space between two lines, in pixel. may be minus.
+@x0,y0:		Left top coordinate of the character bitmap,relative to FB coord system.
+
+@transpcolor:   >=0 transparent pixel will not be written to FB, so backcolor is shown there.
+                <0       no transparent pixel
+
+@fontcolor:     font color(symbol color for a symbol)
+                >= 0,  use given font color.
+                <0  ,  use default color in img data.
+
+use following COLOR:
+#define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
+#define SYM_NOTRANSP_COLOR -1  --- no transparent color defined for a symbol or font
+
+@opaque:        >=0     set aplha value (0-255) for all pixels, and alpha data in sympage
+			will be ignored.
+                <0      Use symbol alpha data, or none.
+                0       100% back ground color/transparent
+                255     100% front color
+
+
+return:
+                >=0     bytes write to FB
+                <0      fails
+------------------------------------------------------------------------------------------------*/
+int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const char *pstr,
+			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
+                               int x0, int y0,
+			       int fontcolor, int transpcolor, int opaque )
+{
+	int size;
+	int count;		/* number of character written to FB*/
+	int px,py;		/* bitmap insertion origin(BBOX left top), relative to FB */
+	char *p=(char *)pstr;
+        int xleft; 	/* available pixels remainded in current line */
+        unsigned int ln; 	/* lines used */
+ 	wchar_t wcstr[1];
+
+	/* check input data */
+	if( pixpl==0 || lines==0 || pstr==NULL )
+		return -1;
+
+	px=x0;
+	py=y0;
+	xleft=pixpl;
+	count=0;
+	ln=0;
+
+	while( *p ) {
+
+		/* --- check whether lines are used up --- */
+		if( ln > lines-1) {
+			printf("%s: %d characters written to FB.\n", __func__, count);
+			return p-pstr;
+		}
+
+		/* convert one character to unicode, return size of utf-8 code */
+		size=char_uft8_to_unicode(p, wcstr);
+
+#if 0 /* ----TEST: print ASCII code */
+		if(size==1) {
+			printf("ASCII code: %d \n",*wcstr);
+		}
+#endif /*-----TEST END----*/
+
+		/* shift offset to next wchar */
+		if(size>0) {
+			p+=size;
+			count++;
+		}
+		else {	/* if fail, step 1 byte forward to locate next recognizable unicode wchar */
+			p++;
+			continue;
+		}
+
+		/* CONTROL ASCII CODE:
+		 * If return to next line
+		 */
+		if(*wcstr=='\n') {
+//			printf("ASCII code: Next Line\n");
+			/* change to next line, +gap */
+			ln++;
+			xleft=pixpl;
+			py+= fh+gap;
+			continue;
+		}
+		/* If other control codes or DEL, skip it */
+		else if( *wcstr < 32 || *wcstr==127  ) {
+//			printf(" ASCII control code: %d\n", *wcstr);
+			continue;
+		}
+
+		/* write unicode bitmap to FB, and get xleft renewed. */
+		px=x0+pixpl-xleft;
+		symbol_unicode_writeFB(fb_dev, face, fw, fh, wcstr[0], &xleft,
+							 px, py, fontcolor, transpcolor, opaque );
+
+		/* --- check line space --- */
+		if(xleft<=0) {
+			if(xleft<0) { /* NOT writeFB, reel back pointer p */
+				p-=size;
+				count--;
+			}
+			/* change to next line, +gap */
+			ln++;
+			xleft=pixpl;
+			py+= fh+gap;
+		}
+
+	} /* end while() */
+
+	printf("%s: %d characters written to FB.\n", __func__, count);
+	return p-pstr;
+}
+
+
+
