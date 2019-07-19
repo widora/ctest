@@ -4,7 +4,8 @@ SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-OBJS = ../iot/egi_iotclient.o
+OBJS =
+OBJ_IOT = ../iot/egi_iotclient.o
 
 CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils  -I../iot
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
@@ -12,26 +13,36 @@ CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS  += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	=  -lepages -legi -lesound
+LIBS	=  -lepages -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic test_bigiot
+APPS = test_fb test_sym tmp_app test_pic
 
 all:	$(APPS)
 
-tmp:	tmp_app.c
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)
+tmp_app:	tmp_app.c
+#	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)  #--use shared egilib
+	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic	#---use static egilib
 
-test_bigiot:	test_bigiot.c  $(OBJS)
-	$(CC) -o test_bigiot test_bigiot.c $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)
+
+#### --- use dynamic and static libs in compilatoin!!! ---
+# 1. Exclude dynamic -legi first.
+# 2. Use -Wl,Bdynamic and -Wl,Bstatic to switch to dynamic/static libs
+# 3. At last, we must switch back to dynamic libs, as default for Linux system runtime setup.
+# 4. Source/obj files must be put before all -Wl.
+
+test_bigiot:	test_bigiot.c  $(OBJ_IOT)
+	$(CC) test_bigiot.c -o test_bigiot $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
 
 
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS !!!!
 %:%.c
-	$(CC) -o $@  $@.c $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)
+	$(CC) -o $@  $@.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)
 #	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)  $@.c -o $@
 
 clean:

@@ -13,7 +13,7 @@
 
 
 /* global variale, Frame buffer device */
-FBDEV   gv_fb_dev={ .fdfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
+FBDEV   gv_fb_dev={ .fbfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
 
 /*-------------------------------------
 Return:
@@ -25,27 +25,27 @@ int init_fbdev(FBDEV *fr_dev)
 //        FBDEV *fr_dev=dev;
 	int i;
 
-        if(fr_dev->fdfd>0) {
+        if(fr_dev->fbfd>0) {
            printf("Input FBDEV already open!\n");
            return -1;
         }
 
-        fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
+        fr_dev->fbfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
         if(fr_dev<0) {
           printf("Open /dev/fb0: %s\n",strerror(errno));
           return -1;
         }
         printf("Framebuffer device was opended successfully.\n");
-        ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
-        ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
+        ioctl(fr_dev->fbfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
+        ioctl(fr_dev->fbfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
 
         /* mmap FB */
         fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
-                                                                                        fr_dev->fdfd,0);
+                                                                                        fr_dev->fbfd,0);
         if(fr_dev->map_fb==MAP_FAILED) {
                 printf("Fail to mmap FB!\n");
-                close(fr_dev->fdfd);
+                close(fr_dev->fbfd);
                 return -2;
         }
 
@@ -58,7 +58,7 @@ int init_fbdev(FBDEV *fr_dev)
         if(fr_dev->fb_filo==NULL) {
                 printf("Fail to malloc FB FILO!\n");
                 munmap(fr_dev->map_fb,fr_dev->screensize);
-                close(fr_dev->fdfd);
+                close(fr_dev->fbfd);
                 return -3;
         }
         /* assign fb box */
@@ -96,8 +96,8 @@ void release_fbdev(FBDEV *dev)
 
         munmap(dev->map_fb,dev->screensize);
 
-        close(dev->fdfd);
-        dev->fdfd=-1;
+        close(dev->fbfd);
+        dev->fbfd=-1;
 }
 
 

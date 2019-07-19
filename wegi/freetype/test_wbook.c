@@ -155,17 +155,11 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
                 printf("Fail to load symbol pages, quit.\n");
                 return -2;
         }
-        if(FTsymbol_load_allpages() !=0 ) {
+        if(FTsymbol_load_allpages() !=0 ) {  /* and FT fonts LIBS */
                 printf("Fail to load FT symbol pages, quit.\n");
                 return -2;
         }
         init_fbdev(&gv_fb_dev);
-
-	/* init EGI FONTS */
-	if(FTsymbol_load_library(&egi_sysfonts)!=0) {
-		printf("Fail to load EGI sysfonts!\n");
-		return -3;
-	}
 
 	/* load png to imgbuf */
 	logo_img=egi_imgbuf_new();
@@ -244,7 +238,7 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 
 	/* write book content: UFT-8 string to FB */
 //	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
-	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.special, //regular,  /* FBdev, fontface */
 					   fw, fh, wbook+offp, //fp+offp,	/* fw,fh, pstr */
                                		   pixpl-x0, lines,  gap,		/* pixpl, lines, gap */
                                		   x0, y0,			/* x0,y0, */
@@ -267,7 +261,6 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 
    EGI_PLOG(LOGLV_CRITICAL,"---------- ebook END --------\n");
 
-
 	/* put a logo */
 //	egi_imgbuf_blend_imgbuf(eimg, 0, -10, logo_img);
 //	egi_imgbuf_blend_imgbuf(eimg, 240-85, 320-85, pinguin_img);
@@ -282,11 +275,12 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 
 FONT_FAILS:
 	/* Release EGI fonts */
-	FTsymbol_release_library(&egi_sysfonts);
+//	FTsymbol_release_library(&egi_sysfonts);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);
         symbol_release_allpages();
+	FTsymbol_release_allpages();
         egi_quit_log();
 
  }  ///////////////////////  LOOP TEST  END  ////////////////////////

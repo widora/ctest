@@ -46,30 +46,34 @@ int init_fbdev(FBDEV *dev)
 {
         FBDEV *fr_dev=dev;
 
-	if(fr_dev->fdfd>0) {
+	if(fr_dev->fbfd>0) {
 	   printf("Input FBDEV already open!\n");
 	   return -1;
 	}
 
-        fr_dev->fdfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
+        fr_dev->fbfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
 	if(fr_dev<0) {
 	  printf("Open /dev/fb0: %s\n",strerror(errno));
 	  return -1;
 	}
 
         printf("Framebuffer device was opended successfully.\n");
-        ioctl(fr_dev->fdfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
-        ioctl(fr_dev->fdfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
+        ioctl(fr_dev->fbfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
+        ioctl(fr_dev->fbfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
 
 	/* mmap FB */
         fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
-											fr_dev->fdfd,0);
+											fr_dev->fbfd,0);
 	if(fr_dev->map_fb==MAP_FAILED) {
 		printf("Fail to mmap FB!\n");
-		close(fr_dev->fdfd);
+		close(fr_dev->fbfd);
 		return -2;
 	}
+
+	/* reset pixcolor and pixalpha */
+	fr_dev->pixcolor=(30<<11)|(10<<5)|10;
+	fr_dev->pixalpha=255;
 
 	/* init fb_filo */
 	fr_dev->filo_on=0;
@@ -77,7 +81,7 @@ int init_fbdev(FBDEV *dev)
 	if(fr_dev->fb_filo==NULL) {
 		printf("Fail to malloc FB FILO!\n");
 		munmap(dev->map_fb,dev->screensize);
-		close(fr_dev->fdfd);
+		close(fr_dev->fbfd);
 		return -3;
 	}
 
@@ -124,8 +128,8 @@ void release_fbdev(FBDEV *dev)
 	}
 
 	/* close FB dev file */
-	close(dev->fdfd);
-	dev->fdfd=-1;
+	close(dev->fbfd);
+	dev->fbfd=-1;
 }
 
 
@@ -437,10 +441,11 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 	}
 #endif
 
+	/* data location of the point pixel */
         location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
 
-	/* push to FB FILO */
+	/* push old data to FB FILO */
 	if(fr_dev->filo_on)
         {
                 fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
@@ -455,7 +460,19 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 		return -1;
 	}
 
-        *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
+	/* assign FB pixel data */
+	if(fr_dev->pixalpha==255) {	/* if 100% front color */
+	        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+	}
+	else {	/* otherwise, blend with original color */
+		fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
+					     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
+					      fr_dev->pixalpha );		     /* Alpha value */
+	        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+	}
+
+	/* reset alpha to 255 as default */
+	fr_dev->pixalpha=255;
 
 	return 0;
 }

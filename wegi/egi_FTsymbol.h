@@ -31,6 +31,10 @@ struct FTsymbol_library {
 	/* Regular type */
         FT_Face         bold;
 	char 		*fpath_bold;
+
+	/* Special type */
+        FT_Face         special;
+	char 		*fpath_special;
 };
 
 extern EGI_SYMPAGE sympg_ascii; /* default  LiberationMono-Regular */

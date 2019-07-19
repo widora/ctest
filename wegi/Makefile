@@ -2,10 +2,10 @@ export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr/
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
+AR= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ar
 LD= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-ld
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
-
 
 #### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
@@ -34,6 +34,7 @@ CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -Wall -O2 -fPIC
 CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
+
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG
 
@@ -43,16 +44,24 @@ LIBS = -ljpeg -lm -lpthread #-ljson-c -lasound
 LIBS += -lfreetype  -lm -lz -lbz2
 
 #### ------ 手动设置特定目标生成规则  ------
-egi_lib: $(OBJS)
+
+all: shared_egilib static_egilib
+
+shared_egilib: $(OBJS)
 	$(LD) -shared -soname libegi.so.1 $(OBJS) -o libegi.so.1.0.0
 
-install: libegi.so.1.0.0
+# 1. Bewear of the order of the lib and objs.
+# 2. Note!!! All libs here are compiled with -fPIC option.
+static_egilib: $(OBJS)
+	$(AR) rcv libegi.a $(OBJS)
+
+install: libegi.so.1.0.0 libegi.a
 	cd $(SRC_PATH)
+	cp -rf libegi.a ./lib/libegi.a
 	cp -rf libegi.so.1.0.0 ./lib/libegi.so.1.0.0
 	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so.1
 	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so
-	rm libegi.so.1.0.0
-
+	rm libegi.so.1.0.0 libegi.a
 
 #### ----- 目标文件自动生成规则 -----
 %:%.c $(DEP_FILES)

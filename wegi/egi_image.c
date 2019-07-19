@@ -309,12 +309,6 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                 /* image data location */
                                 locimg= (i+yp)*imgw+(j+xp);
 
-                                /*  FB from EGI_IMGBUF */
-//replaced by draw_dor()        *(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
-
-//                             /*  ---- draw_dot(), only within screen  ---- */
-//                             if( locfb <= (screen_pixels-1) ) {
-
 				if(subcolor<0) {
 	                                fbset_color(*(uint16_t *)(imgbuf+locimg));
 				}
@@ -353,17 +347,14 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                         else {
                                 /* image data location, 2 bytes per pixel */
                                 locimg= (i+yp)*imgw+(j+xp);
-                                /*  FB from EGI_IMGBUF */
-//replaced by draw_dor()        *(uint16_t *)(fbp+locfb)=*(uint16_t *)(imgbuf+locimg/bytpp);
-
-//                            /*  ---- draw_dot() only within screen  ---- */
-//                            if(  locfb>=0 && locfb<screen_pixels ) {
 
                                 if(alpha[locimg]==0) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */
                                         //fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
                                 }
+
 				else if(subcolor<0) {	/* ---- No subcolor ---- */
+#if 0  ///////////////////////////// replaced by fb.pxialpha ///////////////////////
                                      if(alpha[locimg]==255) {    /* 100% front color */
                                           fbset_color(*(uint16_t *)(imgbuf+locimg));
 				     }
@@ -374,10 +365,15 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                                              alpha[locimg]  )               /* alpha value */
                                              );
                                      }
+#endif  ///////////////////////////////////////////////////////////////////////////
+				     fb_dev->pixalpha=alpha[locimg];
+				     fbset_color(*(uint16_t *)(imgbuf+locimg));
                                      draw_dot(fb_dev,j+xw,i+yw);
 
 				}
+
 				else  {  		/* ---- use subcolor ----- */
+#if 0  ///////////////////////////// replaced by fb.pxialpha ////////////////////////
                                     if(alpha[locimg]==255) {    /* 100% subcolor as front color */
                                           fbset_color(subcolor);
 				     }
@@ -388,7 +384,10 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                                              alpha[locimg]  )               /* alpha value */
                                              );
                                      }
-                                     draw_dot(fb_dev,j+xw,i+yw);  
+#endif  //////////////////////////////////////////////////////////////////////////
+				     fb_dev->pixalpha=alpha[locimg];
+				     fbset_color(subcolor);
+                                     draw_dot(fb_dev,j+xw,i+yw);
 				}
 
                             }

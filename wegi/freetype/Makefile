@@ -16,7 +16,7 @@ LDFLAGS += -L../lib
 #libblobmsg_json.so  libjson_script.so  libubox.so
 #LIBS   += -lubus -lubox -lblobmsg_json -ljson_script -ljson-c
 LIBS    = -lfreetype  -lm -lz -lbz2
-LIBS    += -lepages -legi -lesound
+LIBS    += -lepages -lesound
 LIBS    += -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS    += -lcurl -lssl -lcrypto -pthread
 LIBS    += -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
@@ -25,19 +25,19 @@ LIBS    += -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 all:	 test_freetype get_sympgHeight test_asciibook test_wchar test_wbook
 
 test_freetype:	test_freetype.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_freetype.c -o test_freetype
+	$(CC) $(CFLAGS) $(LDFLAGS) -legi $(LIBS) $(OBJ) test_freetype.c -o test_freetype
 
 test_asciibook:	test_asciibook.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_asciibook.c -o test_asciibook
+	$(CC) $(CFLAGS) $(LDFLAGS) -legi $(LIBS) $(OBJ) test_asciibook.c -o test_asciibook
 
 get_sympgHeight: get_sympgHeight.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) get_sympgHeight.c -o get_sympgHeight
+	$(CC) $(CFLAGS) $(LDFLAGS) -legi $(LIBS) $(OBJ) get_sympgHeight.c -o get_sympgHeight
 
 test_wchar:	test_wchar.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_wchar.c -o test_wchar
+	$(CC) $(CFLAGS) $(LDFLAGS) -legi $(LIBS) $(OBJ) test_wchar.c -o test_wchar
 
-test_wbook:	test_wbook.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJ) test_wbook.c -o test_wbook
+test_wbook:	test_wbook.c  ../lib/libegi.a  # link LIBEGI statically.
+	$(CC) test_wbook.c $(CFLAGS) $(LDFLAGS) $(OBJS) -Wl,-Bstatic -legi -Wl,-Bdynamic $(LIBS) -o test_wbook
 
 clean:
 	rm -rf *.o test_freetype test_asciibook get_sympgHeight test_wchar test_wbook

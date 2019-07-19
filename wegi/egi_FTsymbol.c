@@ -8,6 +8,7 @@ Midas Zhou
 -------------------------------------------------------------------*/
 #include "egi_FTsymbol.h"
 #include "egi_symbol.h"
+#include "egi_cstring.h"
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 #include <arpa/inet.h>
@@ -17,29 +18,57 @@ Midas Zhou
 
 struct symbol_page sympg_ascii={0}; /* default  LiberationMono-Regular */
 
-EGI_FONTS  egi_sysfonts =
+EGI_FONTS  egi_sysfonts = {0};
+#if 0
 {
-	.fpath_regular ="/mmc/fonts/hansans/SourceHanSansSC-Normal.otf",
-	.fpath_light   ="/mmc/fonts/hansans/SourceHanSansSC-ExtraLight.otf",
-	.fpath_bold    ="/mmc/fonts/hansans/SourceHanSansSC-Bold.otf",
+	.fpath_regular ="SourceHanSansSC-Normal.otf",
+	.fpath_light   ="SourceHanSansSC-ExtraLight.otf",
+	.fpath_bold    ="SourceHanSansSC-Bold.otf",
+	.fpath_special ="SourceHanSansSC-Bold.otf"
 };
+#endif
 
-
-/*-------------------------------------
-    Load all FT type symbol pages
+/*-----------------------------------------
+Load all FT type symbol pages and fonts Lib
 return:
 	0	OK
 	<0	Fails
-------------------------------------*/
+-----------------------------------------*/
 int  FTsymbol_load_allpages(void)
 {
 	int ret=0;
+	char fpath_regular[256]={0};
+	char fpath_light[256]={0};
+	char fpath_bold[256]={0};
+	char fpath_special[256]={0};
+	char fpath_ascii[256]={0};
 
         /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
-        ret=FTsymbol_load_asciis_from_fontfile( &sympg_ascii,
-                                "/mmc/fonts/liber/LiberationMono-Regular.ttf", 18, 18);
+	if ( egi_get_config_value("EGI_FONTS","ascii",fpath_ascii) != 0)
+        	return -1;
+        if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
+		return -2;
 
-	return ret;
+	/* read egi.conf and get fonts paths */
+	if ( egi_get_config_value("EGI_FONTS","regular",fpath_regular) != 0)
+        	return -3;
+	if ( egi_get_config_value("EGI_FONTS","light",fpath_light) != 0)
+        	return -4;
+	if ( egi_get_config_value("EGI_FONTS","bold",fpath_bold) != 0)
+        	return -5;
+	if ( egi_get_config_value("EGI_FONTS","special",fpath_special) != 0)
+        	return -6;
+
+	egi_sysfonts.fpath_regular=fpath_regular;
+	egi_sysfonts.fpath_light=fpath_light;
+	egi_sysfonts.fpath_bold=fpath_bold;
+	egi_sysfonts.fpath_special=fpath_special;
+
+	/* load FT library with default fonts */
+	ret=FTsymbol_load_library( &egi_sysfonts );
+	if(ret)	return -7;
+
+	return 0;
 }
 
 /* --------------------------------------
@@ -49,8 +78,11 @@ void FTsymbol_release_allpages(void)
 {
         /* release FreeType2 symbol page */
       	symbol_release_page(&sympg_ascii);
-	if(sympg_ascii.symwidth!=NULL)
+	if(sympg_ascii.symwidth!=NULL)		/* !!! */
 		free(sympg_ascii.symwidth);
+
+	/* release FT fonts libraries */
+	FTsymbol_release_library(&egi_sysfonts);
 }
 
 
@@ -105,7 +137,7 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 		goto FT_FAIL;
         }
 
-	/* 4. create face object: Light */
+	/* 4. create face object: Bold */
         error = FT_New_Face( symlib->library, symlib->fpath_bold, 0, &symlib->bold );
         if(error==FT_Err_Unknown_File_Format) {
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
@@ -117,12 +149,26 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 		goto FT_FAIL;
         }
 
+	/* 5. create face object: Special */
+        error = FT_New_Face( symlib->library, symlib->fpath_special, 0, &symlib->special );
+        if(error==FT_Err_Unknown_File_Format) {
+                printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
+								__func__, symlib->fpath_special);
+		goto FT_FAIL;
+        }
+        else if ( error ) {
+                printf("%s: Fail to open or read font file '%s'.\n",__func__, symlib->fpath_special);
+		goto FT_FAIL;
+        }
+
+
 	return 0;
 
 FT_FAIL:
  	FT_Done_Face    ( symlib->regular );
   	FT_Done_Face    ( symlib->light );
   	FT_Done_Face    ( symlib->bold );
+  	FT_Done_Face    ( symlib->special );
   	FT_Done_FreeType( symlib->library );
 
 	return error;
@@ -140,8 +186,8 @@ void FTsymbol_release_library( EGI_FONTS *symlib )
  	FT_Done_Face    ( symlib->regular );
   	FT_Done_Face    ( symlib->light );
   	FT_Done_Face    ( symlib->bold );
+	FT_Done_Face	( symlib->special );
   	FT_Done_FreeType( symlib->library );
-
 }
 
 
