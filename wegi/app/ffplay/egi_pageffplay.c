@@ -40,6 +40,7 @@ Midas Zhou
 #include <signal.h>
 
 #include "egi_common.h"
+#include "egi_FTsymbol.h"
 #include "egi_ffplay.h"
 
 /* icon code for button symbols */
@@ -106,7 +107,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 					        48*i, 320-(60-5), /* int x0, int y0 */
 						48, 60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
-		       				egi_color_random(medium) /*int prmcolor, for geom button only. */
+		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
 		if(ffplay_btns[i]==NULL)

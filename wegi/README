@@ -21,22 +21,22 @@ Some concepts:
 
 NOTE:
 1. Difference between OpenWRT uClibc and Glibc may cause some trouble!?
-2. In uClibc calling malloc(0) returns NULL, while Glibc returs a vlid pointer? same
+2. In uClibc calling malloc(0) returns NULL, while Glibc returs a valid pointer? same
    situation for realloc().
-3. uClibc runs on MMU-less systems.
+3. uClibc can run on MMU-less systems.
 
 
 
-Please see basic ebox concept in egi.h and egi.c, see symbol concept in symbol.c.
+Please see basic ebox concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 
-	----- main source files ( GPL ) -----
+	----- main source files ( GPL v2 ) -----
 
 egi_fbgeom.c	fb and basic geometry functions
 xtp2046.c	touch controller interface funcs
 egi.c		concept ebox functions
 egi_color.c	color definition and conversion functions
 egi_symbol.c	fonts/icons/symbols...definition and functions
-egi_FTsymbol.c  FreeType2 fonts functions
+egi_FTsymbol.c  FreeType2 fonts handling functions
 egi_bmpjpg.c	funcs for processing bmp and jpg files
 egi_timer.c	timer and delay 
 egi_debug.c	for debug
@@ -52,10 +52,10 @@ egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
 egi_slider.c	type_slier ebox, for sliding bar.
 egi_list.c	type_list ebox
-egi_iwinfo.c	wifi info. extraction
 egi_pic.c	type_pic ebox
+egi_iwinfo.c	wifi info. extraction
 
-sys_list.h	from list operation derived from kernel codes. 
+sys_list.h	from list operation derived from Linux kernel codes. 
 
 egi_objtxt.c	type_txt objects creation functions
 egi_objlist.c   list objects 
@@ -73,7 +73,7 @@ he_weather.c		API for www.heweather.com
 
 --- APPS ----
 app_ffplay.c + egi_pageffplay.c		
-
+app_ebook.c + page_ebook.c
 
 
 Dependency Libs:

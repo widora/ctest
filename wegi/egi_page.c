@@ -1,11 +1,10 @@
-/*--------------------------------------------------------------------
+/*-------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Midas Zhou
----------------------------------------------------------------------*/
+--------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +20,7 @@ Midas Zhou
 #include "egi_bjp.h"
 #include "egi_touch.h"
 #include "egi_log.h"
+
 
 /*---------------------------------------------
 init a egi page
@@ -427,6 +427,7 @@ int egi_page_activate(EGI_PAGE *page)
 	int ret=0;
 	int xres __attribute__((__unused__))=gv_fb_dev.vinfo.xres;
 	int yres __attribute__((__unused__))=gv_fb_dev.vinfo.yres;
+	EGI_IMGBUF *imgbuf;
 
 	/* check data */
 	if(page==NULL || page->ebox==NULL)
@@ -445,10 +446,47 @@ int egi_page_activate(EGI_PAGE *page)
 	page->ebox->status=status_active;
 
         /* !!!!! in page->ebox.refresh(), the page->fpath will NOT be seen and handled, it's a page method.
-	load a picture or use prime color as wallpaper*/
-        if(page->fpath != NULL)
-                show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+	 *	load a picture or use prime color as wallpaper
+	 *       We have to refresh page element(wallpaper) here, NOT in egi_page_refresh().
+	 */
 
+        if( page->fpath != NULL) {
+                //show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+
+		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
+
+		/* Also see egi_page_refresh(EGI_PAGE *page) */
+		/* load a picture or use prime color as wallpaper */
+		if(page->fpath != NULL) {
+			//show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+	        	imgbuf=egi_imgbuf_new();
+		        /* First try to load as PNG file */
+			printf("%s: Try to load as PNG file ...\n",__func__);
+		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {
+        		        printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
+				/* Then try to load as JPG file */
+                		if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
+                        		printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
+                		}
+                		else {
+                        		printf("%s: Finish loading JPG file as page wallpaper.\n",__func__);
+                		}
+        		}
+	        	else {
+                       		printf("%s: Finish loading PNG file as page wallpaper.\n",__func__);
+        		}
+			/* Display it */
+			if(imgbuf->imgbuf != NULL)  {
+				/* no subcolor, no FB filo */
+   				egi_imgbuf_windisplay2(imgbuf, &gv_fb_dev, 0, 0, 0, 0,
+								imgbuf->width, imgbuf->height);
+			}
+			/* free imgbuf */
+			EGI_PDEBUG(DBG_PAGE,"egi_imgbuf_free(imgbuf)...\n");
+                        egi_imgbuf_free(imgbuf);
+		}
+	}
         else /* use ebox prime color to clear(fill) screen */
         {
 		if( page->ebox->prmcolor >= 0)
@@ -494,6 +532,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	int ret=1; /* set 1 first! */
 	int xres __attribute__((__unused__))=gv_fb_dev.vinfo.xres;
 	int yres __attribute__((__unused__))=gv_fb_dev.vinfo.yres;
+	EGI_IMGBUF  *imgbuf;
 
 	/* check data */
 	if( page==NULL || page->ebox==NULL )
@@ -507,12 +546,39 @@ int egi_page_refresh(EGI_PAGE *page)
 	if(page->ebox->need_refresh)
 	{
 		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
-		//EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
 
-		/* load a picture or use prime color as wallpaper*/
-		if(page->fpath != NULL)
-			show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+		/* Also see egi_page_activate(EGI_PAGE *page) */
+		/* load a picture or use prime color as wallpaper */
+		if(page->fpath != NULL) {
+			//show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
+	        	imgbuf=egi_imgbuf_new();
+		        /* First try to load as PNG file */
+			printf("%s: Try to load as PNG file ...\n",__func__);
+		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {
+        		        printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
+				/* Then try to load as JPG file */
+                		if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
+                        		printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
+                		}
+                		else {
+                        		printf("%s: Finish loading JPG file as page wallpaper.\n",__func__);
+                		}
+        		}
+	        	else {
+                       		printf("%s: Finish loading PNG file as page wallpaper.\n",__func__);
+        		}
 
+			/* Display it */
+			if(imgbuf->imgbuf != NULL)  {
+				/* no subcolor, no FB filo */
+   				egi_imgbuf_windisplay2(imgbuf, &gv_fb_dev, 0, 0, 0, 0,
+								imgbuf->width, imgbuf->height);
+			}
+			/* free imgbuf */
+			EGI_PDEBUG(DBG_PAGE,"egi_imgbuf_free(imgbuf)...\n");
+                        egi_imgbuf_free(imgbuf);
+		}
 		else /* use ebox prime color to clear(fill) screen */
 		{
 			if( page->ebox->prmcolor >= 0)
@@ -585,12 +651,12 @@ int egi_page_flag_needrefresh(EGI_PAGE *page)
 }
 
 
-/*--------------------------------------------------------------
+/*-----------------------------------------------
 Set all eboxes in a page to be need_refresh=true
 return:
 	0	OK
 	<0	fails
-----------------------------------------------------------------*/
+-----------------------------------------------*/
 int egi_page_needrefresh(EGI_PAGE *page)
 {
 	struct list_head *tnode;
@@ -625,7 +691,7 @@ int egi_page_needrefresh(EGI_PAGE *page)
 }
 
 
-/*----------------------------------------------------------------------------------
+/*--------------------------------------------------------
 pick a btn or slider pointer by its type and id number
 
 @page	a page struct holding eboxes.
@@ -635,7 +701,7 @@ pick a btn or slider pointer by its type and id number
 return:
 	pointer 	OK
 	NULL		fails,or no match
------------------------------------------------------------------------------------*/
+--------------------------------------------------------*/
 EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
 {
 	struct list_head *tnode;
@@ -673,7 +739,7 @@ EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int
 }
 
 
-/*----------------------------------------------------------------------------------
+/*--------------------------------------------------------------
 pick a ebox pointer by its type and id number
 
 @page	a page struct holding eboxes.
@@ -683,7 +749,7 @@ pick a ebox pointer by its type and id number
 return:
 	pointer 	OK
 	NULL		fails, or no match
------------------------------------------------------------------------------------*/
+-----------------------------------------------------------------*/
 EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int id)
 {
 	struct list_head *tnode;
@@ -726,14 +792,13 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 }
 
 
-
-/*-----------------------------------------------------
-default page routine job
+/*----------------------------------
+Default page routine job
 
 return:
 	loop or >=0  	OK
 	<0		fails
------------------------------------------------------*/
+----------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
 	int i;
@@ -770,12 +835,14 @@ int egi_page_routine(EGI_PAGE *page)
 	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
 	/* 3. load page runner threads */
-	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag);
+	EGI_PDEBUG(DBG_PAGE,"start to load PAGE [%s]'s runner...\n",page->ebox->tag);
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
 	{
 		if( page->runner[i] !=0 )
 		{
 			/* launch Runners in order */
+			EGI_PDEBUG(DBG_PAGE,"Start creating runner: pthreadID[%d]=%u ...\n",
+							__func__,i,(unsigned int)page->threadID[i] );
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
@@ -790,6 +857,7 @@ int egi_page_routine(EGI_PAGE *page)
 		}
 	}
 	/* Initiate thread mutex locks, NOTE: also for egi_pagehome_routine() */
+	EGI_PDEBUG(DBG_PAGE,"Start to initiate thread mutex lock for page runners.\n");
 	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
 		return -1;
@@ -983,13 +1051,13 @@ int egi_page_routine(EGI_PAGE *page)
 }
 
 
-/*-----------------------------------------------------
+/*--------------------------------------
 Home page routine job
 
 return:
 	loop or >=0  	OK
 	<0		fails
------------------------------------------------------*/
+--------------------------------------*/
 int egi_homepage_routine(EGI_PAGE *page)
 {
 	int i;
@@ -1036,6 +1104,8 @@ int egi_homepage_routine(EGI_PAGE *page)
 		if( page->runner[i] !=0 )
 		{
 			/* launch Runners in order */
+			EGI_PDEBUG(DBG_PAGE,"Start creating runner: pthreadID[%d]=%u ...\n",
+							__func__,i,(unsigned int)page->threadID[i] );
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
@@ -1050,6 +1120,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		}
 	}
 	/* Initiate thread mutex locks, NOTE: also for egi_page_routine() */
+	EGI_PDEBUG(DBG_PAGE,"Start to initiate thread mutex lock for page runners.\n");
 	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
 		return -1;

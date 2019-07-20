@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------------
+/*-------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -7,9 +7,10 @@ Color classification method:
 	Douglas.R.Jacobs' RGB Hex Triplet Color Chart
   	http://www.jakesan.com
 
+TODO: GAMMA CORRECTION for TFT LCD.
 
 Midas Zhou
-----------------------------------------------------------------------*/
+-------------------------------------------------------------------*/
 #ifndef	__EGI_COLOR_H__
 #define __EGI_COLOR_H__
 

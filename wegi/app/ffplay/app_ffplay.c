@@ -3,7 +3,7 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-A EGI APP program for FFPLAY.
+An EGI APP program for FFPLAY.
 
    [  EGI_UI ]
 	|
@@ -17,7 +17,7 @@ A EGI APP program for FFPLAY.
 				|
 	        		|____ [ UI_PAGE ] egi_pageffplay.c
 							|
-							|_____ [ OBJ_FUNC ] egi_ffplay.c
+							|_____ [ extern OBJ FILE ] egi_ffplay.c
 
 
 Midas Zhou
@@ -25,6 +25,7 @@ midaszhou@yahoo.com
 ---------------------------------------------------------------------------------------*/
 #include "egi_common.h"
 #include "egi_ffplay.h"
+#include "egi_FTsymbol.h"
 #include "egi_pageffplay.h"
 #include <signal.h>
 #include <sys/types.h>
@@ -173,7 +174,6 @@ int main(int argc, char **argv)
         /*  ---  0. assign signal actions  --- */
 	assign_signal_actions();
 
-
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
         if(egi_init_log("/mmc/egi_log") != 0) {
@@ -185,6 +185,13 @@ int main(int argc, char **argv)
                 ret=-2;
 		goto FF_FAIL;
         }
+	/* FTsymbol needs more memory, disable it if not necessary */
+        if(FTsymbol_load_allpages() !=0 ) {
+                printf("Fail to load sym pages,quit.\n");
+                ret=-2;
+		goto FF_FAIL;
+        }
+	/* Init FB device */
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */
         SPI_Open();/* for touch_spi dev  */
@@ -194,6 +201,8 @@ int main(int argc, char **argv)
                 ret=-3;
 		goto FF_FAIL;
         }
+
+
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
@@ -220,7 +229,7 @@ int main(int argc, char **argv)
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
 		                                                app_name,page_ffplay->ebox->tag);
 
-	tm_delayms(200); /* let LOG finish */
+	tm_delayms(200); /* let page log_calling finish */
 
         egi_page_free(page_ffplay);
 	ret=pgret_OK;
@@ -228,14 +237,14 @@ int main(int argc, char **argv)
 	/* free FFLAY_CONTEXT */
 	egi_free_ffplayCtx();
 
-
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);
+        FTsymbol_release_allpages();
         symbol_release_allpages();
 	SPI_Close();
         egi_quit_log();
 
-	/* NOTE: APP ends, screen need refresh by the father process!! */
+	/* NOTE: APP ends, screen to be refreshed by the parent process!! */
 	return ret;
 
 }
