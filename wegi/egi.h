@@ -19,6 +19,7 @@ midaszhou@yahoo.com
 #include "egi_image.h"
 #include "egi_color.h"
 #include "egi_filo.h"
+//#include <freetype2/ft2build.h>
 
 #define EGI_NOPRIM_COLOR -1 /* Do not draw primer color for an egi object */
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
@@ -120,7 +121,7 @@ enum egi_retval
 	btnret_IDLE, 			/* trigger no reaction, just bypass btn reaction func */
 	btnret_REQUEST_EXIT_PAGE, 	/* return to request the host page to exit */
 
-	pgret_OK,			/* page routine normally quit and free  */
+	pgret_OK,			/* page return ok */
 
 };
 
@@ -340,16 +341,27 @@ struct egi_data_txt
 	unsigned int id; /* unique id number for txt, MUST>0, default 0 for ignored  */
 	int offx; 	/* offset from ebox x0,y0 */
 	int offy;
+	uint16_t color; /* txt color */
 	int nl;  	/* number of txt lines, make it as big as possible?? */
+
+	/* for ASCII alphabet txt */
+	struct symbol_page *font;
+	char **txt; 	/*multiline txt data */
 	int llen; 	/* in byte, number of chars for each line. The total pixel number
-	   	   	 * of those chars should not exceeds ebox->width, or it may display in a roll-back way.
+	   	   	 * of those chars should not exceeds ebox->width, xxx or it may display in
+			 * a roll-back way.
 	 	   	 */
 
-	struct symbol_page *font;
-	uint16_t color; /* txt color */
-	char **txt; 	/*multiline txt data */
+	/* for FreeType UNICODE txt */
+	FT_Face font_type;
+	wchar_t *wtxt;	/* txt in UNICODE */
+	int pixpl;	/* in pixels, pixels per line, length of a line. */
+	int fw;		/* nominal font width in pixels, including min. horizontal gaps between wchars. */
+	int fh;		/* nominal font height in pixels, including min. vertical gaps between lines. */
+	int gap;	/* adjusting gap between lines */
 
-	/* ...For txt file operaton... */
+
+	/* For txt file operaton */
 	char *fpath; 	/* txt file path if applys */
 	long foff; 	/* current seek position of the txt file.
 			 * sizeof(long) is the time_size of filo_off

@@ -23,7 +23,7 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
 #define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
-#define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))  //1111,1000,0000,0000 //111,1110,0000
+#define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))
 
 
 /* get 16bit complementary colour for a 16bit color
@@ -31,16 +31,23 @@ typedef uint32_t			 EGI_24BIT_COLOR;
  */
 #define COLOR_COMPLEMENT_16BITS(rgb)	 ( 0xFFFF-rgb )
 
-/* front_color(16bits), background_color(16bits), alpha channel value(0-255) */
-/* TODO: GAMMA CORRECTION(?) */
-#define COLOR_16BITS_BLEND(front, back, alpha)							\
-		COLOR_RGB_TO16BITS (								\
+/*  MACRO 16bit color blend
+ *  front_color(16bits), background_color(16bits), alpha channel value(0-255)
+ *  TODO: GAMMA CORRECTION
+ */
+
+#define COLOR_16BITS_BLEND(front, back, alpha)	\
+		 COLOR_RGB_TO16BITS (							\
 			  ( ((front&0xF800)>>8)*alpha + ((back&0xF800)>>8)*(255-alpha) )/255, 	\
 			  ( ((front&0x7E0)>>3)*alpha + ((back&0x7E0)>>3)*(255-alpha) )/255,   	\
 			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
-		)
+			)									\
 
 
+/*------------------------------------------------------------------
+	  	16bit color blend function
+--------------------------------------------------------------------*/
+inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha);
 
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)

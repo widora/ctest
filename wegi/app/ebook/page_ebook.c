@@ -28,18 +28,19 @@ page creation jobs:
 [Y266-Y319]
 {0,266}, {240-1, 320-1}         --- Buttons
 
-
 TODO:
 
-
 Midas Zhou
+midaszhou@yahoo.com
 -------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 #include "egi_common.h"
+#include "egi_cstring.h"
 #include "egi_FTsymbol.h"
 #include "page_ebook.h"
 
@@ -63,6 +64,97 @@ static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_decorate(EGI_EBOX *ebox);
+
+
+/* ebook file */
+static int fd=-1;;
+static int fsize;
+static struct stat sb;
+static const unsigned char *fp;
+/* ebook displaying */
+static wchar_t *title=L"《西 游 记》";
+static  int fh,fw; /* font Height,Width */
+static  int lines;
+static  int pixpl;
+static  int gap;   /* line gap */
+static  int offp;
+static  int x0,y0;
+static  int wtotal;
+static  int nwrite;
+static  bool refresh_ebook;
+
+
+/*----------------------------------------------------------
+ for page->page_refresh_misc()
+ Remind that we are at page_refresh_misc(), which is carried
+ out at last of page refresh operation
+----------------------------------------------------------*/
+static int page_refresh_ebook(EGI_PAGE *page)
+{
+
+    /* 1. If (fd<0) open and mmap file */
+    if(fd<0) {
+
+	/* init params */
+   	x0=5;
+	y0=30;
+   	fw=19;
+	fh=19;
+	pixpl=240-x0;
+	offp=0;
+   	lines=12;
+   	gap=5;
+
+        /* 1.1 open wchar book file */
+        fd=open("/mmc/xyj_uft8.txt",O_RDONLY);
+        if(fd<0) {
+                perror("---open file---");
+                return -1;
+        }
+        /* 1.2 obtain file stat */
+        if( fstat(fd,&sb)<0 ) {
+                perror("---fstat---");
+                return -2;
+        }
+        fsize=sb.st_size;
+        /* 1.3 mmap txt file */
+        fp=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+        if(fp==MAP_FAILED) {
+                perror("---mmap---");
+                return -3;
+        }
+        /* 1.4 get total wchars in the book */
+        wtotal=cstr_strcount_uft8(fp);
+        printf("%s: --------Total %d characters in the book.\n",__func__, wtotal);
+
+        /* 1.5 write book title  */
+        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.bold,  	/* FBdev, fontface */
+                                          35, 35, title,               	/* fw,fh, pstr */
+                                          240, 1,  gap,           	/* pixpl, lines, gap */
+                                          30, 120,                      /* x0,y0, */
+                                          WEGI_COLOR_BLACK, -1, -1 );   /* fontcolor, stranscolor,opaque */
+   }
+
+
+#if 1 /* TODO: TXT display area can NOT be auto. refreshed, to define it as a txt_EBOX! later. */
+   /* 2. If (fd>0), write to FB from the last start_reading position of the book */
+   else if(refresh_ebook==true) {
+	/* reel back to the last start_reading position */
+	//offp = offp-nwrite>0 ? offp-nwrite : 0;
+        /* write book content: UFT-8 string to FB */
+       	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,   /* FBdev, fontface */
+                                          fw, fh, fp+offp,     	 	 /* fw,fh, pstr */
+                                          pixpl-x0, lines,  gap,         /* pixpl, lines, gap */
+                                          x0, y0,                      	 /* x0,y0, */
+                                          WEGI_COLOR_BLACK, -1, -1 );    /* fontcolor, stranscolor,opaque */
+	offp+=nwrite;
+
+	refresh_ebook=false;
+   }
+#endif
+
+  return 0;
+}
 
 
 /*---------- [  PAGE ::  EBOOK ] ---------
@@ -99,11 +191,13 @@ EGI_PAGE *create_ebook_page(void)
 
 		/* Do not show tag on the button */
 		data_btns[i]->showtag=false;
+		/* set opaque value */
+		data_btns[i]->opaque=35;
 
 		/* 2. create new btn eboxes */
 		ebook_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
-				        	1, /* bool movable */
+				        	0, /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
 						48, 60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
@@ -146,7 +240,6 @@ EGI_PAGE *create_ebook_page(void)
 	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
 	ebook_btns[4]->reaction=ebook_playmode;
 
-
 	/* --------- 2. create title bar --------- */
 #if 0
 	EGI_EBOX *title_bar= create_ebox_titlebar(
@@ -158,8 +251,8 @@ EGI_PAGE *create_ebook_page(void)
 	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
 #endif
 
-	/* --------- 3. create ffplay page ------- */
-	/* 3.1 create ffplay page */
+	/* --------- 3. create page ebook ------- */
+	/* 3.1 create page ebook */
 	EGI_PAGE *page_ebook=egi_page_new("page_ebook");
 	while(page_ebook==NULL)
 	{
@@ -181,7 +274,10 @@ EGI_PAGE *create_ebook_page(void)
         /* 3.4 set wallpaper */
         page_ebook->fpath="/mmc/bkpng/bk3.png";
 
-	/* 3.5 add ebox to home page */
+	/* 3.5 assign misc. refresh job for page */
+	page_ebook->page_refresh_misc=page_refresh_ebook;
+
+	/* 3.6 add eboxes to home page */
 	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ebook, ebook_btns[i]);
 
@@ -210,8 +306,10 @@ static int ebook_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	ebox->need_refresh=true;
+
 	/* only react to status 'pressing' */
-	return btnret_OK;
+	return btnret_OK; //Do not refresh whole page, pgret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -224,21 +322,40 @@ static int ebook_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	egi_page_needrefresh(ebox->container);
+	egi_page_refresh(ebox->container);
+
 
 	return btnret_OK;
 }
 
-/*--------------------------------------------------------------------
+/*-----------------------------------------------------------
 ebook NEXT
 return
-----------------------------------------------------------------------*/
+-----------------------------------------------------------*/
 static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	return btnret_OK;
+#if 0
+	egi_page_needrefresh(ebox->container);
+	egi_page_refresh(ebox->container);
+
+	/* write to FB */
+	printf("------ start uft8string_writeFB ----\n");
+        nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  	/* FBdev, fontface */
+                                           fw, fh, fp+offp,       		/* fw,fh, pstr */
+                                           pixpl-x0, lines,  gap,               /* pixpl, lines, gap */
+                                           x0, y0,                      /* x0,y0, */
+                                           WEGI_COLOR_BLACK, -1, -1);   /* fontcolor, stranscolor,opaque */
+        offp+=nwrite;
+#endif
+
+	refresh_ebook=true;
+
+	return pgret_OK; 	//btnret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -252,7 +369,6 @@ static int ebook_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
-
 
 	return btnret_OK;
 }
@@ -285,7 +401,13 @@ static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
    * 3. To be handled by page routine.
    */
 
-	return pgret_OK; /* need refresh page */
+	/* set ebook need_refresh token here */
+	refresh_ebook=true;
+	offp-=nwrite;
+	if(offp<0)offp=0;
+
+	/* need refresh page, a trick here to activate the page after CONT signal */
+	return pgret_OK;
 
 #else
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);

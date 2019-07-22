@@ -631,7 +631,7 @@ void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t
 	/* Load char and render, old data in face->glyph will be cleared */
     	error = FT_Load_Char( face, wcode, FT_LOAD_RENDER );
     	if (error) {
-		printf("%s: FT_Load_Char() fails!\n");
+		printf("%s: FT_Load_Char() fails!\n",__func__);
 		return;
 	}
 
@@ -830,7 +830,7 @@ return:
                 >=0     bytes write to FB
                 <0      fails
 ------------------------------------------------------------------------------------------------*/
-int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const char *pstr,
+int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const unsigned char *pstr,
 			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
                                int x0, int y0,
 			       int fontcolor, int transpcolor, int opaque )
@@ -838,7 +838,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 	int size;
 	int count;		/* number of character written to FB*/
 	int px,py;		/* bitmap insertion origin(BBOX left top), relative to FB */
-	char *p=(char *)pstr;
+	const unsigned char *p=pstr;
         int xleft; 	/* available pixels remainded in current line */
         unsigned int ln; 	/* lines used */
  	wchar_t wcstr[1];

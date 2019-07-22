@@ -238,7 +238,7 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 
 	/* write book content: UFT-8 string to FB */
 //	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
-	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.special, //regular,  /* FBdev, fontface */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
 					   fw, fh, wbook+offp, //fp+offp,	/* fw,fh, pstr */
                                		   pixpl-x0, lines,  gap,		/* pixpl, lines, gap */
                                		   x0, y0,			/* x0,y0, */

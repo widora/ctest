@@ -13,10 +13,33 @@ Midas ZHou
 #include "egi_debug.h"
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 //#include <time.h>
 #include <stdio.h>
 #include <sys/time.h> /*gettimeofday*/
 
+
+/*------------------------------------------------------------------
+                16bit color blend function
+--------------------------------------------------------------------*/
+inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha)
+{
+	float	fa;
+	float	gamma=2.2; //0.45; //2.2;
+
+#if 0 	/* Gamma correction, SLOW!!! */
+	fa=(alpha+0.5)/256;
+	fa= pow(fa,1.0/gamma);
+	alpha=(unsigned char)(fa*256-0.5);
+#else
+        /* a simple way to improve sharpness */
+	alpha = alpha*3;
+        if(alpha>255)
+                alpha=255;
+#endif
+
+        return COLOR_16BITS_BLEND(front, back, alpha);
+}
 
 
 /*-------------------------------------------------------------------------

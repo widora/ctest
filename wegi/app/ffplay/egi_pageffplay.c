@@ -338,7 +338,7 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
    * 3. To be handled by page routine.
    */
 
-	return pgret_OK; /* need refresh page */
+	return pgret_OK; /* need refresh page, a trick here to activate the page after CONT signal */
 
 #else
         egi_msgbox_create("Message:\n   Click! Start to exit page!", 300, WEGI_COLOR_ORANGE);

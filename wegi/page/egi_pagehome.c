@@ -53,10 +53,13 @@ static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_ebook(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 static int deco_calendar(EGI_EBOX *ebox);
+static int egi_process_activate_APP(pid_t *apid, char* app_path);
+
 
 static	EGI_EBOX *home_btns[9*HOME_PAGE_MAX]; 		/* set MAX */
 static	EGI_DATA_BTN *data_btns[9*HOME_PAGE_MAX];	/* set MAX */
@@ -180,6 +183,7 @@ EGI_PAGE *egi_create_homepage(void)
 	home_btns[3]->reaction=egi_homebtn_ffplay;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
+	home_btns[4]->reaction=egi_homebtn_ebook;
 
 	egi_ebox_settag(home_btns[5], "btn_book");
 	home_btns[5]->reaction=egi_homebtn_book;
@@ -576,10 +580,9 @@ void egi_home_routine(void)
 }
 
 
-/*--------------------------------------------------------------------------
-button_mplay function:
-mplayer
---------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------
+			button  MPLAY
+------------------------------------------------------------------*/
 static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	/* bypass unwanted touch status */
@@ -613,10 +616,9 @@ static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return pgret_OK;
 }
 
-/*-------------------------------------------------------------------------
-button_openwrt function:
-openwrt
----------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------
+			button OPENWRT
+--------------------------------------------------------------------*/
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	/* bypass unwanted touch status */
@@ -642,10 +644,9 @@ static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return pgret_OK;
 }
 
-/*--------------------------------------------------------------------------
-button_openwrt function:
-book
-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------
+			button  TXTBOOK
+----------------------------------------------------------------------*/
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 
@@ -672,10 +673,9 @@ static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return pgret_OK;
 }
 
-/*----------------------------------------------------------------------------
-button_test function:
-for test functions
------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------
+			button TEST
+-------------------------------------------------------------------*/
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	/* bypass unwanted touch status */
@@ -700,11 +700,9 @@ static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return pgret_OK;
 }
 
-
-/*----------------------------------------------------------------------------
-button_test function:
-for test functions
------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------
+			button FFPLAY
+----------------------------------------------------------------------*/
 static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	int status;
@@ -735,90 +733,40 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 									page_ffplay->ebox->tag);
 	egi_page_free(page_ffplay);
 
-#else  //////// (  USE FORK() TO CREATE A CHILD PROCESS ) ///////////
-
-   /* TODO: SIGCHLD handler for exiting child processes
-	NOTE: STOP/CONTINUE/EXIT of a child process will produce signal SIGCHLD!
-
-    */
-
-
-
-  /* If app_ffplay not running, need to create new pid for FFPLAY */
-  if(pid_ffplay<0) {
-
-	pid_ffplay=fork();
-
-	/* In APP */
-	if(pid_ffplay==0) {
-		execv("/tmp/app_ffplay",NULL);
-
-		/* If fails! it still holds whole copied context data!!! */
-               	EGI_PLOG(LOGLV_ERROR, "%s: fail to execv app_ffplay after fork(), error:%s\n",
-								__func__, strerror(errno) );
-		//exit(errno);
-		exit(255); /* 8bits(255) will be passed to parent */
-	}
-	/* child process ends here */
-
-	/* In EGI_TOUCH */
-	else if(pid_ffplay <0) {
-               	EGI_PLOG(LOGLV_ERROR, "%s: Fail to fork pid_ffplay!\n",__func__);
-	}
-	else {
-               	EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay forked successfully!\n",__func__);
-	}
-    }
-    /* Else if app_ffplay is stopped, send SIGCONT to activate a stopped process */
-    else {
-               	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate app_ffplay[pid:%d] \n",
-										__func__, pid_ffplay);
-		if( kill(pid_ffplay,SIGCONT)<0 ) {
-			EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to pid_ffplay[pid:%d].\n",
-										__func__, pid_ffplay);
-			return pgret_ERR;
-		}
-    }
-
-    /* Wait pid_ffplay if it's legitimate, whether newly created or already exists */
-    if(pid_ffplay>0) {
-		/* wait for status changes */
-		waitpid(pid_ffplay, &status, WUNTRACED);
-
-	       /* In EGI_TOUCH: parse return status */
-		/* 1. Exit normally */
-        	if(WIFEXITED(status)){
-                	ret=WEXITSTATUS(status);
-                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay exits with ret value: %d\n",__func__, ret);
-			pid_ffplay=-1; /* retset */
-        	}
-		/* 2. Terminated by signal, in case pid_ffplay already terminated. */
-	        else if(WIFSIGNALED(status)) {
-        	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay terminated by signal number: %d\n",
-										__func__, WTERMSIG(status));
-				pid_ffplay=-1; /* reset */
-        	}
-		/* 3. Stopped */
-		else if(WIFSTOPPED(status)) {
-	        	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP app_ffplay is just STOPPED! \n", __func__);
-				/* remember the pid_ffplay */
-		}
-		/* 4. other status */
-		else {
-        	        EGI_PLOG(LOGLV_WARN, "%s: WARNING: APP app_ffplay returned with unparsed status=%d\n",
-											__func__, status);
-				pid_ffplay=-1; /* reset */
-		}
-     }
-
-
 #endif
-	return pgret_OK; /* need to refresh PAGE */
+
+   	/* TODO: SIGCHLD handler for exiting child processes
+	 *	NOTE: STOP/CONTINUE/EXIT of a child process will produce signal SIGCHLD!
+    	 */
+
+	/* activate APP and wait untill it STOP or TERM */
+        egi_process_activate_APP(&pid_ffplay, "/tmp/app_ffplay");
+
+	return pgret_OK; /* to refresh PAGE anyway */
 }
 
+/*--------------------------------------------------------------------
+			button EBOOK
+----------------------------------------------------------------------*/
+static int egi_homebtn_ebook(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	int status;
+	int ret;
+	static pid_t pid_ebook=-1;
+
+	/* bypass unwanted touch status */
+	if( touch_data->status != pressing )
+		return btnret_IDLE;
+
+	/* activate APP and wait untill it SOTP or TERM */
+        egi_process_activate_APP(&pid_ebook, "/tmp/app_ebook");
+
+	return pgret_OK; /* to refresh PAGE anyway */
+}
+
+
 /*----------------------------------------------------------------------------
-button_stock chart function:
-for test functions
+			button stock chart
 -----------------------------------------------------------------------------*/
 static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
@@ -846,10 +794,8 @@ static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 
 /*-------------------------------------------------------------------
-Home Sliding bar reaction
-return
+			SLIDE HANDLER
 ---------------------------------------------------------------------*/
-//static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 {
         static int mark[9*HOME_PAGE_MAX]; /* >= nc*nr */
@@ -911,7 +857,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		tm_delayms(75);
 
 
-#else  /* SLIDE_ALGRITHM 2: auto slide if dx great that a threshold value */
+#else  /* SLIDE_ALGRITHM 2:  auto slide if dx great that a threshold value */
 		if( touch_data->dx > 15 )
 			token=1;
 		else  if(touch_data->dx < -15 )
@@ -993,5 +939,110 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 }
 
+
+/*-----------------------------------------------------------
+Activate an APP and wait for its state to change.
+
+1. If apid<0 then fork() and excev() the APP.
+2. If apid>0, try to send SIGCONT to activate it.
+3. Wait for state change for the apid, that means parent
+   process is hung up.
+
+@apid:		PID of the subprocess.
+@app_path:	An exe file to launch the APP.
+
+Return:
+	<0	Fail to execute or send signal to the APP.
+	0	Ok, succeed to execute APP, and get the latest
+		changed state.
+-------------------------------------------------------------*/
+static int egi_process_activate_APP(pid_t *apid, char* app_path)
+{
+	int status;
+	int ret;
+
+	EGI_PDEBUG(DBG_PAGE,"------- start check accessibility of the APP --------\n");
+	if( access(app_path, X_OK) !=0 ) {
+		EGI_PDEBUG(DBG_PAGE,"'%s' is not a recognizble executive file.\n", app_path);
+		return -1;
+	}
+
+   	/* TODO: SIGCHLD handler for exiting child processes
+	 *	NOTE: STOP/CONTINUE/EXIT of a child process will produce signal SIGCHLD!
+    	 */
+
+	/* 1. If app_ffplay not running, fork() and execv() to launch it. */
+  	if(*apid<0) {
+
+		EGI_PDEBUG(DBG_PAGE,"----- start fork APP -----\n");
+		*apid=fork();
+
+		/* In APP */
+		if(*apid==0) {
+			EGI_PDEBUG(DBG_PAGE,"----- start execv APP -----\n");
+			execv(app_path,NULL);
+			/* Warning!!! if fails! it still holds whole copied context data!!! */
+               		EGI_PLOG(LOGLV_ERROR, "%s: fail to execv '%s' after fork(), error:%s\n",
+								__func__, app_path, strerror(errno) );
+			exit(255); /* 8bits(255) will be passed to parent */
+		}
+		/* In the caller's context */
+		else if(*apid <0) {
+               		EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch APP '%s'!\n",__func__, app_path);
+			return -2;
+		}
+		else {
+        	       	EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' launched successfully!\n",
+										__func__, app_path);
+		}
+    	}
+    	/* 2. Else, assume APP is hungup(stopped), send SIGCONT to activate it. */
+    	else {
+        	       	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate '%s'[pid:%d] \n",
+										__func__, app_path, *apid);
+			if( kill(*apid,SIGCONT)<0 ) {
+				EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to '%s'[pid:%d].\n",
+										__func__, app_path, *apid);
+				return -3;
+			}
+    	}
+
+    	/* 3. Wait for status of APP to change */
+    	if(*apid>0) {
+		/* wait for status changes,a state change is considered to  be:
+		 * 1. the child terminated;
+		 * 2. the child  was stopped by a signal;
+		 * 3. or the child was resumed by a signal.
+		 */
+		waitpid(*apid, &status, WUNTRACED); /* block |WCONTINUED */
+
+		/* 1. Exit normally */
+	       	if(WIFEXITED(status)){
+                	ret=WEXITSTATUS(status);
+               		EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' exits with ret value: %d\n",
+									__func__, app_path, ret);
+			*apid=-1; /* retset */
+	       	}
+		/* 2. Terminated by signal, in case APP already terminated. */
+	       	else if(WIFSIGNALED(status)) {
+                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' terminated by signal number: %d\n",
+								__func__, app_path, WTERMSIG(status));
+			*apid=-1; /* reset */
+        	}
+		/* 3. Stopped */
+		else if(WIFSTOPPED(status)) {
+	        	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' is just STOPPED! \n",
+										 __func__, app_path);
+		}
+		/* 4. Other status */
+		else {
+        	        EGI_PLOG(LOGLV_WARN, "%s: APP '%s' returned with unparsed status=%d\n",
+									__func__, app_path, status);
+			*apid=-1; /* reset */
+		}
+     	}
+
+	return 0;
+}
 
 

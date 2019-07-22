@@ -511,6 +511,11 @@ int egi_page_activate(EGI_PAGE *page)
 	}
 
 
+	/* other misc jobs after listed ebox refreshed */
+	if( page->page_refresh_misc != NULL )
+		page->page_refresh_misc(page);
+
+
 	return 0;
 }
 
@@ -594,6 +599,10 @@ int egi_page_refresh(EGI_PAGE *page)
 		/* decroating job if any */
 		egi_ebox_decorate(page->ebox);
 
+		/* other misc jobs after listed ebox refreshed */
+		if( page->page_refresh_misc != NULL )
+			page->page_refresh_misc(page);
+
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
 
@@ -620,6 +629,7 @@ int egi_page_refresh(EGI_PAGE *page)
 			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 #endif
 	}
+
 
 	/* reset need_refresh */
 	page->ebox->need_refresh=false;

@@ -626,8 +626,7 @@ while(1)
 
 /* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
         /* close fb dev */
-        munmap(fb_dev.map_fb,fb_dev.screensize);
-        close(fb_dev.fdfd);
+	release_fbdev(&fb_dev);
 
 
 	return ;//0;

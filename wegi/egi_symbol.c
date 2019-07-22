@@ -915,14 +915,24 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 				/* if apply alpha: front pixel, background pixel,alpha value */
 				if(opaque>=0) {
-                    			pcolor=COLOR_16BITS_BLEND(  pcolor,
-								    *(uint16_t *)(fb_dev->map_fb+pos),
-								    opaque );
+#if 0	/* use Macro */
+                    			pcolor=COLOR_16BITS_BLEND( pcolor,
+#else   /* use function, GAMMA CORRECTION applied here */
+					pcolor=egi_16bitColor_blend( pcolor,
+#endif
+								     *(uint16_t *)(fb_dev->map_fb+pos),
+								     opaque
+								  );
 				}
 				else if(sym_page->alpha) {
-                    			pcolor=COLOR_16BITS_BLEND(  pcolor,
+#if 0	/* use Macro */
+                    			pcolor=COLOR_16BITS_BLEND( pcolor,
+#else   /* use function, GAMMA CORRECTION applied here */
+					pcolor=egi_16bitColor_blend( pcolor,
+#endif
 								    *(uint16_t *)(fb_dev->map_fb+pos),
-								    palpha );
+								    palpha
+								 );
 				}
 
 				/* write to FB */

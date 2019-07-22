@@ -39,11 +39,19 @@ static struct sigaction sigact_usr;	/* SIG hang up process */
 static struct sigaction osigact_usr;
 
 
-/*----------------------------------------------------
+/*------------------------------------------------------------
 	   <<<  Signal handler for SIGSTOP  >>>
 
 Use default signal handling action for SIGSTOP.
------------------------------------------------------*/
+
+Note: A stopped process/task will NOT react to signal TERM, only
+      after receiving a CONT signal to activate the it first,
+      then it will terminate itself. However it will appear as
+      a zombie after such two signals.
+      It's suggested to terminat a task with a TERM signal
+      only when the task is active.
+
+------------------------------------------------------------*/
 
 
 /*----------------------------------------------------
@@ -74,7 +82,7 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
 //	fb_restore_FBimg(&gv_fb_dev, 0, false);
 
-  }
+  	}
 }
 
 
@@ -104,7 +112,6 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
                 EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to raise(SIGSTOP) to itself.\n",app_name, __func__);
         }
  }
-
 }
 
 
@@ -185,8 +192,8 @@ int main(int argc, char **argv)
 	int ret=0;
 	pthread_t thread_loopread;
 
-
         /*  ---  0. assign signal actions  --- */
+	printf("APP_EBOOK:  -------- assign signal action --------\n");
 	assign_signal_actions();
 
         /*  ---  1. EGI General Init Jobs  --- */
@@ -200,7 +207,7 @@ int main(int argc, char **argv)
                 ret=-2;
 		goto FF_FAIL;
         }
-	/* FTsymbol needs more memory, disable it if not necessary */
+	/* FTsymbol needs more memory, so just disable it if not necessary */
         if(FTsymbol_load_allpages() !=0 ) {
                 EGI_PLOG(LOGLV_ERROR,"Fail to load sym pages,quit.\n");
                 ret=-2;
