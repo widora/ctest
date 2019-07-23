@@ -29,6 +29,7 @@ page creation jobs:
 {0,266}, {240-1, 320-1}         --- Buttons
 
 TODO:
+	1. To exit and free APP gracefully.
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -61,8 +62,8 @@ static uint16_t btn_symcolor;
 static int ebook_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int ebook_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int ebook_hangup(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ebook_decorate(EGI_EBOX *ebox);
 
 
@@ -82,6 +83,7 @@ static  int x0,y0;
 static  int wtotal;
 static  int nwrite;
 static  bool refresh_ebook;
+static  EGI_FILO *filo;
 
 
 /*----------------------------------------------------------
@@ -104,6 +106,15 @@ static int page_refresh_ebook(EGI_PAGE *page)
 	offp=0;
    	lines=12;
    	gap=5;
+
+	/* init filo */
+	if(filo==NULL) {
+	        filo=egi_malloc_filo( 1<<10, sizeof(int), 0b01); //|0b10 ); /* enable double/halve realloc */
+	        if(filo==NULL) {
+	                printf("%s: Fail to init filo, quit.\n",__func__);
+        	        return -1;
+        	}
+	}
 
         /* 1.1 open wchar book file */
         fd=open("/mmc/xyj_uft8.txt",O_RDONLY);
@@ -128,7 +139,7 @@ static int page_refresh_ebook(EGI_PAGE *page)
         printf("%s: --------Total %d characters in the book.\n",__func__, wtotal);
 
         /* 1.5 write book title  */
-        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.bold,  	/* FBdev, fontface */
+        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,  	/* FBdev, fontface */
                                           35, 35, title,               	/* fw,fh, pstr */
                                           240, 1,  gap,           	/* pixpl, lines, gap */
                                           30, 120,                      /* x0,y0, */
@@ -142,7 +153,8 @@ static int page_refresh_ebook(EGI_PAGE *page)
 	/* reel back to the last start_reading position */
 	//offp = offp-nwrite>0 ? offp-nwrite : 0;
         /* write book content: UFT-8 string to FB */
-       	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,   /* FBdev, fontface */
+	egi_filo_push(filo,(void *)(&offp)); /* push current starting offp */
+       	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,   /* FBdev, fontface */
                                           fw, fh, fp+offp,     	 	 /* fw,fh, pstr */
                                           pixpl-x0, lines,  gap,         /* pixpl, lines, gap */
                                           x0, y0,                      	 /* x0,y0, */
@@ -197,7 +209,7 @@ EGI_PAGE *create_ebook_page(void)
 		/* 2. create new btn eboxes */
 		ebook_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
-				        	0, /* bool movable */
+				        	false, /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
 						48, 60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
@@ -217,14 +229,14 @@ EGI_PAGE *create_ebook_page(void)
 	/* get a random color for the icon */
 //	btn_symcolor=egi_color_random(medium);
 //	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
-	btn_symcolor=WEGI_COLOR_BLACK;//ORANGE;
+	btn_symcolor=WEGI_COLOR_WHITE;//ORANGE;
 
 	/* add tags, set icon_code and reaction function here */
 	egi_ebox_settag(ebook_btns[0], "Prev");
 	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
 	ebook_btns[0]->reaction=ebook_prev;
 
-	egi_ebox_settag(ebook_btns[1], "Play&Pause");
+	egi_ebox_settag(ebook_btns[1], "Playpause");
 	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* default status is playing*/
 	ebook_btns[1]->reaction=ebook_playpause;
 
@@ -232,13 +244,13 @@ EGI_PAGE *create_ebook_page(void)
 	data_btns[2]->icon_code=(btn_symcolor<<16)+ICON_CODE_NEXT;
 	ebook_btns[2]->reaction=ebook_next;
 
-	egi_ebox_settag(ebook_btns[3], "Exit");
+	egi_ebox_settag(ebook_btns[3], "Hangup");
 	data_btns[3]->icon_code=(btn_symcolor<<16)+ICON_CODE_EXIT;
-	ebook_btns[3]->reaction=ebook_exit;
+	ebook_btns[3]->reaction=ebook_hangup;
 
-	egi_ebox_settag(ebook_btns[4], "Playmode");
+	egi_ebox_settag(ebook_btns[4], "Exit");
 	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
-	ebook_btns[4]->reaction=ebook_playmode;
+	ebook_btns[4]->reaction=ebook_exit;
 
 	/* --------- 2. create title bar --------- */
 #if 0
@@ -272,7 +284,7 @@ EGI_PAGE *create_ebook_page(void)
         page_ebook->routine=egi_page_routine; /* use default routine function */
 
         /* 3.4 set wallpaper */
-        page_ebook->fpath="/mmc/bkpng/bk3.png";
+        page_ebook->fpath="/mmc/bkpng/bk4.png";
 
 	/* 3.5 assign misc. refresh job for page */
 	page_ebook->page_refresh_misc=page_refresh_ebook;
@@ -282,7 +294,6 @@ EGI_PAGE *create_ebook_page(void)
 		egi_page_addlist(page_ebook, ebook_btns[i]);
 
 //	egi_page_addlist(page_ebook, title_bar); /* add title bar */
-
 
 	return page_ebook;
 }
@@ -306,10 +317,13 @@ static int ebook_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	ebox->need_refresh=true;
+	/* reel back to the previous offp */
+	egi_filo_pop(filo, NULL);
+	egi_filo_pop(filo,(void *)&offp);
 
-	/* only react to status 'pressing' */
-	return btnret_OK; //Do not refresh whole page, pgret_OK;
+	refresh_ebook=true;
+
+	return pgret_OK;
 }
 
 /*--------------------------------------------------------------------
@@ -321,10 +335,6 @@ static int ebook_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
-
-	egi_page_needrefresh(ebox->container);
-	egi_page_refresh(ebox->container);
-
 
 	return btnret_OK;
 }
@@ -339,20 +349,6 @@ static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-#if 0
-	egi_page_needrefresh(ebox->container);
-	egi_page_refresh(ebox->container);
-
-	/* write to FB */
-	printf("------ start uft8string_writeFB ----\n");
-        nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  	/* FBdev, fontface */
-                                           fw, fh, fp+offp,       		/* fw,fh, pstr */
-                                           pixpl-x0, lines,  gap,               /* pixpl, lines, gap */
-                                           x0, y0,                      /* x0,y0, */
-                                           WEGI_COLOR_BLACK, -1, -1);   /* fontcolor, stranscolor,opaque */
-        offp+=nwrite;
-#endif
-
 	refresh_ebook=true;
 
 	return pgret_OK; 	//btnret_OK;
@@ -362,7 +358,7 @@ static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ebook Display Mode
 return
 ----------------------------------------------------------------------*/
-static int ebook_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	static int count=0;
 
@@ -370,14 +366,14 @@ static int ebook_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	return btnret_OK;
+	return btnret_REQUEST_EXIT_PAGE;
 }
 
 /*--------------------------------------------------------------------
 EBOOK exit
 return
 ----------------------------------------------------------------------*/
-static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ebook_hangup(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
@@ -426,4 +422,26 @@ static int ebook_decorate(EGI_EBOX *ebox)
 //        draw_filled_rect(&gv_fb_dev,0,266,239,319);
 
 	return 0;
+}
+
+
+/*-----------------------------
+Release and free all resources
+------------------------------*/
+void free_ebook_page(void)
+{
+   if(fd>0) {
+	 close(fd);
+	 fd=-1;
+   }
+
+   if(filo != NULL) {
+	egi_free_filo(filo);
+	filo=NULL;
+   }
+
+   /* all EBOXs in the page will be release by calling egi_page_free()
+    *  just after page routine returns.
+    */
+
 }

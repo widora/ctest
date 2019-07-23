@@ -39,11 +39,16 @@ struct FTsymbol_library {
 
 extern EGI_SYMPAGE sympg_ascii; /* default  LiberationMono-Regular */
 extern EGI_FONTS  egi_sysfonts; /* system font set */
+extern EGI_FONTS  egi_appfonts; /* system font set */
+
 
 int 	FTsymbol_load_library( EGI_FONTS *symlib );
 void 	FTsymbol_release_library( EGI_FONTS *symlib );
 int	FTsymbol_load_allpages(void);
 void 	FTsymbol_release_allpages(void);
+int  	FTsymbol_load_sysfonts(void);
+int  	FTsymbol_load_appfonts(void);
+void	FTsymbol_release_allfonts(void);
 int  	FTsymbol_load_asciis_from_fontfile( EGI_SYMPAGE *symfont_page, const char *font_path, int Wp, int Hp );
 
 void 	symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,

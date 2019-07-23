@@ -9,6 +9,7 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "egi_symbol.h"
 #include "egi_cstring.h"
+#include "egi_utils.h"
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 #include <arpa/inet.h>
@@ -19,15 +20,10 @@ Midas Zhou
 struct symbol_page sympg_ascii={0}; /* default  LiberationMono-Regular */
 
 EGI_FONTS  egi_sysfonts = {0};
-#if 0
-{
-	.fpath_regular ="SourceHanSansSC-Normal.otf",
-	.fpath_light   ="SourceHanSansSC-ExtraLight.otf",
-	.fpath_bold    ="SourceHanSansSC-Bold.otf",
-	.fpath_special ="SourceHanSansSC-Bold.otf"
-};
-#endif
+EGI_FONTS  egi_appfonts = {0};
 
+
+#if 0
 /*-----------------------------------------
 Load all FT type symbol pages and fonts Lib
 return:
@@ -37,15 +33,16 @@ return:
 int  FTsymbol_load_allpages(void)
 {
 	int ret=0;
-	char fpath_regular[256]={0};
-	char fpath_light[256]={0};
-	char fpath_bold[256]={0};
-	char fpath_special[256]={0};
-	char fpath_ascii[256]={0};
+	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_ascii[EGI_PATH_MAX+EGI_NAME_MAX]={0};
 
-        /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
+	/* read egi.conf and get fonts paths */
 	if ( egi_get_config_value("EGI_FONTS","ascii",fpath_ascii) != 0)
         	return -1;
+        /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
         if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
 		return -2;
 
@@ -70,6 +67,108 @@ int  FTsymbol_load_allpages(void)
 
 	return 0;
 }
+#endif
+
+
+/*--------------------------------------
+Load FreeType2 EGI_FONT egi_sysfonts
+for main process, as small as possible.
+
+return:
+	0	OK
+	<0	Fails
+---------------------------------------*/
+int  FTsymbol_load_sysfonts(void)
+{
+	int ret=0;
+	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+
+	/* read egi.conf and get fonts paths */
+	egi_get_config_value("SYS_FONTS","regular",fpath_regular);
+	egi_get_config_value("SYS_FONTS","light",fpath_light);
+	egi_get_config_value("SYS_FONTS","bold",fpath_bold);
+	egi_get_config_value("SYS_FONTS","special",fpath_special);
+
+	egi_sysfonts.fpath_regular=fpath_regular;
+	egi_sysfonts.fpath_light=fpath_light;
+	egi_sysfonts.fpath_bold=fpath_bold;
+	egi_sysfonts.fpath_special=fpath_special;
+
+	/* load FT library with default fonts */
+	ret=FTsymbol_load_library( &egi_sysfonts );
+	if(ret)
+		return -1;
+
+	return 0;
+}
+
+/*--------------------------------------
+Load FreeType2 fonts for all APPs.
+
+return:
+	0	OK
+	<0	Fails
+---------------------------------------*/
+int  FTsymbol_load_appfonts(void)
+{
+	int ret=0;
+	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+
+	/* read egi.conf and get fonts paths */
+	egi_get_config_value("APP_FONTS","regular",fpath_regular);
+	egi_get_config_value("APP_FONTS","light",fpath_light);
+	egi_get_config_value("APP_FONTS","bold",fpath_bold);
+	egi_get_config_value("APP_FONTS","special",fpath_special);
+
+	egi_appfonts.fpath_regular=fpath_regular;
+	egi_appfonts.fpath_light=fpath_light;
+	egi_appfonts.fpath_bold=fpath_bold;
+	egi_appfonts.fpath_special=fpath_special;
+
+	/* load FT library with default fonts */
+	ret=FTsymbol_load_library( &egi_appfonts );
+	if(ret)
+		return -1;
+
+	return 0;
+}
+
+void FTsymbol_release_allfonts(void)
+{
+	/* release FT fonts libraries */
+	FTsymbol_release_library(&egi_sysfonts);
+	FTsymbol_release_library(&egi_appfonts);
+}
+
+
+/*-----------------------------------------
+Load all FT type symbol pages.
+
+1. sympg_ascii
+
+return:
+	0	OK
+	<0	Fails
+-----------------------------------------*/
+int  FTsymbol_load_allpages(void)
+{
+	char fpath_ascii[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+
+	/* read egi.conf and get fonts paths */
+	if ( egi_get_config_value("SYS_FONTS","ascii",fpath_ascii) != 0)
+        	return -1;
+        /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
+        if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
+		return -2;
+
+	return 0;
+}
 
 /* --------------------------------------
      Release all TF type symbol pages
@@ -78,17 +177,21 @@ void FTsymbol_release_allpages(void)
 {
         /* release FreeType2 symbol page */
       	symbol_release_page(&sympg_ascii);
-	if(sympg_ascii.symwidth!=NULL)		/* !!! */
+	if(sympg_ascii.symwidth!=NULL)		/* !!!Not static */
 		free(sympg_ascii.symwidth);
 
-	/* release FT fonts libraries */
-	FTsymbol_release_library(&egi_sysfonts);
 }
+
 
 
 
 /*--------------------------------------------------
 Initialize FT library and load faces.
+
+Note:
+1. You shall avoid to load all fonts in main process,
+it will slow down fork() process significantly.
+
 return:
         0       OK
         !0      Fail
@@ -98,9 +201,11 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 	FT_Error	error;
 
 	/* check input data */
-	if( symlib==NULL || symlib->fpath_regular==NULL
-			 || symlib->fpath_light==NULL
-			 || symlib->fpath_bold==NULL	)
+//	if( symlib==NULL || symlib->fpath_regular==NULL
+//			 || symlib->fpath_light==NULL
+//			 || symlib->fpath_bold==NULL	)
+
+	if( symlib == NULL )
 	{
 		printf("%s: Fail to check integrity of the input FTsymbol_library!\n",__func__);
 		return -1;
@@ -118,11 +223,11 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
         if(error==FT_Err_Unknown_File_Format) {
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_regular);
-		goto FT_FAIL;
+//		goto FT_FAIL;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read font file '%s'.\n",__func__, symlib->fpath_regular);
-		goto FT_FAIL;
+                printf("%s: Fail to open or read REGULAR font file '%s'.\n",__func__, symlib->fpath_regular);
+//		goto FT_FAIL;
         }
 
 	/* 3. create face object: Light */
@@ -130,11 +235,11 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
         if(error==FT_Err_Unknown_File_Format) {
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_light);
-		goto FT_FAIL;
+//		goto FT_FAIL;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read font file '%s'.\n",__func__, symlib->fpath_light);
-		goto FT_FAIL;
+                printf("%s: Fail to open or read LIGHT font file '%s'.\n",__func__, symlib->fpath_light);
+//		goto FT_FAIL;
         }
 
 	/* 4. create face object: Bold */
@@ -142,11 +247,11 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
         if(error==FT_Err_Unknown_File_Format) {
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_bold);
-		goto FT_FAIL;
+//		goto FT_FAIL;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read font file '%s'.\n",__func__, symlib->fpath_bold);
-		goto FT_FAIL;
+                printf("%s: Fail to open or read BOLD font file '%s'.\n",__func__, symlib->fpath_bold);
+//		goto FT_FAIL;
         }
 
 	/* 5. create face object: Special */
@@ -154,11 +259,11 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
         if(error==FT_Err_Unknown_File_Format) {
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_special);
-		goto FT_FAIL;
+//		goto FT_FAIL;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read font file '%s'.\n",__func__, symlib->fpath_special);
-		goto FT_FAIL;
+                printf("%s: Fail to open or read SPECIAL font file '%s'.\n",__func__, symlib->fpath_special);
+//		goto FT_FAIL;
         }
 
 
@@ -734,6 +839,10 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
         unsigned int ln; 	/* lines used */
 
 	/* check input data */
+	if(face==NULL) {
+		printf("%s: input FT_Face is NULL!\n",__func__);
+		return -1;
+	}
 	if( pixpl==0 || lines==0 || pwchar==NULL )
 		return -1;
 
@@ -844,8 +953,14 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
  	wchar_t wcstr[1];
 
 	/* check input data */
+	if(face==NULL) {
+		printf("%s: input FT_Face is NULL!\n",__func__);
+		return -1;
+	}
+
 	if( pixpl==0 || lines==0 || pstr==NULL )
 		return -1;
+
 
 	px=x0;
 	py=y0;

@@ -12,5 +12,6 @@ Midas Zhou
 #include "egi.h"
 
 EGI_PAGE *egi_create_ffplaypage(void);
+void egi_free_ffplaypage(void);
 
 #endif

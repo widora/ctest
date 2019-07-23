@@ -432,6 +432,10 @@ int main(int argc, char **argv)
 		printf("Fail to load FT symbol pages!\n");
 		exit(-2);
 	}
+	if( FTsymbol_load_sysfonts() !=0 ) {
+		printf("Fail to load FT sys fonts!\n");
+		exit(-2);
+	}
 
 #if 0
 	/*------------------ Load Symbols ------------------*/
@@ -885,7 +889,10 @@ while(1)
 	egi_page_free(page_mplay);
 
 	/* release symbol mem page */
+	FTsymbol_release_allfonts();
+	FTsymbol_release_allpages();
 	symbol_release_allpages();
+
 
 	/* close fb dev */
 //      munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);

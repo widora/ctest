@@ -12,5 +12,6 @@ Midas Zhou
 #include "egi.h"
 
 EGI_PAGE *create_ebook_page(void);
+void free_ebook_page(void);
 
 #endif

@@ -562,7 +562,6 @@ SLEEP_WAITING:
 }
 
 
-
 /*----------------------------------------------
 objet defined routine jobs of home page
 
@@ -931,12 +930,10 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 #endif
 
 		return btnret_OK; /* refresh page */
-
    	}
 
    	else /* bypass unwanted touch status */
               return btnret_IDLE;
-
 }
 
 
@@ -945,11 +942,11 @@ Activate an APP and wait for its state to change.
 
 1. If apid<0 then fork() and excev() the APP.
 2. If apid>0, try to send SIGCONT to activate it.
-3. Wait for state change for the apid, that means parent
+3. Wait for state change for the apid, that means the parent
    process is hung up.
 
 @apid:		PID of the subprocess.
-@app_path:	An exe file to launch the APP.
+@app_path:	Path to an executiable APP file.
 
 Return:
 	<0	Fail to execute or send signal to the APP.
@@ -1009,10 +1006,10 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
 
     	/* 3. Wait for status of APP to change */
     	if(*apid>0) {
-		/* wait for status changes,a state change is considered to  be:
-		 * 1. the child terminated;
-		 * 2. the child  was stopped by a signal;
-		 * 3. or the child was resumed by a signal.
+		/* wait for status changes,a state change is considered to be:
+		 * 1. the child is terminated;
+		 * 2. the child is stopped by a signal;
+		 * 3. or the child is resumed by a signal.
 		 */
 		waitpid(*apid, &status, WUNTRACED); /* block |WCONTINUED */
 

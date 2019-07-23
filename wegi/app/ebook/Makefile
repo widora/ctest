@@ -10,7 +10,7 @@ CFLAGS  += -Wall -O2
 
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	=  -lepages -legi -lesound
+LIBS	=  -lepages -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
@@ -22,10 +22,14 @@ all:	$(APPS)
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS in LD !!!!
 
 app_ebook: app_ebook.c page_ebook.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) page_ebook.o -o $@ $@.c
+	$(CC) app_ebook.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi page_ebook.o -o app_ebook
+#	$(CC) app_ebook.c $(CFLAGS) $(LDFLAGS) -Wl,-Bstatic -legi -Wl,-Bdynamic $(LIBS) page_ebook.o -o app_ebook
+
 
 page_ebook.o:  page_ebook.c  page_ebook.h
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c page_ebook.c #-o egi_pageffplay.o
+	$(CC) -c page_ebook.c $(CFLAGS) $(LDFLAGS) -legi $(LIBS)
+#	$(CC) -c page_ebook.c $(CFLAGS) $(LDFLAGS) -Wl,-Bstatic -legi -Wl,-Bdynamic  $(LIBS)
+
 
 clean:
 	rm -rf *.o $(APPS) *.dep

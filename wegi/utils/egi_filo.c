@@ -148,7 +148,8 @@ filo:	FILO struct
 data:	pointer to pass the data
 
 Return:
-	>0	filo buff is empty.
+	>0	filo buff is empty. data not
+		changed.
 	0	OK
 	<0	fails
 --------------------------------------------*/

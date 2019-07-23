@@ -159,6 +159,12 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
                 printf("Fail to load FT symbol pages, quit.\n");
                 return -2;
         }
+        if(FTsymbol_load_appfonts() !=0 ) {  /* and FT fonts LIBS */
+                printf("Fail to load FT appfonts, quit.\n");
+                return -2;
+        }
+
+
         init_fbdev(&gv_fb_dev);
 
 	/* load png to imgbuf */
@@ -230,15 +236,15 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 	}
 
 	/* write book title  */
-	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.bold,  /* FBdev, fontface */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,  /* FBdev, fontface */
 					   25, 25, title,		/* fw,fh, pstr */
                                		   pixpl-45, 1,  gap,		/* pixpl, lines, gap */
                                		   tx0, 8,			/* x0,y0, */
                                		   WEGI_COLOR_BLACK, -1, -1); 	/* fontcolor, stranscolor,opaque */
 
 	/* write book content: UFT-8 string to FB */
-//	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
-	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_sysfonts.regular,  /* FBdev, fontface */
+//	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
+	nwrite=FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
 					   fw, fh, wbook+offp, //fp+offp,	/* fw,fh, pstr */
                                		   pixpl-x0, lines,  gap,		/* pixpl, lines, gap */
                                		   x0, y0,			/* x0,y0, */
@@ -275,12 +281,13 @@ while(1) { ///////////////////////  LOOP TEST  ////////////////////////
 
 FONT_FAILS:
 	/* Release EGI fonts */
-//	FTsymbol_release_library(&egi_sysfonts);
+//	FTsymbol_release_library(&egi_appfonts);
 
 	/* Free EGI */
         release_fbdev(&gv_fb_dev);
         symbol_release_allpages();
 	FTsymbol_release_allpages();
+	FTsymbol_release_allfonts();
         egi_quit_log();
 
  }  ///////////////////////  LOOP TEST  END  ////////////////////////

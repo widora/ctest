@@ -278,6 +278,8 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+#if 0 /*------------ AS PLAYMODE LOOP SELECTION ---------------*/
+
 	/* only react to status 'pressing' */
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
 
@@ -302,11 +304,16 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		FFplay_Ctx->ffcmd=cmd_mode;
 	}
 
-
 	/* set refresh flag for this ebox */
 	egi_ebox_needrefresh(ebox);
 
 	return btnret_OK;
+
+#else /* -------------- AS EXIT -------------- */
+
+	return btnret_REQUEST_EXIT_PAGE;
+#endif
+
 }
 
 /*--------------------------------------------------------------------
@@ -358,3 +365,18 @@ static int pageffplay_decorate(EGI_EBOX *ebox)
 
 	return 0;
 }
+
+
+
+/*-----------------------------
+Release and free all resources
+------------------------------*/
+void egi_free_ffplaypage(void)
+{
+
+   /* all EBOXs in the page will be release by calling egi_page_free()
+    *  just after page routine returns.
+    */
+
+}
+

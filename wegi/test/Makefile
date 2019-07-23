@@ -24,9 +24,9 @@ APPS = test_fb test_sym tmp_app test_pic
 all:	$(APPS)
 
 tmp_app:	tmp_app.c
-#	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)  #--use shared egilib
-	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
--Wl,-Bstatic -legi -Wl,-Bdynamic	#---use static egilib
+	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)  #--use shared egilib
+#	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+#-Wl,-Bstatic -legi -Wl,-Bdynamic	#---use static egilib
 
 
 #### --- use dynamic and static libs in compilatoin!!! ---

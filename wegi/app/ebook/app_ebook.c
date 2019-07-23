@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
-        if(egi_init_log("/mmc/ebook_log") != 0) {
+        if(egi_init_log("/mmc/ebook_log") != 0 ) {
                 EGI_PLOG(LOGLV_ERROR,"Fail to init logger,quit.\n");
                 return -1;
         }
@@ -209,10 +209,17 @@ int main(int argc, char **argv)
         }
 	/* FTsymbol needs more memory, so just disable it if not necessary */
         if(FTsymbol_load_allpages() !=0 ) {
-                EGI_PLOG(LOGLV_ERROR,"Fail to load sym pages,quit.\n");
+                EGI_PLOG(LOGLV_ERROR,"Fail to load FTsymbol pages,quit.\n");
                 ret=-2;
 		goto FF_FAIL;
         }
+	/* FTsymbol needs more memory, so just disable it if not necessary */
+        if(FTsymbol_load_appfonts() !=0 ) {
+                EGI_PLOG(LOGLV_ERROR,"Fail to load FT sys fonts,quit.\n");
+                ret=-2;
+		goto FF_FAIL;
+        }
+
 	/* Init FB device */
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */
@@ -237,18 +244,21 @@ int main(int argc, char **argv)
         /* trap into page routine loop */
         EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ebook->ebox->tag);
         page_ebook->routine(page_ebook);
-
         /* get out of routine loop */
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
 		                                                app_name,page_ebook->ebox->tag);
 
 	tm_delayms(200); /* let page log_calling finish */
 
+	/* free PAGE and other resources */
         egi_page_free(page_ebook);
+	free_ebook_page();
+
 	ret=pgret_OK;
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);
+	FTsymbol_release_allfonts();
         FTsymbol_release_allpages();
         symbol_release_allpages();
 	SPI_Close();

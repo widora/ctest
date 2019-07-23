@@ -909,18 +909,24 @@ int egi_page_routine(EGI_PAGE *page)
 			 *	1. If it re_enters from SIGSTOP, this will trigger the very hitbtn
 			 *	   which rasied SIGSTOP signal, to refresh and reset its need_refresh
 			 *	   flag. So, when elements of the page are refreshed as SIGCONT
-			 *	   handler expected, this hitbtn will dissapear!!!
+			 *	   handler expected, this hitbtn will disappear!!!
 			 *	   We need to confirm 'last_holdbtn->need_refresh==false' here to rule
 			 *	   out the situation, and make sure when egi_page_refresh(page) is called
 			 *	   all elements are to refreshed in order.
+			 *	2. Re_drawing an unmovable btn will change brightness of the icon, if
+			 *	   the icon has opaque value.
 			 */
-
 
 			if( last_holdbtn != NULL && last_holdbtn != hitbtn
 						 && last_holdbtn->need_refresh==false )
 			{
-				EGI_PDEBUG(DBG_PAGE,"last_holdbtn losed focus, refresh it...\n");
-				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				EGI_PDEBUG(DBG_PAGE,"last_holdbtn '%s' losed focus, refresh it...\n",
+										last_holdbtn->tag);
+				if(last_holdbtn->movable)  { /* to avoid unmovalbe btn with opaque value */
+					printf("'%s' is movable \n",last_holdbtn->tag);
+					egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				}
+
 				last_holdbtn=NULL;
 			}
 
@@ -958,8 +964,11 @@ int egi_page_routine(EGI_PAGE *page)
    */
 				    /* call touch_effect() */
 		                    if( hitbtn->need_refresh==false   /* In case SIGCONT triggered */
-                                        && ( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL ) )
+                                        && last_status==pressing
+					&&( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL ) ) {
+					  EGI_PDEBUG(DBG_PAGE,"call '%s' touch_effect() \n", hitbtn->tag);
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
+				    }
 
 				}
 				/* trigger reaction func */
