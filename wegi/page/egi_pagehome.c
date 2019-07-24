@@ -739,7 +739,7 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
     	 */
 
 	/* activate APP and wait untill it STOP or TERM */
-        egi_process_activate_APP(&pid_ffplay, "/tmp/app_ffplay");
+        egi_process_activate_APP(&pid_ffplay, "/home/app_ffplay");
 
 	return pgret_OK; /* to refresh PAGE anyway */
 }
@@ -758,7 +758,7 @@ static int egi_homebtn_ebook(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		return btnret_IDLE;
 
 	/* activate APP and wait untill it SOTP or TERM */
-        egi_process_activate_APP(&pid_ebook, "/tmp/app_ebook");
+        egi_process_activate_APP(&pid_ebook, "/home/app_ebook");
 
 	return pgret_OK; /* to refresh PAGE anyway */
 }

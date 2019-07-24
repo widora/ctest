@@ -10,6 +10,7 @@
 #include "egi_timer.h"
 #include "egi_symbol.h"
 #include "egi_bjp.h"
+#include "egi_imgbuf.h"
 #include "egi_image.h"
 #include "egi_math.h"
 #include "egi_debug.h"

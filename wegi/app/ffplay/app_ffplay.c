@@ -185,12 +185,14 @@ int main(int argc, char **argv)
                 ret=-2;
 		goto FF_FAIL;
         }
-	/* FTsymbol needs more memory, disable it if not necessary */
         if(FTsymbol_load_allpages() !=0 ) {
                 printf("Fail to load sym pages,quit.\n");
                 ret=-2;
 		goto FF_FAIL;
         }
+	/* FT fonts needs more memory, disable it if not necessary */
+	/* FTsymbol_load_appfonts() */
+
 	/* Init FB device */
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */

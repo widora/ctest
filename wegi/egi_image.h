@@ -1,12 +1,13 @@
 #ifndef __EGI_IMAGE_H__
 #define __EGI_IMAGE_H__
 
+#include "egi_imgbuf.h"
 #include "egi_fbdev.h"
 #include "egi_color.h"
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 
-
+#if 0
 typedef	struct {
 		int x0;		/* subimage left top starting point */
 		int y0;
@@ -25,7 +26,7 @@ typedef struct
 	void *data; 		 	/* color data, for pixel format other than RGB565 */
 	unsigned char *alpha;    	/* 8bit, alpha channel value, if applicable: alpha=0,100%backcolor, alpha=1, 100% frontcolor */
 } EGI_IMGBUF;
-
+#endif
 
 EGI_IMGBUF *egi_imgbuf_new(void);
 void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */

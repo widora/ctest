@@ -33,7 +33,7 @@ inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha)
 	alpha=(unsigned char)(fa*256-0.5);
 #else
         /* a simple way to improve sharpness */
-	alpha = alpha*3;
+	alpha = alpha*3/2;
         if(alpha>255)
                 alpha=255;
 #endif

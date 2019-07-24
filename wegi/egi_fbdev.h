@@ -21,8 +21,10 @@ Modified and appended by: Midas Zhou
 #include <linux/fb.h>
 #include <stdint.h>
 #include <stdbool.h>
-//#include "egi.h"  /* a conflict here */
+//#include "egi.h"  /* definition conflict */
 #include "egi_filo.h"
+#include "egi_imgbuf.h"
+//#include "egi_image.h" /* definition conflict */
 
 #define EGI_FBDEV_NAME "/dev/fb0"
 
@@ -43,6 +45,7 @@ typedef struct fbdev{
         struct 		fb_fix_screeninfo finfo;
         long int 	screensize;
         unsigned char 	*map_fb;  	/* mmap to FB data */
+	EGI_IMGBUF	*virt_fb;	/* virtual FB data */
 
 	uint16_t 	pixcolor;	/* pixel color in use, NOT applied yet! */
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0-100% bkcolor, 255-100% frontcolor */

@@ -19,6 +19,35 @@ Midas Zhou
 #include <errno.h>
 #include <fcntl.h>
 
+#include <sys/stat.h>
+#include <libgen.h>
+/*------------------------------------------
+This is from: https://stackoverflow.com/questions/2336242/recursive-mkdir-system-call-on-unix
+
+1. Make dirs in a recursive way.
+2. Compile with -D_GNU_SOURCE to activate strdupa().
+3. No SPACE allowed in string dir.
+
+Return:
+	0	OK
+	<0(-1) 	Fails
+-------------------------------------------*/
+int egi_util_mkdir(char *dir, mode_t mode)
+{
+        struct stat sb;
+
+        if(dir==NULL)
+                return -1;
+
+        if( stat(dir, &sb)==0 )
+                return 0;
+
+        egi_util_mkdir( dirname(strdupa(dir)), mode);
+
+        return mkdir(dir,mode);
+}
+
+
 /*---------------------------------------------
 Copy file fsrc_path to fdest_path
 @fsrc_path	source file path
@@ -54,6 +83,9 @@ int egi_copy_file(char const *fsrc_path, char const *fdest_path)
 	close(fd_dest);
 	return 0;
 }
+
+
+
 
 
 /*---------------------------------------------------------------------

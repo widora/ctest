@@ -343,7 +343,8 @@ void* thdf_Display_Subtitle(void * argv)
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
 
 		/* 5. Disply subtitle */
-       	        symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
+       	        //symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
+       	        symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, subln, 0, WEGI_COLOR_ORANGE,
                                                                                 1, 0, 170, strsub,-1);
 
 		/* 6. wait for a right time to let go to erase the sub. */

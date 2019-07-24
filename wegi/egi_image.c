@@ -2,6 +2,7 @@
 #include "egi_image.h"
 #include "egi_bjp.h"
 
+typedef struct fbdev FBDEV;
 
 /*--------------------------------------------
    	   Allocate  a EGI_IMGBUF

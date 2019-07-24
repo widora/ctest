@@ -852,7 +852,7 @@ int egi_page_routine(EGI_PAGE *page)
 		{
 			/* launch Runners in order */
 			EGI_PDEBUG(DBG_PAGE,"Start creating runner: pthreadID[%d]=%u ...\n",
-							__func__,i,(unsigned int)page->threadID[i] );
+								i,(unsigned int)page->threadID[i] );
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
@@ -922,9 +922,12 @@ int egi_page_routine(EGI_PAGE *page)
 			{
 				EGI_PDEBUG(DBG_PAGE,"last_holdbtn '%s' losed focus, refresh it...\n",
 										last_holdbtn->tag);
-				if(last_holdbtn->movable)  { /* to avoid unmovalbe btn with opaque value */
-					printf("'%s' is movable \n",last_holdbtn->tag);
-					egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				if( ((EGI_DATA_BTN *)(last_holdbtn->egi_data))->opaque <= 0 )
+					/* To avoid refresh btn with opaque value, which shall be refreshed
+					  with whole PAGE instead of just one btn!!! */
+				{
+			           printf("'%s' is %s \n",last_holdbtn->tag, last_holdbtn->movable ? "movable":"unmovable");
+				   egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
 				}
 
 				last_holdbtn=NULL;
@@ -962,27 +965,40 @@ int egi_page_routine(EGI_PAGE *page)
    *    Example: when status transfers from 'pressed_hold' to PEN_UP etc
    * 3. So, we need to bypass 'releasing' here by checking hitbtn->need_refresh!
    */
-				    /* call touch_effect() */
+			 /* ---- call touch_effect() ----- */
+			 /* 1. 'pressing', 'releaseing' 'pressed_hold' all will trigger touch_effec(),
+			  *     with differenct reactions defined.
+			  * 2. Signals that trigger the touch_effec() may be by_passed by the reaction()
+			  *    , so you should not expect that touch_effect() and reaction() will exectued
+			  *    one after the other. in most case,when you slide on the btn, touch_effect()
+			  *    will be triggered serval times, most possiblely by 'pressed_hold'.
+			  * 3. When the btn icon is unmovale and has opaque(alpha) value, refreshing
+			  *    it without refreshing the PAGE bk image will just addup/deepen color
+			  *	value to FB.
+			  */
 		                    if( hitbtn->need_refresh==false   /* In case SIGCONT triggered */
-                                        && last_status==pressing
+                                       // && last_status==pressing      /* trigger once only after pressing */
 					&&( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL ) ) {
 					  EGI_PDEBUG(DBG_PAGE,"call '%s' touch_effect() \n", hitbtn->tag);
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 				    }
 
 				}
+
+
 				/* trigger reaction func */
  				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
 								   last_status==pressing ||
 								   last_status==releasing ||
 								   last_status==db_pressing  )  )
 				{
+
+
+
 					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...
 					*/
 					ret=hitbtn->reaction(hitbtn, &touch_data);//last_status);
-
-
 
 					/* IF: a button request to exit current page routine */
 					if( ret==btnret_REQUEST_EXIT_PAGE )

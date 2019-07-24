@@ -19,6 +19,7 @@ LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpostproc
 LIBS 	+= -lfreetype  -lm -lz -lbz2
 
+#---!!! OBJS will be made and cleaned !!!---
 OBJS = egi_pageffplay.o $(SRC_PATH)/ffmpeg/egi_ffplay.o $(SRC_PATH)/ffmpeg/ff_utils.o $(SRC_PATH)/sound/egi_pcm.o
 APPS = app_ffplay
 
@@ -33,5 +34,5 @@ egi_pageffplay.o:	egi_pageffplay.c  egi_pageffplay.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS)  -c egi_pageffplay.c #-o egi_pageffplay.o
 
 clean:
-	rm -rf *.o $(APPS) *.dep
+	rm -rf *.o $(APPS) *.dep $(OBJS)
 

@@ -15,11 +15,12 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include "egi_symbol.h"
 #include "egi_https.h"
+#include "egi_utils.h"
 #include "he_weather.h"
 
 
-int main(int argc, char **argv)
-{
+
+int main(int argc, char **argv) {
   	int i=0;
 	int index;
         int n=0;
@@ -49,12 +50,18 @@ int main(int argc, char **argv)
 
 
 	/* create dir for heweather */
+	egi_util_mkdir("/tmp/.egi/heweather",0755);
+#if 0
 	if(access("/tmp/.egi/heweather",F_OK)==-1) {
+		printf("create dir for heweather...\n");
+		mkdir("/tmp/.egi",0755);
 		if(mkdir("/tmp/.egi/heweather",0755)) {
 			printf("%s: Fail to create dir for heweather!\n");
 			return -1;
 		}
 	}
+#endif
+
 
 
 ///////////////////////   LOOP TEST  //////////////////////

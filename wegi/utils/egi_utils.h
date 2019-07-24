@@ -8,6 +8,7 @@ Midas Zhou
 #define __EGI_UTILS_H__
 
 #include <stdio.h>
+#include <sys/stat.h>
 
 #define EGI_PATH_MAX 256 /* Max length for a file path, 4096 for PATH_MAX in <limit.h>  */
 #define EGI_NAME_MAX 128 /* Max length for a file name, 255 for NAME_MAX in <limit.h> */
@@ -15,6 +16,7 @@ Midas Zhou
 #define EGI_FEXTNAME_MAX 10 /* !!! exclude '.', length of extension name */
 #define EGI_FEXTBUFF_MAX 16 /* Max items of separated extension names  */
 
+int egi_util_mkdir(char *dir, mode_t mode);
 int egi_copy_file(char const *fsrc_path, char const *fdest_path);
 unsigned char** egi_malloc_buff2D(int items, int item_size) __attribute__((__malloc__));
 int egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int item_size);

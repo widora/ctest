@@ -893,15 +893,21 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	        tm_delayms(75);
 	}
 
-	/* if touch sliding a distance, refresh/restor btn icon */
-	else if( (touch_data->dx)*(touch_data->dx)+(touch_data->dy)*(touch_data->dy) >25 ) {
+	/* if touch sliding a distance, refresh/restore btn icon */
+	else if(  ebox->movable
+		  && (touch_data->dx)*(touch_data->dx)+(touch_data->dy)*(touch_data->dy) >25 ) {
 		egi_ebox_needrefresh(ebox);
 		egi_ebox_refresh(ebox);
 	}
 
-	/* refresh button icon for releasing */
-	else if(touch_data->status == releasing) {
-	        /* refresh immediately */
+	/* refresh button icon for 'releasing's:
+	 *   1. pressing on btn then releasing.
+	 *   2. slide on btn then releasing.
+	 */
+	else if( touch_data->status == releasing
+                    /* NOTE: to avoid refresh unmovalbe btn with opaque value */
+          	    && ((EGI_DATA_BTN*)ebox->egi_data)->opaque <= 0 )
+	{
 	        egi_ebox_needrefresh(ebox);
       		egi_ebox_refresh(ebox);
 	}

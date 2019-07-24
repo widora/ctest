@@ -4,13 +4,17 @@ SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-OBJS =
+# !!!--- to be created and cleaned ---!!!
 OBJ_IOT = ../iot/egi_iotclient.o
 
 CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils  -I../iot
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
+CFLAGS += -I$(COMMON_USRDIR)/include/json-c
+
 #-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
+CFLAGS  += -D_GNU_SOURCE
+
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 LIBS	=  -lepages -lesound
@@ -19,12 +23,12 @@ LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic
+APPS = test_fb test_sym tmp_app test_pic  test_bigiot
 
 all:	$(APPS)
 
 tmp_app:	tmp_app.c
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)  #--use shared egilib
+	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
 #	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 #-Wl,-Bstatic -legi -Wl,-Bdynamic	#---use static egilib
 
@@ -42,9 +46,9 @@ test_bigiot:	test_bigiot.c  $(OBJ_IOT)
 
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS !!!!
 %:%.c
-	$(CC) -o $@  $@.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS)
-#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS)  $@.c -o $@
+	$(CC) -o $@  $@.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS)  $@.c -o $@
 
 clean:
-	rm -rf *.o $(APPS)
+	rm -rf *.o $(APPS) $(OBJ_IOT)
 
