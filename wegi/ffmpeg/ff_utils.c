@@ -8,6 +8,7 @@ Note:
 
 TODO:
 1. Putting subtitle displaying codes in thdf_Display_Pic() may be better.
+2. Apply EGI_FIFO for frame buffering instead of picbuff[];
 
 
 Midas_Zhou
@@ -26,11 +27,19 @@ Midas_Zhou
 int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 
-/* seek position */
-//long start_tmsecs=60*95; /* starting position */
-
 /* ff control command */
 enum ffplay_cmd control_cmd;
+
+/* predefine seek position */
+//long start_tmsecs=60*95; /* starting position */
+
+/***
+ * 1. Thanks to slow SPI transfering speed, producing speed is usually greater than consuming speed.
+ * 2. Following keys to be initialized in ff_malloc_PICbuffs().
+ */
+static int ifplay;	/* current playing frame index of pPICbuffs[] */
+unsigned long nfc;	/* total frames read from pPICbuffs and consumed */
+unsigned long nfp;	/* total frames produced and copied to pPICbuffs */
 
 static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
 
@@ -46,6 +55,7 @@ static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
+
 
 width,height:	picture size
 pixel_size:	in byte, size for one pixel.
@@ -79,6 +89,12 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
                 IsFree_PICbuff[i]=true;
         }
 
+
+   	/* init key values */
+   	nfc=0;
+   	nfp=0;
+   	ifplay=0;
+
         return pPICbuffs;
 }
 
@@ -89,12 +105,18 @@ Return value:
         >=0  OK
         <0   fails
 ---------------------------------------------*/
-int ff_get_FreePicBuff(void)
+static inline int ff_get_FreePicBuff(void)
 {
         int i;
+	int index;
+
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                if(IsFree_PICbuff[i]) {
-                        return i;
+		/* check and get free slot number in preceding ifplay order. */
+		index=(ifplay+i+1)&(PIC_BUFF_NUM-1);
+
+                if(IsFree_PICbuff[index]) {
+
+                        return index;
 		}
         }
 
@@ -140,8 +162,10 @@ void* thdf_Display_Pic(void * argv)
    }
 
    int 	i;
+   int  index;
+   unsigned long nfc_tmp;
 //   int 	key;		/* key frame to play */
-//   bool idle_round;	/* no new frame for round playing */
+//   bool idle_round;		/* no new frame for round playing */
 //   int  last=0;		/* last available frame number */
    bool still_image;
 
@@ -162,6 +186,7 @@ void* thdf_Display_Pic(void * argv)
    /* check if it's image, TODO: still or motion image */
    if(IS_IMAGE_CODEC(ppic->vcodecID)) {
 	  still_image=true;
+	  EGI_PLOG(LOGLV_INFO,"%s: Playing an still image.\n",__func__);
    }  else {
 	  still_image=false;
    }
@@ -173,24 +198,33 @@ void* thdf_Display_Pic(void * argv)
 	//exit(-1);
    }
 
+
    while(1)
    {
+	   nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
 	   for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
 	   {
-		if( !IsFree_PICbuff[i] ) { 	/* If new frame available */
+//		if( !IsFree_PICbuff[i] ) { 	/* If new frame available */
+		index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
+		if( !IsFree_PICbuff[index] ) {
+			/* set index of pPICbuff[] for current playing frame*/
+			ifplay=index;
 
 			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
-			imgbuf->imgbuf=(uint16_t *)pPICbuffs[i]; /* Ownership transfered! */
+			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
 			/* window_position displaying */
 			egi_imgbuf_windisplay(imgbuf, &gv_fb_dev, -1,
 					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
 
+		   	/* put a FREE tag after display, then it can be overwritten. */
+	  	   	IsFree_PICbuff[index]=true;
+
 			tm_delayms(25);
 	   		//usleep(20000);
 
-		   	/* put a FREE tag after display, then it can be overwritten. */
-	  	   	IsFree_PICbuff[i]=true;
+			/* increase number of frames consumed */
+			nfc++;
 		}
 	   }
 
@@ -219,31 +253,37 @@ void* thdf_Display_Pic(void * argv)
 }
 
 
-/*-----------------------------------------------------------------------
+/*------------------------------------------------------------------------
  Copy RGB data from *data to PicInfo.data
 
   ppic: 	a PicInfo struct
   data:		data source
   numbytes:	amount of data copied, in byte.
 
+TODO: Pic data loading must NOT exceed displaying by one circle of PIC buff.
+
+
  Return value:
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
-------------------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 int ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 
 	nbuff=ff_get_FreePicBuff(); /* get a slot number */
-	ppic->nPICbuff=nbuff;
 	//printf("Load_Pic2Buff(): get_FreePicBuff() =%d\n",nbuff);
 
-	/* only if PICBuff has free slot */
-	if(nbuff >= 0){
+	/* only if PICBuff has free slot, and no more than PIC_BUFF_NUM(one circle of buff), then renew ppic */
+	if( nbuff >= 0 && nfp-nfc < PIC_BUFF_NUM  ){
 		ppic->data=pPICbuffs[nbuff]; /* get pointer to the PICBuff */
 		//printf("Load_Pic2Buff(): start memcpy..\n");
 		memcpy(ppic->data, data, numBytes);
 		IsFree_PICbuff[nbuff]=false; /* put a NON_FREE tag to the buff slot */
+		ppic->nPICbuff=nbuff;	/* put slot number */
+
+		/* increase total number of frames produced */
+		nfp++;
 	}
 
 	return nbuff;

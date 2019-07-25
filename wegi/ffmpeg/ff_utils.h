@@ -36,7 +36,8 @@ extern enum ffplay_cmd control_cmd;
 extern FFPLAY_CONTEXT *FFplay_Ctx;
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
-#define PIC_BUFF_NUM  4  /* total number of RGB picture data buffers. */
+#define BUFF_NUM_EXPONENT	2
+#define PIC_BUFF_NUM  		(1<<BUFF_NUM_EXPONENT)  /* total number of RGB picture data buffers. */
 
 /* information of a decoded picture, for pthread params */
 struct PicInfo {
@@ -61,7 +62,7 @@ struct PicInfo {
 /*  functions	*/
 uint8_t**  	ff_malloc_PICbuffs(int width, int height, int pixel_size );
 //static void  	ff_free_PicBuffs(void);
-int 	   	ff_get_FreePicBuff(void);
+//int 	   	ff_get_FreePicBuff(void);
 int 	   	ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   	thdf_Display_Pic(void * argv);
 void* 	   	thdf_Display_Subtitle(void * argv);

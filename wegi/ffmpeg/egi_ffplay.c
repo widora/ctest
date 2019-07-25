@@ -552,7 +552,8 @@ pFormatCtx->probesize2=128*1024;
 			-------------------------------*/
 		        vcodecDespt=avcodec_descriptor_get(vcodecID);
 			if(vcodecDespt != NULL) {
-				printf("Video codec name: %s, %s\n", vcodecDespt->name, vcodecDespt->long_name);
+				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s\n",
+							vcodecDespt->name, vcodecDespt->long_name);
 			}
 		   }
 		   else
@@ -646,9 +647,8 @@ if(disable_audio)
 			av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
 			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
-#endif
 
-#if 0 /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
+#else  /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
 	/* Function definition:
 	struct SwrContext *swr_alloc_set_opts( swr ,
                            int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
@@ -1216,7 +1216,7 @@ if(enable_avfilter)
 else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
 {
 				/* convert the image from its native format to RGB */
-				//printf("ffplay: sws_scale converting ...\n");
+				//printf("%s: sws_scale converting ...\n",__func__);
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -1224,7 +1224,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				//printf(" start Load_Pic2Buff()....\n");
+				//printf("%s: start Load_Pic2Buff()....\n",__func__);
 				if( ff_load_Pic2Buff(&pic,pFrameRGB->data[0],numBytes) <0 )
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
