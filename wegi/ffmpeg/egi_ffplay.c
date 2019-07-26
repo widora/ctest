@@ -61,6 +61,7 @@ NOTE:
 
 [Y30-Y260]
 {0,30}, {240-1, 260}  		--- Image/subtitle Displaying Zone
+[Y30-Y149]  Image
 [Y150-Y260] Sub_displaying
 
 [Y150-Y265]
@@ -312,9 +313,9 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	}
 	printf("-------------start at: %ld -----------\n", FFplay_Ctx->start_tmsecs);
 
-
 	int ftotal=FFplay_Ctx->ftotal; /* number of multimedia files input from shell */
-	int fnum;		/* Index number of files in array FFplay_Ctx->fpah */
+	int fnum;		/* Index number of files in array FFplay_Ctx->fpath */
+	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
 	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
 
@@ -427,11 +428,11 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	/* check expected display window size */
 	if(enable_avfilter) {
 		if( (show_w&0xF) != 0 || (show_h&0xF) !=0 ) {
-			printf("ffplay: WARING!!! Size of display_window side must be multiples of 16 for AVFiler.\n");
+			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 16 for AVFiler.\n");
 		}
 	}
 	else if( (show_w&0x1) != 0 || (show_h&0x1) !=0 ) {
-			printf("ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
+			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
 	}
 
 	/*MOVED: addjust offset of display window */
@@ -440,9 +441,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 
 
         /* prepare fb device just for FFPLAY */
-	FBDEV ff_fb_dev;
         init_fbdev(&ff_fb_dev);
-
 
 	/* --- fill display area with BLACK --- */
 	fbset_color(WEGI_COLOR_BLACK);
@@ -540,7 +539,7 @@ pFormatCtx->probesize2=128*1024;
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
 		   if( videoStream < 0) {
 			videoStream=i;
-			printf("Video is found in stream[%d], to be accepted.\n",i);
+			EGI_PDEBUG(DBG_FFPLAY,"Video is found in stream[%d], to be accepted.\n",i);
 			vcodecID=pFormatCtx->streams[i]->codec->codec_id;
 			/*----------- Picture ----------
 			 	AV_CODEC_ID_MJPEG
@@ -557,16 +556,16 @@ pFormatCtx->probesize2=128*1024;
 			}
 		   }
 		   else
-			printf("Video is also found in stream[%d], to be ignored.\n",i);
+			EGI_PDEBUG(DBG_FFPLAY,"Video is also found in stream[%d], to be ignored.\n",i);
 		}
 
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO ) {
 		   if( audioStream < 0) {
 			audioStream=i;
-			printf("Audio is found in stream[%d], to be accepted.\n",i);
+			EGI_PDEBUG(DBG_FFPLAY,"Audio is found in stream[%d], to be accepted.\n",i);
 		   }
 		   else
-			printf("Audio is also found in stream[%d], to be ignored.\n",i);
+			EGI_PDEBUG(DBG_FFPLAY,"Audio is also found in stream[%d], to be ignored.\n",i);
 		}
 	}
 	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] \n", __func__,
@@ -768,8 +767,8 @@ if(disable_audio)
 		return (void *)-1;
 	}
 	/* get original video size */
-	printf("%s: original video image size: widthOrig=%d, heightOrig=%d\n",
-					__func__, pCodecCtx->width,pCodecCtx->height);
+	EGI_PDEBUG(DBG_FFPLAY,"original video image size: widthOrig=%d, heightOrig=%d\n",
+					 		pCodecCtx->width,pCodecCtx->height);
 
 
 /* if enable_auto_rotate, then map long side to H, and shore side to W
@@ -848,7 +847,7 @@ else /* if NOT stretch, then keep original ratio */
 	 	scheight=heightOrig;
 	}
 }
-	printf("%s: Max. scale video size: scwidth=%d, scheight=%d \n",__func__,scwidth,scheight);
+	EGI_PDEBUG(DBG_FFPLAY,"Max. scale video size: scwidth=%d, scheight=%d \n",scwidth,scheight);
 
 	/* re-check size limit, in case data corrupted! */
 	if( scwidth>LCD_MAX_WIDTH ||
@@ -886,7 +885,7 @@ else
 	display_width=(display_width>>1)<<1;
 	display_height=(display_height>>1)<<1;
 }
-	printf("%s: Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
+	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
 										display_width,display_height);
 
 	/* Addjust displaying window position */
@@ -975,7 +974,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 		pfsub=NULL;
 	}
 	pfsub=cstr_dup_repextname(fpath[fnum],".srt");
-	printf("Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
+	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
 	if( pfsub != NULL && access(pfsub,F_OK)==0 ) {
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
 			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
@@ -1372,7 +1371,11 @@ if(enable_clip_test)
 		    }
 		    else if(FFplay_Ctx->ffcmd==cmd_prev) {
 			FFplay_Ctx->ffcmd=cmd_none;
-			fnum-=2;
+			//printf("xxxxxxxxx  fnum=%d  xxxxxxx", fnum );
+			if( fnum > 0 )
+				fnum-=2;
+			else
+				fnum=-1;
 			goto FAIL_OR_TERM;
 		    }
 
@@ -1514,16 +1517,15 @@ if(enable_avfilter) /* free filter resources */
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);
-	EGI_PDEBUG(DBG_FFPLAY,"Playing %s cost time: %d ms\n",fpath[fnum],
+	EGI_PDEBUG(DBG_FFPLAY,"Playing %s cost time: %d ms\n",fpath[fnum_playing],
 									tm_signed_diffms(tm_start,tm_end) );
 
-	EGI_PLOG(LOGLV_INFO,"%s: End of playing file %s\n", __func__, fpath[fnum]);
+	EGI_PLOG(LOGLV_INFO,"%s: End of playing file %s\n", __func__, fpath[fnum_playing]);
 
 	/* sleep, to let sys release cache ....???? */
 	tm_delayms(1000);
 
    } /* end of for(...), loop playing input files*/
-
 
    //tm_delayms(500);
 

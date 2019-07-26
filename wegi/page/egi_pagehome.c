@@ -183,7 +183,6 @@ EGI_PAGE *egi_create_homepage(void)
 	home_btns[3]->reaction=egi_homebtn_ffplay;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
-	home_btns[4]->reaction=egi_homebtn_ebook;
 
 	egi_ebox_settag(home_btns[5], "btn_book");
 	home_btns[5]->reaction=egi_homebtn_book;
@@ -208,7 +207,9 @@ EGI_PAGE *egi_create_homepage(void)
 	egi_ebox_settag(home_btns[9], "btn_linphone");
 	home_btns[9]->reaction=egi_homebtn_openwrt;
 
-	egi_ebox_settag(home_btns[10], "btn_net");
+	egi_ebox_settag(home_btns[10], "btn_ebook");
+	home_btns[10]->reaction=egi_homebtn_ebook;
+
 
 	/* the 4th page */
 	for(i=3*2*3; i<18+6; i++) {

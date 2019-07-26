@@ -614,8 +614,6 @@ int symbol_check_page(const struct symbol_page *sym_page, char *func)
 
 
 
-
-
 /*--------------------------------------------------------------------------
 print all symbol in a mem page.
 print '*' if the pixel data is not 0.
@@ -745,8 +743,8 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int i,j;
 	FBPIX fpix;
 	long int pos; /* offset position in fb map */
-	int xres=fb_dev->vinfo.xres; /* x-resolusion = screen WIDTH240 */
-	int yres=fb_dev->vinfo.yres;
+	int xres; /* x-resolusion = screen WIDTH240 */
+	int yres;
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
 	unsigned char palpha=0;
@@ -755,7 +753,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	long poff;
 	int height=sym_page->symheight;
 	int width;
-
+	EGI_IMGBUF *virt_fb;
 
 	//long int screensize=fb_dev->screensize;
 
@@ -771,6 +769,18 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		return;
 	}
 
+        /* set xres and yres */
+        virt_fb=fb_dev->virt_fb;
+        if(virt_fb) {                   /* for virtual FB */
+                xres=virt_fb->width;
+                yres=virt_fb->height;
+        }
+        else {                          /* for FB */
+                xres=fb_dev->vinfo.xres;
+                yres=fb_dev->vinfo.yres;
+        }
+
+
 	/* get symbol/font width, only 1 character in FT2 symbol page NOW!!! */
 	if(sym_page->symtype==symtype_FT2) {
 		width=sym_page->ftwidth;
@@ -780,6 +790,10 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		width=sym_page->symwidth[sym_code];
 		offset=sym_page->symoffset[sym_code];
 	}
+
+	/* check opaque */
+	if( opaque < 0 || opaque > 255)
+		opaque=255;
 
 	/* get symbol pixel and copy it to FB mem */
 	for(i=0;i<height;i++)
@@ -898,6 +912,53 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 					pcolor = ~pcolor;
 				}
 
+				/*  if use given symbol/font color  */
+				if(fontcolor >= 0)
+					pcolor=(uint16_t)fontcolor;
+
+		 	   /* ------------------------ ( for Virtual FB ) ---------------------- */
+			   if( virt_fb )
+			   {
+				if( pos < 0 || pos > fb_dev->screensize - 1 ) /* screensize of imgbuf,
+          				                                       * pos in pixels! */
+        			{
+      	                		printf("symbol_writeFB(): WARNING!!! symbol point reach boundary of FB mem.!\n");
+			                return;
+			        }
+
+				/* if apply alpha: front pixel, background pixel,alpha value */
+				if(sym_page->alpha) {
+					if(opaque==255) { /* Speed UP!! */
+            	        			//pcolor=COLOR_16BITS_BLEND( pcolor,
+						pcolor=egi_16bitColor_blend( pcolor,
+								     virt_fb->imgbuf[pos],
+								     palpha
+								 );
+					} else {
+						pcolor=egi_16bitColor_blend( pcolor,
+								     virt_fb->imgbuf[pos],
+								     palpha*opaque/255  /* opaque[0-255] */
+								 );
+					}
+				}
+				else if (opaque > 0) {  /* 0 as 100% transparent */
+                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
+					pcolor=egi_16bitColor_blend( pcolor,
+								     virt_fb->imgbuf[pos],
+								     opaque
+								  );
+				}
+
+				/* write to virt FB */
+				virt_fb->imgbuf[pos]=pcolor; /* in pixel */
+
+				/* TODO: alpha blend */
+
+			   }
+
+		 	   /* ------------------------ ( for Real FB ) ---------------------- */
+			   else
+			   {
 				/* check available space for a 2bytes pixel color fb memory boundary,
 				  !!! though FB has self roll back mechanism.  */
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
@@ -909,34 +970,34 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
                 			return;
         			}
 
-				/*  if use given symbol/font color  */
-				if(fontcolor >= 0)
-					pcolor=(uint16_t)fontcolor;
-
 				/* if apply alpha: front pixel, background pixel,alpha value */
-				if(opaque>=0) {
-#if 0	/* use Macro */
-                    			pcolor=COLOR_16BITS_BLEND( pcolor,
-#else   /* use function, GAMMA CORRECTION applied here */
+				if(sym_page->alpha) {
+					if(opaque==255) { /* Speed UP!! */
+	                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
+						pcolor=egi_16bitColor_blend( pcolor,
+									    *(uint16_t *)(fb_dev->map_fb+pos),
+									    palpha  /* opaque[0-255] */
+									 );
+					} else {
+						pcolor=egi_16bitColor_blend( pcolor,
+									    *(uint16_t *)(fb_dev->map_fb+pos),
+									    palpha*opaque/255  /* opaque[0-255] */
+									 );
+					}
+				}
+				else if (opaque > 0) {  /* 0 as 100% transparent */
+                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
 					pcolor=egi_16bitColor_blend( pcolor,
-#endif
 								     *(uint16_t *)(fb_dev->map_fb+pos),
 								     opaque
 								  );
 				}
-				else if(sym_page->alpha) {
-#if 0	/* use Macro */
-                    			pcolor=COLOR_16BITS_BLEND( pcolor,
-#else   /* use function, GAMMA CORRECTION applied here */
-					pcolor=egi_16bitColor_blend( pcolor,
-#endif
-								    *(uint16_t *)(fb_dev->map_fb+pos),
-								    palpha
-								 );
-				}
 
 				/* write to FB */
 				*(uint16_t *)(fb_dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
+
+			   } /* end IF(real FB and virt FB) */
+
 			}
 		}
 	}

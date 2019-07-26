@@ -18,6 +18,10 @@ Some concepts:
 
 5. All child processes to be handled by ULOOP_PROCESSE, as possible?.
 
+6. Since APP processes will be suspended and reactivated by signals(STOP/CONT), and data 
+   transfering will be cut off and leg go abruptly by the signals. For example, LCD displays 
+   with SPI transfering color data, sound card plays with I2S transfering pcm data.
+   Take care of those situations, so broken dataflow will not cause any disfunction.
 
 NOTE:
 1. Difference between OpenWRT uClibc and Glibc may cause some trouble!?
@@ -28,7 +32,7 @@ NOTE:
    are to be carried out by the APP, so it will be fast enough to fork() and execv() a
    new APP. 
    The FreeType2 fonts shall NOT be loaded in the main process!
-
+5. 
 
 Please see basic ebox concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 

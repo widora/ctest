@@ -34,6 +34,7 @@ extern int ff_sub_delays; /* delay sub display in seconds, relating to ff_sec_Ve
 extern enum ffplay_cmd control_cmd;
 
 extern FFPLAY_CONTEXT *FFplay_Ctx;
+extern FBDEV ff_fb_dev;
 
 //#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48KHz 32bit audio
 #define BUFF_NUM_EXPONENT	2
@@ -42,13 +43,13 @@ extern FFPLAY_CONTEXT *FFplay_Ctx;
 /* information of a decoded picture, for pthread params */
 struct PicInfo {
         /* coordinate for display window layout on LCD */
-	int Hs; /* Horizontal start pixel column number */
-	int He; /* Horizontal end */
-	int Vs; /* Vertical start pixel row number */
-	int Ve; /* Vertical end */
-	int nPICbuff; /* slot number of buff data in pPICbuffs[] */
-	uint8_t *data; /* RGB data, pointer to pPICbuffs[] page */
-	int numBytes;  /* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
+	int Hs; 	/* Horizontal start pixel column number */
+	int He; 	/* Horizontal end */
+	int Vs; 	/* Vertical start pixel row number */
+	int Ve; 	/* Vertical end */
+	int nPICbuff; 	/* slot number of buff data in pPICbuffs[] */
+	uint8_t *data; 	/* RGB data, pointer to pPICbuffs[] page */
+	int numBytes;  	/* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
 	enum AVCodecID vcodecID; /* Video codec ID */
 };
 

@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	/* FT fonts needs more memory, disable it if not necessary */
 	/* FTsymbol_load_appfonts() */
 
-	/* Init FB device */
+	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */
         SPI_Open();/* for touch_spi dev  */
@@ -203,7 +203,6 @@ int main(int argc, char **argv)
                 ret=-3;
 		goto FF_FAIL;
         }
-
 
 
 	/*  --- 1.1 set FFPLAY Context --- */

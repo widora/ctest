@@ -37,18 +37,22 @@ typedef struct fbdev{
         bool 		virt;           /* 1. TRUE: virtural fbdev, it maps to an EGI_IMGBUF
 	                                 *   and fbfd will be ineffective.
 					 *   vinfo.xres,vinfo.yres and vinfo.screensize MUST set.
-					 *
+					 *   as .width and .height of the EGI_IMGBUF.
 					 *  2. FALSE: maps to true FB device, fbfd is effective.
+					 *  3. FB FILO will be ineffective then.
                                 	 */
 
         struct 		fb_var_screeninfo vinfo;
         struct 		fb_fix_screeninfo finfo;
         long int 	screensize;
         unsigned char 	*map_fb;  	/* mmap to FB data */
-	EGI_IMGBUF	*virt_fb;	/* virtual FB data */
+	EGI_IMGBUF	*virt_fb;	/* virtual FB data as a EGI_IMGBUF
+					 * Ownership will NOT be taken from the caller, means FB will
+				   	 * never try to free it, whatever.
+					 */
 
 	uint16_t 	pixcolor;	/* pixel color in use, NOT applied yet! */
-	unsigned char	pixalpha;	/* pixel alpha value in use, 0-100% bkcolor, 255-100% frontcolor */
+	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
 	int   		pos_rotate;	/* 0: default X,Y coordinate of FB
 					 * 1: clockwise rotation 90 deg: Y  maps to (vinfo.xres-1)-FB.X,
@@ -77,6 +81,8 @@ extern FBDEV   gv_fb_dev;
 /* functions */
 int             init_fbdev(FBDEV *dev);
 void            release_fbdev(FBDEV *dev);
+int 		init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
+void		release_virt_fbdev(FBDEV *dev);
 inline void     fb_filo_on(FBDEV *dev);
 inline void     fb_filo_off(FBDEV *dev);
 void            fb_filo_flush(FBDEV *dev);

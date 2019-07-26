@@ -8,7 +8,9 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 #OBJS += ../utils/egi_utils.o ../utils/egi_fifo.o ../utils/egi_filo.o
 
 CFLAGS  = -I$(COMMON_USRDIR)/include	-I../. -I../utils/
+CFLAGS  += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -Wall -O2
+
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 
@@ -16,6 +18,8 @@ LIBS	= -legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
 LIBS	+= -lcurl -lssl -lcrypto -pthread
+LIBS 	+= -lfreetype  -lm -lz -lbz2
+
 
 APPS = test_png test_blend loop_show
 

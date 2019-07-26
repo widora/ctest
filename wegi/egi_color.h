@@ -44,10 +44,19 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 			)									\
 
 
-/*------------------------------------------------------------------
+/*-----------------------------------------------------------------------o
+
 	  	16bit color blend function
---------------------------------------------------------------------*/
+Note: Back alpha value ingored.
+-------------------------------------------------------------------------*/
 inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha);
+
+/*------------------------------------------------------------------------------
+                16bit color blend function
+Note: Back alpha value also applied.
+-------------------------------------------------------------------------------*/
+inline EGI_16BIT_COLOR egi_16bitColor_blend2(EGI_16BIT_COLOR front, unsigned char falpha,
+                                             EGI_16BIT_COLOR back,  unsigned char balpha );
 
 
 #define WEGI_COLOR_BLACK 		 COLOR_RGB_TO16BITS(0,0,0)

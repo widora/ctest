@@ -29,7 +29,7 @@ EGI_IMGBUF *egi_imgbuf_new(void)
 
 
 /*------------------------------------------------------------
-Free data in EGI_IMGBUF, but only itself!
+Free data in EGI_IMGBUF, but NOT itself!
 
 NOTE:
   1. WARNING!!!: No mutex operation here, the caller shall take

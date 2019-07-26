@@ -16,6 +16,7 @@
 FBDEV   gv_fb_dev={ .fbfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
 
 /*-------------------------------------
+Initiate a FB device.
 Return:
         0       OK
         <0      Fails
@@ -25,7 +26,7 @@ int init_fbdev(FBDEV *fr_dev)
 //        FBDEV *fr_dev=dev;
 	int i;
 
-        if(fr_dev->fbfd>0) {
+        if(fr_dev->fbfd > 0) {
            printf("Input FBDEV already open!\n");
            return -1;
         }
@@ -49,8 +50,15 @@ int init_fbdev(FBDEV *fr_dev)
                 return -2;
         }
 
+	/* reset virtual FB, as EGI_IMGBUF */
+	fr_dev->virt_fb=NULL;
+
 	/* reset pos_rotate */
 	fr_dev->pos_rotate=0;
+
+        /* reset pixcolor and pixalpha */
+        fr_dev->pixcolor=(30<<11)|(10<<5)|10;
+        fr_dev->pixalpha=255;
 
         /* init fb_filo */
         fr_dev->filo_on=0;
@@ -61,6 +69,7 @@ int init_fbdev(FBDEV *fr_dev)
                 close(fr_dev->fbfd);
                 return -3;
         }
+
         /* assign fb box */
         gv_fb_box.startxy.x=0;
         gv_fb_box.startxy.y=0;
@@ -89,15 +98,105 @@ Release FB and free map
 --------------------------*/
 void release_fbdev(FBDEV *dev)
 {
+	int i;
+
         if(!dev || !dev->map_fb)
                 return;
 
+	/* free FILO, reset fb_filo to NULL inside */
         egi_free_filo(dev->fb_filo);
 
         munmap(dev->map_fb,dev->screensize);
 
+	/* free buffer */
+	for( i=0; i<FBDEV_MAX_BUFFER; i++ )
+	{
+		if( dev->buffer[i] != NULL )
+		{
+			free(dev->buffer[i]);
+			dev->buffer[i]=NULL;
+		}
+	}
+
         close(dev->fbfd);
         dev->fbfd=-1;
+}
+
+
+
+/*--------------------------------------------------
+Initiate a virtual FB device with an EGI_IMGBUF
+
+Return:
+        0       OK
+        <0      Fails
+---------------------------------------------------*/
+int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
+{
+	int i;
+
+	/* check input data */
+	if(eimg==NULL || eimg->width<=0 || eimg->height<=0 ) {
+		printf("%s: Input EGI_IMGBUF is invalid!\n",__func__);
+		return -1;
+	}
+
+	/* check alpha
+	 * NULL is OK
+	 */
+
+	/* set virt */
+	fr_dev->virt=true;
+
+	/* disable FB parmas */
+	fr_dev->fbfd=-1;
+	fr_dev->map_fb=NULL;
+	fr_dev->fb_filo=NULL;
+	fr_dev->filo_on=-1;
+
+	/* reset virtual FB, as EGI_IMGBUF */
+	fr_dev->virt_fb=eimg;
+
+	/* reset pos_rotate */
+	fr_dev->pos_rotate=0;
+
+        /* reset pixcolor and pixalpha */
+        fr_dev->pixcolor=(30<<11)|(10<<5)|10;
+        fr_dev->pixalpha=255;
+
+	/* set params for virt FB */
+	fr_dev->vinfo.bits_per_pixel=16;
+	fr_dev->finfo.line_length=eimg->width*2;
+	fr_dev->vinfo.xres=eimg->width;
+	fr_dev->vinfo.yres=eimg->height;
+	fr_dev->vinfo.xoffset=0;
+	fr_dev->vinfo.yoffset=0;
+	fr_dev->screensize=eimg->height*eimg->width;
+
+	/* clear buffer */
+	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+		fr_dev->buffer[i]=NULL;
+	}
+
+        printf(" \n--- Virtal FB Parameters ---\n");
+        printf(" bits_per_pixel: %d bits \n",		fr_dev->vinfo.bits_per_pixel);
+        printf(" line_length: %d bytes\n",		fr_dev->finfo.line_length);
+        printf(" xres: %d pixels, yres: %d pixels \n", 	fr_dev->vinfo.xres, fr_dev->vinfo.yres);
+        printf(" xoffset: %d,  yoffset: %d \n", 	fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
+        printf(" screensize: %ld bytes\n", 		fr_dev->screensize);
+        printf(" ----------------------------\n\n");
+
+	return 0;
+}
+
+
+/*---------------------------------
+	Release a virtual FB
+---------------------------------*/
+void release_virt_fbdev(FBDEV *dev)
+{
+	dev->virt=false;
+	dev->virt_fb=NULL;
 }
 
 

@@ -21,6 +21,7 @@ Midas ZHou
 
 /*------------------------------------------------------------------
                 16bit color blend function
+Note: Ignore back alpha value.
 --------------------------------------------------------------------*/
 inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha)
 {
@@ -39,6 +40,28 @@ inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha)
 #endif
 
         return COLOR_16BITS_BLEND(front, back, alpha);
+}
+
+
+/*------------------------------------------------------------------------------
+                16bit color blend function
+Note: Back alpha value also applied.
+-------------------------------------------------------------------------------*/
+inline EGI_16BIT_COLOR egi_16bitColor_blend2(EGI_16BIT_COLOR front, unsigned char falpha,
+					     EGI_16BIT_COLOR back,  unsigned char balpha )
+{
+	/* applay front color if both 0 */
+	if(falpha==0 && balpha==0) {
+		return front;
+	}
+	/* blend them */
+	else {
+          return  COLOR_RGB_TO16BITS (
+         	  	  ( ((front&0xF800)>>8)*falpha + ((back&0xF800)>>8)*balpha) /(falpha+balpha),
+		          ( ((front&0x7E0)>>3)*falpha + ((back&0x7E0)>>3)*balpha) /(falpha+balpha),
+        		  ( ((front&0x1F)<<3)*falpha + ((back&0x1F)<<3)*balpha) /(falpha+balpha)
+                  );
+	}
 }
 
 

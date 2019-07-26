@@ -27,6 +27,8 @@ Midas_Zhou
 int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 
+FBDEV ff_fb_dev;
+
 /* ff control command */
 enum ffplay_cmd control_cmd;
 
@@ -88,7 +90,6 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
         for(i=0;i<PIC_BUFF_NUM;i++) {
                 IsFree_PICbuff[i]=true;
         }
-
 
    	/* init key values */
    	nfc=0;
@@ -214,7 +215,7 @@ void* thdf_Display_Pic(void * argv)
 			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
 			/* window_position displaying */
-			egi_imgbuf_windisplay(imgbuf, &gv_fb_dev, -1,
+			egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
 					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
 
 		   	/* put a FREE tag after display, then it can be overwritten. */
@@ -231,7 +232,8 @@ void* thdf_Display_Pic(void * argv)
   	  /* revive slot [0] for still image */
 	  if( still_image )  {
 		tm_delayms(500);
-		IsFree_PICbuff[0]=false;
+		nfc=1; /* since ff_get_FreePicBuff() from 1 */
+		IsFree_PICbuff[1]=false;
 	  }
 
 	   /* quit ffplay */
@@ -354,9 +356,9 @@ void* thdf_Display_Subtitle(void * argv)
 
         	/* 3. read a section of sub and display it */
 	        fbset_color(WEGI_COLOR_BLACK);
-//        	draw_filled_rect(&gv_fb_dev,subbox.startxy.x,subbox.startxy.y,
+//        	draw_filled_rect(&ff_fb_dev,subbox.startxy.x,subbox.startxy.y,
 //								subbox.endxy.x,subbox.endxy.y);
-        	draw_filled_rect2(&gv_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
+        	draw_filled_rect2(&ff_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
 								subbox.endxy.x,subbox.endxy.y);
 	        len=0;
         	memset(strsub,0,sizeof(strsub));
@@ -383,8 +385,8 @@ void* thdf_Display_Subtitle(void * argv)
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
 
 		/* 5. Disply subtitle */
-       	        //symbol_strings_writeFB(&gv_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
-       	        symbol_strings_writeFB(&gv_fb_dev, &sympg_ascii, 240, subln, 0, WEGI_COLOR_ORANGE,
+       	        //symbol_strings_writeFB(&ff_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
+       	        symbol_strings_writeFB(&ff_fb_dev, &sympg_ascii, 240, subln, 0, WEGI_COLOR_ORANGE,
                                                                                 1, 0, 170, strsub,-1);
 
 		/* 6. wait for a right time to let go to erase the sub. */
