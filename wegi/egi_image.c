@@ -116,7 +116,7 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
         }
 
         /* calloc imgbuf->alpha, alpha=0, 100% canvas color. */
-        egi_imgbuf->alpha= calloc(1, height*width); /* alpha value 8bpp */
+        egi_imgbuf->alpha= calloc(1, height*width*sizeof(unsigned char)); /* alpha value 8bpp */
         if(egi_imgbuf->alpha == NULL) {
                 printf("%s: fail to calloc egi_imgbuf->alpha.\n",__func__);
 		free(egi_imgbuf->imgbuf);
@@ -311,7 +311,7 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                 locimg= (i+yp)*imgw+(j+xp);
 
 				if(subcolor<0) {
-	                                fbset_color(*(uint16_t *)(imgbuf+locimg));
+	                                fbset_color(imgbuf[locimg]);
 				}
 				else {  /* use subcolor */
 	                                fbset_color((uint16_t)subcolor);
@@ -325,7 +325,7 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
   }
   else /* with alpha channel */
   {
-	printf("----- alpha ON -----\n");
+	//printf("----- alpha ON -----\n");
         for(i=0;i<winh;i++)  { /* row of the displaying window */
                 for(j=0;j<winw;j++)  {
 
@@ -349,9 +349,11 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                 /* image data location, 2 bytes per pixel */
                                 locimg= (i+yp)*imgw+(j+xp);
 
-                                if(alpha[locimg]==0) {   /* ---- 100% backgroud color ---- */
+                                if( alpha[locimg]==0 ) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */
                                         //fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+
+				    	/* for Virt FB ???? */
                                 }
 
 				else if(subcolor<0) {	/* ---- No subcolor ---- */
@@ -368,9 +370,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                                      }
 #endif  ///////////////////////////////////////////////////////////////////////////
 				     fb_dev->pixalpha=alpha[locimg];
-				     fbset_color(*(uint16_t *)(imgbuf+locimg));
+				     fbset_color(imgbuf[locimg]);
                                      draw_dot(fb_dev,j+xw,i+yw);
-
 				}
 
 				else  {  		/* ---- use subcolor ----- */
@@ -411,8 +412,10 @@ For 16bits color only!!!!
 
 WARING:
 1. Writing directly to FB without calling draw_dot()!!!
+   FB_FILO, Virt_FB disabled!!!
 2. Take care of image boudary check and locfb check to avoid outrange points skipping
    to next line !!!!
+3. No range limit check, which may cause segmentation fault!!!
 
 Note:
 1. No subcolor and write directly to FB, so FB FILO is ineffective !!!!!
@@ -708,7 +711,8 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 							/* front, background, alpha */
 			}
 			else {			/* use Font bitmap gray value */
-				if(alpha<180)alpha=255; /* set a limit as for GAMMA correction, too simple! */
+				/* alpha=0 MUST keep unchanged! */
+				if(alpha>0 && alpha<180)alpha=255; /* set a limit as for GAMMA correction, too simple! */
 				color=COLOR_16BITS_BLEND( COLOR_RGB_TO16BITS(alpha,alpha,alpha),
 							  eimg->imgbuf[pos], alpha );
 			}

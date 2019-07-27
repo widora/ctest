@@ -152,7 +152,7 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 	fr_dev->fbfd=-1;
 	fr_dev->map_fb=NULL;
 	fr_dev->fb_filo=NULL;
-	fr_dev->filo_on=-1;
+	fr_dev->filo_on=0;
 
 	/* reset virtual FB, as EGI_IMGBUF */
 	fr_dev->virt_fb=eimg;

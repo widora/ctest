@@ -252,7 +252,8 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 	int sumalpha;
 
 	/* check input data */
-	if(dev==NULL) return -2;
+	if(dev==NULL)
+		return -2;
 
 	/* set xres and yres */
 	virt_fb=fr_dev->virt_fb;
@@ -342,10 +343,8 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 		fb_color=COLOR_16BITS_BLEND(  fb_color,			     /* Front color */
 					      virt_fb->imgbuf[location],     /* Back color */
 					      fr_dev->pixalpha );	     /* Alpha value */
-	        virt_fb->imgbuf[location]=fb_color;
 
-		/* reset alpha to 255 as default */
-		fr_dev->pixalpha=255;
+	        virt_fb->imgbuf[location]=fb_color;
 	}
 
         /* if VIRT FB has alpha data */
@@ -356,7 +355,8 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 	        virt_fb->alpha[location]=sumalpha;
 	}
 
-
+	/* reset alpha to 255 as default, at last!!! */
+	fr_dev->pixalpha=255;
 
    }
 
@@ -367,20 +367,20 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
         location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
                      (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
 
-	/* push old data to FB FILO */
-	if(fr_dev->filo_on)
-        {
-                fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
-                fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
-                egi_filo_push(fr_dev->fb_filo, &fpix);
-        }
-
 	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
 	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) ) /* screensize in bytes! */
 	{
 		printf("WARNING: point location out of fb mem.!\n");
 		return -1;
 	}
+
+	/* push old data to FB FILO */
+	if(fr_dev->filo_on && fr_dev->pixalpha>0 )
+        {
+                fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
+                fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
+                egi_filo_push(fr_dev->fb_filo, &fpix);
+        }
 
 	/* assign or blend FB pixel data */
 	if(fr_dev->pixalpha==255) {	/* if 100% front color */
@@ -391,10 +391,10 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 					     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
 					      fr_dev->pixalpha );		     /* Alpha value */
 	        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
-
-		/* reset alpha to 255 as default */
-		fr_dev->pixalpha=255;
 	}
+	/* reset alpha to 255 as default */
+	fr_dev->pixalpha=255;
+
    }
 
     return 0;
@@ -805,6 +805,8 @@ void draw_circle(FBDEV *dev, int x, int y, int r)
 
 
 /*-----------------------------------------------------------------
+OBSELET: replaced by draw_filled_annulus() or draw_filled_annulus2().
+
 draw a circle formed by poly lines.
 	(x,y)	circle center
 	r	radius
@@ -813,6 +815,7 @@ draw a circle formed by poly lines.
 Note:	1. The final circle looks ugly if 'r' or 'w' is small.!!!!
 	2. np=30, for rmax=20 with end circle
 	   np=90, for rmax=70 with end circle
+	   np=180,  ...!!! FAINT !!!...
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -830,11 +833,11 @@ void draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 
 	/* draw 4th quadrant */
 	for(i=0; i<np+1; i++) {
-		points[i].x=x0+dx[i];
-		points[i].y=y0+dy[i];
+		points[i].x=round(x0+dx[i]);
+		points[i].y=round(y0+dy[i]);
 	}
-	points[0].x -=1; /* erase tip */
-	points[np].y -=1;
+//	points[0].x -=1; /* erase tip */
+//	points[np].y -=1;
 	draw_pline(dev,points,np+1,w);
 
 	/* draw 3rd quadrant */

@@ -708,8 +708,9 @@ int symbol_string_pixlen(char *str, const struct symbol_page *font)
    color.
 4. Note: put page check in symbol_string_writeFB()!!!
 
-@fbdev: 		FB device
-@sym_page: 	symbol page
+@fbdev: 	FB device
+		or Virt FB
+@sym_page: 	symbol page, if it has alpha value, then blends with opaque.
 
 @transpcolor: 	>=0 transparent pixel will not be written to FB, so backcolor is shown there.
 	     	<0	 no transparent pixel
@@ -725,7 +726,7 @@ use following COLOR:
 @x0,y0: 		start position coordinate in screen, left top point of a symbol.
 @sym_code: 	symbol code number
 
-@opaque:	set aplha value (0-255)
+@opaque:	set aplha value (0-255) for all pixels.
 		<0	No effect, or use symbol alpha value.
 		0 	100% back ground color/transparent
 		255	100% front color
@@ -743,17 +744,18 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int i,j;
 	FBPIX fpix;
 	long int pos; /* offset position in fb map */
-	int xres; /* x-resolusion = screen WIDTH240 */
+	int xres;
 	int yres;
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
-	unsigned char palpha=0;
+	unsigned char palpha=0; /* pixel alpha value if applicable */
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page, for FT2 sympage, it's NULL! */
 	int offset;
 	long poff;
 	int height=sym_page->symheight;
 	int width;
 	EGI_IMGBUF *virt_fb;
+	int sumalpha;
 
 	//long int screensize=fb_dev->screensize;
 
@@ -780,7 +782,6 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
                 yres=fb_dev->vinfo.yres;
         }
 
-
 	/* get symbol/font width, only 1 character in FT2 symbol page NOW!!! */
 	if(sym_page->symtype==symtype_FT2) {
 		width=sym_page->ftwidth;
@@ -791,7 +792,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		offset=sym_page->symoffset[sym_code];
 	}
 
-	/* check opaque */
+	/* check and reset opaque to [0 255] */
 	if( opaque < 0 || opaque > 255)
 		opaque=255;
 
@@ -814,7 +815,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			/*--- map x for every (i,j) symbol pixel---*/
 			if( x0+j<0 )
 			{
-				mapx=xres-(-x0-j)%xres; /* here mapx=1-240 */
+				mapx=xres-(-x0-j)%xres; /* here mapx=1-240, if real FB */
 				mapx=mapx%xres;
 			}
 			else if( x0+j>xres-1 )
@@ -825,7 +826,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			/*--- map Y for every (i,j) symbol pixel---*/
 			if ( y0+i<0 )
 			{
-				/* in case y0=0 and i=0,then mapy=320!!!!, then function will returns 
+				/* in case y0=0 and i=0,then mapy=320!!!!, then function will returns
 				and abort drawing the symbol., don't forget -1 */
 				mapy=yres-(-y0-i)%yres; /* here mapy=1-320 */
 				mapy=mapy%yres;
@@ -834,8 +835,6 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				mapy=(y0+i)%yres;
 			else
 				mapy=y0+i;
-
-
 
 
 #else /*--- if  NO ROLLBACK ---*/
@@ -889,7 +888,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 
 			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
-			   1.  alpha value exists.
+			   1.  alpha value exists, then use alpha to blend image instead of transpcolor.
 			   2.  OR(no transp. color applied)
 			   3.  OR (write only untransparent pixel)
 			   otherwise,if pcolor==transpcolor, DO NOT write to FB
@@ -898,7 +897,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			{
 				/* push original fb data to FB FILO, before write new color */
 //				if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
-				if(fb_dev->filo_on) {
+				if(fb_dev->filo_on) {		/* For real FB device */
 					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
 					fpix.color=*(uint16_t *)(fb_dev->map_fb+(pos<<1));
 					//printf("symbol push FILO: pos=%ld.\n",fpix.position);
@@ -929,6 +928,9 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				/* if apply alpha: front pixel, background pixel,alpha value */
 				if(sym_page->alpha) {
 					if(opaque==255) { /* Speed UP!! */
+						/* !!!TO AVOID: blend with backcolor=0(BLACK) and backalpha=0
+						 * when call egi_16bitColor_blend() !!
+						 */
             	        			//pcolor=COLOR_16BITS_BLEND( pcolor,
 						pcolor=egi_16bitColor_blend( pcolor,
 								     virt_fb->imgbuf[pos],
@@ -941,18 +943,37 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 								 );
 					}
 				}
-				else if (opaque > 0) {  /* 0 as 100% transparent */
-                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
-					pcolor=egi_16bitColor_blend( pcolor,
-								     virt_fb->imgbuf[pos],
-								     opaque
-								  );
+				/* if no alpha data, use opaque instead */
+				//else if (opaque > 0) {  /* 0 as 100% transparent */
+				else if(opaque!=255) { /* opaque alread reset to [0 255] at beginning */
+ 	                   			//pcolor=COLOR_16BITS_BLEND( pcolor,
+						pcolor=egi_16bitColor_blend( pcolor,
+									     virt_fb->imgbuf[pos],
+									     opaque
+									  );
 				}
+				/* opaque==255, use original pcolor */
 
-				/* write to virt FB */
+				/* Write to Virt FB */
 				virt_fb->imgbuf[pos]=pcolor; /* in pixel */
 
-				/* TODO: alpha blend */
+	   		     	/* Blend alpha, only if VIRT FB has alpha data */
+	        		if(virt_fb->alpha) {
+        	        		/* sum up alpha value */
+					if(sym_page->alpha) {	/* sym_page.alpha prevails */
+		        	        	sumalpha=virt_fb->alpha[pos]+palpha;
+						/* Rare case, ignored for SPEED UP.
+		        	        	 *  sumalpha=virt_fb->alpha[pos]+sym_page->alpha*opaque/255;
+						 */
+	        		        	if( sumalpha > 255 ) sumalpha=255;
+	        	        		virt_fb->alpha[pos]=sumalpha;
+					}
+					else { 	/* use opaque[0 255], opaque default as 255  */
+		        	        	sumalpha=virt_fb->alpha[pos]+opaque;
+	        		        	if( sumalpha > 255 ) sumalpha=255;
+	        	        		virt_fb->alpha[pos]=sumalpha;
+					}
+		        	}
 
 			   }
 
@@ -985,13 +1006,15 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 									 );
 					}
 				}
-				else if (opaque > 0) {  /* 0 as 100% transparent */
+				//else if (opaque > 0) {  /* 0 as 100% transparent */
+				else if(opaque!=255) { /* opaque alread reset to [0 255] at beginning */
                     			//pcolor=COLOR_16BITS_BLEND( pcolor,
 					pcolor=egi_16bitColor_blend( pcolor,
 								     *(uint16_t *)(fb_dev->map_fb+pos),
 								     opaque
 								  );
 				}
+				/* opaque==255, use original pcolor */
 
 				/* write to FB */
 				*(uint16_t *)(fb_dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */

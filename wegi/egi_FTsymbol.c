@@ -684,6 +684,7 @@ FT_FAILS:
    i.e. symbol_writeFB() for alphabets and symbol_unicode_writeFB() for CJKs.
 
 @fbdev:         FB device
+		or Virt FB!!
 @face:          A face object in FreeType2 library.
 @fh,fw:		Height and width of the wchar.
 @wcode:		UNICODE number for the character.
@@ -795,7 +796,8 @@ TODO: Alphabetic words are treated letter by letter, and they may be separated a
       a line, so it looks not good.
 
 
-@fbdev:         FB device
+@fbdev:         FB device,
+		or Vrit FB!!!
 @face:          A face object in FreeType2 library.
 @fh,fw:		Height and width of the wchar.
 @pwchar:        pointer to a string of wchar_t.
