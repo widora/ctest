@@ -80,6 +80,8 @@ while(1) {
 		goto SLEEP_WAIT;
 	}
 
+
+
 #if 0
         /* <<< Flush FB and Turn on FILO before wirteFB >>>*/
         printf("Flush pixel data in FILO, start  ---> ");

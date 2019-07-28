@@ -474,7 +474,8 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 
 
 /*------------------------------------------------------------------------
-Allocate memory for a EGI_IMGBUF, and read PNG image data and load to it.
+Allocate memory for a EGI_IMGBUF, and read PNG image data and load to it,
+by calling libpng.
 
 fpath:		PNG file path
 eg_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color
@@ -493,13 +494,14 @@ Note:
 
 3. Data in egi_imgbuf will be cleared by egi_imgbuf_cleardata() before load data;
 
-4. TODO: After transformation, it only deals with type_2(real_color) and type_6(real_color
-   with alpha channel) PNG file, and bit_depth MUST be 8!
+4. TODO: After transformation, it only deals with type_2(real_color PNG_COLOR_TYPE_RGB)
+   and type_6(real_color with alpha channel, PNG_COLOR_TYPE_RGB_ALPHA) PNG file,
+   and bit_depth MUST be 8!
 
 Return
 		0	OK
 		<0	fails
--------------------------------------------------------------------------*/
+------------------------------------------------------------------------------------*/
 int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 {
 	if(egi_imgbuf==NULL) {
@@ -588,10 +590,11 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         EGI_PDEBUG(DBG_BJP,"Width=%d, Height=%d, color_type=%d \n", width, height, color_type);
         EGI_PDEBUG(DBG_BJP,"bit_depth=%d, channels=%d,  pixel_depth=%d \n", bit_depth, channels, pixel_depth);
 
-        /*   Now, we only deal with type_2(real_color) and type_6(real_color with alpha channel) PNG file,
+        /*   Now, we only deal with type_2(real_color, PNG_COLOR_TYPE_RGB)
+	 *	  and type_6(real_color with alpha channel, PNG_COLOR_TYPE_RGB_ALPHA) PNG file,
          *       and bit_depth must be 8.
          */
-        if(bit_depth!=8 || (color_type !=2 && color_type !=6) ){
+      if(bit_depth!=8 || (color_type !=PNG_COLOR_TYPE_RGB && color_type !=PNG_COLOR_TYPE_RGB_ALPHA) ){
                 printf(" Only support PNG color_type=2(real color) \n");
                 printf(" and color_type=6 (real color with alpha channel), bit_depth must be 8.\n");
                 ret=-6;
@@ -671,6 +674,155 @@ INIT_FAIL:
         fclose(fil);
 
 	return ret;
+}
+
+/*--------------------------------------------------------------------------
+Save an EGI_IMGBUF to an PNG file by calling libpng.
+
+@fpath:		PNG file path
+@eg_imgbuf:	EGI_IMGBUF holding the image data, in 16bits color
+
+TODO: Now we only deal with PNG_COLOR_TYPE_RGB and PNG_COLOR_TYPE_RGB_ALPHA type.
+      and bit_depth set to be 8!
+
+Return:
+	0	OK
+	<0	Fails
+---------------------------------------------------------------*/
+int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
+{
+	FILE *fp;
+	int i,j;
+	png_structp 	png_ptr;
+	png_infop	info_ptr;
+	png_byte 	bit_depth=8;  /* bit depth MUST be 8 */
+        png_byte 	color_type;
+        png_byte   	bytes_perpix; /* bytes per pixel */
+	png_uint_32	height;
+	png_uint_32	width;
+	png_byte	*row_buff;	/* buffer for one row of image data */
+	png_bytep 	pt;
+
+	/* check input imgbuf */
+	if(egi_imgbuf==NULL || egi_imgbuf->imgbuf==NULL
+			    || egi_imgbuf->width <=0 || egi_imgbuf->height <=0 ) {
+		printf("%s: Input EGI_IMGBUF data is invalid!\n",__func__);
+		return -1;
+	}
+
+	/* get image params */
+	height=egi_imgbuf->height;
+	width=egi_imgbuf->width;
+ 	if (height > PNG_UINT_32_MAX/png_sizeof(png_bytep)) {
+                printf("%s: File '%s' is too tall to process in memory.\n", __func__, fpath);
+		return -1;
+	}
+
+	if(egi_imgbuf->alpha != NULL) {
+		color_type=PNG_COLOR_TYPE_RGB_ALPHA;
+		bytes_perpix=4;
+	}
+	else {
+		color_type=PNG_COLOR_TYPE_RGB;
+		bytes_perpix=3;
+	}
+
+	/* allocate row_buff */
+	row_buff=calloc(1, width*bytes_perpix);
+	if(row_buff==NULL) {
+		printf("%s: Fail to callo row_buff!\n",__func__);
+		return -1;
+	}
+
+	/* open file for write */
+	fp=fopen(fpath, "wbe");
+	if(fp==NULL) {
+                printf("%s: Fail to open file %s for write.\n", __func__, fpath);
+		free(row_buff);
+		return -1;
+	}
+
+	/* create and initialize the png_struct for write */
+	printf("png_create_write_struct...\n");
+	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL,NULL);
+	if(png_ptr==NULL) {
+		printf("%s: png_create_write_struct() fails!\n",__func__);
+		free(row_buff);
+		fclose(fp);
+		return -2;
+	}
+
+	/* allocate/initialize the image information data */
+	printf("png_create_info_struct...\n");
+	info_ptr=png_create_info_struct(png_ptr);
+	if(info_ptr==NULL) {
+		printf("%s: png_create_info_struct() fails!\n",__func__ );
+		free(row_buff);
+		fclose(fp);
+		png_destroy_write_struct(&png_ptr, png_infopp_NULL);
+		return -3;
+	}
+
+	/* set default error handling */
+	printf("setjmp..\n");
+	if( setjmp(png_jmpbuf(png_ptr)) ) {
+		free(row_buff);
+		fclose(fp);
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+		return -4;
+	}
+
+	/* I/O initialization using standard C streams */
+	printf("png_init_io...\n");
+	png_init_io(png_ptr, fp);
+
+	/* set image informate */
+	printf("png_set_IHDR..\n");
+	png_set_IHDR(png_ptr, info_ptr, width, height, bit_depth, color_type, PNG_INTERLACE_NONE,
+		 	PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+	/* Optional:  gamma chunk */
+	/* Optional:  comments txt */
+
+	/* write file header information */
+	printf("png_write_info...\n");
+	png_write_info(png_ptr, info_ptr);
+
+	/* Optional:  set up transformations */
+
+
+	/* ----- wrtie to file one row at a time ---- */
+	pt=row_buff;
+	for(i=0; i< height; i++ ) {
+		/* transform image data from EGI_IMGBUF to row_buff */
+		for(j=0; j< width; j++) {
+		   	*pt = ((egi_imgbuf->imgbuf[i*width+j])>>11)<<3;		/* R */
+		   	*(pt+1) = ((egi_imgbuf->imgbuf[i*width+j])&0x7E0)>>3;	/* G */
+		   	*(pt+2) = ((egi_imgbuf->imgbuf[i*width+j])&0x1F)<<3;	/* B */
+
+ 		   	if(egi_imgbuf->alpha) {
+				*(pt+3)= egi_imgbuf->alpha[i*width+j];		/* Alpha */
+				pt += 4;
+		  	 } else {
+				pt += 3;
+		   	}
+		}
+		/* write to file */
+		png_write_rows(png_ptr, &row_buff, 1);
+		/* reset pt */
+		pt=row_buff;
+	}
+
+	/* finish writing */
+	printf("png_write_end...\n");
+	png_write_end(png_ptr, info_ptr);
+	free(row_buff);
+
+	/* clean up */
+	png_destroy_write_struct(&png_ptr,&info_ptr);
+	fclose(fp);
+
+	return 0;
 }
 
 

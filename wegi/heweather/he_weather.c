@@ -220,6 +220,7 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	int  temp;
 	char strhum[16];
 	int  hum;
+	char *cond_txt;
 
 	/* read key from EGI config file */
 	egi_get_config_value("EGI_WEATHER", "key", strkey);
@@ -261,6 +262,13 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	free(pstr); pstr=NULL;
  	printf("strpath:%s\n",strpath);
 
+	/* Extract key item 'cond_txt' in section 'now' */
+	pstr=heweather_get_objitem(buff, "now","cond_txt");
+	if(pstr !=NULL) {
+		free(weather_data[0].cond_txt);
+		weather_data[0].cond_txt=pstr;
+	}
+
 	/* Extract key item 'tmp' in section 'now' */
 	pstr=heweather_get_objitem(buff,"now", "tmp");
 	if(pstr!=NULL)
@@ -297,6 +305,8 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	weather_data[0].temp=temp;
 	weather_data[0].hum=hum;
 	weather_data[0].icon_path=strdup(strpath); /* !!! to free by heweather_data_clear() later */
+	printf("----cond_txt:%s-----\n",weather_data[0].cond_txt);
+	printf("----温度%d----\n",weather_data[0].temp);
         printf("%s: ---OK---!\n", __func__);
 
    }

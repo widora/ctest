@@ -31,12 +31,13 @@ enum heweather_data_type {
 };
 
 typedef struct  heweather_data {
-	EGI_IMGBUF	*eimg; /* weather Info image */
+	EGI_IMGBUF	*eimg; 		/* weather Info image */
 	char		*icon_path;
-	int		temp;  /* temperature */
+	char		*cond_txt;	/* weather condition txt */
+	int		temp;  		/* temperature */
 	int		temp_max;
 	int		temp_min;
-	int		hum;   /* humidity */
+	int		hum;   		/* humidity */
 	int		hum_max;
 	int		hum_min;
 }EGI_WEATHER_DATA;

@@ -511,7 +511,7 @@ static void update_weathericon(EGI_PAGE *page)
    EGI_IMGBUF *eimg=NULL;
    char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
+	//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
@@ -554,9 +554,11 @@ static void update_weathericon(EGI_PAGE *page)
 
 SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);
-	egi_sleep(0,10,0); /* 5s */
+	egi_sleep(0,10,0); /* 10s */
 
-	/* handler for signal_suspend, wait until runner_cond comes */
+	/* handler for signal_suspend, wait until runner_cond comes
+	 * !!! Meaningless, since the period of thread loop is too big!
+	 */
 	egi_runner_sigSuspend_handler(page);
   }
 

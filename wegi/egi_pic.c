@@ -143,7 +143,7 @@ Free and renew imgbuf in ebox->data_pic
 
 Note:
      1. The Ownership of imgbuf will be transfered to the ebox, and eimg reset to NULL.
-     3. !!! It will segmentfault if you try to dereference peimg when it'is NULL. !!!
+     2. !!! It will segmentfault if you try to dereference peimg when it'is NULL. !!!
 
 @ebox	a PIC type ebox.
 @**eimg	a EGI_IMGBUF struct with image data.
@@ -609,7 +609,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 		/* scale image to fit to the displaying window */
 
 		/* keep original picture size */
-
 
 	}
 	else if( data_pic->bkcolor >=0 ) /* draw canvan if imgbuf is NULL */
