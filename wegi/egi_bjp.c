@@ -395,6 +395,7 @@ egi_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color
 
 Note:
 	1. only for case components=3.
+	2. No alpha data for EGI_IMGBUF.
 
 Return
 		0	OK
@@ -743,7 +744,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	}
 
 	/* create and initialize the png_struct for write */
-	printf("png_create_write_struct...\n");
+	//printf("png_create_write_struct...\n");
 	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL,NULL);
 	if(png_ptr==NULL) {
 		printf("%s: png_create_write_struct() fails!\n",__func__);
@@ -753,7 +754,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	}
 
 	/* allocate/initialize the image information data */
-	printf("png_create_info_struct...\n");
+	//printf("png_create_info_struct...\n");
 	info_ptr=png_create_info_struct(png_ptr);
 	if(info_ptr==NULL) {
 		printf("%s: png_create_info_struct() fails!\n",__func__ );
@@ -764,7 +765,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	}
 
 	/* set default error handling */
-	printf("setjmp..\n");
+	//printf("setjmp..\n");
 	if( setjmp(png_jmpbuf(png_ptr)) ) {
 		free(row_buff);
 		fclose(fp);
@@ -773,11 +774,11 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	}
 
 	/* I/O initialization using standard C streams */
-	printf("png_init_io...\n");
+	//printf("png_init_io...\n");
 	png_init_io(png_ptr, fp);
 
 	/* set image informate */
-	printf("png_set_IHDR..\n");
+	//printf("png_set_IHDR..\n");
 	png_set_IHDR(png_ptr, info_ptr, width, height, bit_depth, color_type, PNG_INTERLACE_NONE,
 		 	PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
@@ -785,7 +786,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	/* Optional:  comments txt */
 
 	/* write file header information */
-	printf("png_write_info...\n");
+	//printf("png_write_info...\n");
 	png_write_info(png_ptr, info_ptr);
 
 	/* Optional:  set up transformations */
@@ -814,7 +815,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	}
 
 	/* finish writing */
-	printf("png_write_end...\n");
+	//printf("png_write_end...\n");
 	png_write_end(png_ptr, info_ptr);
 	free(row_buff);
 

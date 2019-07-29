@@ -51,7 +51,7 @@ int  	FTsymbol_load_appfonts(void);
 void	FTsymbol_release_allfonts(void);
 int  	FTsymbol_load_asciis_from_fontfile( EGI_SYMPAGE *symfont_page, const char *font_path, int Wp, int Hp );
 
-void 	symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
+void 	FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
 				int x0, int y0, int fontcolor, int transpcolor,int opaque);
 
 int  	FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const wchar_t *pwchar,
@@ -64,5 +64,6 @@ int  	FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh,
                                int x0, int y0,
 			       int fontcolor, int transpcolor, int opaque );
 
+int  	FTsymbol_uft8strings_pixlen( FT_Face face, int fw, int fh, const unsigned char *pstr);
 
 #endif

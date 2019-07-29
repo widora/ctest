@@ -31,6 +31,7 @@ enum heweather_data_type {
 };
 
 typedef struct  heweather_data {
+	char		*city;
 	EGI_IMGBUF	*eimg; 		/* weather Info image */
 	char		*icon_path;
 	char		*cond_txt;	/* weather condition txt */
@@ -50,7 +51,7 @@ extern EGI_WEATHER_DATA weather_data[4];
 char * heweather_get_objitem(const char *strinput, const char *strsect, const char *strkey);
 char * heweather_get_forecast(const char *strinput, int index, const char *strkey);
 void   heweather_data_clear(EGI_WEATHER_DATA *weather_data);
-int heweather_httpget_data(enum heweather_data_type data_type);
+int heweather_httpget_data(enum heweather_data_type data_type, const char *location);
 
 
 #endif

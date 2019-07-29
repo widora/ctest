@@ -616,6 +616,91 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 }
 
 
+/*-----------------------------------------------------------------------------------
+Clear a subimag in an EGI_IMGBUF, reset all color and alpha data.
+
+@egi_imgbuf:    an EGI_IMGBUF struct which hold bits_color image data of a picture.
+@subnum:	index number of the sub image.
+		if subnum<=0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
+		egi_imgbuf.
+@color
+
+Return:
+		0	OK
+		<0	fails
+-------------------------------------------------------------------------------------*/
+int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, unsigned char alpha)
+{
+	int height, width; /* of host image */
+	int hs, ws;	   /* of sub image */
+	int xs, ys;
+	int i,j;
+	unsigned long pos;
+
+	if(egi_imgbuf==NULL || egi_imgbuf->imgbuf==NULL ) {
+		printf("%s: egi_imbug or egi_imgbuf->imgbuf is NULL!\n",__func__);
+		return -1;;
+	}
+
+	/* get mutex lock */
+	if( pthread_mutex_lock(&egi_imgbuf->img_mutex)!=0 ){
+		printf("%s: Fail to lock image mutex!\n",__func__);
+		return -2;
+	}
+
+	if(egi_imgbuf->submax < subnum) {
+		printf("%s: submax < subnum! \n",__func__);
+	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+		return -3;
+	}
+
+	height=egi_imgbuf->height;
+	width=egi_imgbuf->width;
+
+	/* if only 1 image */
+	if( egi_imgbuf->submax==0 || egi_imgbuf->subimgs==NULL ) {
+
+		for( i=0; i<height*width; i++) {
+			egi_imgbuf->imgbuf[i]=color;
+			if(egi_imgbuf->alpha) {
+				egi_imgbuf->alpha[i]=alpha;
+			}
+		}
+	}
+	/* else, >1 image */
+	else if(egi_imgbuf->submax > 0 && egi_imgbuf->subimgs != NULL ) {
+		xs=egi_imgbuf->subimgs[subnum].x0;
+		ys=egi_imgbuf->subimgs[subnum].y0;
+		hs=egi_imgbuf->subimgs[subnum].h;
+		ws=egi_imgbuf->subimgs[subnum].w;
+
+		/* transverse subimg Y */
+		for(i=ys; i<ys+hs; i++) {
+			if(i < 0 ) continue;
+			if(i > height-1) break;
+
+			/* transverse subimg X */
+			for(j=xs; j<xs+ws; j++) {
+				if(j < 0) continue;
+				if(j > width -1) break;
+
+				pos=ys*width+j;
+				/* reset color and alpha */
+				egi_imgbuf->imgbuf[pos]=color;
+				if(egi_imgbuf->alpha)
+					egi_imgbuf->alpha[pos]=alpha;
+			}
+		}
+	}
+
+  	/* put mutex lock */
+  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
+	return 0;
+}
+
+
+
 /*------------------------------------------------------------------------------------
         	   Add FreeType FT_Bitmap to EGI imgbuf
 

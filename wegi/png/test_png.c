@@ -65,7 +65,6 @@ while(1) { ///////////////////////////   LOOP TEST  ////////////////////////
 		return -2;
 	}
 
-
 /* <<<<<<<<<<<<<<<<<<<<<<<<<   test PNG displaying   >>>>>>>>>>>>>>>>>>>>>>>>> */
 #if 1  /* window_position displaying */
 	dw=eimg->width>240?240:eimg->width;
@@ -86,6 +85,7 @@ while(1) { ///////////////////////////   LOOP TEST  ////////////////////////
 
 	tm_delayms(500);
 	clear_screen(&gv_fb_dev, WEGI_COLOR_BLUE);
+
 /* <<<<<<<<<<<<<<<<<<<<<<<<<   test PNG saving   >>>>>>>>>>>>>>>>>>>>>>>>> */
 if (test_save) {
 
@@ -98,6 +98,7 @@ if (test_save) {
                                            240, 1, 0,           /* pixpl, lines, gap */
                                            0, 0,                      /* x0,y0, */
                                            WEGI_COLOR_ORANGE, -1, -1);   /* fontcolor, stranscolor,opaque */
+
 	/* display again */
         egi_imgbuf_windisplay2(eimg, &gv_fb_dev, 0, 0, 0, 0, dw, dh);
 

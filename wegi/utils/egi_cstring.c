@@ -17,7 +17,7 @@ Midas Zhou
 
 
 /*------------------------------------------------------------------
-Duplicate a file path string,then replace the extension name
+Duplicate a file path string, then replace the extension name
 with the given one.
 
 fpath:		a file path string.
@@ -323,7 +323,7 @@ NOTE:
 # comment comment commnet
         # comment comment
   [ SECTION1]
-KEY1 = VALUE1
+KEY1 = VALUE1 #  !!!! all chars after '=' (including '#' and this comment) will be parsed as value of KEY2 !!!
 KEY2= VALUE2
 
 ##########   comment
@@ -340,7 +340,7 @@ KEY2= VALUE2
 4. All spaces beside SECTION/KEY/VALUE strings will be ignored/trimmed.
 5. If there are more than one section with the same name, only the first
    one is valid, and others will be all neglected.
-
+6. 
 		[[ ------  LIMITS -----  ]]
 6. Max. length for one line in a config file is 256-1. ( see. line_buff[256] )
 7. Max. length of a SECTION/KEY/VALUE string is 64-1. ( see. str_test[64] )

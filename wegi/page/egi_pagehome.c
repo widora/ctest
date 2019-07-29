@@ -250,7 +250,7 @@ EGI_PAGE *egi_create_homepage(void)
         pic_box=egi_picbox_new( "pic_box", 	/* char *tag, or NULL to ignore */
                                   data_pic,  	/* EGI_DATA_PIC *egi_data */
                                   1,         	/* bool movable */
-                                  70, 240, 	/*  x0, y0 for host ebox*/
+                                  0, 250, 	/*  x0, y0 for host ebox*/
                                   1,         	/* int frame */
                                   -1		/* int prmcolor,applys only if prmcolor>=0  */
         );
@@ -305,8 +305,7 @@ EGI_PAGE *egi_create_homepage(void)
 	/* set bk color, applicable only if fpath==NULL  */
 	page_home->ebox->prmcolor=WEGI_COLOR_OCEAN;
 
-	/* 3.2 put pthread runner, remind EGI_PAGE_MAXTHREADS 5  */
-	/* TODO: pause threads 	 */
+	/* 3.2 put pthread runners, remind EGI_PAGE_MAXTHREADS 5  */
 	page_home->runner[RUNNER_CPULOAD_ID]=(void *)display_cpuload;
 	page_home->runner[RUNNER_IOTLOAD_ID]=(void *)display_iotload;
 	page_home->runner[RUNNER_CLOCKTIME_ID]=(void *)update_clocktime;
@@ -505,13 +504,20 @@ Update heweather data
 -------------------------------------------------------*/
 static void update_weathericon(EGI_PAGE *page)
 {
-   int i, j;
+   int 		i, j;
    unsigned int off;
-   EGI_EBOX *ebox=NULL;
-   EGI_IMGBUF *eimg=NULL;
+   EGI_EBOX 	*ebox=NULL;
+   EGI_IMGBUF   *eimg=NULL;
+   EGI_IMGBUF 	*picimg=NULL;
+   int		subindex;
+   int		subnum;
+   FBDEV	vfb;
    char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-	//   egi_sleep(0,1,0); /* sleep a while for ebox loading into page */
+    //   egi_sleep(0,1,0); /* sleep a while for ebox loading into page??? */
+
+   subnum=2;
+   subindex=0;
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
@@ -532,25 +538,50 @@ static void update_weathericon(EGI_PAGE *page)
         if( egi_imgbuf_loadpng( heweather_path, eimg) !=0 ) {   /* mutex inside */
                 printf("%s: Fail to loadpng at '%s'!\n", __func__, heweather_path);
 		goto SLEEP_WAITING;
-        }else{
+        }
+	else{
 		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
 							eimg->height, eimg->width);
+
 		/* substitue icon color with WHITE, No mutex lock here! */
+#if 0
 		for(i=0; i<eimg->height; i++) {
 			for(j=0; j<eimg->width; j++) {
 				off=i*(eimg->width)+j;
 				*(EGI_16BIT_COLOR *)(eimg->imgbuf+off)=WEGI_COLOR_WHITE;
 			}
 		}
+#endif
+
+		/* set subimg */
+		eimg->submax=subnum-1; /* 2 image data */
+		eimg->subimgs=calloc(subnum,sizeof(EGI_IMGBOX));
+		eimg->subimgs[0]=(EGI_IMGBOX){0,0,240,60};
+		eimg->subimgs[1]=(EGI_IMGBOX){0,60,240,60};
 	}
-	/* renew image in PIC box, !!!ownership of imgbuf transfered!!! */
-	if(egi_picbox_renewimg(ebox, &eimg)!=0) {
+
+	/* init Virt FB */
+	picimg=egi_imgbuf_new();
+	egi_imgbuf_init(picimg,60,240);
+	init_virt_fbdev(&vfb, picimg);
+
+	/* put subimg to picimg */
+	subindex++;
+	subindex=subindex%subnum;
+	egi_subimg_writeFB(eimg, &vfb, subindex, -1, 0, 0);
+
+	/* renew image in PIC box,old data deleted firt. !!!ownership of imgbuf transfered!!! */
+	if(egi_picbox_renewimg(ebox, &picimg)!=0) {
 		printf("%s: Fail to renew imgbuf for PIC ebox.\n",__func__);
 		goto SLEEP_WAITING;
 	}else{
 //		printf("%s: egi_ebox_needrefresh() pic box...\n",__func__);
 		egi_ebox_needrefresh(ebox);
 	}
+
+	/* release virt FB */
+	egi_imgbuf_free(picimg);
+	release_virt_fbdev(&vfb);
 
 SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);

@@ -681,7 +681,7 @@ FT_FAILS:
    'j','g',..etc, so keep enough gap between lines.
 6. Or to get symheight just as in symbol_load_asciis_from_fontfile() as BBOX_H. However it's maybe
    a good idea to display CJK and wester charatcters separately by calling differenct functions.
-   i.e. symbol_writeFB() for alphabets and symbol_unicode_writeFB() for CJKs.
+   i.e. symbol_writeFB() for alphabets and FTsymbol_unicode_writeFB() for CJKs.
 
 @fbdev:         FB device
 		or Virt FB!!
@@ -709,7 +709,7 @@ use following COLOR:
                 255     100% front color
 
 --------------------------------------------------------------------------------------------------*/
-void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
+void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t wcode, int *xleft,
 				int x0, int y0, int fontcolor, int transpcolor,int opaque)
 {
   	FT_Error      error;
@@ -784,7 +784,8 @@ void symbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar_t
 	delY= -slot->bitmap_top + fh;
 
 	/* write to FB,  symcode =0, whatever  */
-	symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
+	if(fb_dev != NULL)
+		symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
 }
 
 
@@ -879,7 +880,7 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 		/* write unicode bitmap to FB, and get xleft renewed. */
 		px=x0+pixpl-xleft;
-		symbol_unicode_writeFB(fb_dev, face, fw, fh, *p, &xleft,
+		FTsymbol_unicode_writeFB(fb_dev, face, fw, fh, *p, &xleft,
 							 px, py, fontcolor, transpcolor, opaque );
 
 		/* --- check line space --- */
@@ -1016,7 +1017,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 		/* write unicode bitmap to FB, and get xleft renewed. */
 		px=x0+pixpl-xleft;
-		symbol_unicode_writeFB(fb_dev, face, fw, fh, wcstr[0], &xleft,
+		FTsymbol_unicode_writeFB(fb_dev, face, fw, fh, wcstr[0], &xleft,
 							 px, py, fontcolor, transpcolor, opaque );
 
 		/* --- check line space --- */
@@ -1033,8 +1034,84 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 	} /* end while() */
 
-	printf("%s: %d characters written to FB.\n", __func__, count);
+	//printf("%s: %d characters written to FB.\n", __func__, count);
 	return p-pstr;
+}
+
+/*-------------------------------------------------------------------------------------
+Get total length of characters in pixels.
+Note:
+1. Count all chars and '\n' will be ingnored!
+2. Limit: Max. counter = 1<<30;
+
+Return:
+	>=0  	length in pixels
+	<0	Fails
+----------------------------------------------------------------------------------------*/
+int  FTsymbol_uft8strings_pixlen( FT_Face face, int fw, int fh, const unsigned char *pstr)
+{
+	int size;
+	int count;		/* number of character written to FB*/
+	//int px,py;		/* bitmap insertion origin(BBOX left top), relative to FB */
+	const unsigned char *p=pstr;
+        int xleft=(1<<30); 	/* available pixels remainded in current line */
+ 	wchar_t wcstr[1];
+
+	/* check input data */
+	if(face==NULL) {
+		printf("%s: input FT_Face is NULL!\n",__func__);
+		return -1;
+	}
+
+	if(pstr==NULL )
+		return -1;
+
+	count=0;
+	while( *p ) {
+
+		/* convert one character to unicode, return size of utf-8 code */
+		size=char_uft8_to_unicode(p, wcstr);
+
+		/* shift offset to next wchar */
+		if(size>0) {
+			p+=size;
+			count++;
+		}
+		else {	/* if fail, step 1 byte forward to locate next recognizable unicode wchar */
+			p++;
+			continue;
+		}
+
+		/* CONTROL ASCII CODE:
+		 * If return to next line
+		 */
+		if(*wcstr=='\n') {
+//			printf("ASCII code: Next Line\n");
+			continue;
+		}
+		/* If other control codes or DEL, skip it */
+		else if( *wcstr < 32 || *wcstr==127  ) {
+//			printf(" ASCII control code: %d\n", *wcstr);
+			continue;
+		}
+
+		/* write unicode bitmap to FB, and get xleft renewed. */
+		FTsymbol_unicode_writeFB(NULL, face, fw, fh, wcstr[0], &xleft,
+							 0, 0, WEGI_COLOR_BLACK, -1, -1 );
+
+		/* --- check line space --- */
+		if(xleft<=0) {
+			if(xleft<0) { /* if <0: writeFB is not done, reel back pointer p */
+				p-=size;
+				count--;
+			}
+			/* if =0: writeFB is done, break */
+			break;
+		}
+
+	} /* end while() */
+
+	return (1<<30)-xleft;
 }
 
 

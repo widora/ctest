@@ -12,23 +12,18 @@ Midas Zhou
 #include <string.h>
 #include <json-c/json.h>
 #include <json-c/json_object.h>
-#include "egi_log.h"
-#include "egi_cstring.h"
-#include "egi_image.h"
-#include "egi_bjp.h"
-#include "egi_fbgeom.h"
-#include "egi_symbol.h"
-#include "egi_https.h"
+#include "egi_common.h"
 #include "he_weather.h"
+#include "egi_FTsymbol.h"
 
 EGI_WEATHER_DATA weather_data[4]={0}; /* 0=now; forcast: 1=today; 2=tomorrow; 3=the day aft. tomorrow */
 
 static char strrequest_mode[4][256]=
 {
-	"https://free-api.heweather.net/s6/weather/now?location=shanghai&key=",
-	"https://free-api.heweather.net/s6/weather/forecast?location=shanghai&key=",
-	"https://free-api.heweather.net/s6/weather/hourly?location=zhoushan&key=",
-	"https://free-api.heweather.net/s6/weather/lifestyle?location=shanghai&key="
+	"https://free-api.heweather.net/s6/weather/now?", 		//location=shanghai&key=",
+	"https://free-api.heweather.net/s6/weather/forecast?",
+	"https://free-api.heweather.net/s6/weather/hourly?",
+	"https://free-api.heweather.net/s6/weather/lifestyle?"
 };
 static char strkey[256];
 static char buff[32*1024]; /* for curl return */
@@ -205,16 +200,17 @@ Note:
 3. Do NOT forget to free
 
 @data_type:	weather data type to be requested
+@location:	location in string
 
 Return:
 	0	Ok
 	<0	Fails
 ----------------------------------------------------------------------*/
-int heweather_httpget_data(enum heweather_data_type data_type)
+int heweather_httpget_data(enum heweather_data_type data_type, const char *location)
 {
   	int i=0;
 	char *pstr=NULL;
-	char strrequest[256+64];
+	char strrequest[256+64]={0};
 	char strpath[256];
 	char strtemp[16];
 	int  temp;
@@ -224,7 +220,12 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 
 	/* read key from EGI config file */
 	egi_get_config_value("EGI_WEATHER", "key", strkey);
-	sprintf(strrequest,"%s%s", strrequest_mode[data_type], strkey);
+	strcat(strrequest,strrequest_mode[data_type]);
+	strcat(strrequest,"location=");
+	strcat(strrequest,location);
+	strcat(strrequest,"&key=");
+	strcat(strrequest,strkey);
+//	sprintf(strrequest,"%s%s", strrequest_mode[data_type], strkey);
 	printf("strrequest:%s\n", strrequest);
 
 	/* Get request */
@@ -255,6 +256,13 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 */
   if(data_type==data_now)
   {
+	/* put city */
+	pstr=heweather_get_objitem(buff, "basic","location");
+	if(pstr != NULL) {
+		free(weather_data[0].city);
+		weather_data[0].city=pstr;
+	}
+
 	/* Extract key item 'cond_code' in section 'now' */
 	pstr=heweather_get_objitem(buff, "now","cond_code");
 	if(pstr!=NULL)
@@ -305,8 +313,8 @@ int heweather_httpget_data(enum heweather_data_type data_type)
 	weather_data[0].temp=temp;
 	weather_data[0].hum=hum;
 	weather_data[0].icon_path=strdup(strpath); /* !!! to free by heweather_data_clear() later */
-	printf("----cond_txt:%s-----\n",weather_data[0].cond_txt);
-	printf("----温度%d----\n",weather_data[0].temp);
+	printf("cond_txt:%s-----\n",weather_data[0].cond_txt);
+	printf("温度%d 湿度%d\n",weather_data[0].temp, weather_data[0].hum);
         printf("%s: ---OK---!\n", __func__);
 
    }
