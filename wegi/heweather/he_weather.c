@@ -58,6 +58,16 @@ void heweather_data_clear(EGI_WEATHER_DATA *weather_data)
 			free(weather_data->icon_path);
 			weather_data->icon_path=NULL;
 		}
+
+		if(weather_data->city !=NULL) {
+			free(weather_data->city);
+			weather_data->city=NULL;
+		}
+		if(weather_data->wind_dir !=NULL) {
+			free(weather_data->wind_dir);
+			weather_data->wind_dir=NULL;
+		}
+
 	}
 }
 
@@ -256,6 +266,9 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 */
   if(data_type==data_now)
   {
+	/* Always do! empty old data if any, some strdup() data will be cleared  */
+	heweather_data_clear(&weather_data[0]);
+
 	/* put city */
 	pstr=heweather_get_objitem(buff, "basic","location");
 	if(pstr != NULL) {
@@ -265,10 +278,11 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 
 	/* Extract key item 'cond_code' in section 'now' */
 	pstr=heweather_get_objitem(buff, "now","cond_code");
-	if(pstr!=NULL)
+	if(pstr!=NULL) {
+		weather_data[0].icon_path=strdup(pstr); /* !!! to free by heweather_data_clear() later */
 		sprintf(strpath,"%s/%s.png",HEWEATHER_ICON_PATH,pstr);
+	}
 	free(pstr); pstr=NULL;
- 	printf("strpath:%s\n",strpath);
 
 	/* Extract key item 'cond_txt' in section 'now' */
 	pstr=heweather_get_objitem(buff, "now","cond_txt");
@@ -277,21 +291,30 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 		weather_data[0].cond_txt=pstr;
 	}
 
+	/* Extract key item 'wind_dir' in section 'now' */
+	pstr=heweather_get_objitem(buff, "now","wind_dir");
+	if(pstr !=NULL) {
+		free(weather_data[0].wind_dir);
+		weather_data[0].wind_dir=pstr;
+	}
+
+	/* Extract key item 'wind_sc' in section 'now' */
+	pstr=heweather_get_objitem(buff, "now","wind_sc");
+	if(pstr !=NULL)
+		weather_data[0].wind_scale=atoi(pstr);
+	free(pstr); pstr=NULL;
+
 	/* Extract key item 'tmp' in section 'now' */
 	pstr=heweather_get_objitem(buff,"now", "tmp");
 	if(pstr!=NULL)
-		sprintf(strtemp,"%sC", pstr);
+		weather_data[0].temp=atoi(pstr);
 	free(pstr); pstr=NULL;
-	temp=atoi(strtemp);
 
 	/* Extract key item 'hum' in section 'now' */
 	pstr=heweather_get_objitem(buff, "now", "hum");
 	if(pstr!=NULL)
-		sprintf(strhum,"%s", pstr);
+		weather_data[0].hum=atoi(pstr);
 	free(pstr); pstr=NULL;
-	hum=atoi(strhum);
-
- 	printf("Temp:%dC  Hum:%%%d\n",temp,hum);
 
 	/* create a new EGI_IMGBUF if NULL */
 	if(weather_data[0].eimg==NULL) {
@@ -302,18 +325,13 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 		}
 	}
 
-	/* Always do! empty old data if any, some strdup() data will be cleared  */
-	heweather_data_clear(&weather_data[0]);
-
 	/* load png file acoordingly */
-   	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside, */
+   	if( egi_imgbuf_loadpng(strpath, weather_data[0].eimg ) !=0 ) {   /* mutex inside, imgbuf renewed */
 		printf("%s: Fail to loadpng %s!\n", __func__, strpath);
 		return -3;
    	}
-	weather_data[0].temp=temp;
-	weather_data[0].hum=hum;
-	weather_data[0].icon_path=strdup(strpath); /* !!! to free by heweather_data_clear() later */
-	printf("cond_txt:%s-----\n",weather_data[0].cond_txt);
+ 	printf("icon path: %s\n",weather_data[0].icon_path);
+	printf("cond_txt: %s\n",weather_data[0].cond_txt);
 	printf("温度%d 湿度%d\n",weather_data[0].temp, weather_data[0].hum);
         printf("%s: ---OK---!\n", __func__);
 

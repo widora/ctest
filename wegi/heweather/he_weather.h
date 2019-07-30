@@ -35,6 +35,8 @@ typedef struct  heweather_data {
 	EGI_IMGBUF	*eimg; 		/* weather Info image */
 	char		*icon_path;
 	char		*cond_txt;	/* weather condition txt */
+	char		*wind_dir;
+	int		wind_scale;
 	int		temp;  		/* temperature */
 	int		temp_max;
 	int		temp_min;

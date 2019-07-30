@@ -925,7 +925,9 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			                return;
 			        }
 
-				/* if apply alpha: front pixel, background pixel,alpha value */
+				/* if apply alpha: front pixel, background pixel,alpha value
+				 * TODO:  call egi_16bitColor_blend2() to count in bk color alpha value
+				 */
 				if(sym_page->alpha) {
 					if(opaque==255) { /* Speed UP!! */
 						/* !!!TO AVOID: blend with backcolor=0(BLACK) and backalpha=0

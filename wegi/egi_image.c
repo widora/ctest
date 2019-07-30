@@ -559,8 +559,8 @@ Write a sub image in the EGI_IMGBUF to FB.
 
 egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
 fb_dev:		FB device
-subnum:		index number of the sub image.
-		if subnum<0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
+subindex:		index number of the sub image.
+		if subindex<0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
 		egi_imgbuf.
 subcolor:	substituting color, only applicable when >0.
 (x0,y0):        displaying window origin, relate to the LCD coord system.
@@ -569,7 +569,7 @@ Return:
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------------------*/
-int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
+int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex,
 							int subcolor, int x0,	int y0)
 {
 	int ret;
@@ -586,27 +586,27 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 		return -2;
 	}
 
-	if(subnum > egi_imgbuf->submax) {
-		printf("%s: EGI_IMGBUF subnum is out of range!\n",__func__);
+	if(subindex > egi_imgbuf->submax) {
+		printf("%s: EGI_IMGBUF subindex is out of range!\n",__func__);
 	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 		return -4;
 	}
 
 	/* get position and size of the subimage */
-	if( subnum<0 || egi_imgbuf->subimgs==NULL ) {	/* No subimg, only one image */
+	if( subindex<=0 || egi_imgbuf->subimgs==NULL ) {	/* No subimg, only one image */
 		xp=0;
 		yp=0;
 		w=egi_imgbuf->width;
 		h=egi_imgbuf->height;
 	}
 	else {				/* otherwise, get subimg size and location in image data */
-		xp=egi_imgbuf->subimgs[subnum].x0;
-		yp=egi_imgbuf->subimgs[subnum].y0;
-		w=egi_imgbuf->subimgs[subnum].w;
-		h=egi_imgbuf->subimgs[subnum].h;
+		xp=egi_imgbuf->subimgs[subindex].x0;
+		yp=egi_imgbuf->subimgs[subindex].y0;
+		w=egi_imgbuf->subimgs[subindex].w;
+		h=egi_imgbuf->subimgs[subindex].h;
 	}
 
-  	/* put mutex lock */
+  	/* put mutex lock, before windisplay()!!! */
   	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 
 	/* !!!! egi_imgbuf_windisplay() will get/put image mutex by itself */
@@ -620,16 +620,19 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
 Clear a subimag in an EGI_IMGBUF, reset all color and alpha data.
 
 @egi_imgbuf:    an EGI_IMGBUF struct which hold bits_color image data of a picture.
-@subnum:	index number of the sub image.
-		if subnum<=0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
+@subindex:	index number of the sub image.
+		if subindex<=0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
 		egi_imgbuf.
-@color
+@color:		color value for all pixels in the imgbuf
+		if <0, ignored.  meaningful  [16bits]
+@alpha:		alpha value for all pixels in the imgbuf
+		if <0, ignored.  meaningful [0 255]
 
 Return:
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------------------*/
-int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, unsigned char alpha)
+int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subindex, int color, int alpha)
 {
 	int height, width; /* of host image */
 	int hs, ws;	   /* of sub image */
@@ -648,8 +651,8 @@ int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, unsigned cha
 		return -2;
 	}
 
-	if(egi_imgbuf->submax < subnum) {
-		printf("%s: submax < subnum! \n",__func__);
+	if(egi_imgbuf->submax < subindex) {
+		printf("%s: submax < subindex! \n",__func__);
 	  	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 		return -3;
 	}
@@ -657,37 +660,44 @@ int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, unsigned cha
 	height=egi_imgbuf->height;
 	width=egi_imgbuf->width;
 
-	/* if only 1 image */
-	if( egi_imgbuf->submax==0 || egi_imgbuf->subimgs==NULL ) {
+	/* upper limit: color and alpha */
+	if(alpha>255)alpha=255;
+	if(color>0xffff)color=0xFFFF;
 
+	/* if only 1 image, NO subimg, or RESET whole image data */
+	if( egi_imgbuf->submax <= 0 || egi_imgbuf->subimgs==NULL ) {
 		for( i=0; i<height*width; i++) {
-			egi_imgbuf->imgbuf[i]=color;
-			if(egi_imgbuf->alpha) {
+			/* reset color */
+			if(color>=0) {
+				egi_imgbuf->imgbuf[i]=color;
+			}
+			/* reset alpha */
+			if(egi_imgbuf->alpha && alpha>=0 ) {
 				egi_imgbuf->alpha[i]=alpha;
 			}
 		}
 	}
-	/* else, >1 image */
-	else if(egi_imgbuf->submax > 0 && egi_imgbuf->subimgs != NULL ) {
-		xs=egi_imgbuf->subimgs[subnum].x0;
-		ys=egi_imgbuf->subimgs[subnum].y0;
-		hs=egi_imgbuf->subimgs[subnum].h;
-		ws=egi_imgbuf->subimgs[subnum].w;
 
-		/* transverse subimg Y */
-		for(i=ys; i<ys+hs; i++) {
+	/* else, >1 image */
+	else if( egi_imgbuf->submax > 0 && egi_imgbuf->subimgs != NULL ) {
+		xs=egi_imgbuf->subimgs[subindex].x0;
+		ys=egi_imgbuf->subimgs[subindex].y0;
+		hs=egi_imgbuf->subimgs[subindex].h;
+		ws=egi_imgbuf->subimgs[subindex].w;
+
+		for(i=ys; i<ys+hs; i++) {           	/* transverse subimg Y */
 			if(i < 0 ) continue;
 			if(i > height-1) break;
 
-			/* transverse subimg X */
-			for(j=xs; j<xs+ws; j++) {
+			for(j=xs; j<xs+ws; j++) {   	/* transverse subimg X */
 				if(j < 0) continue;
 				if(j > width -1) break;
 
-				pos=ys*width+j;
+				pos=i*width+j;
 				/* reset color and alpha */
-				egi_imgbuf->imgbuf[pos]=color;
-				if(egi_imgbuf->alpha)
+				if( color >=0 )
+					egi_imgbuf->imgbuf[pos]=color;
+				if( egi_imgbuf->alpha && alpha >=0 )
 					egi_imgbuf->alpha[pos]=alpha;
 			}
 		}

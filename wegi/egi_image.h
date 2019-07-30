@@ -21,8 +21,8 @@ int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 /* display sub_image in an EGI_IMAGBUF */
 int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
                                                         int subcolor, int x0,   int y0);
-
-int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, unsigned char alpha);
+/* reset color and alpha for all pixels */
+int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, int alpha);
 
 /* blend an EGI_IMGBUF with a FT_Bitmap */
 int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,

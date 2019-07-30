@@ -340,10 +340,10 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 	}
 	/* otherwise, blend with original color, back alpha value ignored!!! */
 	else {
+		/* NOTE: back color alpha value all deemed as 255,  */
 		fb_color=COLOR_16BITS_BLEND(  fb_color,			     /* Front color */
 					      virt_fb->imgbuf[location],     /* Back color */
 					      fr_dev->pixalpha );	     /* Alpha value */
-
 	        virt_fb->imgbuf[location]=fb_color;
 	}
 

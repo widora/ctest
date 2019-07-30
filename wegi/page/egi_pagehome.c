@@ -514,14 +514,13 @@ static void update_weathericon(EGI_PAGE *page)
    FBDEV	vfb;
    char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-    //   egi_sleep(0,1,0); /* sleep a while for ebox loading into page??? */
-
-   subnum=2;
+   subnum=3;
    subindex=0;
 
    /* HTTPS GET HeWeather Data periodically */
    while(1) {
-	/* fetch PIC ebox for heweather */
+
+	/* fetch PIC ebox for heweather, in case it has not yet been loaded. */
 	ebox=egi_page_pickebox(page, type_pic, PIC_EBOX_ID);
 	if(ebox == NULL) {
 		printf("%s: egi_page_pickebox() return NULL. sleep and retry later.\n",__func__);
@@ -543,8 +542,7 @@ static void update_weathericon(EGI_PAGE *page)
 		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
 							eimg->height, eimg->width);
 
-		/* substitue icon color with WHITE, No mutex lock here! */
-#if 0
+#if 0		/* substitue icon color with WHITE, No mutex lock here! */
 		for(i=0; i<eimg->height; i++) {
 			for(j=0; j<eimg->width; j++) {
 				off=i*(eimg->width)+j;
@@ -558,6 +556,7 @@ static void update_weathericon(EGI_PAGE *page)
 		eimg->subimgs=calloc(subnum,sizeof(EGI_IMGBOX));
 		eimg->subimgs[0]=(EGI_IMGBOX){0,0,240,60};
 		eimg->subimgs[1]=(EGI_IMGBOX){0,60,240,60};
+		eimg->subimgs[2]=(EGI_IMGBOX){0,120,240,60};
 	}
 
 	/* init Virt FB */
@@ -585,7 +584,7 @@ static void update_weathericon(EGI_PAGE *page)
 
 SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);
-	egi_sleep(0,10,0); /* 10s */
+	egi_sleep(0,3,0); /* 3s */
 
 	/* handler for signal_suspend, wait until runner_cond comes
 	 * !!! Meaningless, since the period of thread loop is too big!
