@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
         tm_start_egitick();
 
-while(1) { ///////////////////////////   LOOP TEST  ////////////////////////
+do { ///////////////////////////   LOOP TEST  ////////////////////////
 
         /* --- prepare fb device --- */
         if( init_fbdev(&gv_fb_dev) )
@@ -53,6 +53,9 @@ while(1) { ///////////////////////////   LOOP TEST  ////////////////////////
                 printf("Fail to load FT appfonts, quit.\n");
                 return -2;
         }
+
+
+	clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
 
 	/* load image data to EGI_IMGBUF */
 	eimg=egi_imgbuf_new();
@@ -83,11 +86,13 @@ while(1) { ///////////////////////////   LOOP TEST  ////////////////////////
         egi_imgbuf_windisplay(eimg, &gv_fb_dev, -1,0, 0, 70, 220, eimg->width, eimg->height);
 #endif
 
-	tm_delayms(500);
-	clear_screen(&gv_fb_dev, WEGI_COLOR_BLUE);
 
 /* <<<<<<<<<<<<<<<<<<<<<<<<<   test PNG saving   >>>>>>>>>>>>>>>>>>>>>>>>> */
 if (test_save) {
+
+	tm_delayms(500);
+	clear_screen(&gv_fb_dev, WEGI_COLOR_BLUE);
+
 
 	if( init_virt_fbdev(&vfb, eimg) )
 		return -2;
@@ -108,7 +113,6 @@ if (test_save) {
 	}
 
 	tm_delayms(500);
-	clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
 }
 /* <<<<<<<< end test saving >>>>>>>> */
 
@@ -117,7 +121,7 @@ if (test_save) {
 	release_fbdev(&gv_fb_dev);
         release_virt_fbdev(&vfb);
 
-} ///////////////////////////   END LOOP TEST  ////////////////////////
+} while(0); ///////////////////////////   END LOOP TEST  ////////////////////////
 
 	return ret;
 }

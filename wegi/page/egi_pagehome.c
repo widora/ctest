@@ -251,7 +251,7 @@ EGI_PAGE *egi_create_homepage(void)
                                   data_pic,  	/* EGI_DATA_PIC *egi_data */
                                   1,         	/* bool movable */
                                   0, 250, 	/*  x0, y0 for host ebox*/
-                                  1,         	/* int frame */
+                                  -1,         	/* int frame */
                                   -1		/* int prmcolor,applys only if prmcolor>=0  */
         );
 	pic_box->id=PIC_EBOX_ID; /* set ebox ID */
@@ -514,7 +514,7 @@ static void update_weathericon(EGI_PAGE *page)
    FBDEV	vfb;
    char heweather_path[]="/tmp/.egi/heweather/now.png";
 
-   subnum=3;
+//   subnum=3;
    subindex=0;
 
    /* HTTPS GET HeWeather Data periodically */
@@ -542,24 +542,17 @@ static void update_weathericon(EGI_PAGE *page)
 		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
 							eimg->height, eimg->width);
 
-#if 0		/* substitue icon color with WHITE, No mutex lock here! */
-		for(i=0; i<eimg->height; i++) {
-			for(j=0; j<eimg->width; j++) {
-				off=i*(eimg->width)+j;
-				*(EGI_16BIT_COLOR *)(eimg->imgbuf+off)=WEGI_COLOR_WHITE;
-			}
-		}
-#endif
+		/* get subimg number */
+		subnum=eimg->height/60;
 
 		/* set subimg */
 		eimg->submax=subnum-1; /* 2 image data */
 		eimg->subimgs=calloc(subnum,sizeof(EGI_IMGBOX));
-		eimg->subimgs[0]=(EGI_IMGBOX){0,0,240,60};
-		eimg->subimgs[1]=(EGI_IMGBOX){0,60,240,60};
-		eimg->subimgs[2]=(EGI_IMGBOX){0,120,240,60};
+		for(i=0; i<subnum; i++)
+			eimg->subimgs[i]=(EGI_IMGBOX){0,i*60,240,60};
 	}
 
-	/* init Virt FB */
+	/* TEST HERE <---------- init Virt FB */
 	picimg=egi_imgbuf_new();
 	egi_imgbuf_init(picimg,60,240);
 	init_virt_fbdev(&vfb, picimg);
@@ -578,7 +571,7 @@ static void update_weathericon(EGI_PAGE *page)
 		egi_ebox_needrefresh(ebox);
 	}
 
-	/* release virt FB */
+	/* TEST LOOP --------> release virt FB */
 	egi_imgbuf_free(picimg);
 	release_virt_fbdev(&vfb);
 

@@ -4,6 +4,33 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 
+                        <<   Glossary  >>
+
+Sample:         A digital value representing a sound amplitude,
+                sample data width usually to be 8bits or 16bits.
+Channels:       1-Mono. 2-Stereo, ...
+Frame_Size:     Sizeof(one sample)*channels, in bytes.
+Rate:           Frames per second played/captured. in HZ.
+Data_Rate:      Frame_size * Rate, usually in kBytes/s(kb/s), or kbits/s.
+Period:         Period of time that a hard ware spends in processing one pass data/
+                certain numbers of frames, as capable of the HW.
+Period Size:    Representing Max. frame numbers a hard ware can be handled for each
+                write/read(playe/capture), in HZ, NOT in bytes??
+                (different value for PLAYBACK and CAPTURE!!)
+Running show:   1536 frames for CAPTURE; 278 frames for PLAYBACK, depends on HW?
+Chunk(period):  frames from snd_pcm_readi() each time for shine enconder.
+Buffer:         Usually in N*periods
+
+Interleaved mode:       record period data frame by frame, such as
+                        frame1(Left sample,Right sample), frame2(), ......
+Uninterleaved mode:     record period data channel by channel, such as
+                        period(Left sample,Left ,left...), period(right,right...),
+                        period()...
+snd_pcm_uframes_t       unsigned long
+snd_pcm_sframes_t       signed long
+
+
+
 Note:
 1. Mplayer will take the pcm device exclusively?? ---NOPE.
 2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
@@ -118,8 +145,8 @@ buffer ---  point to pcm data buffer
 nf     ---  number of frames
 
 Return:
-	>0    OK
-	<0   fails
+#	>0    OK
+#	<0   fails
 ------------------------------------------------------------------------*/
 void  play_ffpcm_buff(void ** buffer, int nf)
 {

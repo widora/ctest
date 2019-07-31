@@ -176,7 +176,7 @@ int main(int argc, char **argv)
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
-        if(egi_init_log("/mmc/egi_log") != 0) {
+        if(egi_init_log("/mmc/log_ffplay") != 0) {
                 printf("Fail to init logger,quit.\n");
                 return -1;
         }

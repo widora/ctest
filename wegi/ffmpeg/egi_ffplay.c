@@ -95,10 +95,10 @@ display_height,display_width:
 		 	 (((  --------  Data Flow  --------  )))
 
 The data flow of a movie is like this:
-  (main)    FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
-  (thread)  pPICBuff ----> FB (~xxxms per frame) ---> Display
-  (thread)  display subtitle
-  (main)    FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
+  (main)    	FFmpeg video decoding (~10-15ms per frame) ----> pPICBuff
+  (thread)  	pPICBuff ----> FB (~xxxms per frame) ---> Display
+  (thread)  	display subtitle
+  (main)    	FFmpeg audio decoding ---> write to PCM ( ~2-4ms per packet?)
 
 
 Usage:
@@ -422,7 +422,6 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	char *pfsub=NULL; /* subtitle path */
 	int ret;
 
-
 	EGI_PDEBUG(DBG_FFPLAY," start ffplay with input ftotal=%d.\n", ftotal);
 
 	/* check expected display window size */
@@ -438,7 +437,6 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	/*MOVED: addjust offset of display window */
 	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
 	//offy=50;//40;
-
 
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);

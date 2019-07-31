@@ -20,6 +20,7 @@ Midas Zhou
 #define HEWEATHER_FORECAST	1
 #define HEWEATHER_HOURLY	2
 #define HEWEATHER_LIFESTYLE	3
+#define HEWEATHER_FORECAST_DAYS	3
 
 #define HEWEATHER_ICON_PATH	"/mmc/heweather" /* png icons */
 
@@ -31,23 +32,38 @@ enum heweather_data_type {
 };
 
 typedef struct  heweather_data {
-	char		*city;
-	EGI_IMGBUF	*eimg; 		/* weather Info image */
-	char		*icon_path;
-	char		*cond_txt;	/* weather condition txt */
-	char		*wind_dir;
-	int		wind_scale;
-	int		temp;  		/* temperature */
-	int		temp_max;
+	char		*location;		/* Location */
+
+	char		*cond_code;	/* current weather condition code */
+	char		*cond_code_d;	/* forecast day cond_code */
+	char		*cond_code_n;	/* forecast night cond_code */
+
+	EGI_IMGBUF	*eimg; 		/* weather icon image data loaded from icon_path */
+
+	char		*cond_txt;	/* current weather condition txt */
+	char		*cond_txt_d;	/* forecast day cond_txt */
+	char		*cond_txt_n;	/* forecast night cond_txt */
+
+	char		*wind_dir;	/* wind direction */
+	int		wind_deg;	/* wind degree 0-360 */
+	char		*wind_scale;	/* wind scale 1-12 */
+	int		wind_speed;	/* wind speed in kilometer/hour */
+
+	int		temp;  		/* current temperature */
+	int		temp_max;	/* forecast Temp. */
 	int		temp_min;
-	int		hum;   		/* humidity */
-	int		hum_max;
+
+	int		hum;   		/* current humidity */
+	int		hum_max;	/* forecast Hum. */
 	int		hum_min;
 }EGI_WEATHER_DATA;
 
-/* 0=now;
-   Forcast: 1=today;  2=tomorrow; 3=the day aft. tomorrow */
-extern EGI_WEATHER_DATA weather_data[4];
+/***
+ *  Now:  0;
+ *  Forcast:
+ *	 1=today;  2=tomorrow; 3=the day aft. tomorrow
+ */
+extern EGI_WEATHER_DATA weather_data[1+HEWEATHER_FORECAST_DAYS];
 
 /* function */
 char * heweather_get_objitem(const char *strinput, const char *strsect, const char *strkey);

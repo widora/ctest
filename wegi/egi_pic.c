@@ -420,7 +420,6 @@ int egi_picbox_refresh(EGI_EBOX *ebox)
 //	int symheight;
 //	int symwidth;
 
-
 	/* check data */
         if( ebox == NULL)
         {
