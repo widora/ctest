@@ -14,13 +14,195 @@ Midas-Zhou
 #include <sys/mman.h>
 #include <string.h>
 #include <math.h>
+#include <inttypes.h>
 #include <stdlib.h>
-
 
 #define MATH_PI 3.1415926535897932
 
 int fp16_sin[360]={0}; /* fixed point sin() value table, divisor 2<<16 */
 int fp16_cos[360]={0}; /* fixed point cos() value table, divisor 2<<16 */
+
+
+/* ------------------------  PIXED_POINT FUNCTION  ------------------------
+
+1. After calculatoin, a Fix point value must reset its exponent 'div' to the
+   default value as '15'
+
+2. Limitation analysis:
+   1st grade precision: 0.00003
+
+--------------------------------------------------------------------------*/
+
+/*---------------------------
+	Print function
+---------------------------*/
+void mat_FixPrint(EGI_FVAL a)
+{
+	printf("Float: %.8f   ", mat_floatFix(a) );
+	printf("[num:%"PRId64", div:%d]",a.num, a.div);
+}
+
+/*-------------------------------------------------------
+	Convert fixed point to float value
+--------------------------------------------------------*/
+inline float mat_floatFix(EGI_FVAL a)
+{
+	return (float)a.num/(1u<<a.div);
+
+}
+
+/*-------------------------------------------------------
+	Addup of two fixed point value: a+b
+!!!TODO NOTE: Divisors of two EGI_FVAL must be the same!
+--------------------------------------------------------*/
+inline EGI_FVAL mat_FixAdd(EGI_FVAL a, EGI_FVAL b)
+{
+	return (EGI_FVAL){ a.num+b.num, a.div };
+}
+
+/*-------------------------------------------------------
+	Subtraction of two fixed point value: a+b
+!!!TODO NOTE: Divisors of two EGI_FVAL must be the same!
+--------------------------------------------------------*/
+inline EGI_FVAL mat_FixSub(EGI_FVAL a, EGI_FVAL b)
+{
+	return (EGI_FVAL){ a.num-b.num, a.div };
+}
+
+/*-------------------------------------------------------
+	Mutliplication of two fixed point value: a+b
+!!!TODO NOTE: Divisors of two EGI_FVAL must be the same!
+--------------------------------------------------------*/
+inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
+{
+	EGI_FVAL c;
+
+	if( (a.num > 0 && b.num<0) || (a.num<0 && b.num>0) ) {
+		return (EGI_FVAL){ -( (-a.num*b.num)>>a.div ), a.div };
+	}
+	else {
+		return (EGI_FVAL){ (a.num*b.num)>>a.div, a.div };
+	}
+}
+
+/*-------------------------------------------------------
+	Division of two fixed point value: a/b
+!!!TODO NOTE: Divisors of two EGI_FVALV must be the same!
+--------------------------------------------------------*/
+inline EGI_FVAL mat_FixDiv(EGI_FVAL a, EGI_FVAL b)
+{
+	EGI_FVAL c;
+
+	/* Min value for 0 */
+	if(b.num==0)
+		b.num=1;
+
+	if(a.num<0) {
+		return (EGI_FVAL){ -( ((-a.num)<<a.div)/b.num ), a.div };
+	}
+	else
+		return (EGI_FVAL){ (a.num << a.div)/b.num, a.div }; /* div=15 ! */
+}
+
+
+/*--------------------   PIXED_POINT COMPLEX FUNCTION  ----------------*/
+
+
+/*---------------------------
+	Print function
+---------------------------*/
+void mat_CompPrint(EGI_FCOMPLEX a)
+{
+	printf(" Float: %.8f %+.8fj   ", mat_floatFix(a.real), mat_floatFix(a.imag));
+	printf(" Real[num:%"PRId64", div:%d],Imag[num:%"PRId64", div:%d] ",
+			a.real.num, a.real.div, a.imag.num, a.imag.div);
+
+}
+
+
+/*-------------------------------------------------------
+		Addup two complex: a+b
+!!!TODO NOTE: Divisors of two EGI_FVAL must be the same!
+--------------------------------------------------------*/
+inline EGI_FCOMPLEX mat_CompAdd(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
+{
+	return (EGI_FCOMPLEX){
+			     {( a.real.num+b.real.num),  a.real.div },
+			     {( a.imag.num+b.imag.num),  a.imag.div }
+			   };
+}
+
+/*-------------------------------------------------------
+	Subtraction of two complex: a-b
+!!!TODO NOTE: Divisors of two EGI_FCOMPLEX must be the same!
+--------------------------------------------------------*/
+inline EGI_FCOMPLEX mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
+{
+	return (EGI_FCOMPLEX){
+			     {a.real.num-b.real.num,  a.real.div },
+			     {a.imag.num-b.imag.num,  a.imag.div }
+			   };
+}
+
+/*-------------------------------------------------------
+	Multiplication of two complex: a*b
+!!!TODO NOTE: Divisors of two EGI_FCOMPLEX must be the same!
+--------------------------------------------------------*/
+inline EGI_FCOMPLEX mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
+{
+	EGI_FVAL	real;
+	EGI_FVAL	imag;
+
+	real=mat_FixSub(
+		mat_FixMult(a.real, b.real),
+		mat_FixMult(a.imag, b.imag)
+	     );
+
+	imag=mat_FixAdd(
+		mat_FixMult(a.real, b.imag),
+		mat_FixMult(a.imag, b.real)
+	     );
+
+	return (EGI_FCOMPLEX){real, imag};
+}
+
+/*-------------------------------------------------------
+	Division of two complex: a/b
+!!!TODO NOTE: Divisors of two EGI_FCOMPLEX must be the same!
+
+  ar+jai/(br+jbi)=(ar+jai)(br-jbi)/(br^2+bi^2)
+--------------------------------------------------------*/
+inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
+{
+	EGI_FCOMPLEX	d,ad;
+	EGI_FVAL	den;
+
+	/* d=br-j(bi) */
+	d.real=b.real;
+	d.imag.num=-b.imag.num;
+	d.imag.div=b.imag.div;
+//	printf("d=");
+//	mat_CompPrint(d);
+//	printf("\n");
+
+	/* a*d */
+	ad=mat_CompMult(a,d);
+//	printf("ad=");
+//	mat_CompPrint(ad);
+//	printf("\n");
+
+
+	/* rb*rb+ib*ib */
+	den=mat_FixAdd( mat_FixMult(b.real, b.real),
+			mat_FixMult(b.imag, b.imag) );
+
+	/*  ad/den */
+	ad.real=mat_FixDiv(ad.real, den); /* 0 will reset to 1.0/2^15 in FixDiv() */
+	ad.imag=mat_FixDiv(ad.imag, den);
+
+	return ad;
+}
+
 
 /*--------------------------------------------------------------
 Create fixed point lookup table for
@@ -105,11 +287,12 @@ min,max:	Min and Max value of the array
 ---------------------------------------------------------------------*/
 void egi_float_limits(float *data, int num, float *min, float *max)
 {
+
 	int i=num;
 	float fmin=data[0];
 	float fmax=data[0];
 
-	if(data==NULL || min==NULL || max==NULL || num<=0 )
+	if(data==NULL || num<=0 )
 		return;
 
 	for(i=0;i<num;i++) {
@@ -119,9 +302,16 @@ void egi_float_limits(float *data, int num, float *min, float *max)
 			fmin=data[i];
 	}
 
-	*min=fmin;
-	*max=fmax;
+	if(min != NULL)
+		*min=fmin;
+	if(max != NULL)
+		*max=fmax;
 }
+
+
+
+
+
 
 /*---------------------------------------------------------------------------------------
 generate a rotation lookup map for a square image block

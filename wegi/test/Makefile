@@ -23,14 +23,9 @@ LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic  test_bigiot
+APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math
 
 all:	$(APPS)
-
-tmp_app:	tmp_app.c
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
-#	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
-#-Wl,-Bstatic -legi -Wl,-Bdynamic	#---use static egilib
 
 
 #### --- use dynamic and static libs in compilatoin!!! ---
@@ -39,9 +34,22 @@ tmp_app:	tmp_app.c
 # 3. At last, we must switch back to dynamic libs, as default for Linux system runtime setup.
 # 4. Source/obj files must be put before all -Wl.
 
+tmp_app:	tmp_app.c
+	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
+#	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+#-Wl,-Bstatic -legi -Wl,-Bdynamic
+#---use static egilib
+
 test_bigiot:	test_bigiot.c  $(OBJ_IOT)
 	$(CC) test_bigiot.c -o test_bigiot $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -Wl,-Bdynamic
+
+
+test_math:	test_math.c  ../egi_math.h
+#	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
+	$(CC) test_math.c -o test_math $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
+#---use static egilib
 
 
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS !!!!
