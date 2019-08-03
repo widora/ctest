@@ -270,7 +270,7 @@ static void check_volume_runner(EGI_PAGE *page)
      EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
      while(1) {
-	   egi_sleep(0,0,300); /* 300ms */
+	   egi_sleep(0,0,500); /* 300ms */
 
 	   /* check page status for exit */
 	   if(page->ebox->status==status_page_exiting)

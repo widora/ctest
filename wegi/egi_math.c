@@ -75,7 +75,6 @@ inline EGI_FVAL mat_FixSub(EGI_FVAL a, EGI_FVAL b)
 --------------------------------------------------------*/
 inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 {
-	EGI_FVAL c;
 
 	if( (a.num > 0 && b.num<0) || (a.num<0 && b.num>0) ) {
 		return (EGI_FVAL){ -( (-a.num*b.num)>>a.div ), a.div };
@@ -91,7 +90,6 @@ inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 --------------------------------------------------------*/
 inline EGI_FVAL mat_FixDiv(EGI_FVAL a, EGI_FVAL b)
 {
-	EGI_FVAL c;
 
 	/* Min value for 0 */
 	if(b.num==0)
@@ -202,6 +200,26 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 
 	return ad;
 }
+
+
+/*---------------------------------------------
+Amplitude of a complex, result in unsinged int.
+
+Limit:  c.real MAX. 1<<31
+----------------------------------------------*/
+float mat_floatCompAmp( EGI_FCOMPLEX a )
+{
+	EGI_FVAL c;
+
+	c=mat_FixAdd(	mat_FixMult(a.real, a.real),
+			mat_FixMult(a.imag, a.imag)
+		    );
+
+	/* div=15=1+14, reduce 1 for sqrt, 14/2 for later division */
+	return 1.0*( mat_fp16_sqrtu32( (c.num>>1) ) >>16 )/(1<<7);
+}
+
+
 
 
 /*--------------------------------------------------------------

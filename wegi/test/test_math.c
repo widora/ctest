@@ -86,21 +86,46 @@ printf("Float compare: cd=cb/ca=%f%+fj      cpd=cpb/cpa=%f%+fj\n",
 //                             (br*ar+aimg*bimg)/(br*br+bimg*bimg),(-ar*bimg+br*aimg)/(br*br+bimg*bimg),
                              (br*ar+aimg*bimg)/(ar*ar+aimg*aimg),(ar*bimg-br*aimg)/(ar*ar+aimg*aimg),
 			     mat_floatFix(cpd.real), mat_floatFix(cpd.imag));
-
+printf("\n\n");
 
 /*----------------------- test fix point FFT --------------------------
 8_points FFT test example is from:
 	<< Understanding Digital Signal Processing, Second Edition >>
 			    by Richard G.Lyons
 	p118-120
+
+1. Input number of points will be ajusted to a number of 2 powers.
+2. Actual amplitude is FFT_A/(NN/2), where FFT_A is FFT result amplitud.
 ----------------------------------------------------------------------*/
-int i;
+int i,j,s,k;
 int kx,kp;
+int exp=0;	/* 2^exp=np */
+uint16_t np=17; /* points for FFT analysis, it will be ajusted to the number of 2 powers */
+int nn;
 
-#define	NN 8
+/* get exponent number */
+for(i=0; i<16; i++) {
+	if( (np<<i) & (1<<15) ){
+		exp=16-i-1;
+		break;
+	}
+}
+if(exp==0)
+	return -1;
+
+nn=1<<exp;
+printf("taken exp=%d, NN=%d\n", exp,nn);
+
+#define	NN 16//8
+//int exp=3;
+//int NN=1<<exp;
+
 EGI_FCOMPLEX  wang[NN];
+EGI_FCOMPLEX ffodd[NN];		/* FFT STAGE 1, 3 */
+EGI_FCOMPLEX ffeven[NN];	/* FFT STAGE 2 */
+int ffnin[NN];			/* normal roder mapped index */
 
-printf( "\n -------------- Test Complex phase angle factor ----------\n");
+
 
 /* generate complex phase angle factor */
 for(i=0;i<NN;i++) {
@@ -110,21 +135,71 @@ for(i=0;i<NN;i++) {
 }
 
 /* sample data */
-float x[NN]={ 0.3535, 0.3535, 0.6464, 1.0607, 0.3535, -1.0607, -1.3535, -0.3535 };
+float x[NN];//={ 0.3535, 0.3535, 0.6464, 1.0607, 0.3535, -1.0607, -1.3535, -0.3535 };
+/* generate NN points samples */
+for(i=0; i<NN; i++) {
+	x[i]=sin(2.0*MATH_PI*1000*i/8000)+0.5*sin(2.0*MATH_PI*2000*i/8000+3.0*MATH_PI/4.0);
+	printf(" x[%d]: %f\n", i, x[i]);
+}
 
-EGI_FCOMPLEX ffodd[NN];		/* FFT STAGE 1, 3 */
-EGI_FCOMPLEX ffeven[NN];	/* FFT STAGE 2 */
+k=0;
+do {  //////////////////////////   LOOP TEST /////////////////////////////////
+k++;
+
+/* 1. map normal order index to  input x[] index */
+for(i=0; i<NN; i++)
+{
+	ffnin[i]=0;
+	for(j=0; j<exp; j++) {
+		/*  move i(j) to i(0), then left shift (exp-j) bits and assign to ffnin[i](exp-j) */
+		ffnin[i] += ((i>>j)&1) << (exp-j-1);
+	}
+	//printf("ffnin[%d]=%d\n", i, ffnin[i]);
+}
+
+/*  2. store x() to ffeven[], index as mapped according to ffnin[] */
+for(i=0; i<NN; i++)
+	ffeven[i]=MAT_FCPVAL(x[ffnin[i]],0.0);
+
+/* 3. stage 2^1 -> 2^2 -> 2^3 -> 2^4....->NN point DFT */
+if(exp > 0) {
+	for(s=1; s<exp+1; s++) {
+	    for(i=0; i<NN; i++) {   /* i as normal order index */
+        	/* get coupling x order index: ffeven order index -> x order index */
+	        kx=((i+ (1<<(s-1))) & ((1<<s)-1)) + ((i>>s)<<s); /* (i+2^(s-1)) % (2^s) + (i/2^s)*2^s) */
+
+	        /* get 8th complex phase angle index */
+	        kp= (i<<(exp-s)) & ((1<<exp)-1); // k=(i*1)%8
+
+		if( s & 1 ) { 	/* odd stage */
+			if(i < kx )
+				ffodd[i]=mat_CompAdd( ffeven[i], mat_CompMult(ffeven[kx], wang[kp]) );
+			else	  /* i > kx */
+				ffodd[i]=mat_CompAdd( ffeven[kx], mat_CompMult(ffeven[i], wang[kp]) );
+		}
+		else {		/* even stage */
+			if(i < kx) {
+				ffeven[i]=mat_CompAdd( ffodd[i], mat_CompMult(ffodd[kx], wang[kp]) );
+				//printf(" stage 2: ffeven[%d]=ffodd[%d]+ffodd[%d]*wang[%d]\n", i,i,kx,kp);
+			}
+			else {  /* i > kx */
+				ffeven[i]=mat_CompAdd( ffodd[kx], mat_CompMult(ffodd[i], wang[kp]) );
+				//printf(" stage 2: ffeven[%d]=ffodd[%d]+ffodd[%d]*wang[%d]\n", i,kx,i,kp);
+			}
+		} /* end of odd and even stage cal. */
+	    } /* end for(i) */
+	} /* end for(s) */
+} /* end if exp>1 */
 
 
+#if 0 ///////////////////////////////////////////////////////////////////////////
 /*** For 8 points FFT
    Order index: 	0,1,2,3, ...
    input x[] index:     0,4,2,6, ...
 */
-/* order index -> input x[] index */
-unsigned int  ffnin[NN]={ 0,4,2,6, 1,5,3,7 };
 
-/* stage 1 */
-for(i=0; i<NN; i++) {  /* order index: i */
+/* stage 1: Basic 2-point DFT */
+for(i=0; i<NN; i++) {  /* i as normal order index */
 	if( (i&(2-1)) == 0 ) { /* i%2 */
 		ffodd[i]=MAT_FCPVAL( x[ffnin[i]]+x[ffnin[i+1]], 0.0 );
 		printf(" stage 1: ffodd[%d]=x(%d)+x(%d)\n", i,ffnin[i],ffnin[i+1]);
@@ -143,14 +218,12 @@ for(i=0; i<8; i++) {
 }
 
 /* stage 2 */
-for(i=0; i<NN; i++) { 	/* order index: i */
-
+for(i=0; i<NN; i++) { 	/* i as normal order index */
 	/* get coupling x order index: ffeven order index -> x order index */
-	//kx=(i+2)%4+(i&(~(4-1))); /* (i+2)%4+i/4 */
-	kx=(i+2)%4+((i>>2)<<2); /* (i+2)%4+i/4 */
+	kx= ( (i+ (1<<(2-1)) )&((1<<2)-1) )+((i>>2)<<2); /* (i+2)%4+(i/4*4 */
 
 	/* get 8th complex phase angle index */
-	kp=(i<<1)%8;
+	kp=(i<<(exp-2))&(8-1);  // kp=(i*2)%8;
 
 	/* cal. ffeven */
 	if(i < kx) {
@@ -163,19 +236,19 @@ for(i=0; i<NN; i++) { 	/* order index: i */
 	}
 }
 /* print result */
-for(i=0; i<8; i++) {
+for(i=0; i<NN; i++) {
        	printf("ffeven(%d) ",i);
         mat_CompPrint(ffeven[i]);
        	printf("\n");
 }
 
 /* stage 3 */
-for(i=0; i<NN; i++) {   /* order index: i */
+for(i=0; i<NN; i++) {   /* i as normal order index */
         /* get coupling x order index: ffeven order index -> x order index */
-        kx=(i+4)%8; /* (i+4)%8 */
+        kx=( (i+ (1<<(3-1)) )&((1<<3)-1) )+((i>>3)<<3); /* (i+4)%8+(i/8*8) */
 
         /* get 8th complex phase angle index */
-        kp=i;
+        kp= (i<<(exp-3)) & (8-1); // k=(i*1)%8
 
 	/* cal. ffodd */
 	if(i < kx ) {
@@ -185,12 +258,27 @@ for(i=0; i<NN; i++) {   /* order index: i */
 		ffodd[i]=mat_CompAdd( ffeven[kx], mat_CompMult(ffeven[i], wang[kp]) );
 	}
 }
+#endif //////////////////////////////////////////////////////////////////////////////
+
+
 /* print result */
-for(i=0; i<8; i++) {
+for(i=0; i<NN; i++) {
 	printf("X(%d) ",i);
-	mat_CompPrint(ffodd[i]);
+	if(exp&1) {
+		mat_CompPrint(ffodd[i]);
+		printf(" Amp=%f ",mat_floatCompAmp(ffodd[i]) );
+	}
+	else {
+		mat_CompPrint(ffeven[i]);
+		printf(" Amp=%f ",mat_floatCompAmp(ffeven[i]) );
+	}
 	printf("\n");
 }
+
+printf("--------- K=%d -------- \n",k);
+} while(1);   //////////////////////////   END LOOP TEST /////////////////////////////////
+
+
 
 return 0;
 
