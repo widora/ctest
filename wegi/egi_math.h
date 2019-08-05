@@ -22,7 +22,7 @@ extern int fp16_cos[360];
 /* EGI fixed point / complex number */
 typedef struct {
 int64_t         num;	/* divident */
-int	        div;	/* divisor, exponent of 2, take as 32-1 NOW??? */
+int	        div;	/* divisor, 2 exponent taken 16*/
 } EGI_FVAL;
 
 typedef struct {
@@ -54,6 +54,7 @@ inline EGI_FCOMPLEX mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 float mat_floatCompAmp( EGI_FCOMPLEX a );
+EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np);
 
 void mat_create_fptrigontab(void);
 uint64_t mat_fp16_sqrtu32(uint32_t x);

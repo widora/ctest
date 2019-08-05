@@ -47,7 +47,9 @@ void mat_FixPrint(EGI_FVAL a)
 --------------------------------------------------------*/
 inline float mat_floatFix(EGI_FVAL a)
 {
-	return (float)a.num/(1u<<a.div);
+
+//	return (float)1.0*a.num/(1u<<a.div);
+	return 1.0*(a.num>>a.div);
 
 }
 
@@ -75,13 +77,24 @@ inline EGI_FVAL mat_FixSub(EGI_FVAL a, EGI_FVAL b)
 --------------------------------------------------------*/
 inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 {
+	int64_t c;
 
+	c=a.num*b.num;
+	c>>=a.div;
+	return (EGI_FVAL){c, a.div};
+
+#if 0
 	if( (a.num > 0 && b.num<0) || (a.num<0 && b.num>0) ) {
-		return (EGI_FVAL){ -( (-a.num*b.num)>>a.div ), a.div };
+		return (EGI_FVAL){ -( (int64_t)(-a.num*b.num)>>a.div ), a.div };
+	}
+	else if ( a.num<0 && b.num<0 ) {
+
+		return (EGI_FVAL){ (int64_t)( (-a.num)*(-b.num) )>>a.div, a.div };
 	}
 	else {
-		return (EGI_FVAL){ (a.num*b.num)>>a.div, a.div };
+		return (EGI_FVAL){ (int64_t)(a.num*b.num)>>a.div, a.div };
 	}
+#endif 
 }
 
 /*-------------------------------------------------------
@@ -203,23 +216,153 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 
 
 /*---------------------------------------------
-Amplitude of a complex, result in unsinged int.
+Amplitude of a complex, result in float type.
 
 Limit:  c.real MAX. 1<<31
+	a.real Max. 1<<12 ??
 ----------------------------------------------*/
 float mat_floatCompAmp( EGI_FCOMPLEX a )
 {
-	EGI_FVAL c;
+	EGI_FVAL c; /* ar^2+ai^2 */
+	uint64_t uamp;
+
+#if 0
+	printf(">>>a: ");
+	mat_CompPrint(a);
+	printf("<<<");
+#endif
 
 	c=mat_FixAdd(	mat_FixMult(a.real, a.real),
 			mat_FixMult(a.imag, a.imag)
 		    );
 
-	/* div=15=1+14, reduce 1 for sqrt, 14/2 for later division */
-	return 1.0*( mat_fp16_sqrtu32( (c.num>>1) ) >>16 )/(1<<7);
+
+#if 0
+	printf(">>>c:");
+	mat_FixPrint(c);
+	printf("<<<");
+#endif
+
+#if 0 /* 1. use float method sqrt */
+	return sqrt(mat_floatFix(c));
+
+#else  /* 2. use fixed point method sqrtu32(Max.1<<29):
+           (a^2 -> exp 32), exp32+div15=47> 32, and >29(for sqrtu())
+	   31+31-div15 = 47 > 29 !!!  47-29=18!!
+	   div=15=1+14, reduce 1 for sqrt, 14/2 for later division
+	  
+	  TODO: 1. For big modulus value of complex c:
+		   [ Contradiciton:
+		     1.1 Too big shift value will decrease precision of small value input!!!!
+		     1.2 Too small shift value will cause sqrtu32() fault!!!
+		     example: Consider Max Amplitude value:
+				Amp_Max: 1<<12;  FFT point number: 1<<5
+				Limit: Amp_Max*(np/2) : 12+(5-1)=16;
+				 ( or Amp_Max: 1<<10; FFT point number: 1<<7 )
+				  result |X|^2:	   16*2+div15=47 > Max 29 for sqrtu32()
+				  taken min preshift:  47-29 = 18  +1. (__TRACE_BIG_DATA__)
+			          At this point, input Amp_Min = 2^((18-div15)-(5-1))=0.5 (0.5 OK)
+				  input amp < 0.5 will be trimmed to be 0.!!!
+
+			XXXXXXXXXXXXXXXXXXXXXXXXX WRONG XXXXXXXXXXXXXXXXXXXXXXXXX
+			XXX    example 2: Amp_Max: 1<<12;  FFT point number: 1<<10
+			XXX	  Amp_Max*(np/2) : 12+1+(10-1)=22 > 16 !!!! OVERFLOW !!!!
+			XXX	  result |X|^2:	   22*2+div15=59 > Max 29 for sqrtu32()
+			XXX	  taken min preshift:  57-29 = 30  +1.  (___TRACE_BIG_DATA___)
+			XXX       At this point, input Amp_Min = 2^((30-div15)-(10-1))=64
+			XXX	  input amp < 16 will be trimmed to be 0.!!!
+
+		   ]
+	  	2. For small modulus value :
+		   the precision is extreamly lower if shift 16bits first
+	           before sqrtu32, example: float resutl 0.500, but this fix type 0.375!!!
+		So need to give a rather small shift bits number,instead of 16 in this case.
+      */
+//	return ( mat_fp16_sqrtu32( (c.num>>(18+1) ) ) >>16 )*(1<<(18/2-14/2)); /* MAX. amp=2^12 +2^10 */
+	uamp=mat_fp16_sqrtu32( c.num>>(18+1) )<<(18/2-14/2);
+
+//	uamp= ( mat_fp16_sqrtu32( (uint32_t)(c.num>>(28+1)) ) >>16 )*(1<<(18/2-14/2));  /* preshift 18 */
+
+	/* Pre_shift 28  */
+//		uamp= mat_fp16_sqrtu32( (c.num>>(28+1)) )*(1u<<(28/2-14/2)); uamp>>=16;
+//		uamp= ( mat_fp16_sqrtu32( (c.num>>(28+1)) ) << (28/2-14/2) );
+
+#if 0
+	if(c.num>0 || c.num<0) {
+		printf("uamp=%"PRIu64"\n",uamp);
+		printf("---->>>a: ");
+		mat_CompPrint(a);
+		printf("<<<");
+
+		printf(">>>c: ");
+		mat_FixPrint(c);
+		printf("<<<");
+
+		printf(">>>");
+		printf("c.num>>28+1: %"PRIu64",  uamp: %"PRIu64" ", c.num>>(28+1),
+			mat_fp16_sqrtu32( c.num>>(28+1) )>>16);//uamp);
+		printf("<<<---\n");
+	}
+#endif
+
+	uamp>>=16;
+	return 1.0*uamp;
+#endif
+
 }
 
 
+/*----------------------------------------------------
+        Generate complex phase angle array for FFT
+@np	Phanse angle numbers as per FFT point numbers
+	np will be normalized first to powers of 2
+
+!!! DO NOT FORGET TO FREE IT !!!
+
+Return:
+	a pointer to EGI_FCOMPLEX	OK
+
+	NULL				fails
+----------------------------------------------------*/
+EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
+{
+	int i;
+	int exp=0;
+	int nn;
+
+	EGI_FCOMPLEX *wang;
+
+	/* get exponent number of 2 */
+        for(i=0; i<16; i++) {
+                if( (np<<i) & (1<<15) ){
+                        exp=16-i-1;
+                        break;
+                }
+        }
+        if(exp==0)
+              return NULL;
+
+	printf(" --- exp=%d --- \n", exp);
+
+        /* reset nn to be powers of 2 */
+        nn=1<<exp;
+
+	/* calloc wang */
+	wang=calloc(nn, sizeof(EGI_FCOMPLEX));
+	if(wang==NULL) {
+		printf("%s,Fail to calloc wang!\n",__func__);
+		return NULL;
+	}
+
+	/* generate phase angle */
+        for(i=0;i<nn;i++) {
+                wang[i]=MAT_CPANGLE(i, nn);
+                //mat_CompPrint(wang[i]);
+                //printf("\n");
+        }
+
+	return wang;
+}
 
 
 /*--------------------------------------------------------------
@@ -249,6 +392,9 @@ void mat_create_fptrigontab(void)
 /*----------------------------------------------------------------------------------
 Fix point square root for uint32_t, the result is <<16 shifted, so you need to shift
 >>16 back after call to get the right answer.
+
+Limit input x <= 2^29    //4294967296(2^32)   4.2949673*10^9
+
 
 Original Source:
 	http://read.pudn.com/downloads286/sourcecode/embedded/1291109/sqrt.c__.htm
