@@ -36,7 +36,7 @@ Midas Zhou
 
 
 #define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
-static int pfd=-1;				/* file descriptor for open() fifo */
+static int pfd=-1;			/* file descriptor for open() fifo */
 static FILE *pfil;			/* file stream of popen() mplayer */
 
 static int  nlist=0;			/* list index */
@@ -361,13 +361,15 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	if(pfd<0) {
 		status=mp_stop;
-		printf("unlink(MPFIFO_NAME)...\n");
-		unlink(MPFIFO_NAME);
+		//printf("unlink(MPFIFO_NAME)...\n");
+		//unlink(MPFIFO_NAME); /* TODO: Get stuck here! */
+		printf("mkfifo for mplayer.\n");
 		if (mkfifo(MPFIFO_NAME,0766) !=0) {
 			printf("%s:Fail to mkfifo for mplayer.\n",__func__);
 			return NULL;
 		}
 	}
+
 	//printf("%s: %s created!.\n",__func__,MPFIFO_NAME);
 
 	/* open/close mplayer */

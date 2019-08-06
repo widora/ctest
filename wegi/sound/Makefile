@@ -6,7 +6,7 @@ AR= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
 
-APP = recmp3
+APP = recmp3 test_snd
 #shine_test2
 #autorecord4
 
@@ -20,14 +20,18 @@ LDFLAGS  += -L.
 LDFLAGS += -L../lib -L$(COMMON_USRDIR)/lib
 #LDFLAGS += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.2/ipkg-install/usr/lib
 
-LIBS	 += -lasound  -lshine -legi -lpng -ljpeg -lz
-LIBS += -lcurl -lssl -lcrypto
-
+LIBS	+= -lasound  -lshine -lsndfile
+LIBS    += -legi -lpng -ljpeg -lz
+LIBS 	+= -lcurl -lssl -lcrypto
+LIBS 	+= -lfreetype  -lm -lz -lbz2
 
 all:	$(APP) libesound.a
 
-$(APP): $(APP).c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(APP) $(APP).c
+recmp3: recmp3.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o recmp3 recmp3.c
+
+test_snd: test_snd.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_snd test_snd.c
 
 libesound.a: egi_pcm.o
 	$(AR) crv $@ egi_pcm.o
