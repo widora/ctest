@@ -23,7 +23,7 @@ LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_math1
+APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft
 
 all:	$(APPS)
 
@@ -51,9 +51,9 @@ test_math:	test_math.c  ../egi_math.h
 -Wl,-Bstatic -legi -Wl,-Bdynamic
 #---use static egilib
 
-test_math1:	test_math1.c  ../egi_math.h
+test_fft:	test_fft.c  ../egi_math.h
 #	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
-	$(CC) test_math1.c -o test_math1 $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+	$(CC) test_fft.c -o test_fft $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -Wl,-Bdynamic
 #---use static egilib
 

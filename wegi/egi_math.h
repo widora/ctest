@@ -14,7 +14,8 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include <inttypes.h>
 
-#define MATH_PI 3.1415926535897932
+#define MATH_PI 	3.1415926535897932
+#define MATH_DIVEXP   	11  /* An odd number!!  exponent of 2, as for divisor of fixed point number */
 
 extern int fp16_sin[360];
 extern int fp16_cos[360];
@@ -30,8 +31,11 @@ EGI_FVAL       real;	/* real part */
 EGI_FVAL       imag;	/* imaginery part */
 } EGI_FCOMPLEX;
 
+
+
 /* TODO: adjustable exponent value  MAT_FVAL(a,exp) */
-#define MAT_FVAL(a) ( (EGI_FVAL){ (a)*(1U<<15), 15} ) /* shitf 15bit each time, 64-15-15-15-15-1 */
+/* shitf MATH_DIVEXP bitS each time, if 15,  64-15-15-15-15-1 */
+#define MAT_FVAL(a) ( (EGI_FVAL){ (a)*(1U<<MATH_DIVEXP), MATH_DIVEXP} )
 
 /* r--real, i--imagnery */
 #define MAT_FCPVAL(r,i)	 ( (EGI_FCOMPLEX){ MAT_FVAL(r), MAT_FVAL(i) } )
@@ -55,6 +59,7 @@ inline EGI_FCOMPLEX mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 float mat_floatCompAmp( EGI_FCOMPLEX a );
 EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np);
+int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang, const float *x, EGI_FCOMPLEX *ffx);
 
 void mat_create_fptrigontab(void);
 uint64_t mat_fp16_sqrtu32(uint32_t x);

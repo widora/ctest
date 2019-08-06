@@ -361,6 +361,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	if(pfd<0) {
 		status=mp_stop;
+		printf("unlink(MPFIFO_NAME)...\n");
 		unlink(MPFIFO_NAME);
 		if (mkfifo(MPFIFO_NAME,0766) !=0) {
 			printf("%s:Fail to mkfifo for mplayer.\n",__func__);

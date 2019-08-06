@@ -79,7 +79,7 @@ inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 {
 	int64_t c;
 
-	c=a.num*b.num;
+	c=a.num*b.num;		/* !!!! Limit: (16num+16div)bit*(16num+16div)bit, for DIVEXP=15 */
 	c>>=a.div;
 	return (EGI_FVAL){c, a.div};
 
@@ -112,7 +112,7 @@ inline EGI_FVAL mat_FixDiv(EGI_FVAL a, EGI_FVAL b)
 		return (EGI_FVAL){ -( ((-a.num)<<a.div)/b.num ), a.div };
 	}
 	else
-		return (EGI_FVAL){ (a.num << a.div)/b.num, a.div }; /* div=15 ! */
+		return (EGI_FVAL){ (a.num << a.div)/b.num, a.div }; /* div=MATH_DIVEXP ! */
 }
 
 
@@ -218,8 +218,7 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 /*---------------------------------------------
 Amplitude of a complex, result in float type.
 
-Limit:  c.real MAX. 1<<31
-	a.real Max. 1<<12 ??
+Limit:  a.real MAX. 2^16.
 ----------------------------------------------*/
 float mat_floatCompAmp( EGI_FCOMPLEX a )
 {
@@ -232,6 +231,7 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 	printf("<<<");
 #endif
 
+	/* Limit here as in mat_FixMult(): (16+16)bit*(16+16)bit */
 	c=mat_FixAdd(	mat_FixMult(a.real, a.real),
 			mat_FixMult(a.imag, a.imag)
 		    );
@@ -257,10 +257,14 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 		     1.2 Too small shift value will cause sqrtu32() fault!!!
 		     example: Consider Max Amplitude value:
 				Amp_Max: 1<<12;  FFT point number: 1<<5
-				Limit: Amp_Max*(np/2) : 12+(5-1)=16;
+				Limit: Amp_Max*(np/2) : 12+(5-1)=16; when MATH_DIVEXP=16-1=15
 				 ( or Amp_Max: 1<<10; FFT point number: 1<<7 )
-				  result |X|^2:	   16*2+div15=47 > Max 29 for sqrtu32()
+				  result |X|^2:	   16*2+div15= 47 > Max29 for sqrtu32()
+						   18*2+div13= 49 > Max29
+						   20*2+div11= 51 > Max29
 				  taken min preshift:  47-29 = 18  +1. (__TRACE_BIG_DATA__)
+						       49-29 = 20  +1.
+						       51-29 = 22  +1
 			          At this point, input Amp_Min = 2^((18-div15)-(5-1))=0.5 (0.5 OK)
 				  input amp < 0.5 will be trimmed to be 0.!!!
 
@@ -279,7 +283,8 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 		So need to give a rather small shift bits number,instead of 16 in this case.
       */
 //	return ( mat_fp16_sqrtu32( (c.num>>(18+1) ) ) >>16 )*(1<<(18/2-14/2)); /* MAX. amp=2^12 +2^10 */
-	uamp=mat_fp16_sqrtu32( c.num>>(18+1) )<<(18/2-14/2);
+//	uamp=mat_fp16_sqrtu32( c.num>>(18+1) )<<(18/2-14/2);
+	uamp=mat_fp16_sqrtu32( c.num>>(47+(15-MATH_DIVEXP)-29 +1))<<((47+(15-MATH_DIVEXP)-29)/2-MATH_DIVEXP/2);
 
 //	uamp= ( mat_fp16_sqrtu32( (uint32_t)(c.num>>(28+1)) ) >>16 )*(1<<(18/2-14/2));  /* preshift 18 */
 
@@ -287,26 +292,11 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 //		uamp= mat_fp16_sqrtu32( (c.num>>(28+1)) )*(1u<<(28/2-14/2)); uamp>>=16;
 //		uamp= ( mat_fp16_sqrtu32( (c.num>>(28+1)) ) << (28/2-14/2) );
 
-#if 0
-	if(c.num>0 || c.num<0) {
-		printf("uamp=%"PRIu64"\n",uamp);
-		printf("---->>>a: ");
-		mat_CompPrint(a);
-		printf("<<<");
+	/* if float */
+	return 1.0*uamp/(1<<16);
 
-		printf(">>>c: ");
-		mat_FixPrint(c);
-		printf("<<<");
-
-		printf(">>>");
-		printf("c.num>>28+1: %"PRIu64",  uamp: %"PRIu64" ", c.num>>(28+1),
-			mat_fp16_sqrtu32( c.num>>(28+1) )>>16);//uamp);
-		printf("<<<---\n");
-	}
-#endif
-
-	uamp>>=16;
-	return 1.0*uamp;
+	/* if int */
+	//return uamp>>=16;
 #endif
 
 }
@@ -339,8 +329,8 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
                         break;
                 }
         }
-        if(exp==0)
-              return NULL;
+//        if(exp==0) /* ok */
+//              return NULL;
 
 	printf(" --- exp=%d --- \n", exp);
 
@@ -363,6 +353,167 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 
 	return wang;
 }
+
+
+/*-------------------------------------------------------------------------------------
+Fixed point Fast Fourier Transform
+
+@np:    Total number of data for FFT, will be ajusted to a number of 2
+        powers. Max=1<<15;
+        np=1, result is 0!
+@wang   complex phase angle factor, according to normalized np.
+@x:     Pointer to array of input data x[]
+@ffx:   Pointer to array of FFT result ouput in form of x+jy.
+
+Note:
+1. Input number of points will be ajusted to a number of powers of 2.
+2. Actual amplitude is FFT_A/(NN/2), where FFT_A is ffx[] result amplitude(modulus).
+3. Use real and imaginery part of ffx[] to get phase angle(relative to cosine!!!):
+   atan(ffx[].real/ffx[].imag),
+4. !!!--- Cal overflow ---!!!
+   Expected amplitude:      1<<N
+   expected sampling point: 1<<M
+   Taken: N+M-1=16  to incorporate with mat_floatCompAmp()
+         OR N+M-1=16+(15-MATH_DIVEXP) --> N+M=17+(15-MATH_DIVEXP) [ MATH_DIVEXP MUST be odd!]
+
+   Example:     when MATH_DIVEXP = 15   LIMIT: Amp_Max*(np/2) is 17bits;
+                we may take Amp_Max: 1<<12;  FFT point number: 1<<5:
+
+                when MATH_DIVEXP = 11   LIMIT: Amp_Max*(np/2) is 21bits;
+                we may take Amp_Max: 1<<11;  FFT point number: 1<<10:
+
+                Ok, with reduced precision as you decrease MATH_DIVEXP !!!!!
+5. So,you have to balance between data precision, data scope and number of sample points(np)
+   ,which also decides Min. analysis frequency.
+
+Return:
+        0       OK
+        <0      Fail
+---------------------------------------------------------------------------------------*/
+int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang, const float *x, EGI_FCOMPLEX *ffx)
+{
+        int i,j,s;
+        int kx,kp;
+        int exp=0;              /* 2^exp=nn */
+        int nn;                 /* number of data for FFT analysis, a number of 2 powers */
+        EGI_FCOMPLEX *ffodd;    /* for FFT STAGE 1,3,5.. , store intermediate result */
+        EGI_FCOMPLEX *ffeven;   /* for FFT STAGE 0,2,4.. , store intermediate result */
+        int *ffnin;             /* normal order mapped index */
+
+        /* check input data */
+        if( np==0 || wang==NULL || x==NULL || ffx==NULL) {
+                printf("%s: Invalid input data!\n",__func__);
+                return -1;
+        }
+
+        /* get exponent number of 2 */
+        for(i=0; i<16; i++) {
+                if( (np<<i) & (1<<15) ){
+                        exp=16-i-1;
+                        break;
+                }
+        }
+//      if(exp==0) /* ok */
+//              return -1;
+
+        /* reset nn to be powers of 2 */
+        nn=1<<exp;
+
+        /* allocate vars !!!!! This is time consuming !!!!!! */
+        ffodd=calloc(nn, sizeof(EGI_FCOMPLEX));
+        if(ffodd==NULL) {
+                printf("%s: Fail to alloc ffodd[] \n",__func__);
+                return -1;
+        }
+        ffeven=calloc(nn, sizeof(EGI_FCOMPLEX));
+        if(ffeven==NULL) {
+                printf("%s: Fail to alloc ffeven[] \n",__func__);
+                free(ffodd);
+                return -1;
+        }
+        ffnin=calloc(nn, sizeof(int));
+        if(ffnin==NULL) {
+                printf("%s: Fail to alloc ffnin[] \n",__func__);
+                free(ffodd); free(ffeven);
+                return -1;
+        }
+
+        ///////////////////    FFT    ////////////////////////
+        /* 1. map normal order index to  input x[] index */
+        for(i=0; i<nn; i++)
+        {
+                ffnin[i]=0;
+                for(j=0; j<exp; j++) {
+                        /*  move i(j) to i(0), then left shift (exp-j) bits and assign to ffnin[i](exp-j) */
+                        ffnin[i] += ((i>>j)&1) << (exp-j-1);
+                }
+                //printf("ffnin[%d]=%d\n", i, ffnin[i]);
+        }
+
+        /*  2. store x() to ffeven[], index as mapped according to ffnin[] */
+        for(i=0; i<nn; i++)
+                ffeven[i]=MAT_FCPVAL(x[ffnin[i]], 0.0);
+
+        /* 3. stage 2^1 -> 2^2 -> 2^3 -> 2^4....->NN point DFT */
+        for(s=1; s<exp+1; s++) {
+            for(i=0; i<nn; i++) {   /* i as normal order index */
+                /* get coupling x order index: ffeven order index -> x order index */
+                kx=((i+ (1<<(s-1))) & ((1<<s)-1)) + ((i>>s)<<s); /* (i+2^(s-1)) % (2^s) + (i/2^s)*2^s) */
+
+                /* get complex phase angle index */
+                kp= (i<<(exp-s)) & ((1<<exp)-1); // k=(i*1)%8
+
+                if( s & 1 ) {   /* odd stage */
+                        if(i < kx )
+                                ffodd[i]=mat_CompAdd( ffeven[i], mat_CompMult(ffeven[kx], wang[kp]) );
+                        else      /* i > kx */
+                                ffodd[i]=mat_CompAdd( ffeven[kx], mat_CompMult(ffeven[i], wang[kp]) );
+                }
+                else {          /* even stage */
+                        if(i < kx) {
+                                ffeven[i]=mat_CompAdd( ffodd[i], mat_CompMult(ffodd[kx], wang[kp]) );
+                                //printf(" stage 2: ffeven[%d]=ffodd[%d]+ffodd[%d]*wang[%d]\n", i,i,kx,kp);
+                        }
+                        else {  /* i > kx */
+                                ffeven[i]=mat_CompAdd( ffodd[kx], mat_CompMult(ffodd[i], wang[kp]) );
+                                //printf(" stage 2: ffeven[%d]=ffodd[%d]+ffodd[%d]*wang[%d]\n", i,kx,i,kp);
+                        }
+                } /* end of odd and even stage cal. */
+            } /* end for(i) */
+        } /* end for(s) */
+
+
+        /* 4. pass result */
+        if(exp&1) {     /* 4.1 result in odd array */
+                for(i=0; i<nn; i++) {
+                        ffx[i]=ffodd[i];
+#if 0 /* test only */
+                        printf("X(%d) ",i);
+                        mat_CompPrint(ffodd[i]);
+                        printf(" Amp=%f ",mat_floatCompAmp(ffodd[i])/(nn/2) );
+                        printf("\n");
+#endif
+                }
+        } else {      /* 4.2 result in even array */
+                for(i=0; i<nn; i++) {
+                        ffx[i]=ffeven[i];
+#if 0 /* test only */
+                        printf("X(%d) ",i);
+                        mat_CompPrint(ffeven[i]);
+                        printf(" Amp=%f ",mat_floatCompAmp(ffeven[i])/(nn/2) );
+                        printf("\n");
+#endif
+                }
+        }
+
+	/* free resources */
+	free(ffodd);
+	free(ffeven);
+	free(ffnin);
+
+	return 0;
+}
+
 
 
 /*--------------------------------------------------------------
