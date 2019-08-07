@@ -80,7 +80,7 @@ inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 	int64_t c;
 
 	c=a.num*b.num;		/* !!!! Limit: (16num+16div)bit*(16num+16div)bit, for DIVEXP=15 */
-	c>>=a.div;
+	c>>=a.div;	        /* Right shifting is supposed to be arithmatic */
 	return (EGI_FVAL){c, a.div};
 
 #if 0
@@ -108,11 +108,15 @@ inline EGI_FVAL mat_FixDiv(EGI_FVAL a, EGI_FVAL b)
 	if(b.num==0)
 		b.num=1;
 
+	return (EGI_FVAL){  (a.num<<a.div)/b.num, a.div }; /* suppose left shif is arithmatic! */
+
+#if 0
 	if(a.num<0) {
 		return (EGI_FVAL){ -( ((-a.num)<<a.div)/b.num ), a.div };
 	}
 	else
 		return (EGI_FVAL){ (a.num << a.div)/b.num, a.div }; /* div=MATH_DIVEXP ! */
+#endif 
 }
 
 
@@ -215,11 +219,12 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 }
 
 
-/*---------------------------------------------
-Amplitude of a complex, result in float type.
+/*---------------------------------------------------------
+work out the amplitude(modulus) of a complex, in float type.
+Check also: int mat_intCompAmp( EGI_FCOMPLEX a )
 
 Limit:  a.real MAX. 2^16.
-----------------------------------------------*/
+---------------------------------------------------------*/
 float mat_floatCompAmp( EGI_FCOMPLEX a )
 {
 	EGI_FVAL c; /* ar^2+ai^2 */
@@ -301,6 +306,53 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 
 }
 
+/*---------------------------------------------------------
+work out the amplitude(modulus) of a complex, in INT type.
+check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
+
+Limit:  a.real MAX. 2^16.
+---------------------------------------------------------*/
+unsigned int mat_uintCompAmp( EGI_FCOMPLEX a )
+{
+	EGI_FVAL c; /* ar^2+ai^2 */
+	uint64_t uamp;
+
+	/* Limit here as in mat_FixMult(): (16+16)bit*(16+16)bit */
+	c=mat_FixAdd(	mat_FixMult(a.real, a.real),
+			mat_FixMult(a.imag, a.imag)
+		    );
+
+#if 0 /* 1. use float method sqrt */
+	return sqrt(mat_floatFix(c));
+
+#else  /* 2. use fixed point method sqrtu32(Max.1<<29) */
+
+	uamp=mat_fp16_sqrtu32( c.num>>(47+(15-MATH_DIVEXP)-29 +1))<<((47+(15-MATH_DIVEXP)-29)/2-MATH_DIVEXP/2);
+
+	return uamp>>=16;
+#endif
+
+}
+
+/*---------------------------------------------------
+Return square of the amplitude(modulus) of a complex
+check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
+
+Limit:  a.real MAX. 2^16.
+----------------------------------------------------*/
+unsigned int mat_uintCompSAmp( EGI_FCOMPLEX a )
+{
+        EGI_FVAL c; /* ar^2+ai^2 */
+
+        /* Limit here as in mat_FixMult(): (16+16)bit*(16+16)bit */
+        c=mat_FixAdd(   mat_FixMult(a.real, a.real),
+                        mat_FixMult(a.imag, a.imag)
+                    );
+
+	return ((uint64_t)c.num)>>MATH_DIVEXP;
+}
+
+
 
 /*----------------------------------------------------
         Generate complex phase angle array for FFT
@@ -362,10 +414,12 @@ Fixed point Fast Fourier Transform
         powers. Max=1<<15;
         np=1, result is 0!
 @wang   complex phase angle factor, according to normalized np.
-@x:     Pointer to array of input data x[]
+@x:     Pointer to array of input float data x[]. 
+@nx:	Pointer to araay of input INT data nx[].  NOTE: if x==NULL, use nx[] then.
 @ffx:   Pointer to array of FFT result ouput in form of x+jy.
 
 Note:
+0. If input x[] is NULL, then use nx[].
 1. Input number of points will be ajusted to a number of powers of 2.
 2. Actual amplitude is FFT_A/(NN/2), where FFT_A is ffx[] result amplitude(modulus).
 3. Use real and imaginery part of ffx[] to get phase angle(relative to cosine!!!):
@@ -390,7 +444,8 @@ Return:
         0       OK
         <0      Fail
 ---------------------------------------------------------------------------------------*/
-int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang, const float *x, EGI_FCOMPLEX *ffx)
+int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
+					 const float *x, const int *nx,EGI_FCOMPLEX *ffx)
 {
         int i,j,s;
         int kx,kp;
@@ -399,9 +454,10 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang, const float *x, EGI_FCOM
         EGI_FCOMPLEX *ffodd;    /* for FFT STAGE 1,3,5.. , store intermediate result */
         EGI_FCOMPLEX *ffeven;   /* for FFT STAGE 0,2,4.. , store intermediate result */
         int *ffnin;             /* normal order mapped index */
+	int fftmp;
 
         /* check input data */
-        if( np==0 || wang==NULL || x==NULL || ffx==NULL) {
+        if( np==0 || wang==NULL || ( x==NULL && nx==NULL ) || ffx==NULL) {
                 printf("%s: Invalid input data!\n",__func__);
                 return -1;
         }
@@ -450,9 +506,20 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang, const float *x, EGI_FCOM
                 //printf("ffnin[%d]=%d\n", i, ffnin[i]);
         }
 
-        /*  2. store x() to ffeven[], index as mapped according to ffnin[] */
-        for(i=0; i<nn; i++)
-                ffeven[i]=MAT_FCPVAL(x[ffnin[i]], 0.0);
+       /*  2. store x() to ffeven[], index as mapped according to ffnin[] */
+	if(x)  {	/* use float type x[] */
+	        for(i=0; i<nn; i++)
+        	        ffeven[i]=MAT_FCPVAL(x[ffnin[i]], 0.0);
+	} else {        /* use INT type nx[] */
+	        for(i=0; i<nn; i++) {
+        	        //ffeven[i]=MAT_FCPVAL_INT(nx[ffnin[i]], 0.0);
+			ffeven[i].real.num=nx[ffnin[i]]<<MATH_DIVEXP; /* suppose left bit_shift is also arithmatic! */
+			ffeven[i].real.div=MATH_DIVEXP;
+			ffeven[i].imag.num=0;
+			ffeven[i].imag.div=MATH_DIVEXP;
+		}
+
+	}
 
         /* 3. stage 2^1 -> 2^2 -> 2^3 -> 2^4....->NN point DFT */
         for(s=1; s<exp+1; s++) {

@@ -155,7 +155,8 @@ int main(int argc, char** argv)
 	while(1) /* let user to interrupt, or if(count<record_size) */
 	{
 		/* snd_pcm_sframes_t snd_pcm_readi (snd_pcm_t pcm, void buffer, snd_pcm_uframes_t size) */
-		ret=snd_pcm_readi(pcm_handle, buff, chunk_frames);  /* return number of frames, 1 chan, 1 frame=size of a sample (S16_Le)  */
+		/* return number of frames, 1 chan, 1 frame=size of a sample (S16_Le)  */
+		ret=snd_pcm_readi(pcm_handle, buff, chunk_frames);
 		if(ret == -EPIPE ) {
 			/* EPIPE for overrun */
 			printf("Overrun occurs during capture, try to recover...\n");

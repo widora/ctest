@@ -1,5 +1,6 @@
 export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr
+
 SRC_PATH=/home/midas-zhou/Ctest/wegi
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
@@ -7,7 +8,8 @@ CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 # !!!--- to be created and cleaned ---!!!
 OBJ_IOT = ../iot/egi_iotclient.o
 
-CFLAGS  = -I$(COMMON_USRDIR)/include  -I../. -I../utils  -I../iot
+CFLAGS  = -I$(SRC_PATH) -I$(SRC_PATH)/utils  -I$(SRC_PATH)/iot -I$(SRC_PATH)/sound
+CFLAGS += -I$(COMMON_USRDIR)/include
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 
@@ -17,13 +19,14 @@ CFLAGS  += -D_GNU_SOURCE
 
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	=  -lepages -lesound
+LIBS	=  -lepages
+#LIBS    += -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft
+APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft
 
 all:	$(APPS)
 
@@ -55,6 +58,12 @@ test_fft:	test_fft.c  ../egi_math.h
 #	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
 	$(CC) test_fft.c -o test_fft $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -Wl,-Bdynamic
+#---use static egilib
+
+test_sndfft:	test_sndfft.c  ../egi_math.h
+#	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
+	$(CC) test_sndfft.c -o test_sndfft $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
 #---use static egilib
 
 
