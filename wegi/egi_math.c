@@ -206,7 +206,6 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 //	mat_CompPrint(ad);
 //	printf("\n");
 
-
 	/* rb*rb+ib*ib */
 	den=mat_FixAdd( mat_FixMult(b.real, b.real),
 			mat_FixMult(b.imag, b.imag) );
@@ -223,7 +222,7 @@ inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 work out the amplitude(modulus) of a complex, in float type.
 Check also: int mat_intCompAmp( EGI_FCOMPLEX a )
 
-Limit:  a.real MAX. 2^16.
+Limit:  a.real MAX. 2^16. (for DIVEXP=15)
 ---------------------------------------------------------*/
 float mat_floatCompAmp( EGI_FCOMPLEX a )
 {
@@ -254,8 +253,8 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 #else  /* 2. use fixed point method sqrtu32(Max.1<<29):
            (a^2 -> exp 32), exp32+div15=47> 32, and >29(for sqrtu())
 	   31+31-div15 = 47 > 29 !!!  47-29=18!!
-	   div=15=1+14, reduce 1 for sqrt, 14/2 for later division
-	  
+   	   div=15=1+14, reduce 1 for sqrt, 14/2 for later division
+
 	  TODO: 1. For big modulus value of complex c:
 		   [ Contradiciton:
 		     1.1 Too big shift value will decrease precision of small value input!!!!
@@ -287,6 +286,7 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 	           before sqrtu32, example: float resutl 0.500, but this fix type 0.375!!!
 		So need to give a rather small shift bits number,instead of 16 in this case.
       */
+
 //	return ( mat_fp16_sqrtu32( (c.num>>(18+1) ) ) >>16 )*(1<<(18/2-14/2)); /* MAX. amp=2^12 +2^10 */
 //	uamp=mat_fp16_sqrtu32( c.num>>(18+1) )<<(18/2-14/2);
 	uamp=mat_fp16_sqrtu32( c.num>>(47+(15-MATH_DIVEXP)-29 +1))<<((47+(15-MATH_DIVEXP)-29)/2-MATH_DIVEXP/2);
@@ -300,8 +300,6 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 	/* if float */
 	return 1.0*uamp/(1<<16);
 
-	/* if int */
-	//return uamp>>=16;
 #endif
 
 }
@@ -310,7 +308,6 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 work out the amplitude(modulus) of a complex, in INT type.
 check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
 
-Limit:  a.real MAX. 2^16.
 ---------------------------------------------------------*/
 unsigned int mat_uintCompAmp( EGI_FCOMPLEX a )
 {
@@ -329,7 +326,7 @@ unsigned int mat_uintCompAmp( EGI_FCOMPLEX a )
 
 	uamp=mat_fp16_sqrtu32( c.num>>(47+(15-MATH_DIVEXP)-29 +1))<<((47+(15-MATH_DIVEXP)-29)/2-MATH_DIVEXP/2);
 
-	return uamp>>=16;
+	return uamp>>16;
 #endif
 
 }
@@ -338,18 +335,17 @@ unsigned int mat_uintCompAmp( EGI_FCOMPLEX a )
 Return square of the amplitude(modulus) of a complex
 check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
 
-Limit:  a.real MAX. 2^16.
 ----------------------------------------------------*/
-unsigned int mat_uintCompSAmp( EGI_FCOMPLEX a )
+uint64_t mat_uintCompSAmp( EGI_FCOMPLEX a )
 {
         EGI_FVAL c; /* ar^2+ai^2 */
 
-        /* Limit here as in mat_FixMult(): (16+16)bit*(16+16)bit */
+        /* Limit here as in mat_FixMult(): (16+16)bit*(16+16)bit (for DIVEXP=15) */
         c=mat_FixAdd(   mat_FixMult(a.real, a.real),
                         mat_FixMult(a.imag, a.imag)
                     );
 
-	return ((uint64_t)c.num)>>MATH_DIVEXP;
+	return c.num>>MATH_DIVEXP;
 }
 
 
@@ -410,11 +406,10 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 /*-------------------------------------------------------------------------------------
 Fixed point Fast Fourier Transform
 
-@np:    Total number of data for FFT, will be ajusted to a number of 2
-        powers. Max=1<<15;
+@np:    Total number of data for FFT, will be ajusted to a number of 2 powers;
         np=1, result is 0!
 @wang   complex phase angle factor, according to normalized np.
-@x:     Pointer to array of input float data x[]. 
+@x:     Pointer to array of input float data x[].
 @nx:	Pointer to araay of input INT data nx[].  NOTE: if x==NULL, use nx[] then.
 @ffx:   Pointer to array of FFT result ouput in form of x+jy.
 
@@ -425,16 +420,17 @@ Note:
 3. Use real and imaginery part of ffx[] to get phase angle(relative to cosine!!!):
    atan(ffx[].real/ffx[].imag),
 4. !!!--- Cal overflow ---!!!
-   Expected amplitude:      1<<N
+   Expected amplitude:      MSB. 1<<N 	( 1<<(N+1)-1 )
    expected sampling point: 1<<M
    Taken: N+M-1=16  to incorporate with mat_floatCompAmp()
          OR N+M-1=16+(15-MATH_DIVEXP) --> N+M=17+(15-MATH_DIVEXP) [ MATH_DIVEXP MUST be odd!]
 
    Example:     when MATH_DIVEXP = 15   LIMIT: Amp_Max*(np/2) is 17bits;
-                we may take Amp_Max: 1<<12;  FFT point number: 1<<5:
+                we may take Amp_Max: (1<<(12+1))-1;  FFT point number: 1<<5:
+		  (NOTE: 12 is the highes significant bit for amplitude )
 
-                when MATH_DIVEXP = 11   LIMIT: Amp_Max*(np/2) is 21bits;
-                we may take Amp_Max: 1<<11;  FFT point number: 1<<10:
+                when MATH_DIVEXP = 11   LIMIT: Amp_Max*(np/2) is 22bits;
+                we may take Amp_Max: (1<<(11+1))-1;  FFT point number: 1<<10:
 
                 Ok, with reduced precision as you decrease MATH_DIVEXP !!!!!
 5. So,you have to balance between data precision, data scope and number of sample points(np)

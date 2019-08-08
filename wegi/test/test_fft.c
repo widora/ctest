@@ -35,9 +35,13 @@ for(m=0;m<32; m++)
 #endif   ///////////////////////////////////////
 
 	struct timeval tm_start,tm_end;
-	uint16_t np=1<<11; //<<9;
+	/* nexp+aexp MAX 21 */
+	int nexp=11;  /* exponent of 2,  for Element number */
+	int aexp=10;  /* exponent of 2,  MSB for Max. amplitude, Max amp=2^12-1 */
+	uint16_t np=1<<nexp;
 	float famp;
-	int   namp;
+	unsigned int   namp;
+	unsigned int   nsamp;
 
 	float *x;	    /* input float */
 	int   *nx;	    /* input INT */
@@ -61,7 +65,7 @@ for(m=0;m<32; m++)
 #if 0
 	for(i=0; i<np; i++) {
 		x[i]=10.5*sin(2.0*MATH_PI*1000*i/8000) +0.5*sin(2.0*MATH_PI*2000*i/8000+3.0*MATH_PI/4.0) \
-		     +1.0*((1<<10))*sin(2.0*MATH_PI*3000*i/8000+MATH_PI/4.0);  /* Amplitud Max. abt.(1<<12)+(1<<10) */
+		     +1.0*((1<<aexp)+(1<<9))*sin(2.0*MATH_PI*3000*i/8000+MATH_PI/4.0);  /* Amplitud Max. abt.(1<<12)+(1<<10) */
 		printf(" x[%d]: %f\n", i, x[i]);
 	}
 #endif
@@ -69,15 +73,15 @@ for(m=0;m<32; m++)
 #if FLOAT_INPUT  /* float type x[] */
 	for(i=0; i<np; i++) {
 		x[i]=10.5*cos(2.0*MATH_PI*1000*i/8000) +0.5*cos(2.0*MATH_PI*2000*i/8000+3.0*MATH_PI/4.0) \
-		     +1.0*((1<<10))*cos(2.0*MATH_PI*3000*i/8000+MATH_PI/4.0);  /* Amplitud Max. abt.(1<<12)+(1<<10) */
+		     +1.0*((1<<aexp))*cos(2.0*MATH_PI*3000*i/8000+MATH_PI/4.0);  /* Amplitud Max. abt.(1<<12)+(1<<10) */
 		printf(" x[%d]: %f\n", i, x[i]);
 	}
 #else		/* INT type nx[] */
 	for(i=0; i<np; i++) {
-		nx[i]= (int)( 100*cos(2.0*MATH_PI*1000*i/16000) )
-		      +(int)( 55*cos(2.0*MATH_PI*2000*i/16000+3.0*MATH_PI/4.0) )
+		nx[i]= (int)( 333*cos(2.0*MATH_PI*1000*i/16000) )
+		      +(int)( 444*cos(2.0*MATH_PI*2000*i/16000+3.0*MATH_PI/4.0) )
 		      +(int)( 555*cos(2.0*MATH_PI*3000*i/16000-1.0*MATH_PI/4.0) )
-		      +(int)( ((1<<10))*cos(2.0*MATH_PI*5000*i/16000+MATH_PI/4.0) );
+		      +(int)( ((1<<(aexp+1))-1)*cos(2.0*MATH_PI*5000*i/16000+MATH_PI/4.0) );
 		printf(" nx[%d]: %d\n", i, nx[i]);
 	}
 #endif
@@ -106,7 +110,7 @@ k++;
 	if( (k&(64-1))==0 )
 	  for(i=0; i<np; i++) {
 		#if FLOAT_INPUT  /* get float modulus */
-		 famp=mat_floatCompAmp(ffx[i])/(np/2);
+		 famp=mat_floatCompAmp(ffx[i])/(np/2);   /* np MUST be powers of 2 */
 		 if( famp > 0.001 || famp < -0.001 ) {
 			printf("ffx[%d] ",i);
 			mat_CompPrint(ffx[i]);
@@ -114,12 +118,16 @@ k++;
 			printf("\n");
 		}
 	        #else		/* get int moduls */
-		 namp=mat_uintCompAmp(ffx[i])/(np/2);
+		 namp=mat_uintCompAmp(ffx[i])/(np/2);   /* np MUST be powers of 2 */
 		 if( namp > 0 ) {
 			printf("ffx[%d] ",i);
 			mat_CompPrint(ffx[i]);
 		 	printf(" Amp=%d ", namp);
-			printf(" SAmp=%d ", mat_uintCompSAmp(ffx[i])/(np/2)/(np/2) );
+			if(nexp>1)
+				nsamp=mat_uintCompSAmp(ffx[i])>>(2*(nexp-1)); // /(np/2)/(np/2) );
+			else
+				nsamp=mat_uintCompSAmp(ffx[i]);
+			printf(" SAmp=%d\n", nsamp);
 			printf("\n");
 		}
 	        #endif

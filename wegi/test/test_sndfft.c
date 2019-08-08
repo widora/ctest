@@ -1,3 +1,13 @@
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+An example to analyze MIC captured audio and display its spectrum.
+
+Midas Zhou
+midaszhou@yahoo.com
+------------------------------------------------------------------*/
 #include <stdio.h>
 #include "egi_common.h"
 #include "egi_pcm.h"
@@ -5,7 +15,41 @@
 
 int main(void)
 {
+	int i,j;
 	int ret;
+
+	/* for FFT, nexp+aexp Max. 21 */
+	unsigned int 	nexp=10;
+	unsigned int 	np=1<<nexp;  	/* input element number for FFT */
+	unsigned int 	aexp=11;   	/* MAX Amp=1<<aexp */
+	int		*nx;
+	EGI_FCOMPLEX 	*ffx;  		/* FFT result */
+        EGI_FCOMPLEX 	*wang; 		/* unit phase angle factor */
+	unsigned int 	ns=32;   	/* points for spectrum diagram */
+	int		ng=np/ns;	/* each ns covers ng numbers of np */
+	int 		sdx[32];	/* displaying points  */
+	int 		sdy[32];
+	int		sx0;
+
+	sx0=(240-200/(ns-1)*(ns-1))/2;
+	for(i=0; i<ns; i++) {
+		sdx[i]=sx0+(200/(ns-1))*i;  /* 200 width of spectrum */
+	}
+
+
+	/* prepare FFT */
+	nx=calloc(np, sizeof(int));
+	if(nx==NULL) {
+		printf("Fail to calloc nx[].\n");
+		return -1;
+	}
+	ffx=calloc(np, sizeof(EGI_FCOMPLEX));
+	if(ffx==NULL) {
+		printf("Fail to calloc ffx[]. \n");
+		return -1;
+	}
+
+        wang=mat_CompFFTAng(np);
 
         /* for pcm capture */
         snd_pcm_t *play_handle;
@@ -14,40 +58,46 @@ int main(void)
         int format=SND_PCM_FORMAT_S16_LE;
         int bits_per_sample=16;
         int frame_size=2;               	/*bytes per frame, for 1 channel, format S16_LE */
-        int rec_srate=44100;           		/* HZ,  sample rate for capture */
+        int rec_srate=8000;//44100;           		/* HZ,  sample rate for capture */
 	/* if rec_srate != play_srate, crack... */
 	int play_srate=44100;			/* HZ,  sample rate for playback */
         bool enable_resample=true;      	/* whether to enable resample */
-        int rec_latency=100000; //500000;             	/* required overall latency in us */
-        int play_latency=100000; //500000;             	/* required overall latency in us */
+        int rec_latency=1000; //500000;             	/* required overall latency in us */
+        int play_latency=1000; //500000;             	/* required overall latency in us */
         //snd_pcm_uframes_t period_size;  	/* max numbers of frames that HW can hanle each time */
         /* for CAPTURE, period_size=1536 frames, while for PLAYBACK: 278 frames */
-        snd_pcm_uframes_t chunk_frames=1024; 	/*in frame, expected frames for readi/writei each time */
+        snd_pcm_uframes_t chunk_frames=np; //1024; 	/*in frame, expected frames for readi/writei each time */
         int chunk_size;                 	/* =frame_size*chunk_frames */
-	int16_t buff[1024*1];			/* chunk_frames, int16_t for S16 */
+
+	int16_t *buff;				/* chunk_frames, int16_t for S16 */
+	buff=calloc(np, sizeof(int16_t));       /* for 1 channel,FORMAT S16 */
+	if(buff==NULL) {
+		printf("Fail to calloc buff[] \n");
+		return -2;
+	}
 
 
         /* <<<<<  EGI general init  >>>>>> */
 #if 0
         printf("tm_start_egitick()...\n");
-        tm_start_egitick();
+        tm_start_egitick();		   	/* start sys tick */
         printf("egi_init_log()...\n");
-        if(egi_init_log("/mmc/log_fb") != 0) {
+        if(egi_init_log("/mmc/log_fb") != 0) {	/* start logger */
                 printf("Fail to init logger,quit.\n");
                 return -1;
         }
 #endif
         printf("symbol_load_allpages()...\n");
-        if(symbol_load_allpages() !=0 ) {   /* load sys fonts */
+        if(symbol_load_allpages() !=0 ) {   	/* load sys fonts */
                 printf("Fail to load sym pages,quit.\n");
                 return -2;
         }
-        if(FTsymbol_load_appfonts() !=0 ) {  /* and FT fonts LIBS */
+        if(FTsymbol_load_appfonts() !=0 ) {  	/* load FT fonts LIBS */
                 printf("Fail to load FT appfonts, quit.\n");
                 return -2;
         }
         printf("init_fbdev()...\n");
-        if( init_fbdev(&gv_fb_dev) )	/* init sys FB */
+        if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
 
 
@@ -84,10 +134,22 @@ int main(void)
         system("amixer -D hw:0 set Capture 85%");
         system("amixer -D hw:0 set 'ADC PCM' 85%");
 
+
+	/* clear screen */
+	clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+
+	/* put a tab */
+        FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,  /* FBdev, fontface */
+                                     25, 25, "FFT DEMO",               /* fw,fh, pstr */
+                                     240, 1,  0,           /* pixpl, lines, gap */
+                                     55, 240+30,                      /* x0,y0, */
+                                     WEGI_COLOR_WHITE, -1, -1);   /* fontcolor, stranscolor,opaque */
+
+
         printf("Start recording and playing ...\n");
         while(1) /* let user to interrupt, or if(count<record_size) */
         {
-		printf(" --- \n");
+//		printf(" --- \n");
 
                 /* snd_pcm_sframes_t snd_pcm_readi (snd_pcm_t pcm, void buffer, snd_pcm_uframes_t size) */
 		/* return number of frames, for 1 chan, 1 frame=size of a sample (S16_Le)  */
@@ -114,6 +176,32 @@ int main(void)
                 }
 
 
+		/* convert PCM buff[] to FFT nx[] */
+		for(i=1; i<np; i++) {
+			nx[i]=buff[i]>>4;  /* trim amplitude to Max 2^11 */
+		}
+
+		/* ---  Run FFT with INT nx[]  --- */
+        	mat_egiFFFT(np, wang, NULL, nx, ffx);
+
+		/* update sdy */
+		for(i=0; i<ns; i++) {
+			sdy[i]=240-( mat_uintCompAmp(ffx[i*ng])>>(nexp-6) ); //(nexp-1) );
+			/* trim sdy[] */
+			if(sdy[i]<0)
+				sdy[i]=0;
+		}
+
+
+		/* draw spectrum */
+	        fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+        	fb_filo_on(&gv_fb_dev);    /* start collecting old FB pixel data */
+
+		for(i=1; i<ns-1; i++) {  /* i=0 is DC */
+			//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
+			draw_line(&gv_fb_dev,sdx[i], sdy[i], sdx[i+1],sdy[i+1]);
+		}
+	        fb_filo_off(&gv_fb_dev); /* turn off filo */
 
 
 
@@ -136,25 +224,23 @@ int main(void)
 
 	}
 
-
         snd_pcm_close(rec_handle);
         snd_pcm_close(play_handle);
 
-
+	free(ffx);
+	free(wang);
 
         /* <<<<<  EGI general release >>>>> */
         printf("FTsymbol_release_allfonts()...\n");
         FTsymbol_release_allfonts();
-
         printf("symbol_release_allpages()...\n");
         symbol_release_allpages();
-
 	printf("release_fbdev()...\n");
+        fb_filo_flush(&gv_fb_dev);
         release_fbdev(&gv_fb_dev);
-
         printf("egi_quit_log()...\n");
         egi_quit_log();
-        printf("---------- END -----------\n");
+        printf("<-------  END  ------>\n");
 
 return 0;
 }
