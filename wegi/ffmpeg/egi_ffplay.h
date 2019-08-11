@@ -55,7 +55,6 @@ enum ffplay_mode
         mode_shuffle,      /* pick next file randomly */
 	mode_noaudio,	   /* disable audio */
 	mode_audio
-
 };
 /* feedback stauts after ffplay_cmd and ffplay_mode execution */
 enum ffplay_status
@@ -88,7 +87,6 @@ typedef struct FFplay_Context
 }FFPLAY_CONTEXT;
 
 extern FFPLAY_CONTEXT *FFplay_Ctx;	/* a global ctx */
-
 
 /* Functions */
 int 	egi_init_ffplayCtx(char *path, char *fext);

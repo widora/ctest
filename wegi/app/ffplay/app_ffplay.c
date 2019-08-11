@@ -24,6 +24,8 @@ Midas Zhou
 midaszhou@yahoo.com
 ---------------------------------------------------------------------------------------*/
 #include "egi_common.h"
+#include "egi_utils.h"
+#include "egi_cstring.h"
 #include "egi_ffplay.h"
 #include "egi_FTsymbol.h"
 #include "egi_pageffplay.h"
@@ -168,6 +170,7 @@ siginfo_t {
 int main(int argc, char **argv)
 {
 	int ret=0;
+	char music_dir[EGI_PATH_MAX]={0};
 	pthread_t thread_loopread;
 
 
@@ -207,7 +210,11 @@ int main(int argc, char **argv)
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-	if( egi_init_ffplayCtx("/mmc/ffplay", "mp3, avi, jpg, png") ) {
+        if ( egi_get_config_value("FFPLAY","music",music_dir) != 0) {
+		/* use default dir */
+		strcpy(music_dir,"/mmc/ffplay");
+	}
+	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
 		return pgret_ERR;
 	}

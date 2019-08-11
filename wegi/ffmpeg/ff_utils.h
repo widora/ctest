@@ -68,6 +68,8 @@ int 	   	ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes
 void* 	   	thdf_Display_Pic(void * argv);
 void* 	   	thdf_Display_Subtitle(void * argv);
 //static long 	   seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
-
+//void  		ff_display_spectrum(FBDEV *fbdev, void ** buffer, int nf);
+void 		ff_load_FFTdata(void ** buffer, int nf);
+void*  		ff_display_spectrum(void *argv);
 
 #endif

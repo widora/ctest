@@ -304,6 +304,24 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 
 }
 
+
+/*--------------------------------------
+	Return log2 of np
+@np:	>0
+--------------------------------------*/
+unsigned int mat_uint32Log2(uint32_t np)
+{
+	int i;
+	for(i=0; i<32; i++) {
+        	if( (np<<i) & (1<<31) ){
+			return 31-i;
+        	}
+	}
+
+	return 0;
+}
+
+
 /*---------------------------------------------------------
 work out the amplitude(modulus) of a complex, in INT type.
 check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
@@ -379,8 +397,6 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
         }
 //        if(exp==0) /* ok */
 //              return NULL;
-
-	printf(" --- exp=%d --- \n", exp);
 
         /* reset nn to be powers of 2 */
         nn=1<<exp;

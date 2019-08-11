@@ -19,23 +19,25 @@ int main(void)
 	int ret;
 
 	/* for FFT, nexp+aexp Max. 21 */
-	unsigned int 	nexp=10;
+	unsigned int 	nexp=10; 	// 10
 	unsigned int 	np=1<<nexp;  	/* input element number for FFT */
-	unsigned int 	aexp=11;   	/* MAX Amp=1<<aexp */
+	unsigned int 	aexp=11;   	/* 11 MAX Amp=1<<aexp */
 	int		*nx;
 	EGI_FCOMPLEX 	*ffx;  		/* FFT result */
         EGI_FCOMPLEX 	*wang; 		/* unit phase angle factor */
-	unsigned int 	ns=32;   	/* points for spectrum diagram */
+	unsigned int 	ns=1<<5;//6;   	/* points for spectrum diagram */
+	unsigned int    avg;
 	int		ng=np/ns;	/* each ns covers ng numbers of np */
-	int 		sdx[32];	/* displaying points  */
-	int 		sdy[32];
+	int		step;
+	int 		sdx[64];//ns	/* displaying points  */
+	int 		sdy[64];
 	int		sx0;
+	int		spwidth=240;    /* displaying widht for the spectrum diagram */
 
-	sx0=(240-200/(ns-1)*(ns-1))/2;
+	sx0=(240-spwidth/(ns-1)*(ns-1))/2;
 	for(i=0; i<ns; i++) {
-		sdx[i]=sx0+(200/(ns-1))*i;  /* 200 width of spectrum */
+		sdx[i]=sx0+(spwidth/(ns-1))*i;
 	}
-
 
 	/* prepare FFT */
 	nx=calloc(np, sizeof(int));
@@ -48,37 +50,41 @@ int main(void)
 		printf("Fail to calloc ffx[]. \n");
 		return -1;
 	}
-
-        wang=mat_CompFFTAng(np);
+        wang=mat_CompFFTAng(np); /*  phase angle */
 
         /* for pcm capture */
         snd_pcm_t *play_handle;
 	snd_pcm_t *rec_handle;
-        int nchanl=1;   			/* number of channles */
-        int format=SND_PCM_FORMAT_S16_LE;
-        int bits_per_sample=16;
-        int frame_size=2;               	/*bytes per frame, for 1 channel, format S16_LE */
-        int rec_srate=8000;//44100;           		/* HZ,  sample rate for capture */
+        int 	nchanl=1;   			/* number of channles */
+        int 	format=SND_PCM_FORMAT_S16_LE;
+        int 	bits_per_sample=16;
+        int 	frame_size=2;               	/*bytes per frame, for 1 channel, format S16_LE */
+        int 	rec_srate=8000; //44100;//8000 	/* HZ,  output sample rate from capture */
 	/* if rec_srate != play_srate, crack... */
-	int play_srate=44100;			/* HZ,  sample rate for playback */
-        bool enable_resample=true;      	/* whether to enable resample */
-        int rec_latency=1000; //500000;             	/* required overall latency in us */
-        int play_latency=1000; //500000;             	/* required overall latency in us */
+	int 	play_srate=8000;		/* HZ,  input sample rate for playback */
+        bool 	enable_resample=true;      	/* whether to enable soft resample */
+	/* adjust latency to a suitable value,according to CAPTURE/PLAYBACK period_size */
+        int 	rec_latency=5000; //500000;    /* required overall latency in us */
+        int 	play_latency=150000; //500000;   /* required overall latency in us */
         //snd_pcm_uframes_t period_size;  	/* max numbers of frames that HW can hanle each time */
         /* for CAPTURE, period_size=1536 frames, while for PLAYBACK: 278 frames */
         snd_pcm_uframes_t chunk_frames=np; //1024; 	/*in frame, expected frames for readi/writei each time */
         int chunk_size;                 	/* =frame_size*chunk_frames */
 
+
+	int16_t buff[1024];
+#if 0
 	int16_t *buff;				/* chunk_frames, int16_t for S16 */
 	buff=calloc(np, sizeof(int16_t));       /* for 1 channel,FORMAT S16 */
 	if(buff==NULL) {
 		printf("Fail to calloc buff[] \n");
 		return -2;
 	}
+#endif
 
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 0
+#if 1
         printf("tm_start_egitick()...\n");
         tm_start_egitick();		   	/* start sys tick */
         printf("egi_init_log()...\n");
@@ -99,7 +105,6 @@ int main(void)
         printf("init_fbdev()...\n");
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
-
 
 
         /* open pcm captrue device */
@@ -134,9 +139,10 @@ int main(void)
         system("amixer -D hw:0 set Capture 85%");
         system("amixer -D hw:0 set 'ADC PCM' 85%");
 
-
 	/* clear screen */
 	clear_screen(&gv_fb_dev,WEGI_COLOR_BLACK);
+	draw_line(&gv_fb_dev, 0, 240, 239, 240);
+	fbset_color(WEGI_COLOR_CYAN);
 
 	/* put a tab */
         FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,  /* FBdev, fontface */
@@ -144,7 +150,6 @@ int main(void)
                                      240, 1,  0,           /* pixpl, lines, gap */
                                      55, 240+30,                      /* x0,y0, */
                                      WEGI_COLOR_WHITE, -1, -1);   /* fontcolor, stranscolor,opaque */
-
 
         printf("Start recording and playing ...\n");
         while(1) /* let user to interrupt, or if(count<record_size) */
@@ -176,8 +181,9 @@ int main(void)
                 }
 
 
+#if 1	/* <<<<<<<<<<<<<<<<<<<   FFT  >>>>>>>>>>>>>>>>>>>> */
 		/* convert PCM buff[] to FFT nx[] */
-		for(i=1; i<np; i++) {
+		for(i=0; i<np; i++) {
 			nx[i]=buff[i]>>4;  /* trim amplitude to Max 2^11 */
 		}
 
@@ -185,13 +191,35 @@ int main(void)
         	mat_egiFFFT(np, wang, NULL, nx, ffx);
 
 		/* update sdy */
+#if 0  /* -----  1. Symmetric spectrum diagram ----- */
 		for(i=0; i<ns; i++) {
-			sdy[i]=240-( mat_uintCompAmp(ffx[i*ng])>>(nexp-6) ); //(nexp-1) );
+			sdy[i]=240-( mat_uintCompAmp( ffx[i*ng])>>(nexp-1 -5) ); //(nexp-1) );
 			/* trim sdy[] */
 			if(sdy[i]<0)
 				sdy[i]=0;
 		}
 
+#else  /* -----  2. Normal spectrum diagram ----- */
+		step=ng>>1;
+		for(i=0; i<ns; i++) {		     /* fs=8k, 1024 elements, resolution 8Hz, ng=4 */
+		  #if 1 /* direct calculation */
+			sdy[i]=240-( mat_uintCompAmp( ffx[i*(ng>>1)])>>(nexp-1 -3) ); //(nexp-1) );
+			//sdy[i]=240-( mat_uint32Log2( mat_uintCompAmp(ffx[i*(ng>>1)]) )<<3  );
+
+		  #else  /* average */
+			/* get average Amp */
+			avg=0;
+			for( j=0; j< step; j++ ) {
+				avg+=mat_uintCompAmp(ffx[i*step])>>(nexp-1 -3);
+			}
+			sdy[i]=240-avg/step;
+		  #endif
+
+			/* trim sdy[] */
+			if(sdy[i]<0)
+				sdy[i]=0;
+		}
+#endif
 
 		/* draw spectrum */
 	        fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
@@ -203,6 +231,7 @@ int main(void)
 		}
 	        fb_filo_off(&gv_fb_dev); /* turn off filo */
 
+#endif 	/* <<<<<<<<<<<<<<<<<<<   FFT END  >>>>>>>>>>>>>>>>>>>> */
 
 
 #if 0

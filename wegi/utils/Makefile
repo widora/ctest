@@ -46,6 +46,11 @@ egi_iwinfo.o: egi_iwinfo.h egi_iwinfo.c
 egi_https.o: egi_https.h egi_https.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_https.c
 
+egi_fftdemo.o: egi_fftdemo.h egi_fftdemo.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_fftdemo.c
+
+
+
 
 .PHONY:	clean
 clean:

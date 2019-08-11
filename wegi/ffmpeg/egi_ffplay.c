@@ -172,6 +172,12 @@ int show_h= 200; //144; //240; //185;/* LCD column pixels */
 int offx;
 int offy;
 
+/* param: ( enable_audio_spectrum ) ( precondition: audio is ON and available  )
+ *   if 1:	run thread ff_display_spectrum() to display audio spectrum
+ *   if 0:	disable it.
+ */
+static bool enable_audio_spectrum=true;
+
 /* seek position */
 //long start_tmsecs=60*55; /*in sec, starting position */
 
@@ -416,8 +422,10 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	/* thread for displaying RGB data */
 	pthread_t pthd_displayPic;
 	pthread_t pthd_displaySub;
+	pthread_t pthd_audioSpectrum;
 	bool pthd_displayPic_running=false;
 	bool pthd_subtitle_running=false;
+	bool pthd_audioSpectrum_running=false;
 
 	char *pfsub=NULL; /* subtitle path */
 	int ret;
@@ -702,6 +710,17 @@ if(disable_audio)
 			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
 			return (void *)-1;
 		}
+
+		/* <<<<<<<<<<<<     create a thread to display audio spectrum    >>>>>>>>>>>>>>> */
+	        if(pthread_create(&pthd_audioSpectrum, NULL, ff_display_spectrum, NULL ) != 0) {
+        	        EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying audio spectrum! \n");
+                	return (void *)-1;
+	        }
+        	else
+                	EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread to display audio spectrum.\n");
+
+	        /* set running token */
+		pthd_audioSpectrum_running=true;
 
 	} /* end of if(audioStream =! -1) */
 
@@ -1281,8 +1300,15 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
-						else
+						else {
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
+							/* FFT handling */
+							if( pthd_audioSpectrum_running ) {
+								ff_load_FFTdata(  (void **)pAudioFrame->data,
+										  aCodecCtx->frame_size
+										);
+							}
+						}
 					}
 					else if(pAudioFrame->data[0]) {  /* one channel only */
 						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
@@ -1449,10 +1475,21 @@ FAIL_OR_TERM:
 		EGI_PDEBUG(DBG_FFPLAY,"	...pFrameRGB freed.\n");
 	}
 
-	/* close pcm device */
+	/* close pcm device and audioSpectrum */
 	if(audioStream >= 0) {
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		close_ffpcm_device();
+
+#if 0 /* TODO.. exit audioSpectrum thread */
+		if(
+		/* wait for display_thread to join */
+		EGI_PDEBUG(DBG_FFPLAY,"Try to joint picture and subtitle displaying thread ...\n");
+		/* give a command to exit display_thread, before exiting subtitle_thread!! */
+		control_cmd = cmd_exit_audioSpectrum_thread;
+		pthread_join(pthd_displayPic,NULL);
+#endif
+
+
 	}
 
 	/* free outputBuffer */

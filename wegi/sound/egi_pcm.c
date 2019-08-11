@@ -40,10 +40,14 @@ Note:
 
 Midas Zhou
 -------------------------------------------------------------------*/
+#include <stdint.h>
+#include <alsa/asoundlib.h>
+#include <stdbool.h>
 #include "egi_pcm.h"
-#include "egi_debug.h"
 #include "egi_log.h"
+#include "egi_debug.h"
 #include "egi_timer.h"
+
 
 static snd_pcm_t *g_ffpcm_handle;
 static bool g_blInterleaved;
@@ -302,4 +306,5 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	snd_mixer_close(handle);
 	return ret;
 }
+
 

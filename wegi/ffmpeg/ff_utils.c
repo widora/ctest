@@ -481,3 +481,172 @@ static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
 }
 
 
+
+#define FFT_POINTS 1024
+static int	fft_nx[FFT_POINTS];	/* PCM format S16 ,TODO: dynamic allocation */
+static bool	FFTdata_ready=false;
+
+/*--------------------------------------------------------
+Load PCM data to FFT
+
+@buffer:	PCM data buffer
+		Supposed to be noninterleaved, format S16L.
+@nf     	Number of input audio frames
+---------------------------------------------------------*/
+void ff_load_FFTdata(void ** buffer, int nf)
+{
+	int i;
+
+	/* load data only FFT is available */
+	if(!FFTdata_ready) {
+
+	        /* convert PCM buff[] to FFT nx[] */
+		memset(fft_nx,0,sizeof(fft_nx));
+		if(nf>FFT_POINTS)
+			nf=FFT_POINTS;
+	       	for(i=0; i<nf; i++) {
+        	        fft_nx[i]=((int16_t **)buffer)[0][i]>>4;  /* trim amplitude to Max 2^11 */
+	       	}
+
+		FFTdata_ready=true;
+	}
+}
+
+
+/*--------------------------------------------------------------
+Display audio data spectrum.
+
+@buffer:	PCM data buffer
+		Supposed to be noninterleaved, format S16L.
+@nf     	Number of input audio frames
+
+Note:
+	1. 1024 points FFT inside, if nf<1024, paddled with 0.
+	2. FBDEV *fbdev shall be initialized by the caller.
+	3. wang is NOT freed in the funciont!
+---------------------------------------------------------------*/
+//void  ff_display_spectrum(FBDEV *fbdev, void ** buffer, int nf)
+void*  ff_display_spectrum(void *argv)
+{
+
+	int i;
+	FBDEV *fbdev=&gv_fb_dev;
+
+        /* for FFT, nexp+aexp Max. 21 */
+        unsigned int    nexp=10;
+        unsigned int    aexp=11;        /* Max. Amp=1<<aexp */
+        unsigned int    np=FFT_POINTS;  //1<<nexp;  /* input element number for FFT */
+//        static int             nx[FFT_POINTS];
+        EGI_FCOMPLEX    ffx[FFT_POINTS];           /* FFT result */
+        EGI_FCOMPLEX    *wang=NULL;          /* unit phase angle factor */
+//	bool		prep_ok=false;
+        unsigned int    ns=1<<5;//6;    /* points for spectrum diagram */
+        unsigned int    avg;
+        int             ng=np/ns;       /* 32 each ns covers ng numbers of np */
+        int             step;
+        int             sdx[32];//ns    /* displaying points  */
+        int             sdy[32];
+        int             sx0;
+        int             spwidth=200;    /* displaying width for the spectrum diagram */
+	int		hlimit=100;	/* displaying spectrum height limit */
+	int		dybase=240;     /* Y, base line for spectrum */
+	int		dylimit=dybase-hlimit;
+	int		nk[32]=		/* sort index of ffx[] for sdx[], ng=32 */
+	{   2, 4, 8, 16, 24, 32, 40, 48,
+            64, 72, 80, 88,96, 104, 112,120,		/* 0 is DC */
+	    128, 132, 140, 148, 152, 160, 176, 192,
+	    208, 224, 240, 256, 272, 288, 304, 320
+	};
+
+
+	/* TODO: put mat_CompFFTAng() elsewhere */
+	/* init sdx[] */
+       	sx0=(240-spwidth/(ns-1)*(ns-1))/2;
+        for(i=0; i<ns; i++) {
+       	        sdx[i]=sx0+(spwidth/(ns-1))*i;
+        }
+        /* prepare FFT phase angle */
+        wang=mat_CompFFTAng(np);
+
+  /*  -------------------------- LOOP --------------------------  */
+  while(1) {
+     if(FFTdata_ready) {
+
+        /* <<<<<<<<<<<<<<<<<<<   FFT  >>>>>>>>>>>>>>>>>>>> */
+
+	/* NOTE: nx[] data trimmed in ff_load_FFTdata() */
+        /* ---  Run FFT with INT nx[]  --- */
+        mat_egiFFFT(np, wang, NULL, fft_nx, ffx);
+
+        /* update sdy */
+#if 0  /*   1. Symmetric spectrum diagram  */
+        for(i=0; i<ns; i++) {
+                sdy[i]=dybase-( mat_uintCompAmp( ffx[i*ng])>>(nexp-1 -5) ); //(nexp-1) );
+                /* trim sdy[] */
+                if(sdy[i]<0)
+                       sdy[i]=0;
+        }
+
+#else  /*  2. Normal spectrum diagram  */
+        //step=ng>>1;	/* 1024 points */
+	//step=ng;	/* 512 points */
+
+	/* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz   */
+	/* fs=44,1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
+ 	for(i=0; i<ns; i++) {
+        #if 1  /* 2.1 direct calculation */
+		if(i<8) {  /* depress low frequency amplitude */
+	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 +1) ); //(nexp-1) );
+		}
+		else	{
+	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 -2) ); //(nexp-1) );
+		}
+                //sdy[i]=dybase-( mat_uintCompAmp( ffx[i*(ng>>1)])>>(nexp-1 -2) ); //(nexp-1) );
+                //sdy[i]=240-( mat_uint32Log2( mat_uintCompAmp(ffx[i*(ng>>1)]) )<<3  );
+
+        #else  /* 2.2 average amp */
+                /* get average Amp */
+                avg=0;
+                for( j=0; j< step; j++ ) {
+                        avg+=mat_uintCompAmp(ffx[i*step])>>(nexp-1 -3);
+                }
+                sdy[i]=dybase-avg/step;
+        #endif
+
+		/* trim sdy[] */
+                if(sdy[i]<dylimit)
+                        sdy[i]=dylimit;
+        }
+#endif
+
+	/* draw spectrum */
+#if 1
+        fb_filo_flush(fbdev); /* flush and restore old FB pixel data */
+        fb_filo_on(fbdev);    /* start collecting old FB pixel data */
+
+        for(i=0; i<ns-1; i++) {
+        	//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
+		fbset_color(WEGI_COLOR_CYAN);
+                //draw_line(fbdev,sdx[i], sdy[i], sdx[i+1],sdy[i+1]);
+		draw_line(fbdev,sdx[i], dybase, sdx[i], sdy[i]);
+
+        }
+        fb_filo_off(fbdev); /* turn off filo */
+#endif
+
+	/* <<<<<<<<<<<<<<<<<<<   FFT END  >>>>>>>>>>>>>>>>>>>> */
+
+	/* TODO: check cmd to quit thread */
+
+
+	FFTdata_ready=false;
+     } /* end if(FFTdata_ready)  */
+
+     tm_delayms(1);
+
+   } /* end while() */
+
+
+   free(wang);
+}
+

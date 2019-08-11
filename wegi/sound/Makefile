@@ -6,13 +6,18 @@ AR= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
 
-APP = recmp3 test_snd
+APP = recmp3 test_snd test_recplay
 #shine_test2
 #autorecord4
 
 #OBJS = egi_pcm.o
 
-CFLAGS = -I./ -I$(COMMON_USRDIR)/include -I../
+CFLAGS  = -I./
+CFLAGS += -I$(SRC_PATH) -I$(SRC_PATH)/utils -I$(SRC_PATH)/iot -I$(SRC_PATH)/sound
+CFLAGS += -I$(COMMON_USRDIR)/include
+CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
+CFLAGS += -I$(COMMON_USRDIR)/include/json-c
+
 #CFLAGS += -I/home/midas-zhou/openwrt_widora/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/alsa-lib-1.0.2/include
 CFLAGS += -Wall -O2
 
@@ -32,6 +37,9 @@ recmp3: recmp3.c
 
 test_snd: test_snd.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_snd test_snd.c
+
+test_recplay: test_recplay.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_recplay test_recplay.c
 
 libesound.a: egi_pcm.o
 	$(AR) crv $@ egi_pcm.o

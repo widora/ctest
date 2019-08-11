@@ -66,6 +66,7 @@ inline EGI_FCOMPLEX 	mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX 	mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX 	mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 float 			mat_floatCompAmp( EGI_FCOMPLEX a );
+unsigned int 		mat_uint32Log2(uint32_t np);
 unsigned int 		mat_uintCompAmp( EGI_FCOMPLEX a );
 uint64_t 		mat_uintCompSAmp( EGI_FCOMPLEX a );
 EGI_FCOMPLEX 		*mat_CompFFTAng(uint16_t np);
