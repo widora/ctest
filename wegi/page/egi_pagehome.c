@@ -535,7 +535,7 @@ static void update_weathericon(EGI_PAGE *page)
 
         /* load weather icon png file */
         if( egi_imgbuf_loadpng( heweather_path, eimg) !=0 ) {   /* mutex inside */
-                printf("%s: Fail to loadpng at '%s'!\n", __func__, heweather_path);
+                printf("%s: Fail to loadpng at %s!\n", __func__, heweather_path);
 		goto SLEEP_WAITING;
         }
 	else{

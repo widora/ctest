@@ -525,21 +525,18 @@ Note:
 	2. FBDEV *fbdev shall be initialized by the caller.
 	3. wang is NOT freed in the funciont!
 ---------------------------------------------------------------*/
-//void  ff_display_spectrum(FBDEV *fbdev, void ** buffer, int nf)
 void*  ff_display_spectrum(void *argv)
 {
 
 	int i;
-	FBDEV *fbdev=&gv_fb_dev;
+	FBDEV fbdev={ 0 }; //&gv_fb_dev;
 
         /* for FFT, nexp+aexp Max. 21 */
         unsigned int    nexp=10;
         unsigned int    aexp=11;        /* Max. Amp=1<<aexp */
         unsigned int    np=FFT_POINTS;  //1<<nexp;  /* input element number for FFT */
-//        static int             nx[FFT_POINTS];
         EGI_FCOMPLEX    ffx[FFT_POINTS];           /* FFT result */
         EGI_FCOMPLEX    *wang=NULL;          /* unit phase angle factor */
-//	bool		prep_ok=false;
         unsigned int    ns=1<<5;//6;    /* points for spectrum diagram */
         unsigned int    avg;
         int             ng=np/ns;       /* 32 each ns covers ng numbers of np */
@@ -548,7 +545,7 @@ void*  ff_display_spectrum(void *argv)
         int             sdy[32];
         int             sx0;
         int             spwidth=200;    /* displaying width for the spectrum diagram */
-	int		hlimit=100;	/* displaying spectrum height limit */
+	int		hlimit=60;	/* displaying spectrum height limit */
 	int		dybase=240;     /* Y, base line for spectrum */
 	int		dylimit=dybase-hlimit;
 	int		nk[32]=		/* sort index of ffx[] for sdx[], ng=32 */
@@ -558,6 +555,12 @@ void*  ff_display_spectrum(void *argv)
 	    208, 224, 240, 256, 272, 288, 304, 320
 	};
 
+
+	/* init FBDEV */
+	if( init_fbdev(&fbdev) !=0 )
+		return (void*)-1;
+	fbdev.pixcolor_on=true;
+	fbdev.pixcolor=WEGI_COLOR_CYAN;
 
 	/* TODO: put mat_CompFFTAng() elsewhere */
 	/* init sdx[] */
@@ -570,6 +573,7 @@ void*  ff_display_spectrum(void *argv)
 
   /*  -------------------------- LOOP --------------------------  */
   while(1) {
+
      if(FFTdata_ready) {
 
         /* <<<<<<<<<<<<<<<<<<<   FFT  >>>>>>>>>>>>>>>>>>>> */
@@ -596,10 +600,10 @@ void*  ff_display_spectrum(void *argv)
  	for(i=0; i<ns; i++) {
         #if 1  /* 2.1 direct calculation */
 		if(i<8) {  /* depress low frequency amplitude */
-	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 +1) ); //(nexp-1) );
+	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 +2) ); //(nexp-1) );
 		}
 		else	{
-	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 -2) ); //(nexp-1) );
+	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 -1) ); //(nexp-1) );
 		}
                 //sdy[i]=dybase-( mat_uintCompAmp( ffx[i*(ng>>1)])>>(nexp-1 -2) ); //(nexp-1) );
                 //sdy[i]=240-( mat_uint32Log2( mat_uintCompAmp(ffx[i*(ng>>1)]) )<<3  );
@@ -621,32 +625,35 @@ void*  ff_display_spectrum(void *argv)
 
 	/* draw spectrum */
 #if 1
-        fb_filo_flush(fbdev); /* flush and restore old FB pixel data */
-        fb_filo_on(fbdev);    /* start collecting old FB pixel data */
+        fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
+        fb_filo_on(&fbdev);    /* start collecting old FB pixel data */
 
         for(i=0; i<ns-1; i++) {
         	//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
-		fbset_color(WEGI_COLOR_CYAN);
-                //draw_line(fbdev,sdx[i], sdy[i], sdx[i+1],sdy[i+1]);
-		draw_line(fbdev,sdx[i], dybase, sdx[i], sdy[i]);
-
+		draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
         }
-        fb_filo_off(fbdev); /* turn off filo */
+        fb_filo_off(&fbdev); /* turn off filo */
 #endif
 
 	/* <<<<<<<<<<<<<<<<<<<   FFT END  >>>>>>>>>>>>>>>>>>>> */
 
-	/* TODO: check cmd to quit thread */
-
-
 	FFTdata_ready=false;
+
      } /* end if(FFTdata_ready)  */
 
-     tm_delayms(1);
+     /* check cmd to quit thread */
+     if(control_cmd == cmd_exit_audioSpectrum_thread ) {
+             EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
+             break;
+     }
+
+     tm_delayms(100);
 
    } /* end while() */
 
 
+   /* free mem and resource */
+   release_fbdev(&fbdev);
    free(wang);
 }
 

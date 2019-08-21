@@ -64,6 +64,7 @@ int init_fbdev(FBDEV *fr_dev)
 	fr_dev->pos_rotate=0;
 
         /* reset pixcolor and pixalpha */
+	fr_dev->pixcolor_on=false;
         fr_dev->pixcolor=(30<<11)|(10<<5)|10;
         fr_dev->pixalpha=255;
 
@@ -168,6 +169,7 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 	fr_dev->pos_rotate=0;
 
         /* reset pixcolor and pixalpha */
+	fr_dev->pixcolor_on=false;
         fr_dev->pixcolor=(30<<11)|(10<<5)|10;
         fr_dev->pixalpha=255;
 

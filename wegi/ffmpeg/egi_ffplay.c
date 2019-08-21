@@ -712,15 +712,18 @@ if(disable_audio)
 		}
 
 		/* <<<<<<<<<<<<     create a thread to display audio spectrum    >>>>>>>>>>>>>>> */
-	        if(pthread_create(&pthd_audioSpectrum, NULL, ff_display_spectrum, NULL ) != 0) {
+	       if(enable_audio_spectrum)
+               {
+	           if(pthread_create(&pthd_audioSpectrum, NULL, ff_display_spectrum, NULL ) != 0) {
         	        EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying audio spectrum! \n");
                 	return (void *)-1;
-	        }
-        	else
+	           }
+        	   else
                 	EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread to display audio spectrum.\n");
 
-	        /* set running token */
-		pthd_audioSpectrum_running=true;
+	           /* set running token */
+		   pthd_audioSpectrum_running=true;
+	       }
 
 	} /* end of if(audioStream =! -1) */
 
@@ -1434,13 +1437,13 @@ FAIL_OR_TERM:
 	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{
 		/* wait for display_thread to join */
-		EGI_PDEBUG(DBG_FFPLAY,"Try to joint picture and subtitle displaying thread ...\n");
+		EGI_PDEBUG(DBG_FFPLAY,"Try to join picture and subtitle displaying thread ...\n");
 		/* give a command to exit display_thread, before exiting subtitle_thread!! */
 		control_cmd = cmd_exit_display_thread;
 		pthread_join(pthd_displayPic,NULL);
 
 		if(pthd_subtitle_running) {
-			EGI_PDEBUG(DBG_FFPLAY,"Try to joint subtitle displaying thread ...\n");
+			EGI_PDEBUG(DBG_FFPLAY,"Try to join subtitle displaying thread ...\n");
 	                control_cmd = cmd_exit_subtitle_thread;
 			pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
 		}
@@ -1480,13 +1483,15 @@ FAIL_OR_TERM:
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		close_ffpcm_device();
 
-#if 0 /* TODO.. exit audioSpectrum thread */
-		if(
-		/* wait for display_thread to join */
-		EGI_PDEBUG(DBG_FFPLAY,"Try to joint picture and subtitle displaying thread ...\n");
-		/* give a command to exit display_thread, before exiting subtitle_thread!! */
+#if 1 /* exit audioSpectrum thread */
+	if( pthd_audioSpectrum_running ) {
+		/* wait for thread to join */
+		EGI_PDEBUG(DBG_FFPLAY,"Try to join audioSpectrum thread ...\n");
+		/* give a command to exit audioSpectrum thread */
 		control_cmd = cmd_exit_audioSpectrum_thread;
-		pthread_join(pthd_displayPic,NULL);
+		pthread_join(pthd_audioSpectrum,NULL);
+		control_cmd = cmd_none;/* call off command */
+	}
 #endif
 
 

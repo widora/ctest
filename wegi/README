@@ -37,6 +37,7 @@ NOTE:
 Please see basic ebox concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 
 	----- main source files ( GPL v2 ) -----
+egi.conf	An example of EGI TOUCH config file
 xtp2046.c	touch controller interface funcs
 egi.c		concept ebox functions
 egi_fbdev.c	fb basic functions
@@ -79,7 +80,7 @@ egi_appstock.c		a real time stock data display app.
 he_weather.c		API for www.heweather.com 
 
 
---- APPS ----
+	--- APPS ----
 app_ffplay.c + egi_pageffplay.c		
 app_ebook.c + page_ebook.c
 
@@ -93,6 +94,8 @@ libshine,libasound,
 libfreetype2
 ... ... 
 
+	--- OTHERS ---
+prototype.jpg		A prototype with Widora_NEO
 
 Midas Zhou
 midaszhou@yahoo.com

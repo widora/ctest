@@ -38,7 +38,7 @@ all:	$(APPS)
 # 4. Source/obj files must be put before all -Wl.
 
 tmp_app:	tmp_app.c
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
+	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound  #--use shared egilib
 #	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 #-Wl,-Bstatic -legi -Wl,-Bdynamic
 #---use static egilib

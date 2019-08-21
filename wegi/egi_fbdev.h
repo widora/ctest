@@ -51,7 +51,8 @@ typedef struct fbdev{
 				   	 * never try to free it, whatever.
 					 */
 
-	uint16_t 	pixcolor;	/* pixel color in use, NOT applied yet! */
+	bool		pixcolor_on;	/* default/init as off */
+	uint16_t 	pixcolor;	/* pixel color */
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
 	int   		pos_rotate;	/* 0: default X,Y coordinate of FB

@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-        if ( egi_get_config_value("FFPLAY","music",music_dir) != 0) {
+        if ( egi_get_config_value("EGI_FFPLAY","music_dir",music_dir) != 0) {
 		/* use default dir */
 		strcpy(music_dir,"/mmc/ffplay");
 	}

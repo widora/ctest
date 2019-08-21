@@ -41,8 +41,9 @@ enum ffplay_cmd {
         cmd_prev,
 	cmd_mode,
 
-        cmd_exit_display_thread,    /* stop display thread */
-        cmd_exit_subtitle_thread    /* stop subtitle tread */
+        cmd_exit_display_thread,        /* stop display thread */
+        cmd_exit_subtitle_thread,       /* stop subtitle thread */
+	cmd_exit_audioSpectrum_thread   /* stop audio spectrum displaying thread */
 };
 /* set ffplay_cmd as 'cmd_mode' before set ffplay_mode
  * !!! Note: pthread lock not applied here, set 'cmd_mode' as last,

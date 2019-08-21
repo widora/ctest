@@ -384,14 +384,27 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 
 	/* assign or blend FB pixel data */
 	if(fr_dev->pixalpha==255) {	/* if 100% front color */
-	        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+		if(fr_dev->pixcolor_on) /* use fbdev pixcolor */
+		        *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+
+		else			/* use system pixcolor */
+		        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
 	}
 	else {	/* otherwise, blend with original color */
-		fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
-					     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
-					      fr_dev->pixalpha );		     /* Alpha value */
-	        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+		if(fr_dev->pixcolor_on) { 	/* use fbdev pixcolor */
+			fb_color=COLOR_16BITS_BLEND(  fr_dev->pixcolor,			     /* Front color */
+						     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
+						      fr_dev->pixalpha );		     /* Alpha value */
+		        *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+		}
+		else {				/* use system pxicolor */
+			fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
+						     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
+						      fr_dev->pixalpha );		     /* Alpha value */
+		        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+		}
 	}
+
 	/* reset alpha to 255 as default */
 	fr_dev->pixalpha=255;
 
