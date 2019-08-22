@@ -253,3 +253,15 @@ void fb_filo_flush(FBDEV *dev)
         }
 }
 
+/*----------------------------------------------
+Dump and get rid of all FBPIXs in the fb filo,
+Do NOT write back to FB.
+Midas Zhou
+----------------------------------------------*/
+void fb_filo_dump(FBDEV *dev)
+{
+        if(!dev || !dev->fb_filo)
+                return;
+
+        while( egi_filo_pop(dev->fb_filo, NULL)==0 ){};
+}

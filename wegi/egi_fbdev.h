@@ -87,6 +87,6 @@ void		release_virt_fbdev(FBDEV *dev);
 inline void     fb_filo_on(FBDEV *dev);
 inline void     fb_filo_off(FBDEV *dev);
 void            fb_filo_flush(FBDEV *dev);
-
+void            fb_filo_dump(FBDEV *dev);
 
 #endif

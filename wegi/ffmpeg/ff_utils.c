@@ -528,39 +528,44 @@ Note:
 void*  ff_display_spectrum(void *argv)
 {
 
-	int i;
-	FBDEV fbdev={ 0 }; //&gv_fb_dev;
+	int i,j;
+	FBDEV fbdev={ 0 };
 
         /* for FFT, nexp+aexp Max. 21 */
         unsigned int    nexp=10;
-        unsigned int    aexp=11;        /* Max. Amp=1<<aexp */
-        unsigned int    np=FFT_POINTS;  //1<<nexp;  /* input element number for FFT */
-        EGI_FCOMPLEX    ffx[FFT_POINTS];           /* FFT result */
-        EGI_FCOMPLEX    *wang=NULL;          /* unit phase angle factor */
-        unsigned int    ns=1<<5;//6;    /* points for spectrum diagram */
+        unsigned int    aexp=11;        	/* Max. Amp=1<<aexp */
+        unsigned int    np=FFT_POINTS;  	/* input element number for FFT */
+        EGI_FCOMPLEX    ffx[FFT_POINTS];        /* FFT result */
+        EGI_FCOMPLEX    *wang=NULL;          	/* unit phase angle factor */
+        unsigned int    ns=1<<5;//6;    	/* points for spectrum diagram */
         unsigned int    avg;
-        int             ng=np/ns;       /* 32 each ns covers ng numbers of np */
+        int             ng=np/ns;       	/* 32 each ns covers ng numbers of np */
         int             step;
-        int             sdx[32];//ns    /* displaying points  */
+        int             sdx[32];//ns    	/* displaying points  */
         int             sdy[32];
         int             sx0;
-        int             spwidth=200;    /* displaying width for the spectrum diagram */
-	int		hlimit=60;	/* displaying spectrum height limit */
-	int		dybase=240;     /* Y, base line for spectrum */
+        int             spwidth=200;    	/* displaying width for the spectrum diagram */
+	int		hlimit=120; //60;	/* displaying spectrum height limit */
+	int		dybase=240;     	/* Y, base line for spectrum */
 	int		dylimit=dybase-hlimit;
-	int		nk[32]=		/* sort index of ffx[] for sdx[], ng=32 */
+	int		nk[32]=			/* sort index of ffx[] for sdx[], ng=32 */
 	{   2, 4, 8, 16, 24, 32, 40, 48,
-            64, 72, 80, 88,96, 104, 112,120,		/* 0 is DC */
-	    128, 132, 140, 148, 152, 160, 176, 192,
-	    208, 224, 240, 256, 272, 288, 304, 320
+            64, 72, 80, 88, 96, 104, 112, 120,		/* 0 is DC */
+	    128, 136, 144, 152, 160, 168, 176, 184,
+	    200, 216, 232, 248, 264, 280, 296, 312
 	};
+
+//	    128, 132, 140, 148, 152, 160, 176, 192,
+//	    208, 224, 240, 256, 272, 288, 304, 320
+//	};
 
 
 	/* init FBDEV */
 	if( init_fbdev(&fbdev) !=0 )
 		return (void*)-1;
 	fbdev.pixcolor_on=true;
-	fbdev.pixcolor=WEGI_COLOR_CYAN;
+	//fbdev.pixcolor=WEGI_COLOR_WHITE;//CYAN; /* set FBDEV pixcolor */
+	fbdev.pixcolor=egi_color_random(color_light);
 
 	/* TODO: put mat_CompFFTAng() elsewhere */
 	/* init sdx[] */
@@ -592,18 +597,34 @@ void*  ff_display_spectrum(void *argv)
         }
 
 #else  /*  2. Normal spectrum diagram  */
-        //step=ng>>1;	/* 1024 points */
-	//step=ng;	/* 512 points */
 
 	/* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz   */
 	/* fs=44,1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
  	for(i=0; i<ns; i++) {
         #if 1  /* 2.1 direct calculation */
-		if(i<8) {  /* depress low frequency amplitude */
-	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 +2) ); //(nexp-1) );
+
+		if(i<8) {  /* +2 to depress low frequency amplitude */
+		   #if 1  /* 8 point average */
+			sdy[i]=0;
+			for(j=0; j<16; j++) {
+				sdy[i] += dybase-( mat_uintCompAmp(ffx[nk[i]+j])>>(nexp-1 +1) );
+			}
+			sdy[i]=sdy[i]>>4;
+		   #else  /* normal sample point */
+	                sdy[i]=dybase-( mat_uintCompAmp(ffx[nk[i]])>>(nexp-1 +2) ); //(nexp-1) );
+		   #endif
+
 		}
-		else	{
-	                sdy[i]=dybase-( mat_uintCompAmp( ffx[nk[i]])>>(nexp-1 -1) ); //(nexp-1) );
+		else	{  /* -1 to boost high frequency amplitude */
+		   #if 1  /* 16 point average */
+			sdy[i]=0;
+			for(j=0; j<16; j++) {
+				sdy[i] += dybase-( mat_uintCompAmp(ffx[nk[i]+j])>>(nexp-1 -1) );
+			}
+			sdy[i]=sdy[i]>>4;
+		   #else  /* normal sample point */
+	                sdy[i]=dybase-( mat_uintCompAmp(ffx[nk[i]])>>(nexp-1 -1) ); //(nexp-1) );
+		   #endif
 		}
                 //sdy[i]=dybase-( mat_uintCompAmp( ffx[i*(ng>>1)])>>(nexp-1 -2) ); //(nexp-1) );
                 //sdy[i]=240-( mat_uint32Log2( mat_uintCompAmp(ffx[i*(ng>>1)]) )<<3  );
@@ -630,7 +651,8 @@ void*  ff_display_spectrum(void *argv)
 
         for(i=0; i<ns-1; i++) {
         	//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
-		draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
+		//draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
+		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i],3); /* TODO fix 0 width wline */
         }
         fb_filo_off(&fbdev); /* turn off filo */
 #endif
@@ -647,12 +669,13 @@ void*  ff_display_spectrum(void *argv)
              break;
      }
 
-     tm_delayms(100);
+     tm_delayms(75);
 
    } /* end while() */
 
 
    /* free mem and resource */
+   fb_filo_dump(&fbdev); /* to dump */
    release_fbdev(&fbdev);
    free(wang);
 }

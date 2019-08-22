@@ -116,9 +116,11 @@ midaszhou@yahoo.com
 -----------------------------------------------------------------------------------------------------------*/
 #include <signal.h>
 #include <math.h>
+#include <libgen.h>
 #include <string.h>
 
 #include "egi_common.h"
+#include "egi_FTsymbol.h"
 #include "sound/egi_pcm.h"
 #include "utils/egi_cstring.h"
 #include "utils/egi_utils.h"
@@ -230,17 +232,18 @@ static bool enable_seekloop=false;
 static bool enable_shuffle=false;
 
 /* param: ( enable_filesloop )
- *   Ture:      Loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
+ *   True:      Loop playing file(s) in playlist forever, if the file is unrecognizable then skip it
  *		and continue to try next one.
  *   False:	play one time for every file in playlist.
  */
 static bool enable_filesloop=true;
 
 /* param: ( enable_audio )
- *   if 1:	enable audio playback.
- *   if 0:	disable audio playback.
+ *   if True:	disbale audio/video playback.
+ *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
+static bool disable_video=false;
 
 /* param: ( enable_clip_test )
  *   if 1:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
@@ -324,6 +327,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
 	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
+	char *fname=NULL;
 
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
@@ -331,7 +335,8 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
-	AVFormatContext	*pFormatCtx=NULL;
+	AVFormatContext		*pFormatCtx=NULL;
+	AVDictionaryEntry 	*tag=NULL;
 
 	/* for VIDEO  */
 	int			i;
@@ -533,6 +538,14 @@ pFormatCtx->probesize2=128*1024;
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms): Try to dump file information... \n",tm_get_tmstampms());
 	av_dump_format(pFormatCtx, 0, fpath[fnum], 0);
 
+	/* OR to read dictionary entries one by one */
+#if 0
+	while( tag=av_dict_get(pFormatCtx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX) ) {
+		EGI_PDEBUG(DBG_FFPLAY,"metadata: key [%s], value [%s] \n", tag->key, tag->value);
+	}
+#endif
+
+
 	/* Find the first video stream and audio stream */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	Try to find the first video stream... \n",tm_get_tmstampms());
 	/* reset stream index first */
@@ -542,6 +555,7 @@ pFormatCtx->probesize2=128*1024;
 	//printf("%d streams found.\n",pFormatCtx->nb_streams);
 	/* find the first available stream of VIDEO and AUDIO */
 	for(i=0; i<pFormatCtx->nb_streams; i++) {
+		/* For VIDEO streams */
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
 		   if( videoStream < 0) {
 			videoStream=i;
@@ -554,21 +568,39 @@ pFormatCtx->probesize2=128*1024;
 				AV_CODEC_ID_JPEGLS
 				AV_CODEC_ID_BMP
 				AV_CODEC_ID_PNG
+				... ...
 			-------------------------------*/
 		        vcodecDespt=avcodec_descriptor_get(vcodecID);
 			if(vcodecDespt != NULL) {
 				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s\n",
-							vcodecDespt->name, vcodecDespt->long_name);
+							__func__, vcodecDespt->name, vcodecDespt->long_name);
 			}
 		   }
 		   else
 			EGI_PDEBUG(DBG_FFPLAY,"Video is also found in stream[%d], to be ignored.\n",i);
 		}
-
+		/* For AUDIO streams */
 		if(pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO ) {
 		   if( audioStream < 0) {
 			audioStream=i;
 			EGI_PDEBUG(DBG_FFPLAY,"Audio is found in stream[%d], to be accepted.\n",i);
+			acodecID=pFormatCtx->streams[i]->codec->codec_id;
+			/*----------- AUDIO  ----------
+				AV_CODEC_ID_MP2
+				AV_CODEC_ID_MP3
+				AV_CODEC_ID_AAC
+				AV_CODEC_ID_AC3
+				AV_CODEC_ID_FLAC
+				AV_CODEC_ID_MP3ADU
+				AV_CODEC_ID_MP3ON4
+				AV_CODEC_ID_SPEEX
+				... ...
+			-------------------------------*/
+		        acodecDespt=avcodec_descriptor_get(acodecID);
+			if(acodecDespt != NULL) {
+				EGI_PLOG(LOGLV_INFO,"%s: Audio codec name: %s, %s\n",
+							__func__, acodecDespt->name, acodecDespt->long_name);
+			}
 		   }
 		   else
 			EGI_PDEBUG(DBG_FFPLAY,"Audio is also found in stream[%d], to be ignored.\n",i);
@@ -590,6 +622,17 @@ pFormatCtx->probesize2=128*1024;
 		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...\n");
 		return (void *)-1;
 	}
+
+	/* Display MP3 name, if videoStream is available then it will be cleared later! */
+	//if( audioStream>=0 && disable_video )
+	fname=strdup(fpath[fnum]);
+	fname=basename(fname);
+        FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
+                                    18, 18, fname,               /* fw,fh, pstr */
+                                    240, 1, 0,           /* pixpl, lines, gap */
+                                    0, 40,                      /* x0,y0, */
+                                    WEGI_COLOR_GRAY, -1, -1);   /* fontcolor, stranscolor,opaque */
+	free(fname); fname=NULL;
 
 /* disable audio */
 if(disable_audio)
@@ -914,6 +957,8 @@ else
 		offy=((265-29-display_height)>>1) +30;
 	else					/* for MOTION PIC */
 		offy=50;
+
+	/* clear displaying zone */
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 
@@ -1150,7 +1195,8 @@ if(enable_avfilter)
 } /* end of AVFilter ON */
 
 
-  }/* end of (videoStream >=0 ) */
+  }/* end of (videoStream >=0 && pCodec != NULL) */
+
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
@@ -1391,9 +1437,11 @@ if(enable_clip_test)
 			    /* reset */
 	 		    FFplay_Ctx->ffcmd=cmd_none;
 		    }
+
 		    /* 3. parse PREV/NEXT  */
 		    else if(FFplay_Ctx->ffcmd==cmd_next) {
 		    	FFplay_Ctx->ffcmd=cmd_none;
+			//break;
 			goto FAIL_OR_TERM;
 		    }
 		    else if(FFplay_Ctx->ffcmd==cmd_prev) {
@@ -1403,6 +1451,7 @@ if(enable_clip_test)
 				fnum-=2;
 			else
 				fnum=-1;
+			//break;
 			goto FAIL_OR_TERM;
 		    }
 
@@ -1413,17 +1462,19 @@ if(enable_clip_test)
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 
-
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(FF_LOOP_TIMEGAP>0)
 	{
+		/* NOTE: fnum may be illegal, as modified in ffcmd parsing, so skip to FAIL_OR_TERM! */
 		EGI_PDEBUG(DBG_FFPLAY,"End playing %s, hold on for a while...\n",fpath[fnum]);
 		tm_delayms(FF_LOOP_TIMEGAP*1000);
 	}
+#if 0 /* move to FAIL_OR_TERM */
 	/* fill display area with BLACK */
 	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve);
-
+	//draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve); /* pic area */
+	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
+#endif
 
 /* if loop playing one file, then got to seek start  */
 if(enable_seekloop)
@@ -1433,6 +1484,10 @@ if(enable_seekloop)
 }
 
 FAIL_OR_TERM:
+	/* fill display area with BLACK */
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
+
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{

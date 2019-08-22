@@ -194,7 +194,8 @@ int main(int argc, char **argv)
 		goto FF_FAIL;
         }
 	/* FT fonts needs more memory, disable it if not necessary */
-	/* FTsymbol_load_appfonts() */
+	FTsymbol_load_appfonts();
+
 
 	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
