@@ -142,7 +142,7 @@ midaszhou@yahoo.com
 #define FF_LOOP_TIMEGAP  1  /* in second, hold_on time after ffplaying a file, especially for a picture.
 			     *  set before FAIL_OR_TERM.
 			     */
-#define FF_CLIP_PLAYTIME 5  /* in second, set clip play time */
+#define FF_CLIP_PLAYTIME 10  /* in second, set clip play time */
 #define ENABLE_MEDIA_LOOP
 
 
@@ -175,8 +175,8 @@ int offx;
 int offy;
 
 /* param: ( enable_audio_spectrum ) ( precondition: audio is ON and available  )
- *   if 1:	run thread ff_display_spectrum() to display audio spectrum
- *   if 0:	disable it.
+ *   if True:	run thread ff_display_spectrum() to display audio spectrum
+ *   if False:	disable it.
  */
 static bool enable_audio_spectrum=true;
 
@@ -184,19 +184,19 @@ static bool enable_audio_spectrum=true;
 //long start_tmsecs=60*55; /*in sec, starting position */
 
 /* param: ( enable_avfilter )
- *   if 1:	display_window rotation and size will be adjusted according to avfilter descr.
- *   if 0:	use SWS, display_window W&H map to LCD W&H(row&colum), window size will be adjusted to fit for
+ *   if True:	display_window rotation and size will be adjusted according to avfilter descr.
+ *   if False:	use SWS, display_window W&H map to LCD W&H(row&colum), window size will be adjusted to fit for
  *		LCD W&H.
  */
 /* enable AVFilter for video */
 static bool enable_avfilter=false;//true;
 
 /* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
- *   if 1:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
+ *   if True:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
  *		2. here we assume that LCD_HEIGHT > LCD_WIDTH.
  *		3. if 1, then enable_avfilter also MUST set to 1.
  *
- *   if 0:	disable it.
+ *   if False:	disable it.
  */
 static bool enable_auto_rotate=false;
 
@@ -209,8 +209,8 @@ static bool enable_auto_rotate=false;
 static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
 
 /* param: ( enable_stretch )
- *   if 1:	stretch the image to fit for expected H&W, original image ratio is ignored.
- *   if 0:	keep original ratio.
+ *   if True:	stretch the image to fit for expected H&W, original image ratio is ignored.
+ *   if False:	keep original ratio.
  */
 static bool enable_stretch=false;
 
@@ -218,7 +218,7 @@ static bool enable_stretch=false;
  *   True:	loop one single file/stream forever.
  *   False:	play one time only.
  *   NOTE: 1. if TRUE, then curretn input seek postin will be ignored.!!! It always start from the
- *     	   very beginning of the file.
+ *     	      very beginning of the file.
  *	   2. if enable_shuffle set to be true, then enable_seekloop will be false, and viceversa.
  */
 /* loop seeking and playing from the start of the same file */
@@ -243,11 +243,11 @@ static bool enable_filesloop=true;
  *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
-static bool disable_video=false;
+static bool disable_video=true;
 
 /* param: ( enable_clip_test )
- *   if 1:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
- *   if 0:	disable clip test.
+ *   if True:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
+ *   if False:	disable clip test.
  */
 static bool enable_clip_test=false;
 
@@ -307,7 +307,7 @@ void egi_free_ffplayCtx(void)
 
 
 /*-----------------------------------------------------
-FFplay for most type of media files:
+FFplay for most types of media files:
 	.mp3, .mp4, .avi, .jpg, .png, .gif, ...
 -----------------------------------------------------*/
 void * egi_thread_ffplay(EGI_PAGE *page)
@@ -328,6 +328,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 
 	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
 	char *fname=NULL;
+	char *fbsname=NULL;
 
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
@@ -489,6 +490,10 @@ while(1) {
 		fnum=egi_random_max(ftotal)-1;
 	}
 
+	/* clear displaying area */
+	fbset_color(WEGI_COLOR_BLACK);
+	draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
+
 	/* reset display window size */
 	display_height=show_h;
 	display_width=show_w;
@@ -626,18 +631,19 @@ pFormatCtx->probesize2=128*1024;
 	/* Display MP3 name, if videoStream is available then it will be cleared later! */
 	//if( audioStream>=0 && disable_video )
 	fname=strdup(fpath[fnum]);
-	fname=basename(fname);
+	printf("fname:%s\n",fname);
+	fbsname=basename(fname);
         FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
-                                    18, 18, fname,               /* fw,fh, pstr */
+                                    18, 18, fbsname,               /* fw,fh, pstr */
                                     240, 1, 0,           /* pixpl, lines, gap */
                                     0, 40,                      /* x0,y0, */
                                     WEGI_COLOR_GRAY, -1, -1);   /* fontcolor, stranscolor,opaque */
 	free(fname); fname=NULL;
 
 /* disable audio */
-if(disable_audio)
+if(disable_audio && audioStream>=0 )
 {
-	printf("ffplay: Audio is disabled! \n");
+	EGI_PDEBUG(DBG_FFPLAY,"Audio is disabled by the user! \n");
 	audioStream=-1;
 }
 
@@ -770,6 +776,13 @@ if(disable_audio)
 
 	} /* end of if(audioStream =! -1) */
 
+
+/* disable video */
+if(disable_video && videoStream>=0 )
+{
+	EGI_PDEBUG(DBG_FFPLAY,"Video is disabled by the user! \n");
+	videoStream=-1;
+}
 
      /* proceed --- video --- stream */
     if(videoStream >=0 ) /* only if videoStream exists */
@@ -1469,7 +1482,8 @@ if(enable_clip_test)
 		EGI_PDEBUG(DBG_FFPLAY,"End playing %s, hold on for a while...\n",fpath[fnum]);
 		tm_delayms(FF_LOOP_TIMEGAP*1000);
 	}
-#if 0 /* move to FAIL_OR_TERM */
+
+#if 0 /* These codes may be skipped, move to FAIL_OR_TERM */
 	/* fill display area with BLACK */
 	fbset_color(WEGI_COLOR_BLACK);
 	//draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve); /* pic area */
@@ -1484,11 +1498,17 @@ if(enable_seekloop)
 }
 
 FAIL_OR_TERM:
-	/* fill display area with BLACK */
+	/* fill display area with BLACK
+	 * NOTE: As thread audioSpectrum is still working for a while after draw_filled_rect() here,
+	 * 	 it's NOT the right itme to clear screen!
+	 */
+#if 0
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
+#endif
 
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
+
 	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{
 		/* wait for display_thread to join */
@@ -1538,18 +1558,15 @@ FAIL_OR_TERM:
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		close_ffpcm_device();
 
-#if 1 /* exit audioSpectrum thread */
-	if( pthd_audioSpectrum_running ) {
-		/* wait for thread to join */
-		EGI_PDEBUG(DBG_FFPLAY,"Try to join audioSpectrum thread ...\n");
-		/* give a command to exit audioSpectrum thread */
-		control_cmd = cmd_exit_audioSpectrum_thread;
-		pthread_join(pthd_audioSpectrum,NULL);
-		control_cmd = cmd_none;/* call off command */
-	}
-#endif
-
-
+		/* exit audioSpectrum thread */
+		if( pthd_audioSpectrum_running ) {
+			/* wait for thread to join */
+			EGI_PDEBUG(DBG_FFPLAY,"Try to join audioSpectrum thread ...\n");
+			/* give a command to exit audioSpectrum thread */
+			control_cmd = cmd_exit_audioSpectrum_thread;
+			pthread_join(pthd_audioSpectrum,NULL);
+			control_cmd = cmd_none;/* call off command */
+		}
 	}
 
 	/* free outputBuffer */
@@ -1625,7 +1642,7 @@ if(enable_avfilter) /* free filter resources */
    //tm_delayms(500);
 
   /* --- PLAY ALL FILES END --- */
-  if(!enable_filesloop) /* if disable loop playing all files, the break here */
+  if(!enable_filesloop) /* if disable loop playing all files, then break here */
   {
 	break;
   }

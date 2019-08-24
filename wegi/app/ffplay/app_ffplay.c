@@ -213,7 +213,10 @@ int main(int argc, char **argv)
 	printf(" start set ffplay context....\n");
         if ( egi_get_config_value("EGI_FFPLAY","music_dir",music_dir) != 0) {
 		/* use default dir */
+		EGI_PLOG(LOGLV_INFO,"%s: Fail to read config music_dir, use default: %s\n",__func__, music_dir);
 		strcpy(music_dir,"/mmc/ffplay");
+	} else {
+		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
 	}
 	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);

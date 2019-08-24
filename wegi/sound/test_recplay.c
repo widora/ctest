@@ -1,3 +1,14 @@
+/*----------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+An example of reading sound data from CAPTURE device and then writing it
+back to PLAYBACK device.
+
+Midas Zhou
+----------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include "egi_common.h"
 #include "egi_pcm.h"

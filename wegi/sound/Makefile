@@ -6,7 +6,7 @@ AR= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin
 
 SRC_PATH = /home/midas-zhou/Ctest/wegi
 
-APP = recmp3 test_snd test_recplay
+APP = recmp3 test_snd test_tone test_recplay
 #shine_test2
 #autorecord4
 
@@ -37,6 +37,9 @@ recmp3: recmp3.c
 
 test_snd: test_snd.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_snd test_snd.c
+
+test_tone: test_tone.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_tone test_tone.c
 
 test_recplay: test_recplay.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_recplay test_recplay.c

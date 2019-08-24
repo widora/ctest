@@ -527,7 +527,6 @@ Note:
 ---------------------------------------------------------------*/
 void*  ff_display_spectrum(void *argv)
 {
-
 	int i,j;
 	FBDEV fbdev={ 0 };
 
@@ -550,15 +549,10 @@ void*  ff_display_spectrum(void *argv)
 	int		dylimit=dybase-hlimit;
 	int		nk[32]=			/* sort index of ffx[] for sdx[], ng=32 */
 	{   2, 4, 8, 16, 24, 32, 40, 48,
-            64, 72, 80, 88, 96, 104, 112, 120,		/* 0 is DC */
+            64, 72, 80, 88, 96, 104, 112, 120,
 	    128, 136, 144, 152, 160, 168, 176, 184,
 	    200, 216, 232, 248, 264, 280, 296, 312
 	};
-
-//	    128, 132, 140, 148, 152, 160, 176, 192,
-//	    208, 224, 240, 256, 272, 288, 304, 320
-//	};
-
 
 	/* init FBDEV */
 	if( init_fbdev(&fbdev) !=0 )
@@ -567,12 +561,13 @@ void*  ff_display_spectrum(void *argv)
 	//fbdev.pixcolor=WEGI_COLOR_WHITE;//CYAN; /* set FBDEV pixcolor */
 	fbdev.pixcolor=egi_color_random(color_light);
 
-	/* TODO: put mat_CompFFTAng() elsewhere */
 	/* init sdx[] */
        	sx0=(240-spwidth/(ns-1)*(ns-1))/2;
         for(i=0; i<ns; i++) {
        	        sdx[i]=sx0+(spwidth/(ns-1))*i;
         }
+
+	/* TODO: put mat_CompFFTAng() elsewhere */
         /* prepare FFT phase angle */
         wang=mat_CompFFTAng(np);
 
@@ -603,8 +598,8 @@ void*  ff_display_spectrum(void *argv)
  	for(i=0; i<ns; i++) {
         #if 1  /* 2.1 direct calculation */
 
-		if(i<8) {  /* +2 to depress low frequency amplitude */
-		   #if 1  /* 8 point average */
+		if(i<4) {  /* +1 to depress low frequency amplitude */
+		   #if 1  /* 16 point average */
 			sdy[i]=0;
 			for(j=0; j<16; j++) {
 				sdy[i] += dybase-( mat_uintCompAmp(ffx[nk[i]+j])>>(nexp-1 +1) );
@@ -651,8 +646,15 @@ void*  ff_display_spectrum(void *argv)
 
         for(i=0; i<ns-1; i++) {
         	//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
-		//draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
-		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i],3); /* TODO fix 0 width wline */
+		//fbdev.pixcolor=WEGI_COLOR_GREEN;
+		//fbdev.pixcolor=COLOR_RGB_TO16BITS( (i%3)*65, (i/3)%3*65, (i/9)%3*125 );
+	   	#if 0
+		if(i<ns-2)
+			draw_line(&fbdev, sdx[i], sdy[i], sdx[i+1], sdy[i+1]);
+		draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
+	   	#endif
+
+		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i], 3); /* TODO fix 0 width wline */
         }
         fb_filo_off(&fbdev); /* turn off filo */
 #endif
