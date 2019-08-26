@@ -1175,11 +1175,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 	{
 		/* 0. backup old touch status */
 		if( touch_data.status==releasing ) {
-			printf(" --- 'releasing' --- \n");
+			//printf(" --- 'releasing' --- \n");
 			flip_status=releasing;
 		}
 		else if ( touch_data.status==pressing ) {
-			printf(" --- 'pressing' --- \n");
+			//printf(" --- 'pressing' --- \n");
 			flip_status=pressing;
 		}
 
@@ -1203,12 +1203,14 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    /* restore 'pressing' status then*/
 		    printf(" --- restore 'pressing' --- \n");
 		    last_status=pressing;
+		    touch_data.status=pressing;
 		    flip_status=pressing;
 		}
 		else if(flip_status != releasing && last_status==released_hold) {
 		    /* restore 'releasing' status then*/
 		    printf(" --- restore 'releasing' --- \n");
 		    last_status=releasing;
+		    touch_data.status=releasing;
 		    flip_status=releasing;
 		}
 
@@ -1221,7 +1223,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			 *     2. If not dx detected within given time, sliding operation will never triggered
 			 *       then.???
 			 */
-		        if( last_status==pressing || flip_status==pressing )  {
+		        if( last_status==pressing ) {  //|| flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
 				tm_delayms(100);
 				tdx=egi_touch_peekdx();
@@ -1230,7 +1232,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 					printf("--- start sliding ---\n");
 					slide_touch=true;
 				}
-				/* else, pass down pressing status... */
+				/* else, pass down pressing status to slide_handler()... */
 //				else {
 //					slide_touch=false;
 //				}
@@ -1242,6 +1244,9 @@ int egi_homepage_routine(EGI_PAGE *page)
 				/* OR to ignore 'releasing' to let button icons stop at current position */
 				if(last_status==releasing)
 					printf(" --- sliding release! --- \n");
+
+				else if(last_status==pressing)
+					printf(" --- sliding press start! --- \n");
 
 				page->slide_handler(page, &touch_data);
 				egi_page_refresh(page); /* refresh page for other eboxes!!!  */

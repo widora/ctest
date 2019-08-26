@@ -352,7 +352,6 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	int ret;
 	char strcmd[256];
-//	static char *strplaylist="/home/radio.list"; //"/mmc/mp3.list";
 	static char *cmdPause="pause\n";
 
         /* bypass unwanted touch status */
@@ -363,6 +362,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		status=mp_stop;
 		//printf("unlink(MPFIFO_NAME)...\n");
 		//unlink(MPFIFO_NAME); /* TODO: Get stuck here! */
+		remove(MPFIFO_NAME);
 		printf("mkfifo for mplayer.\n");
 		if (mkfifo(MPFIFO_NAME,0766) !=0) {
 			printf("%s:Fail to mkfifo for mplayer.\n",__func__);

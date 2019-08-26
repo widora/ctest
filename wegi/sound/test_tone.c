@@ -20,7 +20,7 @@ int main(void)
 	int ret;
 	int i,j,k;
 
-        /* for pcm capture */
+        /* for pcm PLAYBACK */
         snd_pcm_t *play_handle;
         int nchanl=1;   			/* number of channles */
         int format=SND_PCM_FORMAT_S16_LE;

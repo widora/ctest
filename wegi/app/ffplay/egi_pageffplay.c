@@ -40,6 +40,7 @@ Midas Zhou
 #include <signal.h>
 
 #include "egi_common.h"
+#include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
 #include "egi_ffplay.h"
 
@@ -63,6 +64,7 @@ static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int pageffplay_decorate(EGI_EBOX *ebox);
+static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
 /*---------- [  PAGE ::  Mplayer Operation ] ---------
@@ -175,7 +177,9 @@ EGI_PAGE *egi_create_ffplaypage(void)
         page_ffplay->runner[0]= egi_thread_ffplay;
 
         /* 3.3 set default routine job */
-        page_ffplay->routine=egi_page_routine; /* use default routine function */
+        //page_ffplay->routine=egi_page_routine; /* use default routine function */
+	page_ffplay->routine=egi_homepage_routine;  /* for sliding operation */
+	page_ffplay->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
 
         /* 3.4 set wallpaper */
         page_ffplay->fpath=NULL; //"/tmp/mplay.jpg";
@@ -278,7 +282,8 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-#if 0 /*------------ AS PLAYMODE LOOP SELECTION ---------------*/
+
+#if 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
 
 	/* only react to status 'pressing' */
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
@@ -309,7 +314,7 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	return btnret_OK;
 
-#else /* -------------- AS EXIT -------------- */
+#else /* ---------  AS EXIT BUTTON  --------- */
 
 	return btnret_REQUEST_EXIT_PAGE;
 #endif
@@ -366,6 +371,61 @@ static int pageffplay_decorate(EGI_EBOX *ebox)
 	return 0;
 }
 
+
+/*-----------------------------------------------------------------
+                   Sliding Operation handler
+Slide up/down to adjust PLAYBACK volume.
+------------------------------------------------------------------*/
+static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
+{
+        static int mark;
+	static int vol;
+	char strp[64];
+
+        /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
+        if(touch_data->status==pressing)
+        {
+                printf("vol pressing\n");
+                ffpcm_getset_volume(&mark,NULL); /* get volume */
+		//printf("mark=%d\n",mark);
+                return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
+        }
+
+        /* 2. adjust button position and refresh */
+        else if( touch_data->status==pressed_hold )
+        {
+                /* adjust volume */
+                vol =mark-(touch_data->dy>>3); /* Let not so fast */
+		if(vol>100)vol=100;
+		else if(vol<0)vol=0;
+		sprintf(strp,"VOL %d%%",vol);
+		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
+                ffpcm_getset_volume(NULL,&vol); /* set volume */
+
+                /* displaying */
+		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
+                symbol_string_writeFB( &gv_fb_dev, &sympg_ascii,
+                                       WEGI_COLOR_YELLOW, -1,        /* fontcolor, int transpcolor */
+                                       80,320-75,                    /* int x0, int y0 */
+                                       strp, -1 );                /* string, opaque */
+
+		return btnret_OK;
+	}
+
+        /* 3. clear volume txt, 'release' */
+        else if( touch_data->status==releasing )
+        {
+		//printf("vol releasing\n");
+		mark=vol; /* update mark*/
+		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
+
+		return btnret_OK;
+	}
+
+        else /* bypass unwanted touch status */
+              return btnret_IDLE;
+
+}
 
 
 /*-----------------------------

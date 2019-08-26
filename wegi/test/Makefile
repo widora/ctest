@@ -26,7 +26,7 @@ LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft
+APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
 
 all:	$(APPS)
 
@@ -63,6 +63,12 @@ test_fft:	test_fft.c  ../egi_math.h
 test_sndfft:	test_sndfft.c  ../egi_math.h
 #	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
 	$(CC) test_sndfft.c -o test_sndfft $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+#---use static egilib
+
+test_tonefft:	test_tonefft.c  ../egi_math.h
+#	$(CC) -o test_math test_math.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  #--use shared egilib
+	$(CC) test_tonefft.c -o test_tonefft $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
 #---use static egilib
 
