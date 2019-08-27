@@ -28,8 +28,10 @@ LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
 
-all:	$(APPS)
+#--- use static or dynamic libs -----
+EGILIB=dynamic
 
+all:	$(APPS)
 
 #### --- use dynamic and static libs in compilatoin!!! ---
 # 1. Exclude dynamic -legi first.
@@ -38,10 +40,12 @@ all:	$(APPS)
 # 4. Source/obj files must be put before all -Wl.
 
 tmp_app:	tmp_app.c
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound  #--use shared egilib
-#	$(CC) tmp_app.c -o tmp_app $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
-#-Wl,-Bstatic -legi -Wl,-Bdynamic
-#---use static egilib
+ifeq ($(EGILIB),static)
+	$(CC) tmp_app.c -o tmp_app  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+else
+	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+endif
 
 test_bigiot:	test_bigiot.c  $(OBJ_IOT)
 	$(CC) test_bigiot.c -o test_bigiot $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \

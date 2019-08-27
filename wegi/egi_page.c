@@ -1193,6 +1193,9 @@ int egi_homepage_routine(EGI_PAGE *page)
 		sy=touch_data.coord.y;
 		last_status=touch_data.status;
 
+		/* print read_in touch status */
+		if(last_status != released_hold)
+			printf("routine: --- %s ---\n",egi_str_touch_status(last_status));
 
 		/*	-----  restore missing status  ------
 		 *   The 'pressing' and 'releasing' signal may be missed due to current egi_touch.c
@@ -1200,7 +1203,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 		 *  we need to restore 'pressing' status and pass down the status.
 		 */
 		if( flip_status != pressing && last_status==pressed_hold ) {
-		    /* restore 'pressing' status then*/
+		    /* restore 'pressing' status then
+		     * NOTE
+		     *  1. When 'pressing' is detected by egi_touch_loopread(), dx,dy will be reset to 0.
+		     *     the restored status will ingnored this.
+		     */
 		    printf(" --- restore 'pressing' --- \n");
 		    last_status=pressing;
 		    touch_data.status=pressing;
@@ -1226,9 +1233,17 @@ int egi_homepage_routine(EGI_PAGE *page)
 		        if( last_status==pressing ) {  //|| flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
 				tm_delayms(100);
-				tdx=egi_touch_peekdx();
+				//tdx=egi_touch_peekdx();
+				egi_touch_peekdxdy(&tdx,&tdy);
 				/* check peek tdx, and also peek if 'releasing' after 'pressed_hold' */
-				if(tdx > 3 || tdx < -3 ) {  //|| egi_touch_peekstatus()==releasing) {
+				/* Note:
+				 *  1. In heavy load conditon, tdx/tdy will fluctuate greatly even sliding
+				 *     speed keeps constantly.
+			         *  2. When tdx/tdy is too small from egi_touch_peekdxdy(), slide_touch status
+				 *     will NOT be detected with following algrithm!!!
+				 */
+				printf("pressing check slide: dx=%d dy=%d \n",tdx, tdy);
+				if( tdx>3 || tdx<-3 || tdy>3 || tdy<-3 ) {  //|| egi_touch_peekstatus()==releasing) {
 					printf("--- start sliding ---\n");
 					slide_touch=true;
 				}
@@ -1237,6 +1252,19 @@ int egi_homepage_routine(EGI_PAGE *page)
 //					slide_touch=false;
 //				}
 			}
+
+			/* between two press_hold status, if dxdy is detected, also trigger slide_touch */
+			else if( slide_touch != true && last_status==pressed_hold ) {
+				/* Don't wait, peek imediately */
+				egi_touch_peekdxdy(&tdx,&tdy);
+
+				printf("pressed_hold check slide: dx=%d dy=%d \n",tdx, tdy);
+				if( tdx>3 || tdx<-3 || tdy>3 || tdy<-3 ) {  //|| egi_touch_peekstatus()==releasing) {
+					printf("--- hold sliding ---\n");
+					slide_touch=true;
+				}
+			}
+
 
 			/* 2.2 sliding handling func */
 			if(slide_touch ) //&& ( last_status==pressed_hold || last_status==pressing || last_status==releasing) )

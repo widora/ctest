@@ -415,7 +415,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         /* 3. clear volume txt, 'release' */
         else if( touch_data->status==releasing )
         {
-		//printf("vol releasing\n");
+		printf("vol releasing\n");
 		mark=vol; /* update mark*/
 		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
 

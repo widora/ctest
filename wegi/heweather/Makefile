@@ -14,7 +14,7 @@ CFLAGS  += -D_GNU_SOURCE	# for strdupa
 LDFLAGS += -L$(COMMON_USRDIR)/lib  -L$(SRC_PATH)/lib/
 
 #LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c -pthread
-LIBS   =  -legi -ljpeg -lpng -lz
+LIBS   =  -ljpeg -lpng -lz	#-legi
 LIBS  +=  -lcurl -lssl -lcrypto -pthread -ljson-c
 LIBS  +=  -lfreetype  -lm -lz -lbz2
 
@@ -24,14 +24,18 @@ all:	test_now test_forecast he_weather.o
 #	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) https.c -o https
 
 test_forecast:	test_forecast.c  he_weather.o
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS)  he_weather.o test_forecast.c -o test_forecast
+#	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS)  he_weather.o test_forecast.c -o test_forecast
+	$(CC) he_weather.o test_forecast.c -o test_forecast $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
+#---use static egilib
+
 
 test_now:	test_now.c  he_weather.o
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS)  he_weather.o test_now.c -o test_now
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -legi  he_weather.o test_now.c -o test_now
 
 
 he_weather.o:  he_weather.c he_weather.h
-	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS)  -c he_weather.c
+	$(CC)  $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -c he_weather.c
 
 
 clean:

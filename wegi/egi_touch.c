@@ -68,7 +68,7 @@ EGI_TOUCH_DATA egi_touch_peekdata(void)
 Check dx, but do NOT read out or reset token.
 Usually use it to check touch_slide condition.
 --------------------------------------------*/
-int egi_touch_peekdx(void)
+inline int egi_touch_peekdx(void)
 {
 	while(!live_touch_data.updated) {
         	tm_delayms(2);
@@ -76,6 +76,17 @@ int egi_touch_peekdx(void)
 
 	return live_touch_data.dx;
 }
+
+inline void egi_touch_peekdxdy(int *dx, int *dy)
+{
+	while(!live_touch_data.updated) {
+        	tm_delayms(2);
+	}
+
+	*dx=live_touch_data.dx;
+	*dy=live_touch_data.dy;
+}
+
 
 
 /*------------------------------------------
@@ -163,7 +174,7 @@ enum egi_touch_status
                         if(last_status==pressing || last_status==db_pressing || last_status==pressed_hold)
                         {
                                 last_status=releasing; /* or db_releasing */
-                                EGI_PDEBUG(DBG_TOUCH,": ... ... ... pen releasing ... ... ...\n");
+                                EGI_PDEBUG(DBG_TOUCH,": ... pen releasing ... \n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy; /* record the last point coord */
@@ -196,7 +207,7 @@ enum egi_touch_status
                         if( last_status==pressing || last_status==db_pressing || last_status==pressed_hold )
                         {
                                 last_status=pressed_hold;
-                                EGI_PDEBUG(DBG_TOUCH," ... ... ... pen hold down ... ... ...\n");
+                                EGI_PDEBUG(DBG_TOUCH," ... pen hold down ...\n");
 
 				/* update touch data */
 				live_touch_data.coord=sxy;
@@ -222,7 +233,7 @@ enum egi_touch_status
 				live_touch_data.status=pressing;
 				last_x=sx;
 				last_y=sy;
-                      		EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ... ... ... pen pressing ... ... ...\n");
+                      		EGI_PDEBUG(DBG_TOUCH,"... pen pressing ...\n");
 
                                 /* check if it's a double-click   */
                                 t_start=t_end;

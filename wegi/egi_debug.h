@@ -40,7 +40,7 @@ Midas Zhou
 #define ENABLE_EGI_DEBUG
 
 /* default debug flags */
-#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_PAGE|DBG_FFPLAY )//DBG_PIC) //DBG_IOT) //|DBG_FIFO) //DBG_FFPLAY) //DBG_TOUCH) //DBG_TOUCH)//DBG_SYMBOL|DBG_COLOR|DBG_LIST)
+#define DEFAULT_DBG_FLAGS   (DBG_NONE|DBG_PAGE|DBG_FFPLAY)  //DBG_TOUCH )
 
 #ifdef ENABLE_EGI_DEBUG
 	/* define egi_pdebug() */

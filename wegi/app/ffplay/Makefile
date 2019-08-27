@@ -12,26 +12,34 @@ CFLAGS  += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 LDFLAGS += -L/home/midas-zhou/ffmpeg-2.8.15/finish/lib
 
-LIBS	= -lepages -legi -lesound
+LIBS	= -lepages -lesound #-legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lavutil -lswscale -lavcodec -lavformat -lswresample -lavfilter -lpostproc
 LIBS 	+= -lfreetype  -lm -lz -lbz2
 
+#--- use static or dynamic libs -----
+EGILIB=dynamic
+
 #---!!! OBJS will be made and cleaned !!!---
 OBJS = egi_pageffplay.o $(SRC_PATH)/ffmpeg/egi_ffplay.o $(SRC_PATH)/ffmpeg/ff_utils.o $(SRC_PATH)/sound/egi_pcm.o
 APPS = app_ffplay
-
 
 all:	$(APPS)
 ### !!! NOTE: put '-o $@  $@.c' ahead of FLAGS and LIBS in LD !!!!
 
 app_ffplay: 	app_ffplay.c $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(OBJS) -o $@ $@.c
+###  Use dynamic or static egi_libs
+ifeq ($(EGILIB),static)
+	$(CC) $(OBJS) app_ffplay.c -o app_ffplay $(CFLAGS) $(LDFLAGS) $(LIBS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
+else
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -legi $(OBJS) -o $@ $@.c
+endif
 
 egi_pageffplay.o:	egi_pageffplay.c  egi_pageffplay.h
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS)  -c egi_pageffplay.c #-o egi_pageffplay.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -c egi_pageffplay.c #-o egi_pageffplay.o
 
 clean:
 	rm -rf *.o $(APPS) *.dep $(OBJS)
