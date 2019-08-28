@@ -43,12 +43,15 @@ inline void fbset_color(uint16_t color)
 	fb_color=color;
 }
 
-/*------------------------------------
+/*--------------------------------------------
  check if (px,py) in box(x1,y1,x2,y2)
- return true or false
+
+ return:
+	 True:  within the box or on the edge
+	 False
 
  Midas Zhou
--------------------------------------*/
+---------------------------------------------*/
 bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 {
        int xl,xh,yl,yh;
@@ -71,6 +74,22 @@ bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 		return true;
 	else
 		return false;
+}
+
+/*-----------------------------------------------
+ check if an EGI_POINT is in an EGI_BOX
+ return:
+	 True:  within the box or on the edge
+	 False
+
+ Midas Zhou
+------------------------------------------------*/
+inline bool point_inbox2(const EGI_POINT *pxy, const EGI_BOX* box)
+{
+	return point_inbox( pxy->x, pxy->y,
+			    box->startxy.x, box->startxy.y,
+			    box->endxy.x, box->endxy.y
+			   );
 }
 
 /*---------------------------------------------------------------

@@ -596,13 +596,13 @@ void*  ff_display_spectrum(void *argv)
 	/* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz   */
 	/* fs=44,1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
  	for(i=0; i<ns; i++) {
-        #if 1  /* 2.1 direct calculation */
-
-		if(i<4) {  /* +1 to depress low frequency amplitude */
+        	/* map sound wave amplitude to sdy[] */
+		if(i<4) {  /* +1 to depress low frequency amplitude, since most of audio wave energy is
+			      at low frequency band. */
 		   #if 1  /* 16 point average */
 			sdy[i]=0;
 			for(j=0; j<16; j++) {
-				sdy[i] += dybase-( mat_uintCompAmp(ffx[nk[i]+j])>>(nexp-1 +1) );
+				sdy[i] += dybase-( mat_uintCompAmp(ffx[nk[i]+j])>>(nexp-1 +0) );
 			}
 			sdy[i]=sdy[i]>>4;
 		   #else  /* normal sample point */
@@ -621,17 +621,6 @@ void*  ff_display_spectrum(void *argv)
 	                sdy[i]=dybase-( mat_uintCompAmp(ffx[nk[i]])>>(nexp-1 -1) ); //(nexp-1) );
 		   #endif
 		}
-                //sdy[i]=dybase-( mat_uintCompAmp( ffx[i*(ng>>1)])>>(nexp-1 -2) ); //(nexp-1) );
-                //sdy[i]=240-( mat_uint32Log2( mat_uintCompAmp(ffx[i*(ng>>1)]) )<<3  );
-
-        #else  /* 2.2 average amp */
-                /* get average Amp */
-                avg=0;
-                for( j=0; j< step; j++ ) {
-                        avg+=mat_uintCompAmp(ffx[i*step])>>(nexp-1 -3);
-                }
-                sdy[i]=dybase-avg/step;
-        #endif
 
 		/* trim sdy[] */
                 if(sdy[i]<dylimit)
@@ -639,22 +628,20 @@ void*  ff_display_spectrum(void *argv)
         }
 #endif
 
+	/* Apply 4 points average filter for sdy[], to smooth spectrum diagram. */
+	for(i=0; i<ns-(4-1); i++) {
+		for(j=0; j<(4-1); j++)
+			sdy[i] += sdy[i+j];
+		sdy[i]>>=2;
+	}
+
 	/* draw spectrum */
 #if 1
         fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
         fb_filo_on(&fbdev);    /* start collecting old FB pixel data */
 
         for(i=0; i<ns-1; i++) {
-        	//draw_dot(&gv_fb_dev,sdx[i],240-sdy[i]);
-		//fbdev.pixcolor=WEGI_COLOR_GREEN;
-		//fbdev.pixcolor=COLOR_RGB_TO16BITS( (i%3)*65, (i/3)%3*65, (i/9)%3*125 );
-	   	#if 0
-		if(i<ns-2)
-			draw_line(&fbdev, sdx[i], sdy[i], sdx[i+1], sdy[i+1]);
-		draw_line(&fbdev,sdx[i], dybase, sdx[i], sdy[i]);
-	   	#endif
-
-		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i], 3); /* TODO fix 0 width wline */
+		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i], 3); /* TODO fix 0 width wline--NOPE! */
         }
         fb_filo_off(&fbdev); /* turn off filo */
 #endif
@@ -674,7 +661,6 @@ void*  ff_display_spectrum(void *argv)
      tm_delayms(75);
 
    } /* end while() */
-
 
    /* free mem and resource */
    fb_filo_dump(&fbdev); /* to dump */

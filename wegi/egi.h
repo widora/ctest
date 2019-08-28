@@ -346,20 +346,19 @@ struct egi_data_txt
 
 	/* for ASCII alphabet txt */
 	struct symbol_page *font;
-	char **txt; 	/*multiline txt data */
+	char **txt; 	/*multiline txt data, will be memallocated by egi_txtdata_new()  */
 	int llen; 	/* in byte, number of chars for each line. The total pixel number
-	   	   	 * of those chars should not exceeds ebox->width, xxx or it may display in
+	   	   	 * of those chars should not exceeds ebox->width, ---xxx-- or it may display in
 			 * a roll-back way.
 	 	   	 */
 
-	/* for FreeType UNICODE txt */
-	FT_Face font_type;
-	wchar_t *wtxt;	/* txt in UNICODE */
+	/* for FreeType uft-8 encoding txt */
+	FT_Face font_face; /* A pointer already */
+	unsigned char *utxt;	/* txt in uft-8, !!! will NOT be memallocated by egi_utxtdata_new() !!! */
 	int pixpl;	/* in pixels, pixels per line, length of a line. */
 	int fw;		/* nominal font width in pixels, including min. horizontal gaps between wchars. */
 	int fh;		/* nominal font height in pixels, including min. vertical gaps between lines. */
 	int gap;	/* adjusting gap between lines */
-
 
 	/* For txt file operaton */
 	char *fpath; 	/* txt file path if applys */
@@ -618,17 +617,17 @@ struct egi_page
 
 
 /* for common ebox */
-const char *egi_str_touch_status(enum egi_touch_status touch_status);
-int egi_random_max(int max);
-void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
-void *egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height);
-bool egi_point_inbox(int px,int py, EGI_EBOX *ebox);
-int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
-EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
-inline void egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
-enum egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
+const char*	egi_str_touch_status(enum egi_touch_status touch_status);
+int 		egi_random_max(int max);
+void*		egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height);
+void*		egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height);
+bool		egi_point_inbox(int px,int py, EGI_EBOX *ebox);
+int 		egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
+EGI_EBOX 	*egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
+inline void 	egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
+enum 		egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
-EGI_EBOX * egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
+EGI_EBOX*	egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
 
 int egi_ebox_activate(EGI_EBOX *ebox);
 inline void egi_ebox_needrefresh(EGI_EBOX *ebox);

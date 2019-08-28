@@ -56,6 +56,8 @@ Midas Zhou
 #define ICON_CODE_LOOPALL	8	/* loop all files in the list */
 #define ICON_CODE_GOHOME	9
 
+
+static EGI_BOX slide_zone={ {0,30}, {239,260} };
 static uint16_t btn_symcolor;
 
 static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -158,8 +160,29 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	);
 	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
 
+        /* --------- 3 create a pic box --------- */
+#if 0
+        printf("Create PIC ebox for weather Info...\n");
+        /* allocate data_pic */
+        data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
+                                   NULL,        /* EGI_IMGBUF  default 60, 120 */
+                                   0,  0,       /* int imgpx, int imgpy */
+                                   -1,          /* image canvas color, <0 as transparent */
+                                   NULL         /* struct symbol_page *font */
+                                );
+        /* set pic_box title */
+        //data_pic->title="Happy Linux EGI!";
+        pic_box=egi_picbox_new( "pic_box",      /* char *tag, or NULL to ignore */
+                                  data_pic,     /* EGI_DATA_PIC *egi_data */
+                                  1,            /* bool movable */
+                                  0, 250,       /* x0, y0 for host ebox*/
+                                  -1,           /* int frame */
+                                  -1            /* int prmcolor,applys only if prmcolor>=0  */
+        );
+        pic_box->id=PIC_EBOX_ID; /* set ebox ID */
+#endif
 
-	/* --------- 3. create ffplay page ------- */
+	/* --------- 4. create ffplay page ------- */
 	/* 3.1 create ffplay page */
 	EGI_PAGE *page_ffplay=egi_page_new("page_ffplay");
 	while(page_ffplay==NULL)
@@ -380,7 +403,12 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 {
         static int mark;
 	static int vol;
-	char strp[64];
+	static char strp[64];
+
+	/* bypass outrange sliding */
+	if( !point_inbox2( &touch_data->coord, &slide_zone) )
+              return btnret_IDLE;
+
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(touch_data->status==pressing)
@@ -390,7 +418,6 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		//printf("mark=%d\n",mark);
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
-
         /* 2. adjust button position and refresh */
         else if( touch_data->status==pressed_hold )
         {
@@ -411,7 +438,6 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		return btnret_OK;
 	}
-
         /* 3. clear volume txt, 'release' */
         else if( touch_data->status==releasing )
         {
@@ -421,7 +447,6 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		return btnret_OK;
 	}
-
         else /* bypass unwanted touch status */
               return btnret_IDLE;
 

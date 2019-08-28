@@ -260,13 +260,12 @@ int egi_resume_runner(EGI_PAGE *page, int runnerID)
 	/* NOTE: A pthread_cond_signal() can only invoke one thread, When several runners are waiting
 	         for the same condition variable and use differenct predicates to evaluate, the
 		 signal may be received by a runner expecting other predicate, thus this cond_signal
-		 will be wasted! So pthread_cond_signal() is not safe in asynchronous situation, and
-		 use call pthread_cond_broadcast() instead.
+		 will be wasted! So pthread_cond_signal() is not safe in asynchronous situation, so
+		 we call pthread_cond_broadcast() instead.
 	*/
 	page->thread_SigSUSPEND[runnerID]=false; /* as predicate */
 	//pthread_cond_signal(&page->runner_cond);
 	pthread_cond_broadcast(&page->runner_cond);
-
 
 /*  <<<<<<<<<<  End of Critical Zone */
 	pthread_mutex_unlock(&page->runner_mutex);

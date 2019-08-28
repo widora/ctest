@@ -908,7 +908,6 @@ Write a string of charaters with UFT-8 encoding to FB.
 TODO: Alphabetic words are treated letter by letter, and they may be separated at the end of
       a line, so it looks not good.
 
-
 @fbdev:         FB device
 @face:          A face object in FreeType2 library.
 @fh,fw:		Height and width of the wchar.

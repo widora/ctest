@@ -38,23 +38,23 @@ static EGI_METHOD txtbox_method=
 
 
 /*-----------------------------------------------------------------------------
-Dynamically create txt_data struct
+Dynamically create txt_data struct (For non_FTsymbols)
 
 return:
 	poiter 		OK
 Y	NULL		fail
 -----------------------------------------------------------------------------*/
-EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
-	int nl,
-	int llen,
-	struct symbol_page *font,
-	uint16_t color
+EGI_DATA_TXT *egi_txtdata_new(	int offx, int offy,
+				int nl,
+				int llen,
+				struct symbol_page *font,
+				uint16_t color
 )
 {
 	int i,j;
 
 	/* malloc a egi_data_txt struct */
-	EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): malloc data_txt ...\n");
+	EGI_PDEBUG(DBG_TXT,"malloc data_txt ...\n");
 	EGI_DATA_TXT *data_txt=malloc(sizeof(EGI_DATA_TXT));
 	if(data_txt==NULL)
 	{
@@ -65,13 +65,14 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 	memset(data_txt,0,sizeof(EGI_DATA_TXT));
 
 	/* assign parameters */
+        data_txt->offx=offx;
+        data_txt->offy=offy;
         data_txt->nl=nl;
         data_txt->llen=llen;
         data_txt->font=font;
         data_txt->color=color;
-        data_txt->offx=offx;
-        data_txt->offy=offy;
 	data_txt->forward=1; /* >0 default forward*/
+
 	/* init filo_off, default buff_size=1<<8 */
 	data_txt->filo_off=egi_malloc_filo(1<<8, sizeof(long), 0b01); /* 0b01: auto double mem when */
 	if(data_txt==NULL) {
@@ -82,7 +83,8 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 
         /*  malloc data->txt  */
 	EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): malloc data_txt->txt ...\n");
-        data_txt->txt=malloc(nl*sizeof(char *));
+//        data_txt->txt=malloc(nl*sizeof(char *));
+        data_txt->txt=calloc(1,nl*sizeof(char *));
         if(data_txt->txt == NULL) /* malloc **txt */
         {
                 printf("egi_txtdata_new(): fail to malloc egi_data_txt->txt!\n");
@@ -91,13 +93,14 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
 		data_txt=NULL; /* :( */
                 return NULL;
         }
-	memset(data_txt->txt,0,nl*sizeof(char *));
+//	memset(data_txt->txt,0,nl*sizeof(char *));
 
 	/* malloc data->txt[] */
         for(i=0;i<nl;i++)
         {
 		EGI_PDEBUG(DBG_TXT,"egi_txtdata_new(): start to malloc data_txt->txt[%d]...\n",i);
-                data_txt->txt[i]=malloc(llen*sizeof(char));
+//                data_txt->txt[i]=malloc(llen*sizeof(char));
+                data_txt->txt[i]=calloc(1,llen*sizeof(char));
                 if(data_txt->txt[i] == NULL) /* malloc **txt */
                 {
                         printf("egi_txtdata_new(): fail to malloc egi_data_txt->txt[]!\n");
@@ -117,16 +120,81 @@ EGI_DATA_TXT *egi_txtdata_new(int offx, int offy,
                 }
 
                 /* clear up data */
-                memset(data_txt->txt[i],0,llen*sizeof(char));
+//                memset(data_txt->txt[i],0,llen*sizeof(char));
         }
 
 	/* finally! */
 	return data_txt;
 }
 
+#if 0
+        /* for FreeType uft-8 encoding txt */
+        FT_Face font_type; /* A pointer already */
+        unsigned char *utxt;     /* */
+        int pixpl;      /* in pixels, pixels per line, length of a line. */
+        int fw;         /* nominal font width in pixels, including min. horizontal gaps between wchars. */
+        int fh;         /* nominal font height in pixels, including min. vertical gaps between lines. */
+        int gap;        /* adjusting gap between lines */
+#endif 
 
 /*-----------------------------------------------------------------------------
-Dynamically create a new txtbox object
+Dynamically create txt_data struct  ( For FTsymbols )
+
+return:
+	poiter 		OK
+	NULL		fail
+-----------------------------------------------------------------------------*/
+EGI_DATA_TXT *egi_utxtdata_new( int offx, int offy,      /* offset from ebox left top */
+				int nl,			/* lines */
+				int pixpl,		/* pixels per line */
+				FT_Face font_face,	/* font face type */
+				int fw, int fh,		/* font width and height, in pixels */
+				int gap,		/* adjust gap between lines */
+				uint16_t color
+)
+{
+	int i,j;
+
+	/* malloc a egi_data_txt struct */
+	EGI_PDEBUG(DBG_TXT,"malloc data_txt ...\n");
+	EGI_DATA_TXT *data_txt=calloc(1, sizeof(EGI_DATA_TXT));
+	if(data_txt==NULL)
+	{
+		EGI_PDEBUG(DBG_TXT,"fail to malloc egi_data_txt.\n");
+		return NULL;
+	}
+
+	/* assign parameters */
+        data_txt->offx=offx;
+        data_txt->offy=offy;
+
+        data_txt->nl=nl;
+        data_txt->pixpl=pixpl;		/* For FTsymbol txt */
+	data_txt->font_face=font_face;
+        data_txt->fw=fw;
+        data_txt->fh=fh;
+	data_txt->gap=gap;
+
+	data_txt->forward=1; /* >0 default forward*/
+
+	/* Do NOT malloc for data->txt[] */
+
+	/* init filo_off, default buff_size=1<<8 */
+#if 0   /* Current NO USE */
+	data_txt->filo_off=egi_malloc_filo(1<<8, sizeof(long), 0b01); /* 0b01: auto double mem when */
+	if(data_txt==NULL) {
+		printf("egi_txtdata_new(): fail to init data_txt->filo_off.\n");
+		free(data_txt);
+		return NULL;
+	}
+#endif
+
+	/* finally! */
+	return data_txt;
+}
+
+/*-----------------------------------------------------------------------------
+Dynamically create a new txtbox object  (For both nonFTsymbols and FTsymbols)
 
 return:
 	poiter 		OK
@@ -148,23 +216,23 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	/* 0. check egi_data */
 	if(egi_data==NULL)
 	{
-		printf("egi_txtbox_new(): egi_data is NULL. \n");
+		EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): egi_data is NULL. \n");
 		return NULL;
 	}
 
 	/* 1. create a new common ebox */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): start to egi_ebox_new(type_txt)...\n");
+	EGI_PDEBUG(DBG_TXT,"Start to egi_ebox_new(type_txt)...\n");
 	ebox=egi_ebox_new(type_txt);// egi_data NOT allocated in egi_ebox_new()!!! , (void *)egi_data);
 	if(ebox==NULL)
 	{
-		printf("egi_txtbox_new(): fail to execute egi_ebox_new(type_txt). \n");
+		EGI_PDEBUG(DBG_TXT,"Fail to execute egi_ebox_new(type_txt). \n");
 		return NULL;
 	}
 
 	/* 2. default method assigned in egi_ebox_new() */
 
 	/* 3. txt ebox object method */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): assign defined mehtod ebox->method=methd...\n");
+	EGI_PDEBUG(DBG_TXT,"Assign defined mehtod ebox->method=methd...\n");
 	ebox->method=txtbox_method;
 
 	/* 4. fill in elements  */
@@ -177,16 +245,16 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox->frame=frame;	ebox->prmcolor=prmcolor;
 
 	/* 5. pointer default */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): assign ebox->bkimg=NULL ...\n");
+	EGI_PDEBUG(DBG_TXT,"Assign ebox->bkimg=NULL ...\n");
 	ebox->bkimg=NULL;
 
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_new(): finish.\n");
+	EGI_PDEBUG(DBG_TXT,"Finish egi_txtbox_new().\n");
 	return ebox;
 }
 
 
 /*--------------------------------------------------------------------------------
-initialize EGI_DATA_TXT according
+initialize EGI_DATA_TXT according	( For non_FTsymbols )
 
 offx,offy:			offset from prime ebox
 int nl:   			number of txt lines
@@ -267,9 +335,11 @@ EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt,
 
 
 /*-------------------------------------------------------------------------------------
-activate a txt ebox:
+activate a txt ebox   (For both nonFTsymbols and FTsymbols)
+
+Note:
 	0. if ebox is in a sleep_status, just refresh it, and reset txt file pos offset.
-	1. adjust ebox height and width according to its font line set
+	1. adjust ebox height (width---nope) according to its font line set
  	2. store back image covering txtbox frame range.
 	3. refresh the ebox.
 	4. change status token to active,
@@ -304,47 +374,58 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	}
 
 	int nl=data_txt->nl;
+	int gap=data_txt->gap;
 //	int llen=data_txt->llen;
 //	int offx=data_txt->offx;
 	int offy=data_txt->offy;
 //	char **txt=data_txt->txt;
-	int font_height=data_txt->font->symheight;
+	int font_height;
+
+	/* check symbol type */
+	if(data_txt->font)
+		font_height=data_txt->font->symheight;
+	else if(data_txt->font_face)
+		font_height=data_txt->fh;
+	else {
+		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
+		return -1;
+	}
 
 	/* 1. confirm ebox type */
         if(ebox->type != type_txt)
         {
-                printf("egi_txtbox_activate(): '%s' is not a txt type ebox!\n",ebox->tag);
+                EGI_PDEBUG(DBG_TXT,"'%s' is not a txt type ebox!\n",ebox->tag);
                 return -2;
         }
 
-        EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start to activate '%s' txt type ebox!\n",ebox->tag);
+        EGI_PDEBUG(DBG_TXT,"Start to activate '%s' txt type ebox!\n",ebox->tag);
 	/* 2. activate(or wake up) a sleeping ebox
-		not necessary to adjust ebox size and allocate bkimg memory for a slpeeping ebox
+		not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
 	*/
 	if(ebox->status==status_sleep)
 	{
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset affliated file position */
-		ebox->status=status_active; /* reset status */
+		ebox->status=status_active; 	/* reset status */
 		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
 			ebox->status=status_sleep; /* reset status */
-			printf("egi_txtbox_activate():fail to wake up sleeping ebox '%s'!\n",ebox->tag);
+			EGI_PDEBUG(DBG_TXT,"Fail to wake up sleeping ebox '%s'!\n",ebox->tag);
 			return -3;
 		}
 
-		printf("egi_txtbox_activate(): wake up a sleeping '%s' ebox.\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"Wake up a sleeping '%s' ebox.\n",ebox->tag);
 		return 0;
 	}
 
         /* 3. check ebox height and font lines, then adjust the height */
-        height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+        height= ((font_height+gap)*nl+offy) > height ? ((font_height+gap)*nl+offy) : height;
         ebox->height=height;
 
 	//TODO: malloc more mem in case ebox size is enlarged later????? //
 	/* 4. malloc exbo->bkimg for bk image storing */
    if( ebox->movable || (ebox->prmcolor<0) ) /* only if ebox is movale or it's transparent */
    {
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
+	EGI_PDEBUG(DBG_TXT,"Start to egi_alloc_bkimg() for '%s' ebox. height=%d, width=%d \n",
 											ebox->tag,height,width);
 		/* egi_alloc_bkimg() will check width and height */
 		if( egi_alloc_bkimg(ebox, width, height)==NULL )
@@ -352,8 +433,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
                	 	printf("egi_txtbox_activate(): fail to egi_alloc_bkimg() for '%s' ebox!\n",ebox->tag);
                 	return -4;
         	}
-		EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): finish egi_alloc_bkimg() for '%s' ebox.\n",ebox->tag);
-
+		EGI_PDEBUG(DBG_TXT,"Finish egi_alloc_bkimg() for '%s' ebox.\n",ebox->tag);
 
 	/* 5. store bk image which will be restored when this ebox position/size changes */
 	/* define bkimg box */
@@ -378,22 +458,24 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	/* 7. reset offset for txt file if fpath applys */
 	//???? NOT activate ????? ((EGI_DATA_TXT *)(ebox->egi_data))->foff=0;
 
-	/* set for refresh */
-	ebox->need_refresh=true;
 	/* 8. refresh displaying the ebox */
+	ebox->need_refresh=true; /* set for refresh */
 	ret=egi_txtbox_refresh(ebox);
 	if(ret != 0)
 	{
 		printf("egi_txtbox_activate(): WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", ret);
 		return -6;
 	}
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is activated.\n",ebox->tag);
+
 	return 0;
 }
 
 
 /*-------------------------------------------------------------------------------
-refresh a txt ebox.
+refresh a txt ebox.   (For both nonFTsymbols and FTsymbols)
+
+Note:
 	1.refresh ebox image according to following parameter updates:
 		---txt(offx,offy,nl,llen)
 		---size(height,width)
@@ -416,26 +498,24 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	int i;
 	int ret=0;
 
-
-
 	/* 1. check data */
 	if(ebox->type != type_txt)
 	{
-		printf("egi_txtbox_refresh(): Not txt type ebox!\n");
+		EGI_PDEBUG(DBG_TXT,"Not a txt type ebox!\n");
 		return -1;
 	}
 
 	/* 2. check the ebox status */
 	if( ebox->status != status_active )
 	{
-		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): This '%s' ebox is not active! refresh action is ignored! \n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"Ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): need_refresh of '%s' is false!\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -445,14 +525,26 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	int y0=ebox->y0;
 	int height=ebox->height;
 	int width=ebox->width;
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh():start to assign data_txt=(EGI_DATA_TXT *)(ebox->egi_data)\n");
+	EGI_PDEBUG(DBG_TXT,"Start to assign data_txt=(EGI_DATA_TXT *)(ebox->egi_data)\n");
 	EGI_DATA_TXT *data_txt=(EGI_DATA_TXT *)(ebox->egi_data);
 	int nl=data_txt->nl;
 //	int llen=data_txt->llen;
 	int offx=data_txt->offx;
 	int offy=data_txt->offy;
 	char **txt=data_txt->txt;
-	int font_height=data_txt->font->symheight;
+	int font_height;
+	int gap=data_txt->gap;
+
+	/* check symbol type */
+	if(data_txt->font)
+		font_height=data_txt->font->symheight;
+	else if(data_txt->font_face)
+		font_height=data_txt->fh;
+	else {
+		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
+		return -1;
+	}
+
 
 #if 0
 	/* test WARNING!!!! fonts only !!!--------------   print out box txt content */
@@ -462,7 +554,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
         /* redefine bkimg box range, in case it changes
 	 check ebox height and font lines, then adjust the height */
-	height= (font_height*nl+offy)>height ? (font_height*nl+offy) : height;
+	height= ( (font_height+gap)*nl+offy)>height ? ((font_height+gap)*nl+offy) : height;
 	ebox->height=height;
 
    /* ------ restore bkimg and buffer new bkimg
@@ -480,7 +572,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
 	/* restore bk image before refresh */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): fb_cpyfrom_buf() before refresh...\n");
+	EGI_PDEBUG(DBG_TXT,"txt refresh: fb_cpyfrom_buf() before refresh...\n");
         if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
 		return -3;
@@ -493,11 +585,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.y=y0+height-1;
 
 #if 1 /* DEBUG */
-	EGI_PDEBUG(DBG_TXT,"refresh() fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_TXT,"fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
         /* ---- 6. store bk image which will be restored when this ebox position/size changes */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): fb_cpyto_buf() before refresh...\n");
+	EGI_PDEBUG(DBG_TXT,"fb_cpyto_buf() before refresh...\n");
         if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		return -4;
@@ -524,10 +616,12 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		if(ebox->frame == 2) /* draw inner double line */
 			draw_rect(&gv_fb_dev,x0+3,y0+3,x0+width-3,y0+height-3);
 	}
-	/* TODO: other type of frame .....*/
+	/* TODO: other type of frame ....., alpha controled imagbuf for backgroup shape */
 
 	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to renew txt[][] */
-	if(data_txt->fpath)
+
+	/* for non_FTsymbols */
+	if( data_txt->font && data_txt->fpath)
 	{
 		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh():  data_txt->fpath is NOT null, re-read txt file now...\n");
 		if(egi_txtbox_readfile(ebox,data_txt->fpath)<0) /* not = 0 */
@@ -542,15 +636,34 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		ebox->decorate(ebox);
 
 	/* ---- 11. refresh TXT, write txt line to FB */
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
-	for(i=0;i<nl;i++)
+        if(data_txt->font) /* For non_FTsymbols */
 	{
-		EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
-		/*  (fb_dev,font, font_color,transpcolor, x0,y0, char*)...
-					1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
-		symbol_string_writeFB(&gv_fb_dev, data_txt->font, data_txt->color, 1, x0+offx, \
-						 y0+offy+font_height*i, txt[i], -1);
+		EGI_PDEBUG(DBG_TXT,"Start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
+		for(i=0;i<nl;i++)
+		{
+			EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
+			/* (FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+                		int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);
+			    1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 
+			symbol_string_writeFB( 	&gv_fb_dev,
+					       	data_txt->font,
+					      	data_txt->color, 1,
+					       	x0+offx, y0+offy+font_height*i,
+						txt[i], -1   );
+
+		}
+	}
+	else if(data_txt->font_face && data_txt->utxt !=NULL ) /* For FTsymbols */
+	{
+		EGI_PDEBUG(DBG_TXT,"Start symbol_uft8string_writeFB(), font color=%d ...\n", data_txt->color);
+		FTsymbol_uft8strings_writeFB( &gv_fb_dev,
+					      data_txt->font_face,
+					      data_txt->fw, data_txt->fh,
+			  		      data_txt->utxt,
+		                              data_txt->pixpl, data_txt->nl,  data_txt->gap,
+                		              x0+offx, y0+offy,
+                               		      data_txt->color, -1, -1	);
 	}
 
 	/* ---- 12. reset need_refresh */
@@ -598,7 +711,7 @@ int egi_txtbox_sleep(EGI_EBOX *ebox)
 
 
 /*-----------------------------------------------------------------
-Note:
+Note:		( For non_FTsymbols )
 1. Read a txt file and try to push it to egi_data_txt->txt[]
 NOPE! 2. If it reaches the end of file, then reset offset and roll back.
 3. llen=data_txt->llen-1  one byte for string end /0.
@@ -848,6 +961,7 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 		data_txt=NULL;
 	}
 
+	/* data_txt->utxt is referred from elsewhere. Do not free it here! */
 
 }
 
@@ -870,6 +984,7 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 
 
 /*------------------------------------------------
+	(For non_FTsymbol )
  set string for first line of data_txt->txt[0]
 -------------------------------------------------*/
 void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
@@ -903,7 +1018,7 @@ void egi_txtbox_settitle(EGI_EBOX *ebox, char *title)
 
 
 /*--------------------------------------------------------------------
-push txt to ebox->data_txt->txt[]
+push txt to ebox->data_txt->txt[]	( For non_FTsymbols )
 
 data_txt:	the target txt data
 buf:		the source buffer
@@ -1013,8 +1128,8 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	return i;
 }
 
-/*-----------------------------------------------------
-set txt_file read/scroll direction:
+/*-------------------------------------------------------
+set txt_file read/scroll direction.   ( For non_FTsymbol)
 direct
 	>0:	forward
 	=0:	stop
@@ -1023,7 +1138,7 @@ direct
 Return
 	0	OK
 	<0	Fails
-------------------------------------------------------*/
+-------------------------------------------------------*/
 int egi_txtbox_set_direct(EGI_EBOX *ebox, int direct)
 {
 	long pt=0;

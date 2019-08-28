@@ -240,7 +240,7 @@ EGI_PAGE *egi_create_homepage(void)
 	printf("Create PIC ebox for weather Info...\n");
         /* allocate data_pic */
         data_pic= egi_picdata_new( 0,  0,       /* int offx, int offy */
-                                   NULL,        //  /* EGI_IMGBUF  default 60, 120 */
+                                   NULL,        /* EGI_IMGBUF  default 60, 120 */
                                    0,  0,       /* int imgpx, int imgpy */
 				   -1,		/* image canvas color, <0 as transparent */
                                    NULL     	/* struct symbol_page *font */
@@ -250,7 +250,7 @@ EGI_PAGE *egi_create_homepage(void)
         pic_box=egi_picbox_new( "pic_box", 	/* char *tag, or NULL to ignore */
                                   data_pic,  	/* EGI_DATA_PIC *egi_data */
                                   1,         	/* bool movable */
-                                  0, 250, 	/*  x0, y0 for host ebox*/
+                                  0, 250, 	/* x0, y0 for host ebox*/
                                   -1,         	/* int frame */
                                   -1		/* int prmcolor,applys only if prmcolor>=0  */
         );
@@ -409,14 +409,15 @@ static void display_iotload(EGI_PAGE *page)
 		 */
 		symbol_writeFB(&gv_fb_dev, &sympg_icons, SYM_NOSUB_COLOR, 0, 0, 0, index, 0);/*bkcolor=0*/
 
-		/* handler for signal_suspend, wait until runner_cond comes */
+		/* handler for signal_suspend ( if get suspend signal, wait until runner_cond comes) */
 		egi_runner_sigSuspend_handler(page);
 	}
 }
 
 
 /*-----------------  RUNNER 3 --------------------------
-Update time tag for the home_clock,but do NOT refresh
+Update time tag for the home_clock,but do NOT refresh,
+and update caldata for calender btn decoration.
 Let page routine do refreshing.
 -------------------------------------------------------*/
 static void update_clocktime(EGI_PAGE *page)
@@ -460,7 +461,7 @@ static void update_clocktime(EGI_PAGE *page)
 		egi_sleep(0,0,500);
 		//printf("----[ %s-%s  %s ]------\n", caldata.month, caldata.day,strtm);
 
-		/* handler for signal_suspend, wait until runner_cond comes */
+		/* handler for signal_suspend ( if get suspend signal, wait until runner_cond comes) */
 		egi_runner_sigSuspend_handler(page);
 	}
 }
@@ -579,7 +580,7 @@ SLEEP_WAITING:
 	printf("%s: Start Delay or Sleep ....\n",__func__);
 	egi_sleep(0,3,0); /* 3s */
 
-	/* handler for signal_suspend, wait until runner_cond comes
+	/* handler for signal_suspend, If get suspend_signal,wait until runner_cond comes.
 	 * !!! Meaningless, since the period of thread loop is too big!
 	 */
 	egi_runner_sigSuspend_handler(page);
@@ -738,6 +739,10 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	if( touch_data->status != pressing )
 		return btnret_IDLE;
 
+	/* suspend runner CPULOAD */
+	egi_suspend_runner(ebox->container, RUNNER_CPULOAD_ID);
+	egi_suspend_runner(ebox->container, RUNNER_IOTLOAD_ID);
+
 #if 0////////////// (   OLD CODES  ) ////////////////
 	/* create page and load the page */
         EGI_PAGE *page_ffplay=egi_create_ffplaypage();
@@ -766,6 +771,11 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* activate APP and wait untill it STOP or TERM */
         egi_process_activate_APP(&pid_ffplay, "/home/app_ffplay");
+
+	/* resume runner CPULOAD */
+	egi_resume_runner(ebox->container, RUNNER_CPULOAD_ID);
+	egi_resume_runner(ebox->container, RUNNER_IOTLOAD_ID);
+
 
 	return pgret_OK; /* to refresh PAGE anyway */
 }
@@ -969,7 +979,7 @@ Activate an APP and wait for its state to change.
 1. If apid<0 then fork() and excev() the APP.
 2. If apid>0, try to send SIGCONT to activate it.
 3. Wait for state change for the apid, that means the parent
-   process is hung up.
+   process is hung up until apid state changes(STOP/TERM).
 
 @apid:		PID of the subprocess.
 @app_path:	Path to an executiable APP file.

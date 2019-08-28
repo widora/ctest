@@ -47,6 +47,16 @@ else
 	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
 
+
+test_txt:	test_txt.c
+ifeq ($(EGILIB),static)
+	$(CC) test_txt.c -o test_txt  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+else
+	$(CC) -o test_txt test_txt.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+endif
+
+
 test_bigiot:	test_bigiot.c  $(OBJ_IOT)
 	$(CC) test_bigiot.c -o test_bigiot $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -Wl,-Bdynamic
