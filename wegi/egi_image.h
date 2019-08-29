@@ -15,13 +15,26 @@ Midas Zhou
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 
-EGI_IMGBUF *egi_imgbuf_new(void);
-void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
-void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
-int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
-int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg );
-int egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
-                                        int xp, int yp, int xw, int yw, int winw, int winh);
+enum imgframe_type {
+	frame_none=100,		/* incoporate with ebox->frame, <100  */
+	frame_round_rect,
+	frame_circle,
+	frame_oval,
+	frame_updown_mist,
+};
+
+EGI_IMGBUF*	egi_imgbuf_alloc(void); //new(void);
+void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
+void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
+int 		egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
+EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_16BIT_COLOR color );
+EGI_IMGBUF*	egi_imgbuf_newframe( int height, int width,
+                	             unsigned char alpha, EGI_16BIT_COLOR color,
+                        	     enum imgframe_type type,
+                                     int pn, const int *param );
+int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg );
+int 		egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+                	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
 int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         int xp, int yp, int xw, int yw, int winw, int winh);

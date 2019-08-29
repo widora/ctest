@@ -18,7 +18,7 @@ typedef struct fbdev FBDEV;
 /*--------------------------------------------
    	   Allocate  a EGI_IMGBUF
 ---------------------------------------------*/
-EGI_IMGBUF *egi_imgbuf_new(void)
+EGI_IMGBUF *egi_imgbuf_alloc(void) //new(void)
 {
 	EGI_IMGBUF *eimg;
 	eimg=calloc(1, sizeof(EGI_IMGBUF));
@@ -140,6 +140,101 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 
 	return 0;
 }
+
+/* ------------------------------------------------------
+Create an EGI_IMGBUF, set color and alpha value.
+
+@height,width:	height and width of the imgbuf.
+@alpha:		alpha value for all pixels.
+@color:		basic color of the imgbuf.
+
+-------------------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_create( int height, int width,
+				unsigned char alpha, EGI_16BIT_COLOR color )
+{
+	int i;
+
+	EGI_IMGBUF *imgbuf=egi_imgbuf_alloc();
+	if(imgbuf==NULL)
+		return NULL;
+
+	/* init the struct */
+	if ( egi_imgbuf_init(imgbuf, height, width) !=0 )
+		return NULL;
+
+	/* set alpha and color */
+	memset( imgbuf->alpha, alpha, height*width );
+	for(i=0; i< height*width; i++)
+		*(imgbuf->imgbuf+i)=color;
+
+	return imgbuf;
+}
+
+/*--------------------------------------------------------
+Create a new imgbuf with certain shape/frame.
+The frame are formed by different patterns of alpha
+values.
+Usually the frame is to be used as cutout_shape of a image.
+
+@width,height   basic width/height of the frame.
+@color:		basic color of the shape
+@type:		type/shape of the frame.
+@pn:		numbers of paramters
+@param:		array of params
+
+Return:
+	A pointer to an EGI_IMGBUF	OK
+	NULL				Fail
+---------------------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_newframe( int height, int width,
+				 unsigned char alpha, EGI_16BIT_COLOR color,
+				 enum imgframe_type type,
+				 int pn, const int *param )
+{
+	int i,j;
+
+	if( pn<1 || param==NULL ) {
+		printf("%s: Input param invalid!\n",__func__);
+		return NULL;
+	}
+
+	EGI_IMGBUF *imgbuf=egi_imgbuf_create(height, width, alpha, color);
+	if(imgbuf==NULL)
+		return NULL;
+
+	if(type==frame_round_rect)	/* Rectangle with 4 round angles */
+	{
+		int rad=param[0];
+		int ir;
+
+		if( rad < 0 )rad=0;
+		if( rad > height/2 ) rad=height/2;
+		if( rad > width/2 ) rad=width/2;
+
+		/* cut out 4 round corners */
+		for(i=0; i<rad; i++) {
+		        ir=rad-round(sqrt(rad*rad*1.0-(rad-i)*(rad-i)*1.0));
+			for(j=0; j<ir; j++) {
+				/* upp. left corner */
+				*(imgbuf->alpha+i*width+j)=0; /* set alpha 0 at corner */
+				/* upp. right corner */
+				*(imgbuf->alpha+((i+1)*width-1)-j)=0;
+				/* down. left corner */
+				*(imgbuf->alpha+(height-1-i)*width+j)=0;
+				/* down. right corner */
+				*(imgbuf->alpha+(height-i)*width-1-j)=0;
+			}
+		}
+
+	}
+	/* TODO: other types */
+	else {
+		/* Original rectangle shape  */
+	}
+
+	return imgbuf;
+}
+
 
 
 /*------------------------------------------------------------------------------

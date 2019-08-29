@@ -974,7 +974,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 		/* --- check whether lines are used up --- */
 		if( ln > lines-1) {
-			printf("%s: %d characters written to FB.\n", __func__, count);
+			printf("%s: Lines not enough! finish only %d chars.\n", __func__, count);
 			return p-pstr;
 		}
 

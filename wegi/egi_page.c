@@ -459,7 +459,7 @@ int egi_page_activate(EGI_PAGE *page)
 		/* load a picture or use prime color as wallpaper */
 		if(page->fpath != NULL) {
 			//show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-	        	imgbuf=egi_imgbuf_new();
+	        	imgbuf=egi_imgbuf_alloc(); //new();
 		        /* First try to load as PNG file */
 			printf("%s: Try to load as PNG file ...\n",__func__);
 		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {
@@ -556,7 +556,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		/* load a picture or use prime color as wallpaper */
 		if(page->fpath != NULL) {
 			//show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-	        	imgbuf=egi_imgbuf_new();
+	        	imgbuf=egi_imgbuf_alloc(); //new();
 		        /* First try to load as PNG file */
 			printf("%s: Try to load as PNG file ...\n",__func__);
 		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {

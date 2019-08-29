@@ -571,14 +571,19 @@ int egi_ebox_free(EGI_EBOX *ebox)
 				break;
 		}
 
-		/* 1.2 free ebox bkimg */
-		if(ebox->bkimg != NULL)
-		{
+		/* 1.2 free frame_img */
+		if(ebox->frame_img != NULL) {
+			egi_imgbuf_free(ebox->frame_img);
+			ebox->frame_img=NULL;
+		}
+
+		/* 1.3 free ebox bkimg */
+		if(ebox->bkimg != NULL) {
 			free(ebox->bkimg);
 			ebox->bkimg=NULL;
 		}
 
-		/* 1.3 free concept ebox */
+		/* 1.4 free concept ebox */
 		free(ebox);
 		ebox=NULL;
 

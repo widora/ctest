@@ -847,9 +847,9 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
         EGI_IMGBUF *imgbuf=NULL; /*private var, no need for mutex operation */
 
 	/* new EGI_IMGBUF */
-	imgbuf=egi_imgbuf_new();
+	imgbuf=egi_imgbuf_alloc(); //new();
 	if(imgbuf==NULL) {
-		printf("%s: Fail to run egi_imgbuf_new().\n",__func__);
+		printf("%s: Fail to run egi_imgbuf_alloc().\n",__func__);
 		return -1;
 	}
 

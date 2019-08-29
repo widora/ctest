@@ -127,16 +127,6 @@ EGI_DATA_TXT *egi_txtdata_new(	int offx, int offy,
 	return data_txt;
 }
 
-#if 0
-        /* for FreeType uft-8 encoding txt */
-        FT_Face font_type; /* A pointer already */
-        unsigned char *utxt;     /* */
-        int pixpl;      /* in pixels, pixels per line, length of a line. */
-        int fw;         /* nominal font width in pixels, including min. horizontal gaps between wchars. */
-        int fh;         /* nominal font height in pixels, including min. vertical gaps between lines. */
-        int gap;        /* adjusting gap between lines */
-#endif 
-
 /*-----------------------------------------------------------------------------
 Dynamically create txt_data struct  ( For FTsymbols )
 
@@ -174,6 +164,7 @@ EGI_DATA_TXT *egi_utxtdata_new( int offx, int offy,      /* offset from ebox lef
         data_txt->fw=fw;
         data_txt->fh=fh;
 	data_txt->gap=gap;
+	data_txt->color=color;
 
 	data_txt->forward=1; /* >0 default forward*/
 
@@ -243,6 +234,8 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox->x0=x0;	ebox->y0=y0;
 	ebox->width=width;	ebox->height=height;
 	ebox->frame=frame;	ebox->prmcolor=prmcolor;
+	//ebox->frame_img=NULL;
+	ebox->frame_alpha=255;
 
 	/* 5. pointer default */
 	EGI_PDEBUG(DBG_TXT,"Assign ebox->bkimg=NULL ...\n");
@@ -339,7 +332,7 @@ activate a txt ebox   (For both nonFTsymbols and FTsymbols)
 
 Note:
 	0. if ebox is in a sleep_status, just refresh it, and reset txt file pos offset.
-	1. adjust ebox height (width---nope) according to its font line set
+	1. adjust ebox height and width according to its font lines and width.
  	2. store back image covering txtbox frame range.
 	3. refresh the ebox.
 	4. change status token to active,
@@ -376,20 +369,11 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	int nl=data_txt->nl;
 	int gap=data_txt->gap;
 //	int llen=data_txt->llen;
-//	int offx=data_txt->offx;
+	int offx=data_txt->offx;
 	int offy=data_txt->offy;
 //	char **txt=data_txt->txt;
 	int font_height;
-
-	/* check symbol type */
-	if(data_txt->font)
-		font_height=data_txt->font->symheight;
-	else if(data_txt->font_face)
-		font_height=data_txt->fh;
-	else {
-		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
-		return -1;
-	}
+	int rad=10;	/* radius for frame_img */
 
 	/* 1. confirm ebox type */
         if(ebox->type != type_txt)
@@ -418,8 +402,25 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	}
 
         /* 3. check ebox height and font lines, then adjust the height */
+	/* check symbol type */
+	if(data_txt->font)
+		font_height=data_txt->font->symheight;
+	else if(data_txt->font_face)
+		font_height=data_txt->fh;
+	else {
+		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
+		return -1;
+	}
+
+	/* adjust ebox height */
         height= ((font_height+gap)*nl+offy) > height ? ((font_height+gap)*nl+offy) : height;
         ebox->height=height;
+
+ 	/* adjust ebox width if FTsymbol txt */
+	if( data_txt->font_face ) {
+		width= data_txt->pixpl+offx > width ? data_txt->pixpl+offx : width;
+		ebox->width=width;
+	}
 
 	//TODO: malloc more mem in case ebox size is enlarged later????? //
 	/* 4. malloc exbo->bkimg for bk image storing */
@@ -446,24 +447,37 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 #endif
 
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_activate(): start fb_cpyto_buf() for '%s' ebox.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"Start fb_cpyto_buf() for '%s' ebox.\n",ebox->tag);
 	if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
 				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0 )
 		return -5;
   } /* ebox->movable codes end */
 
-	/* 6. change its status, if not, you can not refresh.  */
+	/* 6. initiate frame_img if frame>100 and prmcolor >=0 */
+	if( ebox->frame >100 && ebox->prmcolor>=0 ) {
+		ebox->frame_img=egi_imgbuf_newframe( height, width,   	   /* int height, int width */
+                                  	ebox->frame_alpha, ebox->prmcolor, /* alpha, color */
+	                                frame_round_rect,       	   /* enum imgframe_type */
+         	                        1, &rad );                	   /* 1, radius, int pn, int *param */
+
+		if(ebox->frame_img==NULL) {
+			printf("%s: Fail to create frame_shape!\n");
+			/* Go on though.... */
+		}
+	}
+
+	/* 7. change its status, if not, you can not refresh.  */
 	ebox->status=status_active;
 
-	/* 7. reset offset for txt file if fpath applys */
+	/* 8. reset offset for txt file if fpath applys */
 	//???? NOT activate ????? ((EGI_DATA_TXT *)(ebox->egi_data))->foff=0;
 
-	/* 8. refresh displaying the ebox */
+	/* 9. refresh displaying the ebox */
 	ebox->need_refresh=true; /* set for refresh */
 	ret=egi_txtbox_refresh(ebox);
 	if(ret != 0)
 	{
-		printf("egi_txtbox_activate(): WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", ret);
+		printf("%s: WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", __func__,ret);
 		return -6;
 	}
 	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is activated.\n",ebox->tag);
@@ -534,6 +548,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	char **txt=data_txt->txt;
 	int font_height;
 	int gap=data_txt->gap;
+	int rad=10;	/* radius for frame_img */
 
 	/* check symbol type */
 	if(data_txt->font)
@@ -555,7 +570,24 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         /* redefine bkimg box range, in case it changes
 	 check ebox height and font lines, then adjust the height */
 	height= ( (font_height+gap)*nl+offy)>height ? ((font_height+gap)*nl+offy) : height;
+	/* TODO: Ignore width here, width enlarging will affect bkimg mem space */
+
+	/* re_adjust frame_img */
+	if( ebox->frame_img != NULL && ebox->height != height ) {
+		egi_imgbuf_free(ebox->frame_img);
+		ebox->frame_img=egi_imgbuf_newframe( height, width,   	/* int height, int width */
+                                    ebox->frame_alpha, ebox->prmcolor,  /* alpha, color */
+	                                frame_round_rect,       	/* enum imgframe_type */
+         	                        1, &rad );                	/* 1, radius, int pn, int *param */
+		if(ebox->frame_img==NULL) {
+			printf("%s: Fail to adjust frame_img!\n",__func__);
+			/* Go on though.... */
+		}
+	}
+
+	/* assign new height */
 	ebox->height=height;
+
 
    /* ------ restore bkimg and buffer new bkimg
      ONLY IF:
@@ -567,6 +599,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )
            || (ebox->prmcolor<0)  )
    {
+
 #if 0 /* DEBUG */
 	EGI_PDEBUG(DBG_TXT,"txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
@@ -596,27 +629,39 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
    } /* end of movable code */
 
-	/* ---- 7. refresh prime color under the symbol  before updating txt.  */
-	if(ebox->prmcolor >= 0)
+	/* 7. Draw frame_img first */
+	if( ebox->frame_img != NULL ) {
+	        egi_imgbuf_windisplay( ebox->frame_img, &gv_fb_dev, -1,     /* img, FB, subcolor */
+        	                       0, 0,                 /* int xp, int yp */
+                	               x0, y0, width, height   /* xw, yw, winw,  winh */
+                        	      );
+	}
+	/* 8. else draw other type frames/lines */
+	else
 	{
-		/* set color and draw filled rectangle */
-		fbset_color(ebox->prmcolor);
-		draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+  		/* ---- 8.1 . refresh prime color under the symbol  before updating txt.  */
+		if(ebox->prmcolor >= 0)
+		{
+			/* set color and draw filled rectangle */
+			fbset_color(ebox->prmcolor);
+			draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+		}
+
+		/* --- 8.2 draw frame according to its type  --- */
+		if(ebox->frame >= 0) /* 0: simple type */
+		{
+			fbset_color(0); /* use black as frame color  */
+			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+
+			if(ebox->frame == 1) /* draw double line */
+				draw_rect(&gv_fb_dev,x0+1,y0+1,x0+width-2,y0+height-2);
+
+			if(ebox->frame == 2) /* draw inner double line */
+				draw_rect(&gv_fb_dev,x0+3,y0+3,x0+width-3,y0+height-3);
+		}
+		/* TODO: other type of frame ....., alpha controled imagbuf for backgroup shape */
 	}
 
-	/* --- 8. draw frame according to its type  --- */
-	if(ebox->frame >= 0) /* 0: simple type */
-	{
-		fbset_color(0); /* use black as frame color  */
-		draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
-
-		if(ebox->frame == 1) /* draw double line */
-			draw_rect(&gv_fb_dev,x0+1,y0+1,x0+width-2,y0+height-2);
-
-		if(ebox->frame == 2) /* draw inner double line */
-			draw_rect(&gv_fb_dev,x0+3,y0+3,x0+width-3,y0+height-3);
-	}
-	/* TODO: other type of frame ....., alpha controled imagbuf for backgroup shape */
 
 	/* ---- 9. if data_txt->fpath !=NULL, then re-read txt file to renew txt[][] */
 
@@ -941,8 +986,10 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 	int i;
 	int nl=data_txt->nl;
 
-	if(data_txt->filo_off !=NULL )
+	if(data_txt->filo_off !=NULL ) {
 		egi_free_filo(data_txt->filo_off);
+		data_txt->filo_off=NULL;
+	}
 
 	if( data_txt->txt != NULL)
 	{
@@ -956,13 +1003,13 @@ void egi_free_data_txt(EGI_DATA_TXT *data_txt)
 		}
 		free(data_txt->txt);
 		data_txt->txt=NULL;
-
-		free(data_txt);
-		data_txt=NULL;
 	}
 
 	/* data_txt->utxt is referred from elsewhere. Do not free it here! */
+	data_txt->utxt=NULL;
 
+	free(data_txt);
+	data_txt=NULL;
 }
 
 #if 0

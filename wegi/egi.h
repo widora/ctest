@@ -212,8 +212,15 @@ struct egi_element_box
 	 <0: no frame
 	 =0: simple type
 	 >0: TBD
+	IF >=100:  100+imgframe_type, shape applied!
 	*/
 	int  frame;
+	/*  Usually for cutout shape of a frame, also can be a background image.
+	 *  Activated only frame>=100.
+	 *  Currently only applied for TXT type ebox
+	 */
+	EGI_IMGBUF* frame_img;
+	unsigned char frame_alpha;
 
 	/* prime box color
 	   >=0 normal 16bits color;
@@ -343,6 +350,7 @@ struct egi_data_txt
 	int offy;
 	uint16_t color; /* txt color */
 	int nl;  	/* number of txt lines, make it as big as possible?? */
+
 
 	/* for ASCII alphabet txt */
 	struct symbol_page *font;

@@ -44,7 +44,7 @@ Note:
      3. !!!! It will segmentfault if you try to dereference pimgbuf when it'is NULL. !!!
 
 @offx, offy: 		offset from host ebox left top
-@**pimgbuf:		image buffer for data_pic, if NULL, call egi_imgbuf_new()
+@**pimgbuf:		image buffer for data_pic, if NULL, call egi_imgbuf_alloc()
 			and egi_imgbuf_init() with default H*W=60*120
 			*pimgbuf will be reset to NULL, as ownership transfered to
 			data_pic->imgbuf.
@@ -81,11 +81,11 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
     if(pimgbuf==NULL || *pimgbuf==NULL)
     {
 	/* malloc a EGI_IMGBUF struct */
-	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): input imgbuf==NULL, egi_imgbuf_new()...\n");
-	eimg =egi_imgbuf_new(); /* calloc */
+	EGI_PDEBUG(DBG_PIC,"egi_picdata_new(): input imgbuf==NULL, egi_imgbuf_alloc()...\n");
+	eimg =egi_imgbuf_alloc(); /* calloc */
 	if(eimg == NULL)
         {
-                printf("egi_picdata_new(): egi_imgbuf_new() fails.\n");
+                printf("egi_picdata_new(): egi_imgbuf_alloc() fails.\n");
 		return NULL;
 	}
 

@@ -56,6 +56,13 @@ else
 	$(CC) -o test_txt test_txt.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
 
+test_img:	test_img.c
+ifeq ($(EGILIB),static)
+	$(CC) test_img.c -o test_img  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+else
+	$(CC) -o test_img test_img.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+endif
 
 test_bigiot:	test_bigiot.c  $(OBJ_IOT)
 	$(CC) test_bigiot.c -o test_bigiot $(OBJ_IOT) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
