@@ -3,11 +3,12 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+NOTE: Try not to use EGI_PDEBUG() here!
+
 EGI_IMGBUF functions
 
 Midas Zhou
 -------------------------------------------------------------------*/
-
 
 #include <pthread.h>
 #include "egi_image.h"
@@ -170,6 +171,98 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 	return imgbuf;
 }
 
+
+/*-----------------------------------------------------------
+Set/create a frame for an EGI_IMGBUF.
+The frame are formed by different patterns of alpha
+values.
+Note:
+1. Usually the frame is to be used as cutout_shape of a image.
+2. If input eimg has no data of alpha value, then allocate
+   and assign with 255 for all pixels, if input alpha<0.
+
+@eimg:		An EGI_IMGBUF holding pixel colors.
+@type:          type/shape of the frame.
+@alpha:		reset alpha value for all pixels, applied only >=0.
+@pn:            numbers of paramters
+@param:         array of params
+
+Return:
+        0      OK
+        <0     Fail
+---------------------------------------------------------*/
+int egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
+			 int alpha, int pn, const int *param )
+{
+	int i,j;
+
+	if( pn<1 || param==NULL ) {
+		printf("%s: Input param invalid!\n",__func__);
+		return -1;
+	}
+	if( eimg==NULL || eimg->imgbuf==NULL ) {
+		printf("%s: Invali input eimg!\n",__func__);
+		return -1;
+	}
+
+	int height=eimg->height;
+	int width=eimg->width;
+
+	/* allocate alpha if NULL, and set alpha value */
+	if( eimg->alpha == NULL ) {
+		eimg->alpha=calloc(1, height*width*sizeof(unsigned char));
+		if(eimg->alpha==NULL) {
+			printf("%s: Fail to calloc eimg->alpha!\n",__func__);
+			return -2;
+		}
+		/* set alpha value */
+		if( alpha<0 )  /* all set to 255 */
+			memset( eimg->alpha, 255, height*width );
+		else
+			memset( eimg->alpha, alpha, height*width );
+	}
+	else {  /* reset alpha, if input alpha >=0  */
+		if ( alpha >=0 )
+			memset( eimg->alpha, alpha, height*width );
+	}
+
+	/*  --- edit alpha value to create a frame --- */
+	/* 1. Rectangle with 4 round corners */
+	if(type==frame_round_rect)
+	{
+		int rad=param[0];
+		int ir;
+
+		/* adjust radius */
+		if( rad < 0 )rad=0;
+		if( rad > height/2 ) rad=height/2;
+		if( rad > width/2 ) rad=width/2;
+
+		/* cut out 4 round corners */
+		for(i=0; i<rad; i++) {
+		        ir=rad-round(sqrt(rad*rad*1.0-(rad-i)*(rad-i)*1.0));
+			for(j=0; j<ir; j++) {
+				/* upp. left corner */
+				*(eimg->alpha+i*width+j)=0; /* set alpha 0 at corner */
+				/* upp. right corner */
+				*(eimg->alpha+((i+1)*width-1)-j)=0;
+				/* down. left corner */
+				*(eimg->alpha+(height-1-i)*width+j)=0;
+				/* down. right corner */
+				*(eimg->alpha+(height-i)*width-1-j)=0;
+			}
+		}
+	}
+	/* TODO: other types */
+	else {
+		/* Original rectangle shape  */
+	}
+
+	return 0;
+}
+
+
+
 /*--------------------------------------------------------
 Create a new imgbuf with certain shape/frame.
 The frame are formed by different patterns of alpha
@@ -186,22 +279,23 @@ Return:
 	A pointer to an EGI_IMGBUF	OK
 	NULL				Fail
 ---------------------------------------------------------*/
-EGI_IMGBUF *egi_imgbuf_newframe( int height, int width,
+EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 				 unsigned char alpha, EGI_16BIT_COLOR color,
 				 enum imgframe_type type,
 				 int pn, const int *param )
 {
 	int i,j;
 
-	if( pn<1 || param==NULL ) {
-		printf("%s: Input param invalid!\n",__func__);
-		return NULL;
-	}
+//	if( pn<1 || param==NULL ) {
+//		printf("%s: Input param invalid!\n",__func__);
+//		return NULL;
+//	}
 
 	EGI_IMGBUF *imgbuf=egi_imgbuf_create(height, width, alpha, color);
 	if(imgbuf==NULL)
 		return NULL;
 
+#if 0 ////////////////////////////////////////////////////////////////////////
 	if(type==frame_round_rect)	/* Rectangle with 4 round angles */
 	{
 		int rad=param[0];
@@ -225,16 +319,20 @@ EGI_IMGBUF *egi_imgbuf_newframe( int height, int width,
 				*(imgbuf->alpha+(height-i)*width-1-j)=0;
 			}
 		}
-
 	}
 	/* TODO: other types */
 	else {
 		/* Original rectangle shape  */
 	}
+#endif ////////////////////////////////////////////////////////////////////
+
+	if( egi_imgbuf_setframe(imgbuf, type, alpha, pn, param ) !=0 ) {
+		printf("%s: Frame imgbuf created, but fail to set frame type!\n",__func__);
+		/* Go on anyway....*/
+	}
 
 	return imgbuf;
 }
-
 
 
 /*------------------------------------------------------------------------------

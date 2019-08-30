@@ -187,6 +187,7 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 		fr_dev->buffer[i]=NULL;
 	}
 
+#if 0
         printf(" \n--- Virtal FB Parameters ---\n");
         printf(" bits_per_pixel: %d bits \n",		fr_dev->vinfo.bits_per_pixel);
         printf(" line_length: %d bytes\n",		fr_dev->finfo.line_length);
@@ -194,6 +195,7 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
         printf(" xoffset: %d,  yoffset: %d \n", 	fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
         printf(" screensize: %ld bytes\n", 		fr_dev->screensize);
         printf(" ----------------------------\n\n");
+#endif
 
 	return 0;
 }

@@ -530,8 +530,8 @@ static void update_weathericon(EGI_PAGE *page)
 
 	/* allocate eimg, the ownership will be deprived by egi_picbox_renewimg() later */
 	if(eimg==NULL) {
-//		printf("eimg=egi_imgbuf_new()!\n");
-		eimg=egi_imgbuf_new();
+//		printf("eimg=egi_imgbuf_alloc()!\n");
+		eimg=egi_imgbuf_alloc(); //new()
 	}
 
         /* load weather icon png file */
@@ -540,8 +540,8 @@ static void update_weathericon(EGI_PAGE *page)
 		goto SLEEP_WAITING;
         }
 	else{
-		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
-							eimg->height, eimg->width);
+//		printf("%s: Succeed to load PNG icon: height=%d, width=%d \n",__func__,
+//							eimg->height, eimg->width);
 
 		/* get subimg number */
 		subnum=eimg->height/60;
@@ -554,7 +554,7 @@ static void update_weathericon(EGI_PAGE *page)
 	}
 
 	/* TEST HERE <---------- init Virt FB */
-	picimg=egi_imgbuf_new();
+	picimg=egi_imgbuf_alloc();//new();
 	egi_imgbuf_init(picimg,60,240);
 	init_virt_fbdev(&vfb, picimg);
 
@@ -577,7 +577,7 @@ static void update_weathericon(EGI_PAGE *page)
 	release_virt_fbdev(&vfb);
 
 SLEEP_WAITING:
-	printf("%s: Start Delay or Sleep ....\n",__func__);
+//	printf("%s: Start Delay or Sleep ....\n",__func__);
 	egi_sleep(0,3,0); /* 3s */
 
 	/* handler for signal_suspend, If get suspend_signal,wait until runner_cond comes.

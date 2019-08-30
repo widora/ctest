@@ -28,7 +28,9 @@ void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int 		egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_16BIT_COLOR color );
-EGI_IMGBUF*	egi_imgbuf_newframe( int height, int width,
+int 		egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
+                         	     int alpha, int pn, const int *param );
+EGI_IMGBUF*	egi_imgbuf_newFrameImg( int height, int width,
                 	             unsigned char alpha, EGI_16BIT_COLOR color,
                         	     enum imgframe_type type,
                                      int pn, const int *param );

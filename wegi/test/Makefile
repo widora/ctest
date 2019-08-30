@@ -26,7 +26,8 @@ LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
+APPS =  test_fb test_sym tmp_app test_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
+APPS += test_txt test_img
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic

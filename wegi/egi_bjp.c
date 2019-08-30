@@ -414,6 +414,11 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	int bytpp=2; /* bytes per pixel, 16bits color only */
 	int i,j;
 
+	if(egi_imgbuf==NULL) {
+		printf("%s: Input egi_imgbuf is NULL!\n",__func__);
+		return -1;
+	}
+
 	/* open jpg and get parameters */
 	imgbuf=open_jpgImg(fpath,&width,&height,&components);
 	if(imgbuf==NULL) {
@@ -428,7 +433,9 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 return -2;
         }
 
-	/* prepare image buffer */
+	/* clear old data if any, and reset params */
+	egi_imgbuf_cleardata(egi_imgbuf);
+
 	egi_imgbuf->height=height;
 	egi_imgbuf->width=width;
 	EGI_PDEBUG(DBG_BJP,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
@@ -475,7 +482,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 
 
 /*------------------------------------------------------------------------
-Allocate memory for a EGI_IMGBUF, and read PNG image data and load to it,
+Clear old data in an EGI_IMGBUF, and read PNG image data and load to it,
 by calling libpng.
 
 fpath:		PNG file path
@@ -777,7 +784,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 	//printf("png_init_io...\n");
 	png_init_io(png_ptr, fp);
 
-	/* set image informate */
+	/* set image format */
 	//printf("png_set_IHDR..\n");
 	png_set_IHDR(png_ptr, info_ptr, width, height, bit_depth, color_type, PNG_INTERLACE_NONE,
 		 	PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);

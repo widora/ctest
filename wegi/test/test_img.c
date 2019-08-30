@@ -43,13 +43,29 @@ int main(void)
                 return -1;
 
 
-int rad=10;
-EGI_IMGBUF* eimg;
-show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+int rad=200;
+EGI_IMGBUF* pimg=NULL;
+EGI_IMGBUF* eimg=NULL;
+
 
 do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
 
-        eimg=egi_imgbuf_newframe( 80, 180,		  /* int height, int width */
+	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+
+	pimg=egi_imgbuf_alloc();
+	egi_imgbuf_loadjpg("/tmp/fish.jpg", pimg);
+
+	egi_imgbuf_setframe( pimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
+ 	                     -1, 1, &rad );		/*  init alpha, int pn, const int *param */
+
+	egi_imgbuf_windisplay( pimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+                               0, 0,   				/* int xp, int yp */
+			       0, 0, pimg->width, pimg->height   /* xw, yw, winw,  winh */
+			      );
+
+
+#if 0
+        eimg=egi_imgbuf_newFrameImg( 80, 180,		  /* int height, int width */
                           	  255, egi_color_random(color_medium), /* alpha, color */
 				  frame_round_rect,	  /* enum imgframe_type */
                                	  1, &rad );		  /* int pn, int *param */
@@ -58,11 +74,19 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
                                0, 0,   				/* int xp, int yp */
 			       30,30, eimg->width, eimg->height   /* xw, yw, winw,  winh */
 			      );
-	tm_delayms(100);
+#endif
+
+
+	tm_delayms(2000);
 
 	egi_imgbuf_free(eimg);
+	egi_imgbuf_free(pimg);
+
 
 }while(1); ////////////////////////////    LOOP TEST   /////////////////////////////////
+
+
+
 
         /* <<<<<  EGI general release >>>>> */
         printf("FTsymbol_release_allfonts()...\n");

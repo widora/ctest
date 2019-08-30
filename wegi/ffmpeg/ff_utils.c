@@ -172,9 +172,9 @@ void* thdf_Display_Pic(void * argv)
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
 
-   EGI_IMGBUF *imgbuf=egi_imgbuf_new();
+   EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); //new();
    if(imgbuf==NULL) {
-	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_new_imgbuf().\n",__func__);
+	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc().\n",__func__);
 	return (void *)-1;
    }
 
@@ -627,6 +627,10 @@ void*  ff_display_spectrum(void *argv)
                         sdy[i]=dylimit;
         }
 #endif
+
+	/* linear decrease sdy[0]-sdy[7] */
+	for(i=0; i<8; i++)
+		sdy[i]=dybase-( ((i+9)*(dybase-sdy[i]))>>4 ); /*  (i+9)/16,  ratio: 9/16 -> 16/16 */
 
 	/* Apply 4 points average filter for sdy[], to smooth spectrum diagram. */
 	for(i=0; i<ns-(4-1); i++) {

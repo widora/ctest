@@ -147,9 +147,11 @@ void egi_stockchart(EGI_PAGE *page)
         init_fbdev(&fb_dev);
 
 	/* clear areana */
+#if 0
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&fb_dev,0,30,240-1,chart_y0+wh);
 	//clear_screen(&fb_dev,WEGI_COLOR_BLACK);
+#endif
 
 	/* draw grids */
 	fbset_color(WEGI_COLOR_GRAY3);
@@ -518,6 +520,8 @@ while(1)
 	/* 3.1 INDEX or STOCK name */
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_CYAN,
                                         	1, 60, 5 ,sname, -1); /* transpcolor, x0,y0, str */
+
+
 	/* 3.2 fbench value */
 	sprintf(strdata,"%0.2f",fbench);
         symbol_string_writeFB(&fb_dev, &sympg_testfont, WEGI_COLOR_GRAY3,

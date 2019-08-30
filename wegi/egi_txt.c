@@ -455,7 +455,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 
 	/* 6. initiate frame_img if frame>100 and prmcolor >=0 */
 	if( ebox->frame >100 && ebox->prmcolor>=0 ) {
-		ebox->frame_img=egi_imgbuf_newframe( height, width,   	   /* int height, int width */
+		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,   	   /* int height, int width */
                                   	ebox->frame_alpha, ebox->prmcolor, /* alpha, color */
 	                                frame_round_rect,       	   /* enum imgframe_type */
          	                        1, &rad );                	   /* 1, radius, int pn, int *param */
@@ -529,7 +529,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
+//		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -575,7 +575,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* re_adjust frame_img */
 	if( ebox->frame_img != NULL && ebox->height != height ) {
 		egi_imgbuf_free(ebox->frame_img);
-		ebox->frame_img=egi_imgbuf_newframe( height, width,   	/* int height, int width */
+		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,   	/* int height, int width */
                                     ebox->frame_alpha, ebox->prmcolor,  /* alpha, color */
 	                                frame_round_rect,       	/* enum imgframe_type */
          	                        1, &rad );                	/* 1, radius, int pn, int *param */
