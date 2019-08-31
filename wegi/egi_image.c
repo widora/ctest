@@ -146,8 +146,10 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 Create an EGI_IMGBUF, set color and alpha value.
 
 @height,width:	height and width of the imgbuf.
-@alpha:		alpha value for all pixels.
-@color:		basic color of the imgbuf.
+@alpha:		>0, alpha value for all pixels.
+		(default 0)
+@color:		>0 basic color of the imgbuf.
+		(default 0)
 
 -------------------------------------------------------*/
 EGI_IMGBUF *egi_imgbuf_create( int height, int width,
@@ -164,9 +166,12 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 		return NULL;
 
 	/* set alpha and color */
-	memset( imgbuf->alpha, alpha, height*width );
-	for(i=0; i< height*width; i++)
-		*(imgbuf->imgbuf+i)=color;
+	if(alpha>0)     /* alpha default calloced as 0 already */
+		memset( imgbuf->alpha, alpha, height*width );
+	if(color>0) {   /* color default calloced as 0 already */
+		for(i=0; i< height*width; i++)
+			*(imgbuf->imgbuf+i)=color;
+	}
 
 	return imgbuf;
 }
@@ -286,45 +291,9 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 {
 	int i,j;
 
-//	if( pn<1 || param==NULL ) {
-//		printf("%s: Input param invalid!\n",__func__);
-//		return NULL;
-//	}
-
 	EGI_IMGBUF *imgbuf=egi_imgbuf_create(height, width, alpha, color);
 	if(imgbuf==NULL)
 		return NULL;
-
-#if 0 ////////////////////////////////////////////////////////////////////////
-	if(type==frame_round_rect)	/* Rectangle with 4 round angles */
-	{
-		int rad=param[0];
-		int ir;
-
-		if( rad < 0 )rad=0;
-		if( rad > height/2 ) rad=height/2;
-		if( rad > width/2 ) rad=width/2;
-
-		/* cut out 4 round corners */
-		for(i=0; i<rad; i++) {
-		        ir=rad-round(sqrt(rad*rad*1.0-(rad-i)*(rad-i)*1.0));
-			for(j=0; j<ir; j++) {
-				/* upp. left corner */
-				*(imgbuf->alpha+i*width+j)=0; /* set alpha 0 at corner */
-				/* upp. right corner */
-				*(imgbuf->alpha+((i+1)*width-1)-j)=0;
-				/* down. left corner */
-				*(imgbuf->alpha+(height-1-i)*width+j)=0;
-				/* down. right corner */
-				*(imgbuf->alpha+(height-i)*width-1-j)=0;
-			}
-		}
-	}
-	/* TODO: other types */
-	else {
-		/* Original rectangle shape  */
-	}
-#endif ////////////////////////////////////////////////////////////////////
 
 	if( egi_imgbuf_setframe(imgbuf, type, alpha, pn, param ) !=0 ) {
 		printf("%s: Frame imgbuf created, but fail to set frame type!\n",__func__);
@@ -333,6 +302,78 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 
 	return imgbuf;
 }
+
+
+/*-----------------------------------------------------------------
+To soft/blur the image by averaging pixel colors/alpha.
+
+@eimg:	object image.
+@size:  number of pixels taken to average.
+
+Return:
+	A pointer to a new EGI_IMGBUF	OK
+	NULL				Fail
+------------------------------------------------------------------*/
+EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size)
+{
+	int i,j,k;
+	EGI_16BIT_COLOR color;
+	unsigned int avgR,avgG,avgB,avgALPHA;
+	int height, width;
+
+	if( ineimg==NULL || ineimg->imgbuf==NULL || size<=0 )
+		return NULL;
+
+	height=ineimg->height;
+	width=ineimg->width;
+
+	/* adjust size */
+	if(size>width/2)
+		size=width/2;
+
+	/* create output imgbuf */
+	EGI_IMGBUF *outeimg= egi_imgbuf_create( height, width, 255, 0);
+	if(outeimg==NULL)
+		return NULL;
+
+	/* average color */
+	for(i=0; i< height; i++) {
+		/* fore half, avg from right */
+		for(j=0; j< width/2; j++) {
+			avgR=0; avgG=0; avgB=0; avgALPHA=0;
+			for(k=0; k<size; k++) {
+				color = ineimg->imgbuf[i*width+j+k];
+				avgR += ((color&0xF800)>>8);
+				avgG += ((color&0x7E0)>>3);
+				avgB += ((color&0x1F)<<3);
+				if(ineimg->alpha)
+					avgALPHA += ineimg->alpha[i*width+j+k];
+			}
+			outeimg->imgbuf[i*width+j]=COLOR_RGB_TO16BITS(avgR/size, avgG/size, avgB/size);
+			if(ineimg->alpha)
+				outeimg->alpha[i*width+j]=avgALPHA/size;
+		}
+		/* end half, avg from left */
+		for(j=width-1; j>=width; j--) {
+			avgR=0; avgG=0; avgB=0;	avgALPHA=0;
+			for(k=0; k<size; k++) {
+				color = ineimg->imgbuf[i*width+j-k];
+				avgR += ((color&0xF800)>>8);
+				avgG += ((color&0x7E0)>>3);
+				avgB += ((color&0x1F)<<3);
+				if(ineimg->alpha)
+					avgALPHA += ineimg->alpha[i*width+j-k];
+			}
+			outeimg->imgbuf[i*width+j]=COLOR_RGB_TO16BITS(avgR/size, avgG/size, avgB/size);
+			if(ineimg->alpha)
+				outeimg->alpha[i*width+j]=avgALPHA/size;
+		}
+	}
+
+
+	return outeimg;
+}
+
 
 
 /*------------------------------------------------------------------------------

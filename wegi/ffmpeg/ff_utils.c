@@ -481,9 +481,8 @@ static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
 }
 
 
-
-#define FFT_POINTS 1024
-static int	fft_nx[FFT_POINTS];	/* PCM format S16 ,TODO: dynamic allocation */
+#define 	FFT_POINTS 1024
+static int	fft_nx[FFT_POINTS];	/* PCM format S16, TODO: dynamic allocation */
 static bool	FFTdata_ready=false;
 
 /*--------------------------------------------------------
@@ -505,7 +504,8 @@ void ff_load_FFTdata(void ** buffer, int nf)
 		if(nf>FFT_POINTS)
 			nf=FFT_POINTS;
 	       	for(i=0; i<nf; i++) {
-        	        fft_nx[i]=((int16_t **)buffer)[0][i]>>4;  /* trim amplitude to Max 2^11 */
+			/* Arithmetical shifting, trim amplitude to Max 2^11 */
+        	        fft_nx[i]=((int16_t **)buffer)[0][i]>>4;
 	       	}
 
 		FFTdata_ready=true;
@@ -513,8 +513,13 @@ void ff_load_FFTdata(void ** buffer, int nf)
 }
 
 
-/*--------------------------------------------------------------
+/*--------------------------------------------------------------------
 Display audio data spectrum.
+
+Note:
+1. Now only for 44100 sample rate pcm data,format noninterleaved S16.
+2. Max value of S16 PCM data is trimmed to be Max.2^11, to prevent
+   egiFFFT() overflow.
 
 @buffer:	PCM data buffer
 		Supposed to be noninterleaved, format S16L.
@@ -524,7 +529,7 @@ Note:
 	1. 1024 points FFT inside, if nf<1024, paddled with 0.
 	2. FBDEV *fbdev shall be initialized by the caller.
 	3. wang is NOT freed in the funciont!
----------------------------------------------------------------*/
+---------------------------------------------------------------------*/
 void*  ff_display_spectrum(void *argv)
 {
 	int i,j;
@@ -597,7 +602,7 @@ void*  ff_display_spectrum(void *argv)
 	/* fs=44,1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
  	for(i=0; i<ns; i++) {
         	/* map sound wave amplitude to sdy[] */
-		if(i<4) {  /* +1 to depress low frequency amplitude, since most of audio wave energy is
+		if(i<8) {  /* +1 to depress low frequency amplitude, since most of audio wave energy is
 			      at low frequency band. */
 		   #if 1  /* 16 point average */
 			sdy[i]=0;

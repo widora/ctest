@@ -15,6 +15,7 @@ Based on:
 
 
 TODO:
+0. Only for 1 or 2 channels audio data.
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
    It dosen't work for ACC_LC decoding, lots of float point operations.
 
@@ -34,6 +35,8 @@ TODO:
 NOTE:
 1.  A simpley example of opening a media file/stream then decode frames and send RGB data to LCD for display.
     Files without audio stream can also be played, or audio files.
+A.  IF input audio(mp3) sample rate is not 44100, then use SWR to covert it.
+B.  Assume all output pcm data is nonintervealed type. (except FLTP format ?).
 2.  Decode audio frames and playback by alsa PCM.
 3.  DivX(DV50) is better than Xdiv. Especially in respect to decoded audio/video synchronization,
     DivX is nearly perfect.
@@ -387,6 +390,8 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int			nb_channels;
 	int			bytes_per_sample;
 	int64_t			channel_layout;
+	char			nchanstr=256;
+	char			chanlayout_string[256];
 	int 			bytes_used;
 	int			got_frame;
 	struct SwrContext		*swr=NULL; /* AV_SAMPLE_FMT_FLTP format conversion */
@@ -679,15 +684,22 @@ if(disable_audio && audioStream>=0 )
 		bytes_per_sample = av_get_bytes_per_sample(sample_fmt);
 		nb_channels = aCodecCtx->channels;
 		channel_layout = aCodecCtx->channel_layout;
+		av_get_channel_layout_string(chanlayout_string, nchanstr, nb_channels, channel_layout);
 		EGI_PDEBUG(DBG_FFPLAY,"		frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
 		EGI_PDEBUG(DBG_FFPLAY,"		channel_layout=%lld\n",channel_layout);//long long int type
+		EGI_PDEBUG(DBG_FFPLAY,"			   %s\n", chanlayout_string);
 		EGI_PDEBUG(DBG_FFPLAY,"		nb_channels=%d\n",nb_channels);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
 		EGI_PDEBUG(DBG_FFPLAY,"		bytes_per_sample: %d\n",bytes_per_sample);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample_rate=%d\n",sample_rate);
 
-		/* prepare SWR context for FLTP format conversion */
-		if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
+		if( nb_channels > 2 ) {
+			EGI_PDEBUG(DBG_FFPLAY," !!! Number of audio channels is %d >2, not supported!\n",nb_channels);
+			goto FAIL_OR_TERM;
+		}
+
+		/* prepare SWR context for FLTP format conversion, WARN: float points operations!!!*/
+		if(sample_fmt == AV_SAMPLE_FMT_FLTP ) {
 			/* set out sample rate for ffplaypcm */
 			out_sample_rate=44100;
 
@@ -743,8 +755,42 @@ if(disable_audio && audioStream>=0 )
 		}
 		else
 		{
-			/* open pcm play device and set parameters */
- 			if( prepare_ffpcm_device(nb_channels,sample_rate,false) !=0 ) /* false for noninterleaved access */
+			/*  Use SWR to convert out sample rate to 44100  ...*/
+			if( sample_rate != 44100 ) {
+				EGI_PDEBUG(DBG_FFPLAY,"Sample rate is NOT 44.1k, try to convert...\n");
+				out_sample_rate=44100;
+				swr=swr_alloc();
+				av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
+				av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
+				av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
+				av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
+				av_opt_set_sample_fmt(swr, "in_sample_fmt",   sample_fmt, 0);
+				av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+				EGI_PDEBUG(DBG_FFPLAY,"Start swr_init() ...\n");
+				swr_init(swr);
+
+				/* alloc outputBuffer */
+				EGI_PDEBUG(DBG_FFPLAY,"malloc outputBuffer ...\n");
+				outputBuffer=malloc( nb_channels*frame_size*bytes_per_sample);
+				if(outputBuffer == NULL)
+		       	 	{
+					EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
+					return (void *)-1;
+				}
+
+				/* open pcm play device and set parameters */
+ 				if( prepare_ffpcm_device(nb_channels,out_sample_rate,false) !=0 ) /* 'true' for interleaved access */
+				{
+					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
+											__func__);
+					goto FAIL_OR_TERM;
+				}
+
+			}
+			/* END sample rate convert to 44100 */
+
+			/* Directly open pcm play device and set parameters */
+ 			else if ( prepare_ffpcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
 											__func__);
@@ -1362,19 +1408,47 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
+						else if( outputBuffer )  {  /* SWR ON,  if sample_rate != 44100 */
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+						}
 						else {
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
-							/* FFT handling */
-							if( pthd_audioSpectrum_running ) {
-								ff_load_FFTdata(  (void **)pAudioFrame->data,
-										  aCodecCtx->frame_size
-										);
-							}
 						}
+
 					}
 					else if(pAudioFrame->data[0]) {  /* one channel only */
-						 play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
+						 //printf("One channel only\n");
+						if(sample_rate != 44100) {
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+						}
+						/* direct output */
+						else {
+						        play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
+						}
+
 					}
+
+					/*    ---- 1024 points FFT displaying handling ----
+					 *   Note:
+					 *     1. For sample rate 44100 only, noninterleaved.
+					 *     2. If channle >=2, framesize must > 1024, or two channel PCM 
+					 *	  data will be interfered.
+					 */
+					if( pthd_audioSpectrum_running ) {
+					        if( outputBuffer )  {     /* SWR ON, if sample_rate != 44100 */
+							ff_load_FFTdata(  (void **)&outputBuffer,
+									  aCodecCtx->frame_size   );
+						}
+						else {				/* direct data */
+							ff_load_FFTdata(  (void **)pAudioFrame->data,
+									  aCodecCtx->frame_size   );
+						}
+					}
+
 
 					/* print audio playing time, only if no video stream */
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
@@ -1521,13 +1595,11 @@ FAIL_OR_TERM:
 			EGI_PDEBUG(DBG_FFPLAY,"Try to join subtitle displaying thread ...\n");
 	                control_cmd = cmd_exit_subtitle_thread;
 			pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
+			pthd_subtitle_running=false; /* reset token */
 		}
 
 		control_cmd = cmd_none;/* call off command */
-
-		/* free PICbuffs */
-		//EGI_PDEBUG(DBG_FFPLAY,"Free PICbuffs[]...\n");
-        	//freed by pthd_displayPic()...  //free_PicBuffs();
+		pthd_displayPic_running=false; /* reset token */
 	}
 
 	/* Free the YUV frame */
@@ -1566,6 +1638,7 @@ FAIL_OR_TERM:
 			control_cmd = cmd_exit_audioSpectrum_thread;
 			pthread_join(pthd_audioSpectrum,NULL);
 			control_cmd = cmd_none;/* call off command */
+			pthd_audioSpectrum_running=false; /* reset token */
 		}
 	}
 
@@ -1632,7 +1705,7 @@ if(enable_avfilter) /* free filter resources */
 	EGI_PDEBUG(DBG_FFPLAY,"Playing %s cost time: %d ms\n",fpath[fnum_playing],
 									tm_signed_diffms(tm_start,tm_end) );
 
-	EGI_PLOG(LOGLV_INFO,"%s: End of playing file %s\n", __func__, fpath[fnum_playing]);
+	EGI_PDEBUG(DBG_FFPLAY," \n ---( End of playing file %s )--- \n",fpath[fnum_playing]);
 
 	/* sleep, to let sys release cache ....???? */
 	tm_delayms(1000);
@@ -1646,7 +1719,7 @@ if(enable_avfilter) /* free filter resources */
   {
 	break;
   }
-  EGI_PDEBUG(DBG_FFPLAY,"<<<<<  Finish one round of playing all files, go back to start a new round...  >>>>\n\n\n");
+  EGI_PDEBUG(DBG_FFPLAY," \n----( End of Playing One Complete Round )--- \n\n\n\n\n");
 
 } /* end of while(1), eternal loop. */
 

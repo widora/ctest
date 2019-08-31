@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 	} else {
 		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
 	}
-	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png") ) {
+	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
 		return pgret_ERR;
 	}
