@@ -62,7 +62,7 @@ while(1) {    ////////////////////////////    LOOP TEST    /////////////////////
 #if 0 /* <<<<<<<<<<< TEST: virtual FB functions (1)  <<<<<<<<<<<<< */
 	/* init a virtal FB */
 	printf("load PNG to imgbuf...\n");
-        eimg=egi_imgbuf_new();
+        eimg=egi_imgbuf_alloc();
         if( egi_imgbuf_loadpng("/mmc/mice.png", eimg) ) //icerock.png
                 return -1;
 
@@ -96,7 +96,7 @@ while(1) {    ////////////////////////////    LOOP TEST    /////////////////////
 
 	/* init a virtal FB */
 	printf("init an empty imgbuf...\n");
-        eimg=egi_imgbuf_new();
+        eimg=egi_imgbuf_alloc();
 	egi_imgbuf_init(eimg, 60, 240*2);
         //if( egi_imgbuf_loadpng("/mmc/lll.png", eimg) )
         //        return -1;
@@ -109,7 +109,7 @@ while(1) {    ////////////////////////////    LOOP TEST    /////////////////////
 	/* origin of png, relative to virt FB coord */
 	px=60; py=0;
 	/* blend a png onto virt FB */
-	logo1=egi_imgbuf_new();
+	logo1=egi_imgbuf_alloc();
         if( egi_imgbuf_loadpng("/mmc/shanghai_today.png",logo1) )
                 return -1;
 	egi_imgbuf_windisplay(logo1, &vfb, WEGI_COLOR_WHITE, 0, 0, px, py, logo1->width, logo1->height );
@@ -131,7 +131,7 @@ while(1) {    ////////////////////////////    LOOP TEST    /////////////////////
 	/* origin of png, relative to virt FB coord */
 	px=60+240; py=0;
 	/* blend a png onto virt FB */
-	logo2=egi_imgbuf_new();
+	logo2=egi_imgbuf_alloc();
         if( egi_imgbuf_loadpng("/mmc/zhoushan_today.png",logo2) )
                 return -1;
 	egi_imgbuf_windisplay(logo2, &vfb, WEGI_COLOR_WHITE, 0, 0, px, py, logo2->width, logo2->height );

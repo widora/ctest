@@ -69,7 +69,7 @@ while(1) {
    {
 	printf("---------- loading '%s' -----------\n", fpaths[i]);
 
-	imgbuf=egi_imgbuf_new();
+	imgbuf=egi_imgbuf_alloc();
 	/* load jpg file to buf */
 	if(egi_imgbuf_loadjpg(fpaths[i], imgbuf) !=0) {
 		printf("Load JPG imgbuf fail, try egi_imgbuf_loadpng()...\n");

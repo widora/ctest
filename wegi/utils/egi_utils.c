@@ -234,7 +234,7 @@ void egi_free_buff2D(unsigned char **buff, int items)
 	/* free buff items and buff */
 	if( buff == NULL)
 	{
-		printf("egi_free_buff2D(): Input buff is already a NULL!\n");
+		//printf("egi_free_buff2D(): Input buff is already a NULL!\n");
 		return;
 	}
 	else

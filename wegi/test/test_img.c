@@ -17,7 +17,7 @@ int main(void)
 {
 	int i,j,k;
 	int ret;
-
+	int blur_size;
 
         /* <<<<<  EGI general init  >>>>>> */
 #if 1
@@ -46,21 +46,38 @@ int main(void)
 int rad=200;
 EGI_IMGBUF* pimg=NULL;
 EGI_IMGBUF* eimg=NULL;
+EGI_IMGBUF* softimg=NULL;
+
+show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+
+pimg=egi_imgbuf_alloc();
+//egi_imgbuf_loadjpg("/tmp/fish.jpg", pimg);
+egi_imgbuf_loadpng("/tmp/test.png", pimg);
+
+
+blur_size=31;
 
 
 do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
 
-	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+	blur_size -=2;
+	if(blur_size <= 0) {
+		tm_delayms(3000);
+		blur_size=31;
+	}
 
-	pimg=egi_imgbuf_alloc();
-	egi_imgbuf_loadjpg("/tmp/fish.jpg", pimg);
 
-	egi_imgbuf_setframe( pimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
+	printf("blur_size=%d\n", blur_size);
+//	softimg=egi_imgbuf_avgsoft(pimg, blur_size, false); /* 2D array, soft/blur the image */
+	softimg=egi_imgbuf_avgsoft2(pimg, blur_size, false); /* 1D array,  soft/blur the image */
+
+	egi_imgbuf_setframe( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
  	                     -1, 1, &rad );		/*  init alpha, int pn, const int *param */
 
-	egi_imgbuf_windisplay( pimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+
+	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
-			       0, 0, pimg->width, pimg->height   /* xw, yw, winw,  winh */
+			       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
 			      );
 
 
@@ -74,16 +91,22 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
                                0, 0,   				/* int xp, int yp */
 			       30,30, eimg->width, eimg->height   /* xw, yw, winw,  winh */
 			      );
+
 #endif
 
 
-	tm_delayms(2000);
+//	tm_delayms(125/blur_size); //2000);
 
 	egi_imgbuf_free(eimg);
-	egi_imgbuf_free(pimg);
+	egi_imgbuf_free(softimg);
 
 
 }while(1); ////////////////////////////    LOOP TEST   /////////////////////////////////
+
+	egi_imgbuf_free(pimg);
+
+
+
 
 
 

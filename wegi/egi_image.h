@@ -23,6 +23,11 @@ enum imgframe_type {
 	frame_updown_mist,
 };
 
+/* TODO NOTE!!! 
+	1. some 'const' qualifiers may damage pthread_mutex !??!?
+	2. Necessary to use pthread mutex for EGI_IMGBUF???
+*/
+
 EGI_IMGBUF*	egi_imgbuf_alloc(void); //new(void);
 void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
@@ -34,16 +39,18 @@ EGI_IMGBUF*	egi_imgbuf_newFrameImg( int height, int width,
                 	             unsigned char alpha, EGI_16BIT_COLOR color,
                         	     enum imgframe_type type,
                                      int pn, const int *param );
-EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size);
-int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, EGI_IMGBUF *addimg );
-int 		egi_imgbuf_windisplay(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_on);  /* use 2D array data */
+EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_on); /* use 1D array data */
+
+int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );
+int 		egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
-int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 
 /* display sub_image in an EGI_IMAGBUF */
-int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
+int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
                                                         int subcolor, int x0,   int y0);
 /* reset color and alpha for all pixels */
 int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, int alpha);

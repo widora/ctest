@@ -20,6 +20,29 @@ Midas ZHou
 
 
 /*------------------------------------------------------------------
+Get average color value
+
+@colors:	array of color values
+@n		number of input colors
+
+--------------------------------------------------------------------*/
+inline EGI_16BIT_COLOR egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n)
+{
+	int i;
+	unsigned int avgR,avgG,avgB;
+
+	/* to enusre array colors is not NULL */
+	avgR=avgG=avgB=0;
+	for(i=0; i<n; i++) {
+        	avgR += ((colors[i]&0xF800)>>8);
+	        avgG += ((colors[i]&0x7E0)>>3);
+        	avgB += ((colors[i]&0x1F)<<3);
+        }
+
+        return COLOR_RGB_TO16BITS(avgR/n, avgG/n, avgB/n);
+}
+
+/*------------------------------------------------------------------
                 16bit color blend function
 Note: Ignore back alpha value.
 --------------------------------------------------------------------*/

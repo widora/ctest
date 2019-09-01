@@ -64,7 +64,7 @@ int main(void)
 
 
 #if 1 /////////////////  TEST png symbol  //////////////////
-	EGI_IMGBUF *eimg=egi_imgbuf_new();
+	EGI_IMGBUF *eimg=egi_imgbuf_alloc();
 	char *path="/mmc/heweather/100.png";
 
 	if( egi_imgbuf_loadpng(path, eimg ) !=0 ) {
