@@ -51,11 +51,43 @@ int main(int argc, char **argv)
 	EGI_POINT  pxy;
 	/* box for x0y0 range...*/
 	EGI_BOX	 box={ {0-230/2,0-130/2}, {240-230/2-1,320-130/2-1} };
-	int dex,dey; /* extended deviation */ 
+	int dex,dey; /* extended deviation */
 	//EGI_BOX  box={ {0-100,0-150},{240-1-100,320-1-150} };
 	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
 
+#if 1 //////////////////// Display one file only /////////////////////
+	imgbuf=egi_imgbuf_alloc();
+	/* load jpg file to buf */
+	if(egi_imgbuf_loadjpg(path, imgbuf) !=0) {
+		printf("Load JPG imgbuf fail, try egi_imgbuf_loadpng()...\n");
+		if(egi_imgbuf_loadpng(path, imgbuf) !=0) {
+			printf("Load PNG imgbuf fail, try egi_imgbuf_free...\n");
+			egi_imgbuf_free(imgbuf);
+			exit(0);
+		}
+		else {
+			printf("Finish loading PNG image file...\n");
+		}
+	}
+	else {
+		printf("Finish loading JPG image file...\n");
+	}
 
+	/* display */
+	printf("display imgbuf...\n");
+        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,         /* img, FB, subcolor */
+                               0, 0,                            /* int xp, int yp */
+                               0, 0, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
+                              );
+
+	/* Free it */
+	egi_imgbuf_free(imgbuf);
+
+	exit(0);
+#endif ////////////////////  end //////////////////////
+
+
+///////////// Loop to load to EBOX PIC and activate it  ///////////////
 while(1) {
 
    /* buff all jpg and png file path */

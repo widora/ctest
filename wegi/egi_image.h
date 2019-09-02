@@ -23,7 +23,7 @@ enum imgframe_type {
 	frame_updown_mist,
 };
 
-/* TODO NOTE!!! 
+/* TODO NOTE!!!
 	1. some 'const' qualifiers may damage pthread_mutex !??!?
 	2. Necessary to use pthread mutex for EGI_IMGBUF???
 */
@@ -33,13 +33,21 @@ void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int 		egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_16BIT_COLOR color );
+
 int 		egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
                          	     int alpha, int pn, const int *param );
+
 EGI_IMGBUF*	egi_imgbuf_newFrameImg( int height, int width,
                 	             unsigned char alpha, EGI_16BIT_COLOR color,
                         	     enum imgframe_type type,
                                      int pn, const int *param );
-EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_on);  /* use 2D array data */
+
+ /* use 2D array ineimg->pcolors(palphas) */
+EGI_IMGBUF  *egi_imgbuf_avgsoft( EGI_IMGBUF *ineimg, int size, bool alpha_on, bool hold_on);
+/***
+ * Function same as egi_imgbuf_avgsoft(), but without allocating  additional
+ * 2D array for color/alpha data processsing.
+ */
 EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_on); /* use 1D array data */
 
 int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );

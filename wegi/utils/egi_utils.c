@@ -242,13 +242,12 @@ void egi_free_buff2D(unsigned char **buff, int items)
 		for(i=0; i<items; i++)
 		{
 			free(buff[i]);
-			buff[i]=NULL;
+//			buff[i]=NULL;
 		}
 
 		free(buff);
 		buff=NULL;
 	}
-
 }
 
 

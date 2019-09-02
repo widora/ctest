@@ -87,6 +87,10 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	/* Hope there is no other user */
 	pthread_mutex_lock(&egi_imgbuf->img_mutex);
 
+	/* free 2D array data if any */
+        egi_free_buff2D(egi_imgbuf->pcolors, egi_imgbuf->height);
+        egi_free_buff2D(egi_imgbuf->palphas, egi_imgbuf->height);
+
 	/* free data inside */
 	egi_imgbuf_cleardata(egi_imgbuf);
 
@@ -180,16 +184,23 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 
 /*-----------------------------------------------------------
 Set/create a frame for an EGI_IMGBUF.
-The frame are formed by different patterns of alpha
-values.
+The frame are formed by different patterns of alpha values.
+
 Note:
-1. Usually the frame is to be used as cutout_shape of a image.
-2. If input eimg has no data of alpha value, then allocate
-   and assign with 255 for all pixels, if input alpha<0.
+1. Usually the frame is to be used as cutout_shape of an image.
+2. If input eimg has alpha value:
+   2.1 If input alpha >=0, then modify eimg->alpha all to alpah.
+   2.2 If input alpha <0, no change for eimg->alpha.
+3. If input eimg has no alpha value, then allocate it and:
+   3.1 If input alpha >=0, modify eimg->alpha all to be alpha
+   2.2 If input alpha <0, modify eimg->alpha all to be 255.
 
 @eimg:		An EGI_IMGBUF holding pixel colors.
 @type:          type/shape of the frame.
-@alpha:		reset alpha value for all pixels, applied only >=0.
+@alpha:		>=0: Rset all eimg->alpha to be alpha.
+		<0:  If input eimg has alpha value. no change.
+		     If input eimg has no alpha value, then allocate
+		     and assign 255 to all alpha values.
 @pn:            numbers of paramters
 @param:         array of params
 
@@ -271,8 +282,7 @@ int egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
 
 /*--------------------------------------------------------
 Create a new imgbuf with certain shape/frame.
-The frame are formed by different patterns of alpha
-values.
+The frame are formed by different patterns of alpha values.
 Usually the frame is to be used as cutout_shape of a image.
 
 @width,height   basic width/height of the frame.
@@ -305,34 +315,55 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 }
 
 
-/*---------------------------------------------------------------------------
-To soft/blur an image by averaging pixel colors/alpha.
+/*------------------------------------------------------------------------------
+To soft/blur an image by averaging pixel colors/alpha, with allocating 2D array
+to hold color/alpha data and improve sorting speed.
 
 Note:
 1. The original EGI_IMGBUF keeps intact, a new EGI_IMGBUF with modified
    color/alpha values will be created.
-2. If input ineimg has no alpha values, so will be the outeimg.
-3. Other elements in ineimg will NOT be copied to outeimg, such as
-   ineimg->subimgs and ineimg->data.
+2. If succeeds, 2D array of ineimg->pcolors and ineimg->palpha(if ineimg has alpha values)
+   will be created for ineimg!(NOT for outeimg, but for imtermediate buffer!!!)
+   and will NOT be freed here.
+
+3. !!! WARNING !!! After avgsoft, ineimg->pcolors/palphas are blured and NOT an
+   xact copy  of ineimg->imbuf any more!
+
+4. If input ineimg has no alpha values, so will the outeimg.
+5. Other elements in ineimg will NOT be copied to outeimg, such as
+   ineimg->subimgs,ineimg->pcolors, ineimg->palphas..etc.
 
 @eimg:	object image.
 @size:  number of pixels taken to average, window size of avgerage filer.
-	The greater the value, the softer/blurer the result will be.
-	size will be adjust to be Max. width/2.
-@alpha_on:  If also need to blur alpha values, only if the image has alpha value.
+	The greater the value, the more blurry the result will be.
+	size will be adjusted to be Min(width/2,height/2) if input size is greater
+	than width/2 or height/2.
+
+@alpha_on:  True:  Also need to blur alpha values, only if the image has alpha value.
+	    False: Do not blur alpha values.
+	    !!!NOTE!!!: Even if alpha_on if False, ineimg->alpha will be copied to
+	   	         outeimg->alpha if it exists.
+
+@holdon:    True: To continue to use ineimg->pcolors(palphas) as intermediate results,
+		  DO NOT re_memcpy from ineimg->imgbuf(palphas).
+	    False: Re_memcpy from ineimg->imgbuf(palphas).
 
 Return:
-	A pointer to a new EGI_IMGBUF	OK
-	NULL				Fail
+	A pointer to a new EGI_IMGBUF with blured image  	OK
+	NULL							Fail
 ------------------------------------------------------------------------------*/
-EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_on)
+EGI_IMGBUF  *egi_imgbuf_avgsoft( EGI_IMGBUF *ineimg, int size, bool alpha_on, bool hold_on)
 {
 	int i,j,k;
 	EGI_16BIT_COLOR *colors;	/* to hold colors in avg filter windown */
 	unsigned int avgALPHA;
 	int height, width;
 	EGI_IMGBUF *outeimg=NULL;
-//	bool	alpha_on=false;
+
+	/* a copy to ineimg->pcolors and palphas */
+	EGI_16BIT_COLOR **pcolors=NULL; /* WARNING!!! pointer same as ineimg->pcolors */
+	unsigned char 	**palphas=NULL; /* WARNING!!! pointer same as ineimg->palphas */
+
 
 	if( ineimg==NULL || ineimg->imgbuf==NULL || size<=0 )
 		return NULL;
@@ -341,11 +372,16 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 	width=ineimg->width;
 
 	/* alpha_on: only image has alpha value */
-	alpha_on = ineimg->alpha && alpha_on ? true : false;
+	alpha_on = ( ineimg->alpha && alpha_on ) ? true : false;
 
-	/* adjust size */
-	if(size>width/2)
+	/* adjust Max. of filter window size to be Min(width/2, height/2) */
+#if 0  /* Not necessary any more */
+	if(size>width/2 || size>height/2) {
 		size=width/2;
+		if( size > height/2 )
+			size=height/2;
+	}
+#endif
 
 	/* calloc colors */
 	colors=calloc(size, sizeof(EGI_16BIT_COLOR));
@@ -354,14 +390,18 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 		return NULL;
 	}
 
+/* -------- Malloc/assign  2D array ineimg->pcolors and ineimg->palphas  --------- */
+if( ineimg->pcolors==NULL || ( alpha_on && ineimg->alpha !=NULL && ineimg->palphas==NULL ) )
+{
+	printf("%s: malloc 2D array for ineimg->pcolros, palphas ...\n",__func__);
 
-////////////////////   allocate/assign  pcolors and palphas   ///////////////////////
-	/* alloc pcolors and palphas */
-	EGI_16BIT_COLOR **pcolors=NULL;
-	unsigned char 	**palphas=NULL;
+	/* free them both before re_malloc */
+	egi_free_buff2D(ineimg->pcolors, height);
+	egi_free_buff2D(ineimg->palphas, height);
 
 	/* alloc pcolors */
-	pcolors=(EGI_16BIT_COLOR **)egi_malloc_buff2D(height,width*sizeof(EGI_16BIT_COLOR));
+	ineimg->pcolors=(EGI_16BIT_COLOR **)egi_malloc_buff2D(height,width*sizeof(EGI_16BIT_COLOR));
+	pcolors=ineimg->pcolors; /* WARNING!!! pointing to the same data */
 	if(pcolors==NULL) {
 		printf("%s: Fail to malloc pcolors.\n",__func__);
 		return NULL;
@@ -370,37 +410,63 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 	for(i=0; i<height; i++)
 		memcpy( pcolors[i], ineimg->imgbuf+i*width, width*sizeof(EGI_16BIT_COLOR) );
 
-	/* alloc alpha if original image has alpha!!! */
-	if(ineimg->alpha) {
-		palphas=egi_malloc_buff2D(height,width*sizeof(unsigned char));
+	/* alloc alpha if alpha_on and original image has alpha!!! */
+	if(alpha_on && ineimg->alpha) {
+		ineimg->palphas=egi_malloc_buff2D(height,width*sizeof(unsigned char));
+		palphas=ineimg->palphas; /* WARNING!!! pointing to the same data */
 		if(palphas==NULL) {
 			printf("%s: Fail to malloc palphas.\n",__func__);
-			egi_free_buff2D(pcolors, height);
+			egi_free_buff2D(ineimg->pcolors, height);
+			pcolors=NULL;
 			return NULL;
 		}
 		/* copy color from input ineimg */
 		for(i=0; i<height; i++)
 			memcpy( palphas[i], ineimg->alpha+i*width, width*sizeof(unsigned char) );
 	}
-//////////////////////////////////////////////////////////////////////////////
 
+}
+else  {
+	/*** 	If Already allocated
+	 * 2D array data may have been contanimated/processed already !!!
+	 * we MUST update data to the same as ineimg->imgbuf and ineimg->alpha
+	 */
+
+	/* WARNING!!! make a copy pointers. before we use 'pcolors' instead of 'ineimg->pcolors' */
+	pcolors=ineimg->pcolors;
+	palphas=ineimg->palphas;
+
+	/* If do not hold to use old ineimg->pcolors(palphas) */
+	if(!hold_on) {
+		for(i=0; i<height; i++) {
+			//printf("%s: memcpy to update ineimg->pcolros...\n",__func__);
+			memcpy( pcolors[i], ineimg->imgbuf+i*width, width*sizeof(EGI_16BIT_COLOR) );
+
+			//printf("%s: memcpy to update ineimg->alphas...\n",__func__);
+			if(alpha_on && ineimg->alpha ) /* only if alpha_on AND ineimg has alpha value */
+				memcpy( palphas[i], ineimg->alpha+i*width, width*sizeof(unsigned char) );
+		}
+	}
+
+} /* ------------ END 2D ARRAY MALLOC --------------- */
 
 	/* create output imgbuf */
 	outeimg= egi_imgbuf_create( height, width, 0, 0); /* alpha/color 0 will be replaced by avg later */
 	if(outeimg==NULL) {
 		free(colors);
-		egi_free_buff2D(pcolors, height);
-		egi_free_buff2D(palphas, height);
+		egi_free_buff2D(ineimg->pcolors, height);
+		egi_free_buff2D(ineimg->palphas, height);
+		pcolors=NULL; palphas=NULL;
 		return NULL;
 	}
 
-	/* free alpha is original is NULL*/
+	/* free alpha if original is NULL, ingore alpha_on for this.*/
 	if(ineimg->alpha==NULL) {
 		free(outeimg->alpha);
 		outeimg->alpha=NULL;
 	}
 
-	/* --- first:  blur rows --- */
+	/* --- 1. first:  blur rows --- */
 	for(i=0; i< height; i++) {
 		/* first avg, for left to right */
 		for(j=0; j< width; j++) {
@@ -418,7 +484,7 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 						avgALPHA += palphas[i][j+k];
 				}
 			}
-			/* --- update intermediatey pcolors and alphas here --- */
+			/* --- update intermediatey pcolors[] and alphas[] here --- */
 			pcolors[i][j]=egi_16bitColor_avg(colors,size);
 			if(alpha_on)
 				palphas[i][j]=avgALPHA/size;
@@ -439,14 +505,14 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 						avgALPHA += palphas[i][j-k];
 				}
 			}
-			/* --- update intermediatey pcolors and alphas here --- */
+			/* --- update intermediatey pcolors[] and alphas[] here --- */
 			pcolors[i][j]=egi_16bitColor_avg(colors,size);
 			if(alpha_on)
 				palphas[i][j]=avgALPHA/size;
 		}
 	}
 
-	/* --- last:  blur columns --- */
+	/* --- 2. last:  blur columns --- */
 	for(i=0; i< width; i++) {
 		/* first avg, from top to bottom */
 		for(j=0; j< height; j++) {
@@ -464,10 +530,12 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 						avgALPHA += palphas[j+k][i];
 				}
 			}
-			/*  ---- finall output to outeimg ---- */
-			outeimg->imgbuf[j*width+i]=egi_16bitColor_avg(colors, size);
+			/*  ---- final output to outeimg ---- */
+			pcolors[j][i]=egi_16bitColor_avg(colors,size);
+			//outeimg->imgbuf[j*width+i]=egi_16bitColor_avg(colors, size);
 			if(alpha_on)
-				outeimg->alpha[j*width+i]=avgALPHA/size;
+				//outeimg->alpha[j*width+i]=avgALPHA/size;
+				palphas[j][i]=avgALPHA/size;
 		}
 		/* second avg, from bottom to top */
 		for(j=height-1; j>=0; j--) {
@@ -493,18 +561,35 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft(const EGI_IMGBUF *ineimg, int size, bool alpha_o
 	}
 
 	/* If ineimg has alpha values, but alpha_on is false, just copy alpha to outeimg */
+	if(alpha_on) { printf("--- alpha on ---\n"); }
+	else 	     { printf("--- alpha off ---\n"); }
+
 	if( !alpha_on && ineimg->alpha != NULL)
 		memcpy( outeimg->alpha, ineimg->alpha, height*width*sizeof(unsigned char)) ;
 
 	/* free colors */
 	free(colors);
-	egi_free_buff2D(pcolors, height);
-	egi_free_buff2D(palphas, height);
+
+	/* Don NOT free here */
+//	egi_free_buff2D(ineimg->pcolors, height);
+//	egi_free_buff2D(ineimg->palphas, height);
 
 	return outeimg;
 }
 
-/*  ----- 1D arrays, DO NOT USE 2D BUFFER ----  */
+
+/*-------------------- DO NOT ALLOCATE 2D ARRAY ----------------------------
+Function same as egi_imgbuf_avgsoft(), but without allocating  additional
+2D array for color/alpha data processsing.
+
+NOTE: Because there are no buffers to hold intermediate results, but only
+      use output outeimg itself, that result in
+      The result is different from egi_imgbuf_avgsoft()!!!
+
+Return:
+	A pointer to a new EGI_IMGBUF with blured image  	OK
+	NULL							Fail
+----------------------------------------------------------------------------*/
 EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_on)
 {
 	int i,j,k;
@@ -521,11 +606,16 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	width=ineimg->width;
 
 	/* alpha_on: only image has alpha value */
-	alpha_on = ineimg->alpha && alpha_on ? true : false;
+	alpha_on = (ineimg->alpha && alpha_on) ? true : false;
 
-	/* adjust size */
-	if(size>width/2)
+	/* adjust Max. of filter window size to be Min(width/2, height/2) */
+#if 0  /* Not necessary any more */
+	if(size>width/2 || size>height/2) {
 		size=width/2;
+		if( size > height/2 )
+			size=height/2;
+	}
+#endif
 
 	/* calloc colors */
 	colors=calloc(size, sizeof(EGI_16BIT_COLOR));
@@ -540,6 +630,9 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 		free(colors);
 		return NULL;
 	}
+	/* copy ineimg->imgbuf to outeimg->imgbuf, we'll process on outeimg! */
+	/* Or, in 'first blur rows, from left to right' we update outeimg->imgbuf with proceeded data! */
+//	memcpy(outeimg->imgbuf, ineimg->imgbuf, height*width*sizeof(EGI_16BIT_COLOR));
 
 	/* free alpha is original is NULL*/
 	if(ineimg->alpha==NULL) {
@@ -547,7 +640,7 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 		outeimg->alpha=NULL;
 	}
 
-	/* --- first:  blur rows, pick data in ineimg  --- */
+	/* --- 1. first:  blur rows, pick data in ineimg  --- */
 	for(i=0; i< height; i++) {
 		/* first avg, for left to right */
 		for(j=0; j< width; j++) {
@@ -555,14 +648,12 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 			/* in the avg filter window */
 			for(k=0; k<size; k++) {
 				if( j+k > width-1 ) {
-					//colors[k]=pcolors[i][j+k-width]; /* loop back */
-					index=i*width+j+k-width;
+					index=i*width+j+k-width; /* loop back */
 					colors[k]=ineimg->imgbuf[index];
 					if(alpha_on)
 						avgALPHA += ineimg->alpha[index];
 				}
 				else {
-					//colors[k]=pcolors[i][j+k];
 					index=i*width+j+k;
 					colors[k]=ineimg->imgbuf[index];
 					if(alpha_on)
@@ -575,39 +666,38 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 			if(alpha_on)
 				outeimg->alpha[index]=avgALPHA/size;
 		}
-		/* second avg, for right to left */
+		/* second avg, for right to left !!!Now we have proceed data in outeimg->imgbuf  */
 		for(j=width-1; j>=0; j--) {
 			avgALPHA=0;
 			/* in the avg filter window */
 			for(k=0; k<size; k++) {
 				if( j-k < 0) {		/* loop back if out of range */
-					//colors[k]=pcolors[i][j-k+width];
 					index=i*width+j-k+width;
-					colors[k]=ineimg->imgbuf[index]; //pcolors[i][j+k-width]; /* loop back */
+					//colors[k]=ineimg->imgbuf[index];
+					colors[k]=outeimg->imgbuf[index];   /* outeimg has proceeded data now! */
 					if(alpha_on)
-						//avgALPHA += palphas[i][j-k+width];
-						avgALPHA += ineimg->alpha[index];
+						//avgALPHA += ineimg->alpha[index];
+						avgALPHA += outeimg->alpha[index];
 				}
 				else  {
-					//colors[k]=pcolors[i][j-k];
 					index=i*width+j-k;
-					colors[k]=ineimg->imgbuf[index]; //pcolors[i][j+k];
+					//colors[k]=ineimg->imgbuf[index];
+					colors[k]=outeimg->imgbuf[index]; /* outeimg has proceeded data! */
 					if(alpha_on)
-						//avgALPHA += palphas[i][j-k];
-						avgALPHA += ineimg->alpha[index];
+						//avgALPHA += ineimg->alpha[index];
+						avgALPHA += outeimg->alpha[index];
 				}
 			}
 			/* --- update intermediatey pcolors and alphas here --- */
-			//pcolors[i][j]=egi_16bitColor_avg(colors,size);
 			index=i*width+j;
 			outeimg->imgbuf[index]=egi_16bitColor_avg(colors,size);
 			if(alpha_on)
-				//palphas[i][j]=avgALPHA/size;
 				outeimg->alpha[index]=avgALPHA/size;
 		}
 	}
 
-	/* --- last:  blur columns, pick data in outeimg now.  --- */
+
+	/* --- 2. last:  blur columns, pick data in outeimg now.  --- */
 	for(i=0; i< width; i++) {
 		/* first avg, from top to bottom */
 		for(j=0; j< height; j++) {
@@ -615,29 +705,23 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 			/* in the avg filter window */
 			for(k=0; k<size; k++) {
 				if( j+k > height-1 ) {
-					//colors[k]=pcolors[j+k-height][i]; /* loop back */
-					index=(j+k-height)*width+i;
+					index=(j+k-height)*width+i; /* loop back */
 					colors[k]=outeimg->imgbuf[index]; /* now use outeimg instead of ineimg */
 					if(alpha_on)
-						//avgALPHA += palphas[j+k-height][i];
 						avgALPHA += outeimg->alpha[index];
 				}
 				else {
-					//colors[k]=pcolors[j+k][i];
 					index=(j+k)*width+i;
 					colors[k]=outeimg->imgbuf[index];
 					if(alpha_on)
-						//avgALPHA += palphas[j+k][i];
 						avgALPHA += outeimg->alpha[index];
 				}
 			}
-			/*  ---- finall output to outeimg ---- */
+			/*  ---- final output to outeimg ---- */
 			index=j*width+i;
-			//colors[1]=egi_16bitColor_avg(colors,size); /* first cal! */
-			//colors[0]=outeimg->imgbuf[index];
-			outeimg->imgbuf[index]=egi_16bitColor_avg(colors, 2); /* 2 avg, outeimg had data */
+			outeimg->imgbuf[index]=egi_16bitColor_avg(colors, size);
 			if(alpha_on)
-				outeimg->alpha[index]= (outeimg->alpha[index]+avgALPHA/size)>>1;
+				outeimg->alpha[index]= avgALPHA/size;
 		}
 		/* second avg, from bottom to top */
 		for(j=height-1; j>=0; j--) {
@@ -645,34 +729,29 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 			/* in the avg filter window */
 			for(k=0; k<size; k++) {
 				if( j-k < 0 ) {		/* loop back if out of range */
-					//colors[k]=pcolors[j-k+height][i];
 					index=(j-k+height)*width+i;
 					colors[k]=outeimg->imgbuf[index];
 					if(alpha_on)
-						//avgALPHA += palphas[j-k+height][i];
 						avgALPHA += outeimg->alpha[index];
 				}
 				else {
-					//colors[k]=pcolors[j-k][i];
 					index=(j-k)*width+i;
 					colors[k]=outeimg->imgbuf[index];
 					if(alpha_on)
-						//avgALPHA += palphas[j-k][i];
 						avgALPHA += outeimg->alpha[index];
 				}
 			}
 			/*  ---- final output to outeimg ---- */
 			index=j*width+i;
-			//colors[1]=egi_16bitColor_avg(colors,size); /* first cal! */
-			//colors[0]=outeimg->imgbuf[index];
-			outeimg->imgbuf[index]=egi_16bitColor_avg(colors, 2); /* 2 avg, outeimg had data */
+			outeimg->imgbuf[index]=egi_16bitColor_avg(colors, size);
 			if(alpha_on)
-				//outeimg->alpha[j*width+i]=avgALPHA/size;
-				outeimg->alpha[index]= (outeimg->alpha[index]+avgALPHA/size)>>1;
+				outeimg->alpha[index]=avgALPHA/size;
 		}
 	}
 
 	/* If ineimg has alpha values, but alpha_on is false, just copy alpha to outeimg */
+	if(alpha_on) { printf("--- alpha on ---\n"); }
+	else 	     { printf("--- alpha off ---\n"); }
 	if( !alpha_on && ineimg->alpha != NULL)
 		memcpy( outeimg->alpha, ineimg->alpha, height*width*sizeof(unsigned char)) ;
 
