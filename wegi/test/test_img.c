@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-An example to analyze MIC captured audio and display its spectrum.
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -13,7 +12,7 @@ midaszhou@yahoo.com
 #include "egi_pcm.h"
 #include "egi_FTsymbol.h"
 
-int main(void)
+int main(int argc, char** argv)
 {
 	int i,j,k;
 	int ret;
@@ -53,45 +52,61 @@ EGI_IMGBUF* softimg=NULL;
 
 show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
+
+
 pimg=egi_imgbuf_alloc();
-//egi_imgbuf_loadjpg("/tmp/fish.jpg", pimg);
-egi_imgbuf_loadpng("/tmp/test.png", pimg);
+
+//(egi_imgbuf_loadjpg("/tmp/test.jpg", pimg);
+//egi_imgbuf_loadpng("/tmp/test.png", pimg);
+
+if( egi_imgbuf_loadjpg(argv[1],pimg)!=0 && egi_imgbuf_loadpng(argv[1],pimg)!=0 ) {
+  printf(" Fail to load file %s!\n", argv[1]);
+  exit(-1);
+}
 
 
-blur_size=74;
+blur_size=45;
 
 
 do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
 
 
-#if 0	/* --- change blur_size --- */
+#if 1	/* --- change blur_size --- */
 	if(blur_size > 35 )
-		blur_size -=15;
+		blur_size -=5;
 	else
 		blur_size -=3;
+
 	if(blur_size <= 0) {
-		tm_delayms(3000);
+		tm_delayms(2000);
 		blur_size=75;
 	}
 
 #else   /* --- keep blur_size --- */
-	blur_size=1;
+	blur_size=13;
 #endif
 	printf("blur_size=%d\n", blur_size);
 
 /* ------------------------------------------------------------------------------------
 NOTE:
 1. egi_imgbuf_avgsoft(), operating 2D array data of color/alpha, is faster than
-   egi_imgbuf_avgsoft2() with 1D array data.
+   egi_imgbuf_avgsoft2() with 1D array data.    --doult !!??????
    This is because 2D array is much faster for sorting/picking data.!!!?
 
-2. When blur_size==1, they are nearly the same speed.
+study cases:
+1.   1000x500 JPG        nearly same speed for all blur_size.
+
+     ( !!!!!  Strange for 1024x901  !!!!! )
+2.   1024x901 PNG,RBG    blur_size>13, 2D faster; blur_size<13, nearly same speed.
+     1024x900 PNG,RBG    nearly same speed for all blur_size, 1D just a litter slower.
+
+3.   1200x1920 PNG,RGBA  nearly same speed for all blur_size.
+     1922x1201 PNG,RGBA  nearly same speed for all blur_size.
 
 
 -------------------------------------------------------------------------------- */
-	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
-#if 1	/* ------- test egi_imgbuf_avgsoft(), use 2D array ------- */
+#if 1 /* <<<<<<<<<<<<<<<<<    test egi_imgbuf_avgsoft(), 2D array  >>>>>>>>>>>>>> */
 	gettimeofday(&tm_start,NULL);
 	softimg=egi_imgbuf_avgsoft(pimg, blur_size, true, false); /* eimg, size, alpha_on, hold_on */
 	gettimeofday(&tm_end,NULL);
@@ -103,6 +118,7 @@ NOTE:
 	#endif
 	/* display */
 	printf("start windisplay...\n");
+	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 	gettimeofday(&tm_start,NULL);
 	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
@@ -114,11 +130,11 @@ NOTE:
 	/* free softimg */
 	egi_imgbuf_free(softimg);
 
-	tm_delayms(1000);
+	tm_delayms(500);
 #endif /* ---- End test egi_imgbuf_avgsoft() ---- */
 
 
-#if 0	/* ------- test egi_imgbuf_avgsoft2(), 1D  ------- */
+#if 1 /* <<<<<<<<<<<<<<<<<    test egi_imgbuf_avgsoft2(), 1D array  >>>>>>>>>>>>>> */
 	gettimeofday(&tm_start,NULL);
 	softimg=egi_imgbuf_avgsoft2(pimg, blur_size, true);
 	gettimeofday(&tm_end,NULL);
@@ -130,6 +146,7 @@ NOTE:
 	#endif
 	/* display */
 	printf("start windisplay...\n");
+	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 	gettimeofday(&tm_start,NULL);
 	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
@@ -141,7 +158,7 @@ NOTE:
 	/* free softimg */
 	egi_imgbuf_free(softimg);
 
-	tm_delayms(1000);
+	tm_delayms(500);
 #endif /* ---- End test egi_imgbuf_avgsoft2() ---- */
 
 //	tm_delayms(250/blur_size); //2000);
@@ -186,7 +203,7 @@ return 0;
 
 /* ------------------------- TEST RESULT ------------------
 
-	 <<<  -----   Typical data for processing a PNG image data, size 1024 x 901. -----   >>>
+	 <<<  -----   processing a PNG image data, size 1024 x 901. RGB -----   >>>
 
 blur_size=59
 avgsoft 2D time cost: 12468ms
@@ -275,6 +292,40 @@ avgsoft 2D time cost: 1153ms
 avgsoft 1D time cost: 1158ms
 
 
+	 <<<  -----   processing a PNG image data, size 1024 x 900 RGB -----   >>>
+blur_size=40
+egi_imgbuf_avgsoft: --- alpha off ---
+egi_imgbuf_avgsoft: malloc 2D array for ineimg->pcolros, palphas ...
+egi_imgbuf_avgsoft() 2D time cost: 9988ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 44ms
+egi_imgbuf_avgsoft2: --- alpha off ---
+egi_imgbuf_avgsoft2(): 1D time cost: 10299ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 156ms
+blur_size=35
+egi_imgbuf_avgsoft: --- alpha off ---
+egi_imgbuf_avgsoft() 2D time cost: 8916ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 44ms
+egi_imgbuf_avgsoft2: --- alpha off ---
+egi_imgbuf_avgsoft2(): 1D time cost: 9147ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 44ms
+blur_size=32
+egi_imgbuf_avgsoft: --- alpha off ---
+egi_imgbuf_avgsoft() 2D time cost: 8340ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 44ms
+egi_imgbuf_avgsoft2: --- alpha off ---
+egi_imgbuf_avgsoft2(): 1D time cost: 8422ms
+start windisplay...
+
 	 <<<  -----   Typical data for processing a PNG image data, size 532 x 709. -----   >>>
 
 blur_size=59
@@ -353,5 +404,99 @@ windisplay time cost: 19ms
 blur_size=1
 avgsoft 2D time cost: 722ms
 avgsoft 1D time cost: 549ms
+
+
+	 <<<  -----   processing a JPG image data, size 1000x500, frames 3 -----   >>>
+
+blur_size=40
+egi_imgbuf_avgsoft: malloc 2D array for ineimg->pcolros, palphas ...
+egi_imgbuf_avgsoft() 2D time cost: 5064ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+egi_imgbuf_avgsoft2(): 1D time cost: 5057ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 37ms
+blur_size=35
+egi_imgbuf_avgsoft() 2D time cost: 4509ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+egi_imgbuf_avgsoft2(): 1D time cost: 4507ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+blur_size=32
+egi_imgbuf_avgsoft() 2D time cost: 4190ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+egi_imgbuf_avgsoft2(): 1D time cost: 4165ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+blur_size=29
+egi_imgbuf_avgsoft() 2D time cost: 3864ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+egi_imgbuf_avgsoft2(): 1D time cost: 3844ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 36ms
+
+	 <<<  -----   processing a PNG image data, size 1200x1920, RGBA -----   >>>
+
+blur_size=40
+egi_imgbuf_avgsoft: malloc 2D array for ineimg->pcolros, palphas ...
+egi_imgbuf_avgsoft() 2D time cost: 34316ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 184ms
+egi_imgbuf_avgsoft2(): 1D time cost: 33748ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 184ms
+blur_size=35
+egi_imgbuf_avgsoft() 2D time cost: 30556ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 185ms
+egi_imgbuf_avgsoft2(): 1D time cost: 30940ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 185ms
+blur_size=32
+egi_imgbuf_avgsoft() 2D time cost: 28606ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 185ms
+egi_imgbuf_avgsoft2(): 1D time cost: 28383ms
+......
+blur_size=32
+egi_imgbuf_avgsoft() 2D time cost: 29069ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 185ms
+egi_imgbuf_avgsoft2(): 1D time cost: 28366ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 184ms
+blur_size=29
+egi_imgbuf_avgsoft() 2D time cost: 26785ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 186ms
+egi_imgbuf_avgsoft2(): 1D time cost: 27091ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 184ms
+blur_size=26
+egi_imgbuf_avgsoft() 2D time cost: 24817ms
+start windisplay...
+start jpeg_finish_decompress()...
+windisplay time cost: 184ms
+
 
 ----------------------------------------------------------*/

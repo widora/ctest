@@ -45,7 +45,6 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 
 
 /*-----------------------------------------------------------------------o
-
 	  	16bit color blend function
 Note: Back alpha value ingored.
 -------------------------------------------------------------------------*/
@@ -102,11 +101,15 @@ enum egi_color_range
 };
 
 /* functions */
-inline EGI_16BIT_COLOR egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n);
-EGI_16BIT_COLOR egi_color_random(enum egi_color_range range);
-EGI_16BIT_COLOR egi_colorgray_random(enum egi_color_range range);
-EGI_16BIT_COLOR egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
-int egi_color_getY(EGI_16BIT_COLOR color);
+inline void 	egi_16bitColor_interplt( EGI_16BIT_COLOR color1, EGI_16BIT_COLOR color2,
+                       	                 unsigned char alpha1,  unsigned char alpha2,
+                               	         int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha);
+
+inline EGI_16BIT_COLOR 	egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n);
+EGI_16BIT_COLOR 	egi_color_random(enum egi_color_range range);
+EGI_16BIT_COLOR 	egi_colorgray_random(enum egi_color_range range);
+EGI_16BIT_COLOR 	egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
+int 			egi_color_getY(EGI_16BIT_COLOR color);
 
 
 

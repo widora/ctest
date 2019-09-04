@@ -3,6 +3,7 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+TODO: Using pointer params is better than just adding inline qualifier ?
 
 EGI Color Functions
 
@@ -18,6 +19,49 @@ Midas ZHou
 #include <stdio.h>
 #include <sys/time.h> /*gettimeofday*/
 
+
+/*----------------------------------------------------------------------
+Get a 16bit color value/alpha between two given colors/alphas by interpolation.
+
+@color1, color2:	The first and second input color value.
+@alpha1, alpha2:	The first and second input alpha value.
+@f15_ratio:		Ratio for interpolation, in fixed point type f15.
+			that is [0-1]*(2^15);
+			!!! A bigger ratio makes alpha more closer to color2/alpha2 !!!
+@colro, alpha		Pointer to pass output color and alpha.
+			Ignore if NULL.
+
+-----------------------------------------------------------------------*/
+inline void egi_16bitColor_interplt( EGI_16BIT_COLOR color1, EGI_16BIT_COLOR color2,
+				     unsigned char alpha1,  unsigned char alpha2,
+				     int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha)
+{
+	unsigned int R,G,B,A;
+
+	/* interplate color value */
+	if(color) {
+	 	R  =((color1&0xF800)>>8)*((1U<<15)-f15_ratio);	/* R */
+		R +=((color2&0xF800)>>8)*f15_ratio;
+		R >>= 15;
+
+	 	G  =((color1&0x7E0)>>3)*((1U<<15)-f15_ratio);	/* G */
+		G +=((color2&0x7E0)>>3)*f15_ratio;
+		G >>= 15;
+
+ 		B  =((color1&0x1F)<<3)*((1U<<15)-f15_ratio);	/* B */
+		B +=((color2&0x1F)<<3)*f15_ratio;
+		B >>= 15;
+
+        	*color=COLOR_RGB_TO16BITS(R, G, B);
+	}
+	/* interplate alpha value */
+	if(alpha) {
+	        A  = alpha1*((1U<<15)-f15_ratio);  /* R */
+	        A += alpha2*f15_ratio;
+		A >>= 15;
+		*alpha=A;
+	}
+}
 
 /*------------------------------------------------------------------
 Get average color value
@@ -96,7 +140,7 @@ Get a random 16bit color from Douglas.R.Jacobs' RGB Hex Triplet Color Chart
 rang: color range:
 	0--all range
 	1--light color
-	2--mid range
+	2--medium range
 	3--deep color
 
 with reference to  http://www.jakesan.com

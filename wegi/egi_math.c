@@ -3,6 +3,8 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+NOTE:
+	!!! Suppose that Right_shifting is also arithmetic here !!!.
 
 Midas-Zhou
 --------------------------------------------------------------------*/
@@ -914,9 +916,8 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 		{
 			/*   get XRYR revert rotation matrix centered at SQMat_XRYU's center
 			this way can ensure all SQMat_XRYR[] points are filled!!!  */
-
 			//xr = j*cosang+i*sinang;
-			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;
+			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16; /* !!! Arithmetic_Right_Shifting */
 			//yr = -j*sinang+i*cosang;
 			yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
 
@@ -1013,7 +1014,7 @@ void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coo
 			/*   get XRYR revert rotation matrix centered at ANMat_XRYU's center
 			this way can ensure all ANMat_XRYR[] points are filled!!!  */
 			/* upper and left part of the annuls j: 0->n/2*/
-			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;
+			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16;  /* !!! Arithmetic_Right_Shifting */
 			yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
 			ANMat_XRYR[(n/2-j)*n+(n/2+i)].x= xr;
 			ANMat_XRYR[(n/2-j)*n+(n/2+i)].y= yr;

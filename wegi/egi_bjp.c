@@ -425,6 +425,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 		printf("egi_imgbuf_loadjpg(): open_jpgImg() fails!\n");
 		return -1;
 	}
+	printf("%s: Open a jpg file with size W%dxH%d \n", __func__, width, height);
 
         /* get mutex lock */
         if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
@@ -598,6 +599,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
         EGI_PDEBUG(DBG_BJP,"Width=%d, Height=%d, color_type=%d \n", width, height, color_type);
         EGI_PDEBUG(DBG_BJP,"bit_depth=%d, channels=%d,  pixel_depth=%d \n", bit_depth, channels, pixel_depth);
 
+
         /*   Now, we only deal with type_2(real_color, PNG_COLOR_TYPE_RGB)
 	 *	  and type_6(real_color with alpha channel, PNG_COLOR_TYPE_RGB_ALPHA) PNG file,
          *       and bit_depth must be 8.
@@ -608,6 +610,8 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 ret=-6;
                 goto READ_FAIL;
         }
+	printf("%s: Open a PNG file with size W%dxH%d, color_type %s\n", __func__, width, height,
+					(color_type==PNG_COLOR_TYPE_RGB) ? "RGB" : "RGBA" );
 
         /* get mutex lock */
 //	printf("%s: start pthread_mutex_lock() egi_imgbuf....\n",__func__);

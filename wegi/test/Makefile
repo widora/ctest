@@ -40,6 +40,17 @@ all:	$(APPS)
 # 3. At last, we must switch back to dynamic libs, as default for Linux system runtime setup.
 # 4. Source/obj files must be put before all -Wl.
 
+### ----- template -----
+test:	$(TEST_C).c
+ifeq ($(EGILIB),static)
+	$(CC) $(TEST_C).c -o $(TEST_C) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
+else
+	$(CC) -o $(TEST_C) $(TEST_C).c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+endif
+### ------ tend -----
+
+
 tmp_app:	tmp_app.c
 ifeq ($(EGILIB),static)
 	$(CC) tmp_app.c -o tmp_app  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \

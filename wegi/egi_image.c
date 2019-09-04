@@ -88,7 +88,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	pthread_mutex_lock(&egi_imgbuf->img_mutex);
 
 	/* free 2D array data if any */
-        egi_free_buff2D(egi_imgbuf->pcolors, egi_imgbuf->height);
+        egi_free_buff2D((unsigned char **)egi_imgbuf->pcolors, egi_imgbuf->height);
         egi_free_buff2D(egi_imgbuf->palphas, egi_imgbuf->height);
 
 	/* free data inside */
@@ -316,22 +316,27 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 
 
 /*------------------------------------------------------------------------------
-To soft/blur an image by averaging pixel colors/alpha, with allocating 2D array
-to hold color/alpha data and improve sorting speed.
+To soft/blur an image by averaging pixel colors/alpha, with allocating 2D arrays
+in input ineimg(ineimg->pcolors[][] and ineimg->palphas[][]).
+The 2D arrays are to buffer color/alpha data and improve sorting speed, the final
+results will be remainded in them.
 
 Note:
 1. The original EGI_IMGBUF keeps intact, a new EGI_IMGBUF with modified
    color/alpha values will be created.
+
 2. If succeeds, 2D array of ineimg->pcolors and ineimg->palpha(if ineimg has alpha values)
    will be created for ineimg!(NOT for outeimg, but for imtermediate buffer!!!)
-   and will NOT be freed here.
+   and will NOT be freed here, he final results will be remainded in them.
 
-3. !!! WARNING !!! After avgsoft, ineimg->pcolors/palphas are blured and NOT an
-   xact copy  of ineimg->imbuf any more!
+3. !!! WARNING !!! After avgsoft, ineimg->pcolors/palphas has been processed/blured
+   and NOT an exact copy of ineimg->imbuf any more!
 
 4. If input ineimg has no alpha values, so will the outeimg.
+
 5. Other elements in ineimg will NOT be copied to outeimg, such as
    ineimg->subimgs,ineimg->pcolors, ineimg->palphas..etc.
+
 
 @eimg:	object image.
 @size:  number of pixels taken to average, window size of avgerage filer.
@@ -371,8 +376,12 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft( EGI_IMGBUF *ineimg, int size, bool alpha_on, bo
 	height=ineimg->height;
 	width=ineimg->width;
 
-	/* alpha_on: only image has alpha value */
+	/***  ---- Redefine alpha_on ----
+	 * alpha_on: only image has alpha value
+	 */
 	alpha_on = ( ineimg->alpha && alpha_on ) ? true : false;
+	if(alpha_on) { printf("%s: --- alpha on ---\n",__func__); }
+	else 	     { printf("%s: --- alpha off ---\n",__func__); }
 
 	/* adjust Max. of filter window size to be Min(width/2, height/2) */
 #if 0  /* Not necessary any more */
@@ -396,7 +405,7 @@ if( ineimg->pcolors==NULL || ( alpha_on && ineimg->alpha !=NULL && ineimg->palph
 	printf("%s: malloc 2D array for ineimg->pcolros, palphas ...\n",__func__);
 
 	/* free them both before re_malloc */
-	egi_free_buff2D(ineimg->pcolors, height);
+	egi_free_buff2D((unsigned char **)ineimg->pcolors, height);
 	egi_free_buff2D(ineimg->palphas, height);
 
 	/* alloc pcolors */
@@ -416,7 +425,7 @@ if( ineimg->pcolors==NULL || ( alpha_on && ineimg->alpha !=NULL && ineimg->palph
 		palphas=ineimg->palphas; /* WARNING!!! pointing to the same data */
 		if(palphas==NULL) {
 			printf("%s: Fail to malloc palphas.\n",__func__);
-			egi_free_buff2D(ineimg->pcolors, height);
+			egi_free_buff2D((unsigned char **)ineimg->pcolors, height);
 			pcolors=NULL;
 			return NULL;
 		}
@@ -451,10 +460,10 @@ else  {
 } /* ------------ END 2D ARRAY MALLOC --------------- */
 
 	/* create output imgbuf */
-	outeimg= egi_imgbuf_create( height, width, 0, 0); /* alpha/color 0 will be replaced by avg later */
+	outeimg= egi_imgbuf_create( height, width, 0, 0); /* (h,w,alpha,color) will be replaced by avg later */
 	if(outeimg==NULL) {
 		free(colors);
-		egi_free_buff2D(ineimg->pcolors, height);
+		egi_free_buff2D((unsigned char **)ineimg->pcolors, height);
 		egi_free_buff2D(ineimg->palphas, height);
 		pcolors=NULL; palphas=NULL;
 		return NULL;
@@ -532,9 +541,7 @@ else  {
 			}
 			/*  ---- final output to outeimg ---- */
 			pcolors[j][i]=egi_16bitColor_avg(colors,size);
-			//outeimg->imgbuf[j*width+i]=egi_16bitColor_avg(colors, size);
 			if(alpha_on)
-				//outeimg->alpha[j*width+i]=avgALPHA/size;
 				palphas[j][i]=avgALPHA/size;
 		}
 		/* second avg, from bottom to top */
@@ -554,37 +561,63 @@ else  {
 				}
 			}
 			/*  ---- final output to outeimg ---- */
-			outeimg->imgbuf[j*width+i]=egi_16bitColor_avg(colors, size);
+			//outeimg->imgbuf[j*width+i]=egi_16bitColor_avg(colors, size);
+			pcolors[j][i]=egi_16bitColor_avg(colors,size);
 			if(alpha_on)
-				outeimg->alpha[j*width+i]=avgALPHA/size;
+				//outeimg->alpha[j*width+i]=avgALPHA/size;
+				palphas[j][i]=avgALPHA/size;
 		}
 	}
 
-	/* If ineimg has alpha values, but alpha_on is false, just copy alpha to outeimg */
-	if(alpha_on) { printf("--- alpha on ---\n"); }
-	else 	     { printf("--- alpha off ---\n"); }
+		/* ------- memcpy finished data ------ */
+	/* now ineimg->pcolors[]/palphas[] has final processed data, memcpy to outeimg->imgbuf */
+	for( i=0; i<height; i++ ) {
+		memcpy(outeimg->imgbuf+i*width, ineimg->pcolors[i], width*sizeof(EGI_16BIT_COLOR));
 
+		/*** !!!Remind that if(alpha_on), ineimg MUST has alpha values
+		 * SEE redifinition of alpha_on at the very beginning of the func.
+		 */
+		if(alpha_on)
+			memcpy( outeimg->alpha+i*width, ineimg->palphas[i], width*sizeof(unsigned char));
+	}
+
+	/* If ineimg has alpha values, but alpha_on set is false, just copy alpha to outeimg */
 	if( !alpha_on && ineimg->alpha != NULL)
-		memcpy( outeimg->alpha, ineimg->alpha, height*width*sizeof(unsigned char)) ;
+		memcpy( outeimg->alpha, ineimg->alpha, height*width*sizeof(unsigned char));
+
 
 	/* free colors */
 	free(colors);
 
 	/* Don NOT free here */
-//	egi_free_buff2D(ineimg->pcolors, height);
+//	egi_free_buff2D((unsigned char **)ineimg->pcolors, height);
 //	egi_free_buff2D(ineimg->palphas, height);
 
 	return outeimg;
 }
 
 
-/*-------------------- DO NOT ALLOCATE 2D ARRAY ----------------------------
-Function same as egi_imgbuf_avgsoft(), but without allocating  additional
-2D array for color/alpha data processsing.
+/*-------------------- !!! NO 2D ARRAYS APPLIED !!!------------------------
+Nearly same speed as of egi_imgbuf_avgsoft(), But beware of the size of the
+picture, especailly like 1024x901(odd)   !!! FAINT !!!
 
-NOTE: Because there are no buffers to hold intermediate results, but only
-      use output outeimg itself, that result in
-      The result is different from egi_imgbuf_avgsoft()!!!
+Note:
+1. Function same as egi_imgbuf_avgsoft(), but without allocating  additional
+   2D array for color/alpha data processsing.
+2. For small size picture, 240x320 etc, this func is a litter faster than
+   egi_imgbuf_avgsoft().
+
+3. For big size picture, depends on picture size ???????
+   study cases:
+
+	1.   1000x500 JPG        nearly same speed for all blur_size.
+
+	     	( !!!!!  Strange for 1024x901  !!!!! )
+	2.   1024x901 PNG,RBG    blur_size>13, 2D faster; blur_size<13, nearly same speed.
+	     1024x900 PNG,RBG    nearly same speed for all blur_size, 1D just a litter slower.
+
+	3.   1200x1920 PNG,RGBA  nearly same speed for all blur_size.
+     	     1922x1201 PNG,RGBA  nearly same speed for all blur_size.
 
 Return:
 	A pointer to a new EGI_IMGBUF with blured image  	OK
@@ -605,8 +638,12 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	height=ineimg->height;
 	width=ineimg->width;
 
-	/* alpha_on: only image has alpha value */
+	/***   Redefine alpha_on
+	 * alpha_on: only image has alpha value
+	 */
 	alpha_on = (ineimg->alpha && alpha_on) ? true : false;
+	if(alpha_on) { printf("%s: --- alpha on ---\n",__func__); }
+	else 	     { printf("%s: --- alpha off ---\n",__func__); }
 
 	/* adjust Max. of filter window size to be Min(width/2, height/2) */
 #if 0  /* Not necessary any more */
@@ -625,14 +662,15 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	}
 
 	/* create output imgbuf */
-	outeimg= egi_imgbuf_create( height, width, 0, 0); /* alpha/color 0 will be replaced by avg later */
+	outeimg= egi_imgbuf_create( height, width, 0, 0); /* (h,w,alpha,color) alpha/color will be replaced by avg later */
 	if(outeimg==NULL) {
 		free(colors);
 		return NULL;
 	}
-	/* copy ineimg->imgbuf to outeimg->imgbuf, we'll process on outeimg! */
-	/* Or, in 'first blur rows, from left to right' we update outeimg->imgbuf with proceeded data! */
-//	memcpy(outeimg->imgbuf, ineimg->imgbuf, height*width*sizeof(EGI_16BIT_COLOR));
+	/***
+	 * copy ineimg->imgbuf to outeimg->imgbuf, we'll process on outeimg!
+	 *  Or, in 'first blur rows, from left to right' we update outeimg->imgbuf with proceeded data! */
+	//memcpy(outeimg->imgbuf, ineimg->imgbuf, height*width*sizeof(EGI_16BIT_COLOR));
 
 	/* free alpha is original is NULL*/
 	if(ineimg->alpha==NULL) {
@@ -649,12 +687,18 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 			for(k=0; k<size; k++) {
 				if( j+k > width-1 ) {
 					index=i*width+j+k-width; /* loop back */
-					colors[k]=ineimg->imgbuf[index];
+					/* Since outeimg has data in imgbuf[] now, do not pick from ineimg!
+					 * Same for alpha data.
+					 */
+					//colors[k]=ineimg->imgbuf[index];
+					colors[k]=outeimg->imgbuf[index];
 					if(alpha_on)
-						avgALPHA += ineimg->alpha[index];
+						//avgALPHA += ineimg->alpha[index];
+						avgALPHA += outeimg->alpha[index];
 				}
 				else {
 					index=i*width+j+k;
+					/* outeimg has NO data in imgbuf[], need to pick from ineimg */
 					colors[k]=ineimg->imgbuf[index];
 					if(alpha_on)
 						avgALPHA += ineimg->alpha[index];
@@ -695,7 +739,6 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 				outeimg->alpha[index]=avgALPHA/size;
 		}
 	}
-
 
 	/* --- 2. last:  blur columns, pick data in outeimg now.  --- */
 	for(i=0; i< width; i++) {
@@ -750,8 +793,6 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	}
 
 	/* If ineimg has alpha values, but alpha_on is false, just copy alpha to outeimg */
-	if(alpha_on) { printf("--- alpha on ---\n"); }
-	else 	     { printf("--- alpha off ---\n"); }
 	if( !alpha_on && ineimg->alpha != NULL)
 		memcpy( outeimg->alpha, ineimg->alpha, height*width*sizeof(unsigned char)) ;
 
@@ -761,6 +802,243 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	return outeimg;
 }
 
+
+/*-----------------------------------------------------------------------
+Resize an image and create a new EGI_IMGBUF to hold the new image data.
+
+@ineimg:	Input EGI_IMGBUF holding the original image data.
+@width:		Width for new image.
+@height:	Height for new image.
+
+Return:
+	A pointer to EGI_IMGBUF with new image 		OK
+	NULL						Fails
+------------------------------------------------------------------------*/
+EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
+				unsigned int width, unsigned int height )
+{
+	int i,j,k;
+	int ln,rn;		/* left/right(or up/down) index of pixel in a row of ineimg */
+	int f15_ratio;
+	unsigned int color_rowsize, alpha_rowsize;
+	EGI_IMGBUF *outeimg=NULL;
+	EGI_IMGBUF *tmpeimg=NULL;
+
+
+	/* for intermediate processing */
+	EGI_16BIT_COLOR **icolors=NULL;
+	unsigned char 	**ialphas=NULL;
+
+	/* for final processing */
+	EGI_16BIT_COLOR **fcolors=NULL;
+	unsigned char 	**falphas=NULL;
+
+
+	if(ineimg==NULL || ineimg->imgbuf==NULL || width==0 || height==0 )
+		return NULL;
+
+	unsigned int oldwidth=ineimg->width;
+	unsigned int oldheight=ineimg->height;
+
+	bool alpha_on=false;
+
+	if(ineimg->alpha!=NULL)
+			alpha_on=true;
+
+#if 0 /* ----- FOR TEST ONLY ----- */
+	/* create temp imgbuf */
+	tmpeimg= egi_imgbuf_create(oldheight, width, 0, 0); /* (h,w,alpha,color) alpha/color will be replaced later */
+	if(tmpeimg==NULL) {
+		return NULL;
+	}
+	if(!alpha_on) {
+		free(tmpeimg->alpha);
+		tmpeimg->alpha=NULL;
+	}
+#endif /* ----- TEST ONLY ----- */
+
+	/* create output imgbuf */
+	outeimg= egi_imgbuf_create( height, width, 0, 0); /* (h,w,alpha,color) alpha/color will be replaced later */
+	if(outeimg==NULL) {
+		return NULL;
+	}
+	if(!alpha_on) {
+		free(outeimg->alpha);
+		outeimg->alpha=NULL;
+	}
+
+	/* Allocate mem to hold oldheight x width image for intermediate processing */
+	icolors=(EGI_16BIT_COLOR **)egi_malloc_buff2D(oldheight,width*sizeof(EGI_16BIT_COLOR));
+	if(icolors==NULL) {
+		printf("%s: Fail to malloc icolors.\n",__func__);
+		egi_imgbuf_free(outeimg);
+		return NULL;
+	}
+	if(alpha_on) {
+	   ialphas=egi_malloc_buff2D(oldheight,width*sizeof(unsigned char));
+	   if(ialphas==NULL) {
+		printf("%s: Fail to malloc ipalphas.\n",__func__);
+		egi_imgbuf_free(outeimg);
+		egi_free_buff2D((unsigned char **)icolors, oldheight);
+		return NULL;
+	   }
+	}
+
+	/* Allocate mem to hold final image size height x width  */
+	fcolors=(EGI_16BIT_COLOR **)egi_malloc_buff2D(height,width*sizeof(EGI_16BIT_COLOR));
+	if(fcolors==NULL) {
+		printf("%s: Fail to malloc fcolors.\n",__func__);
+		egi_imgbuf_free(outeimg);
+		egi_free_buff2D((unsigned char **)icolors, oldheight);
+		if(alpha_on)
+			egi_free_buff2D(ialphas, oldheight);
+		return NULL;
+	}
+	if(alpha_on) {
+	    falphas=egi_malloc_buff2D(height,width*sizeof(unsigned char));
+	    if(falphas==NULL) {
+		printf("%s: Fail to malloc ipalphas.\n",__func__);
+		egi_imgbuf_free(outeimg);
+		egi_free_buff2D((unsigned char **)icolors, oldheight);
+		egi_free_buff2D(ialphas, oldheight);
+		egi_free_buff2D((unsigned char **)fcolors, height);
+		return NULL;
+	    }
+	}
+
+	printf(" height=%d, width=%d, oldheight=%d, oldwidth=%d \n", height, width, oldheight, oldwidth );
+
+	/* get new rowsize in bytes */
+	color_rowsize=width*sizeof(EGI_16BIT_COLOR);
+	alpha_rowsize=width*sizeof(unsigned char);
+
+	/* ----- STEP 1 -----  scale image from [oldheight_X_oldwidth] to [oldheight_X_width] */
+	for(i=0; i<oldheight; i++)
+	{
+		printf(" \n STEP 1: ----- row %d ----- \n",i);
+		for(j=0; j<width; j++) /* apply new width */
+		{
+			/* Note:
+			 *   1. Here ln is left point index, and rn is right point index of a row of pixels.
+			 *      ln and rn are index of original image row.
+			 *      The inserted new point is between ln and rn.
+			 *   2. Notice that (oldwidth-1)/(width-1) is acutual width ratio.
+			 */
+			ln=j*(oldwidth-1)/(width-1);/* xwidth-1 is gap numbers */
+			f15_ratio=(j*(oldwidth-1)-ln*(width-1))*(1U<<15)/(width-1); /* >= 0 */
+			/* If last point, the ratio must be 0! no more point at its right now! */
+			if(ln==width-1)
+				rn=ln;
+			else
+				rn=ln+1;
+#if 1 /* --- TEST --- */
+			printf( "row: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
+						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
+#endif
+			/* interplate pixel color/alpha value, and store to icolors[]/ialphas[]  */
+			if(alpha_on) {
+				//printf("alpha_on interplate ...\n");
+				egi_16bitColor_interplt(ineimg->imgbuf[i*oldwidth+ln], /* color1 */
+							ineimg->imgbuf[i*oldwidth+rn], /* color2 */
+			                                /* uchar alpha1,  uchar alpha2 */
+					 	ineimg->alpha[i*oldwidth+ln], ineimg->alpha[i*oldwidth+rn],
+                                         /* int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha */
+					 	f15_ratio, icolors[i]+j, ialphas[i]+j  );
+			}
+			else {
+				//printf("alpha_off interplate ...\n");
+				egi_16bitColor_interplt(ineimg->imgbuf[i*oldwidth+ln], /* color1 */
+							ineimg->imgbuf[i*oldwidth+rn], /* color2 */
+			                                /* uchar alpha1,  uchar alpha2 */
+					 		 0, 0,   /* whatever when out pointer is NULL */
+                                         /* int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha */
+					 		f15_ratio, icolors[i]+j, NULL );
+			}
+		}
+#if 0 /* ----- FOR TEST ONLY ----- */
+		/* copy row data to tmpeimg */
+		memcpy( tmpeimg->imgbuf+i*width, icolors[i], color_rowsize );
+		if(alpha_on)
+		    memcpy( tmpeimg->alpha+i*width, ialphas[i], alpha_rowsize );
+#endif
+	}
+
+	/* NOTE: rowsize keep same here! Just need to scale height. */
+
+	/* ----- STEP 2 -----  scale image from [oldheight_X_width] to [height_X_width] */
+	for(i=0; i<width; i++)
+	{
+		printf(" \n STEP 2: ----- column %d ----- \n",i);
+		for(j=0; j<height; j++) /* apply new height */
+		{
+			/* Here ln is upper point index, and rn is lower point index of a column of pixels.
+			 * ln and rn are index of original image column.
+			 * The inserted new point is between ln and rn.
+			 */
+			ln=j*(oldheight-1)/(height-1);/* xwidth-1 is gap numbers */
+			f15_ratio=(j*(oldheight-1)-ln*(height-1))*(1U<<15)/(height-1); /* >= 0 */
+			/* If last point, the ratio must be 0! no more point at its lower position now! */
+			if( ln == (height-1) )
+				rn=ln;
+			else
+				rn=ln+1;
+#if 1 /* --- TEST --- */
+			printf( "column: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
+						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
+#endif
+			/* interplate pixel color/alpha value, and store data to fcolors[]/falphas[]  */
+			if(alpha_on) {
+				//printf("column: alpha_on interplate ...\n");
+				egi_16bitColor_interplt(
+							//ineimg->imgbuf[ln*width+i], /* color1 */
+							//ineimg->imgbuf[rn*width+i], /* color2 */
+							 icolors[ln][i], icolors[rn][i], /* old: color1, color2 */
+			                                /* old: uchar alpha1,  uchar alpha2 */
+					 	//ineimg->alpha[ln*width+i], ineimg->alpha[rn*width+i],
+						   	 ialphas[ln][i], ialphas[rn][i],
+                                         /* int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha */
+					 	         f15_ratio, fcolors[j]+i, falphas[j]+i  );
+			}
+			else {
+				//printf("column: alpha_off interplate ...\n");
+				egi_16bitColor_interplt(
+							//ineimg->imgbuf[ln*width+i], /* color1 */
+							//ineimg->imgbuf[rn*width+i], /* color2 */
+							 icolors[ln][i], icolors[rn][i], /* color1, color2 */
+			                                /* uchar alpha1,  uchar alpha2 */
+					 		 0, 0,   /* whatever, when passout pointer is NULL */
+                                         /* int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha */
+					 		f15_ratio, fcolors[j]+i, NULL );
+			}
+		}
+		/* Can NOT copy row data here! as it transverses column.  */
+	}
+
+	/* Copy row data to outeimg when all finish. */
+	printf(" STEP 2: copy row data to outeimg...\n");
+	for( i=0; i<height; i++) {
+		memcpy( outeimg->imgbuf+i*width, fcolors[i], color_rowsize );
+		if(alpha_on)
+		    memcpy( outeimg->alpha+i*width, falphas[i], alpha_rowsize );
+	}
+
+	/* free buffers */
+	printf(" free buffers...\n");
+	egi_free_buff2D((unsigned char **)icolors, oldheight);
+	egi_free_buff2D(ialphas, oldheight);   /* no matter alpha off */
+	egi_free_buff2D((unsigned char **)fcolors, height);
+	egi_free_buff2D(falphas, height);      /* no matter alpha off */
+
+#if 1 /* ----- FOR TEST ONLY ----- */
+	if(tmpeimg!=NULL) {
+		printf("return tmpeimg...\n");
+		egi_imgbuf_free(outeimg);
+		return tmpeimg;
+	}
+#endif /* ----- FOR TEST ONLY ----- */
+
+	return outeimg;
+}
 
 
 /*------------------------------------------------------------------------------
@@ -888,6 +1166,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
         }
 
 	/* get mutex lock */
+	printf("%s: Start lock image mutext...\n",__func__);
 	if(pthread_mutex_lock(&egi_imgbuf->img_mutex) !=0){
 		printf("%s: Fail to lock image mutex!\n",__func__);
 		return -1;
@@ -901,6 +1180,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                 return -2;
         }
+	printf("%s: height=%d, width=%d \n",__func__, imgh,imgw);
 
         int i,j;
         int xres=fb_dev->vinfo.xres;
