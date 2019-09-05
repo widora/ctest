@@ -414,7 +414,7 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	int bytpp=2; /* bytes per pixel, 16bits color only */
 	int i,j;
 
-	if(egi_imgbuf==NULL) {
+	if( egi_imgbuf==NULL ) {
 		printf("%s: Input egi_imgbuf is NULL!\n",__func__);
 		return -1;
 	}

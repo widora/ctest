@@ -33,8 +33,9 @@ void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int 		egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_16BIT_COLOR color );
-
-int 		egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
+EGI_IMGBUF*	egi_imgbuf_blockCopy( const EGI_IMGBUF *ineimg,
+                	              int px, int py, int height, int width );
+int 		egi_imgbuf_setFrame( EGI_IMGBUF *eimg, enum imgframe_type type,
                          	     int alpha, int pn, const int *param );
 
 EGI_IMGBUF*	egi_imgbuf_newFrameImg( int height, int width,
@@ -54,7 +55,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
                                 unsigned int width, unsigned int height );
 
 int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );
-int 		egi_imgbuf_windisplay(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+int 		egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
 int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,

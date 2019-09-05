@@ -10,7 +10,6 @@ midaszhou@yahoo.com
 ------------------------------------------------------------------*/
 #include <stdio.h>
 #include "egi_common.h"
-#include "egi_pcm.h"
 #include "egi_FTsymbol.h"
 
 int main(int argc, char** argv)
@@ -43,6 +42,11 @@ int main(int argc, char** argv)
         printf("init_fbdev()...\n");
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
+        /* <<<<<  END EGI general init  >>>>>> */
+
+
+
+
 
 
 int rad=200;
@@ -54,40 +58,115 @@ show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
 
 
-pimg=egi_imgbuf_alloc();
+  pimg=egi_imgbuf_alloc();
 
 
 //(egi_imgbuf_loadjpg("/tmp/test.jpg", pimg);
 //egi_imgbuf_loadpng("/tmp/test.png", pimg);
 
-if( egi_imgbuf_loadjpg(argv[1],pimg)!=0 && egi_imgbuf_loadpng(argv[1],pimg)!=0 ) {
-  printf(" Fail to load file %s!\n", argv[1]);
-  exit(-1);
-}
+   if( egi_imgbuf_loadjpg(argv[1],pimg)==0 || egi_imgbuf_loadpng(argv[1],pimg)==0 ) {
+   		printf(" Succeed to load file %s!\n", argv[1]);
+   } else {
+		printf(" Fail to load file %s!\n", argv[1]);
+		exit(1);
+   }
 
 
-do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
+#if 0 /////////////////////////   1. TEST image block copy   ///////////////////
+	EGI_IMGBUF *blockimg=NULL;
+	blockimg=egi_imgbuf_blockCopy( pimg,  			/* ineimg */
+                                       0 , 0, 200, 200 );   /* px, py, height, width */
 
-//   show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
-   for(i=24; i<=240*3; i+=12 ) {
-	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+     if(blockimg != NULL) {
+	egi_imgbuf_windisplay( blockimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+                               0, 0,   				/* int xp, int yp */
+			       0, 0,				/* xw, yw , align left */
+			       blockimg->width, blockimg->height   /* winw,  winh */
+			       //0, 0, eimg->width>240?240:eimg->width , eimg->height   /* xw, yw, winw,  winh */
+			      );
+     }
+
+	exit(0);
+#endif
+
+#if 1 /////////////////////////   2. TEST resize to 1x1    ///////////////////////////
+	eimg=egi_imgbuf_resize( pimg, 1,1 );   /* eimg, width, height */
+	if(eimg==NULL) {
+		printf("Fail to resize to 1x1(2x2)!\n");
+		exit(-1);
+	}
+	printf("start windisplay 2x2 image...\n");
+	clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
+	egi_imgbuf_windisplay( eimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+                               0, 0,   				/* int xp, */
+			       0, 0,				/* xw, yw */
+			       eimg->width, eimg->height   /* winw,  winh */
+			      );
+	egi_imgbuf_free(eimg);
+
+//	exit(0);
+#endif
+
+k=0;
+do {    ////////////////////////////  3. LOOP TEST   /////////////////////////////////
+
+   egi_imgbuf_free(pimg);
+
+   if(pimg==NULL)
+	printf("------- pimg==NULL -------\n");
+
+   if( egi_imgbuf_loadjpg( argv[1],pimg )==0 ) { // || egi_imgbuf_loadpng(argv[1],pimg)==0 ) {
+   		printf(" Succeed to load file %s!\n", argv[1]);
+   } else {
+		printf(" Fail to load file %s!\n", argv[1]);
+		exit(1);
+   }
+
+
+   printf("show jpg...\n");
+   show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+
+   #if  1 /* ----- scale step 12/240 for W240H320 image  -------- */
+   for(i=24, j=32; i<=240*3; i+=12, j+=16 ) {
+   #else  /* ----- scale step 1/240 for W240H320 image  -------- */
+   for(i=0, j=0; i<=240*3; i+=1 ) {
+   #endif
+
+	k++;
+	//show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
 	/* resize */
-	eimg=egi_imgbuf_resize( pimg, i, i );   /* eimg,height,width,   align center */
-	//eimg=egi_imgbuf_resize( pimg, i, i ); /* eimg,height,width,   align left   */
+	eimg=egi_imgbuf_resize( pimg, i, i*320/240 );   /* eimg, width, height */
+	//eimg=egi_imgbuf_resize( pimg, i, i ); /* eimg, width, height */
 	if(eimg==NULL)
 		exit(-1);
+
+	#if 1 /* >>>>>>  copy a block to replace pimg >>>>>>>>> */
+	/* if size is big as 240x320, then copy a 240x320 size block to replace pimg */
+	if(i>240-1) {
+		egi_imgbuf_free(pimg);
+		pimg=egi_imgbuf_blockCopy( eimg,  			/* ineimg */
+                                           (i-240)/2,0, 320, 240 );   /* px, py, height, width */
+		/* re_adjust i,j */
+		i=240;j=320;
+	}
+	#endif  /* <<<<<<< END <<<<<<< */
 
 	printf("start windisplay...\n");
 	egi_imgbuf_windisplay( eimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
-			       120-(i>>1), 0,			/* xw, yw , align center */
-			       //0, 0,				/* xw, yw , align left */
+			       //120-(i>>1), 0,			/* xw, yw , align center */
+			       0, 0,				/* xw, yw , align left */
 			       eimg->width, eimg->height   /* winw,  winh */
 			       //0, 0, eimg->width>240?240:eimg->width , eimg->height   /* xw, yw, winw,  winh */
 			      );
+
 	egi_imgbuf_free(eimg);
 	tm_delayms(150);
+
+	/* break for() */
+	if(k>100)
+		break;
     }
 
 	tm_delayms(3000);
@@ -95,6 +174,8 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 }while(1); ////////////////////////////    LOOP TEST   /////////////////////////////////
 
 	egi_imgbuf_free(pimg);
+
+
 
         /* <<<<<  EGI general release >>>>> */
         printf("FTsymbol_release_allfonts()...\n");
@@ -113,31 +194,3 @@ return 0;
 }
 
 
-
-
-#if 0 /* <<<<<<<<<<<<<<<<<    test egi_imgbuf_avgsoft(), 2D array  >>>>>>>>>>>>>> */
-	gettimeofday(&tm_start,NULL);
-	softimg=egi_imgbuf_avgsoft(pimg, blur_size, true, false); /* eimg, size, alpha_on, hold_on */
-	gettimeofday(&tm_end,NULL);
-	printf("egi_imgbuf_avgsoft() 2D time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
-	/* set frame */
-	#if 0
-	egi_imgbuf_setframe( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
-	                     -1, 1, &rad );		/*  init alpha, int pn, const int *param */
-	#endif
-	/* display */
-	printf("start windisplay...\n");
-	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
-	gettimeofday(&tm_start,NULL);
-	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
-                               0, 0,   				/* int xp, int yp */
-			       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
-			      );
-	gettimeofday(&tm_end,NULL);
-	printf("windisplay time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
-
-	/* free softimg */
-	egi_imgbuf_free(softimg);
-
-	tm_delayms(500);
-#endif /* ---- End test egi_imgbuf_avgsoft() ---- */

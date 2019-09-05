@@ -27,7 +27,7 @@ LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS =  test_fb test_sym tmp_app show_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
-APPS += test_txt test_img
+APPS += test_txt test_img test_resizeimg
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic
@@ -40,15 +40,19 @@ all:	$(APPS)
 # 3. At last, we must switch back to dynamic libs, as default for Linux system runtime setup.
 # 4. Source/obj files must be put before all -Wl.
 
-### ----- template -----
-test:	$(TEST_C).c
+
+### 		----- A template for making test app -----
+###	Usage example: make test TEST_NAME=test_resizeimg EGILIB=static
+###
+test:	$(TEST_NAME).c
 ifeq ($(EGILIB),static)
-	$(CC) $(TEST_C).c -o $(TEST_C) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+	$(CC) $(TEST_NAME).c -o $(TEST_NAME) $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -Wl,-Bdynamic
 else
-	$(CC) -o $(TEST_C) $(TEST_C).c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+	$(CC) -o $(TEST_NAME) $(TEST_NAME).c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
-### ------ tend -----
+
+### 			------ template end -----
 
 
 tmp_app:	tmp_app.c
@@ -68,13 +72,13 @@ else
 	$(CC) -o test_txt test_txt.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
 
-test_img:	test_img.c
-ifeq ($(EGILIB),static)
-	$(CC) test_img.c -o test_img  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
--Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
-else
-	$(CC) -o test_img test_img.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
-endif
+#test_img:	test_img.c
+#ifeq ($(EGILIB),static)
+#	$(CC) test_img.c -o test_img  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+#-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+#else
+#	$(CC) -o test_img test_img.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+#endif
 
 show_pic:	show_pic.c
 ifeq ($(EGILIB),static)

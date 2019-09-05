@@ -32,7 +32,7 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 CFLAGS  = -I./ -I./page -I./iot -I./ffmpeg -I./utils -I$(COMMON_USRDIR)/include
 CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
-CFLAGS += -Wall -O2 -fPIC
+CFLAGS += -Wall -fPIC -O2
 CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
 
 #### --- for debug, put before LDFLAGS!!!! ----

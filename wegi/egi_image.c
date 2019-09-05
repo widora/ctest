@@ -15,7 +15,7 @@ Midas Zhou
 #include "egi_bjp.h"
 #include "egi_utils.h"
 
-typedef struct fbdev FBDEV;
+typedef struct fbdev FBDEV; /* Just a declaration, referring to definition in egi_fbdev.h */
 
 /*--------------------------------------------
    	   Allocate  a EGI_IMGBUF
@@ -68,12 +68,22 @@ void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf)
 			free(egi_imgbuf->subimgs);
 			egi_imgbuf->subimgs=NULL;
 		}
+		if(egi_imgbuf->pcolors !=NULL) {
+	        	egi_free_buff2D((unsigned char **)egi_imgbuf->pcolors, egi_imgbuf->height);
+			egi_imgbuf->pcolors=NULL;
+		}
+		if(egi_imgbuf->palphas !=NULL) {
+		        egi_free_buff2D(egi_imgbuf->palphas, egi_imgbuf->height);
+			egi_imgbuf->palphas=NULL;
+		}
 
 		/* reset size and submax */
 		egi_imgbuf->height=0;
 		egi_imgbuf->width=0;
 		egi_imgbuf->submax=0;
 	}
+
+	/* Only clear data !!!!DO NOT egi_imgbuf=NULL; */
 }
 
 /*---------------------------------------
@@ -87,9 +97,9 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	/* Hope there is no other user */
 	pthread_mutex_lock(&egi_imgbuf->img_mutex);
 
-	/* free 2D array data if any */
-        egi_free_buff2D((unsigned char **)egi_imgbuf->pcolors, egi_imgbuf->height);
-        egi_free_buff2D(egi_imgbuf->palphas, egi_imgbuf->height);
+	/* !MOVE TO egi_imgbuf_cleardata(), free 2D array data if any */
+        //egi_free_buff2D((unsigned char **)egi_imgbuf->pcolors, egi_imgbuf->height);
+        //egi_free_buff2D(egi_imgbuf->palphas, egi_imgbuf->height);
 
 	/* free data inside */
 	egi_imgbuf_cleardata(egi_imgbuf);
@@ -104,7 +114,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 
 
 /*-------------------------------------------------------------
-Initiate/alloc imgbuf as an image canvas, with all alpha=0
+Initiate/alloc imgbuf as an image canvas, with all alpha=0!!!
 
 NOTE:
   1. !!!!WARNING!!!: No mutex operation here, the caller shall take
@@ -152,9 +162,9 @@ Create an EGI_IMGBUF, set color and alpha value.
 
 @height,width:	height and width of the imgbuf.
 @alpha:		>0, alpha value for all pixels.
-		(default 0)
+		(else, default 0)
 @color:		>0 basic color of the imgbuf.
-		(default 0)
+		(else, default 0)
 
 -------------------------------------------------------*/
 EGI_IMGBUF *egi_imgbuf_create( int height, int width,
@@ -180,6 +190,73 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 
 	return imgbuf;
 }
+
+
+/*----------------------------------------------------------------
+Copy a block of image from input EGI_IMGBUF, and create
+a new EGI_IMGBUF to hold the data.
+Only color/alpha of ineimg will be copied to outeimg, other members
+such as subimg will be ignored.
+
+@ineimg:  The original image from which we'll copy an image block.
+@px,py:   Coordinates of the origin for the wanted image block,
+	  relative to ineimg image coords.
+@height:  Height of the image block
+@width:   Width of the image block
+
+Return:
+	A pointer to EGI_IMGBUF		Ok
+	NULL				Fails
+-----------------------------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_blockCopy( const EGI_IMGBUF *ineimg,
+				  int px, int py, int height, int width )
+{
+	int i,j;
+	unsigned int indx,outdx;
+	EGI_IMGBUF *outeimg=NULL;
+	bool alpha_on;
+
+	if( ineimg==NULL || ineimg->imgbuf==NULL )
+		return NULL;
+
+	/* create a new imgbuf */
+	outeimg=egi_imgbuf_create( height, width, 255, 0); /* default alpha 255 */
+	if(outeimg==NULL) {
+		printf("%s: Fail to create outeimg!\n",__func__);
+		return NULL;
+	}
+
+	/* alpha  ON/OFF */
+	if( ineimg->alpha != NULL )
+		alpha_on=true;
+	else {
+		alpha_on=false;
+		/* free it */
+		free(outeimg->alpha);
+		outeimg->alpha=NULL;
+	}
+
+	/* Copy color/alpha data */
+	for(i=0; i<height; i++) {
+		for(j=0; j<width; j++) {
+			/* Range check */
+			if(  py+i < 0 || px+j < 0 ||
+			     py+i >= ineimg->height || px+j >= ineimg->width  ) {
+				  continue;
+			}
+			outdx=i*width+j;	  /* data index for outeimg*/
+			indx=(py+i)*ineimg->width+(px+j); /* data index for ineimg */
+			/* copy data */
+			outeimg->imgbuf[outdx]=ineimg->imgbuf[indx];
+			if(alpha_on) {
+				outeimg->alpha[outdx]=ineimg->alpha[indx];
+			}
+		}
+	}
+
+	return outeimg;
+}
+
 
 
 /*-----------------------------------------------------------
@@ -208,7 +285,7 @@ Return:
         0      OK
         <0     Fail
 ---------------------------------------------------------*/
-int egi_imgbuf_setframe( EGI_IMGBUF *eimg, enum imgframe_type type,
+int egi_imgbuf_setFrame( EGI_IMGBUF *eimg, enum imgframe_type type,
 			 int alpha, int pn, const int *param )
 {
 	int i,j;
@@ -306,7 +383,7 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 	if(imgbuf==NULL)
 		return NULL;
 
-	if( egi_imgbuf_setframe(imgbuf, type, alpha, pn, param ) !=0 ) {
+	if( egi_imgbuf_setFrame(imgbuf, type, alpha, pn, param ) !=0 ) {
 		printf("%s: Frame imgbuf created, but fail to set frame type!\n",__func__);
 		/* Go on anyway....*/
 	}
@@ -341,8 +418,9 @@ Note:
 @eimg:	object image.
 @size:  number of pixels taken to average, window size of avgerage filer.
 	The greater the value, the more blurry the result will be.
-	size will be adjusted to be Min(width/2,height/2) if input size is greater
-	than width/2 or height/2.
+	If input size<1; then it will be ajusted to 1.
+	!!! --- NOTICE --- !!!
+	If size==1, the result outeimg has a copy of original eimg's colors/alphas data.
 
 @alpha_on:  True:  Also need to blur alpha values, only if the image has alpha value.
 	    False: Do not blur alpha values.
@@ -370,14 +448,18 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft( EGI_IMGBUF *ineimg, int size, bool alpha_on, bo
 	unsigned char 	**palphas=NULL; /* WARNING!!! pointer same as ineimg->palphas */
 
 
-	if( ineimg==NULL || ineimg->imgbuf==NULL || size<=0 )
+	if( ineimg==NULL || ineimg->imgbuf==NULL )
 		return NULL;
 
 	height=ineimg->height;
 	width=ineimg->width;
 
-	/***  ---- Redefine alpha_on ----
-	 * alpha_on: only image has alpha value
+	/* adjust size to Min. 1 */
+	if(size<1)
+		size=1;
+
+	/***  ---- Redefine and adjust alpha_on ----
+	 * alpha_on: only image has alpha value AND input alpha_on is true!
 	 */
 	alpha_on = ( ineimg->alpha && alpha_on ) ? true : false;
 	if(alpha_on) { printf("%s: --- alpha on ---\n",__func__); }
@@ -436,9 +518,10 @@ if( ineimg->pcolors==NULL || ( alpha_on && ineimg->alpha !=NULL && ineimg->palph
 
 }
 else  {
-	/*** 	If Already allocated
+	/*** 	<<<<  If pcolors/palphas already allocated in input ineimg  >>>
 	 * 2D array data may have been contanimated/processed already !!!
-	 * we MUST update data to the same as ineimg->imgbuf and ineimg->alpha
+	 * If we don't want to continue to use it, then we NEED to update to the same as
+	 * original ineimg->imgbuf and ineimg->alpha
 	 */
 
 	/* WARNING!!! make a copy pointers. before we use 'pcolors' instead of 'ineimg->pcolors' */
@@ -475,7 +558,7 @@ else  {
 		outeimg->alpha=NULL;
 	}
 
-	/* --- 1. first:  blur rows --- */
+	/* --- STEP 1:  blur rows --- */
 	for(i=0; i< height; i++) {
 		/* first avg, for left to right */
 		for(j=0; j< width; j++) {
@@ -521,7 +604,7 @@ else  {
 		}
 	}
 
-	/* --- 2. last:  blur columns --- */
+	/* --- STEP 2:  blur columns --- */
 	for(i=0; i< width; i++) {
 		/* first avg, from top to bottom */
 		for(j=0; j< height; j++) {
@@ -601,6 +684,9 @@ else  {
 Nearly same speed as of egi_imgbuf_avgsoft(), But beware of the size of the
 picture, especailly like 1024x901(odd)   !!! FAINT !!!
 
+!!! --- NOTICE --- !!!
+If size==1, the result outeimg has a copy of original eimg's colors/alphas data.
+
 Note:
 1. Function same as egi_imgbuf_avgsoft(), but without allocating  additional
    2D array for color/alpha data processsing.
@@ -619,6 +705,7 @@ Note:
 	3.   1200x1920 PNG,RGBA  nearly same speed for all blur_size.
      	     1922x1201 PNG,RGBA  nearly same speed for all blur_size.
 
+
 Return:
 	A pointer to a new EGI_IMGBUF with blured image  	OK
 	NULL							Fail
@@ -632,14 +719,19 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 	unsigned int index;
 	EGI_IMGBUF *outeimg=NULL;
 
-	if( ineimg==NULL || ineimg->imgbuf==NULL || size<=0 )
+	if( ineimg==NULL || ineimg->imgbuf==NULL )
 		return NULL;
 
 	height=ineimg->height;
 	width=ineimg->width;
 
+	/* adjust size to Min. 1 */
+	if(size<1)
+		size=1;
+
+
 	/***   Redefine alpha_on
-	 * alpha_on: only image has alpha value
+	 * alpha_on: only image has alpha value AND input alpha_on is true!
 	 */
 	alpha_on = (ineimg->alpha && alpha_on) ? true : false;
 	if(alpha_on) { printf("%s: --- alpha on ---\n",__func__); }
@@ -678,7 +770,7 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 		outeimg->alpha=NULL;
 	}
 
-	/* --- 1. first:  blur rows, pick data in ineimg  --- */
+	/* --- STEP 1:  blur rows, pick data in ineimg  --- */
 	for(i=0; i< height; i++) {
 		/* first avg, for left to right */
 		for(j=0; j< width; j++) {
@@ -740,7 +832,7 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 		}
 	}
 
-	/* --- 2. last:  blur columns, pick data in outeimg now.  --- */
+	/* --- STEP 2:  blur columns, pick data in outeimg now.  --- */
 	for(i=0; i< width; i++) {
 		/* first avg, from top to bottom */
 		for(j=0; j< height; j++) {
@@ -805,11 +897,28 @@ EGI_IMGBUF  *egi_imgbuf_avgsoft2(const EGI_IMGBUF *ineimg, int size, bool alpha_
 
 /*-----------------------------------------------------------------------
 Resize an image and create a new EGI_IMGBUF to hold the new image data.
+Only size/color/alpha of ineimg will be transfered to outeimg, others
+such as subimg will be ignored. )
+
+NOTE:
+1. Linear interplation is carried out with fix point calculation.
+
+2. !!! --- LIMIT --- !!!
+   Fix point data type: 			int
+   Pixel 16bit color:				16bit
+   Fix point multiplier(or divisor): 		f15 ( *(1U<<15) )
+   interplation ratio:				[0 1]
+   Scale limit/Interplation resolution:
+
+   Min. ratio 1/(1U<<15), so more than 1k points can be interplated between
+   two pixels.
+
 
 @ineimg:	Input EGI_IMGBUF holding the original image data.
 @width:		Width for new image.
+		If width<2, auto. adjust it to 2.
 @height:	Height for new image.
-
+		If height<2, auto. adjust it to 2.
 Return:
 	A pointer to EGI_IMGBUF with new image 		OK
 	NULL						Fails
@@ -834,16 +943,19 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	unsigned char 	**falphas=NULL;
 
 
-	if(ineimg==NULL || ineimg->imgbuf==NULL || width==0 || height==0 )
+	if(ineimg==NULL || ineimg->imgbuf==NULL ) //|| width==0 || height==0 ) adjust to 2
 		return NULL;
 
 	unsigned int oldwidth=ineimg->width;
 	unsigned int oldheight=ineimg->height;
 
 	bool alpha_on=false;
-
 	if(ineimg->alpha!=NULL)
 			alpha_on=true;
+
+	/* adjust width and height to 2, ==1 will cause Devide_By_Zero exception. */
+	if(width<2) width=2;
+	if(height<2) height=2;
 
 #if 0 /* ----- FOR TEST ONLY ----- */
 	/* create temp imgbuf */
@@ -915,7 +1027,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	/* ----- STEP 1 -----  scale image from [oldheight_X_oldwidth] to [oldheight_X_width] */
 	for(i=0; i<oldheight; i++)
 	{
-		printf(" \n STEP 1: ----- row %d ----- \n",i);
+//		printf(" \n STEP 1: ----- row %d ----- \n",i);
 		for(j=0; j<width; j++) /* apply new width */
 		{
 			/* Note:
@@ -927,11 +1039,11 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 			ln=j*(oldwidth-1)/(width-1);/* xwidth-1 is gap numbers */
 			f15_ratio=(j*(oldwidth-1)-ln*(width-1))*(1U<<15)/(width-1); /* >= 0 */
 			/* If last point, the ratio must be 0! no more point at its right now! */
-			if(ln==width-1)
+			if(ln == oldwidth-1)
 				rn=ln;
 			else
 				rn=ln+1;
-#if 1 /* --- TEST --- */
+#if 0 /* --- TEST --- */
 			printf( "row: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
 						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
 #endif
@@ -978,11 +1090,11 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 			ln=j*(oldheight-1)/(height-1);/* xwidth-1 is gap numbers */
 			f15_ratio=(j*(oldheight-1)-ln*(height-1))*(1U<<15)/(height-1); /* >= 0 */
 			/* If last point, the ratio must be 0! no more point at its lower position now! */
-			if( ln == (height-1) )
+			if( ln == oldheight-1 )
 				rn=ln;
 			else
 				rn=ln+1;
-#if 1 /* --- TEST --- */
+#if 0 /* --- TEST --- */
 			printf( "column: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
 						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
 #endif
@@ -1015,7 +1127,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	}
 
 	/* Copy row data to outeimg when all finish. */
-	printf(" STEP 2: copy row data to outeimg...\n");
+//	printf(" STEP 2: copy row data to outeimg...\n");
 	for( i=0; i<height; i++) {
 		memcpy( outeimg->imgbuf+i*width, fcolors[i], color_rowsize );
 		if(alpha_on)
@@ -1125,7 +1237,6 @@ int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *
 }
 
 
-
 /*--------------------------------------------------------------------------------------
 For 16bits color only!!!!
 
@@ -1141,8 +1252,8 @@ Note:
 egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
 fb_dev:		FB device
 subcolor:	substituting color, only applicable when >0.
-(xp,yp):        coodinate of the displaying window origin(left top) point, relative to
-                the coordinate system of the picture(also origin at left top).
+(xp,yp):        Displaying image block origin(left top) point coordinate, relative to
+                the coord system of the image(also origin at left top).
 (xw,yw):        displaying window origin, relate to the LCD coord system.
 winw,winh:      width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
@@ -1174,6 +1285,8 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;
+
+
         if( imgw<=0 || imgh<=0 )
         {
                 printf("%s: egi_imgbuf->width or height is <=0. fail to display.\n",__func__);
@@ -1187,10 +1300,10 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
         int yres=fb_dev->vinfo.yres;
         long int screen_pixels=xres*yres;
 
-        unsigned char *fbp =fb_dev->map_fb;
-
-        uint16_t *imgbuf = egi_imgbuf->imgbuf;
+        unsigned char *fbp=fb_dev->map_fb;
+        uint16_t *imgbuf=egi_imgbuf->imgbuf;
         unsigned char *alpha=egi_imgbuf->alpha;
+
         long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
         long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
 //      int bytpp=2; /* bytes per pixel */

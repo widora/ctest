@@ -21,6 +21,7 @@ typedef struct {
 
 typedef struct
 {
+	/* TODO NOTE: mutex only applied to several functions now....*/
 	pthread_mutex_t	img_mutex;	/* mutex lock for imgbuf */
         int height;		 	/* image height */
         int width;		 	/* image width */

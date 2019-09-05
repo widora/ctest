@@ -3,6 +3,10 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+Test image blur/soft functions.
+
+Usage:
+	./test_img  fpath(jpg or png)
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -11,6 +15,7 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_pcm.h"
 #include "egi_FTsymbol.h"
+
 
 int main(int argc, char** argv)
 {
@@ -44,11 +49,18 @@ int main(int argc, char** argv)
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
 
+	/* <<<<<  End EGI Init  >>>>> */
+
+
+
+
+
 
 int rad=200;
 EGI_IMGBUF* pimg=NULL;
 EGI_IMGBUF* eimg=NULL;
 EGI_IMGBUF* softimg=NULL;
+EGI_IMGBUF* frameimg=NULL;
 
 show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
@@ -67,11 +79,10 @@ if( egi_imgbuf_loadjpg(argv[1],pimg)!=0 && egi_imgbuf_loadpng(argv[1],pimg)!=0 )
 
 blur_size=45;
 
+do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////////////
 
-do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
 
-
-#if 1	/* --- change blur_size --- */
+#if 0	/* --- change blur_size --- */
 	if(blur_size > 35 )
 		blur_size -=5;
 	else
@@ -83,20 +94,20 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 	}
 
 #else   /* --- keep blur_size --- */
-	blur_size=13;
+	blur_size=0; //13;
 #endif
 	printf("blur_size=%d\n", blur_size);
 
 /* ------------------------------------------------------------------------------------
 NOTE:
 1. egi_imgbuf_avgsoft(), operating 2D array data of color/alpha, is faster than
-   egi_imgbuf_avgsoft2() with 1D array data.    --doult !!??????
-   This is because 2D array is much faster for sorting/picking data.!!!?
+   egi_imgbuf_avgsoft2() with 1D array data.    --doubt !!??????
+   This is because 2D array is much faster for sorting/picking data.!!!? ---doubt
 
 study cases:
 1.   1000x500 JPG        nearly same speed for all blur_size.
 
-     ( !!!!!  Strange for 1024x901  !!!!! )
+     ( !!!!!  Strange for 1024x901(odd?)  !!!!! )
 2.   1024x901 PNG,RBG    blur_size>13, 2D faster; blur_size<13, nearly same speed.
      1024x900 PNG,RBG    nearly same speed for all blur_size, 1D just a litter slower.
 
@@ -106,26 +117,32 @@ study cases:
 
 -------------------------------------------------------------------------------- */
 
-#if 1 /* <<<<<<<<<<<<<<<<<    test egi_imgbuf_avgsoft(), 2D array  >>>>>>>>>>>>>> */
+#if 1 /* <<<<<<<<<<<<<<<<<    1.1 TEST  egi_imgbuf_avgsoft(), 2D array  >>>>>>>>>>>>>> */
 	gettimeofday(&tm_start,NULL);
 	softimg=egi_imgbuf_avgsoft(pimg, blur_size, true, false); /* eimg, size, alpha_on, hold_on */
 	gettimeofday(&tm_end,NULL);
 	printf("egi_imgbuf_avgsoft() 2D time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
 	/* set frame */
-	#if 0
-	egi_imgbuf_setframe( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
+	#if 1
+	egi_imgbuf_setFrame( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
 	                     -1, 1, &rad );		/*  init alpha, int pn, const int *param */
 	#endif
 	/* display */
-	printf("start windisplay...\n");
 	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
-	gettimeofday(&tm_start,NULL);
-	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
-                               0, 0,   				/* int xp, int yp */
-			       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
-			      );
-	gettimeofday(&tm_end,NULL);
-	printf("windisplay time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
+
+	/* display imgbuf */
+	if(softimg==NULL)
+		printf("start windisplay img==NULL.\n");
+	else {
+		printf("start windisplay img H%dxW%d.\n",softimg->height, softimg->width);
+		gettimeofday(&tm_start,NULL);
+		egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+        	                       0, 0,   				/* int xp, int yp */
+				       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
+				      );
+		gettimeofday(&tm_end,NULL);
+		printf("windisplay time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
+	}
 
 	/* free softimg */
 	egi_imgbuf_free(softimg);
@@ -134,26 +151,33 @@ study cases:
 #endif /* ---- End test egi_imgbuf_avgsoft() ---- */
 
 
-#if 1 /* <<<<<<<<<<<<<<<<<    test egi_imgbuf_avgsoft2(), 1D array  >>>>>>>>>>>>>> */
+#if 1 /* <<<<<<<<<<<<<<<<<   1.2 TEST  egi_imgbuf_avgsoft2(), 1D array  >>>>>>>>>>>>>> */
 	gettimeofday(&tm_start,NULL);
 	softimg=egi_imgbuf_avgsoft2(pimg, blur_size, true);
 	gettimeofday(&tm_end,NULL);
 	printf("egi_imgbuf_avgsoft2(): 1D time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
 	/* set frame */
-	#if 0
-	egi_imgbuf_setframe( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
+	#if 1
+	egi_imgbuf_setFrame( softimg, frame_round_rect,	/* EGI_IMGBUF, enum imgframe_type */
  	                     -1, 1, &rad );		/*  init alpha, int pn, const int *param */
 	#endif
 	/* display */
 	printf("start windisplay...\n");
-	show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
-	gettimeofday(&tm_start,NULL);
-	egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
-                               0, 0,   				/* int xp, int yp */
-			       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
-			      );
-	gettimeofday(&tm_end,NULL);
-	printf("windisplay time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
+	show_jpg("/tmp/fish.jpg",&gv_fb_dev, false, 0, 0);
+	/* display imgbuf */
+	if(softimg==NULL) {
+		printf("start windisplay img==NULL.\n");
+	}
+	else {
+		printf("start windisplay img H%dxW%d.\n",softimg->height, softimg->width);
+		gettimeofday(&tm_start,NULL);
+		egi_imgbuf_windisplay( softimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+        	                       0, 0,   				/* int xp, int yp */
+				       0, 0, softimg->width, softimg->height   /* xw, yw, winw,  winh */
+				      );
+		gettimeofday(&tm_end,NULL);
+		printf("windisplay time cost: %dms\n",tm_signed_diffms(tm_start, tm_end));
+	}
 
 	/* free softimg */
 	egi_imgbuf_free(softimg);
@@ -164,23 +188,23 @@ study cases:
 //	tm_delayms(250/blur_size); //2000);
 
 
-#if 0
-        eimg=egi_imgbuf_newFrameImg( 80, 180,		  /* int height, int width */
+#if 0  /* ------------- Test egi_imgbuf_newFrameImg() ----------- */
+        framimg=egi_imgbuf_newFrameImg( 80, 180,		  /* int height, int width */
                           	  255, egi_color_random(color_medium), /* alpha, color */
 				  frame_round_rect,	  /* enum imgframe_type */
                                	  1, &rad );		  /* int pn, int *param */
 
-	egi_imgbuf_windisplay( eimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
+	egi_imgbuf_windisplay( frameimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
 			       30,30, eimg->width, eimg->height   /* xw, yw, winw,  winh */
 			      );
 
-	egi_imgbuf_free(eimg);
+	egi_imgbuf_free(frameimg);
 #endif
 
 
 
-}while(1); ////////////////////////////    LOOP TEST   /////////////////////////////////
+}while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
 	egi_imgbuf_free(pimg);
 
