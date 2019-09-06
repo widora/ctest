@@ -87,7 +87,7 @@ void egi_free_filo(EGI_FILO *efilo )
                 /* free itself */
                 free(efilo);
 
-                efilo=NULL;
+                efilo=NULL;   /* ineffective though...*/
         }
 }
 

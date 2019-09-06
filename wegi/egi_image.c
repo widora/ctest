@@ -86,9 +86,10 @@ void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf)
 	/* Only clear data !!!!DO NOT egi_imgbuf=NULL; */
 }
 
-/*---------------------------------------
+/*------------------------------------------
 Free EGI_IMGBUF and its data
-----------------------------------------*/
+The caller MUST reset egi_imgbuf to NULL!!!
+-------------------------------------------*/
 void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 {
         if(egi_imgbuf == NULL)
@@ -109,7 +110,7 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 
 	free(egi_imgbuf);
 
-	egi_imgbuf=NULL;
+	egi_imgbuf=NULL; /* ineffective though...*/
 }
 
 

@@ -12,6 +12,7 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_FTsymbol.h"
 
+
 int main(int argc, char** argv)
 {
 	int i,j,k;
@@ -43,9 +44,6 @@ int main(int argc, char** argv)
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
         /* <<<<<  END EGI general init  >>>>>> */
-
-
-
 
 
 
@@ -110,12 +108,9 @@ show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 k=0;
 do {    ////////////////////////////  3. LOOP TEST   /////////////////////////////////
 
-   egi_imgbuf_free(pimg);
-
-   if(pimg==NULL)
-	printf("------- pimg==NULL -------\n");
-
-   if( egi_imgbuf_loadjpg( argv[1],pimg )==0 ) { // || egi_imgbuf_loadpng(argv[1],pimg)==0 ) {
+   egi_imgbuf_free(pimg); pimg=NULL;
+   pimg=egi_imgbuf_alloc();
+   if( egi_imgbuf_loadjpg( argv[1],pimg )==0 || egi_imgbuf_loadpng(argv[1],pimg)==0 ) {
    		printf(" Succeed to load file %s!\n", argv[1]);
    } else {
 		printf(" Fail to load file %s!\n", argv[1]);
@@ -127,7 +122,7 @@ do {    ////////////////////////////  3. LOOP TEST   ///////////////////////////
    show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
    #if  1 /* ----- scale step 12/240 for W240H320 image  -------- */
-   for(i=24, j=32; i<=240*3; i+=12, j+=16 ) {
+   for(i=24, j=32; i<=240*4; i+=24, j+=32 ) {
    #else  /* ----- scale step 1/240 for W240H320 image  -------- */
    for(i=0, j=0; i<=240*3; i+=1 ) {
    #endif
@@ -141,7 +136,7 @@ do {    ////////////////////////////  3. LOOP TEST   ///////////////////////////
 	if(eimg==NULL)
 		exit(-1);
 
-	#if 1 /* >>>>>>  copy a block to replace pimg >>>>>>>>> */
+	#if 0 /* >>>>>>  copy a block to replace pimg >>>>>>>>> */
 	/* if size is big as 240x320, then copy a 240x320 size block to replace pimg */
 	if(i>240-1) {
 		egi_imgbuf_free(pimg);
@@ -154,8 +149,9 @@ do {    ////////////////////////////  3. LOOP TEST   ///////////////////////////
 
 	printf("start windisplay...\n");
 	egi_imgbuf_windisplay( eimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
-                               0, 0,   				/* int xp, int yp */
-			       //120-(i>>1), 0,			/* xw, yw , align center */
+                               //0, 0,  			/* int xp, int yp */
+			       i>240 ? (i-240)/2:0,		/* xw  */
+			       i>240 ? (i-240)*pimg->height/2/pimg->width:0, 	/* yw  */
 			       0, 0,				/* xw, yw , align left */
 			       eimg->width, eimg->height   /* winw,  winh */
 			       //0, 0, eimg->width>240?240:eimg->width , eimg->height   /* xw, yw, winw,  winh */
@@ -165,11 +161,13 @@ do {    ////////////////////////////  3. LOOP TEST   ///////////////////////////
 	tm_delayms(150);
 
 	/* break for() */
-	if(k>100)
+	if(k>60) {
+		k=0;
 		break;
+	}
     }
 
-	tm_delayms(3000);
+    tm_delayms(3000);
 
 }while(1); ////////////////////////////    LOOP TEST   /////////////////////////////////
 

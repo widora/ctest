@@ -94,7 +94,7 @@ EGI_FIFO * egi_malloc_fifo(int buff_size, int item_size, int pin_wait)
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to malloc efifo->buff.\n", __func__);
 
 		free(efifo);
-		efifo=NULL;
+		efifo=NULL; /* ineffective though...*/
 
 		return NULL;
 	}
@@ -133,7 +133,7 @@ void egi_free_fifo(EGI_FIFO *efifo )
 		/* free itself */
 		printf("%s:start free(efifo)...\n",__func__);
 		free(efifo);
-		efifo=NULL;
+		efifo=NULL;	/* ineffective though...*/
 	}
 }
 

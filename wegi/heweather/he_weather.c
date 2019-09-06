@@ -232,7 +232,7 @@ char* heweather_get_forecast(const char *strinput, int index, const char *strkey
 Get weather data from HeWeather.com
 
 Note:
-1. If hwdata[]->eimg is NULL, then egi_imgbuf_new() will be called to allocatge
+1. If hwdata[]->eimg is NULL, then egi_imgbuf_alloc() will be called to allocatge
    it.
 2. If hwdata[]->eimg is NOT null, then egi_imgbuf_cleardata() will be called
    to empty its old data before put new data into it.
@@ -350,9 +350,9 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 
 	/* create a new EGI_IMGBUF if NULL */
 	if(weather_data[0].eimg==NULL) {
-		weather_data[0].eimg=egi_imgbuf_new();
+		weather_data[0].eimg=egi_imgbuf_alloc();
 		if(weather_data[0].eimg==NULL) {
-			printf("%s: fail to call egi_imgbuf_new()!\n",__func__);
+			printf("%s: fail to call egi_imgbuf_alloc()!\n",__func__);
 			return -2;
 		}
 	}
@@ -462,9 +462,9 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 
 	        /* create a new EGI_IMGBUF if NULL */
         	if(weather_data[i].eimg==NULL) {
-                	weather_data[i].eimg=egi_imgbuf_new();
+                	weather_data[i].eimg=egi_imgbuf_alloc();
 	                if(weather_data[i].eimg==NULL) {
-        	                printf("%s: fail to call egi_imgbuf_new()!\n",__func__);
+        	                printf("%s: fail to call egi_imgbuf_alloc()!\n",__func__);
                 	        return -2;
                 	}
         	}

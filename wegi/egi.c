@@ -585,7 +585,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 
 		/* 1.4 free concept ebox */
 		free(ebox);
-		ebox=NULL;
+		ebox=NULL;  /* ineffective though...*/
 
 		return 1;
 	}

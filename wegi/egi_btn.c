@@ -849,7 +849,7 @@ void egi_free_data_btn(EGI_DATA_BTN *data_btn)
 	if(data_btn != NULL)
 		free(data_btn);
 
-	data_btn=NULL;
+	data_btn=NULL;  /* useless */
 }
 
 

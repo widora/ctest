@@ -53,6 +53,12 @@ EGI_FVAL       imag;	/* imaginery part */
 */
 #define MAT_CPANGLE(n, N)  ( MAT_FCPVAL( cos(2.0*n*MATH_PI/N), -sin(2.0*n*MATH_PI/N) ) )
 
+/* fixed point hamming window factor
+@n:	nth hanmming window factor, also [0 N-1] index of input sample data
+@N:	Total number of sample data for each FFT session.
+*/
+#define MAT_FHAMMING(n, N)  ( MAT_FVAL(0.54-0.46*cos(2.0*n*MATH_PI/N)) )
+
 /* complex and FFT functions */
 void 			mat_FixPrint(EGI_FVAL a);
 void 			mat_CompPrint(EGI_FCOMPLEX a);
@@ -60,6 +66,7 @@ inline float 		mat_floatFix(EGI_FVAL a);
 inline EGI_FVAL 	mat_FixAdd(EGI_FVAL a, EGI_FVAL b);
 inline EGI_FVAL 	mat_FixSub(EGI_FVAL a, EGI_FVAL b);
 inline EGI_FVAL 	mat_FixMult(EGI_FVAL a, EGI_FVAL b);
+inline int 		mat_FixIntMult(EGI_FVAL a, int b);
 inline EGI_FVAL 	mat_FixDiv(EGI_FVAL a, EGI_FVAL b);
 inline EGI_FCOMPLEX 	mat_CompAdd(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
 inline EGI_FCOMPLEX 	mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b);

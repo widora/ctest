@@ -19,7 +19,8 @@ TODO:
 1. Convert audio format AV_SAMPLE_FMT_FLTP(fltp) to AV_SAMPLE_FMT_S16.
    It dosen't work for ACC_LC decoding, lots of float point operations.
 
-2. Can not decode png picture in a mp3 file. ...OK, with some tricks.
+2. Can not decode png picture in a mp3 file. ...OK, with some tricks:
+   !!! NOTE: Use libs of ffmpeg-2.8.15, except libavcodec.so.56.26.100 of ffmpeg-2.6.9 from openwrt !!!
    However, fail to put logo on mp3 picture by AVFilter descr.
 
 3. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
@@ -142,10 +143,12 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FF_LOOP_TIMEGAP  1  /* in second, hold_on time after ffplaying a file, especially for a picture.
+#define FF_LOOP_TIMEGAP  1   /* in second, hold_on time after ffplaying a file, especially for a picture.
 			     *  set before FAIL_OR_TERM.
 			     */
-#define FF_CLIP_PLAYTIME 10  /* in second, set clip play time */
+
+#define FF_CLIP_PLAYTIME 10   /* in second, set clip play time */
+
 #define ENABLE_MEDIA_LOOP
 
 
@@ -167,7 +170,6 @@ Note:
  To set it up first before you call egi_ffplay()
 ------------------------------------------------*/
 FFPLAY_CONTEXT *FFplay_Ctx=NULL;
-
 
 /* expected display window size, LCD will be adjusted in the function */
 int show_w= 240; //185; /* LCD row pixels */
@@ -260,7 +262,7 @@ static bool enable_clip_test=false;
  *   mode_repeat_one:	repeat current file
  *   mode_shuffle:	pick next file randomly
  */
-enum ffplay_mode playmode=mode_loop_all;
+static enum ffplay_mode playmode=mode_loop_all;
 
 
 /*-----------------------------------------------------

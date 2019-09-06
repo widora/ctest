@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 	egi_util_mkdir("/tmp/.egi/heweather",0755);
 
 	/* prepare host_eimg and virt FB */
-        host_eimg=egi_imgbuf_new();
+        host_eimg=egi_imgbuf_alloc();
         egi_imgbuf_init(host_eimg, 60*subnum, 240); /* 3 rowss */
 
         /* set subimg */

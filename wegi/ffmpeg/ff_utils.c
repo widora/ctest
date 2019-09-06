@@ -536,11 +536,12 @@ void*  ff_display_spectrum(void *argv)
 	FBDEV fbdev={ 0 };
 
         /* for FFT, nexp+aexp Max. 21 */
-        unsigned int    nexp=10;
+        unsigned int    nexp=10;		/* 2^nexp=FFT_POINTS */
         unsigned int    aexp=11;        	/* Max. Amp=1<<aexp */
         unsigned int    np=FFT_POINTS;  	/* input element number for FFT */
         EGI_FCOMPLEX    ffx[FFT_POINTS];        /* FFT result */
         EGI_FCOMPLEX    *wang=NULL;          	/* unit phase angle factor */
+	EGI_FVAL	hamming[FFT_POINTS];
         unsigned int    ns=1<<5;//6;    	/* points for spectrum diagram */
         unsigned int    avg;
         int             ng=np/ns;       	/* 32 each ns covers ng numbers of np */
@@ -576,6 +577,10 @@ void*  ff_display_spectrum(void *argv)
         /* prepare FFT phase angle */
         wang=mat_CompFFTAng(np);
 
+	/* prepare hamming window factors */
+	for(i=0; i<FFT_POINTS; i++)
+		hamming[i]=MAT_FHAMMING(i, np);
+
   /*  -------------------------- LOOP --------------------------  */
   while(1) {
 
@@ -583,8 +588,16 @@ void*  ff_display_spectrum(void *argv)
 
         /* <<<<<<<<<<<<<<<<<<<   FFT  >>>>>>>>>>>>>>>>>>>> */
 
-	/* NOTE: nx[] data trimmed in ff_load_FFTdata() */
-        /* ---  Run FFT with INT nx[]  --- */
+#if 1   /* Apply Hamming window  */
+	for(i=0; i<FFT_POINTS; i++)
+		 fft_nx[i]=mat_FixIntMult(hamming[i], fft_nx[i]);
+
+#endif
+        /*-------------------------  Call mat_egiFFFT() ---------------------------
+	 *  1. Run FFT with INT type input nx[].
+	 *  2. Input nx[] data has been trimmed in ff_load_FFTdata()
+	 *  3. ( point number, angle factor, float input, int input, fft output )
+	 -------------------------------------------------------------------------*/
         mat_egiFFFT(np, wang, NULL, fft_nx, ffx);
 
         /* update sdy */

@@ -1313,7 +1313,6 @@ void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_p
 }
 
 
-
 /*--------------------------------------------------------------------------
 Rotate a symbol, use its bkcolor as transcolor
 
@@ -1355,7 +1354,6 @@ void symbol_rotate(const struct symbol_page *sym_page,
 			symbuf[i*n+j]=*(data+offset+width*i+j);
 		}
 	}
-
 
         /* for image rotation matrix */
         struct egi_point_coord  *SQMat; /* the map matrix*/

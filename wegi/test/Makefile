@@ -27,7 +27,7 @@ LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS =  test_fb test_sym tmp_app show_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
-APPS += test_txt test_img test_resizeimg
+APPS += test_txt test_img test_resizeimg test_zoomimg test_etouch
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic
@@ -55,12 +55,12 @@ endif
 ### 			------ template end -----
 
 
-tmp_app:	tmp_app.c
+test_etouch:	test_etouch.c
 ifeq ($(EGILIB),static)
-	$(CC) tmp_app.c -o tmp_app  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+	$(CC) test_etouch.c -o test_etouch  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
 else
-	$(CC) -o tmp_app tmp_app.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+	$(CC) -o test_etouch test_etouch.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
 
 

@@ -4,7 +4,7 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 NOTE:
-	!!! Suppose that Right_shifting is also arithmetic here !!!.
+   !!! Suppose that Left/Right bit shifting are both arithmetic here !!!.
 
 Midas-Zhou
 --------------------------------------------------------------------*/
@@ -96,8 +96,24 @@ inline EGI_FVAL mat_FixMult(EGI_FVAL a, EGI_FVAL b)
 	else {
 		return (EGI_FVAL){ (int64_t)(a.num*b.num)>>a.div, a.div };
 	}
-#endif 
+#endif
 }
+
+
+/*-------------------------------------------------------
+Mutliplication of a fixed point value and an integer.
+!!!TODO NOTE: Divisors of two EGI_FVAL must be the same!
+--------------------------------------------------------*/
+inline int mat_FixIntMult(EGI_FVAL a, int b)
+{
+	int64_t c;
+
+	c=a.num*b;
+	c>>=a.div;	/* Right shifting is supposed to be arithmatic */
+
+	return (int)c;
+}
+
 
 /*-------------------------------------------------------
 	Division of two fixed point value: a/b
@@ -183,12 +199,12 @@ inline EGI_FCOMPLEX mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 	return (EGI_FCOMPLEX){real, imag};
 }
 
-/*-------------------------------------------------------
+/*----------------------------------------------------------
 	Division of two complex: a/b
 !!!TODO NOTE: Divisors of two EGI_FCOMPLEX must be the same!
 
   ar+jai/(br+jbi)=(ar+jai)(br-jbi)/(br^2+bi^2)
---------------------------------------------------------*/
+----------------------------------------------------------*/
 inline EGI_FCOMPLEX mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b)
 {
 	EGI_FCOMPLEX	d,ad;
@@ -307,6 +323,7 @@ float mat_floatCompAmp( EGI_FCOMPLEX a )
 }
 
 
+
 /*--------------------------------------
 	Return log2 of np
 @np:	>0
@@ -327,7 +344,6 @@ unsigned int mat_uint32Log2(uint32_t np)
 /*---------------------------------------------------------
 work out the amplitude(modulus) of a complex, in INT type.
 check also: float mat_floatCompAmp( EGI_FCOMPLEX a )
-
 ---------------------------------------------------------*/
 unsigned int mat_uintCompAmp( EGI_FCOMPLEX a )
 {
@@ -370,12 +386,13 @@ uint64_t mat_uintCompSAmp( EGI_FCOMPLEX a )
 
 
 
-/*----------------------------------------------------
-        Generate complex phase angle array for FFT
+/*--------- May use static array instead -------------
+Generate complex phase angle array for FFT
+
 @np	Phanse angle numbers as per FFT point numbers
 	np will be normalized first to powers of 2
 
-!!! DO NOT FORGET TO FREE IT !!!
+	!!! DO NOT FORGET TO FREE IT !!!
 
 Return:
 	a pointer to EGI_FCOMPLEX	OK
@@ -421,6 +438,7 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 }
 
 
+
 /*-------------------------------------------------------------------------------------
 Fixed point Fast Fourier Transform
 
@@ -428,7 +446,7 @@ Fixed point Fast Fourier Transform
         np=1, result is 0!
 @wang   complex phase angle factor, according to normalized np.
 @x:     Pointer to array of input float data x[].
-@nx:	Pointer to araay of input INT data nx[].  NOTE: if x==NULL, use nx[] then.
+@nx:	Pointer to array of input INT data nx[].  NOTE: if x==NULL, use nx[] then.
 @ffx:   Pointer to array of FFT result ouput in form of x+jy.
 
 Note:
