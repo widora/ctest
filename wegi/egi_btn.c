@@ -170,6 +170,24 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
                 return -1;
         }
 
+        /* 2. activate(or wake up) a sleeping ebox
+         *     not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
+	 *    TODO: test,   If PAGE wallpaper has changed ?????
+         */
+        if(ebox->status==status_sleep)
+        {
+                ebox->status=status_active;     /* reset status before refresh !! */
+		ebox->need_refresh=true;
+                if(egi_btnbox_refresh(ebox)!=0) /* refresh the graphic display */
+                {
+			ebox->status=status_sleep;
+                        EGI_PDEBUG(DBG_TXT,"Fail to wake up sleeping ebox '%s'!\n",ebox->tag);
+                        return -3;
+                }
+                EGI_PDEBUG(DBG_TXT,"Wake up a sleeping '%s' ebox.\n",ebox->tag);
+                return 0;
+        }
+
 
 	/* only if it has an icon, get symheight and symwidth */
 	if(data_btn->icon != NULL)
@@ -317,9 +335,21 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	EGI_PDEBUG(DBG_BTN,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
-        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-		return -3;
+
+	/* Check wheather PAGE bkimg changed or not,
+	 * If changed, do NOT copy old ebox->bkimg to FB, as PAGE bkimg is already the new one!
+	 */
+	if( ebox->container==NULL || ebox->container->page_update !=true )
+	{
+        	if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                     	 		   ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
+		{
+			printf("%s: Fail to call fb_cpyfrom_buf!\n", __func__);
+			return -3;
+		}
+	}
+
+
    } /* end of movable codes */
 
 
@@ -327,7 +357,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
         if( data_btn == NULL)
         {
-                printf("egi_btnbox_refresh(): data_btn is NULL!\n");
+                printf("%s: data_btn is NULL!\n", __func__);
                 return -1;
         }
 
@@ -362,9 +392,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
    if(ebox->movable) /* only if ebox is movale */
    {
-       /* ---- 4. redefine bkimg box range, in case it changes */
-	/* check ebox height and font lines in case it changes, then adjust the height */
-	/* updata bkimg->bkbox according */
+       /* ---- 4. redefine bkimg box range, in case it changes
+	* check ebox height and font lines in case it changes, then adjust the height
+	* updata bkimg->bkbox according
+	*/
         ebox->bkbox.startxy.x=x0;
         ebox->bkbox.startxy.y=y0;
         ebox->bkbox.endxy.x=x0+ebox->width-1;
@@ -374,9 +405,11 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	EGI_PDEBUG(DBG_BTN,"egi_btnbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
-        /* ---- 5. store bk image which will be restored when you refresh it later,
-		this ebox position/size changes */
-        if(!box_outbox(&ebox->bkbox, &gv_fb_box)) {   /* If bkbox NOT totally out of FB box */
+        /* ---- 5. Store bk image which will be restored when you refresh it later,
+	 *	   in case ebox position/size changes.
+	 *
+	 *  Refresh only if bkbox is NOT completely out of FB box! */
+        if(!box_outbox(&ebox->bkbox, &gv_fb_box)) {
          	if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 		{

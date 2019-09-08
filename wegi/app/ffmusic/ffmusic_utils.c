@@ -22,7 +22,7 @@ Midas_Zhou
 #include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
 
-#include "ff_utils.h"
+#include "ffmusic_utils.h"
 
 /* in seconds, playing time elapsed for Video */
 int ff_sec_Velapsed;
@@ -169,6 +169,7 @@ void* thdf_Display_Pic(void * argv)
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF *tmpimg=NULL;
+   EGI_IMGBUF *tmpimg2=NULL;
    EGI_IMGBUF *pageimg=NULL; /* PAGE to show the pic */
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
@@ -233,32 +234,37 @@ void* thdf_Display_Pic(void * argv)
 	  if( still_image )  {
 		/* reset PAGE  wallpaper imgbuf */
 		if( update_imgbuf && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
+
 			/* free old imgbuf, pic->imgbuf refer to PAGE->ebox->frame_img */
 			printf("%s: free pageimg...\n", __func__);
-			egi_imgbuf_free(pageimg);
+			egi_imgbuf_free(pageimg); pageimg=NULL;
+
+			/* copy block from original imgbuf, suppose it's square!  and LCD ratio 4:3 */
+			tmpimg=egi_imgbuf_blockCopy(imgbuf,  imgbuf->width>>3, 0,      /* eimg, xp,yp */
+ 						imgbuf->height, imgbuf->width*3/4 );   /* H, W*/
+
 			/* resize(new alloc) to whole screen size and assign */
 			printf("%s: resize imgbuf...\n",__func__);
-			tmpimg=egi_imgbuf_resize(imgbuf, ff_fb_dev.vinfo.xres, ff_fb_dev.vinfo.yres);
-			if(tmpimg==NULL)
+			tmpimg2=egi_imgbuf_resize(tmpimg, ff_fb_dev.vinfo.xres, ff_fb_dev.vinfo.yres);
+			if(tmpimg2==NULL)
 				printf("%s: Fail to resize imgbuf.\n",__func__);
+
 			/* blur the image... */
-			pageimg=egi_imgbuf_avgsoft(tmpimg, 10, false, false); /*ineimg, size, alpha_on, hold_on */
+			pageimg=egi_imgbuf_avgsoft(tmpimg2, 8, false, false); /*ineimg, size, alpha_on, hold_on */
 			if(pageimg==NULL)
 				printf("%s: Fail to avgsoft imgbuf.\n",__func__);
+
 			/* free tmpimg */
-			egi_imgbuf_free(tmpimg);
+			egi_imgbuf_free(tmpimg); tmpimg=NULL;
+			egi_imgbuf_free(tmpimg2); tmpimg2=NULL;
+
 			/* Put to PAGE */
 			ppic->app_page->ebox->frame_img=pageimg;
-		        #if 0
-			/* Display the PAGE frame img */
-			printf("%s: display imgbuf...\n",__func__);
-			egi_imgbuf_windisplay(ppic->imgbuf, &ff_fb_dev, -1,   /* imgbuf, fbdev, subcolor */
-								0, 0,  	      /* xp,yp */
-					0, 0, ppic->imgbuf->width, ppic->imgbuf->height);   /* origin, size */
-			#endif
+
 			/* Need to refresh PAGE in routine */
 			printf("%s: set page frame_img needrefresh...\n",__func__);
 			egi_page_needrefresh(ppic->app_page);
+
 			/* reset update token */
 			update_imgbuf=false;
 		}
@@ -267,7 +273,7 @@ void* thdf_Display_Pic(void * argv)
         	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                                     		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                                    	240, 2, 0,                      /* pixpl, lines, gap */
-        	                            	0, 40,                          /* x0,y0, */
+        	                            	0, 20,                          /* x0,y0, */
                 	                    	WEGI_COLOR_GRAYB, -1, -1 );      /* fontcolor, stranscolor,opaque */
 		tm_delayms(500);
 

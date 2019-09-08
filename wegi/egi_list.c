@@ -324,6 +324,10 @@ int egi_listbox_activate(EGI_EBOX *ebox)
 		return -3;
 	}
 
+        /* TODO:  activate(or wake up) a sleeping ebox ( referring to egi_txt.c and egi_btn.c )
+         */
+
+
 	/* 3. check egi_data */
 	if(ebox->egi_data==NULL)
 	{

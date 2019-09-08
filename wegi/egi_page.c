@@ -35,30 +35,32 @@ EGI_PAGE * egi_page_new(char *tag)
 	EGI_PAGE *page;
 
 	/* 2. malloc page */
-	page=malloc(sizeof(struct egi_page));
+	page=calloc(1, sizeof(struct egi_page));
 	if(page == NULL)
 	{
-		printf("egi_page_init(): fail to malloc page.\n");
+		printf("%s: Fail to calloc page.\n", __func__);
 		return NULL;
 	}
 	/* clear data */
-	memset(page,0,sizeof(struct egi_page));
+//	memset(page,0,sizeof(struct egi_page));
 
 	/* 3. malloc page->ebox */
 	page->ebox=egi_ebox_new(type_page);
 	if( page == NULL)
 	{
-		printf("egi_page_init(): egi_ebox_new() fails.\n");
+		printf("%s: egi_ebox_new() fails.\n", __func__);
 		return NULL;
 	}
 	/* set page as its container */
 	page->ebox->container=page;
+	/* set type */
+	page->ebox->type=type_page;
 
 	/* 4. put tag here */
 	egi_ebox_settag(page->ebox,tag);
 	//strncpy(page->ebox->tag,tag,EGI_TAG_LENGTH); /* EGI_TAG_LENGTH+1 for a EGI_EBOX */
 
-	/* 5. set prmcolor<0, so it will NOT  draw prmcolor in page refresh()
+	/* 5. set prmcolor<0, so it will NOT draw prmcolor in page refresh()
 	   !!!! 0 will be deemed as pure black in refresh()  */
 	page->ebox->prmcolor=-1;
 
@@ -145,8 +147,11 @@ int egi_page_free(EGI_PAGE *page)
 	}
 
 	/* free self ebox */
-	if(page->ebox != NULL)
-		free(page->ebox);
+	if(page->ebox != NULL) {
+		//free(page->ebox);
+		egi_ebox_free(page->ebox);
+	}
+
 	/* free page */
 	free(page);
 
@@ -444,17 +449,20 @@ int egi_page_activate(EGI_PAGE *page)
 	/* set page status */
 	page->ebox->status=status_active;
 
-        /* !!!!! in page->ebox.refresh(), the page->fpath will NOT be seen and handled, it's a page method.
-	 *	load a picture or use prime color as wallpaper
-	 *       We have to refresh page element(wallpaper) here, NOT in egi_page_refresh().
+        /*** 	Display page->ebox->frame_img, or page->fpath, or use prime color as wallpaper.
+	 * !!!NOTE: In page->ebox.refresh(), the page->fpath will NOT be seen and handled, It's a page method!
+	 *      We have to refresh page element(wallpaper) here, NOT in egi_page_refresh().
 	 */
+	if( page->ebox->frame_img !=NULL ) {
+		EGI_PDEBUG(DBG_PAGE,"Apply page->ebox->frame_img for '%s' wallpaper.\n", page->ebox->tag);
+		imgbuf=page->ebox->frame_img;
+		/* egi_image_setFrame() if necessary */
 
-        if( page->fpath != NULL) {
-                //show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-
-		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
-		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
-
+		/* no subcolor, no FB filo */
+   		egi_imgbuf_windisplay2(imgbuf, &gv_fb_dev, 0, 0, 0, 0, imgbuf->width, imgbuf->height);
+	}
+        else if( page->fpath != NULL) {
+		EGI_PDEBUG(DBG_PAGE,"Load '%s' for '%s' wallpaper.\n", page->fpath, page->ebox->tag);
 		/* Also see egi_page_refresh(EGI_PAGE *page) */
 		/* load a picture or use prime color as wallpaper */
 		if(page->fpath != NULL) {
@@ -463,17 +471,19 @@ int egi_page_activate(EGI_PAGE *page)
 		        /* First try to load as PNG file */
 			printf("%s: Try to load as PNG file ...\n",__func__);
 		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {
-        		        printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
-				/* Then try to load as JPG file */
-                		if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
-                        		printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
-                		}
-                		else {
-                        		printf("%s: Finish loading JPG file as page wallpaper.\n",__func__);
-                		}
+        		     // printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
+			     /* Then try to load as JPG file */
+                	     if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
+                        	 //printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
+                	     }
+                	     else {
+                        	 printf("%s: Finish loading JPG file '%s' as page wallpaper.\n",__func__,
+												page->fpath);
+                	     }
         		}
 	        	else {
-                       		printf("%s: Finish loading PNG file as page wallpaper.\n",__func__);
+                       		printf("%s: Finish loading PNG file '%s' as page wallpaper.\n",__func__,
+												page->fpath);
         		}
 			/* Display it */
 			if(imgbuf->imgbuf != NULL)  {
@@ -523,6 +533,9 @@ int egi_page_activate(EGI_PAGE *page)
 1. check need_refresh flag for page and refresh it if true.
 2. refresh each of page's child eboxes only if its needrefresh
    flag is true.
+3. Refresh sequence:
+   First refresh PAGE items, such as wallpaper, deco, misc,
+   then its child eboxes.
 
 return:
 	1	need_refresh=false
@@ -554,23 +567,35 @@ int egi_page_refresh(EGI_PAGE *page)
 
 		/* Also see egi_page_activate(EGI_PAGE *page) */
 		/* load a picture or use prime color as wallpaper */
-		if(page->fpath != NULL) {
+		if( page->ebox->frame_img !=NULL ) {
+			EGI_PDEBUG(DBG_PAGE,"Apply page->ebox->frame_img for '%s' wallpaper.\n",
+											 page->ebox->tag);
+			imgbuf=page->ebox->frame_img;
+			/* egi_image_setFrame() if necessary */
+
+			/* no subcolor, no FB filo */
+   			egi_imgbuf_windisplay2(imgbuf, &gv_fb_dev, 0, 0, 0, 0, imgbuf->width, imgbuf->height);
+		}
+		else if(page->fpath != NULL) {
+			EGI_PDEBUG(DBG_PAGE,"Load '%s' for '%s' wallpaper.\n", page->fpath, page->ebox->tag);
 			//show_jpg(page->fpath, &gv_fb_dev, SHOW_BLACK_NOTRANSP, 0, 0);
-	        	imgbuf=egi_imgbuf_alloc(); //new();
+	        	imgbuf=egi_imgbuf_alloc();
 		        /* First try to load as PNG file */
 			printf("%s: Try to load as PNG file ...\n",__func__);
 		        if(egi_imgbuf_loadpng(page->fpath, imgbuf) !=0) {
-        		        printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
-				/* Then try to load as JPG file */
-                		if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
-                        		printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
-                		}
-                		else {
-                        		printf("%s: Finish loading JPG file as page wallpaper.\n",__func__);
-                		}
+        		     // printf("%s: Load PNG imgbuf fail, try egi_imgbuf_loadjpg()...\n",__func__);
+			     /* Then try to load as JPG file */
+                	     if(egi_imgbuf_loadjpg(page->fpath, imgbuf) !=0) {
+                        	 //printf("%s: Load JPG imgbuf fail, try egi_imgbuf_free()...\n",__func__);
+                	     }
+                	     else {
+                        	 printf("%s: Finish loading JPG file '%s' as page wallpaper.\n",__func__,
+												page->fpath);
+                	     }
         		}
 	        	else {
-                       		printf("%s: Finish loading PNG file as page wallpaper.\n",__func__);
+                       		printf("%s: Finish loading PNG file '%s' as page wallpaper.\n",__func__,
+												page->fpath);
         		}
 
 			/* Display it */
@@ -618,6 +643,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	}
 
 	/* traverse the list and activate list eboxes, not safe */
+        page->page_update=true; /* to inform ebox that PAGE elements refreshed, it needs to update its bkimg etc.  */
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
@@ -628,7 +654,7 @@ int egi_page_refresh(EGI_PAGE *page)
 			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 #endif
 	}
-
+	page->page_update=false;
 
 	/* reset need_refresh */
 	page->ebox->need_refresh=false;

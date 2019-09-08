@@ -113,7 +113,6 @@ enum egi_touch_status
 /* egi button  return value */
 enum egi_retval
 {
-
 	pgret_ERR=-2,			/* page routine return with failure */
 	btnret_ERR=-1,			/* reation fails */
 
@@ -211,16 +210,18 @@ struct egi_element_box
 	/*  frame type
 	 <0: no frame
 	 =0: simple type
-	 >0: TBD
+	 >0: TBD, or see ebox refresh function
 	IF >=100:  100+imgframe_type, shape applied!
 	*/
 	int  frame;
-	/*  Usually for cutout shape of a frame, also can be a background image.
-	 *  Activated only frame>=100.
-	 *  Currently only applied for TXT type ebox
+
+	/*  1. Usually for cutout shape of a ebox frame, also can be a background image.
+	 *  2. Activated only frame>=100 for ebox.  TXT ebox applied
+	 *  3. PAGE->ebox->frame_img is also for PAGE wallpaper.
+	 *  4. No thread mutex for the img now!!!
 	 */
 	EGI_IMGBUF* frame_img;
-	unsigned char frame_alpha;
+	unsigned char frame_alpha; /* Set alpha value for the frame_img, NOT applied for PAGE now. */
 
 	/* prime box color
 	   >=0 normal 16bits color;
@@ -309,7 +310,7 @@ struct egi_element_box
 	struct list_head node; /* list node to a father ebox */
 
 	/* its PAGE container, an EGI_PAGE usually */
-	EGI_PAGE *container;
+	EGI_PAGE *container;   /* May be NULL for an ebox! */
 
 	/* the father ebox */
 	EGI_EBOX *father;
@@ -567,14 +568,18 @@ struct egi_page
 	/* wallpaper for the page */
 	char *fpath;
 
-	/* TODO: image buff, load fpath file image to it. */
-	EGI_IMGBUF *imgbuf;
+	/* image buff, load fpath file image to it. */
+//	EGI_IMGBUF *imgbuf;  !!! Apply ebox->frame_img instead  !!!
 
 	/* --- child list:
 	 *  maintain a list for all child ebox, there should also be layer information
- 	 *  multi_layer operation is applied.
+ 	 *  multi_layer operation is applied ???
 	 */
 	struct list_head list_head; /* list head for child eboxes */
+	bool page_update;	    /* To inform child ebox that its container PAGE is updated,
+				     * so it needs to update its bkimg...etc.
+				     * implemented in egi_page_refresh().
+				     */
 
 	/* --- !!! page routine function : threads pusher and job pusher ----
          *  1. detect pen_touch and trigger buttons.

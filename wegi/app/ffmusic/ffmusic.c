@@ -128,8 +128,8 @@ midaszhou@yahoo.com
 #include "sound/egi_pcm.h"
 #include "utils/egi_cstring.h"
 #include "utils/egi_utils.h"
-#include "ff_utils.h"
-#include "egi_ffplay.h"
+#include "ffmusic_utils.h"
+#include "ffmusic.h"
 
 #include "libavutil/avutil.h"
 #include "libavutil/time.h"
@@ -641,11 +641,13 @@ pFormatCtx->probesize2=128*1024;
 	fname=strdup(fpath[fnum]);
 	printf("fname:%s\n",fname);
 	fbsname=basename(fname);
+#if 0 /* put in ffmusic_utils.c */
         FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
                                     18, 18, fbsname,               	/* fw,fh, pstr */
                                     240, 1, 0,           		/* pixpl, lines, gap */
                                     0, 40,                      	/* x0,y0, */
                                     WEGI_COLOR_GRAY, -1, -1);   	/* fontcolor, stranscolor,opaque */
+#endif
 	pic_info.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
 

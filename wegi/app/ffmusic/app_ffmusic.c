@@ -26,13 +26,13 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_utils.h"
 #include "egi_cstring.h"
-#include "egi_ffplay.h"
+#include "ffmusic.h"
 #include "egi_FTsymbol.h"
-#include "egi_pageffplay.h"
+#include "page_ffmusic.h"
 #include <signal.h>
 #include <sys/types.h>
 
-static char app_name[]="app_ffplay";
+static char app_name[]="app_ffmusic";
 static EGI_PAGE *page_ffplay=NULL;
 
 static struct sigaction sigact_cont;

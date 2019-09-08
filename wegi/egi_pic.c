@@ -338,6 +338,9 @@ int egi_picbox_activate(EGI_EBOX *ebox)
                 return -1;
         }
 
+        /* TODO:  activate(or wake up) a sleeping ebox ( referring to egi_txt.c and egi_btn.c )
+         */
+
 	/* host ebox size alread assigned according to pic offx,offy and symheight in egi_picbox_new() ...*/
 
 	/* 2. verify pic data if necessary. --No need here*/

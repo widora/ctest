@@ -172,12 +172,12 @@ Note:
 FFPLAY_CONTEXT *FFplay_Ctx=NULL;
 
 /* expected display window size, LCD will be adjusted in the function */
-static int show_w= 240; //185; /* LCD row pixels */
-static int show_h= 200; //144; //240; //185;/* LCD column pixels */
+int show_w= 240; //185; /* LCD row pixels */
+int show_h= 200; //144; //240; //185;/* LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
-static int offx;
-static int offy;
+int offx;
+int offy;
 
 /* param: ( enable_audio_spectrum ) ( precondition: audio is ON and available  )
  *   if True:	run thread ff_display_spectrum() to display audio spectrum
@@ -362,7 +362,6 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int Hb,Vb;  /* Horizontal and Veritcal size of a picture */
 	/* for Pic Info. */
 	struct PicInfo pic_info;
-	pic_info.app_page=page; /* for PAGE wallpaper */
 
 	/* origin movie/image size */
 	int widthOrig;
@@ -393,7 +392,7 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	int			nb_channels;
 	int			bytes_per_sample;
 	int64_t			channel_layout;
-	int			nchanstr=256;
+	char			nchanstr=256;
 	char			chanlayout_string[256];
 	int 			bytes_used;
 	int			got_frame;
@@ -646,7 +645,7 @@ pFormatCtx->probesize2=128*1024;
                                     240, 1, 0,           		/* pixpl, lines, gap */
                                     0, 40,                      	/* x0,y0, */
                                     WEGI_COLOR_GRAY, -1, -1);   	/* fontcolor, stranscolor,opaque */
-	pic_info.fname=fbsname;
+	pic_info.fname=fname;
 	//free(fname); fname=NULL; /* to be freed at last */
 
 /* disable audio */
@@ -690,8 +689,7 @@ if(disable_audio && audioStream>=0 )
 		channel_layout = aCodecCtx->channel_layout;
 		av_get_channel_layout_string(chanlayout_string, nchanstr, nb_channels, channel_layout);
 		EGI_PDEBUG(DBG_FFPLAY,"		frame_size=%d\n",frame_size);//=nb_samples, nb of samples per frame.
-		EGI_PDEBUG(DBG_FFPLAY,"		channel_layout=%lld, as for: %s\n",
-								 channel_layout, chanlayout_string);
+		EGI_PDEBUG(DBG_FFPLAY,"		channel_layout=%lld\n",channel_layout);//long long int type
 		EGI_PDEBUG(DBG_FFPLAY,"			   %s\n", chanlayout_string);
 		EGI_PDEBUG(DBG_FFPLAY,"		nb_channels=%d\n",nb_channels);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
@@ -1023,10 +1021,9 @@ else
 		offy=50;
 
 	/* clear displaying zone */
-#if 0
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-#endif
+
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
 	pic_info.numBytes=numBytes;

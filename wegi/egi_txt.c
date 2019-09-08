@@ -384,12 +384,14 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 
         EGI_PDEBUG(DBG_TXT,"Start to activate '%s' txt type ebox!\n",ebox->tag);
 	/* 2. activate(or wake up) a sleeping ebox
-		not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
-	*/
+	 *	not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
+	 *      TODO: test,   If PAGE wallpaper has changed ?????
+	 */
 	if(ebox->status==status_sleep)
 	{
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset affliated file position */
-		ebox->status=status_active; 	/* reset status */
+		ebox->status=status_active; 	/* reset status to active before refresh!!! */
+		ebox->need_refresh=true;
 		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
 			ebox->status=status_sleep; /* reset status */

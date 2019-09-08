@@ -563,7 +563,11 @@ int egi_ebox_free(EGI_EBOX *ebox)
 				}
 				break;
 			case type_page:
+				/* The PAGE has its own free method, however it will call egi_ebox_free()
+				 * to release/free member page->ebox.
+				 */
 				break;
+
 			default:
 				printf("egi_ebox_free(): ebox '%s' type %d has not been created yet!\n",
 										ebox->tag,ebox->type);
@@ -587,7 +591,7 @@ int egi_ebox_free(EGI_EBOX *ebox)
 		free(ebox);
 		ebox=NULL;  /* ineffective though...*/
 
-		return 1;
+		return 0;
 	}
 
 	/* 2. else, use ebox object defined method */

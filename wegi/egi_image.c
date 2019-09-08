@@ -275,10 +275,10 @@ Note:
 
 @eimg:		An EGI_IMGBUF holding pixel colors.
 @type:          type/shape of the frame.
-@alpha:		>=0: Rset all eimg->alpha to be alpha.
-		<0:  If input eimg has alpha value. no change.
-		     If input eimg has no alpha value, then allocate
-		     and assign 255 to all alpha values.
+@alpha:		>=0: Rset all eimg->alpha to be alpha before cutting frame.
+		<0:  If input eimg has alpha value. ignore/no change.
+		     If input eimg has no alpha value, allocate
+		     and initiate with 255 before cutting frame.
 @pn:            numbers of paramters
 @param:         array of params
 
@@ -1081,7 +1081,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	/* ----- STEP 2 -----  scale image from [oldheight_X_width] to [height_X_width] */
 	for(i=0; i<width; i++)
 	{
-		printf(" \n STEP 2: ----- column %d ----- \n",i);
+//		printf(" \n STEP 2: ----- column %d ----- \n",i);
 		for(j=0; j<height; j++) /* apply new height */
 		{
 			/* Here ln is upper point index, and rn is lower point index of a column of pixels.

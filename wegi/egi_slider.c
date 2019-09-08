@@ -223,6 +223,9 @@ int egi_slider_activate(EGI_EBOX *ebox)
                 return -1;
         }
 
+        /* TODO:  activate(or wake up) a sleeping ebox ( referring to egi_txt.c and egi_btn.c )
+         */
+
 	/* only if it has an icon, get symheight and symwidth */
 	if(data_btn->icon != NULL)
 	{

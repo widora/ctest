@@ -1,7 +1,16 @@
-/*-------------------------------------------------------
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+A general EGI touch program, start from Home Page.
+
+TODO: Polling touch data/status by a thread is inefficient, turn to
+      I/O event driven approach.
+
 
 Midas Zhou
-----------------------------------------------------------------------*/
+-------------------------------------------------------------------*/
 #include "egi_common.h"
 #include "page/egi_pagehome.h"
 #include "egi_FTsymbol.h"
@@ -16,16 +25,16 @@ int main(int argc, char **argv)
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
         printf("egi_init_log()...\n");
-        if(egi_init_log("/mmc/log_fb") != 0) {  /* start logger */
+        if(egi_init_log("/mmc/egi_log") != 0) {  /* start logger */
                 printf("Fail to init logger,quit.\n");
                 return -1;
         }
         printf("symbol_load_allpages()...\n");
-        if(symbol_load_allpages() !=0 ) {       /* load sys fonts */
+        if(symbol_load_allpages() !=0 ) {       /* load sys ASCII fonts */
                 printf("Fail to load sym pages,quit.\n");
                 return -2;
         }
-        printf("FTsymbol_load_allpages()...\n");
+        printf("FTsymbol_load_allpages()...\n"); /* load FreeType sys ASCII fonts */
         if( FTsymbol_load_allpages() !=0 ) {
                 printf("Fail to load FT symbol pages!\n");
                 return -3;
@@ -37,13 +46,12 @@ int main(int argc, char **argv)
         }
 #endif
         printf("init_fbdev()...\n");
-        if( init_fbdev(&gv_fb_dev) )            /* init sys FB */
+        if( init_fbdev(&gv_fb_dev) )            /* init sys FB device */
                 return -5;
         /* <<<<<  END EGI general init  >>>>>> */
 
-
         /* ---- start touch thread ---- */
-        SPI_Open(); /* open spidev for LCD TOUCH */
+        SPI_Open(); /* open SPI device for LCD TOUCH */
         if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
         {
                 printf(" pthread_create(... egi_touch_loopread() ... ) fails!\n");
