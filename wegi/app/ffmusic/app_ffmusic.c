@@ -13,11 +13,11 @@ An EGI APP program for FFPLAY.
            <<<  signal  >>>
 		  |
 		  |
-	      [ SUBPROCESS ] app_ffplay.c
+	      [ SUBPROCESS ] app_ffmusic.c
 				|
-	        		|____ [ UI_PAGE ] egi_pageffplay.c
+	        		|____ [ UI_PAGE ] page_ffmusic.c
 							|
-							|_____ [ extern OBJ FILE ] egi_ffplay.c
+							|_____ [ C module ] ffmusic.c
 
 
 Midas Zhou
@@ -33,7 +33,7 @@ midaszhou@yahoo.com
 #include <sys/types.h>
 
 static char app_name[]="app_ffmusic";
-static EGI_PAGE *page_ffplay=NULL;
+static EGI_PAGE *page_ffmuz=NULL;
 
 static struct sigaction sigact_cont;
 static struct sigaction osigact_cont;
@@ -62,8 +62,8 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 								app_name, __func__, spid);
 
 	/* set page refresh flag */
-//	egi_page_needrefresh(page_ffplay);
-	//page_ffplay->ebox->need_refresh=false; /* Do not refresh page bkcolor */
+//	egi_page_needrefresh(page_ffmuz);
+	//page_ffmuz->ebox->need_refresh=false; /* Do not refresh page bkcolor */
 
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
 //	fb_restore_FBimg(&gv_fb_dev, 0, false);
@@ -73,6 +73,7 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 
 
 /*-------------------------------------------------------------------
+
 		   Signal handler for SIGUSR1
 -------------------------------------------------------------------*/
 static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
@@ -217,8 +218,8 @@ int main(int argc, char **argv)
 	} else {
 		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
 	}
-//	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
-	if( egi_init_ffplayCtx(music_dir, "mp3, wav") ) {
+//	if( int_ffmuzCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
+	if( int_ffmuzCtx(music_dir, "mp3, wav") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
 		return pgret_ERR;
 	}
@@ -227,28 +228,28 @@ int main(int argc, char **argv)
 	/*  ---  2. EGI PAGE creation  ---  */
 	printf(" start page creation....\n");
         /* create page and load the page */
-        page_ffplay=egi_create_ffplaypage();
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffplay->ebox->tag);
+        page_ffmuz=create_ffmuzPage();
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffmuz->ebox->tag);
 
 	/* activate and display the page */
-        egi_page_activate(page_ffplay);
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffplay->ebox->tag);
+        egi_page_activate(page_ffmuz);
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffmuz->ebox->tag);
 
         /* trap into page routine loop */
-        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffplay->ebox->tag);
-        page_ffplay->routine(page_ffplay);
+        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffmuz->ebox->tag);
+        page_ffmuz->routine(page_ffmuz);
 
         /* get out of routine loop */
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
-		                                                app_name,page_ffplay->ebox->tag);
+		                                                app_name,page_ffmuz->ebox->tag);
 
 	tm_delayms(200); /* let page log_calling finish */
 
-        egi_page_free(page_ffplay);
+        egi_page_free(page_ffmuz);
 	ret=pgret_OK;
 
 	/* free FFLAY_CONTEXT */
-	egi_free_ffplayCtx();
+	free_ffmuzCtx();
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

@@ -42,7 +42,7 @@ Midas Zhou
 #include "egi_common.h"
 #include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
-#include "egi_ffplay.h"
+#include "ffmusic.h"
 
 /* icon code for button symbols */
 #define ICON_CODE_PREV 		0
@@ -60,12 +60,16 @@ Midas Zhou
 static EGI_BOX slide_zone={ {0,30}, {239,260} };
 static uint16_t btn_symcolor;
 
-static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int pageffplay_decorate(EGI_EBOX *ebox);
+/* volume txt ebox */
+static EGI_DATA_TXT *vol_FTtxt=NULL;
+static EGI_EBOX     *ebox_voltxt=NULL;
+
+static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int ffmuz_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int pageffmuz_decorate(EGI_EBOX *ebox);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
@@ -76,12 +80,14 @@ Return
 	pointer to a page	OK
 	NULL			fail
 ------------------------------------------------------*/
-EGI_PAGE *egi_create_ffplaypage(void)
+EGI_PAGE *create_ffmuzPage(void)
 {
 	int i;
 	int btnum=5;
-	EGI_EBOX *ffplay_btns[5];
 	EGI_DATA_BTN *data_btns[5];
+	EGI_EBOX *ffmuz_btns[5];
+
+
 
 	/* --------- 1. create buttons --------- */
         for(i=0;i<btnum;i++) /* row of buttons*/
@@ -105,7 +111,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		data_btns[i]->showtag=false;
 
 		/* 2. create new btn eboxes */
-		ffplay_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
+		ffmuz_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
 						data_btns[i], /* EGI_DATA_BTN *egi_data */
 				        	1, /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
@@ -114,9 +120,9 @@ EGI_PAGE *egi_create_ffplaypage(void)
 		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
-		if(ffplay_btns[i]==NULL)
+		if(ffmuz_btns[i]==NULL)
 		{
-			printf("egi_create_ffplaypage(): fail to call egi_btnbox_new() for ffplay_btns[%d]. retry...\n", i);
+			printf("egi_create_ffplaypage(): fail to call egi_btnbox_new() for ffmuz_btns[%d]. retry...\n", i);
 			free(data_btns[i]);
 			data_btns[i]=NULL;
 			i--;
@@ -125,30 +131,30 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	}
 
 	/* get a random color for the icon */
-//	btn_symcolor=egi_color_random(medium);
+//	btn_symcolor=egi_color_random(color_medium);
 //	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
-	btn_symcolor=WEGI_COLOR_BLACK;//ORANGE;
+	btn_symcolor=WEGI_COLOR_GRAYC; //WHITE;//BLACK;//ORANGE;
 
 	/* add tags, set icon_code and reaction function here */
-	egi_ebox_settag(ffplay_btns[0], "Prev");
+	egi_ebox_settag(ffmuz_btns[0], "Prev");
 	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
-	ffplay_btns[0]->reaction=egi_ffplay_prev;
+	ffmuz_btns[0]->reaction=ffmuz_prev;
 
-	egi_ebox_settag(ffplay_btns[1], "Play&Pause");
+	egi_ebox_settag(ffmuz_btns[1], "Play&Pause");
 	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* default status is playing*/
-	ffplay_btns[1]->reaction=egi_ffplay_playpause;
+	ffmuz_btns[1]->reaction=ffmuz_playpause;
 
-	egi_ebox_settag(ffplay_btns[2], "Next");
+	egi_ebox_settag(ffmuz_btns[2], "Next");
 	data_btns[2]->icon_code=(btn_symcolor<<16)+ICON_CODE_NEXT;
-	ffplay_btns[2]->reaction=egi_ffplay_next;
+	ffmuz_btns[2]->reaction=ffmuz_next;
 
-	egi_ebox_settag(ffplay_btns[3], "Exit");
+	egi_ebox_settag(ffmuz_btns[3], "Exit");
 	data_btns[3]->icon_code=(btn_symcolor<<16)+ICON_CODE_EXIT;
-	ffplay_btns[3]->reaction=egi_ffplay_exit;
+	ffmuz_btns[3]->reaction=ffmuz_exit;
 
-	egi_ebox_settag(ffplay_btns[4], "Playmode");
+	egi_ebox_settag(ffmuz_btns[4], "Playmode");
 	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
-	ffplay_btns[4]->reaction=egi_ffplay_playmode;
+	ffmuz_btns[4]->reaction=ffmuz_playmode;
 
 
 	/* --------- 2. create title bar --------- */
@@ -160,42 +166,65 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	);
 	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
 
-        /* --------- 3 create a pic box --------- */
+        /* --------- 3 create a TXT ebox for Volume value displaying  --------- */
+	vol_FTtxt=NULL;
+	ebox_voltxt=NULL;
 
+        /* For FTsymbols TXT */
+        vol_FTtxt=egi_utxtdata_new( 0, 0,                      /* offset from ebox left top */
+                                    1, 100,                    /* lines, pixels per line */
+                                    egi_appfonts.regular,      /* font face type */
+                                    20, 20,                    /* font width and height, in pixels */
+                                    0,                         /* adjust gap */
+                                    WEGI_COLOR_WHITE           /* font color  */
+                                  );
+        /* assign uft8 string */
+        vol_FTtxt->utxt=NULL;
+	/* create volume EBOX */
+        ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
+                                     vol_FTtxt,      /* EGI_DATA_TXT pointer */
+                                     true,           /* bool movable */
+                                     80,320-75,      /* int x0, int y0 */
+                                     100, 20,        /* width, height(adjusted as per nl and fw) */
+                                     -1,              /* int frame, -1 or frame_none=no frame */
+                                     -1	    //WEGI_COLOR_LTGREEN   /* prmcolor*/
+                                   );
+	/* set frame type */
+        //ebox_voltxt->frame_alpha; /* No frame and prmcolor*/
 
 	/* --------- 4. create ffplay page ------- */
 	/* 3.1 create ffplay page */
-	EGI_PAGE *page_ffplay=egi_page_new("page_ffplay");
-	while(page_ffplay==NULL)
+	EGI_PAGE *page_ffmuz=egi_page_new("page_ffmuz");
+	while(page_ffmuz==NULL)
 	{
 		printf("egi_create_ffplaypage(): fail to call egi_page_new(), try again ...\n");
-		page_ffplay=egi_page_new("page_ffplay");
+		page_ffmuz=egi_page_new("page_ffmuz");
 		tm_delayms(10);
 	}
-	page_ffplay->ebox->prmcolor=WEGI_COLOR_BLACK;
+	page_ffmuz->ebox->prmcolor=WEGI_COLOR_BLACK;
 
 	/* decoration */
-//	page_ffplay->ebox->method.decorate=pageffplay_decorate; /* draw lower buttons canvas */
+//	page_ffmuz->ebox->method.decorate=pageffmuz_decorate; /* draw lower buttons canvas */
 
         /* 3.2 put pthread runner */
-        page_ffplay->runner[0]= egi_thread_ffplay;
+        page_ffmuz->runner[0]= thread_ffplay_music;
 
         /* 3.3 set default routine job */
-        //page_ffplay->routine=egi_page_routine; /* use default routine function */
-	page_ffplay->routine=egi_homepage_routine;  /* for sliding operation */
-	page_ffplay->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
+        //page_ffmuz->routine=egi_page_routine; /* use default routine function */
+	page_ffmuz->routine=egi_homepage_routine;  /* for sliding operation */
+	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
 
         /* 3.4 set wallpaper */
-        page_ffplay->fpath="/tmp/mplay.jpg";
+        page_ffmuz->fpath="/tmp/mplay.jpg";
 
 	/* 3.5 add ebox to home page */
 	for(i=0;i<btnum;i++) /* add buttons */
-		egi_page_addlist(page_ffplay, ffplay_btns[i]);
+		egi_page_addlist(page_ffmuz, ffmuz_btns[i]);
 
-//	egi_page_addlist(page_ffplay, title_bar); /* add title bar */
+	egi_page_addlist(page_ffmuz, ebox_voltxt); /* add volume txt ebox */
+//	egi_page_addlist(page_ffmuz, title_bar); /* add title bar */
 
-
-	return page_ffplay;
+	return page_ffmuz;
 }
 
 
@@ -211,14 +240,14 @@ static void egi_pageffplay_runner(EGI_PAGE *page)
 ffplay PREV
 return
 ----------------------------------------------------------------------*/
-static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
-	FFplay_Ctx->ffcmd=cmd_prev;
+	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
+	FFmuz_Ctx->ffcmd=cmd_prev;
 
 	/* only react to status 'pressing' */
 	return btnret_OK;
@@ -228,7 +257,7 @@ static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ffplay palypause
 return
 ----------------------------------------------------------------------*/
-static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
@@ -240,14 +269,14 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	/* toggle the icon between play and pause */
 //	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
 	if( (data_btn->icon_code & 0x0ffff ) == ICON_CODE_PLAY ) {
-		/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
-		FFplay_Ctx->ffcmd=cmd_play;
+		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
+		FFmuz_Ctx->ffcmd=cmd_play;
 
 		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
 	}
 	else {
-		/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
-		FFplay_Ctx->ffcmd=cmd_pause;
+		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
+		FFmuz_Ctx->ffcmd=cmd_pause;
 
 		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;  /* toggle icon */
 	}
@@ -262,14 +291,14 @@ static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ffplay exit
 return
 ----------------------------------------------------------------------*/
-static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ffmuz_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	/* set FFplay_Ctx->ffcmd, FFplay will reset it. */
-	FFplay_Ctx->ffcmd=cmd_next;
+	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
+	FFmuz_Ctx->ffcmd=cmd_next;
 
 	return btnret_OK;
 }
@@ -278,7 +307,7 @@ static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ffplay play mode rotate.
 return
 ----------------------------------------------------------------------*/
-static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	static int count=0;
 
@@ -301,16 +330,16 @@ static int egi_ffplay_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* command for ffplay, ffplay will reset it */
 	if(count==0) {					/* LOOP ALL */
-		FFplay_Ctx->ffmode=mode_loop_all;
-		FFplay_Ctx->ffcmd=cmd_mode;		/* set cmd_mode at last!!! as for LOCK. */
+		FFmuz_Ctx->ffmode=mode_loop_all;
+		FFmuz_Ctx->ffcmd=cmd_mode;		/* set cmd_mode at last!!! as for LOCK. */
 	}
 	else if(count==1) { 				/* REPEAT ONE */
-		FFplay_Ctx->ffmode=mode_repeat_one;
-		FFplay_Ctx->ffcmd=cmd_mode;
+		FFmuz_Ctx->ffmode=mode_repeat_one;
+		FFmuz_Ctx->ffcmd=cmd_mode;
 	}
 	else if(count==2) { 				/* SHUFFLE */
-		FFplay_Ctx->ffmode=mode_shuffle;
-		FFplay_Ctx->ffcmd=cmd_mode;
+		FFmuz_Ctx->ffmode=mode_shuffle;
+		FFmuz_Ctx->ffcmd=cmd_mode;
 	}
 
 	/* set refresh flag for this ebox */
@@ -330,7 +359,7 @@ ffplay exit
 ???? do NOT call long sleep function in button functions.
 return
 ----------------------------------------------------------------------*/
-static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
@@ -366,7 +395,7 @@ static int egi_ffplay_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 /*-----------------------------------------
 	Decoration for the page
 -----------------------------------------*/
-static int pageffplay_decorate(EGI_EBOX *ebox)
+static int pageffmuz_decorate(EGI_EBOX *ebox)
 {
 	/* bkcolor for bottom buttons */
 	fbset_color(WEGI_COLOR_GRAY3);
@@ -406,16 +435,20 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */
 		if(vol>100)vol=100;
 		else if(vol<0)vol=0;
+                ffpcm_getset_volume(NULL,&vol); /* set volume */
 		sprintf(strp,"VOL %d%%",vol);
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
-                ffpcm_getset_volume(NULL,&vol); /* set volume */
+
+		/* set to ebox_voltxt */
+		vol_FTtxt->utxt=strp;
+		egi_ebox_needrefresh(ebox_voltxt);
 
                 /* displaying */
-		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
-                symbol_string_writeFB( &gv_fb_dev, &sympg_ascii,
-                                       WEGI_COLOR_YELLOW, -1,        /* fontcolor, int transpcolor */
-                                       80,320-75,                    /* int x0, int y0 */
-                                       strp, -1 );                /* string, opaque */
+//		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
+//              symbol_string_writeFB( &gv_fb_dev, &sympg_ascii,
+//                                       WEGI_COLOR_YELLOW, -1,        /* fontcolor, int transpcolor */
+//                                       80,320-75,                    /* int x0, int y0 */
+//                                       strp, -1 );                /* string, opaque */
 
 		return btnret_OK;
 	}
@@ -424,7 +457,10 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         {
 		printf("vol releasing\n");
 		mark=vol; /* update mark*/
-		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
+
+		/* reset vol_FTtxt */
+		vol_FTtxt->utxt=NULL;
+		egi_ebox_needrefresh(ebox_voltxt);
 
 		return btnret_OK;
 	}

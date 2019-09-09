@@ -1019,7 +1019,8 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	    }
 	}
 
-	printf(" height=%d, width=%d, oldheight=%d, oldwidth=%d \n", height, width, oldheight, oldwidth );
+	printf("%s: height=%d, width=%d, oldheight=%d, oldwidth=%d \n", __func__,
+								height, width, oldheight, oldwidth );
 
 	/* get new rowsize in bytes */
 	color_rowsize=width*sizeof(EGI_16BIT_COLOR);
@@ -1136,7 +1137,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	}
 
 	/* free buffers */
-	printf(" free buffers...\n");
+	printf("%s: Free buffers...\n", __func__);
 	egi_free_buff2D((unsigned char **)icolors, oldheight);
 	egi_free_buff2D(ialphas, oldheight);   /* no matter alpha off */
 	egi_free_buff2D((unsigned char **)fcolors, height);

@@ -31,7 +31,7 @@ int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapse
 FBDEV ff_fb_dev;
 
 /* ff control command */
-enum ffplay_cmd control_cmd;
+enum ffmuz_cmd control_cmd;
 
 /* predefine seek position */
 //long start_tmsecs=60*95; /* starting position */
@@ -52,6 +52,7 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiabil
 						    */
 
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
+static bool bkimg_updated;  /* back ground image for music playing */
 
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
@@ -154,23 +155,26 @@ In a loop to display pPICBuffs[]
 
 WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 -----------------------------------------------------------*/
-void* thdf_Display_Pic(void * argv)
+void* display_MusicPic(void * argv)
 {
-   if(FFplay_Ctx==NULL) {
-	printf("%s: FFplay_Ctx is NULL!\n",__func__);
+   if(FFmuz_Ctx==NULL) {
+	printf("%s: FFmuz_Ctx is NULL!\n",__func__);
 	return (void *)-1;
    }
 
    int 	i;
    int  index;
+   int  blur_size;
    unsigned long nfc_tmp;
    bool still_image=false;
-   bool update_imgbuf=true;  /* need to update */
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF *tmpimg=NULL;
    EGI_IMGBUF *tmpimg2=NULL;
    EGI_IMGBUF *pageimg=NULL; /* PAGE to show the pic */
+
+   /* reset bkimg_updated */
+   bkimg_updated=false;
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
    if(imgbuf==NULL) {
@@ -178,8 +182,8 @@ void* thdf_Display_Pic(void * argv)
 	return (void *)-1;
    }
 
-   imgbuf->width=ppic->He - ppic->Hs +1;
-   imgbuf->height=ppic->Ve - ppic->Vs +1;
+   imgbuf->width=ppic->width; //He - ppic->Hs +1;
+   imgbuf->height=ppic->height; //Ve - ppic->Vs +1;
 
    EGI_PLOG(LOGLV_INFO,"%s: imgbuf width=%d, imgbuf height=%d \n",
 						__func__, imgbuf->width, imgbuf->height );
@@ -193,13 +197,7 @@ void* thdf_Display_Pic(void * argv)
    }
 
    /* check size limit */
-   //if(imgbuf->width>LCD_MAX_WIDTH || imgbuf->height>LCD_MAX_HEIGHT)
-   if( imgbuf->width > ff_fb_dev.vinfo.xres || imgbuf->height > ff_fb_dev.vinfo.yres )
-   {
-	EGI_PLOG(LOGLV_WARN,"%s: WARNING!!!  Image size is too big for FB displaying.\n",__FUNCTION__);
-	//exit(-1);
-   }
-
+	////ignored////
 
    while(1)
    {
@@ -216,8 +214,7 @@ void* thdf_Display_Pic(void * argv)
 
 			/* window_position displaying */
 			if( !still_image ) {   /* still image to be passed to PAGE frame_img later */
-				egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
-					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
+				printf("%s: A motion picture!\n",__func__);
 			}
 		   	/* put a FREE tag after display, then it can be overwritten. */
 	  	   	IsFree_PICbuff[index]=true;
@@ -232,16 +229,26 @@ void* thdf_Display_Pic(void * argv)
 
   	  /* Call only once...,  XXXXX revive slot [0] for still image */
 	  if( still_image )  {
+
 		/* reset PAGE  wallpaper imgbuf */
-		if( update_imgbuf && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
+		if( !bkimg_updated && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
 
 			/* free old imgbuf, pic->imgbuf refer to PAGE->ebox->frame_img */
 			printf("%s: free pageimg...\n", __func__);
 			egi_imgbuf_free(pageimg); pageimg=NULL;
 
-			/* copy block from original imgbuf, suppose it's square!  and LCD ratio 4:3 */
-			tmpimg=egi_imgbuf_blockCopy(imgbuf,  imgbuf->width>>3, 0,      /* eimg, xp,yp */
- 						imgbuf->height, imgbuf->width*3/4 );   /* H, W*/
+			/* If original image ratio is H4:W3, just same as LCD ratio. */
+			if( imgbuf->height*3 == (imgbuf->width<<2) ) {
+				printf("%s: embedded picture ratio 4:3\n",__func__);
+				tmpimg=egi_imgbuf_blockCopy(imgbuf,  0, 0,  	       /* eimg, xp,yp */
+ 						imgbuf->height, imgbuf->width );       /* H, W*/
+			}
+			/* Else if original image is square, then copy a H4:W3 block from it. */
+			else {
+				printf("%s: embedded picture ratio is NOT 4:3\n",__func__);
+				tmpimg=egi_imgbuf_blockCopy(imgbuf,  imgbuf->width>>3, 0,  /* eimg, xp,yp */
+ 						imgbuf->height, imgbuf->width*3/4 );       /* H, W*/
+			}
 
 			/* resize(new alloc) to whole screen size and assign */
 			printf("%s: resize imgbuf...\n",__func__);
@@ -250,7 +257,9 @@ void* thdf_Display_Pic(void * argv)
 				printf("%s: Fail to resize imgbuf.\n",__func__);
 
 			/* blur the image... */
-			pageimg=egi_imgbuf_avgsoft(tmpimg2, 8, false, false); /*ineimg, size, alpha_on, hold_on */
+			printf("%s: soft blur the imgbuf...\n",__func__);
+			blur_size=tmpimg2->height/50;
+			pageimg=egi_imgbuf_avgsoft(tmpimg2, 10, false, false); /*ineimg, size, alpha_on, hold_on */
 			if(pageimg==NULL)
 				printf("%s: Fail to avgsoft imgbuf.\n",__func__);
 
@@ -266,17 +275,18 @@ void* thdf_Display_Pic(void * argv)
 			egi_page_needrefresh(ppic->app_page);
 
 			/* reset update token */
-			update_imgbuf=false;
-		}
+			bkimg_updated=true;
 
-		/* loop refreshing file name... or add it to the imgbuf */
-        	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
+			/* refreshing file name... or add it to the imgbuf */
+			tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
+        		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                                     		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                                    	240, 2, 0,                      /* pixpl, lines, gap */
         	                            	0, 20,                          /* x0,y0, */
-                	                    	WEGI_COLOR_GRAYB, -1, -1 );      /* fontcolor, stranscolor,opaque */
-		tm_delayms(500);
+                	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
+		}
 
+		tm_delayms(500);
 		/* reset token  --- !!! Not necessary anymore, pic is put to page->ebox->frame_img. */
 		#if 0
 		nfc=1; 		/* since ff_get_FreePicBuff() from 1, not 0. */
@@ -355,8 +365,8 @@ WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 -------------------------------------------------------------*/
 void* thdf_Display_Subtitle(void * argv)
 {
-	if(FFplay_Ctx==NULL) {
-		printf("%s: FFplay_Ctx is NULL!\n",__func__);
+	if(FFmuz_Ctx==NULL) {
+		printf("%s: FFmuz_Ctx is NULL!\n",__func__);
 		return (void *)-1;
 	}
 
@@ -381,7 +391,7 @@ void* thdf_Display_Subtitle(void * argv)
         }
 
 	/* seek to the start position */
-	off=seek_Subtitle_TmStamp(subpath, FFplay_Ctx->start_tmsecs);
+	off=seek_Subtitle_TmStamp(subpath, FFmuz_Ctx->start_tmsecs);
 	fseek(fil,off,SEEK_SET);
 
        	/* read subtitle section by section */
@@ -626,6 +636,9 @@ void*  ff_display_spectrum(void *argv)
 	for(i=0; i<np; i++)
 		hamming[i]=MAT_FHAMMING(i, np);
 
+	/* keep waiting untill back ground image updated */
+	while(!bkimg_updated)
+		tm_delayms(55);
 
   /*  -------------------------- LOOP --------------------------  */
   while(1) {
@@ -732,7 +745,8 @@ void*  ff_display_spectrum(void *argv)
    } /* end while() */
 
    /* free mem and resource */
-   fb_filo_dump(&fbdev); /* to dump */
+   //fb_filo_dump(&fbdev); /* to dump */
+   fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
    release_fbdev(&fbdev);
    free(wang);
 }

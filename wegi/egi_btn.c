@@ -328,7 +328,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	}
 
 
-   if(ebox->movable && ebox->bkimg_valid) /* only if ebox is movale and bkimg valid */
+   if(ebox->movable && ebox->bkimg_valid) /* only if ebox is movable and bkimg valid */
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */

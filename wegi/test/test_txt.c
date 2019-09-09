@@ -57,7 +57,7 @@ do {    ///////////////////////     LOOP TEST 	////////////////////////
 
 	/* For FTsymbols */
 	memo_txt=egi_utxtdata_new( offx, offy,   		    /* offset from ebox left top */
-                       		         4, 125,             /* lines, pixels per line */
+                       		         4, 125,             	    /* lines, pixels per line */
 		                         egi_appfonts.regular,      /* font face type */
                                 	 20, 20,         	    /* font width and height, in pixels */
                                 	 15,			    /* adjust gap */
@@ -74,7 +74,7 @@ do {    ///////////////////////     LOOP TEST 	////////////////////////
 			                -1, 		/* int frame, -1=no frame */
 			                WEGI_COLOR_LTGREEN   /* prmcolor*/
         			     );
-	ebox_txt->frame_alpha=100;
+	ebox_txt->frame_alpha=frame_none; //100;
 
 	/* move ebox txt */
 	egi_randp_inbox(&pt, &gv_fb_box);

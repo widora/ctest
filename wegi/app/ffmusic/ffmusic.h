@@ -17,8 +17,8 @@ Based on:
 Midas Zhou
 midaszhou@yahoo.com
 --------------------------------------------------------------------*/
-#ifndef __EGI_FFPLAY_H__
-#define __EGI_FFPLAY_H__
+#ifndef __FFMUSIC_H__
+#define __FFMUSIC_H__
 
 #include <signal.h>
 #include <math.h>
@@ -29,10 +29,10 @@ midaszhou@yahoo.com
 
 /* ffplay control command signal
  * !!! Note: pthread lock not applied here, when you need to set
- *           ffplay_mode, set 'cmd_mode' as last, as egi_thread_ffplay()
+ *           ffmuz_mode, set 'cmd_mode' as last, as egi_thread_ffplay()
  *           will check 'cmd_mode' first!
  */
-enum ffplay_cmd {
+enum ffmuz_cmd {
         cmd_none=0,
         cmd_play,
         cmd_pause,
@@ -45,11 +45,11 @@ enum ffplay_cmd {
         cmd_exit_subtitle_thread,       /* stop subtitle thread */
 	cmd_exit_audioSpectrum_thread   /* stop audio spectrum displaying thread */
 };
-/* set ffplay_cmd as 'cmd_mode' before set ffplay_mode
- * !!! Note: pthread lock not applied here, set 'cmd_mode' as last,
-             as egi_thread_ffplay() will check 'cmd_mode' first!
+/* set ffmuz_cmd as 'cmd_mode' before set ffmuz_mode.
+ * !!! Note: pthread lock not applied here, set 'cmd_mode' at last,
+             as thread_ffmusic() will check 'cmd_mode' first!
  */
-enum ffplay_mode
+enum ffmuz_mode
 {
         mode_loop_all=0,   /* loop all files in the list */
         mode_repeat_one,   /* repeat current file */
@@ -57,8 +57,8 @@ enum ffplay_mode
 	mode_noaudio,	   /* disable audio */
 	mode_audio
 };
-/* feedback stauts after ffplay_cmd and ffplay_mode execution */
-enum ffplay_status
+/* feedback stauts after ffmuz_cmd and ffmuz_mode execution */
+enum ffmuz_status
 {
         status_stop=0,
         status_playing,
@@ -71,7 +71,7 @@ enum ffplay_status
  *     	   get feedback status.
  *  	2. FFplay_Ctx is a commonly shared struct data.
  */
-typedef struct FFplay_Context
+typedef struct FFmusic_Context
 {
 	int	  ftotal;    	/* Total number of media files path in array 'fpath' */
 	char     **fpath;   	/* 1. Array of media file paths, or address. #####
@@ -82,22 +82,22 @@ typedef struct FFplay_Context
 
 	long start_tmsecs;  	/* start_playing time, default 0 */
 
-	enum ffplay_cmd     ffcmd;      /* 0 default none*/
-	enum ffplay_mode    ffmode;	/* 0 default mode_loop_all */
-	enum ffplay_status  ffstatus;	/* 0 default mode_stop */
-}FFPLAY_CONTEXT;
+	enum ffmuz_cmd     ffcmd;      /* 0 default none*/
+	enum ffmuz_mode    ffmode;	/* 0 default mode_loop_all */
+	enum ffmuz_status  ffstatus;	/* 0 default mode_stop */
+}FFMUSIC_CONTEXT;
 
-extern FFPLAY_CONTEXT *FFplay_Ctx;	/* a global ctx */
+extern FFMUSIC_CONTEXT *FFmuz_Ctx;	/* a global ctx */
 
 /* Functions */
-int 	egi_init_ffplayCtx(char *path, char *fext);
-void 	egi_free_ffplayCtx(void);
+int 	init_ffmuzCtx(char *path, char *fext);
+void 	free_ffmuzCtx(void);
 
 /**
  *			A Thread Function
  *	Prepare/set  EGI_UI environment before start this thread/
  */
-void * egi_thread_ffplay(EGI_PAGE *page);
+void * thread_ffplay_music(EGI_PAGE *page);
 
 
 

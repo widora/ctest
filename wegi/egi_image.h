@@ -16,6 +16,10 @@ Midas Zhou
 #include <freetype2/ftglyph.h>
 
 enum imgframe_type {
+	frame_simple=0,		/* <1000 , defined by ebox type, check in egi_btn.c, egi_txt.c...  */
+	frame_dbline=1,
+	frame_inner=2,
+
 	frame_none=100,		/* incoporate with ebox->frame, <100  */
 	frame_round_rect,
 	frame_circle,

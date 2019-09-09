@@ -6,12 +6,12 @@ published by the Free Software Foundation.
 Midas Zhou
 -----------------------------------------------------------------*/
 
-#ifndef __EGI_PAGEFFPLAY__
-#define __EGI_PAGEFFPLAY__
+#ifndef __PAGE_FFMUSIC_H__
+#define __PAGE_FFMUSIC_H__
 
 #include "egi.h"
 
-EGI_PAGE *egi_create_ffplaypage(void);
-void egi_free_ffplaypage(void);
+EGI_PAGE  *create_ffmuzPage(void);
+void 	   free_ffmuzPage(void);
 
 #endif

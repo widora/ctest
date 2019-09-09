@@ -92,6 +92,7 @@ FFmpeg transpose:
 	   	4. Finally, image_H map to display_W if clock/cclock transpose applied.
 
 display_height,display_width:
+
 	   	Mapped to final display WxH as of LCD row_pixel_number x column_pixel_number
 	   	(NOT image upright size!!!)
 
@@ -143,13 +144,13 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FF_LOOP_TIMEGAP  1   /* in second, hold_on time after ffplaying a file, especially for a picture.
+#define FFMUZ_LOOP_TIMEGAP  1   /* in second, hold_on time after ffplaying a file, especially for a picture.
 			     *  set before FAIL_OR_TERM.
 			     */
 
-#define FF_CLIP_PLAYTIME 10   /* in second, set clip play time */
+#define FFMUZ_CLIP_PLAYTIME 10   /* in second, set clip play time */
 
-#define ENABLE_MEDIA_LOOP
+#define FFMUZ_MEDIA_LOOP
 
 
 /*
@@ -169,7 +170,7 @@ Note:
 /*--------  FFPLAY ENVIRONTMENT SET  ------------
  To set it up first before you call egi_ffplay()
 ------------------------------------------------*/
-FFPLAY_CONTEXT *FFplay_Ctx=NULL;
+FFMUSIC_CONTEXT *FFmuz_Ctx=NULL;
 
 /* expected display window size, LCD will be adjusted in the function */
 static int show_w= 240; //185; /* LCD row pixels */
@@ -251,7 +252,7 @@ static bool disable_audio=false;
 static bool disable_video=false;
 
 /* param: ( enable_clip_test )
- *   if True:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
+ *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
 static bool enable_clip_test=false;
@@ -262,11 +263,11 @@ static bool enable_clip_test=false;
  *   mode_repeat_one:	repeat current file
  *   mode_shuffle:	pick next file randomly
  */
-static enum ffplay_mode playmode=mode_loop_all;
+static enum ffmuz_mode playmode=mode_loop_all;
 
 
 /*-----------------------------------------------------
-Init FFplay context, allocate FFplay_Ctx, and sort out
+Init FFmuz context, allocate FFmuz_Ctx, and sort out
 all media files in path.
 
 @path           path for media files
@@ -277,61 +278,62 @@ return:
         0       OK
         <0    Fails
 ------------------------------------------------------*/
-int egi_init_ffplayCtx(char *path, char *fext)
+int int_ffmuzCtx(char *path, char *fext)
 {
         int fcount;
 
-        FFplay_Ctx=calloc(1,sizeof(FFPLAY_CONTEXT));
-        if(FFplay_Ctx==NULL) {
-                printf("%s: Fail to calloc FFplay_Ctx.\n",__func__);
+        FFmuz_Ctx=calloc(1,sizeof(FFMUSIC_CONTEXT));
+        if(FFmuz_Ctx==NULL) {
+                printf("%s: Fail to calloc FFmuz_Ctx.\n",__func__);
                 return -1;
         }
 
         /* search for files and put to ffCtx->fpath */
-        FFplay_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
-        FFplay_Ctx->ftotal=fcount;
+        FFmuz_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFmuz_Ctx->ftotal=fcount;
 
         return 0;
 }
 
 
 /*-----------------------------------------
-	Free a FFPLAY_CONTEXT struct
+	Free a FFMUSIC_CONTEXT struct
 -----------------------------------------*/
-void egi_free_ffplayCtx(void)
+void free_ffmuzCtx(void)
 {
-        if(FFplay_Ctx==NULL) return;
+        if(FFmuz_Ctx==NULL) return;
 
-        if( FFplay_Ctx->ftotal > 0 )
-                egi_free_buff2D((unsigned char **)FFplay_Ctx->fpath, FFplay_Ctx->ftotal);
+        if( FFmuz_Ctx->ftotal > 0 )
+                egi_free_buff2D((unsigned char **)FFmuz_Ctx->fpath, FFmuz_Ctx->ftotal);
 
-        free(FFplay_Ctx);
+        free(FFmuz_Ctx);
 
-        FFplay_Ctx=NULL;
+        FFmuz_Ctx=NULL;
 }
 
 
 /*-----------------------------------------------------
 FFplay for most types of media files:
 	.mp3, .mp4, .avi, .jpg, .png, .gif, ...
+
+thread_ffplay_music() is only for audio files.
 -----------------------------------------------------*/
-void * egi_thread_ffplay(EGI_PAGE *page)
-//void * egi_thread_ffplay(FFPLAY_CONTEXT *FFplay_Ctx)
+void * thread_ffplay_music(EGI_PAGE *page)
 {
 	/* Check ffplay context */
-	if(FFplay_Ctx==NULL || FFplay_Ctx->ftotal<=0 || FFplay_Ctx->fpath==NULL
-						     || FFplay_Ctx->fpath[0]==NULL)
+	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
+						     || FFmuz_Ctx->fpath[0]==NULL)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is invalid!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!\n", __func__);
 		return (void *)-1;
 	}
-	printf("-------------start at: %ld -----------\n", FFplay_Ctx->start_tmsecs);
+	printf("-------------start at: %ld -----------\n", FFmuz_Ctx->start_tmsecs);
 
-	int ftotal=FFplay_Ctx->ftotal; /* number of multimedia files input from shell */
-	int fnum;		/* Index number of files in array FFplay_Ctx->fpath */
+	int ftotal=FFmuz_Ctx->ftotal; /* number of multimedia files input from shell */
+	int fnum;		/* Index number of files in array FFmuz_Ctx->fpath */
 	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
-	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
+	char **fpath=NULL; //FFmuz_Ctx->fpath;  /* array of media file path */
 	char *fname=NULL;
 	char *fbsname=NULL;
 
@@ -464,23 +466,24 @@ void * egi_thread_ffplay(EGI_PAGE *page)
         init_fbdev(&ff_fb_dev);
 
 	/* --- fill display area with BLACK --- */
+#if 0 /* Let PAGE handle it ...*/
 	fbset_color(WEGI_COLOR_BLACK);
 	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-
+#endif
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
 while(1) {
 
 	/* For Each Loop:  Check ffplay context and re_gain fpath */
-	if(FFplay_Ctx==NULL || FFplay_Ctx->ftotal<=0 || FFplay_Ctx->fpath==NULL
-						     || FFplay_Ctx->fpath[0]==NULL)
+	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
+						     || FFmuz_Ctx->fpath[0]==NULL)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is invalid!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!\n", __func__);
 		return (void *)-1;
 	}
-	fpath=FFplay_Ctx->fpath;  /* array of media file path */
+	fpath=FFmuz_Ctx->fpath;  /* array of media file path */
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
@@ -499,8 +502,9 @@ while(1) {
 	}
 
 	/* clear displaying area */
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
+	/* Let PAGE handle it */
+	//fbset_color(WEGI_COLOR_BLACK);
+	//draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
 
 	/* reset display window size */
 	display_height=show_h;
@@ -537,7 +541,7 @@ pFormatCtx->probesize2=128*1024;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
 		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
 
-#ifdef ENABLE_MEDIA_LOOP
+#ifdef FFMUZ_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
 		continue;
@@ -910,7 +914,7 @@ if(enable_auto_rotate)
 	else
 		transpose_clock=true;
 }
-/* get original video size, swap width and height if clock/cclock_transpose 
+/* get original video size, swap width and height if clock/cclock_transpose
  * pCodecCtx->heidth and width is the upright image size.
  */
 if(enable_avfilter)
@@ -931,6 +935,7 @@ else /* keep original size */
 }
 
 
+#if 0 ////////////////////////  To be handled by display_MusicPic()  ////////////////////
 /* stretch image size to expected */
 if(enable_stretch)
 {
@@ -1000,6 +1005,13 @@ else /* if NOT stretch, then keep original ratio */
 		display_height=scheight;
 	}
 
+#else /////////////////////// Above to be handled by display_MusicPic()  ////////////////////////
+
+	/* use Orig size */
+	display_width=widthOrig;
+	display_height=heightOrig;
+
+#endif
 
 /*  Double check here, should alread have been checked at the very begin
  *  reset display window size to be multiples of 4(for AVFilter Descr) or 2(for SWS).
@@ -1018,17 +1030,14 @@ else
 										display_width,display_height);
 
 	/* Addjust displaying window position */
+#if 0 /* NO need for FFMUZ */
 	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
 	if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
 		offy=((265-29-display_height)>>1) +30;
 	else					/* for MOTION PIC */
 		offy=50;
-
-	/* clear displaying zone */
-#if 0
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 #endif
+
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
 	pic_info.numBytes=numBytes;
@@ -1058,11 +1067,14 @@ else
 //	 pic.Hs=Hb; pic.He=Hb+display_width-1;
 //	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
 
-	 Hb=offx;
-	 Vb=offy;
-	 pic_info.Hs=Hb; pic_info.He=Hb+display_width-1;
-	 pic_info.Vs=Vb; pic_info.Ve=Vb+display_height-1;
+	 /* We dont need offx/offy anymore for FFmuz, all to be handled by display_MusicPic() */
+//	 Hb=offx;
+//	 Vb=offy;
+//	 pic_info.Hs=Hb; pic_info.He=Hb+display_width-1;
+//	 pic_info.Vs=Vb; pic_info.Ve=Vb+display_height-1;
 	 pic_info.vcodecID=vcodecID;
+	 pic_info.height=display_height;
+	 pic_info.width=display_width;
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
@@ -1090,7 +1102,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 /* Even if no video stream */
-	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic_info) != 0) {
+	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
 		return (void *)-1;
 	}
@@ -1288,8 +1300,8 @@ else
 	 * Note:
 	 * 1. For MP3, to call av_seek_frame() will fail!
 	 */
-	if(FFplay_Ctx->start_tmsecs !=0 ) {
-	  av_seek_frame(pFormatCtx, videoStream,(FFplay_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+	if(FFmuz_Ctx->start_tmsecs !=0 ) {
+	  av_seek_frame(pFormatCtx, videoStream,(FFmuz_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
 	}
 }
 
@@ -1485,7 +1497,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 /* For clip test, just ffplay a short time then break */
 if(enable_clip_test)
 {
-		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FF_CLIP_PLAYTIME) )
+		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FFMUZ_CLIP_PLAYTIME) )
 		{
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
@@ -1494,53 +1506,53 @@ if(enable_clip_test)
 		/* if a picture without audio */
 		else if( audioStream<0 )
 		{
-			tm_delayms(FF_CLIP_PLAYTIME*1000);
+			tm_delayms(FFMUZ_CLIP_PLAYTIME*1000);
 			break;
 		}
 }
 
 	/*----------------<<<<< Check and parse commands >>>>>-----------------*/
-		if( FFplay_Ctx->ffcmd != cmd_none )
+		if( FFmuz_Ctx->ffcmd != cmd_none )
 		{
 		    /* 1. parse PAUSE/PLAY first */
-		    if(FFplay_Ctx->ffcmd==cmd_pause) {
+		    if(FFmuz_Ctx->ffcmd==cmd_pause) {
 			do {
 				egi_sleep(0,0,100);
-			} while(FFplay_Ctx->ffcmd==cmd_pause); // !=cmd_play;
+			} while(FFmuz_Ctx->ffcmd==cmd_pause); // !=cmd_play;
 
 			/* Don not reset, pass down curretn cmd */
 
 		    }
 	  	    /* 2. shift mode */
-		    else if( FFplay_Ctx->ffcmd==cmd_mode) {
+		    else if( FFmuz_Ctx->ffcmd==cmd_mode) {
 			    /* Note:
 			     *      1. Default enable_filesloop is true.
 			     *	    2. mode_loop_all means loop in order.
 			     */
-			    if(FFplay_Ctx->ffmode==mode_repeat_one) {
+			    if(FFmuz_Ctx->ffmode==mode_repeat_one) {
 				enable_seekloop=true;
 				enable_shuffle=false;
 			    }
-			    else if(FFplay_Ctx->ffmode==mode_shuffle) {
+			    else if(FFmuz_Ctx->ffmode==mode_shuffle) {
 				enable_shuffle=true;
 				enable_seekloop=false;
 			    }
-			    else if(FFplay_Ctx->ffmode==mode_loop_all) {
+			    else if(FFmuz_Ctx->ffmode==mode_loop_all) {
 				enable_seekloop=false;
 				enable_shuffle=false;
 			    }
 			    /* reset */
-	 		    FFplay_Ctx->ffcmd=cmd_none;
+	 		    FFmuz_Ctx->ffcmd=cmd_none;
 		    }
 
 		    /* 3. parse PREV/NEXT  */
-		    else if(FFplay_Ctx->ffcmd==cmd_next) {
-		    	FFplay_Ctx->ffcmd=cmd_none;
+		    else if(FFmuz_Ctx->ffcmd==cmd_next) {
+		    	FFmuz_Ctx->ffcmd=cmd_none;
 			//break;
 			goto FAIL_OR_TERM;
 		    }
-		    else if(FFplay_Ctx->ffcmd==cmd_prev) {
-			FFplay_Ctx->ffcmd=cmd_none;
+		    else if(FFmuz_Ctx->ffcmd==cmd_prev) {
+			FFmuz_Ctx->ffcmd=cmd_none;
 			//printf("xxxxxxxxx  fnum=%d  xxxxxxx", fnum );
 			if( fnum > 0 )
 				fnum-=2;
@@ -1552,17 +1564,17 @@ if(enable_clip_test)
 
 		    /* reset as cmd_none at last */
 		    else
-			FFplay_Ctx->ffcmd=cmd_none;
+			FFmuz_Ctx->ffcmd=cmd_none;
 		}
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
-	if(FF_LOOP_TIMEGAP>0)
+	if(FFMUZ_LOOP_TIMEGAP>0)
 	{
 		/* NOTE: fnum may be illegal, as modified in ffcmd parsing, so skip to FAIL_OR_TERM! */
 		EGI_PDEBUG(DBG_FFPLAY,"End playing %s, hold on for a while...\n",fpath[fnum]);
-		tm_delayms(FF_LOOP_TIMEGAP*1000);
+		tm_delayms(FFMUZ_LOOP_TIMEGAP*1000);
 	}
 
 #if 0 /* These codes may be skipped, move to FAIL_OR_TERM */

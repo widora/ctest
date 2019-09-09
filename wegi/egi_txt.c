@@ -235,7 +235,7 @@ EGI_EBOX * egi_txtbox_new( char *tag,
 	ebox->width=width;	ebox->height=height;
 	ebox->frame=frame;	ebox->prmcolor=prmcolor;
 	//ebox->frame_img=NULL;
-	ebox->frame_alpha=255;
+	ebox->frame_alpha=255;  /* init value */
 
 	/* 5. pointer default */
 	EGI_PDEBUG(DBG_TXT,"Assign ebox->bkimg=NULL ...\n");
@@ -457,7 +457,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 
 	/* 6. initiate frame_img if frame>100 and prmcolor >=0 */
 	if( ebox->frame >100 && ebox->prmcolor>=0 ) {
-		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,   	   /* int height, int width */
+		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,     /* int height, int width */
                                   	ebox->frame_alpha, ebox->prmcolor, /* alpha, color */
 	                                frame_round_rect,       	   /* enum imgframe_type */
          	                        1, &rad );                	   /* 1, radius, int pn, int *param */
@@ -603,14 +603,22 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
    {
 
 #if 0 /* DEBUG */
-	EGI_PDEBUG(DBG_TXT,"txt refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_TXT,"fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 #endif
 	/* restore bk image before refresh */
-	EGI_PDEBUG(DBG_TXT,"txt refresh: fb_cpyfrom_buf() before refresh...\n");
-        if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
-		return -3;
+        /* Check wheather PAGE bkimg changed or not,
+         * If changed, do NOT copy old ebox->bkimg to FB, as PAGE bkimg is already the new one!
+         */
+        if( ebox->container==NULL || ebox->container->page_update !=true )
+        {
+		EGI_PDEBUG(DBG_TXT,"fb_cpyfrom_buf() before refresh...\n");
+       	 	if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+        	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+			return -3;
+	} else {
+		EGI_PDEBUG(DBG_TXT,"Page just updated, ignore fb_cpyfrom_buf() \n");
+	}
 
 	/* store new coordinates of the ebox
 	    updata bkimg->bkbox according */
