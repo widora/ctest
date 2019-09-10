@@ -48,6 +48,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox);
 int egi_txtbox_refresh(EGI_EBOX *ebox);
 //static int egi_txtbox_decorate(EGI_EBOX *ebox);
 int egi_txtbox_sleep(EGI_EBOX *ebox);
+int egi_txtbox_hide(EGI_EBOX *ebox);
 void egi_free_data_txt(EGI_DATA_TXT *data_txt);
 
 /* For non_FTsymbols only */

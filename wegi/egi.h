@@ -78,8 +78,16 @@ enum egi_ebox_type
 enum egi_ebox_status
 {
 	status_nobody=0,
-	status_sleep,	     /* WARNING!!! It's dangerous to make any modification to a sleeping EBOX!,
-				for example: resize, renew egi_data etc. */
+	status_sleep,	     /* --- For movalbe EBOX only! ---
+			      * WARNING!!! It's dangerous to make any modification to a sleeping EBOX!,
+			      * for example: resize, renew egi_data etc.
+			      */
+
+	status_hidden,	      /* --- For movable EBOX only! ---
+			       *  !!!!  NOW only applied for EBOX_TXT !!!!!
+			       * Do NOT display! BUT refresh other data if necessary, size,bkimg ...etc.
+			       * !!!We need to refresh bkimg however, when PAGE(wallpaper) updating. egi_txt.c
+			       */
 	status_active,
 	status_page_exiting, /* to inform page runner */
 };
@@ -146,6 +154,7 @@ struct egi_ebox_method
 	int (*decorate)(EGI_EBOX *);
 	int (*play)(EGI_EBOX *); 	/* for motion pic ebox, or.. */
 	int (*sleep)(EGI_EBOX *);
+//TODO	int (*hiden)(EGI_EBOX *);
 	int (*free)(EGI_EBOX *);
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); /* enum egi_touch_status */
 };
@@ -256,10 +265,10 @@ struct egi_element_box
 	/* private data, for concept ebox */
 	void *prvdata;
 
-	/* child defined method, or use default method */
+	/* child defined method, or use default method as follows */
 	EGI_METHOD method;
 
-	/* --- DEFAULT METHODS --- */
+	/* <<< ------------- DEFAULT METHODS -------------- >>> */
 	/*  --- activate:
 	   A._for a status_sleep ebox:
 	   	1. re-activate(wake up) it:
@@ -287,13 +296,20 @@ struct egi_element_box
 	int (*refresh)(EGI_EBOX *);
 
 	/* --- sleep:
-	   1. Remove the ebox from the screen and restore the bkimg.
-	   2. and set status as sleep.
+	   1. Remove the ebox image from the screen and restore the bkimg.
+	   2. and set status as status_sleep. A sleeping EBOX do NOT refresh()!
 	   3. if an immovale ebox sleeps, it should not disappear ??!!!
-	   4. sleeping ebox will not react to touching.
-
+	   4. A sleeping ebox will not react to touching.
 	*/
 	int (*sleep)(EGI_EBOX *);
+
+	/* --- hide:
+	   1. Remove the ebox image from the screen and restore the bkimg.
+	   2. and set status as status_hidden. A hidden EBOX only refresh data, NOT image!
+	   3. If an immovale ebox sleeps, it should not disappear ??!!!
+	   4. A hidden ebox will not react to touching.
+	*/
+	int (*hide)(EGI_EBOX *);
 
 	/* --- free:
 	*/

@@ -184,13 +184,17 @@ EGI_PAGE *create_ffmuzPage(void)
         ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
                                      vol_FTtxt,      /* EGI_DATA_TXT pointer */
                                      true,           /* bool movable */
-                                     70,320-75,      /* int x0, int y0 */
-                                     80, 30,        /* width, height(adjusted as per nl and fw) */
+                                     70, 60,      /* int x0, int y0 */
+                                     //70,320-75,      /* int x0, int y0 */
+                                     80, 30,         /* width, height(adjusted as per nl and fw) */
                                      frame_round_rect,  /* int frame, -1 or frame_none = no frame */
                                      WEGI_COLOR_GRAY3   /* prmcolor,<0 transparent*/
                                    );
 	/* set frame type */
         //ebox_voltxt->frame_alpha; /* No frame and prmcolor*/
+
+	/* set status as hidden, activate it only by touching */
+	ebox_voltxt->status=status_hidden;
 
 	/* --------- 4. create ffplay page ------- */
 	/* 3.1 create ffplay page */
@@ -431,7 +435,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         /* 2. adjust button position and refresh */
         else if( touch_data->status==pressed_hold )
         {
-		/* activte vol_FTtxt */
+		/* activate vol_FTtxt from hidden status */
 		egi_txtbox_activate(ebox_voltxt);
 
                 /* adjust volume */
@@ -468,8 +472,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		ebox_voltxt->refresh(ebox_voltxt);
 		#endif
 
-		/* sleep to erase image */
-		ebox_voltxt->sleep(ebox_voltxt);
+		/* Hide to erase image */
+		//ebox_voltxt->sleep(ebox_voltxt);
+		egi_txtbox_hide(ebox_voltxt);
 
 		return btnret_OK;
 	}

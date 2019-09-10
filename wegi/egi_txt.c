@@ -387,19 +387,19 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	 *	not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
 	 *      TODO: test,   If PAGE wallpaper has changed ?????
 	 */
-	if(ebox->status==status_sleep)
+	if(ebox->status==status_sleep || ebox->status==status_hidden)
 	{
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset affliated file position */
 		ebox->status=status_active; 	/* reset status to active before refresh!!! */
 		ebox->need_refresh=true;
 		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
-			ebox->status=status_sleep; /* reset status */
+			//ebox->status=status_sleep; /* reset status */
 			EGI_PDEBUG(DBG_TXT,"---- Fail to wake up sleeping ebox '%s'!\n",ebox->tag);
 			return -3;
 		}
 
-		EGI_PDEBUG(DBG_TXT,"Wake up a sleeping '%s' ebox.\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"Wake up a sleeping/hidden '%s' ebox.\n",ebox->tag);
 		return 0;
 	}
 
@@ -491,6 +491,8 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 
 /*-------------------------------------------------------------------------------
 refresh a txt ebox.   (For both nonFTsymbols and FTsymbols)
+A hidden txtbox only refresh data, and NO displaying.
+A sleeping txtbox refresh nothing.
 
 Note:
 	1.refresh ebox image according to following parameter updates:
@@ -523,16 +525,16 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	}
 
 	/* 2. check the ebox status */
-	if( ebox->status != status_active )
+	if( ebox->status != status_active && ebox->status != status_hidden )
 	{
-		EGI_PDEBUG(DBG_TXT,"Ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"Ebox '%s' is not active/hidden! refresh action is ignored! \n",ebox->tag);
 		return -2;
 	}
 
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
+//		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -647,6 +649,14 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
    } /* end of movable code */
 
+
+	/* If status is hidden, then skip displaying codes */
+	if( ebox->status == status_hidden )
+		goto TXT_REFRESH_END;
+
+
+	/*  ------------>   DISPLAYING CODES STARTS  <----------  */
+
 	/* 7. Draw frame_img first */
 	if( ebox->frame_img != NULL ) {
 	        egi_imgbuf_windisplay( ebox->frame_img, &gv_fb_dev, -1,     /* img, FB, subcolor */
@@ -729,6 +739,8 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
                                		      data_txt->color, -1, -1	);
 	}
 
+
+TXT_REFRESH_END:
 	/* ---- 12. reset need_refresh */
 	ebox->need_refresh=false;
 
@@ -736,31 +748,28 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 }
 
 
-/*-----------------------------------------------------
-put a txt ebox to sleep
-1. restore bkimg
-2. reset status
+/*---------------------------------------
+Put a txt ebox to sleep.
+1. Restore bkimg to erase image of itself.
+2. Reset status
 
-return
+Return
 	0 	OK
 	<0 	fail
-
-------------------------------------------------------*/
+---------------------------------------*/
 int egi_txtbox_sleep(EGI_EBOX *ebox)
 {
-        if(ebox==NULL)
-        {
-                printf("egi_txtbox_sleep(): ebox is NULL, fail to make it sleep.\n");
+        if(ebox==NULL) {
+                printf("%s: ebox is NULL, fail to make it sleep.\n",__func__);
                 return -1;
         }
 
-   	if(ebox->movable) /* only for movable ebox */
-   	{
+   	if(ebox->movable) { /* only for movable ebox, it holds bkimg. */
 		/* restore bkimg */
        		if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
 		{
-			printf("egi_txtbox_sleep(): fail to restor bkimg for a '%s' ebox.\n",ebox->tag);
+			printf("%s: Fail to restor bkimg for a '%s' ebox.\n", __func__, ebox->tag);
                 	return -1;
 		}
    	}
@@ -769,6 +778,40 @@ int egi_txtbox_sleep(EGI_EBOX *ebox)
 	ebox->status=status_sleep;
 
 	EGI_PDEBUG(DBG_TXT,"egi_txtbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
+	return 0;
+}
+
+
+/*----------------------------------------
+Put a txt ebox to disappear from FB.
+1. Restore bkimg to erase image of itself.
+2. Reset status
+
+Return
+	0 	OK
+	<0 	fail
+-----------------------------------------*/
+int egi_txtbox_hide(EGI_EBOX *ebox)
+{
+        if(ebox==NULL) {
+                printf("%s: ebox is NULL, fail to make it hidden.\n",__func__);
+                return -1;
+        }
+
+   	if(ebox->movable) { /* only for movable ebox, it holds bkimg. */
+		/* restore bkimg */
+       		if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+		{
+			printf("%s: Fail to restor bkimg for a '%s' ebox.\n", __func__, ebox->tag);
+                	return -1;
+		}
+   	}
+
+	/* reset status */
+	ebox->status=status_hidden;
+
+	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is put to hide.\n",ebox->tag);
 	return 0;
 }
 
