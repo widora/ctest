@@ -272,7 +272,7 @@ void* display_MusicPic(void * argv)
 
 			/* Need to refresh PAGE in routine */
 			printf("%s: set page frame_img needrefresh...\n",__func__);
-			egi_page_needrefresh(ppic->app_page);
+			egi_page_needrefresh(ppic->app_page);/* page and its child eboxes */
 
 			/* reset update token */
 			bkimg_updated=true;
@@ -282,7 +282,7 @@ void* display_MusicPic(void * argv)
         		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                                     		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                                    	240, 2, 0,                      /* pixpl, lines, gap */
-        	                            	0, 20,                          /* x0,y0, */
+        	                            	0, 10,                          /* x0,y0, */
                 	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
 		}
 

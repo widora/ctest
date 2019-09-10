@@ -130,7 +130,7 @@ ebox_txt= 	egi_txtbox_new(	"memo stick",   /* tag */
 		                0,0, 		/* int x0, int y0 */
 		                eboxW-50, 60, 	/* width, height(adjusted as per nl and fw) */
 		                frame_round_rect,   /* int frame, -1=no frame >100 use frame_img */
-		                WEGI_COLOR_BLUE   /* prmcolor*/
+		                -1 //WEGI_COLOR_BLUE   /* prmcolor, -1 transparent*/
        			     );
 ebox_txt->frame_alpha=100;
 

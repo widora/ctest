@@ -20,7 +20,7 @@ CFLAGS  += -D_GNU_SOURCE
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 LIBS	=  -lepages
-#LIBS    += -lesound
+LIBS    += -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
@@ -32,7 +32,6 @@ APPS += test_txt test_img test_resizeimg test_zoomimg test_etouch
 #--- use static or dynamic libs -----
 EGILIB=dynamic
 
-all:	$(APPS)
 
 #### --- use dynamic and static libs in compilatoin!!! ---
 # 1. Exclude dynamic -legi first.
@@ -55,6 +54,9 @@ endif
 ### 			------ template end -----
 
 
+all:	$(APPS)
+
+
 test_etouch:	test_etouch.c
 ifeq ($(EGILIB),static)
 	$(CC) test_etouch.c -o test_etouch  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
@@ -64,13 +66,13 @@ else
 endif
 
 
-test_txt:	test_txt.c
-ifeq ($(EGILIB),static)
-	$(CC) test_txt.c -o test_txt  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
--Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
-else
-	$(CC) -o test_txt test_txt.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
-endif
+#test_txt:	test_txt.c
+#ifeq ($(EGILIB),static)
+#	$(CC) test_txt.c -o test_txt  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+#-Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
+#else
+#	$(CC) -o test_txt test_txt.c $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+#endif
 
 #test_img:	test_img.c
 #ifeq ($(EGILIB),static)

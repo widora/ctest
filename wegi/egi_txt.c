@@ -395,7 +395,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 		if(egi_txtbox_refresh(ebox)!=0) /* refresh the graphic display */
 		{
 			ebox->status=status_sleep; /* reset status */
-			EGI_PDEBUG(DBG_TXT,"Fail to wake up sleeping ebox '%s'!\n",ebox->tag);
+			EGI_PDEBUG(DBG_TXT,"---- Fail to wake up sleeping ebox '%s'!\n",ebox->tag);
 			return -3;
 		}
 
@@ -456,6 +456,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
   } /* ebox->movable codes end */
 
 	/* 6. initiate frame_img if frame>100 and prmcolor >=0 */
+	/* NOTE: here ebox->frame=100 is non for frame_img! NOT for frame outline!  */
 	if( ebox->frame >100 && ebox->prmcolor>=0 ) {
 		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,     /* int height, int width */
                                   	ebox->frame_alpha, ebox->prmcolor, /* alpha, color */
@@ -531,7 +532,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	/* only if need_refresh=true */
 	if(!ebox->need_refresh)
 	{
-//		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"need_refresh of '%s' is false!\n",ebox->tag);
 		return 1;
 	}
 
@@ -572,12 +573,13 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         /* redefine bkimg box range, in case it changes
 	 check ebox height and font lines, then adjust the height */
 	height= ( (font_height+gap)*nl+offy)>height ? ((font_height+gap)*nl+offy) : height;
-	/* TODO: Ignore width here, width enlarging will affect bkimg mem space */
+
+	/* TODO: Ignore width here, width enlarging will affect bkimg mem space!! */
 
 	/* re_adjust frame_img */
 	if( ebox->frame_img != NULL && ebox->height != height ) {
 		egi_imgbuf_free(ebox->frame_img);
-		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,   	/* int height, int width */
+		ebox->frame_img=egi_imgbuf_newFrameImg( height, width,  /* int height, int width */
                                     ebox->frame_alpha, ebox->prmcolor,  /* alpha, color */
 	                                frame_round_rect,       	/* enum imgframe_type */
          	                        1, &rad );                	/* 1, radius, int pn, int *param */
@@ -595,11 +597,17 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
      ONLY IF:
 	 1. the txt ebox is movable,
 	    and ebox size and position is changed.
-	 2. or data_txt->.prmcolor <0 , it's transparent. EGI_NOPRIM_COLOR
+	 2. or data_txt->.prmcolor <0 , it's transparent. EGI_NOPRIM_COLOR --- ???
+	 3. !!!! If PAGE is updated!!
+
+	Whatever, if(ebox->movable), then refresh it!
+	this question to need_refresh token !!!
    */
-   if ( ( ebox->movable && ( (ebox->bkbox.startxy.x!=x0) || (ebox->bkbox.startxy.y!=y0)
-			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )
-           || (ebox->prmcolor<0)  )
+
+//   if ( ( ebox->movable && ( (ebox->bkbox.startxy.x!=x0) || (ebox->bkbox.startxy.y!=y0)
+//			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )
+//           || (ebox->prmcolor<0)  )
+   if( ebox->movable ) //|| ebox->prmcolor<0 )
    {
 
 #if 0 /* DEBUG */
@@ -617,7 +625,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
         	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
 			return -3;
 	} else {
-		EGI_PDEBUG(DBG_TXT,"Page just updated, ignore fb_cpyfrom_buf() \n");
+		EGI_PDEBUG(DBG_TXT,"\033[31m Page just updated, ignore fb_cpyfrom_buf() \033[0m \n");
 	}
 
 	/* store new coordinates of the ebox

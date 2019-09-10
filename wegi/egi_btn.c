@@ -220,7 +220,7 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
         }
 
 
-   if(ebox->movable) /* only if ebox is movale */
+   if(ebox->movable) /* only if ebox is movale , TODO: or prmcolor<0 */
    {
 	/* 3. malloc bkimg for the icon, not ebox, so use symwidth and symheight */
 	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
@@ -350,10 +350,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	}
 
 
-   } /* end of movable codes */
+   } /* end of movable codes before update data */
 
 
-	/* 3. get updated data */
+	/* 3. ---------- get updated data  ------- */
 	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
         if( data_btn == NULL)
         {
@@ -390,7 +390,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 
-   if(ebox->movable) /* only if ebox is movale */
+   if(ebox->movable) /* only if ebox is movale, TODO: or prmcolor < 0 */
    {
        /* ---- 4. redefine bkimg box range, in case it changes
 	* check ebox height and font lines in case it changes, then adjust the height

@@ -216,7 +216,8 @@ struct egi_element_box
 	int  frame;
 
 	/*  1. Usually for cutout shape of a ebox frame, also can be a background image.
-	 *  2. Activated only frame>=100 for ebox.  TXT ebox applied
+	 *     Example: We may substitue frame_img->imgbuf, but keep frame_img->alpha!
+	 *  2. Activated only frame>100 for ebox. TXT ebox applied
 	 *  3. PAGE->ebox->frame_img is also for PAGE wallpaper.
 	 *  4. No thread mutex for the img now!!!
 	 */
@@ -240,7 +241,10 @@ struct egi_element_box
 	   4.Not applicable for an immovable ebox.
       */
 	uint16_t *bkimg;
-	bool bkimg_valid; /* to indicate that the holding bkimg shall NOT write back to FB */
+	bool bkimg_valid;  /* 1. To indicate that ebox->bkimg shall copy to or from FB.
+			    * 2. If ebox position is if out of its container PAGE box, bkimg_valid reset
+			    * to false, see in egi_btnbox_refresh().
+			    */
 
 	/* tracking box coordinates for image backup
 		to be used in object method	*/
@@ -363,7 +367,9 @@ struct egi_data_txt
 
 	/* for FreeType uft-8 encoding txt */
 	FT_Face font_face; /* A pointer already */
-	unsigned char *utxt;	/* txt in uft-8, !!! will NOT be memallocated by egi_utxtdata_new() !!! */
+	unsigned char *utxt;	/* txt in uft-8, !!! will NOT be memallocated by egi_utxtdata_new()!!!
+				 * The EBOX will NOT take care of its allocation/free operation!!!
+				 */
 	int pixpl;	/* in pixels, pixels per line, length of a line. */
 	int fw;		/* nominal font width in pixels, including min. horizontal gaps between wchars. */
 	int fh;		/* nominal font height in pixels, including min. vertical gaps between lines. */
@@ -563,7 +569,19 @@ struct egi_data_page
 struct egi_page
 {
 	/* egi page is based on egi_ebox */
-	EGI_EBOX *ebox;
+	EGI_EBOX *ebox;   /* NOTE:
+			   * 1. Here ebox->need_refresh indicates that the PAGE elements(wallpaper etc.),
+			   *    NOT its child eboxes in the list, need to refresh! need_refresh tokens
+			   *    in the child eboxes will decide wheather they need refresh or not.
+	 		   */
+
+	bool page_update; /* 1. To inform child eboxes that its container PAGE's elements(not children's)
+			   *    is just updated, so it needs to update its bkimg(ignore fb_cpyfrom_buf())
+			   *      ...etc.
+			   *    It is implemented in egi_page_refresh().
+			   *
+			   *    !!! NOW !!! It synchronizes with page->ebox->need_refresh
+			   */
 
 	/* wallpaper for the page */
 	char *fpath;
@@ -576,10 +594,7 @@ struct egi_page
  	 *  multi_layer operation is applied ???
 	 */
 	struct list_head list_head; /* list head for child eboxes */
-	bool page_update;	    /* To inform child ebox that its container PAGE is updated,
-				     * so it needs to update its bkimg...etc.
-				     * implemented in egi_page_refresh().
-				     */
+
 
 	/* --- !!! page routine function : threads pusher and job pusher ----
          *  1. detect pen_touch and trigger buttons.

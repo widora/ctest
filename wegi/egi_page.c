@@ -629,6 +629,7 @@ int egi_page_refresh(EGI_PAGE *page)
 
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
+		page->page_update=true; /* Synch. with page->ebox->need_refresh currently */
 
 		/* set ret */
 		ret=0;
@@ -643,21 +644,29 @@ int egi_page_refresh(EGI_PAGE *page)
 	}
 
 	/* traverse the list and activate list eboxes, not safe */
-        page->page_update=true; /* to inform ebox that PAGE elements refreshed, it needs to update its bkimg etc.  */
+
+	/* !!!! WRONG!!!!, if page->ebox->need_refresh is false, this token will mislead ebox
+	 * to ignore fb_cpyfrom_but()
+	 * It MUST synchronize with page->ebox->need_refresh!!!
+	 * see in above if(page->ebox->need_refresh){ ... }
+	 */
+        //page->page_update=true;
+
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret *= ebox->refresh(ebox);
-#if 0 /* debug only */
+#if 1 /* debug only */
 		if(ret==0)
-		    EGI_PDEBUG(DBG_PAGE,"egi_page_refresh(): refresh page '%s' list item ebox: '%s' with ret=%d \
-			 \n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+		    EGI_PDEBUG(DBG_PAGE,"refresh page '%s' list item ebox: '%s' with ret=%d \
+			 	\n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 #endif
 	}
-	page->page_update=false;
 
-	/* reset need_refresh */
+	/* reset need_refresh at last */
 	page->ebox->need_refresh=false;
+	/* reset page_update, synch. with page->ebox->need_refresh currently. */
+	page->page_update=false;
 
 	return ret; /* if any ebox refreshed, return 0 */
 }
@@ -1391,7 +1400,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		else /* last_status == released_hold */
 		{
 			/* refresh page, OR sleep a while */
-			if(egi_page_refresh(page)!=0) {
+			if(egi_page_refresh(page)!=0) {  /* refresh ebox always */
 #if 1
 				tm_delayms(75); //55
 #endif

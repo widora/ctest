@@ -73,7 +73,7 @@ static int pageffmuz_decorate(EGI_EBOX *ebox);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
-/*---------- [  PAGE ::  Mplayer Operation ] ---------
+/*---------- [  PAGE ::  FF MUSIC PLAYER ] ---------
 1. create eboxes for 4 buttons and 1 title bar
 
 Return
@@ -171,11 +171,11 @@ EGI_PAGE *create_ffmuzPage(void)
 	ebox_voltxt=NULL;
 
         /* For FTsymbols TXT */
-        vol_FTtxt=egi_utxtdata_new( 0, 0,                      /* offset from ebox left top */
-                                    1, 100,                    /* lines, pixels per line */
-                                    egi_appfonts.regular,      /* font face type */
+        vol_FTtxt=egi_utxtdata_new( 10, 3,                     /* offset from ebox left top */
+                                    1, 100,                     /* lines, pixels per line */
+                                    egi_appfonts.bold,//regular,      /* font face type */
                                     20, 20,                    /* font width and height, in pixels */
-                                    0,                         /* adjust gap */
+                                    0,                        /* adjust gap, minus also OK */
                                     WEGI_COLOR_WHITE           /* font color  */
                                   );
         /* assign uft8 string */
@@ -184,10 +184,10 @@ EGI_PAGE *create_ffmuzPage(void)
         ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
                                      vol_FTtxt,      /* EGI_DATA_TXT pointer */
                                      true,           /* bool movable */
-                                     80,320-75,      /* int x0, int y0 */
-                                     100, 20,        /* width, height(adjusted as per nl and fw) */
-                                     -1,              /* int frame, -1 or frame_none=no frame */
-                                     -1	    //WEGI_COLOR_LTGREEN   /* prmcolor*/
+                                     70,320-75,      /* int x0, int y0 */
+                                     80, 30,        /* width, height(adjusted as per nl and fw) */
+                                     frame_round_rect,  /* int frame, -1 or frame_none = no frame */
+                                     WEGI_COLOR_GRAY3   /* prmcolor,<0 transparent*/
                                    );
 	/* set frame type */
         //ebox_voltxt->frame_alpha; /* No frame and prmcolor*/
@@ -431,24 +431,25 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         /* 2. adjust button position and refresh */
         else if( touch_data->status==pressed_hold )
         {
+		/* activte vol_FTtxt */
+		egi_txtbox_activate(ebox_voltxt);
+
                 /* adjust volume */
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */
 		if(vol>100)vol=100;
 		else if(vol<0)vol=0;
                 ffpcm_getset_volume(NULL,&vol); /* set volume */
-		sprintf(strp,"VOL %d%%",vol);
+		sprintf(strp,"音量 %d%%",vol);
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
 
-		/* set to ebox_voltxt */
+		/* set utxt to ebox_voltxt */
 		vol_FTtxt->utxt=strp;
+		#if 1  /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
-
-                /* displaying */
-//		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
-//              symbol_string_writeFB( &gv_fb_dev, &sympg_ascii,
-//                                       WEGI_COLOR_YELLOW, -1,        /* fontcolor, int transpcolor */
-//                                       80,320-75,                    /* int x0, int y0 */
-//                                       strp, -1 );                /* string, opaque */
+		#else  /* or refresh now */
+		ebox_voltxt->need_refresh=true;
+		ebox_voltxt->refresh(ebox_voltxt);
+		#endif
 
 		return btnret_OK;
 	}
@@ -460,7 +461,15 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		/* reset vol_FTtxt */
 		vol_FTtxt->utxt=NULL;
+		#if 1 /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
+		#else  /* or refresh now */
+		ebox_voltxt->need_refresh=true;
+		ebox_voltxt->refresh(ebox_voltxt);
+		#endif
+
+		/* sleep to erase image */
+		ebox_voltxt->sleep(ebox_voltxt);
 
 		return btnret_OK;
 	}
