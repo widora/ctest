@@ -44,17 +44,18 @@ EGI_EBOX * egi_txtbox_new( char *tag,/* create new txt ebox */
 		           int prmcolor
 			 );
 
-int egi_txtbox_activate(EGI_EBOX *ebox);
-int egi_txtbox_refresh(EGI_EBOX *ebox);
+int 	egi_txtbox_activate(EGI_EBOX *ebox);
+int 	egi_txtbox_refresh(EGI_EBOX *ebox);
 //static int egi_txtbox_decorate(EGI_EBOX *ebox);
-int egi_txtbox_sleep(EGI_EBOX *ebox);
-int egi_txtbox_hide(EGI_EBOX *ebox);
-void egi_free_data_txt(EGI_DATA_TXT *data_txt);
+int 	egi_txtbox_sleep(EGI_EBOX *ebox);
+int 	egi_txtbox_hide(EGI_EBOX *ebox);
+int 	egi_txtbox_unhide(EGI_EBOX *ebox);
+void 	egi_free_data_txt(EGI_DATA_TXT *data_txt);
 
 /* For non_FTsymbols only */
-int egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
-void egi_txtbox_settitle(EGI_EBOX *ebox, char *title);
-int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl);
-int egi_txtbox_set_direct(EGI_EBOX *ebox, int direct);
+int 	egi_txtbox_readfile(EGI_EBOX *ebox, char *path);
+void 	egi_txtbox_settitle(EGI_EBOX *ebox, char *title);
+int 	egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl);
+int 	egi_txtbox_set_direct(EGI_EBOX *ebox, int direct);
 
 #endif

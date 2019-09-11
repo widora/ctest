@@ -46,13 +46,16 @@ static unsigned long nfp;	/* total frames produced and copied to pPICbuffs */
 
 static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
 
-static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiability of pPICbuffs[x].
+static bool IsFree_PICbuff[PIC_BUFF_NUM]={true,true,true};  /* Tag to indicate availiability of pPICbuffs[x].
+						    * True:  Obsoleted data inside, ready for new data input.
+						    * False: New image data inside, ready for displaying.
 						    * LoadPic2Buff() put 'false' tag
 						    * thdf_Display_Pic() put 'true' tag,
 						    */
 
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
 static bool bkimg_updated;  /* back ground image for music playing */
+static bool pic_off;
 
 /*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
@@ -169,12 +172,12 @@ void* display_MusicPic(void * argv)
    bool still_image=false;
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
-   EGI_IMGBUF *tmpimg=NULL;
-   EGI_IMGBUF *tmpimg2=NULL;
-   EGI_IMGBUF *pageimg=NULL; /* PAGE to show the pic */
+   EGI_IMGBUF  *tmpimg=NULL;
+   EGI_IMGBUF  *tmpimg2=NULL;
+   EGI_IMGBUF  *pageimg=NULL; /* PAGE to show the pic */
 
    /* reset bkimg_updated */
-   bkimg_updated=false;
+//   bkimg_updated=false;
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
    if(imgbuf==NULL) {
@@ -182,40 +185,46 @@ void* display_MusicPic(void * argv)
 	return (void *)-1;
    }
 
-   imgbuf->width=ppic->width; //He - ppic->Hs +1;
-   imgbuf->height=ppic->height; //Ve - ppic->Vs +1;
+   /* Check if picture OFF */
+   printf("%s: Check ppic->PicOff...\n", __func__);
+   if(ppic->PicOff) {
+	pic_off=true;
+	printf("%s: No picture in the media file.\n", __func__);
 
-   EGI_PLOG(LOGLV_INFO,"%s: imgbuf width=%d, imgbuf height=%d \n",
-						__func__, imgbuf->width, imgbuf->height );
-
-   /* check if it's image, TODO: still or motion image */
-   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
-	  still_image=true;
-	  EGI_PLOG(LOGLV_INFO,"%s: Playing an still image.\n",__func__);
-   }  else {
-	  still_image=false;
+	/* To load a picture */
+	bkimg_updated=true;
    }
+   else {
+	   pic_off=false;
+   	   /* check if it's image, TODO: still or motion image */
+	   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
+		   still_image=true;
+		   imgbuf->width=ppic->width;
+		   imgbuf->height=ppic->height;
+		   EGI_PLOG(LOGLV_INFO,"%s: Still image width=%d, height=%d \n",
+							__func__, imgbuf->width, imgbuf->height );
+	   }  else {
+		  still_image=false;
+		  printf("%s: Not a recognizable image type! Maybe a motion picture!\n",__func__);
+	   }
+    }
 
-   /* check size limit */
-	////ignored////
+   /* check picture size limit --- Ignored! */
 
    while(1)
    {
 	   nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
-	   for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
+	   for(i=0; i<PIC_BUFF_NUM; i++) /* to display all pic buff in pPICbuff[] */
 	   {
+		if(ppic->PicOff) break;
+
 		index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
-		if( !IsFree_PICbuff[index] ) {
+		if( IsFree_PICbuff[index]==false ) {
 			/* set index of pPICbuff[] for current playing frame*/
 			ifplay=index;
-
-			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
+			//printf("%s: get imgbuf from pPICbuffs[%d]...\n",__func__, index);
 			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
-			/* window_position displaying */
-			if( !still_image ) {   /* still image to be passed to PAGE frame_img later */
-				printf("%s: A motion picture!\n",__func__);
-			}
 		   	/* put a FREE tag after display, then it can be overwritten. */
 	  	   	IsFree_PICbuff[index]=true;
 
@@ -232,9 +241,8 @@ void* display_MusicPic(void * argv)
 
 		/* reset PAGE  wallpaper imgbuf */
 		if( !bkimg_updated && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
-
+			printf("%s: Start to set imgbuf as PAGE wallpaper...\n",__func__);
 			/* free old imgbuf, pic->imgbuf refer to PAGE->ebox->frame_img */
-			printf("%s: free pageimg...\n", __func__);
 			egi_imgbuf_free(pageimg); pageimg=NULL;
 
 			/* If original image ratio is H4:W3, just same as LCD ratio. */
@@ -287,6 +295,7 @@ void* display_MusicPic(void * argv)
 		}
 
 		tm_delayms(500);
+
 		/* reset token  --- !!! Not necessary anymore, pic is put to page->ebox->frame_img. */
 		#if 0
 		nfc=1; 		/* since ff_get_FreePicBuff() from 1, not 0. */
@@ -303,6 +312,9 @@ void* display_MusicPic(void * argv)
 	  tm_delayms(25);
 	  //usleep(2000);
   }
+
+   /* reset bkimg_updated */
+   bkimg_updated=false;
 
   ff_free_PicBuffs();
   imgbuf->imgbuf=NULL; /* since freed by ff_free_PicBuffs() */
@@ -412,8 +424,6 @@ void* thdf_Display_Subtitle(void * argv)
 
         	/* 3. read a section of sub and display it */
 	        fbset_color(WEGI_COLOR_BLACK);
-//        	draw_filled_rect(&ff_fb_dev,subbox.startxy.x,subbox.startxy.y,
-//								subbox.endxy.x,subbox.endxy.y);
         	draw_filled_rect2(&ff_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
 								subbox.endxy.x,subbox.endxy.y);
 	        len=0;
@@ -591,12 +601,13 @@ void*  ff_display_spectrum(void *argv)
 	FBDEV fbdev={ 0 };
 
         /* for FFT, nexp+aexp Max. 21 */
-        unsigned int    nexp=10;		/* 2^nexp=FFT_POINTS */
+        unsigned int    nexp=10;		/* !!!2^nexp=FFT_POINTS */
         unsigned int    aexp=11;        	/* Max. Amp=1<<aexp */
-        unsigned int    np=FFT_POINTS;  	/* input element number for FFT */
+        unsigned int    np=1<<nexp;  		/* input element number for FFT */
         EGI_FCOMPLEX    ffx[FFT_POINTS];        /* FFT result */
-        EGI_FCOMPLEX    *wang=NULL;          	/* unit phase angle factor */
-	EGI_FVAL	hamming[FFT_POINTS];
+	EGI_FCOMPLEX	wang[FFT_POINTS];
+	EGI_FVAL	hamming[FFT_POINTS];    /* Hamming window factor */
+	static bool	factors_ready=false;
         unsigned int    ns=1<<5;//6;    	/* points for spectrum diagram */
         unsigned int    avg;
         int             ng=np/ns;       	/* 32 each ns covers ng numbers of np */
@@ -628,31 +639,33 @@ void*  ff_display_spectrum(void *argv)
        	        sdx[i]=sx0+(spwidth/(ns-1))*i;
         }
 
-	/* TODO: put mat_CompFFTAng() elsewhere */
-        /* prepare FFT phase angle */
-        wang=mat_CompFFTAng(np);
+	/* Prepare factors */
+	if(!factors_ready) {
+		for(i=0; i<np; i++) {
+		        /* prepare FFT phase angle */
+			wang[i]=MAT_CPANGLE(i, np);
+			/* prepare hamming window factors */
+			hamming[i]=MAT_FHAMMING(i, np);
+		}
 
-	/* prepare hamming window factors */
-	for(i=0; i<np; i++)
-		hamming[i]=MAT_FHAMMING(i, np);
+		factors_ready=true;
+	}
 
 	/* keep waiting untill back ground image updated */
-	while(!bkimg_updated)
-		tm_delayms(55);
+	while( !bkimg_updated && !pic_off)
+		tm_delayms(25);
 
-  /*  -------------------------- LOOP --------------------------  */
+  printf("%s: Start loop FFT ...\n",__func__);
+  /*  ------------------------  LOOP FFT  ---------------------  */
   while(1) {
 
      if(FFTdata_ready) {
-
-        /* <<<<<<<<<<<<<<<<<<<   FFT  >>>>>>>>>>>>>>>>>>>> */
-
+        //printf("%s: FFTdata read ...\n",__func__);
 #if 1   /* Apply Hamming window  */
 	for(i=0; i<FFT_POINTS; i++)
 		 fft_nx[i]=mat_FixIntMult(hamming[i], fft_nx[i]);
 
 #endif
-
         /*-------------------------  Call mat_egiFFFT() ---------------------------
 	 *  1. Run FFT with INT type input nx[].
 	 *  2. Input nx[] data has been trimmed in ff_load_FFTdata()
@@ -728,8 +741,6 @@ void*  ff_display_spectrum(void *argv)
         fb_filo_off(&fbdev); /* turn off filo */
 #endif
 
-	/* <<<<<<<<<<<<<<<<<<<   FFT END  >>>>>>>>>>>>>>>>>>>> */
-
 	FFTdata_ready=false;
 
      } /* end if(FFTdata_ready)  */
@@ -748,6 +759,5 @@ void*  ff_display_spectrum(void *argv)
    //fb_filo_dump(&fbdev); /* to dump */
    fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
    release_fbdev(&fbdev);
-   free(wang);
 }
 

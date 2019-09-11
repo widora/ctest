@@ -144,28 +144,13 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FFMUZ_LOOP_TIMEGAP  1   /* in second, hold_on time after ffplaying a file, especially for a picture.
-			     *  set before FAIL_OR_TERM.
-			     */
-
+#define FFMUZ_LOOP_TIMEGAP  1   /*  in second, hold_on time after ffplaying a file, especially for a picture.
+			         *  set before FAIL_OR_TERM.
+			         */
 #define FFMUZ_CLIP_PLAYTIME 10   /* in second, set clip play time */
-
 #define FFMUZ_MEDIA_LOOP
+#define FFMUZ_END_PAUSETIME   0	 /* end pause time */
 
-
-/*
-ffplay() parameters:
- *	0. displaying window offset x0,y0
- *	1. display_width, display_height; (displaying window size, relating to LCD coordinate,map to LCD WxH)
-	   will be adjusted.
- *	2. transpose_clock; for avfiler descr, transpose clock or not.
- *	3. out_sample_rate for PCM
-
-Note:
- *	1.
- *	2.
-*/
-// in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
 
 /*--------  FFPLAY ENVIRONTMENT SET  ------------
  To set it up first before you call egi_ffplay()
@@ -188,37 +173,6 @@ static bool enable_audio_spectrum=true;
 
 /* seek position */
 //long start_tmsecs=60*55; /*in sec, starting position */
-
-/* param: ( enable_avfilter )
- *   if True:	display_window rotation and size will be adjusted according to avfilter descr.
- *   if False:	use SWS, display_window W&H map to LCD W&H(row&colum), window size will be adjusted to fit for
- *		LCD W&H.
- */
-/* enable AVFilter for video */
-static bool enable_avfilter=false;//true;
-
-/* param: ( enable_auto_rotate ) ( precondition: enable_avfilter==1 )
- *   if True:	1. auto. map original video long side to LCD_HEIGHT, and short side to LCD_WIDTH.
- *		2. here we assume that LCD_HEIGHT > LCD_WIDTH.
- *		3. if 1, then enable_avfilter also MUST set to 1.
- *
- *   if False:	disable it.
- */
-static bool enable_auto_rotate=false;
-
-/*  param: ( transpose_clock ) :  ( precondition: enable_avfilter=1, enable_auto_rotate=false)
- *  if 0, transpose not applied,
-	  !!!  NOTE: if enable_auto_rotate=true, then it will be decided by checking image H and W,
-	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
- *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
- */
-static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
-
-/* param: ( enable_stretch )
- *   if True:	stretch the image to fit for expected H&W, original image ratio is ignored.
- *   if False:	keep original ratio.
- */
-static bool enable_stretch=false;
 
 /* param: ( enable_seek_loop )
  *   True:	loop one single file/stream forever.
@@ -256,7 +210,6 @@ static bool disable_video=false;
  *   if False:	disable clip test.
  */
 static bool enable_clip_test=false;
-
 
 /* param: ( play mode )
  *   mode_loop_all:	loop all files in the list
@@ -403,22 +356,6 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	uint8_t			*outputBuffer=NULL;/* for converted data */
 	int 			outsamples;
 
-	/* for AVFilters */
-	AVFilterContext *avFltCtx_BufferSink=NULL;
-	AVFilterContext *avFltCtx_BufferSrc=NULL;
-	AVFilter	*avFlt_BufferSink=NULL; /* to be freed by its holding graph */
-	AVFilter	*avFlt_BufferSrc=NULL;
-	AVFilterInOut	*avFltIO_InPuts=NULL;/* A linked-list of the inputs/outputs of the filter chain */
-	AVFilterInOut	*avFltIO_OutPuts=NULL;
-	AVFilterGraph	*filter_graph=NULL; /* filter chain graph */
-	AVFrame		*filt_pFrame=NULL; /* for filtered frame */
-	enum AVPixelFormat outputs_pix_fmts[] = { AV_PIX_FMT_RGB565LE, AV_PIX_FMT_NONE };/* NONE as for end token */
-	char args[512];
-
-	/* video filter descr, same as -vf option in ffmpeg */
-	/* scale = Width x Height */
-	/* transpose: transpose rows with columns in the input video */
-
 	/* display window, the final window_size that will be applied to AVFilter or SWS.
 	   0. Display width/height are NOT image upright width/height, their are related to LCD coordinate!
 	      If auto_rotation enabled, final display WxH are mapped to LCD row_pixel_number x column_pixel_number .
@@ -428,9 +365,6 @@ void * thread_ffplay_music(EGI_PAGE *page)
         */
 	int display_width;
 	int display_height;
-
-	/* for AVFilter description, which will be parsed to apply on movie frames */
-	char filters_descr[512]={0};
 
 	/* time structe */
 	struct timeval tm_start, tm_end;
@@ -449,14 +383,8 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	EGI_PDEBUG(DBG_FFPLAY," start ffplay with input ftotal=%d.\n", ftotal);
 
 	/* check expected display window size */
-	if(enable_avfilter) {
-		if( (show_w&0xF) != 0 || (show_h&0xF) !=0 ) {
-			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 16 for AVFiler.\n");
-		}
-	}
-	else if( (show_w&0x1) != 0 || (show_h&0x1) !=0 ) {
-			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
-	}
+	if( (show_w&0x1) != 0 || (show_h&0x1) !=0 )
+	     EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
 
 	/*MOVED: addjust offset of display window */
 	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
@@ -489,9 +417,6 @@ while(1) {
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
    	av_register_all();
    	avformat_network_init();
-	if(enable_avfilter) {
-		avfilter_register_all(); /* register all default builtin filters */
-   	}
 
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
@@ -538,9 +463,10 @@ while(1) {
 	//
 pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
-	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
+	if(avformat_find_stream_info(pFormatCtx, NULL)<0)  {
 		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
 
+	/* No media stream found */
 #ifdef FFMUZ_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
@@ -825,7 +751,7 @@ if(disable_audio && audioStream>=0 )
                 	return (void *)-1;
 	           }
         	   else
-                	EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread to display audio spectrum.\n");
+                	EGI_PDEBUG(DBG_FFPLAY,"\033[32mFinish creating thread to display audio spectrum.\033[0m\n");
 
 	           /* set running token */
 		   pthd_audioSpectrum_running=true;
@@ -903,134 +829,18 @@ if(disable_video && videoStream>=0 )
 	EGI_PDEBUG(DBG_FFPLAY,"original video image size: widthOrig=%d, heightOrig=%d\n",
 					 		pCodecCtx->width,pCodecCtx->height);
 
-
-/* if enable_auto_rotate, then map long side to H, and shore side to W
- * here assume LCD_H > LCD_W, and FB linesize is pixel number of LCD_W.
- */
-if(enable_auto_rotate)
-{
-	if( pCodecCtx->height >= pCodecCtx->width ) /*if image upright H>W */
-		transpose_clock=false;
-	else
-		transpose_clock=true;
-}
-/* get original video size, swap width and height if clock/cclock_transpose
- * pCodecCtx->heidth and width is the upright image size.
- */
-if(enable_avfilter)
-{
-	if(transpose_clock) { /* if clock/cclock, swap H & W */
-		widthOrig=pCodecCtx->height;
-		heightOrig=pCodecCtx->width;
-	}
-	else {
-		widthOrig=pCodecCtx->width;
-		heightOrig=pCodecCtx->height;
-	}
-}
-else /* keep original size */
-{
-	widthOrig=pCodecCtx->width;
-	heightOrig=pCodecCtx->height;
-}
-
-
-#if 0 ////////////////////////  To be handled by display_MusicPic()  ////////////////////
-/* stretch image size to expected */
-if(enable_stretch)
-{
-	/* <<<<<<< stretch image size, will NOT keep H/W ratio !!!  >>>>>> */
-	scwidth=widthOrig;
-	scheight=heightOrig;
-        if( widthOrig > LCD_MAX_WIDTH ) {
-		scwidth=LCD_MAX_WIDTH;
-	}
-	if( heightOrig > LCD_MAX_HEIGHT) {
-		scheight=LCD_MAX_HEIGHT;
-	}
-}
-else /* if NOT stretch, then keep original ratio */
-{
-	/* <<<<<<<   calculate scaled movie size to fit for the screen, keep H/W ratio!!!  >>>>>>>
-	 * 1. widthOrig and heightOrig are the original image size.
-	 * 2. scwidth and scheight are scaled/converted to be the best fit size for LCD.
-         */
-        if( widthOrig > LCD_MAX_WIDTH || heightOrig > LCD_MAX_HEIGHT ) {
-		if( (1.0*widthOrig/heightOrig) >= (1.0*LCD_MAX_WIDTH/LCD_MAX_HEIGHT) )
-		{
-			//printf("width/height >= LCD_MAX_WIDTH/LCD_MAX_HEIGHT \n");
-			/* fit for width, only if video width > screen width */
-			if(widthOrig>LCD_MAX_WIDTH) {
-				scwidth=LCD_MAX_WIDTH;
-				scheight=heightOrig*scwidth/widthOrig;
-			}
-		}
-		else if ( (1.0*heightOrig/widthOrig) > (1.0*LCD_MAX_HEIGHT/LCD_MAX_WIDTH) )
-		{
-			//printf("height/width > LCD_MAX_HEIGHT/LCD_MAX_WIDTH \n");
-			/* fit for height, only if video height > screen height */
-			if(heightOrig>LCD_MAX_HEIGHT) {
-				scheight=LCD_MAX_HEIGHT;
-				scwidth=widthOrig*scheight/heightOrig;
-			}
-		}
-	}
-	else {
-		/* keep original movie/image size */
-	 	scwidth=widthOrig;
-	 	scheight=heightOrig;
-	}
-}
-	EGI_PDEBUG(DBG_FFPLAY,"Max. scale video size: scwidth=%d, scheight=%d \n",scwidth,scheight);
-
-	/* re-check size limit, in case data corrupted! */
-	if( scwidth>LCD_MAX_WIDTH ||
-            scheight>LCD_MAX_HEIGHT ||
-	    scwidth <= 0 || scheight <= 0  )
-        {
-		EGI_PLOG(LOGLV_WARN, "!!! WARNING !!! scwidth or scheight out of limit! reset to 240x240.");
-		scwidth=240;
-		scheight=240;
-	}
-
-	/* <<<<<<<<<<<<   Decide final display Width and Heigh    >>>>>>>>>> */
-	/* We get scwidth/scheight accroding to LCD Limts and original movie size, now we
- 	 * can get decide display H/W according to scwidth/scheight.
-	 * just not to exceed scwidth/scheight, will not keep ratio if enable_strech=1.!!!
-	 */
-	if(display_width > scwidth) {
-		display_width=scwidth;
-	}
-	if(display_height > scheight) {
-		display_height=scheight;
-	}
-
-#else /////////////////////// Above to be handled by display_MusicPic()  ////////////////////////
-
 	/* use Orig size */
-	display_width=widthOrig;
-	display_height=heightOrig;
-
-#endif
-
-/*  Double check here, should alread have been checked at the very begin
- *  reset display window size to be multiples of 4(for AVFilter Descr) or 2(for SWS).
-*/
-if(enable_avfilter)
-{
-   	display_width=(display_width>>4)<<4;
-   	display_height=(display_height>>4)<<4;
-}
-else
-{
+	display_width=pCodecCtx->width;
+	display_height=pCodecCtx->height;
+	/* normalize the size */
 	display_width=(display_width>>1)<<1;
 	display_height=(display_height>>1)<<1;
-}
+
 	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
 										display_width,display_height);
 
+#if 0 ////////////////    NO need for FFMUZ    ///////////////
 	/* Addjust displaying window position */
-#if 0 /* NO need for FFMUZ */
 	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
 	if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
 		offy=((265-29-display_height)>>1) +30;
@@ -1045,6 +855,7 @@ else
 	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
+	printf("%s: start to ff_malloc_PICbuffs()...\n", __func__);
 	if(ff_malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return (void *)-1;
@@ -1052,26 +863,7 @@ else
 	else
 		EGI_PDEBUG(DBG_FFPLAY, "finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
 
-	/* ---  PICBuff TEST....  --- */
-/*
-	printf("----- test to get ALL free PICbuff \n");
-	for(i=0;i<PIC_BUFF_NUM;i++){
-		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
-		IsFree_PICbuff[i]=false;
-	}
-*/
-	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
-	 /* in order to put displaying window in center of the screen */
-//	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
-//	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
-//	 pic.Hs=Hb; pic.He=Hb+display_width-1;
-//	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
-
 	 /* We dont need offx/offy anymore for FFmuz, all to be handled by display_MusicPic() */
-//	 Hb=offx;
-//	 Vb=offy;
-//	 pic_info.Hs=Hb; pic_info.He=Hb+display_width-1;
-//	 pic_info.Vs=Vb; pic_info.Ve=Vb+display_height-1;
 	 pic_info.vcodecID=vcodecID;
 	 pic_info.height=display_height;
 	 pic_info.width=display_width;
@@ -1080,9 +872,6 @@ else
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
 	 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
 
-
-if(!enable_avfilter) /* use SWS, if not AVFilter */
-{
 	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
 	EGI_PDEBUG(DBG_FFPLAY, "Initialize SWS context for software scaling... \n");
 	sws_ctx = sws_getContext( pCodecCtx->width,
@@ -1097,19 +886,6 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 				  NULL
 				);
 
-//	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
-}
-
-/* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
-/* Even if no video stream */
-	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
-		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
-		return (void *)-1;
-	}
-	else
-		EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread for displaying pictures.\n");
-	/* set running token */
-	pthd_displayPic_running=true;
 
 /* <<<<<<<<<<<<     create a thread to display subtitles     >>>>>>>>>>>>>>> */
 	/* check if substitle file *.srt exists in the same path of the media file */
@@ -1134,148 +910,23 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 		pthd_subtitle_running=false;
 	}
 
-
-/* if AVFilter ON, then initialize and prepare fitlers */
-if(enable_avfilter)
-{
-  	/*---------<<< START: prepare filters >>>--------*/
-
-   	EGI_PLOG(LOGLV_INFO, "%s: prepare VIDEO avfilters ...\n",__func__);
-
-	/* prepare filters description
-	 * WARNING: if original image is much bigger than logo, then the logo maybe invisible after scale.
-         */
-	if(transpose_clock) /* image WxH to LCD HxW */
-	{
-		sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d,transpose=clock[out]",
-							display_height, display_width);
-	}
-	else /* image WxH map to LCD WxH */
-	{
-		sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d[out]",
-							display_width, display_height);
-
-	}
-	EGI_PLOG(LOGLV_INFO,"AVFilter Descr: %s\n",filters_descr);
-
-	/* initiliaze avfilter graph */
-	//printf("start av_frame_alloc() for filtered frame... \n");
-	filt_pFrame=av_frame_alloc();/* alloc AVFrame for filtered frame */
-	//printf("start avliter_get_by_name()... \n");
-   	avFlt_BufferSink=avfilter_get_by_name("buffersink");/* get a registerd builtin filter by name */
-   	avFlt_BufferSrc=avfilter_get_by_name("buffer");
-   	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
-   	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n",__func__);
-		goto FAIL_OR_TERM;
-   	}
-	//printf("start avliter_inout_alloc()... \n");
-   	avFltIO_InPuts=avfilter_inout_alloc();
-   	avFltIO_OutPuts=avfilter_inout_alloc();
-	//printf("start avliter_graph_alloc()... \n");
-   	filter_graph=avfilter_graph_alloc();
-	if( !avFltIO_InPuts | !avFltIO_OutPuts | !filter_graph )
-	{
-		EGI_PLOG(LOGLV_ERROR,"fail to alloc filter inputs/outputs or graph.\n");
-		goto FAIL_OR_TERM;
-	}
-
-
-   	/* input arguments for filter_graph */
-	snprintf(args, sizeof(args),"video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
-			pCodecCtx->width,pCodecCtx->height,pCodecCtx->pix_fmt,
-			time_base.num, time_base.den,
-			pCodecCtx->sample_aspect_ratio.num, pCodecCtx->sample_aspect_ratio.den );
-	EGI_PDEBUG(DBG_FFPLAY,"Set AV Filter graph args as: %s\n",args);
-
-   	/* create source(in) filter in the filter  graph
-    	*  int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,
-    	*                        const char *name, const char *args, void *opaque,
-    	*                        AVFilterGraph *graph_ctx);
-   	*/
-   	ret=avfilter_graph_create_filter(&avFltCtx_BufferSrc, avFlt_BufferSrc,"in",args,NULL,filter_graph);
-   	if(ret<0)
-   	{
-        	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
-							__FILE__, __FUNCTION__ );
-		goto FAIL_OR_TERM;
-   	}
-
-   	/* create sink(out) filter in the filter chain graph */
-   	ret=avfilter_graph_create_filter(&avFltCtx_BufferSink, avFlt_BufferSink,"out",NULL,NULL,filter_graph);
-   	if(ret<0)
-   	{
-        	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
-							__func__);
-		goto FAIL_OR_TERM;
-   	}
-
-   	/* set output pix format */
-   	/**
-   	* Set a binary option to an integer list.
-   	*
-   	* @param obj    AVClass object to set options on
-   	* @param name   name of the binary option
-   	* @param val    pointer to an integer list (must have the correct type with
-   	*               regard to the contents of the list)
-  	* @param term   list terminator (usually 0 or -1)
-   	* @param flags  search flags
-   	*/
-   	ret=av_opt_set_int_list(avFltCtx_BufferSink, "pix_fmts", outputs_pix_fmts,
-		        	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
-   	if (ret < 0) {
-        	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
-		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
-        	goto FAIL_OR_TERM;
-    	}
-   	/* set the endpoints for the filter graph --- Source */
-   	/* in the view of Caller | in the view of Filter */
-   	avFltIO_OutPuts->name		=av_strdup("in");
-   	avFltIO_OutPuts->filter_ctx	=avFltCtx_BufferSrc;
-   	avFltIO_OutPuts->pad_idx	=0;
-   	avFltIO_OutPuts->next		=NULL;
-
-   	/* set the endpoints for the filter graph --- Sink */
-   	/* in the view of Caller | in the view of the Filter */
-   	avFltIO_InPuts->name	=av_strdup("out");
-   	avFltIO_InPuts->filter_ctx	=avFltCtx_BufferSink;
-   	avFltIO_InPuts->pad_idx	=0;
-   	avFltIO_InPuts->next	=NULL;
-
-   	/* parse filter graph
-    	* int avfilter_graph_parse_ptr(AVFilterGraph *graph, const char *filters,
-    	*                     AVFilterInOut **open_inputs_ptr, AVFilterInOut **open_outputs_ptr,
-    	*                     void *log_ctx)
-    	*		                  	( I/O in the view of Caller )
-    	*/
-    	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
-    	if (ret < 0) {
-        	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
-							__func__);
-        	goto FAIL_OR_TERM;
-    	}
-    	/* configure the filter graph */
-    	ret=avfilter_graph_config(filter_graph,NULL);
-    	if (ret < 0) {
-        	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOGLV_ERROR,"Fail to call avfilter_graph_config() to configure filter graph.\n");
-        	goto FAIL_OR_TERM;
-    	}
-    	/* free temp. vars */
-    	avfilter_inout_free(&avFltIO_InPuts);
-    	avfilter_inout_free(&avFltIO_OutPuts);
-
-  	/*---------<<< END: prepare filters >>>--------*/
-	EGI_PDEBUG(DBG_FFPLAY,"Finish prepare avfilter and configure filter graph.\n");
-
-} /* end of AVFilter ON */
-
-
   }/* end of (videoStream >=0 && pCodec != NULL) */
 
+
+/* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
+	/* Even if no video stream */
+	if( videoStream <0 )
+		pic_info.PicOff=true;
+	else
+		pic_info.PicOff=false;
+	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
+		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
+		return (void *)-1;
+	}
+	else
+		EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread for displaying pictures.\n");
+	/* set running token */
+	pthd_displayPic_running=true;
 
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
@@ -1301,7 +952,8 @@ else
 	 * 1. For MP3, to call av_seek_frame() will fail!
 	 */
 	if(FFmuz_Ctx->start_tmsecs !=0 ) {
-	  av_seek_frame(pFormatCtx, videoStream,(FFmuz_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+	  av_seek_frame(pFormatCtx, videoStream,(FFmuz_Ctx->start_tmsecs)*time_base.den/time_base.num,
+											 AVSEEK_FLAG_ANY);
 	}
 }
 
@@ -1320,45 +972,7 @@ else
 			/* if we get complete video frame(s) */
 			if(frameFinished) {
 
-/* If AVFilter ON, then push and pull decoded frames through AVFilter, then send filtered frame RGB data
- *  to pic buff for display.
- */
-if(enable_avfilter)
-{
-				pFrame->pts=av_frame_get_best_effort_timestamp(pFrame);
-				/* push decoded frame into the filter graph */
-			        if( av_buffersrc_add_frame_flags(avFltCtx_BufferSrc,pFrame,
-									AV_BUFFERSRC_FLAG_KEEP_REF) <0 )
-				{
-				    //av_log(NULL,AV_LOG_ERROR,"Error while feeding pFrame to filter graph through avFltCtx_BufferSrc.\n");
-				    EGI_PLOG(LOGLV_ERROR, "Error feeding decoded pFrame to filter graph, try to carry on...\n");
-				    //break;
-				}
-
-				/* pull filtered frames from the filter graph */
-				while(1)
-				{
-					ret=av_buffersink_get_frame(avFltCtx_BufferSink, filt_pFrame);
-					if( ret==AVERROR(EAGAIN) || ret==AVERROR_EOF )
-						break;
-					else if(ret<0)
-					{
-				    		EGI_PLOG(LOGLV_WARN, "AVFlilter operation av_buffersink_get_frame()<0, break while()...\n");
-						break; /* try to carry on */
-						//goto FAIL_OR_TERM;
-					}
-					/* push data to pic buff for SPI LCD displaying */
-					printf(" start Load_Pic2Buff()....\n");
-					if( ff_load_Pic2Buff(&pic_info,filt_pFrame->data[0],numBytes) <0 )
-						EGI_PDEBUG(DBG_FFPLAY," [%lld] PICBuffs are full! video frame is dropped!\n",
-									tm_get_tmstampms());
-
-					av_frame_unref(filt_pFrame); /* unref it, or it will eat up memory */
-				}
-				av_frame_unref(filt_pFrame);
-}
-else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
-{
+				/* apply SWS and send scaled RGB data to pic buff for display */
 				/* convert the image from its native format to RGB */
 				//printf("%s: sws_scale converting ...\n",__func__);
 				sws_scale( sws_ctx,
@@ -1372,8 +986,6 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 				if( ff_load_Pic2Buff(&pic_info,pFrameRGB->data[0],numBytes) <0 )
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
-} /* end of AVFilter ON/OFF */
-
 
 				/* ---print playing time--- */
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
@@ -1463,7 +1075,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 							ff_load_FFTdata(  (void **)&outputBuffer,
 									  aCodecCtx->frame_size   );
 						}
-						else {				/* direct data */
+						else {			  /* direct data */
 							ff_load_FFTdata(  (void **)pAudioFrame->data,
 									  aCodecCtx->frame_size   );
 						}
@@ -1674,24 +1286,6 @@ FAIL_OR_TERM:
 		outputBuffer=NULL;
 	}
 
-if(enable_avfilter) /* free filter resources */
-{
-	/* free filter items */
-	if(filter_graph != NULL)
-	{
-		EGI_PDEBUG(DBG_FFPLAY,"avfilter graph free ...\n");
-		/* It will also free all AVFilters in the filter graph */
-		avfilter_graph_free(&filter_graph);
-		filter_graph=NULL;
-	}
-	/* Free filted frame */
-	EGI_PDEBUG(DBG_FFPLAY,"Free filt_pFrame...\n");
-	if(filt_pFrame != NULL) {
-		av_frame_free(&filt_pFrame);
-		filt_pFrame=NULL;
-	}
-}
-
 	/* Close the codecs */
 	EGI_PDEBUG(DBG_FFPLAY,"Closee the codecs...\n");
 	avcodec_close(pCodecCtx);
@@ -1732,7 +1326,7 @@ if(enable_avfilter) /* free filter resources */
 	EGI_PDEBUG(DBG_FFPLAY," \n ---( End of playing file %s )--- \n",fpath[fnum_playing]);
 
 	/* sleep, to let sys release cache ....???? */
-	tm_delayms(1000);
+	tm_delayms(FFMUZ_END_PAUSETIME);
 
    } /* end of for(...), loop playing input files*/
 

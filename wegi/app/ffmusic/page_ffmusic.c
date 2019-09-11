@@ -100,8 +100,7 @@ EGI_PAGE *create_ffmuzPage(void)
 						&sympg_testfont /* for ebox->tag font */
 					);
 		/* if fail, try again ... */
-		if(data_btns[i]==NULL)
-		{
+		if(data_btns[i]==NULL) {
 			EGI_PLOG(LOGLV_ERROR,"egi_create_ffplaypage(): fail to call egi_btndata_new() for data_btns[%d]. retry...\n", i);
 			i--;
 			continue;
@@ -120,8 +119,7 @@ EGI_PAGE *create_ffmuzPage(void)
 		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
-		if(ffmuz_btns[i]==NULL)
-		{
+		if(ffmuz_btns[i]==NULL) {
 			printf("egi_create_ffplaypage(): fail to call egi_btnbox_new() for ffmuz_btns[%d]. retry...\n", i);
 			free(data_btns[i]);
 			data_btns[i]=NULL;
@@ -171,12 +169,12 @@ EGI_PAGE *create_ffmuzPage(void)
 	ebox_voltxt=NULL;
 
         /* For FTsymbols TXT */
-        vol_FTtxt=egi_utxtdata_new( 10, 3,                     /* offset from ebox left top */
-                                    1, 100,                     /* lines, pixels per line */
-                                    egi_appfonts.bold,//regular,      /* font face type */
-                                    20, 20,                    /* font width and height, in pixels */
-                                    0,                        /* adjust gap, minus also OK */
-                                    WEGI_COLOR_WHITE           /* font color  */
+        vol_FTtxt=egi_utxtdata_new( 10, 3,                        /* offset from ebox left top */
+                                    1, 100,                       /* lines, pixels per line */
+                                    egi_appfonts.bold,//regular,  /* font face type */
+                                    20, 20,                       /* font width and height, in pixels */
+                                    0,                            /* adjust gap, minus also OK */
+                                    WEGI_COLOR_WHITE              /* font color  */
                                   );
         /* assign uft8 string */
         vol_FTtxt->utxt=NULL;
@@ -192,7 +190,6 @@ EGI_PAGE *create_ffmuzPage(void)
                                    );
 	/* set frame type */
         //ebox_voltxt->frame_alpha; /* No frame and prmcolor*/
-
 	/* set status as hidden, activate it only by touching */
 	ebox_voltxt->status=status_hidden;
 
@@ -435,8 +432,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         /* 2. adjust button position and refresh */
         else if( touch_data->status==pressed_hold )
         {
-		/* activate vol_FTtxt from hidden status */
-		egi_txtbox_activate(ebox_voltxt);
+		/* unhide vol_FTtxt */
+		//egi_txtbox_activate(ebox_voltxt);
+		egi_txtbox_unhide(ebox_voltxt);
 
                 /* adjust volume */
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */

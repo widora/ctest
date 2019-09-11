@@ -43,12 +43,9 @@ extern FBDEV ff_fb_dev;
 /* information of a decoded picture, for pthread params */
 struct PicInfo {
         /* coordinate for display window layout on LCD */
+	bool PicOff;		/* OFF picture */
 	int height;		/* height and width of the picture */
 	int width;
-	int Hs; 		/* Horizontal start pixel column number */
-	int He; 		/* Horizontal end */
-	int Vs; 		/* Vertical start pixel row number */
-	int Ve; 		/* Vertical end */
 	int nPICbuff; 		/* slot number of buff data in pPICbuffs[] */
 	uint8_t *data; 		/* RGB data, pointer to pPICbuffs[] page */
 	int numBytes;  		/* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
@@ -68,12 +65,10 @@ struct PicInfo {
 /*  functions	*/
 uint8_t**  	ff_malloc_PICbuffs(int width, int height, int pixel_size );
 //static void  	ff_free_PicBuffs(void);
-//int 	   	ff_get_FreePicBuff(void);
 int 	   	ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   	display_MusicPic(void * argv);
 void* 	   	thdf_Display_Subtitle(void * argv);
 //static long 	   seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
-//void  		ff_display_spectrum(FBDEV *fbdev, void ** buffer, int nf);
 void 		ff_load_FFTdata(void ** buffer, int nf);
 void*  		ff_display_spectrum(void *argv);
 

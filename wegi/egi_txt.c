@@ -387,7 +387,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	 *	not necessary to adjust ebox size and allocate bkimg memory for a sleeping ebox
 	 *      TODO: test,   If PAGE wallpaper has changed ?????
 	 */
-	if(ebox->status==status_sleep || ebox->status==status_hidden)
+	if( ebox->status==status_sleep )
 	{
 		((EGI_DATA_TXT *)(ebox->egi_data))->foff=0; /* reset affliated file position */
 		ebox->status=status_active; 	/* reset status to active before refresh!!! */
@@ -433,10 +433,10 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 		/* egi_alloc_bkimg() will check width and height */
 		if( egi_alloc_bkimg(ebox, width, height)==NULL )
         	{
-               	 	printf("egi_txtbox_activate(): fail to egi_alloc_bkimg() for '%s' ebox!\n",ebox->tag);
+               	 	printf("%s:\033[31m Fail to egi_alloc_bkimg() for '%s' ebox!\033[0m\n", __func__, ebox->tag);
                 	return -4;
         	}
-		EGI_PDEBUG(DBG_TXT,"Finish egi_alloc_bkimg() for '%s' ebox.\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"\033[32m Finish egi_alloc_bkimg() for '%s' ebox.\033[0m\n",ebox->tag);
 
 	/* 5. store bk image which will be restored when this ebox position/size changes */
 	/* define bkimg box */
@@ -469,22 +469,26 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 		}
 	}
 
-	/* 7. change its status, if not, you can not refresh.  */
-	ebox->status=status_active;
 
-	/* 8. reset offset for txt file if fpath applys */
+	/* 7. reset offset for txt file if fpath applys */
 	//???? NOT activate ????? ((EGI_DATA_TXT *)(ebox->egi_data))->foff=0;
 
-	/* 9. refresh displaying the ebox */
-	ebox->need_refresh=true; /* set for refresh */
+	/* 8. refresh displaying the ebox */
+	if( ebox->status==status_hidden ) /* Do not display for a hidden ebox */
+		goto TXT_ACTIVATE_END;
+
+	ebox->status=status_active;  /* change status to active, if not, you can not refresh.*/
+	ebox->need_refresh=true;     /* set for refresh */
 	ret=egi_txtbox_refresh(ebox);
 	if(ret != 0)
 	{
 		printf("%s: WARNING!! egi_txtbox_refresh(ebox) return with %d !=0.\n", __func__,ret);
 		return -6;
 	}
-	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is activated.\n",ebox->tag);
 
+TXT_ACTIVATE_END:
+
+	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
@@ -609,7 +613,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 //   if ( ( ebox->movable && ( (ebox->bkbox.startxy.x!=x0) || (ebox->bkbox.startxy.y!=y0)
 //			|| ( ebox->bkbox.endxy.x!=x0+width-1) || (ebox->bkbox.endxy.y!=y0+height-1) ) )
 //           || (ebox->prmcolor<0)  )
-   if( ebox->movable ) //|| ebox->prmcolor<0 )
+   if( ebox->movable || ebox->prmcolor<0 )
    {
 
 #if 0 /* DEBUG */
@@ -622,10 +626,11 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
          */
         if( ebox->container==NULL || ebox->container->page_update !=true )
         {
-		EGI_PDEBUG(DBG_TXT,"fb_cpyfrom_buf() before refresh...\n");
+		EGI_PDEBUG(DBG_TXT,"ebox '%s' fb_cpyfrom_buf() before refresh...\n", ebox->tag);
        	 	if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-        	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+        	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 ) {
 			return -3;
+		}
 	} else {
 		EGI_PDEBUG(DBG_TXT,"\033[31m Page just updated, ignore fb_cpyfrom_buf() \033[0m \n");
 	}
@@ -656,6 +661,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
 
 	/*  ------------>   DISPLAYING CODES STARTS  <----------  */
+
 
 	/* 7. Draw frame_img first */
 	if( ebox->frame_img != NULL ) {
@@ -777,7 +783,7 @@ int egi_txtbox_sleep(EGI_EBOX *ebox)
 	/* reset status */
 	ebox->status=status_sleep;
 
-	EGI_PDEBUG(DBG_TXT,"egi_txtbox_sleep(): a '%s' ebox is put to sleep.\n",ebox->tag);
+	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is put to sleep.\n",ebox->tag);
 	return 0;
 }
 
@@ -812,6 +818,29 @@ int egi_txtbox_hide(EGI_EBOX *ebox)
 	ebox->status=status_hidden;
 
 	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is put to hide.\n",ebox->tag);
+	return 0;
+}
+
+
+/*----------------------------------------
+Bring a hidden ebox back to active by set
+status to  status_active.
+
+Return
+        0       OK
+        <0      fail
+-----------------------------------------*/
+int egi_txtbox_unhide(EGI_EBOX *ebox)
+{
+        if(ebox==NULL) {
+                printf("%s: ebox is NULL, fail to make it hidden.\n",__func__);
+                return -1;
+        }
+
+	/* reset status */
+	ebox->status=status_active;
+
+	EGI_PDEBUG(DBG_TXT,"Unhide a '%s' ebox and set status as active.\n",ebox->tag);
 	return 0;
 }
 
