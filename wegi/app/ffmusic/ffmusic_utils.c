@@ -170,14 +170,12 @@ void* display_MusicPic(void * argv)
    int  blur_size;
    unsigned long nfc_tmp;
    bool still_image=false;
+   char wallpaper[]="/home/musicback.jpg"; /* as for default back ground, if no embedded pic. */
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF  *tmpimg=NULL;
    EGI_IMGBUF  *tmpimg2=NULL;
    EGI_IMGBUF  *pageimg=NULL; /* PAGE to show the pic */
-
-   /* reset bkimg_updated */
-//   bkimg_updated=false;
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
    if(imgbuf==NULL) {
@@ -187,14 +185,31 @@ void* display_MusicPic(void * argv)
 
    /* Check if picture OFF */
    printf("%s: Check ppic->PicOff...\n", __func__);
-   if(ppic->PicOff) {
+   if(ppic->PicOff) {	/* 1. If no picture embedded in the media file. */
 	pic_off=true;
-	printf("%s: No picture in the media file.\n", __func__);
+	printf("%s: No picture in the media file, use default wallpaper.\n", __func__);
 
-	/* To load a picture */
+	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
+        /* Free old imgbuf */
+	egi_imgbuf_free(ppic->app_page->ebox->frame_img);
+	ppic->app_page->ebox->frame_img=NULL;
+
+	/* To load default picture */
+	ppic->app_page->fpath=wallpaper;
+	egi_page_needrefresh(ppic->app_page);/* page and its child eboxes */
+
+	/* set token */
 	bkimg_updated=true;
+
+	/* Display song name/file name, TODO: to put to an txt ebox!  */
+	tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
+ 	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
+                              		18, 18, ppic->fname,          	/* fw,fh, pstr */
+	                               	240, 2, 0,                      /* pixpl, lines, gap */
+                                   	0, 10,                          /* x0,y0, */
+               	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
    }
-   else {
+   else {	/* 2. A picture embeded in the media file. */
 	   pic_off=false;
    	   /* check if it's image, TODO: still or motion image */
 	   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
@@ -216,6 +231,7 @@ void* display_MusicPic(void * argv)
 	   nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
 	   for(i=0; i<PIC_BUFF_NUM; i++) /* to display all pic buff in pPICbuff[] */
 	   {
+		/* Breadk if no picture */
 		if(ppic->PicOff) break;
 
 		index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
@@ -287,6 +303,7 @@ void* display_MusicPic(void * argv)
 
 			/* refreshing file name... or add it to the imgbuf */
 			tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
+			/* Display song name/file name, TODO: to put to an txt ebox!  */
         		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                                     		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                                    	240, 2, 0,                      /* pixpl, lines, gap */
@@ -313,12 +330,18 @@ void* display_MusicPic(void * argv)
 	  //usleep(2000);
   }
 
-   /* reset bkimg_updated */
+  /*  Free frame_img of PAGE:
+   *  !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!
+   *  However we have a mutex lock in EGI_IMGBUF.
+   */
+  egi_imgbuf_free(ppic->app_page->ebox->frame_img);
+  ppic->app_page->ebox->frame_img=NULL;
+
+  /* reset bkimg_updated */
    bkimg_updated=false;
 
   ff_free_PicBuffs();
-  imgbuf->imgbuf=NULL; /* since freed by ff_free_PicBuffs() */
-
+  imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() */
   egi_imgbuf_free(imgbuf);
 
   return (void *)0;
@@ -579,13 +602,14 @@ void ff_load_FFTdata(void ** buffer, int nf)
 }
 
 
-/*--------------------------------------------------------------------
+/*------------------------------------------------------------------------
 Display audio data spectrum.
 
 Note:
 1. Now only for 44100 sample rate pcm data,format noninterleaved S16.
 2. Max value of S16 PCM data is trimmed to be Max.2^11, to prevent
    egiFFFT() overflow.
+3. If CPU is too busy, the spectrum displaying may lag behind audio playing.
 
 @buffer:	PCM data buffer
 		Supposed to be noninterleaved, format S16L.
@@ -594,7 +618,7 @@ Note:
 Note:
 	1. 1024 points FFT inside, if nf<1024, paddled with 0.
 	2. FBDEV *fbdev shall be initialized by the caller.
----------------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 void*  ff_display_spectrum(void *argv)
 {
 	int i,j;
@@ -605,9 +629,9 @@ void*  ff_display_spectrum(void *argv)
         unsigned int    aexp=11;        	/* Max. Amp=1<<aexp */
         unsigned int    np=1<<nexp;  		/* input element number for FFT */
         EGI_FCOMPLEX    ffx[FFT_POINTS];        /* FFT result */
-	EGI_FCOMPLEX	wang[FFT_POINTS];
-	EGI_FVAL	hamming[FFT_POINTS];    /* Hamming window factor */
-	static bool	factors_ready=false;
+static  EGI_FCOMPLEX	wang[FFT_POINTS];
+static  EGI_FVAL	hamming[FFT_POINTS];    /* Hamming window factor */
+static  bool	factors_ready=false;
         unsigned int    ns=1<<5;//6;    	/* points for spectrum diagram */
         unsigned int    avg;
         int             ng=np/ns;       	/* 32 each ns covers ng numbers of np */

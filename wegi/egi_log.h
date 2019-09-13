@@ -27,8 +27,8 @@ enum egi_log_level
 	LOGLV_NONE	  =(1<<0),
 	LOGLV_INFO        =(1<<1),
 	LOGLV_WARN        =(1<<2),
-	LOGLV_ERROR       =(1<<3),
-	LOGLV_CRITICAL	  =(1<<4),
+	LOGLV_CRITICAL	  =(1<<3),
+	LOGLV_ERROR       =(1<<4),
 	LOGLV_TEST        =(1<<15),
 };
 

@@ -215,7 +215,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* open an empty mixer */
 	ret=snd_mixer_open(&handle,0); /* 0 unused param*/
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR, "Open mixer fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR, "%s: Open mixer fails: %s",__func__, snd_strerror(ret));
 		ret=-1;
 		goto FAILS;
 	}
@@ -223,7 +223,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Attach an HCTL specified with the CTL device name to an opened mixer */
 	ret=snd_mixer_attach(handle,card);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR, "Mixer attach fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR, "%s: Mixer attach fails: %s", __func__, snd_strerror(ret));
 		ret=-2;
 		goto FAILS;
 	}
@@ -231,7 +231,8 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Register mixer simple element class */
 	ret=snd_mixer_selem_register(handle,NULL,NULL);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"Mixer simple element class register fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s: snd_mixer_selem_register(): Mixer simple element class register fails: %s",
+									__func__, snd_strerror(ret));
 		ret=-3;
 		goto FAILS;
 	}
@@ -239,7 +240,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Load a mixer element	*/
 	ret=snd_mixer_load(handle);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"Load mixer element fails: %s",snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s: Load mixer element fails: %s",__func__, snd_strerror(ret));
 		ret=-4;
 		goto FAILS;
 	}
@@ -254,7 +255,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Find a mixer simple element */
 	elem=snd_mixer_find_selem(handle,sid);
 	if(elem==NULL){
-		EGI_PLOG(LOGLV_ERROR, "Find mixer simple element fails.\n");
+		EGI_PLOG(LOGLV_ERROR, "%s: snd_mixer_find_selem() Find mixer simple element fails.\n",__func__);
 		ret=-5;
 		goto FAILS;
 	}
@@ -262,7 +263,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Get range for playback volume of a mixer simple element */
 	snd_mixer_selem_get_playback_volume_range(elem,&min,&max);
 	if( min<0 || max<0 ){
-		EGI_PLOG(LOGLV_ERROR,"Get range of volume fails.!\n");
+		EGI_PLOG(LOGLV_ERROR,"%s: Get range of volume fails.!\n",__func__);
 		ret=-6;
 		goto FAILS;
 	}
@@ -275,7 +276,8 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
                         continue;
 		ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol);
 		if(ret<0) {
-			EGI_PLOG(LOGLV_ERROR,"Get palyback volume error on channle %d.\n",chn);
+			EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.\n",
+											__func__, chn);
 			ret=-7;
 			goto FAILS;
 		}

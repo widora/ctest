@@ -6,6 +6,7 @@ published by the Free Software Foundation.
 
 Midas Zhou
 -------------------------------------------------------------------*/
+#include "egi_log.h"
 #include "egi_FTsymbol.h"
 #include "egi_symbol.h"
 #include "egi_cstring.h"
@@ -23,7 +24,7 @@ EGI_FONTS  egi_sysfonts = {0};
 EGI_FONTS  egi_appfonts = {0};
 
 
-#if 0
+#if 0  /////////////////////// Pending /////////////////////////
 /*-----------------------------------------
 Load all FT type symbol pages and fonts Lib
 return:
@@ -99,8 +100,11 @@ int  FTsymbol_load_sysfonts(void)
 
 	/* load FT library with default fonts */
 	ret=FTsymbol_load_library( &egi_sysfonts );
-	if(ret)
-		return -1;
+	if(ret) {
+		//return -1;
+		// Go on....
+		EGI_PLOG(LOGLV_CRITICAL,"\033[33m %s: Some sysfonts missed or not configured!\n \033[0m", __func__ );
+	}
 
 	return 0;
 }
@@ -133,8 +137,10 @@ int  FTsymbol_load_appfonts(void)
 
 	/* load FT library with default fonts */
 	ret=FTsymbol_load_library( &egi_appfonts );
-	if(ret)
-		return -1;
+	if(ret) {
+		EGI_PLOG(LOGLV_CRITICAL,"\033[33m %s: Some appfonts missed or not configured!\n \033[0m", __func__ );
+		//return -1;
+	}
 
 	return 0;
 }
@@ -160,12 +166,27 @@ int  FTsymbol_load_allpages(void)
 {
 	char fpath_ascii[EGI_PATH_MAX+EGI_NAME_MAX]={0};
 
+#if 0
 	/* read egi.conf and get fonts paths */
 	if ( egi_get_config_value("SYS_FONTS","ascii",fpath_ascii) != 0)
         	return -1;
         /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
         if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
 		return -2;
+#endif
+
+	/* read egi.conf and get fonts paths */
+	if ( egi_get_config_value("SYS_FONTS","ascii",fpath_ascii) == 0 &&
+        	/* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
+        	FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) ==0 ) 
+        {
+
+		EGI_PLOG(LOGLV_CRITICAL,"\033[32m %s: Succeed to load sympg_ascii!\n \033[0m", __func__ );
+	}
+	else
+		EGI_PLOG( LOGLV_CRITICAL,"\033[33m %s: Fail to load sympg_ascii!\n \033[0m", __func__ );
+		//Go on...
+
 
 	return 0;
 }
@@ -268,6 +289,7 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 
 
 	return 0;
+
 
 FT_FAIL:
  	FT_Done_Face    ( symlib->regular );

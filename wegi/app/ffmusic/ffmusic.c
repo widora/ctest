@@ -209,7 +209,7 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=false;
+static bool enable_clip_test=true; //false;
 
 /* param: ( play mode )
  *   mode_loop_all:	loop all files in the list
@@ -626,7 +626,8 @@ if(disable_audio && audioStream>=0 )
 								 channel_layout, chanlayout_string);
 		EGI_PDEBUG(DBG_FFPLAY,"			   %s\n", chanlayout_string);
 		EGI_PDEBUG(DBG_FFPLAY,"		nb_channels=%d\n",nb_channels);
-		EGI_PDEBUG(DBG_FFPLAY,"		sample format: %s\n",av_get_sample_fmt_name(sample_fmt) );
+		EGI_PDEBUG(DBG_FFPLAY,"		sample format=%d as for: %s\n", sample_fmt,
+							av_get_sample_fmt_name(sample_fmt) );
 		EGI_PDEBUG(DBG_FFPLAY,"		bytes_per_sample: %d\n",bytes_per_sample);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample_rate=%d\n",sample_rate);
 
@@ -694,8 +695,10 @@ if(disable_audio && audioStream>=0 )
 		{
 			/*  Use SWR to convert out sample rate to 44100  ...*/
 			if( sample_rate != 44100 ) {
-				EGI_PDEBUG(DBG_FFPLAY,"Sample rate is NOT 44.1k, try to convert...\n");
+				EGI_PDEBUG(DBG_FFPLAY,"Sample rate is %d, NOT 44.1k, try to convert...\n",sample_rate);
 				out_sample_rate=44100;
+
+			  #if 0  /* ----- METHOD(1) ----- */
 				swr=swr_alloc();
 				av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
 				av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
@@ -703,6 +706,16 @@ if(disable_audio && audioStream>=0 )
 				av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
 				av_opt_set_sample_fmt(swr, "in_sample_fmt",   sample_fmt, 0);
 				av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+
+			  #else /* ----- METHOD(2) ----- */
+				/* allocate and set opts for swr */
+				EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
+				swr=swr_alloc_set_opts( swr,
+						channel_layout, AV_SAMPLE_FMT_S16, out_sample_rate,
+						channel_layout, AV_SAMPLE_FMT_S16, sample_rate,
+						0, NULL );
+ 			  #endif
+
 				EGI_PDEBUG(DBG_FFPLAY,"Start swr_init() ...\n");
 				swr_init(swr);
 
@@ -716,7 +729,7 @@ if(disable_audio && audioStream>=0 )
 				}
 
 				/* open pcm play device and set parameters */
- 				if( prepare_ffpcm_device(nb_channels,out_sample_rate,false) !=0 ) /* 'true' for interleaved access */
+ 				if( prepare_ffpcm_device(nb_channels,out_sample_rate, false) !=0 ) /* 'true' for interleaved access */
 				{
 					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
 											__func__);
@@ -727,7 +740,7 @@ if(disable_audio && audioStream>=0 )
 			/* END sample rate convert to 44100 */
 
 			/* Directly open pcm play device and set parameters */
- 			else if ( prepare_ffpcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
+ 			else if ( prepare_ffpcm_device(nb_channels,sample_rate, false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
 											__func__);
@@ -1037,13 +1050,13 @@ else
 						// Number of samples per channel in an audio frame
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
-							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							EGI_PDEBUG(DBG_FFPLAY,"FLTP outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
 						else if( outputBuffer )  {  /* SWR ON,  if sample_rate != 44100 */
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+							play_ffpcm_buff( (void **)&outputBuffer, outsamples);
 						}
 						else {
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
@@ -1111,6 +1124,7 @@ if(enable_clip_test)
 {
 		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FFMUZ_CLIP_PLAYTIME) )
 		{
+			/* reset elapsed/duratoin time */
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
 			break;
@@ -1189,12 +1203,6 @@ if(enable_clip_test)
 		tm_delayms(FFMUZ_LOOP_TIMEGAP*1000);
 	}
 
-#if 0 /* These codes may be skipped, move to FAIL_OR_TERM */
-	/* fill display area with BLACK */
-	fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve); /* pic area */
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
-#endif
 
 /* if loop playing one file, then got to seek start  */
 if(enable_seekloop)
@@ -1203,19 +1211,10 @@ if(enable_seekloop)
 	goto SEEK_LOOP_START;
 }
 
-FAIL_OR_TERM:
-	/* fill display area with BLACK
-	 * NOTE: As thread audioSpectrum is still working for a while after draw_filled_rect() here,
-	 * 	 it's NOT the right itme to clear screen!
-	 */
+
+FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
+
 #if 0
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
-#endif
-
-	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
-
-
 	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
 	{
 		/* wait for display_thread to join */
@@ -1234,6 +1233,27 @@ FAIL_OR_TERM:
 		control_cmd = cmd_none;/* call off command */
 		pthd_displayPic_running=false; /* reset token */
 	}
+#endif
+
+	/* Exit Pic displaying thread, just before exiting subtitle_thread!! */
+	if( pthd_displayPic_running ) {
+		/* wait for display_thread to join */
+		EGI_PDEBUG(DBG_FFPLAY,"Try to join picture displaying thread ...\n");
+		control_cmd = cmd_exit_display_thread;
+		pthread_join(pthd_displayPic,NULL);
+		pthd_displayPic_running=false; /* reset token */
+		control_cmd = cmd_none;/* call off command */
+	}
+
+	/* Exit subtitle displaying thread, just after picture displaying thread joined. */
+	if( pthd_subtitle_running ) {
+		EGI_PDEBUG(DBG_FFPLAY,"Try to join subtitle displaying thread ...\n");
+                control_cmd = cmd_exit_subtitle_thread;
+		pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
+		pthd_subtitle_running=false; /* reset token */
+		control_cmd = cmd_none;/* call off command */
+	}
+
 
 	/* free strdupped file name, after pthd_displayPic()  */
 	free(fname); fname=NULL;
