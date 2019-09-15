@@ -168,6 +168,7 @@ void* display_MusicPic(void * argv)
    int 	i;
    int  index;
    int  blur_size;
+   int  xsize, ysize; /* size of FB screen  */
    unsigned long nfc_tmp;
    bool still_image=false;
    char wallpaper[]="/home/musicback.jpg"; /* as for default back ground, if no embedded pic. */
@@ -176,12 +177,18 @@ void* display_MusicPic(void * argv)
    EGI_IMGBUF  *tmpimg=NULL;
    EGI_IMGBUF  *tmpimg2=NULL;
    EGI_IMGBUF  *pageimg=NULL; /* PAGE to show the pic */
+   EGI_IMGBUF *imgbuf=NULL;
 
-   EGI_IMGBUF *imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
+   imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
    if(imgbuf==NULL) {
-	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc().\n",__func__);
+	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for imgbuf.\n",__func__);
 	return (void *)-1;
    }
+
+
+   /* Get screen size */
+   xsize= ff_fb_dev.vinfo.xres;
+   ysize= ff_fb_dev.vinfo.yres;
 
    /* Check if picture OFF */
    printf("%s: Check ppic->PicOff...\n", __func__);
@@ -194,12 +201,34 @@ void* display_MusicPic(void * argv)
 	egi_imgbuf_free(ppic->app_page->ebox->frame_img);
 	ppic->app_page->ebox->frame_img=NULL;
 
-	/* To load default picture */
-	ppic->app_page->fpath=wallpaper;
-	egi_page_needrefresh(ppic->app_page);/* page and its child eboxes */
+	/* load pic to imgbuf */
+	tmpimg=egi_imgbuf_alloc();
+	if(tmpimg==NULL) {
+		EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for tmpimg \n",__func__);
+		return (void *)-1;
+   	}
+	if( egi_imgbuf_loadjpg(wallpaper,tmpimg)!=0 && egi_imgbuf_loadpng(wallpaper,tmpimg)!=0 ) {
+	 	 printf("%s: Fail to load file '%s' to imgbuf!\n", __func__, wallpaper);
+		 //Go on...
+	}
 
-	/* set token */
-	bkimg_updated=true;
+	/* blur and resize the imgbuf  */
+	blur_size=tmpimg->height/45;
+	if( tmpimg->height <240 ) {		/* Small size image, blur then resize */
+		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
+		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
+	}
+	else if(tmpimg) {			/* Big size image, resize then blur */
+		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
+		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
+	}
+
+	/* To load default picture */
+	ppic->app_page->ebox->frame_img=tmpimg; tmpimg=NULL; /* Ownership transfered */
+	ppic->app_page->fpath=wallpaper; /* Second selection, if tmpimg == NULL */
+
+	/* Put to page and its child eboxes */
+	egi_page_needrefresh(ppic->app_page);
 
 	/* Display song name/file name, TODO: to put to an txt ebox!  */
 	tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
@@ -208,6 +237,8 @@ void* display_MusicPic(void * argv)
 	                               	240, 2, 0,                      /* pixpl, lines, gap */
                                    	0, 10,                          /* x0,y0, */
                	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
+	/* set token */
+	bkimg_updated=true;
    }
    else {	/* 2. A picture embeded in the media file. */
 	   pic_off=false;
@@ -276,14 +307,14 @@ void* display_MusicPic(void * argv)
 
 			/* resize(new alloc) to whole screen size and assign */
 			printf("%s: resize imgbuf...\n",__func__);
-			tmpimg2=egi_imgbuf_resize(tmpimg, ff_fb_dev.vinfo.xres, ff_fb_dev.vinfo.yres);
+			tmpimg2=egi_imgbuf_resize(tmpimg, xsize, ysize);
 			if(tmpimg2==NULL)
 				printf("%s: Fail to resize imgbuf.\n",__func__);
 
 			/* blur the image... */
 			printf("%s: soft blur the imgbuf...\n",__func__);
-			blur_size=tmpimg2->height/50;
-			pageimg=egi_imgbuf_avgsoft(tmpimg2, 10, false, false); /*ineimg, size, alpha_on, hold_on */
+			blur_size=tmpimg2->height/45;
+			pageimg=egi_imgbuf_avgsoft(tmpimg2, blur_size, false, false); /*ineimg, size, alpha_on, hold_on */
 			if(pageimg==NULL)
 				printf("%s: Fail to avgsoft imgbuf.\n",__func__);
 
@@ -337,10 +368,13 @@ void* display_MusicPic(void * argv)
   egi_imgbuf_free(ppic->app_page->ebox->frame_img);
   ppic->app_page->ebox->frame_img=NULL;
 
+
+
   /* reset bkimg_updated */
    bkimg_updated=false;
 
   ff_free_PicBuffs();
+
   imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() */
   egi_imgbuf_free(imgbuf);
 
@@ -607,6 +641,7 @@ Display audio data spectrum.
 
 Note:
 1. Now only for 44100 sample rate pcm data,format noninterleaved S16.
+   48000 sample rate also OK.
 2. Max value of S16 PCM data is trimmed to be Max.2^11, to prevent
    egiFFFT() overflow.
 3. If CPU is too busy, the spectrum displaying may lag behind audio playing.
@@ -709,7 +744,9 @@ static  bool	factors_ready=false;
 #else  /*  2. Normal spectrum diagram  */
 
 	/* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz   */
-	/* fs=44,1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
+	/* fs=16k,
+	/* fs=44.1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
+	/* fs=48k,   1024 elements, resolution abt. 48Hz, step=32, 48*32=1.5k  */
  	for(i=0; i<ns; i++) {
         	/* map sound wave amplitude to sdy[] */
 		if(i<8) {  /* +1 to depress low frequency amplitude, since most of audio wave energy is

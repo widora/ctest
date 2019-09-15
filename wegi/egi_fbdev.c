@@ -43,7 +43,7 @@ int init_fbdev(FBDEV *fr_dev)
           printf("Open /dev/fb0: %s\n",strerror(errno));
           return -1;
         }
-        printf("Framebuffer device was opended successfully.\n");
+        printf("%s:Framebuffer device opened successfully.\n",__func__);
         ioctl(fr_dev->fbfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
         ioctl(fr_dev->fbfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
         fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
@@ -72,7 +72,7 @@ int init_fbdev(FBDEV *fr_dev)
         fr_dev->filo_on=0;
         fr_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
         if(fr_dev->fb_filo==NULL) {
-                printf("Fail to malloc FB FILO!\n");
+                printf("%s: Fail to malloc FB FILO!\n",__func__);
                 munmap(fr_dev->map_fb,fr_dev->screensize);
                 close(fr_dev->fbfd);
                 return -3;

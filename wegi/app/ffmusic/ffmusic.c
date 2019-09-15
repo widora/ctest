@@ -23,15 +23,9 @@ TODO:
    !!! NOTE: Use libs of ffmpeg-2.8.15, except libavcodec.so.56.26.100 of ffmpeg-2.6.9 from openwrt !!!
    However, fail to put logo on mp3 picture by AVFilter descr.
 
-3. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
-	... error log ...
-	...
-	filter graph args: video_size=160x90:pix_fmt=0:time_base=125/2997:pixel_aspect=45/44
-	[Parsed_movie_0 @ 0x9b9c00] Failed to avformat_open_input 'logo.png'
-	Error initializing filter 'movie' with args 'logo.png'
-	Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.
-	joint picture displaying thread ...
-	...
+3. FFmpeg PCM 'planar' format means noninterleaved? while 'packed' mean interleaved?
+	XXX_FMT_S16P --- packed
+	XXX_FMT_S16  --- planar
 
 NOTE:
 1.  A simpley example of opening a media file/stream then decode frames and send RGB data to LCD for display.
@@ -209,7 +203,14 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=true; //false;
+static bool enable_clip_test=false;
+
+/* Resample ON/OFF
+ * True: Resample to 44.1k
+ * False: Do not resample.
+ * Ineffective for AV_SAMPLE_FMT_FLTP
+ */
+static bool enable_audio_resample=false;
 
 /* param: ( play mode )
  *   mode_loop_all:	loop all files in the list
@@ -341,7 +342,7 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	const AVCodecDescriptor	 *vcodecDespt=NULL;
 	const AVCodecDescriptor	 *acodecDespt=NULL;
 
-	int			frame_size;
+	int			frame_size;	/* number of samples in one frame */
 	int 			sample_rate;
 	int			out_sample_rate; /* after conversion, for ffplaypcm */
 	enum AVSampleFormat	sample_fmt;
@@ -354,6 +355,9 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	int			got_frame;
 	struct SwrContext		*swr=NULL; /* AV_SAMPLE_FMT_FLTP format conversion */
 	uint8_t			*outputBuffer=NULL;/* for converted data */
+	int			dst_nb_samples;    /* destination number of samples for SWR
+						    * Here it means number of frame samples??
+						    */
 	int 			outsamples;
 
 	/* display window, the final window_size that will be applied to AVFilter or SWS.
@@ -426,7 +430,7 @@ while(1) {
 		fnum=egi_random_max(ftotal)-1;
 	}
 
-	/* clear displaying area */
+	/* clear displaying area, TO be handled by PAGE */
 	/* Let PAGE handle it */
 	//fbset_color(WEGI_COLOR_BLACK);
 	//draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
@@ -437,7 +441,7 @@ while(1) {
 
 	/* reset elaped time recorder */
 	ff_sec_Velapsed=0;
-
+	/* reset VCODECID */
 	vcodecID=AV_CODEC_ID_NONE;
 
 	/* Open media stream or file */
@@ -460,7 +464,6 @@ while(1) {
 	/* Retrieve stream information, !!!!!  time consuming  !!!! */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):  Retrieving stream information... \n", tm_get_tmstampms());
 	/* ---- seems no use! ---- */
-	//
 pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0)  {
@@ -552,36 +555,28 @@ pFormatCtx->probesize2=128*1024;
 	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] \n", __func__,
 				 videoStream, audioStream);
 
-	if(videoStream == -1) {
-		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!\n");
-//		return (void *)-1;
-	}
-	if(audioStream == -1) {
-		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!\n");
-//go on   	return (void *)-1;
-	}
-
 	if(videoStream == -1 && audioStream == -1) {
 		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...\n");
 		return (void *)-1;
 	}
+	else if(videoStream == -1) {
+		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!\n");
+//go on		return (void *)-1;
+	}
+	else if(audioStream == -1) {
+		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!\n");
+//go on   	return (void *)-1;
+	}
 
-	/* Display file(MP3) name, if videoStream is available then it will be cleared later! */
-	//if( audioStream>=0 && disable_video )
+
+	/* Get base file name and put to pic_info for display */
 	fname=strdup(fpath[fnum]);
 	printf("fname:%s\n",fname);
 	fbsname=basename(fname);
-#if 0 /* put in ffmusic_utils.c */
-        FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
-                                    18, 18, fbsname,               	/* fw,fh, pstr */
-                                    240, 1, 0,           		/* pixpl, lines, gap */
-                                    0, 40,                      	/* x0,y0, */
-                                    WEGI_COLOR_GRAY, -1, -1);   	/* fontcolor, stranscolor,opaque */
-#endif
 	pic_info.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
 
-/* disable audio */
+/* Disable audio */
 if(disable_audio && audioStream>=0 )
 {
 	EGI_PDEBUG(DBG_FFPLAY,"Audio is disabled by the user! \n");
@@ -598,19 +593,19 @@ if(disable_audio && audioStream>=0 )
 		EGI_PLOG(LOGLV_INFO,"%s: Try to find the decoder for the audio stream... \n",__func__);
 		aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
 		if(aCodec == NULL) {
-			EGI_PLOG(LOGLV_ERROR, "Unsupported audio codec! quit ffplay now...\n");
+			EGI_PLOG(LOGLV_ERROR, "%s: Unsupported audio codec! quit now...\n" ,__func__);
 			return (void *)-1;
 		}
 		/* copy audio codec context */
 		aCodecCtx=avcodec_alloc_context3(aCodec);
 		if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
-			EGI_PLOG(LOGLV_ERROR, "Couldn't copy audio code context! quit ffplay now...\n");
+			EGI_PLOG(LOGLV_ERROR, "%s: Couldn't copy audio code context! quit now...\n", __func__);
 			return (void *)-1;
 		}
 		/* open audio codec */
 		EGI_PLOG(LOGLV_INFO,"%s: Try to open audio stream with avcodec_open2()... \n",__func__);
 		if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
-			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit ffplay now...!\n");
+			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit now...!\n");
 			return (void *)-1;
 		}
 		/* get audio stream parameters */
@@ -630,6 +625,9 @@ if(disable_audio && audioStream>=0 )
 							av_get_sample_fmt_name(sample_fmt) );
 		EGI_PDEBUG(DBG_FFPLAY,"		bytes_per_sample: %d\n",bytes_per_sample);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample_rate=%d\n",sample_rate);
+
+		/* Now only support SND_PCM_FORMAT_S16_LE */
+		//if(sample_fmt!=)
 
 		if( nb_channels > 2 ) {
 			EGI_PDEBUG(DBG_FFPLAY," !!! Number of audio channels is %d >2, not supported!\n",nb_channels);
@@ -670,7 +668,6 @@ if(disable_audio && audioStream>=0 )
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
 
-
 			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...\n", __func__);
 			swr_init(swr);
 
@@ -691,14 +688,14 @@ if(disable_audio && audioStream>=0 )
 				goto FAIL_OR_TERM;
 			}
 		}
-		else
+		else /* sample_fmt other than AV_SAMPLE_FMT_FLTP */
 		{
 			/*  Use SWR to convert out sample rate to 44100  ...*/
-			if( sample_rate != 44100 ) {
+			if( sample_rate != 44100 && enable_audio_resample ) {
 				EGI_PDEBUG(DBG_FFPLAY,"Sample rate is %d, NOT 44.1k, try to convert...\n",sample_rate);
 				out_sample_rate=44100;
 
-			  #if 0  /* ----- METHOD(1) ----- */
+			  #if 1  /* ----- METHOD(1) ----- */
 				swr=swr_alloc();
 				av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
 				av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
@@ -708,7 +705,10 @@ if(disable_audio && audioStream>=0 )
 				av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
 
 			  #else /* ----- METHOD(2) ----- */
-				/* allocate and set opts for swr */
+				/* allocate and set opts for swr
+ 				 * out and in fmt both to be AV_SAMPLE_FMT_S16!
+				 * 'in' data referes to decoded audio pcm data, which is noninterleated.
+				 */
 				EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
 				swr=swr_alloc_set_opts( swr,
 						channel_layout, AV_SAMPLE_FMT_S16, out_sample_rate,
@@ -719,9 +719,12 @@ if(disable_audio && audioStream>=0 )
 				EGI_PDEBUG(DBG_FFPLAY,"Start swr_init() ...\n");
 				swr_init(swr);
 
-				/* alloc outputBuffer */
+				/* alloc outputBuffer for converted audio data
+				 * Suppose that we only change sample rate.
+				 * Allocate more mem. for outputBuffer as we not sure output frame size.
+				 */
 				EGI_PDEBUG(DBG_FFPLAY,"malloc outputBuffer ...\n");
-				outputBuffer=malloc( nb_channels*frame_size*bytes_per_sample);
+				outputBuffer=malloc( nb_channels*frame_size*bytes_per_sample*2);
 				if(outputBuffer == NULL)
 		       	 	{
 					EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
@@ -729,6 +732,7 @@ if(disable_audio && audioStream>=0 )
 				}
 
 				/* open pcm play device and set parameters */
+				printf("-------- prepare_ffpcm_device() ....\n");
  				if( prepare_ffpcm_device(nb_channels,out_sample_rate, false) !=0 ) /* 'true' for interleaved access */
 				{
 					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
@@ -737,7 +741,7 @@ if(disable_audio && audioStream>=0 )
 				}
 
 			}
-			/* END sample rate convert to 44100 */
+			/* ---END sample rate convert to 44100--- */
 
 			/* Directly open pcm play device and set parameters */
  			else if ( prepare_ffpcm_device(nb_channels,sample_rate, false) !=0 ) /* 'false' as for 'noninterleaved access' */
@@ -746,6 +750,8 @@ if(disable_audio && audioStream>=0 )
 											__func__);
 				goto FAIL_OR_TERM;
 			}
+			printf("-------- prepare_ffpcm_device() finish ....\n");
+
 		}
 
 		/* allocate frame for audio */
@@ -874,7 +880,7 @@ if(disable_video && videoStream>=0 )
 		return (void *)-1;
 	}
 	else
-		EGI_PDEBUG(DBG_FFPLAY, "finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
+		EGI_PDEBUG(DBG_FFPLAY, "Finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
 
 	 /* We dont need offx/offy anymore for FFmuz, all to be handled by display_MusicPic() */
 	 pic_info.vcodecID=vcodecID;
@@ -1048,24 +1054,36 @@ else
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
+					/* SWR ON, if sample_fmt == AV_SAMPLE_FMT_FLTP */
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"FLTP outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
-						else if( outputBuffer )  {  /* SWR ON,  if sample_rate != 44100 */
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
-							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer, outsamples);
+
+					/* SWR ON,  if sample_rate != 44100 */
+						else if( enable_audio_resample )  {
+		        	/* compute destination(converted) number of samples */
+			        dst_nb_samples = av_rescale_rnd( swr_get_delay(swr, sample_rate) +
+                                       	pAudioFrame->nb_samples, out_sample_rate, sample_rate, AV_ROUND_UP);
+					/* swr convert */
+					//outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples,
+					//	  (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+					ret=swr_convert(swr,&outputBuffer, dst_nb_samples,
+						  (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+                 EGI_PDEBUG(DBG_FFPLAY,"converted nb of samples=%d, dst_nb_samples=%d input frame_size=%d \n",
+						                ret, dst_nb_samples, aCodecCtx->frame_size);
+						      if(ret>0)
+							  play_ffpcm_buff( (void **)&outputBuffer, ret);
 						}
+					/* SWR OFF */
 						else {
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 						}
-
 					}
 					else if(pAudioFrame->data[0]) {  /* one channel only */
 						 //printf("One channel only\n");
-						if(sample_rate != 44100) {
+						if( enable_audio_resample )  { /* sample_rate != 44100 */
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
@@ -1080,11 +1098,12 @@ else
 					/*    ---- 1024 points FFT displaying handling ----
 					 *   Note:
 					 *     1. For sample rate 44100 only, noninterleaved.
-					 *     2. If channle >=2, framesize must > 1024, or two channel PCM 
+					 *     2. If channle >=2, framesize must > 1024, or two channel PCM
 					 *	  data will be interfered.
 					 */
 					if( pthd_audioSpectrum_running ) {
-					        if( outputBuffer )  {     /* SWR ON, if sample_rate != 44100 */
+						//printf("Load FFT data...\n");
+					        if( enable_audio_resample )  {     /* SWR ON, if sample_rate != 44100 */
 							ff_load_FFTdata(  (void **)&outputBuffer,
 									  aCodecCtx->frame_size   );
 						}
@@ -1096,14 +1115,15 @@ else
 
 
 					/* print audio playing time, only if no video stream */
+
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[audioStream]->time_base) );
 					ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
 							&pFormatCtx->streams[audioStream]->time_base) );
-/*
+
 					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
 								ff_sec_Aelapsed, ff_sec_Aduration );
-*/
+
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 

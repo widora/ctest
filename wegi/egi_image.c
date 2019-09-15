@@ -1143,7 +1143,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	egi_free_buff2D((unsigned char **)fcolors, height);
 	egi_free_buff2D(falphas, height);      /* no matter alpha off */
 
-#if 1 /* ----- FOR TEST ONLY ----- */
+#if 0 /* ----- FOR TEST ONLY ----- */
 	if(tmpeimg!=NULL) {
 		printf("return tmpeimg...\n");
 		egi_imgbuf_free(outeimg);
@@ -1152,6 +1152,62 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 #endif /* ----- FOR TEST ONLY ----- */
 
 	return outeimg;
+}
+
+
+
+/*--------------------------------------------------------------------
+Blur an EGI_IMGBUF by calling  egi_imgbuf_softavg2(). If it succeeds,
+the original imgbuf data will be updated then.
+
+Return:
+	0  	OK
+	<0	Fails
+--------------------------------------------------------------------*/
+int egi_imgbuf_blur_update(EGI_IMGBUF **pimg, int size, bool alpha_on)
+{
+	EGI_IMGBUF  *tmpimg;
+
+	if( pimg==NULL )
+		return -1;
+
+	/* Create a blured image by egi_imgbuf_softavg2() */
+	tmpimg=egi_imgbuf_avgsoft2(*pimg, size, alpha_on);
+	if(tmpimg==NULL)
+		return -2;
+
+	/* Free original imgbuf and replaced by tmpimg */
+	egi_imgbuf_free(*pimg);
+	*pimg=tmpimg;
+
+	return 0;
+}
+
+/*--------------------------------------------------------------------
+Resize an EGI_IMGBUF by calling  egi_imgbuf_resize(). If it succeeds,
+the original imgbuf data will be updated then.
+
+Return:
+	0  	OK
+	<0	Fails
+--------------------------------------------------------------------*/
+int egi_imgbuf_resize_update(EGI_IMGBUF **pimg, unsigned int width, unsigned int height)
+{
+	EGI_IMGBUF  *tmpimg;
+
+	if( pimg==NULL )
+		return -1;
+
+	/* resize the imgbuf by egi_imgbuf_resize() */
+	tmpimg=egi_imgbuf_resize(*pimg, width, height);
+	if(tmpimg==NULL)
+		return -2;
+
+	/* Free original imgbuf and replaced by tmpimg */
+	egi_imgbuf_free(*pimg);
+	*pimg=tmpimg;
+
+	return 0;
 }
 
 

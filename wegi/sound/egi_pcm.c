@@ -9,7 +9,13 @@ published by the Free Software Foundation.
 Sample:         A digital value representing a sound amplitude,
                 sample data width usually to be 8bits or 16bits.
 Channels:       1-Mono. 2-Stereo, ...
+Channel_layout: For FFMPEG: It's a 64bits integer,with each bit set for one channel:
+		0x00000001(1<<0) for AV_CH_FRONT_LEFT
+		0x00000002(1<<1) for AV_CH_FRONT_RIGHT
+		0x00000004(1<<2) for AV_CH_FRONT_CENTER
+			 ... ...
 Frame_Size:     Sizeof(one sample)*channels, in bytes.
+		(For ffmpeg: frame_size=number of frames, may refer to encoded/decoded data size.)
 Rate:           Frames per second played/captured. in HZ.
 Data_Rate:      Frame_size * Rate, usually in kBytes/s(kb/s), or kbits/s.
 Period:         Period of time that a hard ware spends in processing one pass data/
@@ -17,7 +23,9 @@ Period:         Period of time that a hard ware spends in processing one pass da
 Period Size:    Representing Max. frame numbers a hard ware can be handled for each
                 write/read(playe/capture), in HZ, NOT in bytes??
                 (different value for PLAYBACK and CAPTURE!!)
-Running show:   1536 frames for CAPTURE; 278 frames for PLAYBACK, depends on HW?
+		Also can be set in asound.conf ?
+		WM8960 running show:
+   		1536 frames for CAPTURE(default); 278 frames for PLAYBACK(default), depends on HW?
 Chunk(period):  frames from snd_pcm_readi() each time for shine enconder.
 Buffer:         Usually in N*periods
 
@@ -30,13 +38,35 @@ snd_pcm_uframes_t       unsigned long
 snd_pcm_sframes_t       signed long
 
 
+		--- FFMPEG SAMPLE FORMAT ---
+
+enum AVSampleFormat {
+    AV_SAMPLE_FMT_NONE = -1,
+    AV_SAMPLE_FMT_U8,          ///< unsigned 8 bits
+    AV_SAMPLE_FMT_S16,         ///< signed 16 bits
+    AV_SAMPLE_FMT_S32,         ///< signed 32 bits
+    AV_SAMPLE_FMT_FLT,         ///< float
+    AV_SAMPLE_FMT_DBL,         ///< double
+
+    AV_SAMPLE_FMT_U8P,         ///< unsigned 8 bits, planar
+    AV_SAMPLE_FMT_S16P,        ///< signed 16 bits, planar
+    AV_SAMPLE_FMT_S32P,        ///< signed 32 bits, planar
+    AV_SAMPLE_FMT_FLTP,        ///< float, planar
+    AV_SAMPLE_FMT_DBLP,        ///< double, planar
+
+    AV_SAMPLE_FMT_NB           ///< Number of sample formats. DO NOT USE if linking dynamically
+};
+
+
 
 Note:
 1. Mplayer will take the pcm device exclusively?? ---NOPE.
 2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
-  Mplayer interrrupted by signal 2 in Module: enable_cache
-  Mplayer interrrupted by signal 2 in Module: play_audio
+   Mplayer interrrupted by signal 2 in Module: enable_cache
+   Mplayer interrrupted by signal 2 in Module: play_audio
 
+TODO:
+1. To play PCM data with format other than SND_PCM_FORMAT_S16_LE.
 
 Midas Zhou
 -------------------------------------------------------------------*/
@@ -47,10 +77,12 @@ Midas Zhou
 #include "egi_log.h"
 #include "egi_debug.h"
 #include "egi_timer.h"
+#include "egi_cstring.h"
 
-
-static snd_pcm_t *g_ffpcm_handle;
-static bool g_blInterleaved;
+static snd_pcm_t *g_ffpcm_handle;	/* for PCM playback */
+static snd_mixer_t *g_volmix_handle; 	/* for volume control */
+static bool g_blInterleaved;		/* Interleaved or Noninterleaved */
+static char g_snd_device[256]; 		/* Pending, use "default" now. */
 
 /*-------------------------------------------------------------------------------
  Open an PCM device and set following parameters:
@@ -75,11 +107,15 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
 	/* save interleave mode */
 	g_blInterleaved=bl_interleaved;
 
+	/* set PCM device */
+	sprintf(g_snd_device,"default");
+
 	/* open PCM device for playblack */
-	rc=snd_pcm_open(&g_ffpcm_handle,"default",SND_PCM_STREAM_PLAYBACK,0);
+	rc=snd_pcm_open(&g_ffpcm_handle,g_snd_device,SND_PCM_STREAM_PLAYBACK,0);
 	if(rc<0)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s(): unable to open pcm device: %s\n",__func__,snd_strerror(rc));
+		EGI_PLOG(LOGLV_ERROR,"%s(): unable to open pcm device '%s': %s\n",
+							__func__, g_snd_device, snd_strerror(rc) );
 		//exit(-1);
 		return rc;
 	}
@@ -122,14 +158,15 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
 
 	/* get period size */
 	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
-	EGI_PDEBUG(DBG_PCM, "%s: snd pcm period size = %d frames\n",__func__, (int)frames);
+//	EGI_PDEBUG(DBG_NONE, "%s: snd pcm period size = %d frames\n",__func__, (int)frames);
+	printf("%s: snd pcm period size = %d frames\n",__func__, (int)frames);
 
 	return rc;
 }
 
 /*----------------------------------------------
   close pcm device and free resources
-
+  together with volmix.
 ----------------------------------------------*/
 void close_ffpcm_device(void)
 {
@@ -137,6 +174,11 @@ void close_ffpcm_device(void)
 		snd_pcm_drain(g_ffpcm_handle);
 		snd_pcm_close(g_ffpcm_handle);
 		g_ffpcm_handle=NULL;
+	}
+
+	if(g_volmix_handle !=NULL) {
+		snd_mixer_close(g_volmix_handle);
+		g_volmix_handle=NULL;
 	}
 }
 
@@ -186,10 +228,10 @@ void  play_ffpcm_buff(void ** buffer, int nf)
 Get current volume value from the first available channel, and then set all
 volume to the given value.
 
-pgetvol: 	(0-100), pointer to a value to pass the volume percentage.
+pgetvol: 	[0-100], pointer to a value to pass the volume percentage.
 		If NULL, ignore.
 
-psetvol: 	(0-100), volume value of percentage*100.
+psetvol: 	[0-100], volume value of percentage*100.
 		If NULL, ignore.
 
 Return:
@@ -199,21 +241,44 @@ Return:
 int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 {
 	int ret;
-	long min=-1;
-	long max=-2;
-	long vrange;
+	static long min=-1; /* selem volume value limit */
+	static long max=-2;
+	static long vrange;
 	long vol;
-	snd_mixer_t *handle;
-	snd_mixer_selem_id_t *sid;
-	snd_mixer_elem_t* elem;
-	snd_mixer_selem_channel_id_t chn;
-	//snd_mixer_selem_channel_id_t vchn;
+	static snd_mixer_selem_id_t *sid;
+	static snd_mixer_elem_t* elem;
+	static snd_mixer_selem_channel_id_t chn;
 	const char *card="default";
-	const char *selem_name="PCM";
+//	const char *selem_name="PCM";
+	static char selem_name[128]={0};
+	static bool has_selem=false;
+	static bool finish_setup=false;
 
+    /* First time init */
+    if( !finish_setup || g_volmix_handle==NULL )
+    {
+	/* must reset token first */
+	has_selem=false;
+	finish_setup=false;
+
+        /* read egi.conf and get selem_name */
+        if ( !has_selem ) {
+		if(egi_get_config_value("EGI_SOUND","selem_name",selem_name) != 0) {
+			EGI_PLOG(LOGLV_ERROR,"%s: Fail to get config value 'selem_name' \n",__func__);
+			has_selem=false;
+	                return -1;
+		}
+		else {
+			EGI_PLOG(LOGLV_INFO,"%s: Succeed to get config value selem_name='%s' \n",
+										__func__, selem_name);
+			has_selem=true;
+		}
+	}
+
+	//printf(" --- Selem: %s --- \n", selem_name);
 
 	/* open an empty mixer */
-	ret=snd_mixer_open(&handle,0); /* 0 unused param*/
+	ret=snd_mixer_open(&g_volmix_handle,0); /* 0 unused param*/
 	if(ret!=0){
 		EGI_PLOG(LOGLV_ERROR, "%s: Open mixer fails: %s",__func__, snd_strerror(ret));
 		ret=-1;
@@ -221,7 +286,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	}
 
 	/* Attach an HCTL specified with the CTL device name to an opened mixer */
-	ret=snd_mixer_attach(handle,card);
+	ret=snd_mixer_attach(g_volmix_handle,card);
 	if(ret!=0){
 		EGI_PLOG(LOGLV_ERROR, "%s: Mixer attach fails: %s", __func__, snd_strerror(ret));
 		ret=-2;
@@ -229,18 +294,18 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	}
 
 	/* Register mixer simple element class */
-	ret=snd_mixer_selem_register(handle,NULL,NULL);
+	ret=snd_mixer_selem_register(g_volmix_handle,NULL,NULL);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"%s: snd_mixer_selem_register(): Mixer simple element class register fails: %s",
+		EGI_PLOG(LOGLV_ERROR,"%s: snd_mixer_selem_register(): Mixer simple element class register fails: %s\n",
 									__func__, snd_strerror(ret));
 		ret=-3;
 		goto FAILS;
 	}
 
 	/* Load a mixer element	*/
-	ret=snd_mixer_load(handle);
+	ret=snd_mixer_load(g_volmix_handle);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"%s: Load mixer element fails: %s",__func__, snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s: Load mixer element fails: %s\n",__func__, snd_strerror(ret));
 		ret=-4;
 		goto FAILS;
 	}
@@ -249,13 +314,13 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	snd_mixer_selem_id_alloca(&sid);
 	/* Set index part of a mixer simple element identifier */
 	snd_mixer_selem_id_set_index(sid,0);
-	/* Set name  part of a mixer simple element identifier */
+	/* Set name part of a mixer simple element identifier */
 	snd_mixer_selem_id_set_name(sid,selem_name);
 
 	/* Find a mixer simple element */
-	elem=snd_mixer_find_selem(handle,sid);
+	elem=snd_mixer_find_selem(g_volmix_handle,sid);
 	if(elem==NULL){
-		EGI_PLOG(LOGLV_ERROR, "%s: snd_mixer_find_selem() Find mixer simple element fails.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to find mixer simple element '%s'.\n",__func__, selem_name);
 		ret=-5;
 		goto FAILS;
 	}
@@ -272,25 +337,42 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 
 	/* get volume , ret=0 Ok */
         for (chn = 0; chn < 32; chn++) {
+		/* Master control channel */
+                if (chn == 0 && snd_mixer_selem_has_playback_volume_joined(elem)) {
+			EGI_PLOG(LOGLV_CRITICAL,"%s: '%s' channle 0, Playback volume joined!\n",
+										selem_name, __func__);
+			finish_setup=true;
+                        break;
+		}
+		/* Other control channel */
                 if (!snd_mixer_selem_has_playback_channel(elem, chn))
                         continue;
-		ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol);
-		if(ret<0) {
-			EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.\n",
-											__func__, chn);
-			ret=-7;
-			goto FAILS;
-		}
 		else {
-			if(pgetvol!=NULL) {
-				*pgetvol=vol*100/vrange;
-				//printf("Get palyback volume: %ld[%d] on channle %d.\n",vol,*pgetvol,chn);
-			}
-			break; /* break */
+			finish_setup=true;
+			break;
 		}
-                if (chn == 0 && snd_mixer_selem_has_playback_volume_joined(elem))
-                        break;
         }
+
+	/* Fail to find a control channel */
+	if(finish_setup==false) {
+		ret=-8;
+		goto FAILS;
+	}
+
+     }	/*  ---------   Now we finish first setup  ---------  */
+
+	/* try to get volum value on the channel */
+	ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol);
+	if(ret<0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.\n",
+										__func__, chn);
+		ret=-7;
+		goto FAILS;
+	}
+	if( pgetvol!=NULL ) {
+		*pgetvol=vol*100/vrange;
+		//printf("Get palyback volume: %ld[%d] on channle %d.\n",vol,*pgetvol,chn);
+	}
 
 	/* set volume, ret=0 OK */
 	//snd_mixer_selem_set_playback_volume_all(elem, val);
@@ -298,14 +380,24 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 
 	/* set volume, ret=0 OK */
 	if(psetvol != NULL) {
-		vol=(*psetvol)%100*vrange/100;
+		/* limit input to [0-100] */
+		if(*psetvol > 100)
+			*psetvol=100;
+		//printf("min=%ld, max=%ld\n",min,max);
+		vol=(*psetvol)*vrange/100;
+		/* normalize vol */
+		if(vol > max) vol=max;
+		else if(vol < min) vol=min;
 	        snd_mixer_selem_set_playback_volume_all(elem, vol );
 		//printf("Set playback all volume to: %ld.\n",vol);
 	}
 
-	ret=0;
+	return 0;
+
  FAILS:
-	snd_mixer_close(handle);
+	snd_mixer_close(g_volmix_handle);
+	g_volmix_handle=NULL;
+
 	return ret;
 }
 

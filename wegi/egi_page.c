@@ -659,7 +659,7 @@ int egi_page_refresh(EGI_PAGE *page)
 #if 1 /* debug only */
 		if(ret==0)
 		    EGI_PDEBUG(DBG_PAGE,"refresh page '%s' list item ebox: '%s' with ret=%d \
-			 	\n ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+			 	 	ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
 #endif
 	}
 
