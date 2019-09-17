@@ -944,7 +944,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	unsigned char 	**falphas=NULL;
 
 
-	if(ineimg==NULL || ineimg->imgbuf==NULL ) //|| width==0 || height==0 ) adjust to 2
+	if( ineimg==NULL || ineimg->imgbuf==NULL ) //|| width==0 || height==0 ) adjust to 2
 		return NULL;
 
 	unsigned int oldwidth=ineimg->width;
@@ -1166,9 +1166,9 @@ Return:
 --------------------------------------------------------------------*/
 int egi_imgbuf_blur_update(EGI_IMGBUF **pimg, int size, bool alpha_on)
 {
-	EGI_IMGBUF  *tmpimg;
+	EGI_IMGBUF  *tmpimg=NULL;
 
-	if( pimg==NULL )
+	if( pimg==NULL || *pimg==NULL )
 		return -1;
 
 	/* Create a blured image by egi_imgbuf_softavg2() */
@@ -1195,7 +1195,7 @@ int egi_imgbuf_resize_update(EGI_IMGBUF **pimg, unsigned int width, unsigned int
 {
 	EGI_IMGBUF  *tmpimg;
 
-	if( pimg==NULL )
+	if( pimg==NULL || *pimg==NULL )
 		return -1;
 
 	/* resize the imgbuf by egi_imgbuf_resize() */

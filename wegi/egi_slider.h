@@ -16,11 +16,12 @@ Midas Zhou
 
 EGI_DATA_BTN *egi_sliderdata_new(
                                 /* for btnbox */
-                                int id, enum egi_btn_type shape,
+                                int id, enum egi_btn_type btn_shape,
                                 struct symbol_page *icon, int icon_code,
                                 struct symbol_page *font,
 
                                 /* for slider */
+				enum egi_slid_type   slid_type, /* slider type */
                                 EGI_POINT pxy,
                                 int swidth, int slen,
                                 int value,       /* usually to be 0 */
@@ -41,6 +42,8 @@ EGI_EBOX * egi_slider_new(
 
 int egi_slider_activate(EGI_EBOX *ebox);
 int egi_slider_refresh(EGI_EBOX *ebox);
+int egi_slider_setpsval(EGI_EBOX *ebox, int psval);
+EGI_DATA_SLIDER *egi_slider_getdata(EGI_EBOX *slider);
 void egi_free_data_slider(EGI_DATA_BTN *data_btn);
 
 

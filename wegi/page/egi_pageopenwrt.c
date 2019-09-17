@@ -55,7 +55,7 @@ EGI_PAGE *egi_create_openwrtpage(void)
                 {
 			/* 1. create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
-							square, /* enum egi_btn_type shape */
+							btnType_square, /* enum egi_btn_type shape */
 							NULL, /* for icon, struct symbol_page *icon */
 							0, /* int icon_code */
 							&sympg_testfont /* for ebox->tag font */

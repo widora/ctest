@@ -726,7 +726,7 @@ int egi_page_disappear(EGI_EBOX *ebox)
 	return 0;
 }
 
-
+#if 0 /////////////////////////////////////////////////////////////////
 /*------------------------------------------------------------------
 Duplicate a new ebox and its egi_data from an input ebox.
 
@@ -774,6 +774,7 @@ EGI_EBOX *egi_copy_btn_ebox(EGI_EBOX *ebox)
 	return newbox;
 }
 
+
 /*--------------------------------------------------------------------
 Set icon substitue color for a button ebox
 
@@ -812,3 +813,4 @@ int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor)
 
 	return 0;
 }
+#endif ///////////////////////////////

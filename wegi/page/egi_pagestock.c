@@ -63,7 +63,7 @@ EGI_PAGE *egi_create_pagestock(void)
         {
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(i, /* int id */
-						square, /* enum egi_btn_type shape */
+						btnType_square, /* enum egi_btn_type shape */
 						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */

@@ -434,7 +434,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
            	fbset_color(ebox->prmcolor);
 		switch(data_btn->shape)
 		{
-			case square:
+			case btnType_square:
 			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
         			/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
@@ -443,7 +443,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
                 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 			        }
 				break;
-			case circle:
+			case btnType_circle:
 				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
         			/* --- draw frame --- */
@@ -751,7 +751,7 @@ void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
            	fbset_color(ebox->prmcolor);
 		switch(data_btn->shape)
 		{
-			case square:
+			case btnType_square:
 			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
         			/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
@@ -760,7 +760,7 @@ void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num)
                 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 			        }
 				break;
-			case circle:
+			case btnType_circle:
 				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
         			/* --- draw frame --- */
@@ -950,4 +950,95 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	 *    	 trigger egi_ebox_forcerefresh().
 	 */
 }
+
+
+
+/*--------------------------------------------------------------------
+Set icon substitue color for a button ebox
+
+Note:
+    Pure BLACK set as transparent color, so here black subcolor should
+    not be 0 !!!
+
+return:
+        0       OK
+        <0      fail
+--------------------------------------------------------------------*/
+int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor)
+{
+        /* check data */
+        if( ebox==NULL || ebox->egi_data==NULL )
+        {
+                printf("egi_btnbox_setsubcolor(): input ebox is invalid or NULL!\n");
+                return -1;
+        }
+
+        /* confirm ebox type */
+        if(ebox->type != type_btn)
+        {
+                printf("egi_btnbox_setsubcolor(): Not button type ebox!\n");
+                return -2;
+        }
+
+        /* Pure BLACK set as transparent color, so here black subcolor should NOT be 0 */
+        if(subcolor==0)subcolor=1;
+
+        /* set subcolor in icon_code: SUBCOLOR(16bits) + CODE(16bits) */
+        EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+        data_btn->icon_code = ((data_btn->icon_code)&0x0000ffff)+(subcolor<<16);
+
+        //printf("%s(): subcolor=0x%04X, set icon_code=0x%08X \n",__func__, subcolor, data_btn->icon_code);
+
+        return 0;
+}
+
+
+/*------------------------------------------------------------------
+Duplicate a new ebox and its egi_data from an input ebox.
+
+TODO:  Dangerous!  Not tested!!
+
+return:
+        EGI_EBOX pointer        OK
+        NULL                    fail
+--------------------------------------------------------------------*/
+EGI_EBOX *egi_copy_btn_ebox(EGI_EBOX *ebox)
+{
+        /* check data */
+        if( ebox==NULL || ebox->egi_data==NULL )
+        {
+                printf("egi_copy_btn_ebox(): input ebox is invalid or NULL!\n");
+                return NULL;
+        }
+        /* confirm ebox type */
+        if(ebox->type != type_btn)
+        {
+                printf("egi_copy_btn_ebox(): Not button type ebox!\n");
+                return NULL;
+        }
+
+        /* copy data_btn */
+        EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)malloc(sizeof(EGI_DATA_BTN));
+        if(data_btn==NULL)
+        {
+                printf("egi_copy_btn_ebox(): malloc data_btn fails!\n");
+                return NULL;
+        }
+        *data_btn=*((EGI_DATA_BTN *)(ebox->egi_data));
+
+        /* copy EGI_EBOX */
+        EGI_EBOX *newbox=(EGI_EBOX *)malloc(sizeof(EGI_EBOX));
+        if(newbox==NULL)
+        {
+               printf("egi_copy_btn_ebox(): malloc newbox fails!\n");
+               return NULL;
+        }
+        *newbox=*ebox;
+
+        /* assign egi_data */
+        newbox->egi_data=(void *)data_btn;
+
+        return newbox;
+}
+
 

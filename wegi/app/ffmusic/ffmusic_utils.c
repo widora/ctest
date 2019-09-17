@@ -21,17 +21,15 @@ Midas_Zhou
 #include "utils/egi_utils.h"
 #include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
-
+#include "ffmusic.h"
 #include "ffmusic_utils.h"
 
 /* in seconds, playing time elapsed for Video */
-int ff_sec_Velapsed;
+//int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 
-FBDEV ff_fb_dev;
-
 /* ff control command */
-enum ffmuz_cmd control_cmd;
+enum ffmuz_cmd control_cmd;	/* Open to module caller for command convey  */
 
 /* predefine seek position */
 //long start_tmsecs=60*95; /* starting position */
@@ -40,11 +38,13 @@ enum ffmuz_cmd control_cmd;
  * 1. Thanks to slow SPI transfering speed, producing speed is usually greater than consuming speed.
  * 2. Following keys to be initialized in ff_malloc_PICbuffs().
  */
-static int ifplay;		/* current playing frame index of pPICbuffs[] */
-static unsigned long nfc;	/* total frames read from pPICbuffs and consumed */
-static unsigned long nfp;	/* total frames produced and copied to pPICbuffs */
+static int ifplay;		/* Current playing frame index of pPICbuffs[] */
+static unsigned long nfc;	/* Total frames read from pPICbuffs and consumed */
+static unsigned long nfp;	/* Total frames produced and copied to pPICbuffs */
 
-static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
+static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures
+				  * malloc in thread_ffplay_music(), free in display_MusicPic()
+				  */
 
 static bool IsFree_PICbuff[PIC_BUFF_NUM]={true,true,true};  /* Tag to indicate availiability of pPICbuffs[x].
 						    * True:  Obsoleted data inside, ready for new data input.
@@ -54,10 +54,15 @@ static bool IsFree_PICbuff[PIC_BUFF_NUM]={true,true,true};  /* Tag to indicate a
 						    */
 
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
-static bool bkimg_updated;  /* back ground image for music playing */
-static bool pic_off;
+static bool bkimg_updated;  	/* TRUE: Indicating back ground image for music playing is updated,
+			     	 * It will reset to FALSE when display_MusicPic() exits.
+			     	 */
+static bool pic_off;	    	/* TRUE: Indicating there is no picture embedded in the audio file,
+			     	 *       or it's disabled by user.
+			     	 */
 
-/*--------------------------------------------------------------
+/*----------------------------------
+----------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
 
@@ -102,8 +107,8 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
         return pPICbuffs;
 }
 
-/*----------------------------------------
-return a free PICbuff slot/tag number
+/*-------------------------------------------
+Return a free PICbuff slot/tag number.
 
 Return value:
         >=0  OK
@@ -128,7 +133,7 @@ static inline int ff_get_FreePicBuff(void)
 }
 
 /*----------------------------------
-   free pPICbuffs
+   	Free pPICbuffs
 ----------------------------------*/
 static void ff_free_PicBuffs(void)
 {
@@ -175,8 +180,8 @@ void* display_MusicPic(void * argv)
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF  *tmpimg=NULL;
-   EGI_IMGBUF  *tmpimg2=NULL;
-   EGI_IMGBUF  *pageimg=NULL; /* PAGE to show the pic */
+//   EGI_IMGBUF  *tmpimg2=NULL;
+//   EGI_IMGBUF  *pageimg=NULL; /* PAGE frame_img */
    EGI_IMGBUF *imgbuf=NULL;
 
    imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
@@ -196,53 +201,60 @@ void* display_MusicPic(void * argv)
 	pic_off=true;
 	printf("%s: No picture in the media file, use default wallpaper.\n", __func__);
 
-	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
-        /* Free old imgbuf */
-	egi_imgbuf_free(ppic->app_page->ebox->frame_img);
-	ppic->app_page->ebox->frame_img=NULL;
-
-	/* load pic to imgbuf */
+	/* Load pic to imgbuf */
 	tmpimg=egi_imgbuf_alloc();
 	if(tmpimg==NULL) {
 		EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for tmpimg \n",__func__);
 		return (void *)-1;
    	}
-	if( egi_imgbuf_loadjpg(wallpaper,tmpimg)!=0 && egi_imgbuf_loadpng(wallpaper,tmpimg)!=0 ) {
-	 	 printf("%s: Fail to load file '%s' to imgbuf!\n", __func__, wallpaper);
-		 //Go on...
+	if( egi_imgbuf_loadjpg(wallpaper,tmpimg)!=0 ) {
+		if ( egi_imgbuf_loadpng(wallpaper,tmpimg)!=0 ) {
+		 	 EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!\n", __func__, wallpaper);
+			 //Go on...
+		}
 	}
 
 	/* blur and resize the imgbuf  */
-	blur_size=tmpimg->height/45;
-	if( tmpimg->height <240 ) {		/* Small size image, blur then resize */
+	blur_size=tmpimg->height/50;
+	if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 	}
-	else if(tmpimg) {			/* Big size image, resize then blur */
+	else if(tmpimg) {			/* B. If a big size image, resize then blur */
 		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 	}
 
-	/* To load default picture */
-	ppic->app_page->ebox->frame_img=tmpimg; tmpimg=NULL; /* Ownership transfered */
+        /* Free old frame_img in PAGE */
+	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
+	egi_imgbuf_free(ppic->app_page->ebox->frame_img);
+	ppic->app_page->ebox->frame_img=NULL;
+
+	/* Assign frame_img/default picture to PAGE */
+	ppic->app_page->ebox->frame_img=tmpimg; tmpimg=NULL; /* Ownership transfered!!! */
 	ppic->app_page->fpath=wallpaper; /* Second selection, if tmpimg == NULL */
 
-	/* Put to page and its child eboxes */
+	/* Put to page and its child eboxes for refresh */
 	egi_page_needrefresh(ppic->app_page);
 
-	/* Display song name/file name, TODO: to put to an txt ebox!  */
-	tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
+	/* Wait for PAGE to refresh wallpaper first. make sure that this is the only thread
+	 * to affect PAGE rendering.
+	 * TODO: Race condition exists with PAGE routine, Put fname to an TXT ebox....
+         */
+	while(ppic->app_page->ebox->need_refresh==true)
+		tm_delayms(25);
+
  	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                               		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                               	240, 2, 0,                      /* pixpl, lines, gap */
                                    	0, 10,                          /* x0,y0, */
-               	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
+               	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor, opaque */
 	/* set token */
 	bkimg_updated=true;
    }
    else {	/* 2. A picture embeded in the media file. */
 	   pic_off=false;
-   	   /* check if it's image, TODO: still or motion image */
+   	   /* check if it's image, 	TODO: still or motion picture */
 	   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
 		   still_image=true;
 		   imgbuf->width=ppic->width;
@@ -255,11 +267,14 @@ void* display_MusicPic(void * argv)
 	   }
     }
 
+
    /* check picture size limit --- Ignored! */
 
+   /* --- Loop Checking pPICbuff[] and put to display --- */
    while(1)
    {
-	   nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
+	   /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
+	   nfc_tmp=nfc;
 	   for(i=0; i<PIC_BUFF_NUM; i++) /* to display all pic buff in pPICbuff[] */
 	   {
 		/* Breadk if no picture */
@@ -269,7 +284,8 @@ void* display_MusicPic(void * argv)
 		if( IsFree_PICbuff[index]==false ) {
 			/* set index of pPICbuff[] for current playing frame*/
 			ifplay=index;
-			//printf("%s: get imgbuf from pPICbuffs[%d]...\n",__func__, index);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Get image data from pPICbuffs[%d] and put to imgbuf.\n",
+										 __func__, index);
 			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
 		   	/* put a FREE tag after display, then it can be overwritten. */
@@ -283,99 +299,118 @@ void* display_MusicPic(void * argv)
 		}
 	   }
 
-  	  /* Call only once...,  XXXXX revive slot [0] for still image */
+	  /* Still picture handling */
 	  if( still_image )  {
-
-		/* reset PAGE  wallpaper imgbuf */
+		/* reset PAGE frame_img,
+                 * Call only once for bkimg_updated....
+		 */
 		if( !bkimg_updated && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
 			printf("%s: Start to set imgbuf as PAGE wallpaper...\n",__func__);
-			/* free old imgbuf, pic->imgbuf refer to PAGE->ebox->frame_img */
-			egi_imgbuf_free(pageimg); pageimg=NULL;
 
+	                /*--- 1. Copy a Block from the image ---*/
 			/* If original image ratio is H4:W3, just same as LCD ratio. */
 			if( imgbuf->height*3 == (imgbuf->width<<2) ) {
 				printf("%s: embedded picture ratio 4:3\n",__func__);
 				tmpimg=egi_imgbuf_blockCopy(imgbuf,  0, 0,  	       /* eimg, xp,yp */
  						imgbuf->height, imgbuf->width );       /* H, W*/
 			}
-			/* Else if original image is square, then copy a H4:W3 block from it. */
+			/* Else if original image is square, or whatever else....
+			 * then copy a H4:W3 block from it. */
 			else {
 				printf("%s: embedded picture ratio is NOT 4:3\n",__func__);
 				tmpimg=egi_imgbuf_blockCopy(imgbuf,  imgbuf->width>>3, 0,  /* eimg, xp,yp */
  						imgbuf->height, imgbuf->width*3/4 );       /* H, W*/
 			}
+			/* Assert tmpimg */
+			if(tmpimg==NULL) {
+ 			        EGI_PLOG(LOGLV_ERROR,"%s: imgbuf block copy fails, tmpimg is NULL!\n",__func__);
+				nfc=1; 		/* since ff_get_FreePicBuff() from 1, not 0. */
+				IsFree_PICbuff[1]=false;
+			    	continue; /* continue while() */
+			}
 
-			/* resize(new alloc) to whole screen size and assign */
-			printf("%s: resize imgbuf...\n",__func__);
-			tmpimg2=egi_imgbuf_resize(tmpimg, xsize, ysize);
-			if(tmpimg2==NULL)
-				printf("%s: Fail to resize imgbuf.\n",__func__);
+			/*--- 2. Blur and resize the imgbuf ---*/
+			blur_size=imgbuf->height/100; /* original imgbuf */
+			if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
+				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
+				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
+			}
+			else if(tmpimg) {			/* B. If a big size image, resize then blur */
+				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
+				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
+			}
 
-			/* blur the image... */
-			printf("%s: soft blur the imgbuf...\n",__func__);
-			blur_size=tmpimg2->height/45;
-			pageimg=egi_imgbuf_avgsoft(tmpimg2, blur_size, false, false); /*ineimg, size, alpha_on, hold_on */
-			if(pageimg==NULL)
-				printf("%s: Fail to avgsoft imgbuf.\n",__func__);
+			/*--- 3. Put image pointer to PAGE ---*/
+			/* Free old imagbuf
+			 * !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF.
+		         */
+			egi_imgbuf_free(ppic->app_page->ebox->frame_img);
+			ppic->app_page->ebox->frame_img=tmpimg; tmpimg=NULL; /* Ownership transfered! */
 
-			/* free tmpimg */
-			egi_imgbuf_free(tmpimg); tmpimg=NULL;
-			egi_imgbuf_free(tmpimg2); tmpimg2=NULL;
-
-			/* Put to PAGE */
-			ppic->app_page->ebox->frame_img=pageimg;
-
-			/* Need to refresh PAGE in routine */
+			/*--- 4. Need to refresh PAGE in routine ---*/
 			printf("%s: set page frame_img needrefresh...\n",__func__);
 			egi_page_needrefresh(ppic->app_page);/* page and its child eboxes */
 
-			/* reset update token */
+			/* Wait for PAGE to refresh wallpaper first. make sure that this is the only thread
+			 * to affect PAGE rendering.
+			 * TODO: Race condition exists with PAGE routine, Put fname to an TXT ebox....
+		         */
+			while(ppic->app_page->ebox->need_refresh==true)
+				tm_delayms(25);
+
+			/*--- 5. Reset update token ---*/
 			bkimg_updated=true;
 
-			/* refreshing file name... or add it to the imgbuf */
-			tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
+			/*--- 6. Refreshing file name... or add it to the imgbuf ---*/
+			//tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
 			/* Display song name/file name, TODO: to put to an txt ebox!  */
         		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                                     		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                                    	240, 2, 0,                      /* pixpl, lines, gap */
         	                            	0, 10,                          /* x0,y0, */
-                	                    	WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
-		}
+                	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor,opaque */
 
-		tm_delayms(500);
+		} /* End set PAGE frame_img as song file embedded image */
+
+		tm_delayms(100);
 
 		/* reset token  --- !!! Not necessary anymore, pic is put to page->ebox->frame_img. */
 		#if 0
 		nfc=1; 		/* since ff_get_FreePicBuff() from 1, not 0. */
 		IsFree_PICbuff[1]=false;
 		#endif
-	  }
+	  } /* End still_image handling */
+	  /* ELSE: if motion pciture...TBD & TODO. */
 
-	   /* quit ffplay */
+	   /* Check command & Quit thread function */
 	   if(control_cmd == cmd_exit_display_thread ) {
-		EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Exit commmand is received!\n",__func__);
 		break;
 	   }
 
 	  tm_delayms(25);
 	  //usleep(2000);
-  }
 
-  /*  Free frame_img of PAGE:
+  } /* End While() */
+
+  /* Free tmpimg */
+  egi_imgbuf_free(tmpimg);
+
+  /*  ------- Free frame_img of PAGE -----
    *  !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!
    *  However we have a mutex lock in EGI_IMGBUF.
    */
   egi_imgbuf_free(ppic->app_page->ebox->frame_img);
   ppic->app_page->ebox->frame_img=NULL;
 
+  /* Reset bkimg_updated */
+  bkimg_updated=false;
 
-
-  /* reset bkimg_updated */
-   bkimg_updated=false;
-
+  /* Free PicBuffs */
   ff_free_PicBuffs();
 
-  imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() */
+  /* Free imgbuf, WARN: imgbuf->imgbuf refers to PICbuffs[] */
+  imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() already. */
   egi_imgbuf_free(imgbuf);
 
   return (void *)0;
@@ -526,7 +561,6 @@ void* thdf_Display_Subtitle(void * argv)
 //		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
 		} while( end_secs > ff_sec_Velapsed - ff_sub_delays );
 
-
        	        /* 7. section number or a return code, ignore it. */
                 memset(strtm,0,sizeof(strtm));
        	        fgets(strtm,32,fil);
@@ -676,7 +710,7 @@ static  bool	factors_ready=false;
         int             sx0;
         int             spwidth=200;    	/* displaying width for the spectrum diagram */
 	int		hlimit=120; //60;	/* displaying spectrum height limit */
-	int		dybase=240;     	/* Y, base line for spectrum */
+	int		dybase=210;     	/* Y, base line for spectrum */
 	int		dylimit=dybase-hlimit;
 	int		nk[32]=			/* sort index of ffx[] for sdx[], ng=32 */
 	{   2, 4, 8, 16, 24, 32, 40, 48,
@@ -711,15 +745,14 @@ static  bool	factors_ready=false;
 	}
 
 	/* keep waiting untill back ground image updated */
-	while( !bkimg_updated && !pic_off)
+	while( !bkimg_updated && control_cmd != cmd_exit_audioSpectrum_thread )
 		tm_delayms(25);
+
 
   printf("%s: Start loop FFT ...\n",__func__);
   /*  ------------------------  LOOP FFT  ---------------------  */
   while(1) {
-
      if(FFTdata_ready) {
-        //printf("%s: FFTdata read ...\n",__func__);
 #if 1   /* Apply Hamming window  */
 	for(i=0; i<FFT_POINTS; i++)
 		 fft_nx[i]=mat_FixIntMult(hamming[i], fft_nx[i]);
@@ -733,7 +766,7 @@ static  bool	factors_ready=false;
         mat_egiFFFT(np, wang, NULL, fft_nx, ffx);
 
         /* update sdy */
-#if 0  /*   1. Symmetric spectrum diagram  */
+#if 0  /***   1. Symmetric spectrum diagram (TBD)  */
         for(i=0; i<ns; i++) {
                 sdy[i]=dybase-( mat_uintCompAmp( ffx[i*ng])>>(nexp-1 -5) ); //(nexp-1) );
                 /* trim sdy[] */
@@ -741,12 +774,12 @@ static  bool	factors_ready=false;
                        sdy[i]=0;
         }
 
-#else  /*  2. Normal spectrum diagram  */
-
-	/* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz   */
-	/* fs=16k,
-	/* fs=44.1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k  */
-	/* fs=48k,   1024 elements, resolution abt. 48Hz, step=32, 48*32=1.5k  */
+#else  /***  2. Normal spectrum diagram
+	* fs=8k,    1024 elements, resolution abt. 8Hz,  Spectrum spacing step*8Hz
+	* fs=16k,
+	* fs=44.1k, 1024 elements, resolution abt. 44Hz, step=32, 44*32=1.4k
+	* fs=48k,   1024 elements, resolution abt. 48Hz, step=32, 48*32=1.5k
+	*/
  	for(i=0; i<ns; i++) {
         	/* map sound wave amplitude to sdy[] */
 		if(i<8) {  /* +1 to depress low frequency amplitude, since most of audio wave energy is
@@ -792,7 +825,6 @@ static  bool	factors_ready=false;
 	}
 
 	/* draw spectrum */
-#if 1
         fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
         fb_filo_on(&fbdev);    /* start collecting old FB pixel data */
 
@@ -800,9 +832,8 @@ static  bool	factors_ready=false;
 		draw_wline_nc(&fbdev, sdx[i], dybase, sdx[i], sdy[i], 3); /* TODO fix 0 width wline--NOPE! */
         }
         fb_filo_off(&fbdev); /* turn off filo */
-#endif
 
-	FFTdata_ready=false;
+	FFTdata_ready=false; /* reset indicator */
 
      } /* end if(FFTdata_ready)  */
 
@@ -818,7 +849,7 @@ static  bool	factors_ready=false;
 
    /* free mem and resource */
    //fb_filo_dump(&fbdev); /* to dump */
-   fb_filo_flush(&fbdev); /* flush and restore old FB pixel data */
+   fb_filo_flush(&fbdev); /*  flush and restore old FB pixel data */
    release_fbdev(&fbdev);
 }
 

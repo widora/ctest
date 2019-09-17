@@ -61,7 +61,7 @@ EGI_PAGE *egi_create_slidepage(void)
                 {
 			/* 1. create new data_btns */
 			data_btns[3*i+j]=egi_btndata_new(3*i+j, /* int id */
-							circle, /* enum egi_btn_type shape */
+							btnType_circle, /* enum egi_btn_type shape */
 							NULL, /* struct symbol_page *icon */
 							0, /* int icon_code */
 							&sympg_testfont /* for ebox->tag font */

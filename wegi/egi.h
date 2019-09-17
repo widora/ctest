@@ -99,8 +99,16 @@ enum egi_ebox_status
 */
 enum egi_btn_type
 {
-	square=0, /* default, or rectangle */
-	circle,
+	btnType_square=0,  /* default, or rectangle */
+	btnType_circle,
+};
+
+/*  Slider type */
+enum egi_slid_type
+{
+	slidType_horiz=0,	/* horizontal */
+	slidType_vert=1,	/* vertical */
+	slidType_circle=2,	/* circle   */
 };
 
 
@@ -250,9 +258,10 @@ struct egi_element_box
 	   4.Not applicable for an immovable ebox.
       */
 	uint16_t *bkimg;
-	bool bkimg_valid;  /* 1. To indicate that ebox->bkimg shall copy to or from FB.
-			    * 2. If ebox position is if out of its container PAGE box, bkimg_valid reset
-			    * to false, see in egi_btnbox_refresh().
+	bool bkimg_valid;  /* Only ebox btn is applied now.
+			    * 1. To indicate that ebox->bkimg shall copy to or from FB.
+			    * 2. If ebox position is out of its container PAGE box, bkimg_valid reset
+			    *    to false, see in egi_btnbox_refresh().
 			    */
 
 	/* tracking box coordinates for image backup
@@ -481,37 +490,45 @@ struct egi_data_list
 
 
 /* egi data for a slider type ebox
-  0.  Adjusting range to be  0 - maxval;
-  1.  The hosting ebox's W/H defines the MAX. outline of a sliding bar,
+  0.  As a slider, the egi_data_slider is referred by egi_data_btn->prvdata.
+      and this data will NOT be allocated/created explicitly, usually it will be
+      created in EGI_DATA_BTN *egi_sliderdata_new(), as private data of egi_data_btn.
+  1.  Adjusting range to be  0 - maxval;
+  2.  The hosting ebox's W/H defines the MAX. outline of a sliding bar,
       It covers/surrounds all geometries, it's all the limit size for the slot.
       Usually the Height of hosting ebox and slider to be the same.
 
-  2.  The egi_data_slider.slider  defines the the sliding button on the bar.
-      It should have reaction methods for EGI_TOUCH_DATA.
+  3.  The egi_data_slider.slider  defines the the sliding button on the bar.
+      It MAY have reaction methods for EGI_TOUCH_DATA.
 
-  3.  The geometry of the slot bar and/or the slider will be replaced by icons,
+  4.  The geometry of the slot bar and/or the slider will be replaced by icons,
       if they'are defined as so.
 */
 //typedef struct egi_data_slider EGI_DATA_SLIDER;
 struct egi_data_slider
 {
-	/* start point of the slider
-	 *  for Horizontal type, start point is at left of the LCD,
-	 *  for Vertical type, start point is at down part of the LCD, with bigger Y,
+	/* starting end point of a slider axis line.
+	 *  For Horizontal type, start point is the left end point, with smaller X value.
+	 *  For Vertical type, start point is the lower end point, with bigger Y value,
 	 */
 	EGI_POINT sxy;
 
-	/* position type of the sliding bar */
-	int ptype; /* 0--Horizontal, 1--Vertical */
+	/* position/shape type of the sliding bar */
+	//int ptype;
+	enum egi_slid_type ptype;    /*** NOW only 2 types applied, H and V.
+				      * 0 -- Horizontal,
+				      * 1 -- Vertical,
+				      * 2 -- Circle
+				      */
 
 	/* width and length of a bar slot */
 	int	sw;  /* at least>0 */
 	int	sl;
 
 	/* indicating value, part of ls */
-	int 	val; /* range: 0-ls */
+	int 	val; /* range: 0-(ls-1) */
 
-	/* color for the valued bar and remainded bar */
+	/* color for the valued bar and remainded/void bar */
 	EGI_16BIT_COLOR color_valued;
 	EGI_16BIT_COLOR color_void;
 	EGI_16BIT_COLOR color_slider; /* only if it applys */
@@ -611,7 +628,6 @@ struct egi_page
 	 */
 	struct list_head list_head; /* list head for child eboxes */
 
-
 	/* --- !!! page routine function : threads pusher and job pusher ----
          *  1. detect pen_touch and trigger buttons.
 	 *  2. refresh page (wallpaper and ebox in list).
@@ -685,13 +701,13 @@ int egi_ebox_free(EGI_EBOX *ebox);
 /* for egi page */
 int egi_page_disappear(EGI_EBOX *ebox);
 
-/* for button ebox */
-int egi_btnbox_activate(EGI_EBOX *ebox);
-int egi_btnbox_refresh(EGI_EBOX *ebox);
-void egi_free_data_btn(EGI_DATA_BTN *data_btn);
-int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
 
+/* for button ebox */
+//int egi_btnbox_activate(EGI_EBOX *ebox);
+//int egi_btnbox_refresh(EGI_EBOX *ebox);
+//void egi_free_data_btn(EGI_DATA_BTN *data_btn);
+//int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
 /* copy ebox */
-EGI_EBOX * egi_copy_btn_ebox(EGI_EBOX *ebox);
+//EGI_EBOX * egi_copy_btn_ebox(EGI_EBOX *ebox);
 
 #endif

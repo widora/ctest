@@ -102,12 +102,12 @@ EGI_PAGE *egi_create_mplaypage(void)
                 {
 			/* 1. create new data_btns */
 			if(3*i+j == 5) {/* make last button square */
-				btn_type=square;
+				btn_type=btnType_square;
 				btnW=60;
 				btnH=60;
 			}
 			else {
-				btn_type=circle;
+				btn_type=btnType_circle;
 				btnW=66;
 				btnH=66;
 			}
@@ -187,11 +187,12 @@ EGI_PAGE *egi_create_mplaypage(void)
 	//printf("-------pvol=%%%d-----\n",pvol);
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(	/* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
 	                                /* for btnbox */
-        	                        SLIDER_ID, square,  	/* int id, enum egi_btn_type shape */
+        	                        SLIDER_ID, btnType_square,  	/* int id, enum egi_btn_type shape */
                 	                NULL,		/* struct symbol_page *icon */
 					0,		/* int icon_code, */
                         	        &sympg_testfont,/* struct symbol_page *font */
 	                                /* for slider */
+					slidType_horiz,		/* enum egi_slid_type */
         	                        (EGI_POINT){(240-sl)/2,100},/* slider starting EGI_POINT pxy */
                 	                5,sl,	 	/* slot width, slot length */
 	                       	        pvol*sl/100,      /* init val, usually to be 0 */

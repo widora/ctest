@@ -218,8 +218,8 @@ int main(int argc, char **argv)
 	} else {
 		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
 	}
-//	if( int_ffmuzCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
-	if( int_ffmuzCtx(music_dir, "mp3, wav") ) {
+//	if( init_ffmuzCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
+	if( init_ffmuzCtx(music_dir, "mp3, wav") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
 		return pgret_ERR;
 	}

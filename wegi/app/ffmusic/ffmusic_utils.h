@@ -29,8 +29,8 @@ Midas_Zhou
 //#define FFPLAY_MUSIC_PATH "/mmc/"
 
 /* in seconds, playing time elapsed for Video */
-extern int ff_sec_Velapsed;
-extern int ff_sub_delays; /* delay sub display in seconds, relating to ff_sec_Velapsed */
+//extern int ff_sec_Velapsed;
+extern int ff_sub_delays; 	/* delay sub display in seconds, relating to ff_sec_Velapsed */
 extern enum ffmuz_cmd control_cmd;
 
 extern FFMUSIC_CONTEXT *FFmuz_Ctx;

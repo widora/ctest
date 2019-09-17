@@ -844,6 +844,23 @@ int egi_txtbox_unhide(EGI_EBOX *ebox)
 	return 0;
 }
 
+/*--------------------------------------------
+Get egi_data_txt from a TXT EBOX
+Retrun
+	A pointer to EGI_DATA_TXT	ok
+	NULL				Fails
+---------------------------------------------*/
+EGI_DATA_TXT *egi_txtbox_getdata(EGI_EBOX *ebox)
+{
+	if(ebox==NULL)
+		return NULL;
+
+        if(ebox->type != type_txt)
+		return NULL;
+
+	return (EGI_DATA_TXT *)(ebox->egi_data);
+}
+
 
 /*-----------------------------------------------------------------
 Note:		( For non_FTsymbols )

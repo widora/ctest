@@ -61,7 +61,7 @@ EGI_PAGE *create_pagealpha(void)
                 {
 			/* 1. create new data_btns */
 			data_btns[6*i+j]=egi_btndata_new(6*i+j, /* int id */
-							square, /* enum egi_btn_type shape */
+							btnType_square, /* enum egi_btn_type shape */
 							NULL, /* struct symbol_page *icon */
 							0, /* int icon_code */
 							&sympg_testfont /* for ebox->tag font */

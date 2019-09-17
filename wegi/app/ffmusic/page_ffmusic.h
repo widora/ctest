@@ -9,7 +9,10 @@ Midas Zhou
 #ifndef __PAGE_FFMUSIC_H__
 #define __PAGE_FFMUSIC_H__
 
-#include "egi.h"
+#define TIME_SLIDER_ID        100
+#define TIME_TXT0_ID          101
+#define TIME_TXT1_ID          102
+
 
 EGI_PAGE  *create_ffmuzPage(void);
 void 	   free_ffmuzPage(void);

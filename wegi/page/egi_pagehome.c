@@ -127,7 +127,7 @@ EGI_PAGE *egi_create_homepage(void)
 
 			/* 1.1 create new data_btns */
 			data_btns[nid]=egi_btndata_new(nid, /* int id */
-							square, /* enum egi_btn_type shape */
+							btnType_square, /* enum egi_btn_type shape */
 							sympg, /* struct symbol_page *icon */
 							nicode, /* int icon_code */
 							&sympg_testfont /* for ebox->tag font */

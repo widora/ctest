@@ -24,8 +24,27 @@ TODO:
    However, fail to put logo on mp3 picture by AVFilter descr.
 
 3. FFmpeg PCM 'planar' format means noninterleaved? while 'packed' mean interleaved?
-	XXX_FMT_S16P --- packed
-	XXX_FMT_S16  --- planar
+	XXX_FMT_S16P --- packed	???
+	XXX_FMT_S16  --- planar ???
+
+4. ffmusic.c and egi_pcm.c only support AV_SAMPLE_FMT_S16(P) now:
+	enum AVSampleFormat {     ---  FFMPEG SAMPLE FORMAT  ---
+	    AV_SAMPLE_FMT_NONE = -1,
+	    AV_SAMPLE_FMT_U8,          ///< unsigned 8 bits
+	    AV_SAMPLE_FMT_S16,         ///< signed 16 bits
+	    AV_SAMPLE_FMT_S32,         ///< signed 32 bits
+	    AV_SAMPLE_FMT_FLT,         ///< float
+	    AV_SAMPLE_FMT_DBL,         ///< double
+
+	    AV_SAMPLE_FMT_U8P,         ///< unsigned 8 bits, planar
+	    AV_SAMPLE_FMT_S16P,        ///< signed 16 bits, planar
+	    AV_SAMPLE_FMT_S32P,        ///< signed 32 bits, planar
+	    AV_SAMPLE_FMT_FLTP,        ///< float, planar
+	    AV_SAMPLE_FMT_DBLP,        ///< double, planar
+
+	    AV_SAMPLE_FMT_NB           ///< Number of sample formats. DO NOT USE if linking dynamically
+	};
+
 
 NOTE:
 1.  A simpley example of opening a media file/stream then decode frames and send RGB data to LCD for display.
@@ -123,6 +142,7 @@ midaszhou@yahoo.com
 #include "sound/egi_pcm.h"
 #include "utils/egi_cstring.h"
 #include "utils/egi_utils.h"
+#include "page_ffmusic.h"
 #include "ffmusic_utils.h"
 #include "ffmusic.h"
 
@@ -146,14 +166,22 @@ midaszhou@yahoo.com
 #define FFMUZ_END_PAUSETIME   0	 /* end pause time */
 
 
-/*--------  FFPLAY ENVIRONTMENT SET  ------------
- To set it up first before you call egi_ffplay()
-------------------------------------------------*/
+/*-----------  FFPLAY ENVIRONTMENT SET  --------------
+ To set up first before you call thread_ffplay_music()
+----------------------------------------------------*/
 FFMUSIC_CONTEXT *FFmuz_Ctx=NULL;
 
+/* FB DEV for picture displaying */
+FBDEV ff_fb_dev;
+
+int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
+int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
+int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
+
 /* expected display window size, LCD will be adjusted in the function */
-static int show_w= 240; //185; /* LCD row pixels */
-static int show_h= 200; //144; //240; //185;/* LCD column pixels */
+//static int show_w= 240; //185; /* LCD row pixels */
+//static int show_h= 200; //144; //240; //185;/* LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
@@ -197,7 +225,7 @@ static bool enable_filesloop=true;
  *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
-static bool disable_video=false;
+static bool disable_video=true;
 
 /* param: ( enable_clip_test )
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
@@ -232,7 +260,7 @@ return:
         0       OK
         <0    Fails
 ------------------------------------------------------*/
-int int_ffmuzCtx(char *path, char *fext)
+int init_ffmuzCtx(char *path, char *fext)
 {
         int fcount;
 
@@ -291,10 +319,10 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	char *fname=NULL;
 	char *fbsname=NULL;
 
-	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
-	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
-	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
-	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
+//	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
+//	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
+//	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+//	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext		*pFormatCtx=NULL;
@@ -315,20 +343,19 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	struct SwsContext	*sws_ctx=NULL;
 	AVRational 		time_base; /*get from video stream, pFormatCtx->streams[videoStream]->time_base*/
 
-	int Hb,Vb;  /* Horizontal and Veritcal size of a picture */
 	/* for Pic Info. */
 	struct PicInfo pic_info;
 	pic_info.app_page=page; /* for PAGE wallpaper */
 
 	/* origin movie/image size */
-	int widthOrig;
-	int heightOrig;
+//	int widthOrig;
+//	int heightOrig;
 
 	/* for scaled movie size, mapped as scwidth->LCD(fb) row, scheight->LCD(fb) column
 	   will be adjusted to fit for LCD WxH, clock transpose is also considered.
          */
-	int scwidth;
-	int scheight;
+//	int scwidth;
+//	int scheight;
 
 	/*  for AUDIO  ::  for audio   */
 	int			audioStream=-1;/* >=0, if stream exists */
@@ -387,8 +414,8 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	EGI_PDEBUG(DBG_FFPLAY," start ffplay with input ftotal=%d.\n", ftotal);
 
 	/* check expected display window size */
-	if( (show_w&0x1) != 0 || (show_h&0x1) !=0 )
-	     EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
+	//if( (show_w&0x1) != 0 || (show_h&0x1) !=0 )
+	//     EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
 
 	/*MOVED: addjust offset of display window */
 	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
@@ -403,6 +430,60 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 #endif
+
+	/* ------- Get EBOX Time Slider -------- */
+	bool tmbox_needUpdate=false;
+	int psval; /* slider value in percentage [0 100] */
+	char strtm[64];
+	EGI_EBOX 	*ebox_tmslider=NULL;
+	EGI_DATA_SLIDER *data_slider=NULL;
+	EGI_EBOX 	*ebox_tmtxt[2]={NULL,NULL};
+	EGI_DATA_TXT 	*data_txt[2]={NULL,NULL};
+
+	if( page != NULL )
+	{
+		/* 1. get time slider */
+		ebox_tmslider=egi_page_pickebox(page, type_slider, TIME_SLIDER_ID);
+
+		if(ebox_tmslider!=NULL)
+			data_slider=egi_slider_getdata(ebox_tmslider);
+
+		/* If null */
+		if( data_slider== NULL) {
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!\n",__func__);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!\n",
+						__func__,
+						page==NULL?"NULL":"OK", ebox_tmslider==NULL?"NULL":"OK",
+						data_slider==NULL?"NULL":"OK"
+			);
+			/* reset all */
+			ebox_tmslider=NULL;
+			data_slider=NULL;
+		}
+
+		/* 2. get time txt ebox */
+		ebox_tmtxt[0]=egi_page_pickebox(page, type_txt, TIME_TXT0_ID);
+		ebox_tmtxt[1]=egi_page_pickebox(page, type_txt, TIME_TXT1_ID);
+
+		data_txt[0]=egi_txtbox_getdata(ebox_tmtxt[0]);
+		data_txt[1]=egi_txtbox_getdata(ebox_tmtxt[1]);
+
+		if( data_txt[0]==NULL || data_txt[1]==NULL ) {
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!\n",__func__);
+			/* reset all */
+			ebox_tmtxt[0]=NULL; ebox_tmtxt[1]=NULL;
+			data_txt[0]=NULL;   data_txt[1]=NULL;
+		}
+
+		/* 3. set tmbox_needUpdate */
+		if( data_slider!=NULL && data_txt[0]!=NULL && data_txt[1]!=NULL ) {
+			tmbox_needUpdate=true;
+			EGI_PDEBUG(DBG_FFPLAY,"Succeed to get data from time slider and tmbox.\n");
+		}
+	}
+	/* ------- END Getting Time Slider -------- */
+
+
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -430,17 +511,16 @@ while(1) {
 		fnum=egi_random_max(ftotal)-1;
 	}
 
-	/* clear displaying area, TO be handled by PAGE */
-	/* Let PAGE handle it */
-	//fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
-
 	/* reset display window size */
-	display_height=show_h;
-	display_width=show_w;
+//	display_height=show_h;
+//	display_width=show_w;
 
-	/* reset elaped time recorder */
+	/* reset time indicators */
+	ff_sec_Aelapsed=0;
 	ff_sec_Velapsed=0;
+	ff_sec_Aduration=0;
+	ff_sec_Vduration=0;
+
 	/* reset VCODECID */
 	vcodecID=AV_CODEC_ID_NONE;
 
@@ -626,11 +706,16 @@ if(disable_audio && audioStream>=0 )
 		EGI_PDEBUG(DBG_FFPLAY,"		bytes_per_sample: %d\n",bytes_per_sample);
 		EGI_PDEBUG(DBG_FFPLAY,"		sample_rate=%d\n",sample_rate);
 
-		/* Now only support SND_PCM_FORMAT_S16_LE */
-		//if(sample_fmt!=)
 
+		/* Now only support AV_SAMPLE_FMT_S16(P) , SND_PCM_FORMAT_S16_LE */
+		if(sample_fmt!=AV_SAMPLE_FMT_S16P && sample_fmt!=AV_SAMPLE_FMT_S16 ) {
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Sample formt is '%s', NOT supported? \n",
+							__func__, av_get_sample_fmt_name(sample_fmt));
+		}
+		/* Now only support Max. channel number =2 */
 		if( nb_channels > 2 ) {
-			EGI_PDEBUG(DBG_FFPLAY," !!! Number of audio channels is %d >2, not supported!\n",nb_channels);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Number of audio channels is %d >2, not supported!\n",
+										__func__, nb_channels);
 			goto FAIL_OR_TERM;
 		}
 
@@ -827,7 +912,7 @@ if(disable_video && videoStream>=0 )
 
 	/* open video codec */
 	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
-		EGI_PLOG(LOGLV_WARN, "Cound not open video codec!\n");
+		EGI_PLOG(LOGLV_ERROR, "Cound not open video codec!\n");
 		return (void *)-1;
 	}
 
@@ -855,8 +940,8 @@ if(disable_video && videoStream>=0 )
 	display_width=(display_width>>1)<<1;
 	display_height=(display_height>>1)<<1;
 
-	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
-										display_width,display_height);
+	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n",
+					 				  display_width,display_height);
 
 #if 0 ////////////////    NO need for FFMUZ    ///////////////
 	/* Addjust displaying window position */
@@ -875,7 +960,7 @@ if(disable_video && videoStream>=0 )
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
 	printf("%s: start to ff_malloc_PICbuffs()...\n", __func__);
-	if(ff_malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
+	if(ff_malloc_PICbuffs(display_width,display_height, 2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return (void *)-1;
 	}
@@ -933,11 +1018,13 @@ if(disable_video && videoStream>=0 )
 
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
+
 	/* Even if no video stream */
 	if( videoStream <0 )
 		pic_info.PicOff=true;
 	else
 		pic_info.PicOff=false;
+
 	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
 		return (void *)-1;
@@ -1011,6 +1098,7 @@ else
 				     			&pFormatCtx->streams[videoStream]->time_base) );
 				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
 							&pFormatCtx->streams[videoStream]->time_base) );
+
 /*
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 									ff_sec_Velapsed, ff_sec_Vduration );
@@ -1050,18 +1138,19 @@ else
 				if(got_frame)
 				{
 					//gettimeofday(&tm_start,NULL);
-					/* playback audio data */
+
+					/* 1. Playback 2 channel audio data */
 					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
-					/* SWR ON, if sample_fmt == AV_SAMPLE_FMT_FLTP */
+					/* 1.1 SWR ON, if sample_fmt == AV_SAMPLE_FMT_FLTP */
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"FLTP outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
 						}
 
-					/* SWR ON,  if sample_rate != 44100 */
+					/* 1.2 SWR ON,  if sample_rate != 44100 */
 						else if( enable_audio_resample )  {
 		        	/* compute destination(converted) number of samples */
 			        dst_nb_samples = av_rescale_rnd( swr_get_delay(swr, sample_rate) +
@@ -1076,12 +1165,13 @@ else
 						      if(ret>0)
 							  play_ffpcm_buff( (void **)&outputBuffer, ret);
 						}
-					/* SWR OFF */
+					/* 1.3 SWR OFF */
 						else {
 							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 						}
 					}
-					else if(pAudioFrame->data[0]) {  /* one channel only */
+					/* 2. Playback one channel */
+					else if(pAudioFrame->data[0]) {
 						 //printf("One channel only\n");
 						if( enable_audio_resample )  { /* sample_rate != 44100 */
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
@@ -1113,9 +1203,7 @@ else
 						}
 					}
 
-
 					/* print audio playing time, only if no video stream */
-
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[audioStream]->time_base) );
 					ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
@@ -1126,6 +1214,31 @@ else
 
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
+
+					/* --- Reset timer slider ---- */
+					if( tmbox_needUpdate ) {
+
+					    /* --- 1. update slider position --- */
+					    if(ff_sec_Aduration==0) { /* To avoid 0 */
+						data_slider->val=0;
+					    } else {
+					        /* get percentage value and set to time slider */
+					    	psval=ff_sec_Aelapsed*100/ff_sec_Aduration;
+					    	egi_slider_setpsval(ebox_tmslider, psval);
+					    }
+					    /* --- 2. Update txt ebox --- */
+					    sprintf(strtm,"%d:%d",ff_sec_Aelapsed/60, ff_sec_Aelapsed%60);
+					    egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
+					    sprintf(strtm,"%d:%d",ff_sec_Aduration/60, ff_sec_Aduration%60);
+					    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
+
+					    /* --- 3. Putting to PAGE routine for refresh. --- */
+					    //egi_ebox_forcerefresh(ebox_tmslider); /* Not GOOD! */
+					    egi_ebox_needrefresh(ebox_tmslider);
+					    egi_ebox_needrefresh(ebox_tmtxt[0]);
+					    egi_ebox_needrefresh(ebox_tmtxt[1]);
+					}
+					/* ----- END reset timer slider ------ */
 
 				}
 				packet.size -= bytes_used;
@@ -1233,27 +1346,6 @@ if(enable_seekloop)
 
 
 FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
-
-#if 0
-	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
-	{
-		/* wait for display_thread to join */
-		EGI_PDEBUG(DBG_FFPLAY,"Try to join picture and subtitle displaying thread ...\n");
-		/* give a command to exit display_thread, before exiting subtitle_thread!! */
-		control_cmd = cmd_exit_display_thread;
-		pthread_join(pthd_displayPic,NULL);
-
-		if(pthd_subtitle_running) {
-			EGI_PDEBUG(DBG_FFPLAY,"Try to join subtitle displaying thread ...\n");
-	                control_cmd = cmd_exit_subtitle_thread;
-			pthread_join(pthd_displaySub,NULL);  /* Though it will exit when reaches end of srt file. */
-			pthd_subtitle_running=false; /* reset token */
-		}
-
-		control_cmd = cmd_none;/* call off command */
-		pthd_displayPic_running=false; /* reset token */
-	}
-#endif
 
 	/* Exit Pic displaying thread, just before exiting subtitle_thread!! */
 	if( pthd_displayPic_running ) {

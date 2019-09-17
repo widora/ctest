@@ -387,8 +387,8 @@ int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 
 
 /*------------------------------------------------------------------------
-Allocate memory for a EGI_IMGBUF,then read JPG image data and load to it.
-Clear data and realloc if any old data exists.
+Read JPG image data and load to an EGI_IMGBUF.
+Clear data and realloc if any old data exists in egi_imgbuf before loading.
 
 fpath:		JPG file path
 egi_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color
@@ -442,14 +442,13 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	EGI_PDEBUG(DBG_BJP,"egi_imgbuf_loadjpg():succeed to open jpg file %s, width=%d, height=%d\n",
 								fpath,egi_imgbuf->width,egi_imgbuf->height);
 	/* alloc imgbuf */
-	egi_imgbuf->imgbuf=malloc(width*height*bytpp);
+	egi_imgbuf->imgbuf=calloc(1, width*height*bytpp);
 	if(egi_imgbuf->imgbuf==NULL)
 	{
 		printf("egi_imgbuf_loadjpg(): fail to malloc imgbuf.\n");
 	        pthread_mutex_unlock(&egi_imgbuf->img_mutex);
 		return -3;
 	}
-	memset(egi_imgbuf->imgbuf,0,width*height*bytpp);
 
 	/* TODO: WARNING: need to be improve here: converting 8bit to 24bit color*/
 	if(components==1) /* 8bit color */
@@ -483,8 +482,8 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 
 
 /*------------------------------------------------------------------------
-Clear old data in an EGI_IMGBUF, and read PNG image data and load to it,
-by calling libpng.
+Read PNG image data and load to an EGI_IMGBUF.
+Clear data and realloc if any old data exists in egi_imgbuf before loading.
 
 fpath:		PNG file path
 eg_imgbuf:	EGI_IMGBUF  to hold the image data, in 16bits color

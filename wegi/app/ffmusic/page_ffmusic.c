@@ -15,15 +15,13 @@ page creation jobs:
 
 
                         (((  --------  PAGE DIVISION  --------  )))
-[Y0-Y29]
-{0,0},{240-1, 29}               ---  Head title bar
+//[Y0-Y29]
+//{0,0},{240-1, 29}               ---  Head title bar
 
-[Y30-Y260]
-{0,30}, {240-1, 260}            --- Image/subtitle Displaying Zone
-[Y150-Y260] Sub_displaying
+//[Y150-Y265]
+//{0,150}, {240-1, 260}           --- box area for subtitle display
 
-[Y150-Y265]
-{0,150}, {240-1, 260}           --- box area for subtitle display
+Audio sprectrum BASE_LINE Y=210
 
 [Y266-Y319]
 {0,266}, {240-1, 320-1}         --- Buttons
@@ -43,6 +41,7 @@ Midas Zhou
 #include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
 #include "ffmusic.h"
+#include "page_ffmusic.h"
 
 /* icon code for button symbols */
 #define ICON_CODE_PREV 		0
@@ -56,13 +55,24 @@ Midas Zhou
 #define ICON_CODE_LOOPALL	8	/* loop all files in the list */
 #define ICON_CODE_GOHOME	9
 
+//#define TIME_SLIDER_ID	100
+//#define TIME_TXT0_ID		101
+//#define TIME_TXT1_ID		102
 
-static EGI_BOX slide_zone={ {0,30}, {239,260} };
+static EGI_BOX slide_zone={ {0,0}, {239,260} };
 static uint16_t btn_symcolor;
+static int btnum=5;
+static EGI_DATA_BTN *data_btns[5];
+static EGI_EBOX *ffmuz_btns[5];
 
 /* volume txt ebox */
-static EGI_DATA_TXT *vol_FTtxt=NULL;
-static EGI_EBOX     *ebox_voltxt=NULL;
+static EGI_DATA_TXT *vol_FTtxt;
+static EGI_EBOX     *ebox_voltxt;
+
+/* Time sliding bar txt, for time elapsed and duration */
+static EGI_DATA_TXT *data_tmtxt[2];
+static EGI_EBOX	    *ebox_tmtxt[2];
+
 
 static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -71,6 +81,7 @@ static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int pageffmuz_decorate(EGI_EBOX *ebox);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
+static int refresh_misc(EGI_PAGE *page);
 
 
 /*---------- [  PAGE ::  FF MUSIC PLAYER ] ---------
@@ -83,18 +94,13 @@ Return
 EGI_PAGE *create_ffmuzPage(void)
 {
 	int i;
-	int btnum=5;
-	EGI_DATA_BTN *data_btns[5];
-	EGI_EBOX *ffmuz_btns[5];
-
-
 
 	/* --------- 1. create buttons --------- */
         for(i=0;i<btnum;i++) /* row of buttons*/
         {
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(	i, /* int id */
-						square, /* enum egi_btn_type shape */
+						btnType_square, /* enum egi_btn_type shape */
 						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */
@@ -156,13 +162,13 @@ EGI_PAGE *create_ffmuzPage(void)
 
 
 	/* --------- 2. create title bar --------- */
-	EGI_EBOX *title_bar= create_ebox_titlebar(
-	        0, 0, /* int x0, int y0 */
-        	0, 2,  /* int offx, int offy, offset for txt */
-		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
-    		NULL	/* char *title */
-	);
-	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
+//	EGI_EBOX *title_bar= create_ebox_titlebar(
+//	        0, 0, /* int x0, int y0 */
+//       		0, 2,  /* int offx, int offy, offset for txt */
+//		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
+//    		NULL	/* char *title */
+//	);
+//	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
 
         /* --------- 3 create a TXT ebox for Volume value displaying  --------- */
 	vol_FTtxt=NULL;
@@ -193,8 +199,84 @@ EGI_PAGE *create_ffmuzPage(void)
 	/* set status as hidden, activate it only by touching */
 	ebox_voltxt->status=status_hidden;
 
-	/* --------- 4. create ffplay page ------- */
-	/* 3.1 create ffplay page */
+        /* --------- 4. create a horizontal sliding bar --------- */
+        int sb_len=200; /* slot length */
+        int sb_pv=0; /* initial  percent value */
+	EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
+
+        EGI_DATA_BTN *data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
+                                        /* ---for btnbox-- */
+                                        1, btnType_square,      /* data id, enum egi_btn_type shape */
+                                        NULL,           	/* struct symbol_page *icon */
+                                        0,              	/* int icon_code, */
+                                        &sympg_testfont,	/* struct symbol_page *font */
+                                        /* ---for slider--- */
+					slidType_horiz,		/*  enum egi_slid_type */
+                                        sbx0y0,			/* slider starting EGI_POINT pxy */
+                                        5,sb_len,           	/* slot width, slot length */
+                                        sb_pv*sb_len/100,      	/* init val, usually to be 0 */
+                                        WEGI_COLOR_GRAY,  	/* EGI_16BIT_COLOR val_color */
+                                        WEGI_COLOR_GRAY5,   	/* EGI_16BIT_COLOR void_color */
+                                        WEGI_COLOR_WHITE   	/* EGI_16BIT_COLOR slider_color */
+                            );
+
+        EGI_EBOX *time_slider=egi_slider_new(
+                                "volume slider",  	/* char *tag, or NULL to ignore */
+                                data_slider, 		/* EGI_DATA_BTN *egi_data */
+                                15,15,       		/* slider block: ebox->width/height, to be Min. if possible */
+                                50,50,       		/* touchbox size, twidth/theight */
+                                -1,          		/* int frame, <0 no frame */
+                                -1      /* prmcolor
+					 * 1. Let <0, it will draw default slider, instead of applying gemo or icon.
+                                         * 2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon!=NULL
+					 */
+                           );
+	/* set EBOX id for time_slider */
+	time_slider->id=TIME_SLIDER_ID;
+        /* set reaction function */
+        time_slider->reaction=NULL;
+
+
+        /* --------- 3 create a TXT ebox for displaying time elapsed and duration  ------- */
+	int tmSymHeight=18;		/* symbol height */
+	int tmX0[2], tmY0[2];		/* EBOX x0,y0  */
+
+	/* position of txt ebox */
+	tmX0[0]=sbx0y0.x;
+	tmY0[0]=sbx0y0.y-tmSymHeight-5;
+	tmX0[1]=sbx0y0.x+sb_len-50;
+	tmY0[1]=tmY0[0];
+
+	/* create time sliding bar TXT EBOX */
+	for(i=0; i<2; i++) {
+	        /* For symbols TXT */
+		data_tmtxt[i]=egi_txtdata_new( 0, 0,    /* offx,offy from EBOX */
+                	      	               1,                       /* lines */
+                        	               10,                      /* chars per line */
+                                	       &sympg_ascii,       	/* font */
+	                                       WEGI_COLOR_WHITE         /* txt color */
+        	                      );
+		/* create volume EBOX */
+        	ebox_tmtxt[i]=egi_txtbox_new( "playTM_txt",    /* tag */
+                                     data_tmtxt[i],     /* EGI_DATA_TXT pointer */
+                                     true,              /* bool movable */
+                                     tmX0[i], tmY0[i],  /* int x0, int y0 */
+                                     120, 15,           /* width, height(adjusted as per nl and symheight ) */
+                                     -1,  		/* int frame, -1 or frame_none = no frame */
+                                     -1	   		/* prmcolor,<0 transparent*/
+                                   );
+	}
+	/* set ID */
+	ebox_tmtxt[0]->id=TIME_TXT0_ID;
+	ebox_tmtxt[1]->id=TIME_TXT1_ID;
+
+	/* initial value in tmtxt */
+	egi_push_datatxt(ebox_tmtxt[0], "00.00", NULL);
+	egi_push_datatxt(ebox_tmtxt[1], "00.00", NULL);
+
+
+	/* --------- 5. create ffplay page ------- */
+	/* 5.1 create ffplay page */
 	EGI_PAGE *page_ffmuz=egi_page_new("page_ffmuz");
 	while(page_ffmuz==NULL)
 	{
@@ -207,22 +289,27 @@ EGI_PAGE *create_ffmuzPage(void)
 	/* decoration */
 //	page_ffmuz->ebox->method.decorate=pageffmuz_decorate; /* draw lower buttons canvas */
 
-        /* 3.2 put pthread runner */
+        /* 5.2 put pthread runner */
         page_ffmuz->runner[0]= thread_ffplay_music;
 
-        /* 3.3 set default routine job */
+        /* 5.3 set default routine job */
         //page_ffmuz->routine=egi_page_routine; /* use default routine function */
 	page_ffmuz->routine=egi_homepage_routine;  /* for sliding operation */
 	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
+	page_ffmuz->page_refresh_misc=refresh_misc; /* random colro for btn */
 
-        /* 3.4 set wallpaper */
-        page_ffmuz->fpath="/tmp/mplay.jpg";
+        /* 5.4 set wallpaper */
+        page_ffmuz->fpath="/home/musicback.jpg";
 
-	/* 3.5 add ebox to home page */
-	for(i=0;i<btnum;i++) /* add buttons */
+	/* 5.5 add ebox to home page */
+	for(i=0; i<btnum; i++) 	/* Add buttons */
 		egi_page_addlist(page_ffmuz, ffmuz_btns[i]);
 
+	for(i=0; i<2; i++)	/* Add time txt for time sliding bar */
+		egi_page_addlist(page_ffmuz, ebox_tmtxt[i]);
+
 	egi_page_addlist(page_ffmuz, ebox_voltxt); /* add volume txt ebox */
+	egi_page_addlist(page_ffmuz, time_slider); /* add time_slider ebox */
 //	egi_page_addlist(page_ffmuz, title_bar); /* add title bar */
 
 	return page_ffmuz;
@@ -420,12 +507,15 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	if( !point_inbox2( &touch_data->coord, &slide_zone) )
               return btnret_IDLE;
 
+	/* ---- TEST ---- */
+	printf("%s: touch(x,y): %d, %d \n",__func__, touch_data->coord.x, touch_data->coord.y );
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(touch_data->status==pressing)
         {
                 printf("vol pressing\n");
-                ffpcm_getset_volume(&mark,NULL); /* get volume */
+                if( ffpcm_getset_volume(&mark,NULL) !=0 ) /* get volume */
+			mark=0;
 		//printf("mark=%d\n",mark);
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
@@ -440,8 +530,12 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */
 		if(vol>100)vol=100;
 		else if(vol<0)vol=0;
-                ffpcm_getset_volume(NULL,&vol); /* set volume */
-		sprintf(strp,"音量 %d%%",vol);
+		/* set volume */
+                if( ffpcm_getset_volume(NULL,&vol)==0 )
+			sprintf(strp,"音量 %d%%",vol);
+		else
+			sprintf(strp,"音量 无效");
+
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
 
 		/* set utxt to ebox_voltxt */
@@ -480,6 +574,26 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
               return btnret_IDLE;
 
 }
+
+/*--------------------------------------------
+       A Misc. job for PAGE
+Set random color for PAGE btns .
+---------------------------------------------*/
+static int refresh_misc(EGI_PAGE *page)
+{
+    int i;
+    EGI_16BIT_COLOR symcolor;
+
+    symcolor=egi_color_random(color_medium);
+
+    for(i=0; i<btnum; i++) {
+	if(data_btns[i] != NULL) {
+		data_btns[i]->icon_code=(symcolor<<16)+( data_btns[i]->icon_code & 0xffff );
+	}
+    }
+
+    return 0;
+};
 
 
 /*-----------------------------

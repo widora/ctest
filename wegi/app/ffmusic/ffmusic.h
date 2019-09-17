@@ -27,6 +27,11 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "sound/egi_pcm.h"
 
+extern int ff_sec_Aelapsed;	/* in seconds, Audio playing time elapsed */
+extern int ff_sec_Velapsed;	/* in seconds, Video playing time elapsed */
+extern int ff_sec_Aduration;	/* in seconds, multimedia file Audio duration */
+extern int ff_sec_Vduration;	/* in seconds, multimedia file Video duration */
+
 /* ffplay control command signal
  * !!! Note: pthread lock not applied here, when you need to set
  *           ffmuz_mode, set 'cmd_mode' as last, as egi_thread_ffplay()
@@ -87,7 +92,9 @@ typedef struct FFmusic_Context
 	enum ffmuz_status  ffstatus;	/* 0 default mode_stop */
 }FFMUSIC_CONTEXT;
 
-extern FFMUSIC_CONTEXT *FFmuz_Ctx;	/* a global ctx */
+
+extern FBDEV ff_fb_dev;			/* For Pic displaying, defined in ffmusic.c */
+extern FFMUSIC_CONTEXT *FFmuz_Ctx;	/* A global FFMUZ Context, defined in  */
 
 /* Functions */
 int 	init_ffmuzCtx(char *path, char *fext);

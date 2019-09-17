@@ -49,28 +49,35 @@ return:
 -----------------------------------------------------------------------------*/
 EGI_DATA_BTN *egi_sliderdata_new(
 			      	/* for btnbox */
-			      	int id, enum egi_btn_type shape,
+			      	int id, enum egi_btn_type btn_shape,
 			      	struct symbol_page *icon, int icon_code,
 			      	struct symbol_page *font,
 
 			     	/* for slider */
-			        EGI_POINT pxy,
+				enum egi_slid_type   slid_type,	/* slider type */
+			        EGI_POINT pxy,			/* slider starting point */
 				int swidth, int slen,
 				int value,	/* usually to be 0 */
 				EGI_16BIT_COLOR val_color, EGI_16BIT_COLOR void_color,
 				EGI_16BIT_COLOR slider_color
 			       )
 {
+	/* 0. check input data */
+	if(swidth==0||slen==0) {
+                printf("%s: Input swidth or slen is 0!\n",__func__);
+		return NULL;
+	}
+
 	/*  1. calloc a egi_data_slider struct */
-        EGI_PDEBUG(DBG_SLIDER,"egi_sliderdata_new(): calloc data_slider ...\n");
-        EGI_DATA_SLIDER *data_slider=calloc(sizeof(EGI_DATA_SLIDER),1);
+        EGI_PDEBUG(DBG_SLIDER,"Calloc data_slider ...\n");
+        EGI_DATA_SLIDER *data_slider=calloc(1,sizeof(EGI_DATA_SLIDER));
         if(data_slider==NULL)
         {
-                printf("egi_sliderdata_new(): fail to calloc egi_data_slider.\n");
-
+                printf("%s: Fail to calloc egi_data_slider.\n",__func__);
 		return NULL;
 	}
 	/* assign data slider struct number */
+	data_slider->ptype=slid_type;
 	data_slider->sxy=pxy;
 	data_slider->sw=swidth;
 	data_slider->sl=slen;
@@ -80,17 +87,17 @@ EGI_DATA_BTN *egi_sliderdata_new(
 	data_slider->color_slider=slider_color;
 
         /* 2. calloc a egi_data_btn struct */
-        EGI_PDEBUG(DBG_SLIDER,"egi_sliderdata_new(): calloc data_btn ...\n");
-        EGI_DATA_BTN *data_btn=calloc(sizeof(EGI_DATA_BTN),1);
+        EGI_PDEBUG(DBG_SLIDER,"Calloc data_btn ...\n");
+        EGI_DATA_BTN *data_btn=calloc(1,sizeof(EGI_DATA_BTN));
         if(data_btn==NULL)
         {
-                printf("egi_btndata_new(): fail to malloc egi_data_btn.\n");
+                printf("%s: Fail to malloc egi_data_btn.\n",__func__);
 		free(data_slider);
 		return NULL;
 	}
 	/* assign data btn struct number */
 	data_btn->id=id;
-	data_btn->shape=shape;
+	data_btn->shape=btn_shape;
 	data_btn->icon=icon;
 	data_btn->icon_code=icon_code;
 	data_btn->font=font;
@@ -109,13 +116,14 @@ return:
         NULL            fail
 -------------------------------------------------------*/
 EGI_EBOX * egi_slider_new(
-	char *tag, /* or NULL to ignore */
+	char *tag, 		 /* or NULL to ignore */
         EGI_DATA_BTN *egi_data,
-        int width, int height, /* for frame drawing and prmcolor filled_rectangle */
+        int width, int height,   /* for frame drawing and prmcolor filled_rectangle */
 	int twidth, int theight, /* for touch area,which is coupled with ebox->x0,y0 */
         int frame,
-        int prmcolor /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
-			2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
+        int prmcolor 		 /*  1. Let <0, it will draw default slider, instead of applying gemo or icon.
+				  *  2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL
+				  */
 )
 {
         EGI_EBOX *ebox;
@@ -123,23 +131,23 @@ EGI_EBOX * egi_slider_new(
         /* 0. check egi_data */
         if(egi_data==NULL || egi_data->prvdata==NULL )
         {
-                printf("egi_sliderbox_new(): egi_data or its prvdata is NULL. \n");
+                printf("%s: egi_data or its prvdata is NULL. \n",__func__);
                 return NULL;
         }
 
         /* 1. create a new common ebox */
-        EGI_PDEBUG(DBG_SLIDER,"egi_sliderbox_new(): start to egi_ebox_new(type_slider)...\n");
+        EGI_PDEBUG(DBG_SLIDER,"Start to egi_ebox_new(type_slider)...\n");
         ebox=egi_ebox_new(type_slider);// egi_data NOT allocated in egi_ebox_new()!!!
         if(ebox==NULL)
 	{
-                printf("egi_sliderbox_new(): fail to execute egi_ebox_new(type_slider). \n");
+                printf("%s: Fail to execute egi_ebox_new(type_slider). \n",__func__);
                 return NULL;
 	}
 
         /* 2. default method assigned in egi_ebox_new() */
 
         /* 3. slider ebox object method */
-        EGI_PDEBUG(DBG_SLIDER,"egi_sliderbox_new(): assign defined mehtod ebox->method=methd...\n");
+        EGI_PDEBUG(DBG_SLIDER,"Assign defined mehtod ebox->method=methd...\n");
         ebox->method=slider_method;
 
         /* 4. fill in elements for concept ebox */
@@ -150,7 +158,7 @@ EGI_EBOX * egi_slider_new(
         ebox->movable=true; /* MUST true for a slider */
         ebox->width=width;
 	ebox->height=height;
-	if(data_slider->ptype==0) /* Horizontal Type */
+	if(data_slider->ptype==slidType_horiz) /* Horizontal Type */
 	{
 		/* ebox->x0,y0 */
 	        ebox->x0=data_slider->sxy.x+data_slider->val-(width>>1);
@@ -162,7 +170,7 @@ EGI_EBOX * egi_slider_new(
 		ebox->touchbox.endxy.x=data_slider->sxy.x+data_slider->val+(twidth>>1);
 		ebox->touchbox.endxy.y=data_slider->sxy.y+(theight>>1);
 	}
-	else	/* Vertical Type, start point is at lower end  */
+	else if( data_slider->ptype==slidType_vert )/* Vertical Type, start point is at lower end  */
 	{
 		/* ebox->x0,y0 */
 		ebox->x0=data_slider->sxy.x-(width>>1);
@@ -174,6 +182,13 @@ EGI_EBOX * egi_slider_new(
 		ebox->touchbox.endxy.x=data_slider->sxy.x+(twidth>>1);
 		ebox->touchbox.endxy.y=data_slider->sxy.y-data_slider->val+(theight>>1);
 	}
+	else {  /* --- undefined slider type --- */
+	        EGI_PDEBUG(DBG_SLIDER,"Undefined slider type, fail to create new slider!\n");
+		//egi_ebox_free(ebox);
+		//return NULL;
+		// Go on...
+	}
+
         ebox->frame=frame;
 	ebox->prmcolor=prmcolor;
 
@@ -185,7 +200,7 @@ EGI_EBOX * egi_slider_new(
 
 
 /*-----------------------------------------------------------------------
-activate a slider type ebox:
+Activate a slider type ebox:
 	1. get icon symbol information
 	2. malloc bkimg and store bkimg for bar slider(btnbox).
 	3. refresh the slider box
@@ -205,21 +220,21 @@ int egi_slider_activate(EGI_EBOX *ebox)
 	/* check data */
         if( ebox == NULL)
         {
-                printf("egi_sliderbox_activate(): ebox is NULL!\n");
+                printf("%s: ebox is NULL!\n",__func__);
                 return -1;
         }
 	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
         if( data_btn == NULL || data_btn->prvdata==NULL )
         {
-                printf("egi_sliderbox_activate(): data_btn  or its prvdata for slider is NULL!\n");
+                printf("%s: data_btn  or its prvdata for slider is NULL!\n",__func__);
                 return -1;
         }
-	//EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
+	EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
 	/* 1. confirm ebox type */
         if(ebox->type != type_slider)
         {
-                printf("egi_btnbox_activate(): Not slider type ebox!\n");
+                printf("%s: Not slider type ebox!\n", __func__);
                 return -1;
         }
 
@@ -229,17 +244,27 @@ int egi_slider_activate(EGI_EBOX *ebox)
 	/* only if it has an icon, get symheight and symwidth */
 	if(data_btn->icon != NULL)
 	{
-		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR+CODE */
+		/* Extract icon code from  SYM_SUB_COLOR+CODE */
+		//SAME AS: icon_code=( (data_btn->icon_code)<<16 )>>16;
+		icon_code=data_btn->icon_code & 0xffff;
 
 		//int bkcolor=data_btn->icon->bkcolor;
 		int symheight=data_btn->icon->symheight;
 		int symwidth=data_btn->icon->symwidth[icon_code];
+
 		/* use bigger size for ebox height and width !!! */
-		if(symheight > ebox->height || symwidth > ebox->width )
-		{
+		if(symheight > ebox->height ) {
+			/* re_adjust ebox->y0, whatever type  */
+			ebox->y0 -= (symheight - ebox->height)>>1;
+			/* re_assign height */
 			ebox->height=symheight;
-			ebox->width=symwidth;
 	 	}
+		if( symwidth > ebox->width ) {
+			/* re_adjust ebox->x0, whatever type  */
+			ebox->x0 -= (symwidth - ebox->width)>>1;
+			/* re_assign widht */
+			ebox->width=symwidth;
+		}
 	}
 
 	/* else if no icon, use prime shape and size */
@@ -253,16 +278,16 @@ int egi_slider_activate(EGI_EBOX *ebox)
 	/* 2. verify btn data if necessary. --No need here*/
         if( ebox->height==0 || ebox->width==0 )
         {
-                printf("egi_sliderbox_activate(): height or width is 0 in ebox '%s'!\n",ebox->tag);
+                printf("%s: Ebox '%s' has 0 height or width!\n",__func__, ebox->tag);
                 return -1;
         }
 
    if(ebox->movable) /* only if ebox is movale */
    {
-	/* 3. malloc bkimg for the icon, not ebox, so use symwidth and symheight */
+	/* 3. malloc bkimg width re_assigned/updated width and height  */
 	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
 	{
-		printf("egi_sliderbox_activate(): fail to egi_alloc_bkimg()!\n");
+		printf("%s: Fail to egi_alloc_bkimg() for Ebox '%s'!\n", __func__, ebox->tag);
 		return -2;
 	}
 
@@ -285,8 +310,8 @@ int egi_slider_activate(EGI_EBOX *ebox)
     } /* end of movable codes */
 
 	/* 6. set button status */
-	ebox->status=status_active; /* if not, you can not refresh */
-	data_btn->status=released_hold;
+	ebox->status=status_active;     /* if not, you can not refresh */
+	data_btn->status=released_hold; /* set initial touch status */
 
 	/* 7. set need_refresh */
 	ebox->need_refresh=true;
@@ -295,7 +320,7 @@ int egi_slider_activate(EGI_EBOX *ebox)
 	if( egi_slider_refresh(ebox) != 0)
 		return -4;
 
-	EGI_PDEBUG(DBG_BTN,"egi_sliderbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
+	EGI_PDEBUG(DBG_SLIDER,"A '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
 
@@ -324,22 +349,22 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	int bkcolor=SYM_FONT_DEFAULT_TRANSPCOLOR;
 	int symheight;
 	int symwidth;
-	int icon_code=0; /* 0, first ICON */;
+	int icon_code=0; 	 /* 0, first ICON */;
 	uint16_t sym_subcolor=0; /* symbol substitute color, 0 as no subcolor */
-	int twidth,theight; /* widht/height of ebox->touchbox */
+	int twidth,theight;      /* widht/height of ebox->touchbox */
 
 	/* check data */
         if( ebox == NULL || ebox->egi_data == NULL
 			 || ((EGI_DATA_BTN *)(ebox->egi_data))->prvdata == NULL)
         {
-                printf("egi_slider_refresh(): ebox or its egi_data, or prvdata is NULL!\n");
+                printf("%s: Ebox or its egi_data, or prvdata is NULL!\n", __func__);
                 return -1;
         }
 
 	/* confirm ebox type */
         if(ebox->type != type_slider)
         {
-                printf("egi_slider_refresh(): Not slider type ebox!\n");
+                printf("%s: The ebox is NOT a slider!\n",__func__);
                 return -1;
         }
 
@@ -365,19 +390,28 @@ int egi_slider_refresh(EGI_EBOX *ebox)
    {
 	/* 2. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
-	EGI_PDEBUG(DBG_BTN,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_SLIDER,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
-        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
-		return -3;
+
+        /* Check wheather PAGE bkimg changed,
+         * If changed, do NOT copy old ebox->bkimg to FB, as PAGE bkimg is already the new one!
+         */
+        if( ebox->container==NULL || ebox->container->page_update !=true ) {
+	        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+        	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0) {
+			printf("%s: Fail to call fb_cpyfrom_buf() for Ebox '%s'.\n",__func__, ebox->tag);
+			return -3;
+		}
+	}
+
    } /* end of movable codes */
 
 
 	/* 3. get updated data */
 	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
         if( data_btn == NULL || data_btn->prvdata == NULL ) {
-                printf("egi_slider_refresh(): data_btn or its prvdata is NULL!\n");
+                printf("%s: data_btn or its prvdata is NULL!\n",__func__);
                 return -1;
         }
 	EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
@@ -391,19 +425,19 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		bkcolor=data_btn->icon->bkcolor;
 		symheight=data_btn->icon->symheight;
 		symwidth=data_btn->icon->symwidth[icon_code];
-		/* use bigger size for ebox height and width !!! */
-		if(symheight > ebox->height || symwidth > ebox->width )
-		{
-			ebox->height=symheight;
-			ebox->width=symwidth;
-	 	}
+
+		/***
+		 *  TO update ebox height and withd if symheight/symwidth is bigger!
+		 *  PENDING: bkimg to be reallocated!
+		 */
+
 	}
 	/* else if no icon, use prime shape */
 
 	/* check ebox size */
         if( ebox->height==0 || ebox->width==0)
         {
-                printf("egi_slider_refresh(): height or width is 0 in ebox '%s'!\n",ebox->tag);
+                printf("%s: Ebox '%s' has 0 height or width!\n", __func__, ebox->tag);
                 return -1;
         }
 
@@ -422,7 +456,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
         ebox->bkbox.endxy.y=y0+ebox->height-1;
 
 	#if 1 /* DEBUG */
-	EGI_PDEBUG(DBG_BTN,"egi_btnbox_refresh(): fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
+	EGI_PDEBUG(DBG_SLIDER,"fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
@@ -430,13 +464,14 @@ int egi_slider_refresh(EGI_EBOX *ebox)
         if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 	{
-		printf("egi_btnbox_refresh(): fb_cpyto_buf() fails.\n");
+		printf("%s: fb_cpyto_buf() for Ebox '%s' fails.\n",__func__, ebox->tag);
 		return -4;
 	}
    } /* end of movable codes */
 
 	/*  ---- update slider value according to ebox->x0y0 position and redraw sliding slot */
-	if(data_slider->ptype==0) { 	/* Horizontal sliding bar */
+	if(data_slider->ptype==slidType_horiz)  	/* Horizontal sliding bar */
+	{
 		/* get slider value */
 		data_slider->val=x0+(ebox->width>>1)-data_slider->sxy.x;
 
@@ -452,19 +487,19 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		ebox->touchbox.endxy.x=data_slider->sxy.x+data_slider->val+(twidth>>1);
 		ebox->touchbox.endxy.y=data_slider->sxy.y+(theight>>1);
 
-		/* draw valued sliding slot */
-		fbset_color(data_slider->color_valued);
-		draw_wline(&gv_fb_dev,data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
-			      data_slider->sxy.x+data_slider->val, data_slider->sxy.y, /* slider point*/
-			   data_slider->sw);
-
 		/* draw void sliding slot */
 		fbset_color(data_slider->color_void);
 		draw_wline(&gv_fb_dev, data_slider->sxy.x+data_slider->val, data_slider->sxy.y, /* slider point*/
 			      data_slider->sxy.x+data_slider->sl, data_slider->sxy.y, /* slot end */
 			   data_slider->sw);
+
+		/* draw valued sliding slot */
+		fbset_color(data_slider->color_valued);
+		draw_wline(&gv_fb_dev,data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
+			      data_slider->sxy.x+data_slider->val, data_slider->sxy.y, /* slider point*/
+			   data_slider->sw);
 	}
-	else  //if(data_slider->ptype==1) {	/* Vertical sliding bar */
+	else if(data_slider->ptype==slidType_vert)	/* Vertical sliding bar */
 	{
 		/* Noticed that sval is upside down for LCD display */
 		/* get slider value, start point of V type bar is at lower end, with bigger Y */
@@ -480,17 +515,21 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		ebox->touchbox.endxy.x=data_slider->sxy.x+(twidth>>1);
 		ebox->touchbox.endxy.y=data_slider->sxy.y-data_slider->val+(theight>>1);
 
-		/* draw valued sliding slot */
-		fbset_color(data_slider->color_valued);
-		draw_wline(&gv_fb_dev, data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
-			      data_slider->sxy.x, data_slider->sxy.y-data_slider->val, /* slider point*/
-			   data_slider->sw);
-
 		/* draw void sliding slot */
 		fbset_color(data_slider->color_void);
 		draw_wline(&gv_fb_dev, data_slider->sxy.x, data_slider->sxy.y-data_slider->val, /* slider point */
 			      data_slider->sxy.x, data_slider->sxy.y-data_slider->sl, /* slot end */
 			   data_slider->sw);
+
+		/* draw valued sliding slot */
+		fbset_color(data_slider->color_valued);
+		draw_wline(&gv_fb_dev, data_slider->sxy.x, data_slider->sxy.y, /* slot start point */
+			      data_slider->sxy.x, data_slider->sxy.y-data_slider->val, /* slider point*/
+			   data_slider->sw);
+	}
+	else {
+		EGI_PDEBUG(DBG_SLIDER,"Warning: Undefined slider type!\n");
+		// Go on...
 	}
 
 	/* Draw the slider!!! only if no prmcolor and icon is NOT availbale */
@@ -503,7 +542,14 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 				 	   data_slider->sxy.x+data_slider->val, data_slider->sxy.y,
 					   data_slider->sw + 2
 			);
+			/* Draw a red inner circle */
+			fbset_color(WEGI_COLOR_RED);
+			draw_filled_circle(&gv_fb_dev,
+				 	   data_slider->sxy.x+data_slider->val, data_slider->sxy.y,
+					   3
+			);
 		}
+
 		else  {   /* Vertical bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x, data_slider->sxy.y-data_slider->val,
@@ -511,7 +557,6 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 			);
 		}
 	}
-
 
         /* ---- 6. set color and drawing shape ----- */
         if(ebox->prmcolor >= 0 && data_btn->icon == NULL )
@@ -523,7 +568,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
            	fbset_color(ebox->prmcolor);
 		switch(data_btn->shape)
 		{
-			case square:
+			case btnType_square:
 			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
         			/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
@@ -532,7 +577,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
                 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 			        }
 				break;
-			case circle:
+			case btnType_circle:
 				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
         			/* --- draw frame --- */
@@ -552,7 +597,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 				break;
 
 			default:
-				printf("egi_btnbox_refresh(): shape not defined! \n");
+				printf("%s: Slider shape not defined! \n");
 				break;
 		}
         }
@@ -633,6 +678,82 @@ use following COLOR:
 	ebox->need_refresh=false;
 
 	return 0;
+}
+
+
+/*------------------------------------------------
+Set slider percentage value in range [0 100]
+
+@slider:	The concerning slider.
+@psval:		Percentage value [0 100]
+
+Return:
+	0	OK
+	<0	Fails
+-------------------------------------------------*/
+int egi_slider_setpsval(EGI_EBOX *slider, int psval)
+{
+	int sl;
+        EGI_DATA_BTN *data_ebox=NULL;
+        EGI_DATA_SLIDER *data_slider=NULL;
+
+	if( slider==NULL || slider->egi_data==NULL )
+		return -1;
+
+        if( slider->type != type_slider)
+		return -2;
+
+	/* Get data */
+        data_ebox=(EGI_DATA_BTN *)(slider->egi_data);
+        data_slider=(EGI_DATA_SLIDER *)(data_ebox->prvdata);
+	if(data_slider==NULL)
+		return -3;
+
+	sl=data_slider->sl; /* slider bar length */
+
+	/* convert psval to within range [0 data_slider->sl-1] */
+	psval=psval*data_slider->sl/100;
+	if(psval<0)psval=0;
+	else if(psval > sl-1)psval=sl-1;
+
+	/* Slider value is drivered from ebox->x0/y0 for Horizotal slider in refresh().
+	 * So set slider->x0/y0, NOT data_slider->val.
+	 */
+	if(data_slider->ptype==slidType_horiz) {     	/* Horizontal sliding bar */
+        	slider->x0=data_slider->sxy.x+psval-(slider->width>>1);
+	}
+	else if(data_slider->ptype==slidType_vert) {	/* Vertical sliding bar */
+        	slider->y0=data_slider->sxy.y+psval-(slider->height>>1);
+	}
+	else {
+		EGI_PDEBUG(DBG_SLIDER,"Warning: Undefined slider type! Fail to set value.\n");
+		return -4;
+	}
+
+	return 0;
+}
+
+
+/*------------------------------------------------
+Get EGI_DATA_SLIDER from a slider
+Return:
+	A pointer to EGI_DATA_SLIDER 	OK
+	NULL				Fails
+-------------------------------------------------*/
+EGI_DATA_SLIDER *egi_slider_getdata(EGI_EBOX *slider)
+{
+	if(slider==NULL)
+		return NULL;
+
+	if(slider->type != type_slider)
+		return NULL;
+
+	if(slider->egi_data==NULL)
+		return NULL;
+
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(slider->egi_data);
+
+        return (EGI_DATA_SLIDER *)(data_btn->prvdata);
 }
 
 

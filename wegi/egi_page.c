@@ -788,7 +788,7 @@ pick a ebox pointer by its type and id number
 
 @page	a page struct holding eboxes.
 @type	type of ebox
-@id	ID of the ebox.  ebox->id
+@id	ID of the ebox.  ebox->id, MUST >0.
 
 return:
 	pointer 	OK
