@@ -1008,7 +1008,7 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
   	if(*apid<0) {
 
 		EGI_PDEBUG(DBG_PAGE,"----- start fork APP -----\n");
-		*apid=fork();
+		*apid=vfork();
 
 		/* In APP */
 		if(*apid==0) {

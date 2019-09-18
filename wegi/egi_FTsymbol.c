@@ -103,7 +103,7 @@ int  FTsymbol_load_sysfonts(void)
 	if(ret) {
 		//return -1;
 		// Go on....
-		EGI_PLOG(LOGLV_CRITICAL,"\033[33m %s: Some sysfonts missed or not configured!\n \033[0m", __func__ );
+		EGI_PLOG(LOGLV_ERROR,"%s: Some sysfonts missed or not configured!\n", __func__ );
 	}
 
 	return 0;
@@ -138,7 +138,7 @@ int  FTsymbol_load_appfonts(void)
 	/* load FT library with default fonts */
 	ret=FTsymbol_load_library( &egi_appfonts );
 	if(ret) {
-		EGI_PLOG(LOGLV_CRITICAL,"\033[33m %s: Some appfonts missed or not configured!\n \033[0m", __func__ );
+		EGI_PLOG(LOGLV_WARN,"%s: Some appfonts missed or not configured!\n", __func__ );
 		//return -1;
 	}
 
@@ -181,10 +181,10 @@ int  FTsymbol_load_allpages(void)
         	FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) ==0 ) 
         {
 
-		EGI_PLOG(LOGLV_CRITICAL,"\033[32m %s: Succeed to load sympg_ascii!\n \033[0m", __func__ );
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to load sympg_ascii!\n", __func__ );
 	}
 	else
-		EGI_PLOG( LOGLV_CRITICAL,"\033[33m %s: Fail to load sympg_ascii!\n \033[0m", __func__ );
+		EGI_PLOG( LOGLV_CRITICAL,"%s: Fail to load sympg_ascii!\n", __func__ );
 		//Go on...
 
 
@@ -206,7 +206,7 @@ void FTsymbol_release_allpages(void)
 
 
 
-/*--------------------------------------------------
+/*-------------------------------------------------------------
 Initialize FT library and load faces.
 
 Note:
@@ -215,11 +215,12 @@ it will slow down fork() process significantly.
 
 return:
         0       OK
-        !0      Fail
----------------------------------------------------*/
+        !0      Fails, or not all faces are loaded successfully.
+-------------------------------------------------------------*/
 int FTsymbol_load_library( EGI_FONTS *symlib )
 {
 	FT_Error	error;
+	int ret=0;
 
 	/* check input data */
 //	if( symlib==NULL || symlib->fpath_regular==NULL
@@ -245,10 +246,12 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_regular);
 //		goto FT_FAIL;
+		ret=1;
         }
         else if ( error ) {
                 printf("%s: Fail to open or read REGULAR font file '%s'.\n",__func__, symlib->fpath_regular);
 //		goto FT_FAIL;
+		ret=2;
         }
 
 	/* 3. create face object: Light */
@@ -257,10 +260,12 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_light);
 //		goto FT_FAIL;
+		ret=3;
         }
         else if ( error ) {
                 printf("%s: Fail to open or read LIGHT font file '%s'.\n",__func__, symlib->fpath_light);
 //		goto FT_FAIL;
+		ret=4;
         }
 
 	/* 4. create face object: Bold */
@@ -269,10 +274,12 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_bold);
 //		goto FT_FAIL;
+		ret=5;
         }
         else if ( error ) {
                 printf("%s: Fail to open or read BOLD font file '%s'.\n",__func__, symlib->fpath_bold);
 //		goto FT_FAIL;
+		ret=6;
         }
 
 	/* 5. create face object: Special */
@@ -281,14 +288,16 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
                 printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
 								__func__, symlib->fpath_special);
 //		goto FT_FAIL;
+		ret=7;
         }
         else if ( error ) {
                 printf("%s: Fail to open or read SPECIAL font file '%s'.\n",__func__, symlib->fpath_special);
 //		goto FT_FAIL;
+		ret=8;
         }
 
 
-	return 0;
+	return ret;
 
 
 FT_FAIL:

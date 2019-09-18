@@ -225,7 +225,7 @@ static bool enable_filesloop=true;
  *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
-static bool disable_video=true;
+static bool disable_video=false;
 
 /* param: ( enable_clip_test )
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
@@ -435,6 +435,7 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	bool tmbox_needUpdate=false;
 	int psval; /* slider value in percentage [0 100] */
 	char strtm[64];
+	int tm_h,tm_min,tm_sec;
 	EGI_EBOX 	*ebox_tmslider=NULL;
 	EGI_DATA_SLIDER *data_slider=NULL;
 	EGI_EBOX 	*ebox_tmtxt[2]={NULL,NULL};
@@ -1215,9 +1216,9 @@ else
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
-					/* --- Reset timer slider ---- */
+					/* --- Reset timing slider ---- */
+					/* TODO: 1. sep. duration. */
 					if( tmbox_needUpdate ) {
-
 					    /* --- 1. update slider position --- */
 					    if(ff_sec_Aduration==0) { /* To avoid 0 */
 						data_slider->val=0;
@@ -1227,9 +1228,23 @@ else
 					    	egi_slider_setpsval(ebox_tmslider, psval);
 					    }
 					    /* --- 2. Update txt ebox --- */
-					    sprintf(strtm,"%d:%d",ff_sec_Aelapsed/60, ff_sec_Aelapsed%60);
+					    tm_h=ff_sec_Aelapsed/3600;
+					    tm_min=(ff_sec_Aelapsed-tm_h*3600)/60;
+					    tm_sec=ff_sec_Aelapsed%60;
+						/* elapsed time */
+					    memset(strtm,0,sizeof(strtm));
+					    if(tm_h>0) {
+					            snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",
+											tm_h, tm_min,tm_sec);
+					    } else {
+					            snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
+											tm_min, tm_sec);
+					    }
 					    egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
-					    sprintf(strtm,"%d:%d",ff_sec_Aduration/60, ff_sec_Aduration%60);
+						/* duration time */
+					    memset(strtm,0,sizeof(strtm));
+					    snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
+								 ff_sec_Aduration/60, ff_sec_Aduration%60);
 					    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
 
 					    /* --- 3. Putting to PAGE routine for refresh. --- */
@@ -1238,7 +1253,7 @@ else
 					    egi_ebox_needrefresh(ebox_tmtxt[0]);
 					    egi_ebox_needrefresh(ebox_tmtxt[1]);
 					}
-					/* ----- END reset timer slider ------ */
+				        /* ----- END reset timer slider ------ */
 
 				}
 				packet.size -= bytes_used;

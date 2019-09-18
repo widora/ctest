@@ -688,7 +688,14 @@ int egi_page_flag_needrefresh(EGI_PAGE *page)
                 return -1;
         }
 
-	/* 2. set page need_refresh flag */
+	/*** 2. set page need_refresh flag
+         *   Wait and let current refreshing finish.
+         *   TODO: Race condition may still exist!
+         */
+        while(page->ebox->need_refresh) {
+               tm_delayms(10);
+        }
+
 	page->ebox->need_refresh=true;
 
 	return 0;
@@ -721,12 +728,24 @@ int egi_page_needrefresh(EGI_PAGE *page)
 	}
 
 	/* 3. set page->ebox */
+        /***  Wait and let current refreshing finish.
+         *    TODO: Race condition may still exist!
+         */
+        while(page->ebox->need_refresh) {
+               tm_delayms(10);
+        }
 	page->ebox->need_refresh=true;
 
 	/* 4. traverse the list and set page need_refresh, not safe */
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
+		/*  Wait and let current refreshing finish.
+		 *  TODO: Race condition may still exist!
+		 */
+		while(ebox->need_refresh) {
+			tm_delayms(10);
+		}
 		ebox->need_refresh=true;
 		EGI_PDEBUG(DBG_PAGE,"find child ebox: '%s' \n",ebox->tag);
 	}

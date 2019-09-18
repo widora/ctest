@@ -64,6 +64,10 @@ EGI_DATA_TXT *egi_txtdata_new(	int offx, int offy,
 	/* clear up data */
 	memset(data_txt,0,sizeof(EGI_DATA_TXT));
 
+	/*  Min. nl */
+	if( nl<=0 )
+		nl=1;
+
 	/* assign parameters */
         data_txt->offx=offx;
         data_txt->offy=offy;
@@ -153,6 +157,10 @@ EGI_DATA_TXT *egi_utxtdata_new( int offx, int offy,      /* offset from ebox lef
 		EGI_PDEBUG(DBG_TXT,"fail to malloc egi_data_txt.\n");
 		return NULL;
 	}
+
+	/* Min. nl */
+	if(nl<=0)
+		nl=1;
 
 	/* assign parameters */
         data_txt->offx=offx;
@@ -410,8 +418,10 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	else if(data_txt->font_face)
 		font_height=data_txt->fh;
 	else {
+		font_height=0;
 		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
-		return -1;
+		//return -1;
+		/* Go on anyway, ingore TXT, just to refresh bkimg.... */
 	}
 
 	/* adjust ebox height */
@@ -565,8 +575,10 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 	else if(data_txt->font_face)
 		font_height=data_txt->fh;
 	else {
+		font_height=0;
 		EGI_PDEBUG(DBG_TXT, "data_txt->font and data_txt->font_face are both empty!\n");
-		return -1;
+		//return -1;
+		/* Go on anyway, ingore TXT, just to refresh bkimg.... */
 	}
 
 
@@ -715,7 +727,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		ebox->decorate(ebox);
 
 	/* ---- 11. refresh TXT, write txt line to FB */
-        if(data_txt->font) /* For non_FTsymbols */
+        if(data_txt->font)  /*  --11.1--  For non_FTsymbols */
 	{
 		EGI_PDEBUG(DBG_TXT,"Start symbol_string_writeFB(), font color=%d ...\n", data_txt->color);
 		for(i=0;i<nl;i++)
@@ -733,7 +745,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 
 		}
 	}
-	else if(data_txt->font_face && data_txt->utxt !=NULL ) /* For FTsymbols */
+	else if(data_txt->font_face && data_txt->utxt !=NULL ) /* --11.2-- For FTsymbols */
 	{
 		EGI_PDEBUG(DBG_TXT,"Start symbol_uft8string_writeFB(), font color=%d ...\n", data_txt->color);
 		FTsymbol_uft8strings_writeFB( &gv_fb_dev,
@@ -1205,8 +1217,8 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	int offx=data_txt->offx;
 	char **txt=data_txt->txt;
 	int nt=0; /* index, txt[][nt] */
-	int nl=data_txt->nl; /* from 0, number of txt line */
-	int nlw=0; /* current written line of txt */
+	int nl=data_txt->nl; /* total number of txt lines */
+	int nlw=0; /* current written line index, txt[nlw][] */
 	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
 	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
 	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
@@ -1214,6 +1226,10 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	int maxnum=data_txt->font->maxnum;
 
 	int nread=strlen(buf); /* total bytes of chars */
+
+	/* clear data */
+	for(i=0;i<nl;i++)
+		memset(txt[i],0,data_txt->llen); /* dont use llen, here llen=data_txt->llen-1 */
 
 	/* put char to data_txt->txt one by one*/
 	for(i=0;i<nread;i++)

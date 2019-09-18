@@ -271,8 +271,8 @@ EGI_PAGE *create_ffmuzPage(void)
 	ebox_tmtxt[1]->id=TIME_TXT1_ID;
 
 	/* initial value in tmtxt */
-	egi_push_datatxt(ebox_tmtxt[0], "00.00", NULL);
-	egi_push_datatxt(ebox_tmtxt[1], "00.00", NULL);
+	egi_push_datatxt(ebox_tmtxt[0], "00.000", NULL);
+	egi_push_datatxt(ebox_tmtxt[1], "00.000", NULL);
 
 
 	/* --------- 5. create ffplay page ------- */

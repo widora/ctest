@@ -101,7 +101,35 @@ return:
 --------------------------------------------------------------------------------------*/
 int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 {
+	/*** --- Console Color Attribute Setting ---
+	 * 1. Usag:   \033[Param {;Param;...}m ...(your strings)... \033[0m
+	 *	   or \e[Param {;Param;...}m ...(your strings)... \e[0m
+	 * 	        ( '\033' equals to '\e', but '\e' seems NOT so bright! )
+	 * 2. Param: font format
+         *	0       reset all attributes to their defaults
+         *	1       set bold
+         *	2       set half-bright (simulated with color on a color display)
+       	 *	4       set underscore (simulated with color on a color  display)
+       	 *	5       set blink
+	 * 3. Param: Color value
+	 *	0-black;  1-red;      2-green;  3-yellow;
+	 *	4-blue;   5-magenta;  6-cyan;   7-white
+	 * 4. Foreground color set: 30+color_value
+	 *    Background color set: 40+color_value
+	 * 5. Run 'man console_codes' in Ubuntu to see more.
+	 */
+	const char *attrRed="\033[0;31;40m";
+	const char *attrGreen="\033[32;40m";
+	const char *attrYellow="\033[1;33;40m";
+	const char *attrBlue="\033[34;40m";
+	const char *attrMagenta="\033[35;40m";
+	const char *attrCyan="\033[36;40m";
+	const char *attrReset="\033[0m"; /* reset all attributes to their defaults */
+	char	*pattrcolor=NULL;
+
 	char strlog[EGI_LOG_MAX_ITEMLEN]={0}; /* for temp. use */
+	struct tm *tm;
+	int tmlen;
 
 	/* get extended parameters */
 	va_list arg;
@@ -109,19 +137,44 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 
 	/* get time stamp */
 	time_t t=time(NULL);
-	struct tm *tm=localtime(&t);
+	tm=localtime(&t);
+
+	/* set log consol output color */
+	switch(log_level) {
+		case LOGLV_ERROR:
+			pattrcolor=attrRed;
+			break;
+		case LOGLV_WARN:
+			pattrcolor=attrYellow;
+			break;
+		case LOGLV_CRITICAL:
+			pattrcolor=attrGreen;
+			break;
+		default:
+			pattrcolor=attrReset;
+	}
+
+	/* Clear,seems not necessary */
+	// memset(strlog,0,sizeof(strlog));
 
 	/* prepare time stamp string and log_level */
-	sprintf(strlog, "[%d-%02d-%02d %02d:%02d:%02d] [%s] ",
+	sprintf(strlog, "%s[%d-%02d-%02d %02d:%02d:%02d] [%s] ", pattrcolor,
 				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec,
 				egi_loglv_to_string(log_level) );
 	//printf("time string for strlog: %s \n",strlog);
 
-	int tmlen=strlen(strlog);
-
 	/* push log string into temp. strlog */
+	tmlen=strlen(strlog);
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
-#if ENABLE_LOGBUFF_PRINT
+
+	/* Reset console color to default */
+	tmlen=strlen(strlog); /* new length with log string */
+	if( EGI_LOG_MAX_ITEMLEN-tmlen-1 < strlen(attrReset) )
+		fprintf(stderr, "\e[31m %s  ---- WARNING: log message truncated! ---\e[0m\n",__func__);
+	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, attrReset, NULL); /* -1 for /0 */
+							  /*- fmt MUST be const char*  -*/
+
+#ifdef ENABLE_LOGBUFF_PRINT
 	printf("EGI_Logger: %s",strlog); /* no '/n', Let log caller to decide return token */
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
@@ -186,7 +239,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 									log_buff_count, strlen(strlog) );
 	*/
 		memset(log_buff[log_buff_count],0,EGI_LOG_MAX_ITEMLEN); /* clear buff item */
-		strncpy((char *)log_buff[log_buff_count],strlog,strlen(strlog));
+		strncpy((char *)log_buff[log_buff_count],strlog,strlen(strlog)); /* copy to log_buff */
 
 		/* increase count */
 		log_buff_count++;

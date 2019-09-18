@@ -14,7 +14,8 @@ Midas Zhou
 
 #define EGI_LOGFILE_PATH "/mmc/egi_log"	/* default */
 
-#define ENABLE_LOGBUFF_PRINT 	1	/* enable to print log buff content */
+#define ENABLE_LOGBUFF_PRINT 	/* enable to print log buff content */
+
 #define EGI_LOG_MAX_BUFFITEMS	128 	/* MAX. number of log buff items */
 #define EGI_LOG_MAX_ITEMLEN	512 //256 	/* Max length for each log string item */
 #define EGI_LOG_WRITE_SLEEPGAP	10  	/* in ms, sleep gap between two buff write session in egi_log_thread_write() */
@@ -37,8 +38,8 @@ enum egi_log_level
 /* Only log levels included in DEFAULT_LOG_LEVELS will be effective in EGI_PLOG() */
 #define DEFAULT_LOG_LEVELS   (LOGLV_NONE|LOGLV_TEST|LOGLV_INFO|LOGLV_WARN|LOGLV_ERROR|LOGLV_CRITICAL)
 
-/* Only log level gets threshold(>=) that will be written to log file directly without buffer */
-#define LOGLV_NOBUFF_THRESHOLD		LOGLV_ERROR
+/* Only log level gets threshold(>=) that will be written to log file directly, without putting to buffer */
+#define LOGLV_NOBUFF_THRESHOLD		LOGLV_WARN
 
 
 /* --- logger functions --- */

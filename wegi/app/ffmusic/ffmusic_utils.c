@@ -171,6 +171,7 @@ void* display_MusicPic(void * argv)
    }
 
    int 	i;
+   int  ret;
    int  index;
    int  blur_size;
    int  xsize, ysize; /* size of FB screen  */
@@ -180,8 +181,6 @@ void* display_MusicPic(void * argv)
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF  *tmpimg=NULL;
-//   EGI_IMGBUF  *tmpimg2=NULL;
-//   EGI_IMGBUF  *pageimg=NULL; /* PAGE frame_img */
    EGI_IMGBUF *imgbuf=NULL;
 
    imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
@@ -218,12 +217,14 @@ void* display_MusicPic(void * argv)
 	blur_size=tmpimg->height/50;
 	if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
-		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
+  	     ret=egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 	}
 	else if(tmpimg) {			/* B. If a big size image, resize then blur */
 		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
-		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
+	    ret=egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 	}
+	if(ret !=0 )
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!\n", __func__);
 
         /* Free old frame_img in PAGE */
 	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
@@ -330,7 +331,7 @@ void* display_MusicPic(void * argv)
 			}
 
 			/*--- 2. Blur and resize the imgbuf ---*/
-			blur_size=imgbuf->height/100; /* original imgbuf */
+			blur_size=imgbuf->height/50; /* original imgbuf */
 			if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
