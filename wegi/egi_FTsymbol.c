@@ -138,7 +138,7 @@ int  FTsymbol_load_appfonts(void)
 	/* load FT library with default fonts */
 	ret=FTsymbol_load_library( &egi_appfonts );
 	if(ret) {
-		EGI_PLOG(LOGLV_WARN,"%s: Some appfonts missed or not configured!\n", __func__ );
+		EGI_PLOG(LOGLV_WARN,"%s: Some appfonts missed or not configured!", __func__ );
 		//return -1;
 	}
 
@@ -181,10 +181,10 @@ int  FTsymbol_load_allpages(void)
         	FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) ==0 ) 
         {
 
-		EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to load sympg_ascii!\n", __func__ );
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to load sympg_ascii!", __func__ );
 	}
 	else
-		EGI_PLOG( LOGLV_CRITICAL,"%s: Fail to load sympg_ascii!\n", __func__ );
+		EGI_PLOG( LOGLV_CRITICAL,"%s: Fail to load sympg_ascii!", __func__ );
 		//Go on...
 
 

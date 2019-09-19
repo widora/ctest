@@ -692,10 +692,6 @@ int egi_page_flag_needrefresh(EGI_PAGE *page)
          *   Wait and let current refreshing finish.
          *   TODO: Race condition may still exist!
          */
-        while(page->ebox->need_refresh) {
-               tm_delayms(10);
-        }
-
 	page->ebox->need_refresh=true;
 
 	return 0;
@@ -731,9 +727,6 @@ int egi_page_needrefresh(EGI_PAGE *page)
         /***  Wait and let current refreshing finish.
          *    TODO: Race condition may still exist!
          */
-        while(page->ebox->need_refresh) {
-               tm_delayms(10);
-        }
 	page->ebox->need_refresh=true;
 
 	/* 4. traverse the list and set page need_refresh, not safe */
@@ -743,9 +736,6 @@ int egi_page_needrefresh(EGI_PAGE *page)
 		/*  Wait and let current refreshing finish.
 		 *  TODO: Race condition may still exist!
 		 */
-		while(ebox->need_refresh) {
-			tm_delayms(10);
-		}
 		ebox->need_refresh=true;
 		EGI_PDEBUG(DBG_PAGE,"find child ebox: '%s' \n",ebox->tag);
 	}
@@ -1151,12 +1141,18 @@ int egi_homepage_routine(EGI_PAGE *page)
 	int i;
 	int ret;
 	uint16_t sx,sy;
-	enum egi_touch_status flip_status; /* for 'releasing' or 'pressing' */
-	enum egi_touch_status last_status=released_hold;
+
+	/* Indicating the nearest 'releasing' or 'pressing' status.
+	 * Default set as 'releasing', as corresponds to last_status default 'released_hold'
+	 */
+	enum egi_touch_status flip_status=releasing;
+	enum egi_touch_status last_status=released_hold; /* means the lasted status! */
+
 	enum egi_touch_status check_status;
 	EGI_TOUCH_DATA touch_data;
 	int tdx,tdy;
 	bool slide_touch=false;
+	bool edge_restored=false;	/* Indicating that a missing edge change statu is restored */
 
 	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
 	tm_delayms(200);
@@ -1250,11 +1246,14 @@ int egi_homepage_routine(EGI_PAGE *page)
 		if(last_status != released_hold)
 			printf("routine: --- %s ---\n",egi_str_touch_status(last_status));
 
-		/*	-----  restore missing status  ------
+		/*  1.1     -----  restore missing status  ------
 		 *   The 'pressing' and 'releasing' signal may be missed due to current egi_touch.c
 		 *  algrithm, especially when you add pressing force slowly at the screen.
 		 *  we need to restore 'pressing' status and pass down the status.
+		 *  Or say 'edge restoring' for some edge_trigged actions.
 		 */
+
+		edge_restored=false;  /* reset indicator */
 		if( flip_status != pressing && last_status==pressed_hold ) {
 		    /* restore 'pressing' status then
 		     * NOTE
@@ -1264,7 +1263,8 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    printf(" --- restore 'pressing' --- \n");
 		    last_status=pressing;
 		    touch_data.status=pressing;
-		    flip_status=pressing;
+		    flip_status=pressing; /* update the nearset flip status */
+		    edge_restored=true;
 		}
 		else if(flip_status != releasing && last_status==released_hold) {
 		    /* restore 'releasing' status then*/
@@ -1272,6 +1272,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    last_status=releasing;
 		    touch_data.status=releasing;
 		    flip_status=releasing;
+		    edge_restored=true;
 		}
 
 		/* 2. trigger touch handling process then */
@@ -1285,7 +1286,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			 */
 		        if( last_status==pressing ) {  //|| flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
-				tm_delayms(100);
+				tm_delayms(50);
 				//tdx=egi_touch_peekdx();
 				egi_touch_peekdxdy(&tdx,&tdy);
 				/* check peek tdx, and also peek if 'releasing' after 'pressed_hold' */
@@ -1329,8 +1330,10 @@ int egi_homepage_routine(EGI_PAGE *page)
 				else if(last_status==pressing)
 					printf(" --- sliding press start! --- \n");
 
-				page->slide_handler(page, &touch_data);
-				egi_page_refresh(page); /* refresh page for other eboxes!!!  */
+				if(page->slide_handler != NULL) {
+					page->slide_handler(page, &touch_data);
+					egi_page_refresh(page); /* refresh page for other eboxes!!!  */
+				}
 
 				if(last_status==releasing)  /* 'releasing' is and end to sliding operation */
 					slide_touch=false;
@@ -1353,7 +1356,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			/* 2.5 trap into button reaction functions */
 	       	 	if(hitbtn != NULL)
 			{
-				/* display touch effect for button */
+				/* 2.5.1 display touch effect for button */
 				if(hitbtn->type==type_btn) {
 
 				    /* remember last hold btn */
@@ -1367,7 +1370,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
 				}
 
-				/* trigger reaction func */
+				/* 2.5.2 trigger reaction func */
  				if( hitbtn->reaction != NULL && (  last_status==pressed_hold ||
 								   last_status==pressing ||
 								   last_status==releasing ||

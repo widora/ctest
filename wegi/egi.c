@@ -371,10 +371,6 @@ inline void egi_ebox_needrefresh(EGI_EBOX *ebox)
         /***  Wait and let current refreshing finish.
 	 *    TODO: Race condition may still exist!
 	 */
-        while(ebox->need_refresh) {
-               tm_delayms(10);
-        }
-
 	ebox->need_refresh=true;
    }
 }

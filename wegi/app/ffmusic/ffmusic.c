@@ -306,7 +306,7 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
 						     || FFmuz_Ctx->fpath[0]==NULL)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!", __func__);
 		return (void *)-1;
 	}
 	printf("-------------start at: %ld -----------\n", FFmuz_Ctx->start_tmsecs);
@@ -451,8 +451,8 @@ void * thread_ffplay_music(EGI_PAGE *page)
 
 		/* If null */
 		if( data_slider== NULL) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!\n",__func__);
-			EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!\n",
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!",__func__);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!",
 						__func__,
 						page==NULL?"NULL":"OK", ebox_tmslider==NULL?"NULL":"OK",
 						data_slider==NULL?"NULL":"OK"
@@ -470,7 +470,7 @@ void * thread_ffplay_music(EGI_PAGE *page)
 		data_txt[1]=egi_txtbox_getdata(ebox_tmtxt[1]);
 
 		if( data_txt[0]==NULL || data_txt[1]==NULL ) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!\n",__func__);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!",__func__);
 			/* reset all */
 			ebox_tmtxt[0]=NULL; ebox_tmtxt[1]=NULL;
 			data_txt[0]=NULL;   data_txt[1]=NULL;
@@ -494,13 +494,13 @@ while(1) {
 	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
 						     || FFmuz_Ctx->fpath[0]==NULL)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!", __func__);
 		return (void *)-1;
 	}
 	fpath=FFmuz_Ctx->fpath;  /* array of media file path */
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
-	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
+	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ...",__func__);
    	av_register_all();
    	avformat_network_init();
 
@@ -526,10 +526,10 @@ while(1) {
 	vcodecID=AV_CODEC_ID_NONE;
 
 	/* Open media stream or file */
-	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...\n", __func__, fnum, fpath[fnum]);
+	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...", __func__, fnum, fpath[fnum]);
 	if(avformat_open_input(&pFormatCtx, fpath[fnum], NULL, NULL)!=0)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open the file, or file type is not recognizable.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open the file, or file type is not recognizable.",__func__);
 
 	   if(enable_filesloop) {	/* if loop, skip to next one */
 		avformat_close_input(&pFormatCtx);
@@ -548,7 +548,7 @@ while(1) {
 pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0)  {
-		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!");
 
 	/* No media stream found */
 #ifdef FFMUZ_MEDIA_LOOP
@@ -599,7 +599,7 @@ pFormatCtx->probesize2=128*1024;
 			-------------------------------*/
 		        vcodecDespt=avcodec_descriptor_get(vcodecID);
 			if(vcodecDespt != NULL) {
-				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s\n",
+				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s",
 							__func__, vcodecDespt->name, vcodecDespt->long_name);
 			}
 		   }
@@ -625,7 +625,7 @@ pFormatCtx->probesize2=128*1024;
 			-------------------------------*/
 		        acodecDespt=avcodec_descriptor_get(acodecID);
 			if(acodecDespt != NULL) {
-				EGI_PLOG(LOGLV_INFO,"%s: Audio codec name: %s, %s\n",
+				EGI_PLOG(LOGLV_INFO,"%s: Audio codec name: %s, %s",
 							__func__, acodecDespt->name, acodecDespt->long_name);
 			}
 		   }
@@ -633,19 +633,19 @@ pFormatCtx->probesize2=128*1024;
 			EGI_PDEBUG(DBG_FFPLAY,"Audio is also found in stream[%d], to be ignored.\n",i);
 		}
 	}
-	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] \n", __func__,
+	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] ", __func__,
 				 videoStream, audioStream);
 
 	if(videoStream == -1 && audioStream == -1) {
-		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...\n");
+		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...");
 		return (void *)-1;
 	}
 	else if(videoStream == -1) {
-		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!\n");
+		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!");
 //go on		return (void *)-1;
 	}
 	else if(audioStream == -1) {
-		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!\n");
+		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!");
 //go on   	return (void *)-1;
 	}
 
@@ -667,26 +667,26 @@ if(disable_audio && audioStream>=0 )
 	/* proceed --- audio --- stream */
 	if(audioStream >= 0) /* only if audioStream exists */
   	{
-		EGI_PLOG(LOGLV_INFO,"%s: Prepare for audio stream processing ...\n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Prepare for audio stream processing ...",__func__);
 		/* Get a pointer to the codec context for the audio stream */
 		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 		/* Find the decoder for the audio stream */
-		EGI_PLOG(LOGLV_INFO,"%s: Try to find the decoder for the audio stream... \n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Try to find the decoder for the audio stream... ",__func__);
 		aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
 		if(aCodec == NULL) {
-			EGI_PLOG(LOGLV_ERROR, "%s: Unsupported audio codec! quit now...\n" ,__func__);
+			EGI_PLOG(LOGLV_ERROR, "%s: Unsupported audio codec! quit now..." ,__func__);
 			return (void *)-1;
 		}
 		/* copy audio codec context */
 		aCodecCtx=avcodec_alloc_context3(aCodec);
 		if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
-			EGI_PLOG(LOGLV_ERROR, "%s: Couldn't copy audio code context! quit now...\n", __func__);
+			EGI_PLOG(LOGLV_ERROR, "%s: Couldn't copy audio code context! quit now...", __func__);
 			return (void *)-1;
 		}
 		/* open audio codec */
-		EGI_PLOG(LOGLV_INFO,"%s: Try to open audio stream with avcodec_open2()... \n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Try to open audio stream with avcodec_open2()...",__func__);
 		if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
-			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit now...!\n");
+			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit now...!");
 			return (void *)-1;
 		}
 		/* get audio stream parameters */
@@ -710,12 +710,12 @@ if(disable_audio && audioStream>=0 )
 
 		/* Now only support AV_SAMPLE_FMT_S16(P) , SND_PCM_FORMAT_S16_LE */
 		if(sample_fmt!=AV_SAMPLE_FMT_S16P && sample_fmt!=AV_SAMPLE_FMT_S16 ) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Sample formt is '%s', NOT supported? \n",
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Sample formt is '%s', NOT supported?",
 							__func__, av_get_sample_fmt_name(sample_fmt));
 		}
 		/* Now only support Max. channel number =2 */
 		if( nb_channels > 2 ) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Number of audio channels is %d >2, not supported!\n",
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Number of audio channels is %d >2, not supported!",
 										__func__, nb_channels);
 			goto FAIL_OR_TERM;
 		}
@@ -726,7 +726,7 @@ if(disable_audio && audioStream>=0 )
 			out_sample_rate=44100;
 
 #if 1 /* -----METHOD (1)-----:  or to be replaced by swr_alloc_set_opts() */
-			EGI_PLOG(LOGLV_INFO,"%s: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n",
+			EGI_PLOG(LOGLV_INFO,"%s: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...",
 									__func__);
 			swr=swr_alloc();
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
@@ -744,7 +744,7 @@ if(disable_audio && audioStream>=0 )
                            int log_offset, void *log_ctx);		 */
 
 			/* allocate and set opts for swr */
-			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
+			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...",__func__);
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
@@ -754,7 +754,7 @@ if(disable_audio && audioStream>=0 )
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
 
-			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...\n", __func__);
+			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...", __func__);
 			swr_init(swr);
 
 			/* alloc outputBuffer */
@@ -762,14 +762,14 @@ if(disable_audio && audioStream>=0 )
 			outputBuffer=malloc(2*frame_size * bytes_per_sample);
 			if(outputBuffer == NULL)
 	       	 	{
-				EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
+				EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!",__func__);
 				return (void *)-1;
 			}
 
 			/* open pcm play device and set parameters */
  			if( prepare_ffpcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.",
 											__func__);
 				goto FAIL_OR_TERM;
 			}
@@ -795,7 +795,7 @@ if(disable_audio && audioStream>=0 )
  				 * out and in fmt both to be AV_SAMPLE_FMT_S16!
 				 * 'in' data referes to decoded audio pcm data, which is noninterleated.
 				 */
-				EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
+				EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...",__func__);
 				swr=swr_alloc_set_opts( swr,
 						channel_layout, AV_SAMPLE_FMT_S16, out_sample_rate,
 						channel_layout, AV_SAMPLE_FMT_S16, sample_rate,
@@ -813,7 +813,7 @@ if(disable_audio && audioStream>=0 )
 				outputBuffer=malloc( nb_channels*frame_size*bytes_per_sample*2);
 				if(outputBuffer == NULL)
 		       	 	{
-					EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
+					EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!",__func__);
 					return (void *)-1;
 				}
 
@@ -821,7 +821,7 @@ if(disable_audio && audioStream>=0 )
 				printf("-------- prepare_ffpcm_device() ....\n");
  				if( prepare_ffpcm_device(nb_channels,out_sample_rate, false) !=0 ) /* 'true' for interleaved access */
 				{
-					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
+					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.",
 											__func__);
 					goto FAIL_OR_TERM;
 				}
@@ -832,7 +832,7 @@ if(disable_audio && audioStream>=0 )
 			/* Directly open pcm play device and set parameters */
  			else if ( prepare_ffpcm_device(nb_channels,sample_rate, false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.",
 											__func__);
 				goto FAIL_OR_TERM;
 			}
@@ -844,7 +844,7 @@ if(disable_audio && audioStream>=0 )
 		EGI_PDEBUG(DBG_FFPLAY,"%s: av_frame_alloc() for Audio...\n",__func__);
 		pAudioFrame=av_frame_alloc();
 		if(pAudioFrame==NULL) {
-			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
+			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!");
 			return (void *)-1;
 		}
 
@@ -852,7 +852,7 @@ if(disable_audio && audioStream>=0 )
 	       if(enable_audio_spectrum)
                {
 	           if(pthread_create(&pthd_audioSpectrum, NULL, ff_display_spectrum, NULL ) != 0) {
-        	        EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying audio spectrum! \n");
+        	        EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying audio spectrum!");
                 	return (void *)-1;
 	           }
         	   else
@@ -907,27 +907,27 @@ if(disable_video && videoStream>=0 )
 	/* copy video codec context */
 	pCodecCtx=avcodec_alloc_context3(pCodec);
 	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
-		EGI_PLOG(LOGLV_ERROR,"Couldn't copy video code context!\n");
+		EGI_PLOG(LOGLV_ERROR,"Couldn't copy video code context!");
 		return (void *)-1;
 	}
 
 	/* open video codec */
 	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
-		EGI_PLOG(LOGLV_ERROR, "Cound not open video codec!\n");
+		EGI_PLOG(LOGLV_ERROR, "Cound not open video codec!");
 		return (void *)-1;
 	}
 
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
 	if(pFrame==NULL) {
-		EGI_PLOG(LOGLV_ERROR,"Fail to allocate pFrame!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate pFrame!");
 		return (void *)-1;
 	}
 	/* allocate an AVFrame structure */
 	EGI_PDEBUG(DBG_FFPLAY,"Try to allocate an AVFrame structure for RGB data...\n");
 	pFrameRGB=av_frame_alloc();
 	if(pFrameRGB==NULL) {
-		EGI_PLOG(LOGLV_ERROR, "Fail to allocate a AVFrame struct for RGB data !\n");
+		EGI_PLOG(LOGLV_ERROR, "Fail to allocate a AVFrame struct for RGB data !");
 		return (void *)-1;
 	}
 	/* get original video size */
@@ -962,7 +962,7 @@ if(disable_video && videoStream>=0 )
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
 	printf("%s: start to ff_malloc_PICbuffs()...\n", __func__);
 	if(ff_malloc_PICbuffs(display_width,display_height, 2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
-		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!");
 		return (void *)-1;
 	}
 	else
@@ -1002,7 +1002,7 @@ if(disable_video && videoStream>=0 )
 	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
 	if( pfsub != NULL && access(pfsub,F_OK)==0 ) {
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
-			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
+			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles!");
 			pthd_subtitle_running=false;
 			//Go on anyway. //return (void *)-1;
 		}
@@ -1027,7 +1027,7 @@ if(disable_video && videoStream>=0 )
 		pic_info.PicOff=false;
 
 	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
-		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
+		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures!");
 		return (void *)-1;
 	}
 	else
@@ -1035,14 +1035,6 @@ if(disable_video && videoStream>=0 )
 	/* set running token */
 	pthd_displayPic_running=true;
 
-
-/*  --------  LOOP  ::  Read packets and process data  --------   */
-
-	gettimeofday(&tm_start,NULL);
-	EGI_PDEBUG(DBG_FFPLAY,"<<<< ----- FFPLAY START PLAYING STREAMS ----- >>>\n");
-	//printf("	 converting video frame to RGB and then send to display...\n");
-	//printf("	 sending audio frame data to playback ... \n");
-	i=0;
 
 /* if loop playing for only ONE file ..... */
 SEEK_LOOP_START:
@@ -1064,6 +1056,33 @@ else
 	}
 }
 
+	/* Get playing time (duration) */
+	if(audioStream>=0) {
+		ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
+							&pFormatCtx->streams[audioStream]->time_base) );
+		/* Refresh duration txt ebox */
+		if( tmbox_needUpdate ) {
+	            memset(strtm,0,sizeof(strtm));
+	            snprintf(strtm, sizeof(strtm)-1, "%02d:%02d", ff_sec_Aduration/60, ff_sec_Aduration%60);
+	            egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
+	            egi_ebox_needrefresh(ebox_tmtxt[1]);
+		}
+	}
+	if(videoStream>=0) {
+		ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+							&pFormatCtx->streams[videoStream]->time_base) );
+		EGI_PLOG(LOGLV_TEST,"%s: Video duration is %lds.",__func__,ff_sec_Vduration);
+	}
+
+
+/*  --------  LOOP  ::  Read packets and process data  --------   */
+
+	gettimeofday(&tm_start,NULL);
+	EGI_PDEBUG(DBG_FFPLAY,"<<<< ----- FFPLAY START PLAYING STREAMS ----- >>>\n");
+	//printf("	 converting video frame to RGB and then send to display...\n");
+	//printf("	 sending audio frame data to playback ... \n");
+	i=0;
+
 	EGI_PDEBUG(DBG_FFPLAY,"Start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
 		/* -----   process Video Stream   ----- */
@@ -1072,7 +1091,7 @@ else
 			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
-				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...\n");
+				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...");
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
@@ -1097,8 +1116,8 @@ else
 				/* ---print playing time--- */
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
-				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
-							&pFormatCtx->streams[videoStream]->time_base) );
+				//ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+				//			&pFormatCtx->streams[videoStream]->time_base) );
 
 /*
 				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
@@ -1207,9 +1226,6 @@ else
 					/* print audio playing time, only if no video stream */
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[audioStream]->time_base) );
-					ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
-							&pFormatCtx->streams[audioStream]->time_base) );
-
 					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
 								ff_sec_Aelapsed, ff_sec_Aduration );
 
@@ -1217,7 +1233,6 @@ else
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
 					/* --- Reset timing slider ---- */
-					/* TODO: 1. sep. duration. */
 					if( tmbox_needUpdate ) {
 					    /* --- 1. update slider position --- */
 					    if(ff_sec_Aduration==0) { /* To avoid 0 */
@@ -1227,7 +1242,7 @@ else
 					    	psval=ff_sec_Aelapsed*100/ff_sec_Aduration;
 					    	egi_slider_setpsval(ebox_tmslider, psval);
 					    }
-					    /* --- 2. Update txt ebox --- */
+					    /* --- 2. Update elapsed time txt ebox --- */
 					    tm_h=ff_sec_Aelapsed/3600;
 					    tm_min=(ff_sec_Aelapsed-tm_h*3600)/60;
 					    tm_sec=ff_sec_Aelapsed%60;
@@ -1241,17 +1256,19 @@ else
 											tm_min, tm_sec);
 					    }
 					    egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
+
+				#if 0
 						/* duration time */
 					    memset(strtm,0,sizeof(strtm));
 					    snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
 								 ff_sec_Aduration/60, ff_sec_Aduration%60);
 					    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
-
+					    egi_ebox_needrefresh(ebox_tmtxt[1]);
+				#endif
 					    /* --- 3. Putting to PAGE routine for refresh. --- */
 					    //egi_ebox_forcerefresh(ebox_tmslider); /* Not GOOD! */
 					    egi_ebox_needrefresh(ebox_tmslider);
 					    egi_ebox_needrefresh(ebox_tmtxt[0]);
-					    egi_ebox_needrefresh(ebox_tmtxt[1]);
 					}
 				        /* ----- END reset timer slider ------ */
 
@@ -1322,16 +1339,24 @@ if(enable_clip_test)
 		    /* 3. parse PREV/NEXT  */
 		    else if(FFmuz_Ctx->ffcmd==cmd_next) {
 		    	FFmuz_Ctx->ffcmd=cmd_none;
+			if(enable_seekloop==true) { /* If REPEAT ONE */
+				if( fnum > 0 ) 	fnum-=1;
+				else		fnum=-1;
+			}
 			//break;
 			goto FAIL_OR_TERM;
 		    }
 		    else if(FFmuz_Ctx->ffcmd==cmd_prev) {
 			FFmuz_Ctx->ffcmd=cmd_none;
 			//printf("xxxxxxxxx  fnum=%d  xxxxxxx", fnum );
-			if( fnum > 0 )
-				fnum-=2;
-			else
-				fnum=-1;
+			if(enable_seekloop==true) { /* If REPEAT ONE */
+				if( fnum > 0 ) 	fnum-=1;
+				else		fnum=-1;
+			}
+			else {
+				if( fnum > 0 ) 	fnum-=2;
+				else		fnum=-1;
+			}
 			//break;
 			goto FAIL_OR_TERM;
 		    }

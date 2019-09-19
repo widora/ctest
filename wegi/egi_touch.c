@@ -64,6 +64,9 @@ EGI_TOUCH_DATA egi_touch_peekdata(void)
 }
 
 
+
+
+
 /*-------------------------------------------
 Check dx, but do NOT read out or reset token.
 Usually use it to check touch_slide condition.

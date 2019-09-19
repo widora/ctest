@@ -496,7 +496,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 										      __func__, key, sect);
 	}
 	else {
-		EGI_PLOG(LOGLV_CRITICAL,"%s: Get value of key:[%s] in section:[%s] in config file.\n",
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Get value of key:[%s] in section:[%s] in config file.",
 										      __func__, key, sect);
 	}
 #endif

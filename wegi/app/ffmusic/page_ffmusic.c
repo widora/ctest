@@ -55,6 +55,14 @@ Midas Zhou
 #define ICON_CODE_LOOPALL	8	/* loop all files in the list */
 #define ICON_CODE_GOHOME	9
 
+/* Control button IDs */
+#define BTN_ID_PREV		0
+#define BTN_ID_PLAYPAUSE	1
+#define BTN_ID_NEXT		2
+#define BTN_ID_EXIT		3	/* SLEEP */
+#define BTN_ID_PLAYMODE		4	/* PLAYMODE or EXIT  */
+
+/* Timer slider and txt ID, global */
 //#define TIME_SLIDER_ID	100
 //#define TIME_TXT0_ID		101
 //#define TIME_TXT1_ID		102
@@ -113,7 +121,7 @@ EGI_PAGE *create_ffmuzPage(void)
 		}
 
 		/* Do not show tag on the button */
-		data_btns[i]->showtag=false;
+//default	data_btns[i]->showtag=false;
 
 		/* 2. create new btn eboxes */
 		ffmuz_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
@@ -324,15 +332,23 @@ static void egi_pageffplay_runner(EGI_PAGE *page)
 
 }
 
-/*--------------------------------------------------------------------
-ffplay PREV
-return
-----------------------------------------------------------------------*/
+/*---------------------------------------------------------------
+			ffmuz play PREV
+----------------------------------------------------------------*/
 static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
+
+	/* ffmusic.c is forced to play the next song,
+         * so change 'play&pause' button icon from PLAY to PAUSE
+	 */
+	if((data_btns[BTN_ID_PLAYPAUSE]->icon_code&0xffff)==ICON_CODE_PLAY)
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
+
+	/* set refresh flag for this ebox */
+	egi_ebox_needrefresh(ebox);
 
 	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
 	FFmuz_Ctx->ffcmd=cmd_prev;
@@ -341,8 +357,33 @@ static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 }
 
+/*----------------------------------------------------------------
+			ffmuz play NEXT
+----------------------------------------------------------------*/
+static int ffmuz_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+        /* bypass unwanted touch status */
+        if(touch_data->status != pressing)
+                return btnret_IDLE;
+
+	/* ffmusic.c is forced to play the next song,
+         * so change 'play&pause' button icon from PLAY to PAUSE
+	 */
+	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code&0xffff)==ICON_CODE_PLAY )
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
+
+	/* set refresh flag for this ebox */
+	egi_ebox_needrefresh(ebox);
+
+	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
+	FFmuz_Ctx->ffcmd=cmd_next;
+
+	return btnret_OK;
+}
+
+
 /*--------------------------------------------------------------------
-ffplay palypause
+ffmusic palypause
 return
 ----------------------------------------------------------------------*/
 static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
@@ -351,22 +392,16 @@ static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	/* only react to status 'pressing' */
-	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
-
 	/* toggle the icon between play and pause */
-//	if( (data_btn->icon_code<<16) == ICON_CODE_PLAY<<16 ) {
-	if( (data_btn->icon_code & 0x0ffff ) == ICON_CODE_PLAY ) {
+	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code & 0x0ffff ) == ICON_CODE_PLAY ) {
 		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
 		FFmuz_Ctx->ffcmd=cmd_play;
-
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
 	}
 	else {
 		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
 		FFmuz_Ctx->ffcmd=cmd_pause;
-
-		data_btn->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;  /* toggle icon */
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;  /* toggle icon */
 	}
 
 	/* set refresh flag for this ebox */
@@ -375,21 +410,6 @@ static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 }
 
-/*--------------------------------------------------------------------
-ffplay exit
-return
-----------------------------------------------------------------------*/
-static int ffmuz_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
-{
-        /* bypass unwanted touch status */
-        if(touch_data->status != pressing)
-                return btnret_IDLE;
-
-	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
-	FFmuz_Ctx->ffcmd=cmd_next;
-
-	return btnret_OK;
-}
 
 /*--------------------------------------------------------------------
 ffplay play mode rotate.
@@ -404,7 +424,7 @@ static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 return btnret_IDLE;
 
 
-#if 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
+#if 1 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
 
 	/* only react to status 'pressing' */
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
@@ -436,6 +456,7 @@ static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 
 #else /* ---------  AS EXIT BUTTON  --------- */
+
 
 	return btnret_REQUEST_EXIT_PAGE;
 #endif
@@ -576,19 +597,18 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 }
 
 /*--------------------------------------------
-       A Misc. job for PAGE
-Set random color for PAGE btns .
+       	A Misc. job for PAGE
+    Set random color for PAGE btns .
 ---------------------------------------------*/
 static int refresh_misc(EGI_PAGE *page)
 {
     int i;
-    EGI_16BIT_COLOR symcolor;
 
-    symcolor=egi_color_random(color_medium);
+    btn_symcolor=egi_color_random(color_medium);
 
     for(i=0; i<btnum; i++) {
 	if(data_btns[i] != NULL) {
-		data_btns[i]->icon_code=(symcolor<<16)+( data_btns[i]->icon_code & 0xffff );
+		data_btns[i]->icon_code=(btn_symcolor<<16)+( data_btns[i]->icon_code & 0xffff );
 	}
     }
 

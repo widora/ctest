@@ -285,7 +285,7 @@ void* display_MusicPic(void * argv)
 		if( IsFree_PICbuff[index]==false ) {
 			/* set index of pPICbuff[] for current playing frame*/
 			ifplay=index;
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Get image data from pPICbuffs[%d] and put to imgbuf.\n",
+			EGI_PLOG(LOGLV_CRITICAL,"%s: Get image data from pPICbuffs[%d] and put to imgbuf.",
 										 __func__, index);
 			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
@@ -331,7 +331,7 @@ void* display_MusicPic(void * argv)
 			}
 
 			/*--- 2. Blur and resize the imgbuf ---*/
-			blur_size=imgbuf->height/50; /* original imgbuf */
+			blur_size=imgbuf->height/75; /* original imgbuf */
 			if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);

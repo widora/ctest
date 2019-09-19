@@ -91,6 +91,8 @@ static inline const char *egi_loglv_to_string(enum egi_log_level log_level)
 2. Otherwise, push log string to log_buff[] and wait for write_thread to
    write to log file later.
 3. Log string that exceeds length of log_buff[] will be trimmed to EGI_LOG_MAX_ITEMLEN-1.
+4. Do NOT put code '\n' at user input log string, just let egi_push_log() to put it after
+   attrReset! otherwise attrReset will be ineffective!
 
 TODO: check log string total length!!!
 
@@ -101,7 +103,7 @@ return:
 --------------------------------------------------------------------------------------*/
 int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 {
-	/*** --- Console Color Attribute Setting ---
+	/*** --- Simple Console Color Attribute Setting ( 8 colors) ---
 	 * 1. Usag:   \033[Param {;Param;...}m ...(your strings)... \033[0m
 	 *	   or \e[Param {;Param;...}m ...(your strings)... \e[0m
 	 * 	        ( '\033' equals to '\e', but '\e' seems NOT so bright! )
@@ -117,14 +119,27 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	 * 4. Foreground color set: 30+color_value
 	 *    Background color set: 40+color_value
 	 * 5. Run 'man console_codes' in Ubuntu to see more.
+	 * 6. For 256 color console
+	 *    Foreground color set: \033[38;5;(16-256)m
+	 *    Background color set: \033[48;5;(16-256)m
 	 */
-	const char *attrRed="\033[0;31;40m";
-	const char *attrGreen="\033[32;40m";
-	const char *attrYellow="\033[1;33;40m";
-	const char *attrBlue="\033[34;40m";
-	const char *attrMagenta="\033[35;40m";
-	const char *attrCyan="\033[36;40m";
-	const char *attrReset="\033[0m"; /* reset all attributes to their defaults */
+
+	#if 0 /* ----- 8 color console  ----- */
+	const char *attrRed="\033[0;31;40m";	  /* 8 colors */
+	const char *attrGreen="\033[0;32;40m";
+	const char *attrYellow="\033[0;33;40m";
+	const char *attrBlue="\033[0;34;40m";
+	const char *attrMagenta="\033[0;35;40m";
+	const char *attrCyan="\033[0;36;40m";
+	#else /* ----- 256 color console ---- */
+	const char *attrRed="\033[38;5;196;48;5;0m";     /* For 256 color console */
+	const char *attrGreen="\033[38;5;34;48;5;0m";
+	const char *attrYellow="\e[38;5;220;48;5;0m";    /* For 256 color console,with BLACK back color */
+	const char *attrBlue="\033[38;5;27;48;5;0m";
+	const char *attrMagenta="\033[38;5;201m";
+	const char *attrCyan="\033[38;5;37;48;5;0m";
+	#endif
+	const char *attrReset="\e[0m"; /* reset all attributes to their defaults */
 	char	*pattrcolor=NULL;
 
 	char strlog[EGI_LOG_MAX_ITEMLEN]={0}; /* for temp. use */
@@ -150,6 +165,9 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 		case LOGLV_CRITICAL:
 			pattrcolor=attrGreen;
 			break;
+		case LOGLV_TEST:
+			pattrcolor=attrCyan;
+			break;
 		default:
 			pattrcolor=attrReset;
 	}
@@ -157,7 +175,7 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	/* Clear,seems not necessary */
 	// memset(strlog,0,sizeof(strlog));
 
-	/* prepare time stamp string and log_level */
+	/* SET CONSOLE COLOR >>>>>,  and prepare time stamp string and log_level. */
 	sprintf(strlog, "%s[%d-%02d-%02d %02d:%02d:%02d] [%s] ", pattrcolor,
 				tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec,
 				egi_loglv_to_string(log_level) );
@@ -167,12 +185,11 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	tmlen=strlen(strlog);
 	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, fmt, arg); /* -1 for /0 */
 
-	/* Reset console color to default */
+	/* <<<<< RESET CONSOLE COLOR to default */
 	tmlen=strlen(strlog); /* new length with log string */
 	if( EGI_LOG_MAX_ITEMLEN-tmlen-1 < strlen(attrReset) )
 		fprintf(stderr, "\e[31m %s  ---- WARNING: log message truncated! ---\e[0m\n",__func__);
-	vsnprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, attrReset, NULL); /* -1 for /0 */
-							  /*- fmt MUST be const char*  -*/
+	snprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, "%s\n", attrReset); /* -1 for /0 */
 
 #ifdef ENABLE_LOGBUFF_PRINT
 	printf("EGI_Logger: %s",strlog); /* no '/n', Let log caller to decide return token */

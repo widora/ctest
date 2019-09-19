@@ -4,7 +4,7 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 NOTE:
-   !!! Suppose that Left/Right bit shifting are both arithmetic here !!!.
+   !!! Suppose that Left/Right bit_shifting are both arithmetic here !!!.
 
 Midas-Zhou
 --------------------------------------------------------------------*/
@@ -614,7 +614,6 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
 }
 
 
-
 /*--------------------------------------------------------------
 Create fixed point lookup table for
 trigonometric functions: sin(),cos()
@@ -622,7 +621,6 @@ angle in degree
 
 fb16 precision is abt.   0.0001, that means 1 deg rotation of
 a 10000_pixel long radius causes only 1_pixel distance error.??
-
 ---------------------------------------------------------------*/
 void mat_create_fptrigontab(void)
 {
@@ -722,11 +720,6 @@ void egi_float_limits(float *data, int num, float *min, float *max)
 		*max=fmax;
 }
 
-
-
-
-
-
 /*---------------------------------------------------------------------------------------
 generate a rotation lookup map for a square image block
 
@@ -746,8 +739,6 @@ centxy 		the center point coordinate of the concerning square area of LCD(fb).
 SQMat_XRYR: 	after rotation
 	      square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
 
-
-Midas Zhou
 -------------------------------------------------------------------------------------------*/
 /*------------------------------- Method 1 --------------------------------------------*/
 
@@ -983,10 +974,7 @@ centxy          the center point coordinate of the concerning square area of LCD
 ANMat_XRYR:     after rotation
                 square matrix after rotation mapping, coordinate origin is same as LCD(fb) origin.
 
-
-Midas Zhou
 -------------------------------------------------------------------------------------------*/
-
 void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coord centxy,
                        					 struct egi_point_coord *ANMat_XRYR)
 {
@@ -1080,3 +1068,31 @@ while(1) {
 
 }
 
+
+/*---------------------------------------------------
+A method to calculate pseudo curvature by 3 points.
+3 points a,b,c defines 2 vectors as A=ab, B=ac;
+define vector C=abxac,  Under right_hand coord,
+when C<0, a/b/c is clockwise.
+     C>0, a/b/c is countercolocwise.
+
+!!! The caller MUST ensure *pt holds 3 EGI_POINTs.
+
+@pt	A pointer to an array with 3 EGI_POINTs.
+
+Return:
+	A negative value for clockwise ps.curv.
+	A positive value for counterclockwise ps.curv.
+----------------------------------------------------*/
+int  mat_pseudo_curvature(EGI_POINT *pt)
+{
+	int vc;
+
+	vc=pt[0].x*pt[1].y-pt[1].x*pt[0].y+pt[1].x*pt[2].y
+				-pt[2].x*pt[1].y+pt[2].x*pt[0].y-pt[0].x*pt[2].y;
+
+
+
+
+
+}
