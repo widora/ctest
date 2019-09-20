@@ -18,6 +18,8 @@ midaszhou@yahoo.com
 #include "egi_FTsymbol.h"
 
 
+#define HE_UPDATE_INTERVAL	180    /* 90, in seconds */
+
 int main(int argc, char **argv) {
 
 	int index;
@@ -200,7 +202,7 @@ SLEEP_WAIT:
 	n++;
 
 	if(n>nloc) /* fill up one round for all locations first */
-		sleep(90); //90); /* Limit 1000 per day, 90s per call */
+		sleep(HE_UPDATE_INTERVAL); //90); /* Limit 1000 per day, 90s per call */
 
 
 } ////////////////////////////    LOOP TEST END    ///////////////////////////////////

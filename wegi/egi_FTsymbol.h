@@ -18,6 +18,8 @@ Midas Zhou
 typedef struct FTsymbol_library EGI_FONTS;
 struct FTsymbol_library {
 
+	char ftname[256];
+
 	FT_Library     library;
 
 	/* Regular type */

@@ -21,6 +21,8 @@ Midas Zhou
 extern struct itimerval tm_val, tm_oval;
 extern const char *str_weekday[];
 extern const char *str_month[];
+extern const char *stru8_weekday[];
+extern const char *stru8_month[];
 extern char tm_strbuf[];
 
 

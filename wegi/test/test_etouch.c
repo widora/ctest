@@ -40,6 +40,12 @@ int main(int argc, char **argv)
                 return -3;
         }
 #if 1
+        if(FTsymbol_load_sysfonts() !=0 ) {     /* load FT fonts LIBS */
+                printf("Fail to load FT appfonts, quit.\n");
+                return -4;
+        }
+#endif
+#if 1
         if(FTsymbol_load_appfonts() !=0 ) {     /* load FT fonts LIBS */
                 printf("Fail to load FT appfonts, quit.\n");
                 return -4;

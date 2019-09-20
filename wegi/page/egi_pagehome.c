@@ -25,6 +25,7 @@ Midas Zhou
 #include <errno.h>
 #include <sys/wait.h>
 #include "egi_common.h"
+#include "egi_FTsymbol.h"
 #include "egi_pagehome.h"
 #include "egi_pagetest.h"
 #include "egi_pagemplay.h"
@@ -76,8 +77,13 @@ static EGI_EBOX *pic_box;
 
 static struct calendar_data
 {
+	int  km;
 	char month[3+1];
+
+	int  kw;
 	char week[3+1];
+
+	int  kd;
 	char day[2+1];
 } caldata={0};
 
@@ -315,7 +321,7 @@ EGI_PAGE *egi_create_homepage(void)
 	page_home->routine=egi_homepage_routine;
 
 	/* 3.4 set wallpaper */
-	page_home->fpath="/tmp/home.jpg";
+	page_home->fpath="/home/home.jpg";
 
 	/* 3.5 set touch sliding handler */
 	page_home->slide_handler=slide_handler;
@@ -432,6 +438,9 @@ static void update_clocktime(EGI_PAGE *page)
 	/* put init string in caldata */
         time(&tm_t);
         tm_s=localtime(&tm_t);
+	caldata.km=tm_s->tm_mon;
+	caldata.kw=tm_s->tm_wday;
+	caldata.kd=tm_s->tm_mday;
         snprintf((char *)(caldata.month),3+1,"%s", str_month[tm_s->tm_mon] );
         snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
         snprintf((char *)(caldata.day),2+1,"%d", tm_s->tm_mday);
@@ -474,20 +483,48 @@ static int deco_calendar(EGI_EBOX *ebox)
 {
 	int x0,y0;
 	int pixlen;
+	int fw,fh;
 
+#if 0 /* For ASCII */
 	/* Month */
 	pixlen=symbol_string_pixlen(caldata.month, &sympg_testfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0-5;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
 				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month, -1);
-
 	/* Week */
 	pixlen=symbol_string_pixlen(caldata.week, &sympg_testfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+40;
 	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
 				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week, -1);
+#else /* For uft8 encoding */
+	/* Month */
+	fw=15; fh=15;
+ 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_month[caldata.km]);
+        x0=ebox->x0+((60-pixlen)>>1);
+        y0=ebox->y0;
+	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
+                                                fw, fh, stru8_month[caldata.km], /* fw,fh, pstr */
+                                                60, 1, 0,                      /* pixpl, lines, gap */
+                                                x0, y0,                          /* x0,y0, */
+                                                WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
+	/* Week */
+	fw=15; fh=15;
+ 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_weekday[caldata.kw]);
+        x0=ebox->x0+((60-pixlen)>>1);
+        y0=ebox->y0+42;
+	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
+                                                fw, fh, stru8_weekday[caldata.kw], /* fw,fh, pstr */
+                                                60, 1, 0,                      /* pixpl, lines, gap */
+                                                x0, y0,                          /* x0,y0, */
+                                                WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
+
+#endif
+
+
+
+
 
 	/* Day */
 	pixlen=symbol_string_pixlen(caldata.day, &sympg_numbfont);

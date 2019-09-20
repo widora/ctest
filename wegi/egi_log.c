@@ -132,15 +132,15 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	const char *attrMagenta="\033[0;35;40m";
 	const char *attrCyan="\033[0;36;40m";
 	#else /* ----- 256 color console ---- */
-	const char *attrRed="\033[38;5;196;48;5;0m";     /* For 256 color console */
-	const char *attrGreen="\033[38;5;34;48;5;0m";
+	const char *attrRed="\e[38;5;196;48;5;0m";     /* For 256 color console */
+	const char *attrGreen="\e[38;5;34;48;5;0m";
 	const char *attrYellow="\e[38;5;220;48;5;0m";    /* For 256 color console,with BLACK back color */
-	const char *attrBlue="\033[38;5;27;48;5;0m";
-	const char *attrMagenta="\033[38;5;201m";
-	const char *attrCyan="\033[38;5;37;48;5;0m";
+	const char *attrBlue="\e[38;5;27;48;5;0m";
+	const char *attrMagenta="\e[38;5;201m";
+	const char *attrCyan="\e[38;5;37;48;5;0m";
 	#endif
 	const char *attrReset="\e[0m"; /* reset all attributes to their defaults */
-	char	*pattrcolor=NULL;
+	const char *pattrcolor=NULL;
 
 	char strlog[EGI_LOG_MAX_ITEMLEN]={0}; /* for temp. use */
 	struct tm *tm;

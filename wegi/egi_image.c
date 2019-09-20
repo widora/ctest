@@ -1335,7 +1335,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
         }
 
 	/* get mutex lock */
-	printf("%s: Start lock image mutext...\n",__func__);
+//	printf("%s: Start lock image mutext...\n",__func__);
 	if(pthread_mutex_lock(&egi_imgbuf->img_mutex) !=0){
 		printf("%s: Fail to lock image mutex!\n",__func__);
 		return -1;
@@ -1351,7 +1351,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
                 return -2;
         }
-	printf("%s: height=%d, width=%d \n",__func__, imgh,imgw);
+//	printf("%s: height=%d, width=%d \n",__func__, imgh,imgw);
 
         int i,j;
         int xres=fb_dev->vinfo.xres;

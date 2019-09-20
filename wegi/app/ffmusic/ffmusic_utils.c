@@ -203,12 +203,12 @@ void* display_MusicPic(void * argv)
 	/* Load pic to imgbuf */
 	tmpimg=egi_imgbuf_alloc();
 	if(tmpimg==NULL) {
-		EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for tmpimg \n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for tmpimg.",__func__);
 		return (void *)-1;
    	}
 	if( egi_imgbuf_loadjpg(wallpaper,tmpimg)!=0 ) {
 		if ( egi_imgbuf_loadpng(wallpaper,tmpimg)!=0 ) {
-		 	 EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!\n", __func__, wallpaper);
+		 	 EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!", __func__, wallpaper);
 			 //Go on...
 		}
 	}
@@ -224,7 +224,7 @@ void* display_MusicPic(void * argv)
 	    ret=egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 	}
 	if(ret !=0 )
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!", __func__);
 
         /* Free old frame_img in PAGE */
 	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
@@ -324,7 +324,7 @@ void* display_MusicPic(void * argv)
 			}
 			/* Assert tmpimg */
 			if(tmpimg==NULL) {
- 			        EGI_PLOG(LOGLV_ERROR,"%s: imgbuf block copy fails, tmpimg is NULL!\n",__func__);
+ 			        EGI_PLOG(LOGLV_ERROR,"%s: imgbuf block copy fails, tmpimg is NULL!",__func__);
 				nfc=1; 		/* since ff_get_FreePicBuff() from 1, not 0. */
 				IsFree_PICbuff[1]=false;
 			    	continue; /* continue while() */

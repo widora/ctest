@@ -431,7 +431,6 @@ int egi_ebox_forcerefresh(EGI_EBOX *ebox)
 }
 
 
-
 /*----------------------------------------------------
 ebox activate: default method
 

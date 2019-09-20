@@ -25,7 +25,12 @@ struct itimerval tm_val, tm_oval;
 char tm_strbuf[50]={0};
 const char *str_weekday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
 //const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
-const char *str_month[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Oct","Nov","Sub"};
+const char *str_month[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Sub"};
+/* encoding uft8 */
+const char *stru8_weekday[]={"星期日","星期一","星期二","星期三","星期四","星期五","星期六"};
+const char *stru8_month[]={"一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"};
+
+
 
 /* global tick */
 static struct itimerval tm_tick_val; //tm_tick_oval;

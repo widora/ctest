@@ -245,7 +245,7 @@ EGI_PAGE *egi_create_mplaypage(void)
         page_mplay->routine=egi_page_routine; /* use default */
 
         /* 4.4 set wallpaper */
-        page_mplay->fpath="/tmp/mplay_neg.jpg";
+        page_mplay->fpath="/mmc/mplay_neg.jpg";
 
 	/* add ebox to home page */
 	for(i=0;i<6;i++) /* buttons */
@@ -257,9 +257,13 @@ EGI_PAGE *egi_create_mplaypage(void)
 }
 
 
-/*-----------------    RUNNER 1   -------------------
+/*--------------------    RUNNER 1   ----------------------
 	Check volume and refresh slider.
-----------------------------------------------------*/
+
+  WARNING: This function will be delayed by react_slider(),
+  so keep slider postion just for a little while before
+  you release it.
+----------------------------------------------------------*/
 static void check_volume_runner(EGI_PAGE *page)
 {
      int pvol;
@@ -271,11 +275,13 @@ static void check_volume_runner(EGI_PAGE *page)
      EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
      while(1) {
-	   egi_sleep(0,0,500); /* 300ms */
+	   // egi_sleep(0,0,500); /* 300ms */
+	   tm_delayms(300);
 
 	   /* check page status for exit */
-	   if(page->ebox->status==status_page_exiting)
-		return;
+	  //Not necessary anymore? use pthread_cancel() fro PAGE */
+	  // if(page->ebox->status==status_page_exiting)
+	   //	return;
 
 	   /* get palyback volume */
 	   ffpcm_getset_volume(&pvol,NULL);
@@ -283,13 +289,17 @@ static void check_volume_runner(EGI_PAGE *page)
 
 	   if(buf==sval)continue;
 
+	   printf("\e[38;5;201;48;5;0m %s: ---pvol %d--- \e[0m\n", __func__, pvol);
+
 	   sval=buf;
 	   /* slider value is drivered by ebox->x0 for H slider, so set x0 not val */
 	   slider->x0=data_slider->sxy.x+sval-(slider->width>>1);
 
 	   /* refresh it */
-           slider->need_refresh=true;
-           slider->refresh(slider);
+           //slider->need_refresh=true;
+           //slider->refresh(slider);
+           egi_ebox_needrefresh(slider);
+
      }
 }
 
@@ -318,7 +328,7 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 printf("react_slider(): pressing sliding bar....\n");
                 mark=ebox->x0;
         }
-	else  //(touch_data->status==pressed_hold)
+	else if(touch_data->status==pressed_hold) /* sliding */
 	{
 		data_slider=(EGI_DATA_SLIDER *)(((EGI_DATA_BTN *)(ebox->egi_data))->prvdata);
 		minx=data_slider->sxy.x-(ebox->width>>1);
@@ -338,8 +348,14 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		sprintf(strcmd,"amixer set PCM %d%%",vol);
 		system(strcmd);
 #endif
-	        ebox->need_refresh=true;
-	        ebox->refresh(ebox);
+
+		#if 0   /* set need refresh for PAGE routine */
+                egi_ebox_needrefresh(ebox);
+		#else  /* or force to refresh EBOX now! -- Quik response! */
+                ebox->need_refresh=true;
+                ebox->refresh(ebox);
+                #endif
+
 	}
 
 	return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */

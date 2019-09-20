@@ -609,7 +609,7 @@ int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
                 ret=-6;
                 goto READ_FAIL;
         }
-	printf("%s: Open a PNG file with size W%dxH%d, color_type %s\n", __func__, width, height,
+	printf("%s: Open '%s' with size W%dxH%d, color_type %s\n", __func__, fpath, width, height,
 					(color_type==PNG_COLOR_TYPE_RGB) ? "RGB" : "RGBA" );
 
         /* get mutex lock */

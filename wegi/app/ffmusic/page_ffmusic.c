@@ -115,7 +115,7 @@ EGI_PAGE *create_ffmuzPage(void)
 					);
 		/* if fail, try again ... */
 		if(data_btns[i]==NULL) {
-			EGI_PLOG(LOGLV_ERROR,"egi_create_ffplaypage(): fail to call egi_btndata_new() for data_btns[%d]. retry...\n", i);
+			EGI_PLOG(LOGLV_ERROR,"egi_create_ffplaypage(): fail to call egi_btndata_new() for data_btns[%d]. retry...", i);
 			i--;
 			continue;
 		}
@@ -477,9 +477,9 @@ static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 #if 1
 	/*TEST: send HUP signal to iteself */
 	if(raise(SIGUSR1) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.",__func__);
 	}
-	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...\n",__func__);
+	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...",__func__);
 
   /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
    *    will be received one after another,(In rare circumstances, it may receive 2 'preesed_hold')
@@ -516,7 +516,7 @@ static int pageffmuz_decorate(EGI_EBOX *ebox)
 
 /*-----------------------------------------------------------------
                    Sliding Operation handler
-Slide up/down to adjust PLAYBACK volume.
+Slide up/down to adjust ALSA volume.
 ------------------------------------------------------------------*/
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 {
@@ -549,8 +549,11 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
                 /* adjust volume */
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */
-		if(vol>100)vol=100;
-		else if(vol<0)vol=0;
+		if(vol>100) vol=100;
+		else if(vol<0) vol=0;
+
+		printf("\n%s --- pvol=d% --- \n",__func__, vol);
+
 		/* set volume */
                 if( ffpcm_getset_volume(NULL,&vol)==0 )
 			sprintf(strp,"音量 %d%%",vol);
@@ -561,9 +564,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		/* set utxt to ebox_voltxt */
 		vol_FTtxt->utxt=strp;
-		#if 1  /* set need refresh */
+		#if 1  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
-		#else  /* or refresh now */
+		#else  /* or force to refresh EBOX now! */
 		ebox_voltxt->need_refresh=true;
 		ebox_voltxt->refresh(ebox_voltxt);
 		#endif

@@ -41,8 +41,6 @@ EGI_PAGE * egi_page_new(char *tag)
 		printf("%s: Fail to calloc page.\n", __func__);
 		return NULL;
 	}
-	/* clear data */
-//	memset(page,0,sizeof(struct egi_page));
 
 	/* 3. malloc page->ebox */
 	page->ebox=egi_ebox_new(type_page);
@@ -82,7 +80,7 @@ EGI_PAGE * egi_page_new(char *tag)
 
 
 /*--------------------------------------------
-free a egi page
+Free a EGI_PAGE
 Return:
 	0	OK
 	<0	fails
@@ -103,7 +101,7 @@ int egi_page_free(EGI_PAGE *page)
 		printf("%s: WARN: input page->ebox is NULL!\n",__func__);
 	}
 
-	/* change status, wait runner ....*/
+	/* change status, wait to join runners ....*/
 	page->ebox->status=status_page_exiting;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -165,7 +163,6 @@ of the thread and wait until it confirms.
 
 NOTE:
       The response time depends on the runner's loop period.
-
 
 return:
 	0	OK, thread suspended.
@@ -389,7 +386,7 @@ return:
 int egi_page_travlist(EGI_PAGE *page)
 {
 	struct list_head *tnode;
-	EGI_EBOX *ebox;
+	EGI_EBOX *ebox=NULL;
 
 	/* check data */
 	if(page==NULL || page->ebox==NULL )
@@ -400,7 +397,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	/* check list */
 	if(list_empty(&page->list_head))
 	{
-		printf("egi_page_travlist(): page '%s' has an empty list_head.\n",page->ebox->tag);
+		printf("%s: page '%s' has an empty list_head.\n",__func__,page->ebox->tag);
 		return -2;
 	}
 
@@ -408,7 +405,7 @@ int egi_page_travlist(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-//		EGI_PDEBUG(DBG_PAGE,"egi_page_travlist(): find child --- ebox: '%s' --- \n",ebox->tag);
+		EGI_PDEBUG(DBG_PAGE,"Find child --- ebox: '%s' --- \n",ebox->tag);
 	}
 
 
@@ -515,7 +512,7 @@ int egi_page_activate(EGI_PAGE *page)
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		ret=ebox->activate(ebox);
+		ret +=ebox->activate(ebox);
 		EGI_PDEBUG(DBG_PAGE,"activate page list item ebox: '%s' with ret=%d \n",ebox->tag,ret);
 	}
 
@@ -525,23 +522,36 @@ int egi_page_activate(EGI_PAGE *page)
 		page->page_refresh_misc(page);
 
 
-	return 0;
+	return ret;
 }
 
 
-/*---------------------------------------------------------
-1. check need_refresh flag for page and refresh it if true.
-2. refresh each of page's child eboxes only if its needrefresh
+/*---------------------------------------------------------------------
+1. Check need_refresh flag for page and refresh it if true.
+2. Refresh each of page's child eboxes only if its needrefresh
    flag is true.
 3. Refresh sequence:
-   First refresh PAGE items, such as wallpaper, deco, misc,
-   then its child eboxes.
+   3.1 First refresh PAGE items, such as wallpaper, deco, misc..
+   3.2 then refresh its child eboxes.
 
-return:
+   3.3	 		<--- WARNINGS! --->
+   3.3.1 Because PAGE ebox and each of its child eboxes has its
+         own 'need_refresh' indicators, they will be checked
+         and refreshed separately/independently.
+         So if any child ebox has its image relied on PAGE image,
+	 their 'need_refresh' indicators MUST be set together.
+
+   3.3.2 To call egi_page_needrefresh() will activate 'need_refresh'
+	 indicators for PAGE and its child eboxes.
+
+   3.3.3 To call egi_ebox_forcerefresh() is seemed as dangerous,
+         for it refreshs itself and ingnores its PAGE image coordination.
+
+Return:
 	1	need_refresh=false
 	0	If any ebox has been refreshed.
 	<0	fails
---------------------------------------------------------*/
+---------------------------------------------------------------------*/
 int egi_page_refresh(EGI_PAGE *page)
 {
 	struct list_head *tnode;
@@ -558,7 +568,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		return -1;
 	}
 
-	/* --------------- ***** FOR 'PAGE' REFRESH, wallpaper etc. ***** ------------ */
+	/* --------------- ***** 1. FOR 'PAGE' REFRESH, wallpaper etc. ***** ------------ */
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
@@ -623,19 +633,24 @@ int egi_page_refresh(EGI_PAGE *page)
 		/* decroating job if any */
 		egi_ebox_decorate(page->ebox);
 
-		/* other misc jobs after listed ebox refreshed */
+		/* other misc. jobs after listed ebox refreshed */
 		if( page->page_refresh_misc != NULL )
 			page->page_refresh_misc(page);
 
 		/* reset need_refresh */
 		page->ebox->need_refresh=false;
-		page->page_update=true; /* Synch. with page->ebox->need_refresh currently */
+		page->page_update=true; /* Synchronized with page->ebox->need_refresh currently
+					 * It' an indicator just to inform its child eboxes (which
+				 	 * are about to be refreshed in following codes.) that
+				         * the PAGE back image (and other items) just refreshed,
+					 * and their bkimgs may need to refresh too.
+					 */
 
 		/* set ret */
 		ret=0;
 	}
 
-	/* --------------- ***** FOR PAGE CHILD REFRESH ***** ------------*/
+	/* --------------- ***** 2. FOR PAGE CHILD REFRESH ***** ------------*/
 	/* check list */
 	if(list_empty(&page->list_head))
 	{
@@ -646,7 +661,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* traverse the list and activate list eboxes, not safe */
 
 	/* !!!! WRONG!!!!, if page->ebox->need_refresh is false, this token will mislead ebox
-	 * to ignore fb_cpyfrom_but()
+	 * to ignore fb_cpyfrom_buf()
 	 * It MUST synchronize with page->ebox->need_refresh!!!
 	 * see in above if(page->ebox->need_refresh){ ... }
 	 */
@@ -663,13 +678,21 @@ int egi_page_refresh(EGI_PAGE *page)
 #endif
 	}
 
+	/*** COMMENTS:
+	 *  It's too later to reset 'need_refresh' here, if any thread try to set 'need_refresh'
+	 *  during PAGE child refreshing, it will be reset by following re_assignment!!!
+	 *  Move it to end part of PAGE REFRESH codes, though it still poses race condition with other
+	 *  threads trying to set 'need_refresh' at any time....
+	 */
 	/* reset need_refresh at last */
-	page->ebox->need_refresh=false;
-	/* reset page_update, synch. with page->ebox->need_refresh currently. */
+//	page->ebox->need_refresh=false;
+
+	/* reset page_update, synchronized with page->ebox->need_refresh currently. */
 	page->page_update=false;
 
 	return ret; /* if any ebox refreshed, return 0 */
 }
+
 
 /*--------------------------------------------------------------
 Just set need_refresh flag for the page, but do not set flag for

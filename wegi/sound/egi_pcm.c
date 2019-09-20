@@ -73,6 +73,7 @@ Midas Zhou
 #include <stdint.h>
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
+#include <math.h>
 #include "egi_pcm.h"
 #include "egi_log.h"
 #include "egi_debug.h"
@@ -228,11 +229,14 @@ void  play_ffpcm_buff(void ** buffer, int nf)
 Get current volume value from the first available channel, and then set all
 volume to the given value.
 
-pgetvol: 	[0-100], pointer to a value to pass the volume percentage.
+pgetvol: 	[0-100], pointer to a value to pass the volume percentage value.
 		If NULL, ignore.
+		Forced to [0-100] if out of range.
 
-psetvol: 	[0-100], volume value of percentage*100.
+psetvol: 	[0-100], pointer to a volume value of percentage*100, which
+		is about to set to the mixer.
 		If NULL, ignore.
+		Forced to [0-100] if out of range.
 
 Return:
 	0	OK
@@ -244,7 +248,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	static long min=-1; /* selem volume value limit */
 	static long max=-2;
 	static long vrange;
-	long vol;
+	long int vol;
 	static snd_mixer_selem_id_t *sid;
 	static snd_mixer_elem_t* elem;
 	static snd_mixer_selem_channel_id_t chn;
@@ -257,6 +261,9 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
     /* First time init */
     if( !finish_setup || g_volmix_handle==NULL )
     {
+	if( g_volmix_handle==NULL)
+		EGI_PLOG(LOGLV_CRITICAL,"%s: A g_volmix_handle is about to open...",__func__);
+
 	/* must reset token first */
 	has_selem=false;
 	finish_setup=false;
@@ -264,12 +271,12 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
         /* read egi.conf and get selem_name */
         if ( !has_selem ) {
 		if(egi_get_config_value("EGI_SOUND","selem_name",selem_name) != 0) {
-			EGI_PLOG(LOGLV_ERROR,"%s: Fail to get config value 'selem_name' \n",__func__);
+			EGI_PLOG(LOGLV_ERROR,"%s: Fail to get config value 'selem_name'.",__func__);
 			has_selem=false;
 	                return -1;
 		}
 		else {
-			EGI_PLOG(LOGLV_INFO,"%s: Succeed to get config value selem_name='%s' \n",
+			EGI_PLOG(LOGLV_INFO,"%s: Succeed to get config value selem_name='%s'",
 										__func__, selem_name);
 			has_selem=true;
 		}
@@ -277,7 +284,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 
 	//printf(" --- Selem: %s --- \n", selem_name);
 
-	/* open an empty mixer */
+	/* open an empty mixer for volume control */
 	ret=snd_mixer_open(&g_volmix_handle,0); /* 0 unused param*/
 	if(ret!=0){
 		EGI_PLOG(LOGLV_ERROR, "%s: Open mixer fails: %s",__func__, snd_strerror(ret));
@@ -296,7 +303,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Register mixer simple element class */
 	ret=snd_mixer_selem_register(g_volmix_handle,NULL,NULL);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"%s: snd_mixer_selem_register(): Mixer simple element class register fails: %s\n",
+		EGI_PLOG(LOGLV_ERROR,"%s: snd_mixer_selem_register(): Mixer simple element class register fails: %s",
 									__func__, snd_strerror(ret));
 		ret=-3;
 		goto FAILS;
@@ -305,7 +312,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 	/* Load a mixer element	*/
 	ret=snd_mixer_load(g_volmix_handle);
 	if(ret!=0){
-		EGI_PLOG(LOGLV_ERROR,"%s: Load mixer element fails: %s\n",__func__, snd_strerror(ret));
+		EGI_PLOG(LOGLV_ERROR,"%s: Load mixer element fails: %s",__func__, snd_strerror(ret));
 		ret=-4;
 		goto FAILS;
 	}
@@ -339,7 +346,7 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
         for (chn = 0; chn < 32; chn++) {
 		/* Master control channel */
                 if (chn == 0 && snd_mixer_selem_has_playback_volume_joined(elem)) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: '%s' channle 0, Playback volume joined!\n",
+			EGI_PLOG(LOGLV_CRITICAL,"%s: '%s' channle 0, Playback volume joined!",
 										selem_name, __func__);
 			finish_setup=true;
                         break;
@@ -361,34 +368,58 @@ int ffpcm_getset_volume(int *pgetvol, int *psetvol)
 
      }	/*  ---------   Now we finish first setup  ---------  */
 
+
 	/* try to get volum value on the channel */
-	ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol);
+	snd_mixer_handle_events(g_volmix_handle); /* handle events first */
+	ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol); /* suppose that each channel has same volume value */
 	if(ret<0) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.\n",
+		EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.",
 										__func__, chn);
 		ret=-7;
 		goto FAILS;
 	}
 	if( pgetvol!=NULL ) {
-		*pgetvol=vol*100/vrange;
-		//printf("Get palyback volume: %ld[%d] on channle %d.\n",vol,*pgetvol,chn);
+		//printf("%s: Get volume: %ld[%d] on channle %d.\n",__func__,vol,*pgetvol,chn);
+
+		/*** Convert vol back to percentage value.
+		 *   lgpv=log10(pv^2)*vrange/log10(100*100)=log10(pv)*vrange/2;
+		 *   pv=10^(2.0*lgpv/vrange)
+		 */
+		 #if 1
+		 *pgetvol=pow(10, 2.0*vol/vrange);
+		 #else
+		 *pgetvol=vol*100/vrange;  /* Unconverted volume value */
+		 #endif
 	}
 
 	/* set volume, ret=0 OK */
 	//snd_mixer_selem_set_playback_volume_all(elem, val);
 	//snd_mixer_selem_set_playback_volume(elem, chn, val);
+	//snd_mixer_selem_set_playback_volume_range(elem,0,32);
+
+	// set_volume_mute_value()
 
 	/* set volume, ret=0 OK */
 	if(psetvol != NULL) {
 		/* limit input to [0-100] */
+		//printf("%s: min=%ld, max=%ld\n",__func__, min,max);
 		if(*psetvol > 100)
 			*psetvol=100;
-		//printf("min=%ld, max=%ld\n",min,max);
-		vol=(*psetvol)*vrange/100;
-		/* normalize vol */
+		//vol=(*psetvol)*vrange/100;
+
+		/*** Covert percentage value to lg(pv^2) related value, so to sound dB relative.
+		 *  lgpv=log10(pv^2)*vrange/log10(100*100)=log10(pv)*vrange/2;
+		 */
+		vol=*psetvol;
+		if(vol<1)vol=1; /* to avoid 0 */
+		vol=log10(vol)*vrange;
+		vol >>= 1;
+		printf("%s: dB related vol=%ld\n", __func__, vol);
+
+		/* normalize vol, Not necessay now?  */
 		if(vol > max) vol=max;
 		else if(vol < min) vol=min;
-	        snd_mixer_selem_set_playback_volume_all(elem, vol );
+	        snd_mixer_selem_set_playback_volume_all(elem, vol);
 		//printf("Set playback all volume to: %ld.\n",vol);
 	}
 

@@ -161,7 +161,7 @@ midaszhou@yahoo.com
 #define FFMUZ_LOOP_TIMEGAP  1   /*  in second, hold_on time after ffplaying a file, especially for a picture.
 			         *  set before FAIL_OR_TERM.
 			         */
-#define FFMUZ_CLIP_PLAYTIME 10   /* in second, set clip play time */
+#define FFMUZ_CLIP_PLAYTIME 3   /* in second, set clip play time */
 #define FFMUZ_MEDIA_LOOP
 #define FFMUZ_END_PAUSETIME   0	 /* end pause time */
 
@@ -1226,8 +1226,8 @@ else
 					/* print audio playing time, only if no video stream */
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[audioStream]->time_base) );
-					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
-								ff_sec_Aelapsed, ff_sec_Aduration );
+					//printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
+					//			ff_sec_Aelapsed, ff_sec_Aduration );
 
 					//gettimeofday(&tm_end,NULL);
 					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
@@ -1257,16 +1257,7 @@ else
 					    }
 					    egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
 
-				#if 0
-						/* duration time */
-					    memset(strtm,0,sizeof(strtm));
-					    snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
-								 ff_sec_Aduration/60, ff_sec_Aduration%60);
-					    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
-					    egi_ebox_needrefresh(ebox_tmtxt[1]);
-				#endif
 					    /* --- 3. Putting to PAGE routine for refresh. --- */
-					    //egi_ebox_forcerefresh(ebox_tmslider); /* Not GOOD! */
 					    egi_ebox_needrefresh(ebox_tmslider);
 					    egi_ebox_needrefresh(ebox_tmtxt[0]);
 					}

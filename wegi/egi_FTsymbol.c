@@ -20,8 +20,8 @@ Midas Zhou
 
 struct symbol_page sympg_ascii={0}; /* default  LiberationMono-Regular */
 
-EGI_FONTS  egi_sysfonts = {0};
-EGI_FONTS  egi_appfonts = {0};
+EGI_FONTS  egi_sysfonts = {.ftname="sysfonts"};
+EGI_FONTS  egi_appfonts = {.ftname="appfonts"};
 
 
 #if 0  /////////////////////// Pending /////////////////////////
@@ -82,10 +82,10 @@ return:
 int  FTsymbol_load_sysfonts(void)
 {
 	int ret=0;
-	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX]={0};
+	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX];
+	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX];
+	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX];
+	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX];
 
 	/* read egi.conf and get fonts paths */
 	egi_get_config_value("SYS_FONTS","regular",fpath_regular);
@@ -236,66 +236,78 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
         /* 1. initialize FT library */
         error = FT_Init_FreeType( &symlib->library );
         if(error) {
-                printf("%s: An error occured during FreeType library initialization.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: An error occured during FreeType library [%s] initialization.",
+									__func__, symlib->ftname);
                 return error;
         }
 
 	/* 2. create face object: Regular */
         error = FT_New_Face( symlib->library, symlib->fpath_regular, 0, &symlib->regular );
         if(error==FT_Err_Unknown_File_Format) {
-                printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
-								__func__, symlib->fpath_regular);
+                EGI_PLOG(LOGLV_WARN,"%s: [%s] font file '%s' opens, but its font format is unsupported!",
+								__func__, symlib->ftname,symlib->fpath_regular);
 //		goto FT_FAIL;
 		ret=1;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read REGULAR font file '%s'.\n",__func__, symlib->fpath_regular);
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to open or read [%s] REGULAR font file '%s'.",
+ 							__func__, symlib->ftname, symlib->fpath_regular);
 //		goto FT_FAIL;
 		ret=2;
         }
+        EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to open and read [%s] REGULAR font file '%s'.",
+ 							__func__, symlib->ftname, symlib->fpath_regular);
 
 	/* 3. create face object: Light */
         error = FT_New_Face( symlib->library, symlib->fpath_light, 0, &symlib->light );
         if(error==FT_Err_Unknown_File_Format) {
-                printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
-								__func__, symlib->fpath_light);
+                EGI_PLOG(LOGLV_WARN,"%s: [%s] font file '%s' opens, but its font format is unsupported!",
+						     	__func__, symlib->ftname, symlib->fpath_light);
 //		goto FT_FAIL;
 		ret=3;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read LIGHT font file '%s'.\n",__func__, symlib->fpath_light);
+                EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to open or read [%s] LIGHT font file '%s'.",
+						 	__func__, symlib->ftname, symlib->fpath_light);
 //		goto FT_FAIL;
 		ret=4;
         }
+        EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to open and read [%s] LIGHT font file '%s'.",
+						 	__func__, symlib->ftname, symlib->fpath_light);
 
 	/* 4. create face object: Bold */
         error = FT_New_Face( symlib->library, symlib->fpath_bold, 0, &symlib->bold );
         if(error==FT_Err_Unknown_File_Format) {
-                printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
-								__func__, symlib->fpath_bold);
+                EGI_PLOG(LOGLV_WARN,"%s: [%s] font file '%s' opens, but its font format is unsupported!",
+							__func__, symlib->ftname, symlib->fpath_bold);
 //		goto FT_FAIL;
 		ret=5;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read BOLD font file '%s'.\n",__func__, symlib->fpath_bold);
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to open or read [%s] BOLD font file '%s'.",
+							__func__, symlib->ftname,symlib->fpath_bold);
 //		goto FT_FAIL;
 		ret=6;
         }
+        EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to open and read [%s] BOLD font file '%s'.",
+							__func__, symlib->ftname,symlib->fpath_bold);
 
 	/* 5. create face object: Special */
         error = FT_New_Face( symlib->library, symlib->fpath_special, 0, &symlib->special );
         if(error==FT_Err_Unknown_File_Format) {
-                printf("%s: Font file '%s' opens, but its font format is unsupported!\n",
-								__func__, symlib->fpath_special);
+                EGI_PLOG(LOGLV_WARN,"%s: [%s] font file '%s' opens, but its font format is unsupported!",
+							__func__, symlib->ftname, symlib->fpath_special);
 //		goto FT_FAIL;
 		ret=7;
         }
         else if ( error ) {
-                printf("%s: Fail to open or read SPECIAL font file '%s'.\n",__func__, symlib->fpath_special);
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to open or read [%s] SPECIAL font file '%s'.\n",
+							__func__, symlib->ftname, symlib->fpath_special);
 //		goto FT_FAIL;
 		ret=8;
         }
-
+        EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to open and read [%s] SPECIAL font file '%s'.\n",
+							__func__, symlib->ftname, symlib->fpath_special);
 
 	return ret;
 
