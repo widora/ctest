@@ -39,10 +39,9 @@ struct FTsymbol_library {
 	char 		*fpath_special;
 };
 
-extern EGI_SYMPAGE sympg_ascii; /* default  LiberationMono-Regular */
-extern EGI_FONTS  egi_sysfonts; /* system font set */
-extern EGI_FONTS  egi_appfonts; /* system font set */
-
+extern EGI_SYMPAGE sympg_ascii;  /* default font  LiberationMono-Regular */
+extern EGI_FONTS   egi_sysfonts; /* system font set */
+extern EGI_FONTS   egi_appfonts; /* system font set */
 
 int 	FTsymbol_load_library( EGI_FONTS *symlib );
 void 	FTsymbol_release_library( EGI_FONTS *symlib );

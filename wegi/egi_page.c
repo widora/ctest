@@ -107,27 +107,28 @@ int egi_page_free(EGI_PAGE *page)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	/* cancel and join Runners */
+	printf(" %s: Cancel and join page [%s] runners...\n", __func__, page->ebox->tag);
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++) {
 		if(page->thread_running[i]) {
-			EGI_PDEBUG(DBG_PAGE,"page ['%s'] wait to join runner thread [%d].\n"
-										,page->ebox->tag,i);
+			EGI_PDEBUG(DBG_PAGE,"page ['%s'] wait to join runner thread [%d].\n",
+										page->ebox->tag,i);
 			if( pthread_cancel(page->threadID[i]) !=0 )
-			     EGI_PLOG(LOGLV_ERROR,"Fail to call pthread_cancel() for page ['%s'] threadID[%d] \n",
-									page->ebox->tag, i);
+			     EGI_PLOG(LOGLV_ERROR,"%s:Fail to call pthread_cancel() for page ['%s'] threadID[%d]",
+									__func__, page->ebox->tag, i);
 			if( pthread_join(page->threadID[i],NULL) !=0 )
-			     EGI_PLOG(LOGLV_ERROR,"Fail to call pthread_join() for page ['%s'] threadID[%d] \n",
-									page->ebox->tag, i);
+			     EGI_PLOG(LOGLV_ERROR,"%s:Fail to call pthread_join() for page ['%s'] threadID[%d]",
+									__func__, page->ebox->tag, i);
 			else
-				EGI_PDEBUG(DBG_PAGE,"page ['%s'] runner thread [%d] joined!.\n"
-										,page->ebox->tag,i);
+				EGI_PDEBUG(DBG_PAGE,"page ['%s'] runner thread [%d] joined!.\n",
+										page->ebox->tag,i);
 		}
 	}
 	/* Destroy thread mutex locks and conds */
 	if(pthread_mutex_destroy(&page->runner_mutex) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_destroy()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_destroy()!", __func__ );
 	}
 	if(pthread_cond_destroy(&page->runner_cond) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_destroy()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_destroy()!", __func__ );
 	}
 
 	/*  free every child in list */
@@ -809,7 +810,7 @@ EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int
 		}
 	}
 
-	EGI_PLOG(LOGLV_WARN,"%s: ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+	EGI_PLOG(LOGLV_WARN,"%s: ebox '%s' with id=%d can NOT be found in page '%s'.",
 									__func__, ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
@@ -862,7 +863,7 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 		}
 	}
 
-	EGI_PLOG(LOGLV_WARN,"ebox '%s' with id=%d can NOT be found in page '%s'. \n",
+	EGI_PLOG(LOGLV_WARN,"ebox '%s' with id=%d can NOT be found in page '%s'.",
 									ebox->tag,id,page->ebox->tag);
 	return NULL;
 }
@@ -922,11 +923,11 @@ int egi_page_routine(EGI_PAGE *page)
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
-				printf("%s: Create pthreadID[%d]=%u successfully. \n", __func__,
+				printf("%s: Create runner pthreadID[%d]=%u successfully. \n", __func__,
 								i, (unsigned int)page->threadID[i] );
 			}
 			else {
-			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s] \n", __func__,
+			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s].", __func__,
 					i, page->ebox->tag );
 			      /* carry on anyway..... */
 			}
@@ -935,15 +936,16 @@ int egi_page_routine(EGI_PAGE *page)
 	/* Initiate thread mutex locks, NOTE: also for egi_pagehome_routine() */
 	EGI_PDEBUG(DBG_PAGE,"Start to initiate thread mutex lock for page runners.\n");
 	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!", __func__ );
 		return -1;
 	}
 	if(pthread_cond_init(&page->runner_cond,NULL) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!", __func__ );
 		return -1;
 	}
 
- 	 /* ----------------    Touch Event Handling   ----------------  */
+ 	/* ----------------    Touch Event Handling   ----------------  */
+	EGI_PDEBUG(DBG_PAGE,"Now trap into touch event handling loop...\n");
 
 	/* Try to discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
 	egi_touch_getdata(&touch_data);
@@ -959,7 +961,6 @@ int egi_page_routine(EGI_PAGE *page)
 		sx=touch_data.coord.x;
 		sy=touch_data.coord.y;
 		last_status=touch_data.status;
-
 
 		/* 2. trigger touch handling process then */
 		if(last_status !=released_hold )
@@ -1216,11 +1217,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
-				printf("%s: Create pthreadID[%d]=%u successfully. \n", __func__,
+				printf("%s: Create runner pthreadID[%d]=%u successfully. \n", __func__,
 								i, (unsigned int)page->threadID[i] );
 			}
 			else {
-			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s] \n", __func__,
+			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s].", __func__,
 					i, page->ebox->tag );
 			      /* carry on anyway..... */
 			}
@@ -1229,16 +1230,17 @@ int egi_homepage_routine(EGI_PAGE *page)
 	/* Initiate thread mutex locks, NOTE: also for egi_page_routine() */
 	EGI_PDEBUG(DBG_PAGE,"Start to initiate thread mutex lock for page runners.\n");
 	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!", __func__ );
 		return -1;
 	}
 	if(pthread_cond_init(&page->runner_cond,NULL) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!\n", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!", __func__ );
 		return -1;
 	}
 
 
  	 /* ----------------    Touch Event Handling   ----------------  */
+	EGI_PDEBUG(DBG_PAGE,"Now trap into touch event handling loop...\n");
 
 	/* Try to discard first obsolete data, just to inform egi_touch_loopread() to start loop_read */
 	egi_touch_getdata(&touch_data);

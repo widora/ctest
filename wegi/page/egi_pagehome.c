@@ -441,28 +441,35 @@ static void update_clocktime(EGI_PAGE *page)
 	caldata.km=tm_s->tm_mon;
 	caldata.kw=tm_s->tm_wday;
 	caldata.kd=tm_s->tm_mday;
-        snprintf((char *)(caldata.month),3+1,"%s", str_month[tm_s->tm_mon] );
-        snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
-        snprintf((char *)(caldata.day),2+1,"%d", tm_s->tm_mday);
+
+//        snprintf((char *)(caldata.month),3+1,"%s", str_month[tm_s->tm_mon] );
+//        snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
+//        snprintf((char *)(caldata.day),2+1,"%d", tm_s->tm_mday);
+
+	/* refresh to trigger deco_calender() */
 	egi_ebox_needrefresh(home_btns[CALENDAR_BTN_ID]);
 
 	/* loop updating data */
 	while(1) {
-		/* get time string */
+		/* get time string for 24H Clock ebox */
 		tm_get_strtime(strtm);
-		//strcat(strtm,strday);
 
-		/* update time box txt */
+		/* update 24H Clock time box txt */
 		egi_push_datatxt(time_box, strtm, NULL);
 		egi_ebox_needrefresh(time_box);
 
-		/* update calendar every minute */
+		/* update Calendar month/weeday/day index every minute */
 		if(atoi(strtm+6)==0) {
+		        //time(&tm_t);
+		        //tm_s=localtime(&tm_t);
+		        //snprintf((char *)caldata.month,3+1,"%s", str_month[tm_s->tm_mon]);
+		        //snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
+		        //snprintf((char *)caldata.day,2+1,"%d", tm_s->tm_mday);
 		        time(&tm_t);
 		        tm_s=localtime(&tm_t);
-		        snprintf((char *)caldata.month,3+1,"%s", str_month[tm_s->tm_mon]);
-		        snprintf((char *)caldata.week,3+1,"%s", str_weekday[tm_s->tm_wday]);
-		        snprintf((char *)caldata.day,2+1,"%d", tm_s->tm_mday);
+			caldata.km=tm_s->tm_mon;
+			caldata.kw=tm_s->tm_wday;
+			caldata.kd=tm_s->tm_mday;
 
 			egi_ebox_needrefresh(home_btns[CALENDAR_BTN_ID]);
 		}
@@ -484,49 +491,49 @@ static int deco_calendar(EGI_EBOX *ebox)
 	int x0,y0;
 	int pixlen;
 	int fw,fh;
+	char strtm[32];
 
-#if 0 /* For ASCII */
-	/* Month */
-	pixlen=symbol_string_pixlen(caldata.month, &sympg_testfont);
-	x0=ebox->x0+((60-pixlen)>>1);
-	y0=ebox->y0-5;
-	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
-				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.month, -1);
-	/* Week */
-	pixlen=symbol_string_pixlen(caldata.week, &sympg_testfont);
-	x0=ebox->x0+((60-pixlen)>>1);
-	y0=ebox->y0+40;
-	symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
-				SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, caldata.week, -1);
-#else /* For uft8 encoding */
-	/* Month */
-	fw=15; fh=15;
- 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_month[caldata.km]);
-        x0=ebox->x0+((60-pixlen)>>1);
-        y0=ebox->y0;
-	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
+	/* ----- Use UFT-8 encoding FT fonts ----- */
+	if( egi_sysfonts.regular != NULL ) {
+		/* Month */
+		fw=15; fh=15;
+ 		pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_month[caldata.km]);
+	        x0=ebox->x0+((60-pixlen)>>1);
+	        y0=ebox->y0;
+		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
                                                 fw, fh, stru8_month[caldata.km], /* fw,fh, pstr */
                                                 60, 1, 0,                      /* pixpl, lines, gap */
                                                 x0, y0,                          /* x0,y0, */
                                                 WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
-	/* Week */
-	fw=15; fh=15;
- 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_weekday[caldata.kw]);
-        x0=ebox->x0+((60-pixlen)>>1);
-        y0=ebox->y0+42;
-	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
+		/* Week */
+		fw=15; fh=15;
+	 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_weekday[caldata.kw]);
+        	x0=ebox->x0+((60-pixlen)>>1);
+	        y0=ebox->y0+42;
+		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
                                                 fw, fh, stru8_weekday[caldata.kw], /* fw,fh, pstr */
                                                 60, 1, 0,                      /* pixpl, lines, gap */
                                                 x0, y0,                          /* x0,y0, */
                                                 WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
-
-#endif
-
-
-
-
-
+	}
+	/* ----- Use ASCII sympg ----- */
+	else {
+		/* Month */
+//		pixlen=symbol_string_pixlen(caldata.month, &sympg_testfont);
+		pixlen=symbol_string_pixlen(str_month[caldata.km], &sympg_testfont);
+		x0=ebox->x0+((60-pixlen)>>1);
+		y0=ebox->y0-5;
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
+					SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, str_month[caldata.km], -1);
+		/* Week */
+		pixlen=symbol_string_pixlen(str_weekday[caldata.kw], &sympg_testfont);
+		x0=ebox->x0+((60-pixlen)>>1);
+		y0=ebox->y0+40;
+		symbol_string_writeFB(&gv_fb_dev, &sympg_testfont, WEGI_COLOR_BLACK,
+					SYM_FONT_DEFAULT_TRANSPCOLOR, x0, y0, str_weekday[caldata.kw], -1);
+	}
 	/* Day */
+        snprintf((char *)(caldata.day),2+1,"%d", caldata.kd);
 	pixlen=symbol_string_pixlen(caldata.day, &sympg_numbfont);
 	x0=ebox->x0+((60-pixlen)>>1);
 	y0=ebox->y0+22;
@@ -658,18 +665,18 @@ static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* create page and load the page */
         EGI_PAGE *page_mplay=egi_create_mplaypage();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_mplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_mplay->ebox->tag);
 
 	/* activate to display it */
         egi_page_activate(page_mplay);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_mplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_mplay->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_mplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_mplay->ebox->tag);
         page_mplay->routine(page_mplay);
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_mplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...", page_mplay->ebox->tag);
 	egi_page_free(page_mplay);
 
 	/* resume runner CPULOAD */
@@ -690,18 +697,18 @@ static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* create page and load the page */
         EGI_PAGE *page_openwrt=egi_create_openwrtpage();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_openwrt->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_openwrt->ebox->tag);
 
 	/* activate to display it */
         egi_page_activate(page_openwrt);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_openwrt->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_openwrt->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_openwrt->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_openwrt->ebox->tag);
         page_openwrt->routine(page_openwrt);
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_openwrt->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...", page_openwrt->ebox->tag);
 	egi_page_free(page_openwrt);
 
 	return pgret_OK;
@@ -719,18 +726,18 @@ static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* create page and load the page */
         EGI_PAGE *page_book=egi_create_bookpage();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_book->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_book->ebox->tag);
 
 	/* activate to display it */
         egi_page_activate(page_book);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_book->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_book->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_book->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_book->ebox->tag);
         page_book->routine(page_book);
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_book->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...", page_book->ebox->tag);
 	egi_page_free(page_book);
 
 	return pgret_OK;
@@ -747,17 +754,17 @@ static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* create page and load the page */
         EGI_PAGE *page_test=egi_create_testpage();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_test->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_test->ebox->tag);
 
         egi_page_activate(page_test);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_test->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_test->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_test->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_test->ebox->tag);
         page_test->routine(page_test);
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_test->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...", page_test->ebox->tag);
 	egi_page_free(page_test);
 
 	return pgret_OK;
@@ -783,20 +790,20 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 #if 0////////////// (   OLD CODES  ) ////////////////
 	/* create page and load the page */
         EGI_PAGE *page_ffplay=egi_create_ffplaypage();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_ffplay->ebox->tag);
 
         egi_page_activate(page_ffplay);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_ffplay->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_ffplay->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_ffplay->ebox->tag);
         page_ffplay->routine(page_ffplay);
 
 //	/* exit a button activated page, set refresh flag for the host page, before page freeing.*/
 //	egi_page_needrefresh(ebox->container); pgret_OK will set refresh
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n",
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...",
 									page_ffplay->ebox->tag);
 	egi_page_free(page_ffplay);
 
@@ -807,7 +814,7 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
     	 */
 
 	/* activate APP and wait untill it STOP or TERM */
-        egi_process_activate_APP(&pid_ffplay, "/home/app_ffplay");
+        egi_process_activate_APP(&pid_ffplay, "/home/app_ffmusic");
 
 	/* resume runner CPULOAD */
 	egi_resume_runner(ebox->container, RUNNER_CPULOAD_ID);
@@ -848,17 +855,17 @@ static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* create page and load the page */
         EGI_PAGE *page_stock=egi_create_pagestock();
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.\n", page_stock->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is created.", page_stock->ebox->tag);
 
         egi_page_activate(page_stock);
-	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.\n", page_stock->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"[page '%s'] is activated.", page_stock->ebox->tag);
 
 	/* get into routine loop */
-	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...\n", page_stock->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Now trap into routine of [page '%s']...", page_stock->ebox->tag);
         page_stock->routine(page_stock);
 
 	/* get out of routine loop */
-	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...\n", page_stock->ebox->tag);
+	EGI_PLOG(LOGLV_INFO,"Exit routine of [page '%s'], start to free the page...", page_stock->ebox->tag);
 	egi_page_free(page_stock);
 
 	return pgret_OK;
@@ -1052,13 +1059,13 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
 			EGI_PDEBUG(DBG_PAGE,"----- start execv APP -----\n");
 			execv(app_path,NULL);
 			/* Warning!!! if fails! it still holds whole copied context data!!! */
-               		EGI_PLOG(LOGLV_ERROR, "%s: fail to execv '%s' after fork(), error:%s\n",
+               		EGI_PLOG(LOGLV_ERROR, "%s: fail to execv '%s' after fork(), error:%s",
 								__func__, app_path, strerror(errno) );
 			exit(255); /* 8bits(255) will be passed to parent */
 		}
 		/* In the caller's context */
 		else if(*apid <0) {
-               		EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch APP '%s'!\n",__func__, app_path);
+               		EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch APP '%s'!",__func__, app_path);
 			return -2;
 		}
 		else {
@@ -1068,10 +1075,10 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
     	}
     	/* 2. Else, assume APP is hungup(stopped), send SIGCONT to activate it. */
     	else {
-        	       	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate '%s'[pid:%d] \n",
+        	       	EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate '%s'[pid:%d].",
 										__func__, app_path, *apid);
 			if( kill(*apid,SIGCONT)<0 ) {
-				EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to '%s'[pid:%d].\n",
+				EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to '%s'[pid:%d].",
 										__func__, app_path, *apid);
 				return -3;
 			}
@@ -1089,24 +1096,24 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
 		/* 1. Exit normally */
 	       	if(WIFEXITED(status)){
                 	ret=WEXITSTATUS(status);
-               		EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' exits with ret value: %d\n",
+               		EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' exits with ret value: %d.",
 									__func__, app_path, ret);
 			*apid=-1; /* retset */
 	       	}
 		/* 2. Terminated by signal, in case APP already terminated. */
-	       	else if(WIFSIGNALED(status)) {
-                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' terminated by signal number: %d\n",
+	       	else if( WIFSIGNALED(status) ) {
+                	EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' terminated by signal number: %d.",
 								__func__, app_path, WTERMSIG(status));
 			*apid=-1; /* reset */
         	}
 		/* 3. Stopped */
 		else if(WIFSTOPPED(status)) {
-	        	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' is just STOPPED! \n",
+	        	        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' is just STOPPED!",
 										 __func__, app_path);
 		}
 		/* 4. Other status */
 		else {
-        	        EGI_PLOG(LOGLV_WARN, "%s: APP '%s' returned with unparsed status=%d\n",
+        	        EGI_PLOG(LOGLV_WARN, "%s: APP '%s' returned with unparsed status=%d",
 									__func__, app_path, status);
 			*apid=-1; /* reset */
 		}

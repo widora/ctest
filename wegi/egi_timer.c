@@ -54,8 +54,8 @@ long long unsigned int tm_get_tmstampms(void)
 
 
 /*---------------------------------------------
- get local time in string in format:
- 		H:M:S
+ Get local time string in format of:
+ 		H:M:S 	(in 24hours)
  The caller must ensure enough space for tmbuf.
 ---------------------------------------------*/
 void tm_get_strtime(char *tmbuf)

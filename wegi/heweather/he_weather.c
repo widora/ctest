@@ -16,7 +16,7 @@ Midas Zhou
 #include "he_weather.h"
 #include "egi_FTsymbol.h"
 
-EGI_WEATHER_DATA weather_data[1+HEWEATHER_FORECAST_DAYS]={0}; /* 0=now; forcast: 1=today; 2=tomorrow; 3=the day aft. tomorrow */
+EGI_WEATHER_DATA weather_data[1+HEWEATHER_FORECAST_DAYS]; /* 0=now; forcast: 1=today; 2=tomorrow; 3=the day aft. tomorrow */
 
 static char strrequest_mode[4][256]=
 {
@@ -405,7 +405,7 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 		printf("location: %s\n", weather_data[i].location);
 
 		/* Extract key item 'cond_code_d' as for cond_code */
-		pstr=heweather_get_forecast(buff,i,"cond_code_d");
+		pstr=heweather_get_forecast(buff,i-1,"cond_code_d");
 		if(pstr!=NULL) {
 			weather_data[i].cond_code=pstr; /* !!! to free by heweather_data_clear() later */
 			sprintf(strpath,"%s/%s.png",HEWEATHER_ICON_PATH,pstr);
@@ -414,12 +414,12 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 
 		/* Extract key item 'cond_txt_d' as for cond_txt */
 		memset(strtemp,0,sizeof(strtemp));
-		pstr=heweather_get_forecast(buff,i,"cond_txt_d");
+		pstr=heweather_get_forecast(buff,i-1,"cond_txt_d");
 		if(pstr!=NULL)	{
 			strcat(strtemp,pstr);
 			free(pstr); pstr=NULL;
 		}
-		pstr=heweather_get_forecast(buff,i,"cond_txt_n");
+		pstr=heweather_get_forecast(buff,i-1,"cond_txt_n");
 		if(pstr!=NULL)	{
 			strcat(strtemp,"/");
 			strcat(strtemp,pstr);
@@ -428,32 +428,32 @@ int heweather_httpget_data(enum heweather_data_type data_type, const char *locat
 		weather_data[i].cond_txt=strdup(strtemp);
 
 		/* Extract key item 'wind_dir' in section 'now' */
-		pstr=heweather_get_forecast(buff,i,"wind_dir");
+		pstr=heweather_get_forecast(buff,i-1,"wind_dir");
 		if(pstr!=NULL) {
 			weather_data[i].wind_dir=pstr;
 			pstr=NULL;
 		}
 
 		/* Extract key item 'wind_sc' in section 'now' */
-		pstr=heweather_get_forecast(buff,i,"wind_sc");
+		pstr=heweather_get_forecast(buff,i-1,"wind_sc");
 		if(pstr !=NULL) {
 			weather_data[i].wind_scale=pstr;
 		}
 
 		/* Extract key item for temperature */
-		pstr=heweather_get_forecast(buff,i,"tmp_max");
+		pstr=heweather_get_forecast(buff,i-1,"tmp_max");
 		if(pstr!=NULL) {
 			weather_data[i].temp_max=atoi(pstr);
 			free(pstr); pstr=NULL;
 		}
-		pstr=heweather_get_forecast(buff,i,"tmp_min");
+		pstr=heweather_get_forecast(buff,i-1,"tmp_min");
 		if(pstr!=NULL) {
 			weather_data[i].temp_min=atoi(pstr);
 			free(pstr); pstr=NULL;
 		}
 
 		/* Extract key item for humidity */
-		pstr=heweather_get_forecast(buff,i,"hum");
+		pstr=heweather_get_forecast(buff,i-1,"hum");
 		if(pstr!=NULL) {
 			weather_data[i].hum=atoi(pstr);
 			free(pstr); pstr=NULL;

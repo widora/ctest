@@ -29,10 +29,13 @@ NOTE:
    situation for realloc().
 3. uClibc can run on MMU-less systems.
 4. The homepage main process shall be as small as possible, most heavier codes and jobs
-   are to be carried out by the APP, so it will be fast enough to fork() and execv() a
+   are to be carried out by the APP, so it will be fast enough to fork()/vfork() and execv() a
    new APP. 
-   The FreeType2 fonts shall NOT be loaded in the main process!
-5. TODO: support for multilayer frame buffer.
+5. TODO: 
+   5.1 support for multilayer frame buffer.
+   5.2 A module using UBUS as a mechanism to manage and communicate with external processes, 
+       as such a way to substitue system() and popen() to launch and control unvisiable APPs.
+   5.3 A private memory allocation module?
 
 Please see basic ebox concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 

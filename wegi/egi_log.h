@@ -23,20 +23,22 @@ Midas Zhou
 				     	 * before quit the log process */
 
 /* LOG LEVEL */
+/* NOTE: to accord with egi_loglv_to_string()! */
 enum egi_log_level
 {
 	LOGLV_NONE	  =(1<<0),
 	LOGLV_INFO        =(1<<1),
-	LOGLV_WARN        =(1<<2),
-	LOGLV_CRITICAL	  =(1<<3),
-	LOGLV_ERROR       =(1<<4),
+	LOGLV_ASSERT      =(1<<2),
+	LOGLV_WARN        =(1<<3),
+	LOGLV_CRITICAL	  =(1<<4),
+	LOGLV_ERROR       =(1<<5),
 	LOGLV_TEST        =(1<<15),
 };
 
 #define ENABLE_EGI_PLOG
 
 /* Only log levels included in DEFAULT_LOG_LEVELS will be effective in EGI_PLOG() */
-#define DEFAULT_LOG_LEVELS   (LOGLV_NONE|LOGLV_TEST|LOGLV_INFO|LOGLV_WARN|LOGLV_ERROR|LOGLV_CRITICAL)
+#define DEFAULT_LOG_LEVELS   (LOGLV_NONE|LOGLV_TEST|LOGLV_INFO|LOGLV_WARN|LOGLV_ERROR|LOGLV_CRITICAL|LOGLV_ASSERT)
 
 /* Only log level gets threshold(>=) that will be written to log file directly, without putting to buffer */
 #define LOGLV_NOBUFF_THRESHOLD		LOGLV_WARN

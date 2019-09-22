@@ -231,7 +231,7 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=false;
+static bool enable_clip_test=true;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k
@@ -303,13 +303,22 @@ thread_ffplay_music() is only for audio files.
 void * thread_ffplay_music(EGI_PAGE *page)
 {
 	/* Check ffplay context */
-	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
-						     || FFmuz_Ctx->fpath[0]==NULL)
-	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!", __func__);
+	if(FFmuz_Ctx==NULL) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is NULL!", __func__);
 		return (void *)-1;
 	}
-	printf("-------------start at: %ld -----------\n", FFmuz_Ctx->start_tmsecs);
+	else if ( FFmuz_Ctx->fpath==NULL || FFmuz_Ctx->fpath[0]==NULL )
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx has NULL fpath!", __func__);
+		return (void *)-1;
+	}
+	else if (FFmuz_Ctx->ftotal<=0 )
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFmz_Ctx!", __func__);
+		return (void *)-1;
+	}
+
+	printf("--------- media playing start at: %ldms ---------\n", FFmuz_Ctx->start_tmsecs);
 
 	int ftotal=FFmuz_Ctx->ftotal; /* number of multimedia files input from shell */
 	int fnum;		/* Index number of files in array FFmuz_Ctx->fpath */
@@ -491,12 +500,21 @@ void * thread_ffplay_music(EGI_PAGE *page)
 while(1) {
 
 	/* For Each Loop:  Check ffplay context and re_gain fpath */
-	if(FFmuz_Ctx==NULL || FFmuz_Ctx->ftotal<=0 || FFmuz_Ctx->fpath==NULL
-						     || FFmuz_Ctx->fpath[0]==NULL)
-	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is invalid!", __func__);
+	if(FFmuz_Ctx==NULL) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is NULL!", __func__);
 		return (void *)-1;
 	}
+	else if ( FFmuz_Ctx->fpath==NULL || FFmuz_Ctx->fpath[0]==NULL )
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx has NULL fpath!", __func__);
+		return (void *)-1;
+	}
+	else if (FFmuz_Ctx->ftotal<=0 )
+	{
+		EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFmz_Ctx!", __func__);
+		return (void *)-1;
+	}
+
 	fpath=FFmuz_Ctx->fpath;  /* array of media file path */
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
@@ -767,7 +785,7 @@ if(disable_audio && audioStream>=0 )
 			}
 
 			/* open pcm play device and set parameters */
- 			if( prepare_ffpcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
+ 			if( egi_prepare_pcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.",
 											__func__);
@@ -818,8 +836,8 @@ if(disable_audio && audioStream>=0 )
 				}
 
 				/* open pcm play device and set parameters */
-				printf("-------- prepare_ffpcm_device() ....\n");
- 				if( prepare_ffpcm_device(nb_channels,out_sample_rate, false) !=0 ) /* 'true' for interleaved access */
+				printf("-------- egi_prepare_pcm_device() ....\n");
+ 				if( egi_prepare_pcm_device(nb_channels,out_sample_rate, false) !=0 ) /* 'true' for interleaved access */
 				{
 					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.",
 											__func__);
@@ -830,13 +848,13 @@ if(disable_audio && audioStream>=0 )
 			/* ---END sample rate convert to 44100--- */
 
 			/* Directly open pcm play device and set parameters */
- 			else if ( prepare_ffpcm_device(nb_channels,sample_rate, false) !=0 ) /* 'false' as for 'noninterleaved access' */
+ 			else if ( egi_prepare_pcm_device(nb_channels,sample_rate, false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.",
 											__func__);
 				goto FAIL_OR_TERM;
 			}
-			printf("-------- prepare_ffpcm_device() finish ....\n");
+			printf("-------- egi_prepare_pcm_device() finish ....\n");
 
 		}
 
@@ -1167,7 +1185,7 @@ else
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"FLTP outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
+							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
 						}
 
 					/* 1.2 SWR ON,  if sample_rate != 44100 */
@@ -1183,11 +1201,11 @@ else
                  EGI_PDEBUG(DBG_FFPLAY,"converted nb of samples=%d, dst_nb_samples=%d input frame_size=%d \n",
 						                ret, dst_nb_samples, aCodecCtx->frame_size);
 						      if(ret>0)
-							  play_ffpcm_buff( (void **)&outputBuffer, ret);
+							  egi_play_pcm_buff( (void **)&outputBuffer, ret);
 						}
 					/* 1.3 SWR OFF */
 						else {
-							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
+							 egi_play_pcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 						}
 					}
 					/* 2. Playback one channel */
@@ -1196,11 +1214,11 @@ else
 						if( enable_audio_resample )  { /* sample_rate != 44100 */
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+							egi_play_pcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
 						}
 						/* direct output */
 						else {
-						        play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
+						        egi_play_pcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 						}
 
 					}
@@ -1230,7 +1248,7 @@ else
 					//			ff_sec_Aelapsed, ff_sec_Aduration );
 
 					//gettimeofday(&tm_end,NULL);
-					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
+					//printf(" egi_play_pcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
 					/* --- Reset timing slider ---- */
 					if( tmbox_needUpdate ) {
@@ -1427,7 +1445,7 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	/* close pcm device and audioSpectrum */
 	if(audioStream >= 0) {
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
-		close_ffpcm_device();
+		egi_close_pcm_device();
 
 		/* exit audioSpectrum thread */
 		if( pthd_audioSpectrum_running ) {
@@ -1467,13 +1485,13 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 		pFormatCtx=NULL;
 	}
 
+	/* Free SWR and SWS */
 	if(audioStream >= 0)
 	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free swr at last...\n");
 		swr_free(&swr);
 		swr=NULL;
 	}
-
 	if(videoStream >= 0)
 	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free sws_ctx at last...\n");

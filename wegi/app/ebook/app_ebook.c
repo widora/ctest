@@ -87,7 +87,7 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 
 
 /*------------------------------------------------------------------
-	<<<  Signal handler for SIGUSR1 (to raise CONT)  >>>
+	<<<  Signal handler for SIGUSR1 (to raise SIGSTOP)  >>>
 If receive signal SIGUSR1, then self raise SIGSTOP to hang up the
 process.
 ------------------------------------------------------------------*/
@@ -219,6 +219,7 @@ int main(int argc, char **argv)
                 ret=-2;
 		goto FF_FAIL;
         }
+
 
 	/* Init FB device */
         init_fbdev(&gv_fb_dev);

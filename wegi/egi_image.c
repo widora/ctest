@@ -673,7 +673,7 @@ else  {
 	/* free colors */
 	free(colors);
 
-	/* Don NOT free here */
+	/* Don NOT free here, let egi_imgbuf_free() do it! */
 //	egi_free_buff2D((unsigned char **)ineimg->pcolors, height);
 //	egi_free_buff2D(ineimg->palphas, height);
 
@@ -901,17 +901,19 @@ Resize an image and create a new EGI_IMGBUF to hold the new image data.
 Only size/color/alpha of ineimg will be transfered to outeimg, others
 such as subimg will be ignored. )
 
+TODO: Before scale down an image, merge and shrink it to a certain size first!
+
 NOTE:
-1. Linear interplation is carried out with fix point calculation.
+1. Linear interpolation is carried out with fix point calculation.
 
 2. !!! --- LIMIT --- !!!
    Fix point data type: 			int
    Pixel 16bit color:				16bit
    Fix point multiplier(or divisor): 		f15 ( *(1U<<15) )
-   interplation ratio:				[0 1]
-   Scale limit/Interplation resolution:
+   interpolation ratio:				[0 1]
+   Scale limit/Interpolation resolution:
 
-   Min. ratio 1/(1U<<15), so more than 1k points can be interplated between
+   Min. ratio 1/(1U<<15), so more than 1k points can be interpolated between
    two pixels.
 
 
@@ -1049,9 +1051,9 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 			printf( "row: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
 						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
 #endif
-			/* interplate pixel color/alpha value, and store to icolors[]/ialphas[]  */
+			/* interpolate pixel color/alpha value, and store to icolors[]/ialphas[]  */
 			if(alpha_on) {
-				//printf("alpha_on interplate ...\n");
+				//printf("alpha_on interpolate ...\n");
 				egi_16bitColor_interplt(ineimg->imgbuf[i*oldwidth+ln], /* color1 */
 							ineimg->imgbuf[i*oldwidth+rn], /* color2 */
 			                                /* uchar alpha1,  uchar alpha2 */
@@ -1060,7 +1062,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 					 	f15_ratio, icolors[i]+j, ialphas[i]+j  );
 			}
 			else {
-				//printf("alpha_off interplate ...\n");
+				//printf("alpha_off interpolate ...\n");
 				egi_16bitColor_interplt(ineimg->imgbuf[i*oldwidth+ln], /* color1 */
 							ineimg->imgbuf[i*oldwidth+rn], /* color2 */
 			                                /* uchar alpha1,  uchar alpha2 */
@@ -1100,9 +1102,9 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 			printf( "column: ln=%d, rn=%d,  f15_ratio=%d, ratio=%f \n",
 						ln, rn, f15_ratio, 1.0*f15_ratio/(1U<<15) );
 #endif
-			/* interplate pixel color/alpha value, and store data to fcolors[]/falphas[]  */
+			/* interpolate pixel color/alpha value, and store data to fcolors[]/falphas[]  */
 			if(alpha_on) {
-				//printf("column: alpha_on interplate ...\n");
+				//printf("column: alpha_on interpolate ...\n");
 				egi_16bitColor_interplt(
 							//ineimg->imgbuf[ln*width+i], /* color1 */
 							//ineimg->imgbuf[rn*width+i], /* color2 */
@@ -1114,7 +1116,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 					 	         f15_ratio, fcolors[j]+i, falphas[j]+i  );
 			}
 			else {
-				//printf("column: alpha_off interplate ...\n");
+				//printf("column: alpha_off interpolate ...\n");
 				egi_16bitColor_interplt(
 							//ineimg->imgbuf[ln*width+i], /* color1 */
 							//ineimg->imgbuf[rn*width+i], /* color2 */

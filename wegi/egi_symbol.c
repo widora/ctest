@@ -307,13 +307,15 @@ int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbu
 }
 
 
-/*-------------------------------------------------------
+/*---------------------------------------------------------
 Load all symbol files into mem pages
-Don't forget to change symbol_free_allpages() accordingly
+
+! Don't forget to change symbol_free_allpages() accordingly !
+
 return:
 	0	OK
 	<0	Fail
--------------------------------------------------------*/
+---------------------------------------------------------*/
 int symbol_load_allpages(void)
 {
         /* load testfont */

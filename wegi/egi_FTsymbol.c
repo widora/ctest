@@ -20,55 +20,8 @@ Midas Zhou
 
 struct symbol_page sympg_ascii={0}; /* default  LiberationMono-Regular */
 
-EGI_FONTS  egi_sysfonts = {.ftname="sysfonts"};
-EGI_FONTS  egi_appfonts = {.ftname="appfonts"};
-
-
-#if 0  /////////////////////// Pending /////////////////////////
-/*-----------------------------------------
-Load all FT type symbol pages and fonts Lib
-return:
-	0	OK
-	<0	Fails
------------------------------------------*/
-int  FTsymbol_load_allpages(void)
-{
-	int ret=0;
-	char fpath_regular[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_light[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_bold[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_special[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-	char fpath_ascii[EGI_PATH_MAX+EGI_NAME_MAX]={0};
-
-	/* read egi.conf and get fonts paths */
-	if ( egi_get_config_value("EGI_FONTS","ascii",fpath_ascii) != 0)
-        	return -1;
-        /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
-        if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
-		return -2;
-
-	/* read egi.conf and get fonts paths */
-	if ( egi_get_config_value("EGI_FONTS","regular",fpath_regular) != 0)
-        	return -3;
-	if ( egi_get_config_value("EGI_FONTS","light",fpath_light) != 0)
-        	return -4;
-	if ( egi_get_config_value("EGI_FONTS","bold",fpath_bold) != 0)
-        	return -5;
-	if ( egi_get_config_value("EGI_FONTS","special",fpath_special) != 0)
-        	return -6;
-
-	egi_sysfonts.fpath_regular=fpath_regular;
-	egi_sysfonts.fpath_light=fpath_light;
-	egi_sysfonts.fpath_bold=fpath_bold;
-	egi_sysfonts.fpath_special=fpath_special;
-
-	/* load FT library with default fonts */
-	ret=FTsymbol_load_library( &egi_sysfonts );
-	if(ret)	return -7;
-
-	return 0;
-}
-#endif
+EGI_FONTS  egi_sysfonts = {.ftname="sysfonts",};
+EGI_FONTS  egi_appfonts = {.ftname="appfonts",};
 
 
 /*--------------------------------------
@@ -166,29 +119,19 @@ int  FTsymbol_load_allpages(void)
 {
 	char fpath_ascii[EGI_PATH_MAX+EGI_NAME_MAX]={0};
 
-#if 0
 	/* read egi.conf and get fonts paths */
-	if ( egi_get_config_value("SYS_FONTS","ascii",fpath_ascii) != 0)
-        	return -1;
-        /* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
-        if ( FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) !=0 )
-		return -2;
-#endif
-
-	/* read egi.conf and get fonts paths */
-	if ( egi_get_config_value("SYS_FONTS","ascii",fpath_ascii) == 0 &&
+	if ( egi_get_config_value("FTSYMBOL_PAGE","ascii",fpath_ascii) == 0 &&
         	/* load ASCII font, bitmap size 18x18 in pixels, each line abt.18x2 pixels in height */
-        	FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) ==0 ) 
+        	FTsymbol_load_asciis_from_fontfile( &sympg_ascii, fpath_ascii, 18, 18) ==0 )
         {
 
-		EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to load sympg_ascii!", __func__ );
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to load FTsymbol page sympg_ascii!", __func__ );
+		return 0;
 	}
-	else
-		EGI_PLOG( LOGLV_CRITICAL,"%s: Fail to load sympg_ascii!", __func__ );
-		//Go on...
-
-
-	return 0;
+	else {
+		EGI_PLOG( LOGLV_CRITICAL,"%s: Fail to load FTsymbol page sympg_ascii!", __func__ );
+		return -1;
+	}
 }
 
 /* --------------------------------------
@@ -267,7 +210,7 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 		ret=3;
         }
         else if ( error ) {
-                EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to open or read [%s] LIGHT font file '%s'.",
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to open or read [%s] LIGHT font file '%s'.",
 						 	__func__, symlib->ftname, symlib->fpath_light);
 //		goto FT_FAIL;
 		ret=4;

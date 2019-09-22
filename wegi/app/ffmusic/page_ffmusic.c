@@ -255,7 +255,7 @@ EGI_PAGE *create_ffmuzPage(void)
 	tmX0[1]=sbx0y0.x+sb_len-50;
 	tmY0[1]=tmY0[0];
 
-	/* create time sliding bar TXT EBOX */
+	/* create playing time TXT EBOX for sliding bar */
 	for(i=0; i<2; i++) {
 	        /* For symbols TXT */
 		data_tmtxt[i]=egi_txtdata_new( 0, 0,    /* offx,offy from EBOX */
@@ -479,7 +479,7 @@ static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	if(raise(SIGUSR1) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.",__func__);
 	}
-	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...",__func__);
+	EGI_PLOG(LOGLV_ASSERT,"%s: Finish rasie(SIGSUR1), return to page routine...",__func__);
 
   /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
    *    will be received one after another,(In rare circumstances, it may receive 2 'preesed_hold')
@@ -535,7 +535,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status==pressing)
         {
                 printf("vol pressing\n");
-                if( ffpcm_getset_volume(&mark,NULL) !=0 ) /* get volume */
+                if( egi_getset_pcm_volume(&mark,NULL) !=0 ) /* get volume */
 			mark=0;
 		//printf("mark=%d\n",mark);
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
@@ -555,7 +555,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		printf("\n%s --- pvol=d% --- \n",__func__, vol);
 
 		/* set volume */
-                if( ffpcm_getset_volume(NULL,&vol)==0 )
+                if( egi_getset_pcm_volume(NULL,&vol)==0 )
 			sprintf(strp,"音量 %d%%",vol);
 		else
 			sprintf(strp,"音量 无效");

@@ -98,7 +98,7 @@ Return:
 a	0  :  OK
 	<0 :  fails
 -----------------------------------------------------------------------------------*/
-int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
+int egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
 {
 	int rc;
         snd_pcm_hw_params_t *params;
@@ -169,7 +169,7 @@ int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interle
   close pcm device and free resources
   together with volmix.
 ----------------------------------------------*/
-void close_ffpcm_device(void)
+void egi_close_pcm_device(void)
 {
 	if(g_ffpcm_handle != NULL) {
 		snd_pcm_drain(g_ffpcm_handle);
@@ -195,7 +195,7 @@ Return:
 #	>0    OK
 #	<0   fails
 ------------------------------------------------------------------------*/
-void  play_ffpcm_buff(void ** buffer, int nf)
+void  egi_play_pcm_buff(void ** buffer, int nf)
 {
 	int rc;
 
@@ -242,7 +242,7 @@ Return:
 	0	OK
 	<0	Fails
 ------------------------------------------------------------------------*/
-int ffpcm_getset_volume(int *pgetvol, int *psetvol)
+int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 {
 	int ret;
 	static long min=-1; /* selem volume value limit */

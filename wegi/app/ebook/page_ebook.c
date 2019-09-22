@@ -71,8 +71,10 @@ static int ebook_decorate(EGI_EBOX *ebox);
 static int fd=-1;;
 static int fsize;
 static struct stat sb;
-static const unsigned char *fp;
+static const unsigned char *faddr;
 /* ebook displaying */
+static const char *fpath="/mmc/xyj_uft8.txt";
+
 static wchar_t *title=L"《西 游 记》";
 static  int fh,fw; /* font Height,Width */
 static  int lines;
@@ -97,46 +99,53 @@ static int page_refresh_ebook(EGI_PAGE *page)
     /* 1. If (fd<0) open and mmap file */
     if(fd<0) {
 
+	EGI_PLOG(LOGLV_TEST,"%s: Start to open and MMAP file %s.", __func__, fpath);
+
 	/* init params */
-   	x0=5;
+   	x0=5;		/* Offset */
 	y0=30;
-   	fw=19;
+   	fw=19;		/* font size */
 	fh=19;
-	pixpl=240-x0;
-	offp=0;
-   	lines=12;
-   	gap=5;
+	pixpl=240-x0;	/* pixles per line */
+	offp=0;		/* file position offset */
+   	lines=12;	/* number of txt lines */
+   	gap=5;		/* Gap between txt lines */
 
 	/* init filo */
 	if(filo==NULL) {
 	        filo=egi_malloc_filo( 1<<10, sizeof(int), 0b01); //|0b10 ); /* enable double/halve realloc */
 	        if(filo==NULL) {
-	                printf("%s: Fail to init filo, quit.\n",__func__);
+			EGI_PLOG(LOGLV_ERROR,"%s:Fail to init EGI FILO, quit.", __func__);
         	        return -1;
         	}
 	}
 
         /* 1.1 open wchar book file */
-        fd=open("/mmc/xyj_uft8.txt",O_RDONLY);
+        fd=open(fpath,O_RDONLY);
         if(fd<0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open %s.", __func__, fpath);
                 perror("---open file---");
                 return -1;
         }
         /* 1.2 obtain file stat */
         if( fstat(fd,&sb)<0 ) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call fstat() for file size.", __func__);
                 perror("---fstat---");
                 return -2;
         }
         fsize=sb.st_size;
         /* 1.3 mmap txt file */
-        fp=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
-        if(fp==MAP_FAILED) {
+        faddr=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+        if(faddr==MAP_FAILED) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call mmap() for file %s.", __func__, fpath);
                 perror("---mmap---");
                 return -3;
         }
+
         /* 1.4 get total wchars in the book */
-        wtotal=cstr_strcount_uft8(fp);
-        printf("%s: --------Total %d characters in the book.\n",__func__, wtotal);
+        wtotal=cstr_strcount_uft8(faddr);
+	EGI_PLOG(LOGLV_TEST,"%s: Finish open and MMAP file %s, totally %d characters in the book.",
+										__func__, fpath, wtotal);
 
         /* 1.5 write book title  */
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,  	/* FBdev, fontface */
@@ -155,7 +164,7 @@ static int page_refresh_ebook(EGI_PAGE *page)
         /* write book content: UFT-8 string to FB */
 	egi_filo_push(filo,(void *)(&offp)); /* push current starting offp */
        	nwrite=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,   /* FBdev, fontface */
-                                          fw, fh, fp+offp,     	 	 /* fw,fh, pstr */
+                                          fw, fh, faddr+offp,     	 	 /* fw,fh, pstr */
                                           pixpl-x0, lines,  gap,         /* pixpl, lines, gap */
                                           x0, y0,                      	 /* x0,y0, */
                                           WEGI_COLOR_BLACK, -1, -1 );    /* fontcolor, stranscolor,opaque */
@@ -187,16 +196,16 @@ EGI_PAGE *create_ebook_page(void)
         for(i=0;i<btnum;i++) /* row of buttons*/
         {
 		/* 1. create new data_btns */
-		data_btns[i]=egi_btndata_new(	i, /* int id */
-						square, /* enum egi_btn_type shape */
+		data_btns[i]=egi_btndata_new(	i, 		 /* int id */
+						btnType_square,  /* enum egi_btn_type shape */
 						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
-						0, /* int icon_code, assign later.. */
-						&sympg_testfont /* for ebox->tag font */
+						0, 		 /* int icon_code, assign later.. */
+						&sympg_testfont  /* for ebox->tag font */
 					);
 		/* if fail, try again ... */
 		if(data_btns[i]==NULL)
 		{
-			EGI_PLOG(LOGLV_ERROR,"egi_create_ffplaypage(): fail to call egi_btndata_new() for data_btns[%d]. retry...\n", i);
+			EGI_PLOG(LOGLV_ERROR,"%s: Fail to call egi_btndata_new() for data_btns[%d]. retry...", i);
 			i--;
 			continue;
 		}
@@ -206,19 +215,20 @@ EGI_PAGE *create_ebook_page(void)
 		/* set opaque value */
 		data_btns[i]->opaque=35;
 
-		/* 2. create new btn eboxes */
-		ebook_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
-						data_btns[i], /* EGI_DATA_BTN *egi_data */
-				        	false, /* bool movable */
+		/* 2. create btn eboxes */
+		ebook_btns[i]=egi_btnbox_new(   NULL, 		  /* put tag later */
+						data_btns[i], 	  /* EGI_DATA_BTN *egi_data */
+				        	false, 		  /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
-						48, 60, /* int width, int height */
-				       		0, /* int frame,<0 no frame */
+						48, 60, 	  /* int width, int height */
+				       		0, 		  /* int frame,<0 no frame */
 		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
 		if(ebook_btns[i]==NULL)
 		{
-			printf("egi_create_ffplaypage(): fail to call egi_btnbox_new() for ebook_btns[%d]. retry...\n", i);
+			EGI_PLOG(LOGLV_ERROR, "%s: Fail to call egi_btnbox_new() for ebook_btns[%d]. retry...",
+												 __func__, i);
 			free(data_btns[i]);
 			data_btns[i]=NULL;
 			i--;
@@ -277,19 +287,19 @@ EGI_PAGE *create_ebook_page(void)
 	/* decoration */
 	page_ebook->ebox->method.decorate=ebook_decorate;
 
-        /* 3.2 put pthread runner */
+        /* 3.2 Put pthread runner */
 //        page_ebook->runner[0]= ;
 
         /* 3.3 set default routine job */
         page_ebook->routine=egi_page_routine; /* use default routine function */
 
-        /* 3.4 set wallpaper */
-        page_ebook->fpath="/mmc/bkpng/bk4.png";
+        /* 3.4 Set wallpaper */
+        page_ebook->fpath="/mmc/bookbk.png";
 
-	/* 3.5 assign misc. refresh job for page */
+	/* 3.5 Assign misc. refresh job for page */
 	page_ebook->page_refresh_misc=page_refresh_ebook;
 
-	/* 3.6 add eboxes to home page */
+	/* 3.6 Add eboxes to home page */
 	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ebook, ebook_btns[i]);
 
@@ -323,7 +333,7 @@ static int ebook_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	refresh_ebook=true;
 
-	return pgret_OK;
+	return pgret_OK;	/* Force to refresh PAGE */
 }
 
 /*--------------------------------------------------------------------
@@ -351,7 +361,7 @@ static int ebook_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	refresh_ebook=true;
 
-	return pgret_OK; 	//btnret_OK;
+	return pgret_OK; 	/* fore to refresh page */
 }
 
 /*--------------------------------------------------------------------
@@ -370,7 +380,7 @@ static int ebook_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 }
 
 /*--------------------------------------------------------------------
-EBOOK exit
+EBOOK hangup and put to background.
 return
 ----------------------------------------------------------------------*/
 static int ebook_hangup(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
@@ -382,9 +392,9 @@ static int ebook_hangup(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 #if 1
 	/*TEST: send HUP signal to iteself */
 	if(raise(SIGUSR1) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.",__func__);
 	}
-	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...\n",__func__);
+	EGI_PLOG(LOGLV_ERROR,"%s: Finish rasie(SIGSUR1), return to page routine...",__func__);
 
   /* 1. When the page returns from SIGSTOP by signal SIGCONT, status 'pressed_hold' and 'releasing'
    *    will be received one after another,(In rare circumstances, it may receive 2 'preesed_hold')
@@ -398,8 +408,8 @@ static int ebook_hangup(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
    */
 
 	/* set ebook need_refresh token here */
+	offp-=nwrite;		/* Reel back reading position */
 	refresh_ebook=true;
-	offp-=nwrite;
 	if(offp<0)offp=0;
 
 	/* need refresh page, a trick here to activate the page after CONT signal */
@@ -433,12 +443,15 @@ void free_ebook_page(void)
    if(fd>0) {
 	 close(fd);
 	 fd=-1;
+	 munmap(faddr, fsize);
+	 faddr=NULL;
    }
 
    if(filo != NULL) {
 	egi_free_filo(filo);
 	filo=NULL;
    }
+
 
    /* all EBOXs in the page will be release by calling egi_page_free()
     *  just after page routine returns.

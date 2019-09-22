@@ -751,7 +751,7 @@ if(disable_audio && audioStream>=0 )
 			}
 
 			/* open pcm play device and set parameters */
- 			if( prepare_ffpcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
+ 			if( egi_prepare_pcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
 											__func__);
@@ -784,7 +784,7 @@ if(disable_audio && audioStream>=0 )
 				}
 
 				/* open pcm play device and set parameters */
- 				if( prepare_ffpcm_device(nb_channels,out_sample_rate,false) !=0 ) /* 'true' for interleaved access */
+ 				if( egi_prepare_pcm_device(nb_channels,out_sample_rate,false) !=0 ) /* 'true' for interleaved access */
 				{
 					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
 											__func__);
@@ -795,7 +795,7 @@ if(disable_audio && audioStream>=0 )
 			/* END sample rate convert to 44100 */
 
 			/* Directly open pcm play device and set parameters */
- 			else if ( prepare_ffpcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
+ 			else if ( egi_prepare_pcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
 											__func__);
@@ -1412,15 +1412,15 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,outsamples);
+							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
 						}
 						else if( outputBuffer )  {  /* SWR ON,  if sample_rate != 44100 */
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+							egi_play_pcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
 						}
 						else {
-							 play_ffpcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
+							 egi_play_pcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
 						}
 
 					}
@@ -1429,11 +1429,11 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 						if(sample_rate != 44100) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							play_ffpcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
+							egi_play_pcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
 						}
 						/* direct output */
 						else {
-						        play_ffpcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
+						        egi_play_pcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 						}
 
 					}
@@ -1466,7 +1466,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 								ff_sec_Aelapsed, ff_sec_Aduration );
 */
 					//gettimeofday(&tm_end,NULL);
-					//printf(" play_ffpcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
+					//printf(" egi_play_pcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
 				}
 				packet.size -= bytes_used;
@@ -1638,7 +1638,7 @@ FAIL_OR_TERM:
 	/* close pcm device and audioSpectrum */
 	if(audioStream >= 0) {
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
-		close_ffpcm_device();
+		egi_close_pcm_device();
 
 		/* exit audioSpectrum thread */
 		if( pthd_audioSpectrum_running ) {

@@ -183,7 +183,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 
 	/* set playback volume percert to data_slider->val */
 	int pvol; /* percent value */
-	ffpcm_getset_volume(&pvol,NULL);
+	egi_getset_pcm_volume(&pvol,NULL);
 	//printf("-------pvol=%%%d-----\n",pvol);
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(	/* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
 	                                /* for btnbox */
@@ -279,12 +279,12 @@ static void check_volume_runner(EGI_PAGE *page)
 	   tm_delayms(300);
 
 	   /* check page status for exit */
-	  //Not necessary anymore? use pthread_cancel() fro PAGE */
-	  // if(page->ebox->status==status_page_exiting)
-	   //	return;
+	   //Not necessary anymore? use pthread_cancel() fro PAGE */
+	   if(page->ebox->status==status_page_exiting)
+	   	return;
 
 	   /* get palyback volume */
-	   ffpcm_getset_volume(&pvol,NULL);
+	   egi_getset_pcm_volume(&pvol,NULL);
 	   buf=pvol*data_slider->sl/100;
 
 	   if(buf==sval)continue;
@@ -298,12 +298,10 @@ static void check_volume_runner(EGI_PAGE *page)
 	   /* refresh it */
            //slider->need_refresh=true;
            //slider->refresh(slider);
-           egi_ebox_needrefresh(slider);
+           egi_ebox_needrefresh(slider); /* No need for quick response */
 
      }
 }
-
-
 
 
 /*-------------------------------------------------------------------
@@ -342,12 +340,7 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 		/* adjust volume */
 		vol=100*data_slider->val/data_slider->sl;
-		ffpcm_getset_volume(NULL,&vol);
-#if 0
-		memset(strcmd,0,sizeof(strcmd));
-		sprintf(strcmd,"amixer set PCM %d%%",vol);
-		system(strcmd);
-#endif
+		egi_getset_pcm_volume(NULL,&vol);
 
 		#if 0   /* set need refresh for PAGE routine */
                 egi_ebox_needrefresh(ebox);
@@ -355,7 +348,6 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 ebox->need_refresh=true;
                 ebox->refresh(ebox);
                 #endif
-
 	}
 
 	return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */
@@ -375,32 +367,40 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if( touch_data->status != pressing )
                 return btnret_IDLE;
 
+	/* 1. Make a fifo for mplayer command access */
 	if(pfd<0) {
 		status=mp_stop;
 		//printf("unlink(MPFIFO_NAME)...\n");
 		//unlink(MPFIFO_NAME); /* TODO: Get stuck here! */
 		remove(MPFIFO_NAME);
-		printf("mkfifo for mplayer.\n");
+		EGI_PLOG(LOGLV_TEST,"%s: mkfifo for mplayer...",__func__);
 		if (mkfifo(MPFIFO_NAME,0766) !=0) {
-			printf("%s:Fail to mkfifo for mplayer.\n",__func__);
+			EGI_PLOG(LOGLV_ERROR,"%s:Fail to mkfifo for mplayer.",__func__);
 			return NULL;
 		}
+		EGI_PLOG(LOGLV_ASSERT,"%s: mkfifo finish.",__func__);
 	}
 
-	//printf("%s: %s created!.\n",__func__,MPFIFO_NAME);
-
-	/* open/close mplayer */
+	/* 2. If stopped, load mplayer by popen(). */
 	if(status==mp_stop) {
-		//printf("--------- start mplayer ------\n");
-         sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
+		printf("--- cmd: start mplayer ---\n");
+	        sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
 									MPFIFO_NAME,str_playlist[nlist] );
-		pfil=popen(strcmd,"we");
-		if(pfil!=NULL) {
-			EGI_PLOG(LOGLV_INFO,"%s: Succeed to pipe_open mplayer!\n",__func__);
-			status=mp_playing;
-			egi_ebox_settag(ebox, "Pause");
-			egi_ebox_forcerefresh(ebox);
-		}
+	    	do {
+			EGI_PLOG(LOGLV_TEST,"%s: start to popen() mplayer...",__func__);
+			/* TODO: popen() wiillcall fork() to start a new process, it's time consuming!
+			 *	 Use UBUS to manage and communicate with sub_processes.
+			 */
+			pfil=popen(strcmd,"we");
+			if(pfil!=NULL) {
+				EGI_PLOG(LOGLV_ASSERT,"%s: Succeed to popen() mplayer.",__func__);
+				status=mp_playing;
+				egi_ebox_settag(ebox, "Pause");
+				egi_ebox_forcerefresh(ebox);
+			} else {
+				EGI_PLOG(LOGLV_ERROR,"%s: Fail to popen() mplayer! retry...",__func__);
+			}
+		} while( pfil==NULL );
 
 		/* open fifo for command input */
 		pfd=open(MPFIFO_NAME,O_WRONLY|O_CLOEXEC);//|O_NONBLOCK);
@@ -408,10 +408,10 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 			printf("%s:Fail to open mkfifo. \n",__func__);
 		       	 return btnret_ERR;
 		}
-		printf("%s: Succeed to open %s for command input.\n",__func__,MPFIFO_NAME);
+		EGI_PLOG(LOGLV_ASSERT,"%s: Succeed to open '%s' for mplayer cmd input.",__func__,MPFIFO_NAME);
 
 	}
-
+	/* 3. Pause mplayer */
 	else if(status==mp_playing) {
 		/* check whether mplayer is running */
 		// --- TODO: How to check if the fifo pipe is broken?!
@@ -419,10 +419,10 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		//if(pfil==NULL) {
 
 		/* write pause command to mplayer  */
-		printf("--------- start pause ------\n");
+		printf("--- cmd: mplayer pause ---\n");
 		ret=write(pfd, cmdPause,strlen(cmdPause));
 		if(ret<=0) { /* especailly 0! */
-			EGI_PLOG(LOGLV_WARN,"%s: try to write command to mplayer throgh pfd: %s.\n",
+			EGI_PLOG(LOGLV_WARN,"%s: try to write command to mplayer throgh pfd: %s.",
 									__func__, strerror(errno) );
 			pclose(pfil);
 			close(pfd);
@@ -439,7 +439,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 			egi_ebox_forcerefresh(ebox);
 		}
 	}
-
+	/*  4. Activate paused mplayer */
 	else if(status==mp_pause) {
 		//printf("--------- start re play ------\n");
 		status=mp_playing;

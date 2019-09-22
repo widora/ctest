@@ -88,7 +88,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
         {
 		/* 1. create new data_btns */
 		data_btns[i]=egi_btndata_new(	i, /* int id */
-						square, /* enum egi_btn_type shape */
+						btnType_square, /* enum egi_btn_type shape */
 						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
 						0, /* int icon_code, assign later.. */
 						&sympg_testfont /* for ebox->tag font */
@@ -395,7 +395,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status==pressing)
         {
                 printf("vol pressing\n");
-                ffpcm_getset_volume(&mark,NULL); /* get volume */
+                egi_getset_pcm_volume(&mark,NULL); /* get volume */
 		//printf("mark=%d\n",mark);
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
@@ -408,7 +408,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		else if(vol<0)vol=0;
 		sprintf(strp,"VOL %d%%",vol);
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
-                ffpcm_getset_volume(NULL,&vol); /* set volume */
+                egi_getset_pcm_volume(NULL,&vol); /* set volume */
 
                 /* displaying */
 		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);

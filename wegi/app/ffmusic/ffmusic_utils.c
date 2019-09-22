@@ -78,7 +78,7 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
 {
         int i,k;
 
-        pPICbuffs=(uint8_t **)malloc( PIC_BUFF_NUM* sizeof(uint8_t *) );
+        pPICbuffs=(uint8_t **)malloc( PIC_BUFF_NUM*sizeof(uint8_t *) );
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
@@ -396,6 +396,7 @@ void* display_MusicPic(void * argv)
 
   /* Free tmpimg */
   egi_imgbuf_free(tmpimg);
+  tmping=NULL;
 
   /*  ------- Free frame_img of PAGE -----
    *  !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!

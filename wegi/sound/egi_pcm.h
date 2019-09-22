@@ -29,10 +29,9 @@ Midas Zhou
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 
-int prepare_ffpcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
-void close_ffpcm_device(void);
-void play_ffpcm_buff(void** buffer, int nf);
-int ffpcm_getset_volume(int *pvol, int *percnt);
-
+int egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
+void egi_close_pcm_device(void);
+void egi_play_pcm_buff(void** buffer, int nf);
+int  egi_getset_pcm_volume(int *pvol, int *percnt);
 
 #endif

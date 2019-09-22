@@ -38,7 +38,7 @@ inline void egi_16bitColor_interplt( EGI_16BIT_COLOR color1, EGI_16BIT_COLOR col
 {
 	unsigned int R,G,B,A;
 
-	/* interplate color value */
+	/* interpolate color value */
 	if(color) {
 	 	R  =((color1&0xF800)>>8)*((1U<<15)-f15_ratio);	/* R */
 		R +=((color2&0xF800)>>8)*f15_ratio;
@@ -54,7 +54,7 @@ inline void egi_16bitColor_interplt( EGI_16BIT_COLOR color1, EGI_16BIT_COLOR col
 
         	*color=COLOR_RGB_TO16BITS(R, G, B);
 	}
-	/* interplate alpha value */
+	/* interpolate alpha value */
 	if(alpha) {
 	        A  = alpha1*((1U<<15)-f15_ratio);  /* R */
 	        A += alpha2*f15_ratio;

@@ -31,6 +31,7 @@ midaszhou@yahoo.com
 #include "page_ffmusic.h"
 #include <signal.h>
 #include <sys/types.h>
+#include <malloc.h>
 
 static char app_name[]="app_ffmusic";
 static EGI_PAGE *page_ffmuz=NULL;
@@ -58,7 +59,7 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 
 
    	if(signum==SIGCONT) {
-        	EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
+        	EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].",
 								app_name, __func__, spid);
 
 	/* set page refresh flag */
@@ -73,7 +74,6 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 
 
 /*-------------------------------------------------------------------
-
 		   Signal handler for SIGUSR1
 -------------------------------------------------------------------*/
 static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
@@ -82,7 +82,7 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
 
   if(signum==SIGUSR1) {
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
-        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR1 received from process [PID:%d].\n", app_name, __func__, spid);
+        EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR1 received from process [PID:%d].", app_name, __func__, spid);
 
 	/* buffer FB image */
 //	tm_delayms(1500);
@@ -93,7 +93,7 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
 
 	/* raise SIGSTOP */
         if(raise(SIGSTOP) !=0 ) {
-                EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to raise(SIGSTOP) to itself.\n",app_name, __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s:[%s] Fail to raise(SIGSTOP) to itself.",app_name, __func__);
         }
  }
 
@@ -111,7 +111,7 @@ static int assign_signal_actions(void)
 	sigact_cont.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
         sigact_cont.sa_sigaction=sigcont_handler;
         if(sigaction(SIGCONT, &sigact_cont, &osigact_cont) <0 ){
-	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGCONT.\n", app_name, __func__);
+	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGCONT.", app_name, __func__);
                 return -1;
         }
 
@@ -121,7 +121,7 @@ static int assign_signal_actions(void)
 	sigact_usr.sa_flags|=SA_NODEFER; /* Do  not  prevent  the  signal from being received from within its own signal handler. */
         sigact_usr.sa_sigaction=sigusr_handler;
         if(sigaction(SIGUSR1, &sigact_usr, &osigact_usr) <0 ){
-	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGUSR1.\n", app_name, __func__);
+	        EGI_PLOG(LOGLV_ERROR,"%s:[%s] fail to call sigaction() for SIGUSR1.", app_name, __func__);
                 return -2;
         }
 
@@ -174,13 +174,16 @@ int main(int argc, char **argv)
 	char music_dir[EGI_PATH_MAX]={0};
 	pthread_t thread_loopread;
 
+	/* Set memory allocation option */
+	mallopt(M_MMAP_MAX,0); 		/* forbid calling mmap to allocate mem */
+	mallopt(M_TRIM_THRESHOLD,-1);	/* forbid memory trimming */
 
         /*  ---  0. assign signal actions  --- */
 	assign_signal_actions();
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
-        if(egi_init_log("/mmc/log_ffplay") != 0) {
+        if(egi_init_log("/mmc/log_ffmusic") != 0) {
                 printf("Fail to init logger,quit.\n");
                 return -1;
         }
@@ -190,10 +193,11 @@ int main(int argc, char **argv)
 		goto FF_FAIL;
         }
         if(FTsymbol_load_allpages() !=0 ) {
-                printf("Fail to load sym pages,quit.\n");
+                printf("Fail to load FTsym pages,quit.\n");
                 ret=-2;
 		goto FF_FAIL;
         }
+
 	/* FT fonts needs more memory, disable it if not necessary */
 	FTsymbol_load_appfonts();
 
@@ -208,19 +212,18 @@ int main(int argc, char **argv)
 		goto FF_FAIL;
         }
 
-
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-        if ( egi_get_config_value("EGI_FFPLAY","music_dir",music_dir) != 0) {
+        if ( egi_get_config_value("EGI_FFMUSIC","music_dir",music_dir) != 0) {
 		/* use default dir */
-		EGI_PLOG(LOGLV_INFO,"%s: Fail to read config music_dir, use default: %s\n",__func__, music_dir);
-		strcpy(music_dir,"/mmc/ffplay");
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to read config music_dir, use default: %s",__func__, music_dir);
+		strcpy(music_dir,"/mmc");
 	} else {
-		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
+		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s",__func__, music_dir);
 	}
 //	if( init_ffmuzCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
 	if( init_ffmuzCtx(music_dir, "mp3, wav") ) {
-	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
+	        EGI_PLOG(LOGLV_INFO,"%s: fail to initiate FFplay_Ctx.", __func__);
 		return pgret_ERR;
 	}
 
@@ -229,18 +232,18 @@ int main(int argc, char **argv)
 	printf(" start page creation....\n");
         /* create page and load the page */
         page_ffmuz=create_ffmuzPage();
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffmuz->ebox->tag);
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.", app_name, page_ffmuz->ebox->tag);
 
 	/* activate and display the page */
         egi_page_activate(page_ffmuz);
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffmuz->ebox->tag);
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.", app_name, page_ffmuz->ebox->tag);
 
         /* trap into page routine loop */
-        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffmuz->ebox->tag);
+        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...", app_name, page_ffmuz->ebox->tag);
         page_ffmuz->routine(page_ffmuz);
 
         /* get out of routine loop */
-        EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
+        EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...",
 		                                                app_name,page_ffmuz->ebox->tag);
 
 	tm_delayms(200); /* let page log_calling finish */

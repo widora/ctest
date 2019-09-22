@@ -31,6 +31,7 @@ enum heweather_data_type {
 	data_lifestyle
 };
 
+/* Use static mem may be GOOD */
 typedef struct  heweather_data {
 	char		*location;		/* Location */
 

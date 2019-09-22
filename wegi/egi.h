@@ -616,7 +616,7 @@ struct egi_page
 			   *    !!! NOW !!! It synchronizes with page->ebox->need_refresh
 			   */
 
-	/* wallpaper for the page */
+	/* wallpaper for the page, JPG or PNG file.  */
 	char *fpath;
 
 	/* image buff, load fpath file image to it. */

@@ -69,7 +69,6 @@ volatile static bool log_is_running; /* log_buff_mutex lock */
 /*-----------------------------------------------------------------
 Convert enum egi_log_level to string
 ----------------------------------------------------------------*/
-
 #define ENUM_LOGLV_CASE(x)      case    x:  return(#x);
 
 static inline const char *egi_loglv_to_string(enum egi_log_level log_level)
@@ -78,9 +77,10 @@ static inline const char *egi_loglv_to_string(enum egi_log_level log_level)
 	{
 		ENUM_LOGLV_CASE(LOGLV_NONE);
 		ENUM_LOGLV_CASE(LOGLV_INFO);
+		ENUM_LOGLV_CASE(LOGLV_ASSERT);
 		ENUM_LOGLV_CASE(LOGLV_WARN);
-		ENUM_LOGLV_CASE(LOGLV_ERROR);
 		ENUM_LOGLV_CASE(LOGLV_CRITICAL);
+		ENUM_LOGLV_CASE(LOGLV_ERROR);
 		ENUM_LOGLV_CASE(LOGLV_TEST);
 	}
 	return "LOGLV_Unknown";
@@ -125,19 +125,21 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	 */
 
 	#if 0 /* ----- 8 color console  ----- */
-	const char *attrRed="\033[0;31;40m";	  /* 8 colors */
+	const char *attrRed="\033[0;31;40m";	  	/* 8 colors */
 	const char *attrGreen="\033[0;32;40m";
 	const char *attrYellow="\033[0;33;40m";
 	const char *attrBlue="\033[0;34;40m";
 	const char *attrMagenta="\033[0;35;40m";
 	const char *attrCyan="\033[0;36;40m";
+	const char *attrGray="\033[0;37;40m";		/* No GRAY, use WHITE */
 	#else /* ----- 256 color console ---- */
-	const char *attrRed="\e[38;5;196;48;5;0m";     /* For 256 color console */
+	const char *attrRed="\e[38;5;196;48;5;0m";      /* forecolor 196, backcolor 0 */
 	const char *attrGreen="\e[38;5;34;48;5;0m";
-	const char *attrYellow="\e[38;5;220;48;5;0m";    /* For 256 color console,with BLACK back color */
+	const char *attrYellow="\e[38;5;220;48;5;0m";   /* forecolor 220, backcolor 0 */
 	const char *attrBlue="\e[38;5;27;48;5;0m";
 	const char *attrMagenta="\e[38;5;201m";
 	const char *attrCyan="\e[38;5;37;48;5;0m";
+	const char *attrGray="\e[38;5;249;48;5;0m";	/* forecolor 249, backcolor 0 */
 	#endif
 	const char *attrReset="\e[0m"; /* reset all attributes to their defaults */
 	const char *pattrcolor=NULL;
@@ -163,7 +165,13 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 			pattrcolor=attrYellow;
 			break;
 		case LOGLV_CRITICAL:
+			pattrcolor=attrMagenta;
+			break;
+		case LOGLV_ASSERT:
 			pattrcolor=attrGreen;
+			break;
+		case LOGLV_INFO:
+			pattrcolor=attrGray;
 			break;
 		case LOGLV_TEST:
 			pattrcolor=attrCyan;
@@ -192,7 +200,8 @@ int egi_push_log(enum egi_log_level log_level, const char *fmt, ...)
 	snprintf(strlog+tmlen, EGI_LOG_MAX_ITEMLEN-tmlen-1, "%s\n", attrReset); /* -1 for /0 */
 
 #ifdef ENABLE_LOGBUFF_PRINT
-	printf("EGI_Logger: %s",strlog); /* no '/n', Let log caller to decide return token */
+	//printf("EGI_Logger: %s",strlog);
+	printf("%s",strlog); /* no '/n', Let log caller to decide return token */
 #endif
 	va_end(arg); /* ----- end of extracting extended parameters ... */
 
@@ -334,7 +343,7 @@ static void egi_log_thread_write(void)
 		/* check log_is_running token */
 		if( !log_is_running ) /* !!! log_buff[] may already have been freed then */
 		{
-			printf("egi_log_thread_write(): log_is_running is false, flush log file and exit pthread now...\n");
+			printf("egi_log_thread_write(): Detect false of log_is_running , exit pthread now...\n");
 			pthread_mutex_unlock(&log_buff_mutex);
 			pthread_exit(0);
 		}
@@ -560,7 +569,7 @@ int egi_quit_log(void)
 
 	/* destroy mutex lock */
 	if(pthread_mutex_destroy(&log_buff_mutex)!=0) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call pthread_mutex_destroy()!\n",__func__);
+		printf("%s: Fail to call pthread_mutex_destroy()!\n",__func__);
 	}
 
 	/* close log file */
