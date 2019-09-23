@@ -444,6 +444,13 @@ Fixed point Fast Fourier Transform
 
 @np:    Total number of data for FFT, will be ajusted to a number of 2 powers;
         np=1, result is 0!
+	np=0, free all intermediate arrays!
+	Note:
+	1. All intermediat variable arrays(ffodd,ffeve,ffnin) are set as static, so if next
+	input np is the same, they need NOT to allocate again!
+	2. If exp. of input np is changed, then above arrays will be re_allocated.
+	3. Only when input np=0, all intermediate variable arrays will be freed then.
+
 @wang   complex phase angle factor, according to normalized np.
 @x:     Pointer to array of input float data x[].
 @nx:	Pointer to array of input INT data nx[].  NOTE: if x==NULL, use nx[] then.
@@ -469,6 +476,7 @@ Note:
                 we may take Amp_Max: (1<<(11+1))-1;  FFT point number: 1<<10:
 
                 Ok, with reduced precision as you decrease MATH_DIVEXP !!!!!
+
 5. So,you have to balance between data precision, data scope and number of sample points(np)
    ,which also decides Min. analysis frequency.
 
@@ -477,19 +485,28 @@ Return:
         <0      Fail
 ---------------------------------------------------------------------------------------*/
 int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
-					 const float *x, const int *nx,EGI_FCOMPLEX *ffx)
+					 const float *x, const int *nx, EGI_FCOMPLEX *ffx)
 {
         int i,j,s;
         int kx,kp;
-        int exp=0;              /* 2^exp=nn */
-        int nn;                 /* number of data for FFT analysis, a number of 2 powers */
-        EGI_FCOMPLEX *ffodd;    /* for FFT STAGE 1,3,5.. , store intermediate result */
-        EGI_FCOMPLEX *ffeven;   /* for FFT STAGE 0,2,4.. , store intermediate result */
-        int *ffnin;             /* normal order mapped index */
+        int exp=0;                   	    /* 2^exp=nn */
+        static int nn=0;                    /* number of data for FFT analysis, a number of 2 powers */
+        static EGI_FCOMPLEX *ffodd=NULL;    /* for FFT STAGE 1,3,5.. , store intermediate result */
+        static EGI_FCOMPLEX *ffeven=NULL;   /* for FFT STAGE 0,2,4.. , store intermediate result */
+        static int *ffnin=NULL;             	    /* normal order mapped index */
 	int fftmp;
 
-        /* check input data */
-        if( np==0 || wang==NULL || ( x==NULL && nx==NULL ) || ffx==NULL) {
+        /* check np  */
+	if ( np==0 ) {
+		/* free them all first */
+		if(ffodd != NULL)   free(ffodd);
+		if(ffeven != NULL)  free(ffeven);
+		if(ffnin != NULL)   free(ffnin);
+		return 0;
+	}
+
+        /* check other input data */
+        if(  wang==NULL || ( x==NULL && nx==NULL ) || ffx==NULL) {
                 printf("%s: Invalid input data!\n",__func__);
                 return -1;
         }
@@ -504,27 +521,39 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
 //      if(exp==0) /* ok */
 //              return -1;
 
-        /* reset nn to be powers of 2 */
-        nn=1<<exp;
+        /*** Check if it needs to reallcate memory for arrays
+	 * Only when exp. of np changed does it need to re_allocate memory for those variable arrays!
+	 * If nn is keeps the same, so skip this stage to save time!
+	 */
+	if( nn != 1<<exp )
+	{
+		/* Reset nn to be powers of 2 */
+	        nn=1<<exp;
 
-        /* allocate vars !!!!! This is time consuming !!!!!! */
-        ffodd=calloc(nn, sizeof(EGI_FCOMPLEX));
-        if(ffodd==NULL) {
-                printf("%s: Fail to alloc ffodd[] \n",__func__);
-                return -1;
-        }
-        ffeven=calloc(nn, sizeof(EGI_FCOMPLEX));
-        if(ffeven==NULL) {
-                printf("%s: Fail to alloc ffeven[] \n",__func__);
-                free(ffodd);
-                return -1;
-        }
-        ffnin=calloc(nn, sizeof(int));
-        if(ffnin==NULL) {
-                printf("%s: Fail to alloc ffnin[] \n",__func__);
-                free(ffodd); free(ffeven);
-                return -1;
-        }
+		/* free them all first */
+		if(ffodd != NULL)   free(ffodd);
+		if(ffeven != NULL)  free(ffeven);
+		if(ffnin != NULL)   free(ffnin);
+
+	        /* allocate memory !!!!! This is time consuming !!!!!! */
+	        ffodd=calloc(nn, sizeof(EGI_FCOMPLEX));
+        	if(ffodd==NULL) {
+                	printf("%s: Fail to alloc ffodd[] \n",__func__);
+	                return -1;
+        	}
+	        ffeven=calloc(nn, sizeof(EGI_FCOMPLEX));
+        	if(ffeven==NULL) {
+                	printf("%s: Fail to alloc ffeven[] \n",__func__);
+	                free(ffodd);
+        	        return -1;
+	        }
+        	ffnin=calloc(nn, sizeof(int));
+	        if(ffnin==NULL) {
+        	        printf("%s: Fail to alloc ffnin[] \n",__func__);
+                	free(ffodd); free(ffeven);
+	                return -1;
+        	}
+	}
 
         ///////////////////    FFT    ////////////////////////
         /* 1. map normal order index to  input x[] index */
@@ -605,10 +634,10 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
                 }
         }
 
-	/* free resources */
-	free(ffodd);
-	free(ffeven);
-	free(ffnin);
+	/* free resources, DO NOT FREE HERE!  */
+//	free(ffodd);
+//	free(ffeven);
+//	free(ffnin);
 
 	return 0;
 }

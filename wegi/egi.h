@@ -616,6 +616,8 @@ struct egi_page
 			   *    !!! NOW !!! It synchronizes with page->ebox->need_refresh
 			   */
 
+	bool slide_off;	  /* to turn off PAGE sliding detection and disable slide_handler() */
+
 	/* wallpaper for the page, JPG or PNG file.  */
 	char *fpath;
 

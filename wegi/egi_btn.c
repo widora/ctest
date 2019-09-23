@@ -887,8 +887,10 @@ void egi_free_data_btn(EGI_DATA_BTN *data_btn)
 
 
 /*--------------------------------------------------------------------------------
- Default effect when the button is touched.
- Or to redefine it later.
+Default effect when the button is touched, or to redefine it later.
+
+TODO: To use ebox frame_img, or default icon_code and effect icon_code ?!
+
 
 Note:   This func may cause double_clicking status nerver detected !!!!!!
 	For displaying effect cost too much time, which exceed TM_DBCLICK_INTERVAL
@@ -907,7 +909,9 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 
 	//printf("dx=%d, dy=%d \n", touch_data->dx, touch_data->dy);
 
-	/* display effective image for pressing */
+	/* Display effective image for pressing
+	 * NOTE: It's better to update btn icon_code rather than draw geoms directly!!!
+	 */
 	if(touch_data->status == pressing ) {
 
 	/* for Circle shape */
@@ -926,7 +930,7 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	        tm_delayms(75);
 	}
 
-	/* if touch sliding a distance, refresh/restore btn icon */
+	/* If touch sliding a distance, refresh and restore btn icon */
 	else if(  ebox->movable
 		  && (touch_data->dx)*(touch_data->dx)+(touch_data->dy)*(touch_data->dy) >25 ) {
 		egi_ebox_needrefresh(ebox);

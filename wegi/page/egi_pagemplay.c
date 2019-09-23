@@ -242,7 +242,8 @@ EGI_PAGE *egi_create_mplaypage(void)
         page_mplay->runner[0]=check_volume_runner;
 
         /* 4.3 set default routine job */
-        page_mplay->routine=egi_page_routine; /* use default */
+        page_mplay->routine=egi_homepage_routine; /* !!! */
+	page_mplay->slide_off=true;		  /* trun off PAGE sliding */
 
         /* 4.4 set wallpaper */
         page_mplay->fpath="/mmc/mplay_neg.jpg";
@@ -383,6 +384,11 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* 2. If stopped, load mplayer by popen(). */
 	if(status==mp_stop) {
+
+		/* set tag as loading... */
+		egi_ebox_settag(ebox,"Load...");
+		egi_ebox_forcerefresh(ebox);
+
 		printf("--- cmd: start mplayer ---\n");
 	        sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
 									MPFIFO_NAME,str_playlist[nlist] );

@@ -2,7 +2,6 @@
 list.h modified from Linux kernel codes.
 
 Refering to https://blog.csdn.net/chrovery/article/details/40475791
-
 ------------------------------------------------------------------*/
 #ifndef _LINUX_LIST_H_
 #define _LINUX_LIST_H_

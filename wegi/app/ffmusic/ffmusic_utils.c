@@ -396,7 +396,7 @@ void* display_MusicPic(void * argv)
 
   /* Free tmpimg */
   egi_imgbuf_free(tmpimg);
-  tmping=NULL;
+  tmpimg=NULL;
 
   /*  ------- Free frame_img of PAGE -----
    *  !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!
@@ -760,6 +760,7 @@ static  bool	factors_ready=false;
 		 fft_nx[i]=mat_FixIntMult(hamming[i], fft_nx[i]);
 
 #endif
+	printf("call egiFFF...\n");
         /*-------------------------  Call mat_egiFFFT() ---------------------------
 	 *  1. Run FFT with INT type input nx[].
 	 *  2. Input nx[] data has been trimmed in ff_load_FFTdata()

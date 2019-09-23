@@ -1,4 +1,9 @@
-Some concepts:
+			----- Basic Concepts -----
+
+0. EBOX is the basic graphic element, and all other elements such as Buttons, Txtbox, Slider, 
+   List ... are derived from and based on it.
+   Please see basic EBOX concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
+
 1. The EGI mainly focus on EGI_IMG type data processing and PAGE managing/displaying, 
    Always try to avoid processing other type data and handling other events.
 
@@ -7,21 +12,27 @@ Some concepts:
 
 3. or, The EGI prepare/set PAGE environment according to APP's request, then the APP
    will use EGI interface to displaying any content by itself. ERING will be applied
-   as a way of IPC.
+   as a way of IPC,	 ---NOPE
 
 4. The APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
    They will be forked and launched as child processes of homepage program.
    By such a way that we can code and develop APPs independently, To install them, we only
    need to inform homepage programe its icons and bin file location/address. It can also
-   run independently without homepage.
-   Examples: wegi/app/ffplay  wegi/app/ebook
+   run independently without the HOME PAGE.
+   Examples: wegi/app/ffmusic  wegi/app/ebook
 
-5. All child processes to be handled by ULOOP_PROCESSE, as possible?.
+5. All child processes to be handled by ULOOP_PROCESSE?		---TBD
 
 6. Since APP processes will be suspended and reactivated by signals(STOP/CONT), and data 
    transfering will be cut off and leg go abruptly by the signals. For example, LCD displays 
    with SPI transfering color data, sound card plays with I2S transfering pcm data.
    Take care of those situations, so broken dataflow will not cause any disfunction.
+
+7. Any loosely coupled and standing_by processes, such as weather info, IoT client interface, 
+   media_player... etc,  will be started from init scripts as a deamon and managed by Openwrt 
+   PROCD therefore. 
+   In such cases, ERING may be a way of IPC.
+
 
 NOTE:
 1. Difference between OpenWRT uClibc and Glibc may cause some trouble!?
@@ -31,15 +42,23 @@ NOTE:
 4. The homepage main process shall be as small as possible, most heavier codes and jobs
    are to be carried out by the APP, so it will be fast enough to fork()/vfork() and execv() a
    new APP. 
-5. TODO: 
-   5.1 support for multilayer frame buffer.
-   5.2 A module using UBUS as a mechanism to manage and communicate with external processes, 
-       as such a way to substitue system() and popen() to launch and control unvisiable APPs.
-   5.3 A private memory allocation module?
 
-Please see basic ebox concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 
-	----- main source files ( GPL v2 ) -----
+			-----   TODO List   -----
+
+1. Spport for multilayer frame buffer.
+
+2. A module using UBUS as a mechanism to manage and communicate with external processes, 
+   as such a way to substitue system() and popen() to launch and control process with no PAGE(unvisiable).
+   for system() and popen() also call fork() to launch a new process, and it's too slow!
+
+3. A private memory allocation module.  necessary???
+
+4. A simple RPC based on UBUS for remote control and data transfer.
+
+
+		----- Main Source Files ( GPL v2 ) -----
+
 egi.conf	An example of EGI TOUCH config file
 xtp2046.c	touch controller interface funcs
 egi.c		concept ebox functions
@@ -83,12 +102,14 @@ egi_appstock.c		a real time stock data display app.
 he_weather.c		API for www.heweather.com 
 
 
-	--- APPS ----
+			----- APPS ------
+
 app_ffplay.c + egi_pageffplay.c		
 app_ebook.c + page_ebook.c
+app_ffmusic.c + page_ffmusic.c <
 
 
-Dependency Libs:
+		   -----   Dependency   -----
 libcurl, 
 libpng, libjpeg, 
 libjson-c, 
@@ -97,12 +118,16 @@ libshine,libasound,
 libfreetype2
 ... ... 
 
-	--- OTHERS ---
+			----- OTHERS -----
+
 prototype.jpg		A prototype with Widora_NEO
 neo_lcd_wiring.png	Wiring for Widora_NEO to TFT LCD with touch
 spi_cs2.patch		A patch to add two more SPI select pin ( dts to be modified accordingly ),
 			one is for LCD touch SPI selection.
 FB device		Create a FB device according to https://www.widora.io/zh/ips
+
+
+
 
 
 Midas Zhou

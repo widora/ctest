@@ -869,13 +869,13 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 }
 
 
-/*----------------------------------
-Default page routine job
+/*-------------------------------------------
+Default page routine job ,No sliding handling
 
 return:
 	loop or >=0  	OK
 	<0		fails
-----------------------------------*/
+-------------------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
 	int i;
@@ -1153,13 +1153,33 @@ int egi_page_routine(EGI_PAGE *page)
 }
 
 
-/*--------------------------------------
-Home page routine job
+/*-------------------------------------------------------------------------------
+Home page routine job.
+
+Note:
+1. Sliding touch is monitored for whole PAGE area! and once 'pressing' status
+   is detected, dx/dy will be check to see if it's a start of sliding action.
+   Adjusting threshold value of dx/dy and delay time can ajust sensibility of
+   sliding detetion.
+
+2. If a start of sliding touch is confirmed, it will keep triggering page->slide_handler(),
+   until it receives a 'releasing' status, which signals an end of sliding touch.
+
+3. Sliding_touch detection is done just before btn_hit(press) detection,
+   so page->slide_handler() will be executed and page->btn->reaction() will be
+   ingored during the whole session of sliding touch.
+
+4. If page->slide_off is FALSE, any button in PAGE will have no chance to trigger
+   its own sliding handler, such as an sliding bar.
+
+5. Turn off PAGE sliding by set page->slide_off as TRUE, so the button will
+   detect and handle sliding actions.
+
 
 return:
 	loop or >=0  	OK
 	<0		fails
---------------------------------------*/
+---------------------------------------------------------------------------------*/
 int egi_homepage_routine(EGI_PAGE *page)
 {
 	int i;
@@ -1257,7 +1277,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 			flip_status=pressing;
 		}
 
-		/* 1. read touch data */
+		/* 1. Read touch data, loop back if there is no new data.  */
 		if(!egi_touch_getdata(&touch_data) )
 		{
 //			EGI_PDEBUG(DBG_PAGE,"egi_page_routine(): egi_touch_getdata() no updated touch data found, retry...\n");
@@ -1300,14 +1320,22 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    edge_restored=true;
 		}
 
-		/* 2. trigger touch handling process then */
+		/* 2. sliding handler and button hit reaction  */
 		if(last_status !=released_hold )
 		{
+
+	/* >>>>> ( PAGE Sliding_touch Handling )  >>>>>>>>>>>>>>>>>>>>>>>> */
+	if(!page->slide_off) {
 			/* 2.1 Check if sliding operation begins, and update 'slide_touch' here !
 			 *     1. Remind that 'pressing' is the only triggering signal for sliding operation,
-			 *     and the handler will initialize data only at this signal.
-			 *     2. If not dx detected within given time, sliding operation will never triggered
-			 *       then.???
+			 *        and the touch_handler function will initialize data only at this signal.
+			 *	  and 'releasing' is the only triggering signal for the touch_handler function
+		 	 *	  to stop its jobs.
+			 *	  To see example of sliding_volume() at page_ffmusic.c .
+			 *	  So to prevent 'pressing' and 'releasing' status from missimg(to restore it)
+			 *	  is vitally important in this respect.
+			 *     2. If no big dx detected within given time after pressing, sliding detection will
+			 *        still be carried out between two press_hold status, see 2.2
 			 */
 		        if( last_status==pressing ) {  //|| flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
@@ -1325,6 +1353,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 				if( tdx>3 || tdx<-3 || tdy>3 || tdy<-3 ) {  //|| egi_touch_peekstatus()==releasing) {
 					printf("--- start sliding ---\n");
 					slide_touch=true;
+
+					/*** TODO: btn touch_effect()
+					 * For the senario that slides with other kind of button shape/image !
+					 *
+					 */
 				}
 				/* else, pass down pressing status to slide_handler()... */
 //				else {
@@ -1332,7 +1365,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 //				}
 			}
 
-			/* between two press_hold status, if dxdy is detected, also trigger slide_touch */
+			/* 2.2 between two press_hold status, if dxdy is detected, also trigger slide_touch */
 			else if( slide_touch != true && last_status==pressed_hold ) {
 				/* Don't wait, peek imediately */
 				egi_touch_peekdxdy(&tdx,&tdy);
@@ -1344,29 +1377,42 @@ int egi_homepage_routine(EGI_PAGE *page)
 				}
 			}
 
-
-			/* 2.2 sliding handling func */
+			/* 2.3 sliding handling func */
 			if(slide_touch ) //&& ( last_status==pressed_hold || last_status==pressing || last_status==releasing) )
 			{
 				/* OR to ignore 'releasing' to let button icons stop at current position */
+				#if 1  /* --- TEST --- */
 				if(last_status==releasing)
 					printf(" --- sliding release! --- \n");
 
 				else if(last_status==pressing)
 					printf(" --- sliding press start! --- \n");
-
+				#endif
 				if(page->slide_handler != NULL) {
 					page->slide_handler(page, &touch_data);
-					egi_page_refresh(page); /* refresh page for other eboxes!!!  */
+					/* Refresh page for other eboxes! since it will loop back(continue),
+					 * and no chance to refresh the page elsewhere.
+					 */
+					egi_page_refresh(page);
 				}
-
-				if(last_status==releasing)  /* 'releasing' is and end to sliding operation */
+				/* Sliding_end check */
+				if(last_status==releasing) { /* 'releasing' is and end to sliding operation */
 					slide_touch=false;
-				else
+					/* Pass down 'releasing' status to trigger hit_btn reaction.
+					 * Also 'releaseing' will trigger touch_effect to refresh.
+					 */
+				}
+				else {
 					continue;
+				}
+				/* Continue routine loop if sliding_touch session not end! */
 			}
 
-			/* 2.3 check if any ebox was hit */
+	} /* END if(!page->slide_off) */
+
+	/* >>>>> (  Button Hit Handling  ) >>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+			/* 2.4 check if any ebox was hit */
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
 			/* 2.4 check if last hold btn losing foucs */
@@ -1374,7 +1420,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 				 	  // && last_holdbtn->need_refresh==false )
 			{
 				//printf(" --- btn lose focus! --- \n");
-				egi_ebox_forcerefresh(last_holdbtn); /* refreshi it then */
+				egi_ebox_forcerefresh(last_holdbtn); /* forece to refresh last_holdbtn! */
 				last_holdbtn=NULL;
 			}
 
