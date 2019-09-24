@@ -75,4 +75,7 @@ int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, int alpha);
 int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitmap,
 								EGI_16BIT_COLOR subcolor);
 
+/* adjust average birghtness Y to brt */
+int egi_imgbuf_adjust_bright( EGI_IMGBUF *eimg, unsigned char brt );
+
 #endif

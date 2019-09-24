@@ -1908,3 +1908,58 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 	return 0;
 }
 
+
+
+/*----------------------------------------------------------------
+Tune brightness of an image,
+
+Limit: [uint]2^31 = [Y 2^8] * [ Max. Pixel number 2^23 ]
+
+@eimg:	Input imgbuf
+@brt:	Expected average brightness value for the image. [0 255]
+
+
+Return:
+	0		OK
+	others		Fails
+------------------------------------------------------------------*/
+int egi_imgbuf_adjust_bright( EGI_IMGBUF *eimg, unsigned char brt )
+{
+	int i,j;
+	int index;
+	unsigned int	pixnum;	/* total number of pixels in the image */
+	unsigned int	brtsum; /* sum of brightness Y */
+	unsigned int	brtdev; /* deviation of Y */
+
+	/* check input data */
+	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
+		return -1;
+	}
+
+	/* check pixel number limit */
+	pixnum=eimg->height * eimg->width;
+	if( pixnum > (1<<23) ) {
+		printf("%s: Total number of pixels is out of LIMIT!\n", __func__);
+		return -2;
+	}
+
+	/* calculate average brightness of the image */
+	brtsum=0;
+	for( i=0; i < eimg->height; i++ ) {
+		for( j=0; j < eimg->width; j++ ) {
+			brtsum += egi_color_getY(eimg->imgbuf[i*eimg->width+j]);
+		}
+	}
+
+	/* adjust brightness for each pixel */
+	brtdev=brt-brtsum/pixnum; /* get average dev. value */
+	for( i=0; i < eimg->height; i++ ) {
+		for( j=0; j < eimg->width; j++ ) {
+			index=i*eimg->width+j;
+			eimg->imgbuf[index]=egi_colorbrt_adjust(eimg->imgbuf[index], brtdev);
+		}
+	}
+
+	return 0;
+}

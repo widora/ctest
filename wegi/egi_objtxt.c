@@ -1,6 +1,7 @@
-/*----------------------- egi_obj.c ------------------------------
+/*-----------------------   egi_objtxt.c    ----------------------
+EBOX OBJs derived from EBOX_TXT
 
-1. All txt type ebox are to be allocated/freeed dynamically.
+1. All txt type ebox are to be allocated/freed dynamically.
 
 Midas Zhou
 ----------------------------------------------------------------*/
@@ -9,13 +10,14 @@ Midas Zhou
 #include <signal.h>
 #include <string.h>
 #include <time.h>
-#include "egi_bjp.h"
-#include "egi_color.h"
-#include "egi.h"
-#include "egi_txt.h"
+#include "egi_common.h"
+//#include "egi_bjp.h"
+//#include "egi_color.h"
+//#include "egi.h"
+//#include "egi_txt.h"
 #include "egi_objtxt.h"
-#include "egi_timer.h"
-#include "egi_debug.h"
+//#include "egi_timer.h"
+//#include "egi_debug.h"
 //#include "egi_timer.h"
 #include "egi_symbol.h"
 
@@ -23,14 +25,13 @@ Midas Zhou
 static int egi_txtbox_decorate(EGI_EBOX *ebox);
 
 
-/* ---------------------------  ebox memo --------------------------------*/
 
-/*-------------------------------------------
+/*--------------  EBOX MEMO  ------------------
 Create an 240x30 size txt ebox
 return:
 	txt ebox pointer 	OK
 	NULL			fai.
---------------------------------------------*/
+-----------------------------------------------*/
 EGI_EBOX *create_ebox_memo(void)
 {
 	/* 1. create memo_txt */
@@ -60,9 +61,7 @@ EGI_EBOX *create_ebox_memo(void)
 }
 
 
-/* ---------------------------  ebox clock --------------------------------*/
-
-/*-------------------------------------------
+/*------------  EBOX_CLOCK  ------------------
 Create an  txt ebox digital clock
 return:
 	txt ebox pointer 	OK
@@ -97,7 +96,7 @@ EGI_EBOX *create_ebox_clock(void)
 }
 
 
-/* ---------------------------  ebox note --------------------------------*/
+/*------------  EBOX NOTE ----------*/
 EGI_EBOX *create_ebox_note(void)
 {
 
@@ -111,7 +110,7 @@ EGI_EBOX *create_ebox_note(void)
 	);
 
 	/* 2. create memo ebox */
-	EGI_EBOX  *ebox_clock= egi_txtbox_new(
+	EGI_EBOX  *ebox_note= egi_txtbox_new(
 		"note pad", /* tag */
         	note_txt,  /* EGI_DATA_TXT pointer */
         	true, /* bool movable */
@@ -121,12 +120,12 @@ EGI_EBOX *create_ebox_note(void)
         	WEGI_COLOR_GRAY /*int prmcolor*/
 	);
 
-	return ebox_clock;
+	return ebox_note;
 }
 
 
-/*-------------------------------------------------
-Create an  txt note ebox with parameters
+/*--------------  EBOX_NOTES  --------------------
+Create an txt note ebox with parameters
 
 num: 		id number for txt
 x0,y0:		left top cooordinate
@@ -243,10 +242,7 @@ int egi_txtbox_demo(EGI_EBOX *ebox, EGI_TOUCH_DATA * touch_data)
 
 
 
-
-/////////////////////// <<<<<    EGI PATTERNS    >>>>> ////////////////////////
-
-/*-----------   EGI_PATTERN :  TITLE BAR 240x30 -----------------
+/*-----------   EGI_PATTERN :  TITLE BAR 240x30 -------------
 Create an txt_ebox  for a title bar.
 standard tag "title_bar"
 
@@ -257,7 +253,7 @@ bkcolor:	ebox color, bkcolor
 return:
 	txt ebox pointer 	OK
 	NULL			fai.
----------------------------------------------------------*/
+------------------------------------------------------------*/
 EGI_EBOX *create_ebox_titlebar(
 	int x0, int y0,
 	int offx, int offy,
@@ -328,55 +324,52 @@ static int egi_txtbox_decorate(EGI_EBOX *ebox)
 }
 
 
-/*---------------------------------------------------------------------------
-Message Box, Size:240x50
-display for a while, then release/free it.
+/*--------------------------  MSG BOX  -----------------------------
+Message Box, initial size:240x50, will be ajusted.
+Display for a while, then release/free it.
 
-msg: 		message string
-ms:  	>0	It's an instant msgbox, delay/display in ms time, then destroy it.
+@msg: 		message string
+@ms:  		>0	It's an instant msgbox, delay/display in ms time, then destroy it.
+		=0	Just keep the msgbox, to destroy it later.
+     		<0 	1. It's a progress indicator/messages box,
+			2. Do not release it until the indicated progress ends.
+			3. data_txt.foff then will be used as progress value. MAX.100
 
-	=0	Just keep the msgbox, to destroy it later.
-
-     	<0 	1. It's a progress indicator/messages box,
-		2. Do not release it until the indicated progress is finished.
-		3. data_txt.foff then will be used as progress value. MAX.100
-
-bkcolor:	back colour
-
-long ms: msg displaying time, in ms.
+@bkcolor:	back colour
+@ms: msg displaying time, in ms.
 
 Return:
 	ms>0	NULL
 	ms=<0	pointer to an txt_type ebox
 
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------*/
 EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 {
 	if(msg==NULL)return NULL;
 
-	int x0=0; /* ebox top left point */
+	int x0=0; 	/* ebox top left point */
 	int y0=50;
-	int width=240; /* ebox W/H */
+	int width=240; 	/* ebox W/H */
 	int height=50;
 	int yres=(&gv_fb_dev)->vinfo.yres;
 	int offx=10;
 	int offy=8;	/* offset x,y of txt */
 	int maxnl=(yres-offy*2)/(&sympg_testfont)->symheight;
-	int nl=maxnl;  /* first, set nl as MAX line number for a full screen. */
-	int llen=64; /* max. chars for each line,also limited by ebox width */
-	int pnl=0; /* number of pushed txt lines */
+	int nl=maxnl;  	/* first, set nl as MAX line number for a full screen. */
+	int llen=64; 	/* max. chars for each line,also limited by ebox width */
+	int pnl=0; 	/* number of pushed txt lines */
 
 	EGI_DATA_TXT *msg_txt=NULL;
 	EGI_EBOX *msgbox=NULL;
 
-   	while(1) /* repeat 1 more time  to adjust size of the ebox to fit with the message */
+   	while(1) /* repeat 1 more time to adjust size of the ebox to fit with the message */
    	{
 		/* 1. create a data_txt */
 		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): start to egi_txtdata_new()...\n");
 		msg_txt=egi_txtdata_new(
-			offx,offy, /* offset X,Y */
-      		  	nl, /*int nl, lines  */
-       	 		llen, /*int llen, chars per line, however also limited by ebox width */
+			offx,offy, 	 /* offset X,Y */
+      		  	nl, 		 /*int nl, lines  */
+       	 		llen, 		 /*int llen, chars per line, however also limited by ebox width */
         		&sympg_testfont, /*struct symbol_page *font */
         		WEGI_COLOR_BLACK /* int16_t color */
 		);
@@ -396,13 +389,13 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): start egi_txtbox_new().....\n");
 		height=nl*((&sympg_testfont)->symheight)+2*offy; /*adjust ebox height */
 		msgbox= egi_txtbox_new(
-			"msg_box", /* tag, or put later */
-        		msg_txt,  /* EGI_DATA_TXT pointer */
-        		true, /* bool movable */
-       	 		x0,y0, /* int x0, int y0 */
-        		width,height, /* int width;  int height,which also related with symheight,nl and offy */
-        		2, /* int frame, 0=simple frmae, -1=no frame */
-        		bkcolor /*int prmcolor*/
+			"msg_box", 	/* tag, or put later */
+        		msg_txt,  	/* EGI_DATA_TXT pointer */
+        		true, 		/* bool movable */
+       	 		x0,y0, 		/* int x0, int y0 */
+        		width,height, 	/* int width;  int height,which also related with symheight,nl and offy */
+        		1, 		/* int frame, 0=simple frmae, -1=no frame */
+        		bkcolor 	/*int prmcolor*/
 		);
 
 		/* 4. push txt to ebox */
@@ -411,10 +404,8 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 		/* 5. adjust nl then release and loop back and re-create msg ebox */
 		EGI_PDEBUG(DBG_OBJTXT,"egi_msgbox_create(): total number of pushed lines pnl=%d, while nl=%d \n",pnl,nl);
 		if(ms<0) pnl+=1; /* one more line for progress information */
-		if(nl>pnl) /* if nl great than number of pushed lines */
+		if(nl>pnl) 	 /* if nl great than number of pushed lines */
 		{
-			//if(ms<0) nl=pnl+1;/* adjust nl and retry, 1 more line for progress info. */
-			//else nl=pnl;
 			nl=pnl;
 			msgbox->free(msgbox);
 			msg_txt=NULL;
@@ -429,7 +420,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 	if(ms<0)
 	{
 		int np=nl<maxnl?nl:maxnl; /* get progress info line number */
-		strncpy(msg_txt->txt[np-1],"	rocessing...  0/100",llen-1);
+		strncpy(msg_txt->txt[np-1],"	Processing...  0/100",llen-1);
 	}
 
 	/* 6. display msg box */
@@ -440,14 +431,15 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 	{
 		return msgbox;
 	}
-	else /* It's an instant instance msgbox */
+	else /* It's an instant msgbox */
 	{
 		tm_delayms(ms);/* displaying for a while */
 		msgbox->sleep(msgbox); /* erase the image */
-		msgbox->free(msgbox); /* release */
+		msgbox->free(msgbox);  /* release */
 		return NULL;
 	}
 }
+
 
 /*-----------------------------------------------
 Update progress value for a msgbox
@@ -475,6 +467,7 @@ void egi_msgbox_pvupdate(EGI_EBOX *msgbox, int pv)
 	msgbox->need_refresh=true;
 	msgbox->refresh(msgbox);
 }
+
 
 /*-----------------------------------------------
 destroy/release the msgbox

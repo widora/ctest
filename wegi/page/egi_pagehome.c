@@ -425,6 +425,8 @@ static void display_iotload(EGI_PAGE *page)
 Update time tag for the home_clock,but do NOT refresh,
 and update caldata for calender btn decoration.
 Let page routine do refreshing.
+
+TODO: Use NTPC to update time.
 -------------------------------------------------------*/
 static void update_clocktime(EGI_PAGE *page)
 {

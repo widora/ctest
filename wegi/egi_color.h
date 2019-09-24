@@ -112,7 +112,7 @@ inline EGI_16BIT_COLOR 	egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n);
 EGI_16BIT_COLOR 	egi_color_random(enum egi_color_range range);
 EGI_16BIT_COLOR 	egi_colorgray_random(enum egi_color_range range);
 EGI_16BIT_COLOR 	egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
-int 			egi_color_getY(EGI_16BIT_COLOR color);
+unsigned char		egi_color_getY(EGI_16BIT_COLOR color);
 
 
 

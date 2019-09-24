@@ -412,7 +412,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		 */
 		vol=*psetvol;
 		if(vol<1)vol=1; /* to avoid 0 */
-		vol=log10(vol)*vrange;
+		vol=1.0*log10(vol)*vrange;
 		vol >>= 1;
 		printf("%s: dB related vol=%ld\n", __func__, vol);
 

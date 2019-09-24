@@ -100,6 +100,8 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coord centxy,
                                                          struct egi_point_coord *ANMat_XRYR);
 
+inline int  mat_pseudo_curvature(const EGI_POINT *pt);
+
 
 
 #endif

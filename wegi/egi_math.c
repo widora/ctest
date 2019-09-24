@@ -442,6 +442,7 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 /*-------------------------------------------------------------------------------------
 Fixed point Fast Fourier Transform
 
+Parameter:
 @np:    Total number of data for FFT, will be ajusted to a number of 2 powers;
         np=1, result is 0!
 	np=0, free all intermediate arrays!
@@ -450,6 +451,7 @@ Fixed point Fast Fourier Transform
 	input np is the same, they need NOT to allocate again!
 	2. If exp. of input np is changed, then above arrays will be re_allocated.
 	3. Only when input np=0, all intermediate variable arrays will be freed then.
+
 
 @wang   complex phase angle factor, according to normalized np.
 @x:     Pointer to array of input float data x[].
@@ -479,6 +481,15 @@ Note:
 
 5. So,you have to balance between data precision, data scope and number of sample points(np)
    ,which also decides Min. analysis frequency.
+
+
+			  	-----	TBD & TODO &   -----
+
+	Frequent dynamic memory allocating will create huge numbers of memory
+	fregments, which will slow down next memory allocating speed, and further
+	to deteriorate system operation.
+	It's better to apply static memory allocation method.
+
 
 Return:
         0       OK
@@ -539,18 +550,21 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
 	        ffodd=calloc(nn, sizeof(EGI_FCOMPLEX));
         	if(ffodd==NULL) {
                 	printf("%s: Fail to alloc ffodd[] \n",__func__);
+			nn=-1;  /* reset nn, so next call willtrigger re_allocation  */
 	                return -1;
         	}
 	        ffeven=calloc(nn, sizeof(EGI_FCOMPLEX));
         	if(ffeven==NULL) {
                 	printf("%s: Fail to alloc ffeven[] \n",__func__);
 	                free(ffodd);
+			nn=-1;  /* reset nn, so next call willtrigger re_allocation  */
         	        return -1;
 	        }
         	ffnin=calloc(nn, sizeof(int));
 	        if(ffnin==NULL) {
         	        printf("%s: Fail to alloc ffnin[] \n",__func__);
                 	free(ffodd); free(ffeven);
+			nn=-1; /* reset nn, so next call willtrigger re_allocation  */
 	                return -1;
         	}
 	}
@@ -634,10 +648,12 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
                 }
         }
 
-	/* free resources, DO NOT FREE HERE!  */
-//	free(ffodd);
-//	free(ffeven);
-//	free(ffnin);
+	/*** 		---- DO NOT FREE HERE! -----
+	 *    Call mat_egiFFFT() with input np=0 to free them at last!
+	 */
+	//free(ffodd);
+        //free(ffeven);
+	//free(ffnin);
 
 	return 0;
 }
@@ -1098,30 +1114,46 @@ while(1) {
 }
 
 
-/*---------------------------------------------------
-A method to calculate pseudo curvature by 3 points.
-3 points a,b,c defines 2 vectors as A=ab, B=ac;
-define vector C=abxac,  Under right_hand coord,
-when C<0, a/b/c is clockwise.
-     C>0, a/b/c is countercolocwise.
+/*-----------------------------------------------------------
+A method to calculate pseudo curvature with 3 points.
 
-!!! The caller MUST ensure *pt holds 3 EGI_POINTs.
+With three points a,b,c defines two vectors, as VA=a->b, VB=a->c;
+Define vector VC=VAxVB, which seems proportional to the real
+circling curvature. ( No mathematic analysis yet )
+
+1. Under right_hand normal coord system:
+	when VC<0, a->b->c is clockwise.
+	     VC>0, a->b->c is countercolocwise.
+	     VC=0, straight line
+
+2. Notice that we are under LCD coord system:
+	when VC<0, a->b->c is counterclockwise.
+	     VC>0, a->b->c is colocwise.
+	     VC=0, straight line
+
+3. !!! The caller MUST ensure *pt holds 3 EGI_POINTs.
+
 
 @pt	A pointer to an array with 3 EGI_POINTs.
 
 Return:
 	A negative value for clockwise ps.curv.
 	A positive value for counterclockwise ps.curv.
-----------------------------------------------------*/
-int  mat_pseudo_curvature(EGI_POINT *pt)
+------------------------------------------------------------*/
+inline int mat_pseudo_curvature(const EGI_POINT *pt)
 {
 	int vc;
 
-	vc=pt[0].x*pt[1].y-pt[1].x*pt[0].y+pt[1].x*pt[2].y
-				-pt[2].x*pt[1].y+pt[2].x*pt[0].y-pt[0].x*pt[2].y;
+	vc=(pt[1].x-pt[0].x)*(pt[2].y-pt[0].y)-(pt[2].x-pt[0].x)*(pt[1].y-pt[0].y);
 
+	#if 0 /* ------ For test only ------ */
+	if(vc<0)
+		printf("%s: vc=%d, CCW circling.\n",__func__,vc);   /* LCD Coord. */
+	else if(vc>0)
+		printf("%s: vc=%d, CW circling.\n", __func__,vc);
+	else
+		printf("%s: vc=0, Straight line.\n",__func__);
+	#endif
 
-
-
-
+	return vc;
 }

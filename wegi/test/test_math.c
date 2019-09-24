@@ -5,7 +5,6 @@ published by the Free Software Foundation.
 
 Test egi_math functions
 
-
 Midas Zhou
 ------------------------------------------------------------------*/
 #include <stdio.h>
@@ -17,10 +16,18 @@ Midas Zhou
 int main(void)
 {
 
+#if 1 /* ----- test  pseduo curvatur ----- */
+EGI_POINT pt[3]={ {0,3}, {2,2}, {3,0} };
+printf("pt[1].x=%d, pt[1].y=%d \n", pt[1].x, pt[1].y);
+mat_pseudo_curvature(pt);
+return 0;
+#endif
 
+/* test shifting */
 uint64_t aul=68719476736L;
 printf("aul>>28:%"PRIu64"\n", aul>>28);
 getchar();
+
 
 /*--------------- test fix point ----------------*/
 //float a=-3.12322;

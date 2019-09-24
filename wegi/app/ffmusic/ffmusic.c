@@ -231,7 +231,7 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=true;
+static bool enable_clip_test=false;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k
@@ -584,12 +584,23 @@ pFormatCtx->probesize2=128*1024;
 	av_dump_format(pFormatCtx, 0, fpath[fnum], 0);
 
 	/* OR to read dictionary entries one by one */
-#if 0
 	while( tag=av_dict_get(pFormatCtx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX) ) {
 		EGI_PDEBUG(DBG_FFPLAY,"metadata: key [%s], value [%s] \n", tag->key, tag->value);
-	}
-#endif
 
+		/* Get Title name */
+		if( strcmp( tag->key, "title")==0 ) {
+			fname=strdup(tag->value);
+		}
+	}
+
+	/* If no Title, then use base file name, and put to pic_info for display */
+	if( fname==NULL ) {
+		fname=strdup(fpath[fnum]);
+	}
+	fbsname=basename(fname);
+	//printf("fname:%s\n",fname);
+	pic_info.fname=fbsname;  fbsname=NULL; /*  OK 'fname' is the Owner */
+	//free(fname); fname=NULL; /* to be freed at last */
 
 	/* Find the first video stream and audio stream */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	Try to find the first video stream... \n",tm_get_tmstampms());
@@ -668,12 +679,6 @@ pFormatCtx->probesize2=128*1024;
 	}
 
 
-	/* Get base file name and put to pic_info for display */
-	fname=strdup(fpath[fnum]);
-	printf("fname:%s\n",fname);
-	fbsname=basename(fname);
-	pic_info.fname=fbsname;
-	//free(fname); fname=NULL; /* to be freed at last */
 
 /* Disable audio */
 if(disable_audio && audioStream>=0 )

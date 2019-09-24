@@ -214,7 +214,7 @@ void* display_MusicPic(void * argv)
 	}
 
 	/* blur and resize the imgbuf  */
-	blur_size=tmpimg->height/50;
+	blur_size=tmpimg->height/80;
 	if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
   	     ret=egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
@@ -225,6 +225,9 @@ void* display_MusicPic(void * argv)
 	}
 	if(ret !=0 )
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!", __func__);
+
+	/* --- Adjust brighness --- */
+	egi_imgbuf_adjust_bright(tmpimg, 255/5);
 
         /* Free old frame_img in PAGE */
 	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
@@ -248,7 +251,7 @@ void* display_MusicPic(void * argv)
  	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
                               		18, 18, ppic->fname,          	/* fw,fh, pstr */
 	                               	240, 2, 0,                      /* pixpl, lines, gap */
-                                   	0, 10,                          /* x0,y0, */
+                                   	5, 10,                          /* x0,y0, */
                	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor, opaque */
 	/* set token */
 	bkimg_updated=true;
@@ -331,7 +334,7 @@ void* display_MusicPic(void * argv)
 			}
 
 			/*--- 2. Blur and resize the imgbuf ---*/
-			blur_size=imgbuf->height/75; /* original imgbuf */
+			blur_size=imgbuf->height/90; /* original imgbuf */
 			if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
@@ -340,6 +343,9 @@ void* display_MusicPic(void * argv)
 				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 			}
+
+			/* --- Adjust brighness --- */
+			egi_imgbuf_adjust_bright(tmpimg, 255/5);
 
 			/*--- 3. Put image pointer to PAGE ---*/
 			/* Free old imagbuf
@@ -760,7 +766,7 @@ static  bool	factors_ready=false;
 		 fft_nx[i]=mat_FixIntMult(hamming[i], fft_nx[i]);
 
 #endif
-	printf("call egiFFF...\n");
+	//printf("call egiFFF...\n");
         /*-------------------------  Call mat_egiFFFT() ---------------------------
 	 *  1. Run FFT with INT type input nx[].
 	 *  2. Input nx[] data has been trimmed in ff_load_FFTdata()

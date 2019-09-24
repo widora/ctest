@@ -1,20 +1,21 @@
-			----- Basic Concepts -----
+			----- 1. Basic Concepts -----
 
 0. EBOX is the basic graphic element, and all other elements such as Buttons, Txtbox, Slider, 
    List ... are derived from and based on it.
    Please see basic EBOX concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 
 1. The EGI mainly focus on EGI_IMG type data processing and PAGE managing/displaying, 
-   Always try to avoid processing other type data and handling other events.
+   Always try to avoid processing other type data and handling other events, which shall be
+   taken on by specific APPs.
 
-2. The APP will handle/process its own business data, and convert it to EGI_IMG type if
+2. An APP will handle/process its own business data, and convert it to EGI_IMG type if
    it needs graphic displaying.
 
 3. or, The EGI prepare/set PAGE environment according to APP's request, then the APP
    will use EGI interface to displaying any content by itself. ERING will be applied
    as a way of IPC,	 ---NOPE
 
-4. The APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
+4. An APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
    They will be forked and launched as child processes of homepage program.
    By such a way that we can code and develop APPs independently, To install them, we only
    need to inform homepage programe its icons and bin file location/address. It can also
@@ -44,7 +45,7 @@ NOTE:
    new APP. 
 
 
-			-----   TODO List   -----
+			-----   2. TODO List   -----
 
 1. Spport for multilayer frame buffer.
 
@@ -56,8 +57,12 @@ NOTE:
 
 4. A simple RPC based on UBUS for remote control and data transfer.
 
+5. To improve touch_read() logic, from time_consuming polling to event_driven. 
 
-		----- Main Source Files ( GPL v2 ) -----
+
+		----- 3. Main Source Files ( GPL v2 ) -----
+
+			( --- 3.1 Basics --- )
 
 egi.conf	An example of EGI TOUCH config file
 xtp2046.c	touch controller interface funcs
@@ -88,8 +93,14 @@ egi_iwinfo.c	wifi info. extraction
 
 sys_list.h	from list operation derived from Linux kernel codes. 
 
+
+			( --- 3.2 Derived EBOXs --- )
+
 egi_objtxt.c	type_txt objects creation functions
 egi_objlist.c   list objects 
+
+
+			( --- 3.3 PAGEs --- )
 
 egi_pagehome.c		PAGE home
 egi_pagemplay.c	        PAGE mplayer
@@ -97,28 +108,35 @@ egi_pageopenwrt.c	PAGE openwrt info.
 egi_pagetest.c		PAGE test
 egi_pageslide.c		PAGE sliding bar test
 
-egi_appstock.c		a real time stock data display app.
 
+			( --- 3.4 APP Engines  --- )
+
+egi_appstock.c		a real time stock data display app.
 he_weather.c		API for www.heweather.com 
 
 
-			----- APPS ------
+			( --- 3.5 APP Suites --- )
 
 app_ffplay.c + egi_pageffplay.c		
 app_ebook.c + page_ebook.c
 app_ffmusic.c + page_ffmusic.c <
 
 
-		   -----   Dependency   -----
-libcurl, 
+
+
+		   -----   4. Dependency   -----
+libubox, 
+libubus,                /* Option,  for ERING and IPC */
 libpng, libjpeg, 
+libasound,
 libjson-c, 
-libubus, libubox, 
-libshine,libasound,
+libffmpeg,		
+libshine,		/* Option,  for fixed point MP3 enconding */
+libcurl,		/* Option,  for HTTP and HTTPS */ 
 libfreetype2
 ... ... 
 
-			----- OTHERS -----
+			-----  5. OTHERS  -----
 
 prototype.jpg		A prototype with Widora_NEO
 neo_lcd_wiring.png	Wiring for Widora_NEO to TFT LCD with touch

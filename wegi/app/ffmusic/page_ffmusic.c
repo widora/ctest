@@ -89,6 +89,7 @@ static int ffmuz_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmuz_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int pageffmuz_decorate(EGI_EBOX *ebox);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
+static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 static int refresh_misc(EGI_PAGE *page);
 
 
@@ -303,7 +304,8 @@ EGI_PAGE *create_ffmuzPage(void)
         /* 5.3 set default routine job */
         //page_ffmuz->routine=egi_page_routine; /* use default routine function */
 	page_ffmuz->routine=egi_homepage_routine;  /* for sliding operation */
-	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
+//	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
+	page_ffmuz->slide_handler=circling_volume; /* sliding handler for volume ajust */
 	page_ffmuz->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 set wallpaper */
@@ -598,6 +600,109 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
               return btnret_IDLE;
 
 }
+
+
+/*-----------------------------------------------------------------
+                   Circling Operation handler
+Circling CW/CCW to adjust ALSA volume.
+------------------------------------------------------------------*/
+static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
+{
+        static int mark;
+	static int vol;
+	static char strp[64];
+	static EGI_POINT pts[3];	/* 3 points */
+	int	vc;			/* pseudo curvature value */
+	int	adv;			/* adjusting value */
+
+	/* bypass outrange sliding */
+	if( !point_inbox2( &touch_data->coord, &slide_zone) )
+              return btnret_IDLE;
+
+	/* ---- TEST ---- */
+	printf("%s: touch(x,y): %d, %d \n",__func__, touch_data->coord.x, touch_data->coord.y );
+
+        /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
+        if(touch_data->status==pressing)
+        {
+                printf("vol pressing\n");
+                egi_getset_pcm_volume(&vol,NULL); /* get volume */
+
+		/* reset points coordinates */
+		pts[2]=pts[1]=pts[0]=(EGI_POINT){ touch_data->coord.x, touch_data->coord.y };
+
+                return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
+        }
+        /* 2. adjust button position and refresh */
+        else if( touch_data->status==pressed_hold )
+        {
+		/* unhide vol_FTtxt */
+		egi_txtbox_unhide(ebox_voltxt);
+
+                /* check circling motion */
+		pts[0]=pts[1]; pts[1]=pts[2];
+		//memcpy((void*)pts, (void *)(pts+1), sizeof(EGI_POINT)<<1);
+		pts[2].x=touch_data->coord.x; pts[2].y=touch_data->coord.y;
+		printf( " pts0(%d,%d) pts1(%d,%d) pts2(%d,%d).\n",pts[0].x, pts[0].y, pts[1].x, pts[1].y,
+								     pts[2].x, pts[2].y );
+		vc=mat_pseudo_curvature(pts);
+		printf(" vc=%d ",vc);
+
+		/* ajust volume */
+		adv=vc>>6;
+		if(adv>5)adv=2; /* set LIMIT */
+		if(adv<-5)adv=-2;
+                vol += adv;
+
+		if(vol>100) vol=100;
+		else if(vol<0) vol=0;
+
+		printf("\n%s --- pvol=d% --- \n",__func__, vol);
+
+		/* set volume */
+                if( egi_getset_pcm_volume(NULL,&vol)==0 )
+			sprintf(strp,"音量 %d%%",vol);
+		else
+			sprintf(strp,"音量 无效");
+		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
+
+		/* set utxt to ebox_voltxt */
+		vol_FTtxt->utxt=strp;
+		#if 1  /* set need refresh for PAGE routine */
+		egi_ebox_needrefresh(ebox_voltxt);
+		#else  /* or force to refresh EBOX now! */
+		ebox_voltxt->need_refresh=true;
+		ebox_voltxt->refresh(ebox_voltxt);
+		#endif
+
+		return btnret_OK;
+	}
+        /* 3. clear volume txt, 'release' */
+        else if( touch_data->status==releasing )
+        {
+		printf("vol releasing\n");
+
+		/* reset vol_FTtxt */
+		vol_FTtxt->utxt=NULL;
+		#if 1 /* set need refresh */
+		egi_ebox_needrefresh(ebox_voltxt);
+		#else  /* or refresh now */
+		ebox_voltxt->need_refresh=true;
+		ebox_voltxt->refresh(ebox_voltxt);
+		#endif
+
+		/* Hide to erase image */
+		//ebox_voltxt->sleep(ebox_voltxt);
+		egi_txtbox_hide(ebox_voltxt);
+
+		return btnret_OK;
+	}
+        else /* bypass unwanted touch status */
+              return btnret_IDLE;
+
+}
+
+
 
 /*--------------------------------------------
        	A Misc. job for PAGE
