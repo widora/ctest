@@ -31,6 +31,7 @@ typedef uint32_t			 EGI_24BIT_COLOR;
  */
 #define COLOR_COMPLEMENT_16BITS(rgb)	 ( 0xFFFF-rgb )
 
+
 /*  MACRO 16bit color blend
  *  front_color(16bits), background_color(16bits), alpha channel value(0-255)
  *  TODO: GAMMA CORRECTION
@@ -43,12 +44,12 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
 			)									\
 
-
 /*-----------------------------------------------------------------------o
 	  	16bit color blend function
 Note: Back alpha value ingored.
 -------------------------------------------------------------------------*/
 inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha);
+
 
 /*------------------------------------------------------------------------------
                 16bit color blend function
@@ -93,7 +94,6 @@ inline EGI_16BIT_COLOR egi_16bitColor_blend2(EGI_16BIT_COLOR front, unsigned cha
 #define WEGI_COLOR_MAROON	 	 COLOR_RGB_TO16BITS(128,0,0)
 
 
-
 /* color range */
 enum egi_color_range
 {
@@ -109,11 +109,11 @@ inline void 	egi_16bitColor_interplt( EGI_16BIT_COLOR color1, EGI_16BIT_COLOR co
                                	         int f15_ratio, EGI_16BIT_COLOR* color, unsigned char *alpha);
 
 inline EGI_16BIT_COLOR 	egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n);
-EGI_16BIT_COLOR 	egi_color_random(enum egi_color_range range);
-EGI_16BIT_COLOR 	egi_colorgray_random(enum egi_color_range range);
-EGI_16BIT_COLOR 	egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k);
-unsigned char		egi_color_getY(EGI_16BIT_COLOR color);
-
+inline EGI_16BIT_COLOR 	egi_color_random(enum egi_color_range range);
+EGI_16BIT_COLOR 	egi_color_random2(enum egi_color_range range, unsigned char luma);
+EGI_16BIT_COLOR 	egi_colorGray_random(enum egi_color_range range);
+EGI_16BIT_COLOR 	egi_colorLuma_adjust(EGI_16BIT_COLOR color, int k);
+inline unsigned char	egi_color_getY(EGI_16BIT_COLOR color);
 
 
 

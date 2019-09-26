@@ -35,6 +35,17 @@ typedef struct egi_data_slider EGI_DATA_SLIDER;
 typedef struct egi_data_pic EGI_DATA_PIC;
 
 
+/* A group of pages that logically connected together that serves for an application.
+   For example, One button in page A will bring forward page B,
+   and one reaction in page B may trigger to switch over to page C.
+*/
+struct egi_pggroup {
+	struct list_head actpages; /* list head for all activated pages */
+
+	/* TODO:  PAGE switchover functions */
+
+};
+
 //typedef struct egi_imgbuf EGI_IMGBUF;
 
 /*

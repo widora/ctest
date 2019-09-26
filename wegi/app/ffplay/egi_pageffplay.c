@@ -60,6 +60,11 @@ Midas Zhou
 static EGI_BOX slide_zone={ {0,30}, {239,260} };
 static uint16_t btn_symcolor;
 
+/* volume txt ebox */
+static EGI_DATA_TXT *vol_FTtxt;
+static EGI_EBOX     *ebox_voltxt;
+
+
 static int egi_ffplay_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_ffplay_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -162,6 +167,32 @@ EGI_PAGE *egi_create_ffplaypage(void)
 
         /* --------- 3 create a pic box --------- */
 
+        /* --------- 3 create a TXT ebox for Volume value displaying  --------- */
+        vol_FTtxt=NULL;
+        ebox_voltxt=NULL;
+
+        /* For FTsymbols TXT */
+        vol_FTtxt=egi_utxtdata_new( 10, 3,                        /* offset from ebox left top */
+                                    1, 100,                       /* lines, pixels per line */
+                                    egi_appfonts.bold,//regular,  /* font face type */
+                                    20, 20,                       /* font width and height, in pixels */
+                                    0,                            /* adjust gap, minus also OK */
+                                    WEGI_COLOR_WHITE              /* font color  */
+                                  );
+        /* assign uft8 string */
+        vol_FTtxt->utxt=NULL;
+        /* create volume EBOX */
+        ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
+                                     vol_FTtxt,      /* EGI_DATA_TXT pointer */
+                                     true,           /* bool movable */
+                                     70, 60,      /* int x0, int y0 */
+                                     //70,320-75,      /* int x0, int y0 */
+                                     80, 30,         /* width, height(adjusted as per nl and fw) */
+                                     frame_round_rect,  /* int frame, -1 or frame_none = no frame */
+                                     WEGI_COLOR_GRAY3   /* prmcolor,<0 transparent*/
+                                   );
+        /* set status as hidden, activate it only by touching */
+        ebox_voltxt->status=status_hidden;
 
 	/* --------- 4. create ffplay page ------- */
 	/* 3.1 create ffplay page */
@@ -192,6 +223,7 @@ EGI_PAGE *egi_create_ffplaypage(void)
 	for(i=0;i<btnum;i++) /* add buttons */
 		egi_page_addlist(page_ffplay, ffplay_btns[i]);
 
+	 egi_page_addlist(page_ffplay, ebox_voltxt); /* add volume txt ebox */
 //	egi_page_addlist(page_ffplay, title_bar); /* add title bar */
 
 
@@ -383,51 +415,79 @@ Slide up/down to adjust PLAYBACK volume.
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 {
         static int mark;
-	static int vol;
-	static char strp[64];
+        static int vol;
+        static char strp[64];
 
-	/* bypass outrange sliding */
-	if( !point_inbox2( &touch_data->coord, &slide_zone) )
+        /* bypass outrange sliding */
+        if( !point_inbox2( &touch_data->coord, &slide_zone) )
               return btnret_IDLE;
 
+        /* ---- TEST ---- */
+        printf("%s: touch(x,y): %d, %d \n",__func__, touch_data->coord.x, touch_data->coord.y );
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
         if(touch_data->status==pressing)
         {
                 printf("vol pressing\n");
-                egi_getset_pcm_volume(&mark,NULL); /* get volume */
-		//printf("mark=%d\n",mark);
+                if( egi_getset_pcm_volume(&mark,NULL) !=0 ) /* get volume */
+                        mark=0;
+                //printf("mark=%d\n",mark);
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
         /* 2. adjust button position and refresh */
         else if( touch_data->status==pressed_hold )
         {
+                /* unhide vol_FTtxt */
+                //egi_txtbox_activate(ebox_voltxt);
+                egi_txtbox_unhide(ebox_voltxt);
+
                 /* adjust volume */
                 vol =mark-(touch_data->dy>>3); /* Let not so fast */
-		if(vol>100)vol=100;
-		else if(vol<0)vol=0;
-		sprintf(strp,"VOL %d%%",vol);
-		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
-                egi_getset_pcm_volume(NULL,&vol); /* set volume */
+                if(vol>100) vol=100;
+                else if(vol<0) vol=0;
 
-                /* displaying */
-		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
-                symbol_string_writeFB( &gv_fb_dev, &sympg_ascii,
-                                       WEGI_COLOR_YELLOW, -1,        /* fontcolor, int transpcolor */
-                                       80,320-75,                    /* int x0, int y0 */
-                                       strp, -1 );                /* string, opaque */
+                printf("\n%s --- pvol=d% --- \n",__func__, vol);
 
-		return btnret_OK;
-	}
+                /* set volume */
+                if( egi_getset_pcm_volume(NULL,&vol)==0 )
+                        sprintf(strp,"音量 %d%%",vol);
+                else
+                        sprintf(strp,"音量 无效");
+
+                //printf("dy=%d, vol=%d\n",touch_data->dy, vol);
+
+                /* set utxt to ebox_voltxt */
+                vol_FTtxt->utxt=strp;
+                #if 1  /* set need refresh for PAGE routine */
+                egi_ebox_needrefresh(ebox_voltxt);
+                #else  /* or force to refresh EBOX now! */
+                ebox_voltxt->need_refresh=true;
+                ebox_voltxt->refresh(ebox_voltxt);
+                #endif
+
+                return btnret_OK;
+        }
         /* 3. clear volume txt, 'release' */
         else if( touch_data->status==releasing )
         {
-		printf("vol releasing\n");
-		mark=vol; /* update mark*/
-		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_BLACK, 80, 320-75, 80 +100, 320-75 +20);
+                printf("vol releasing\n");
+                mark=vol; /* update mark*/
 
-		return btnret_OK;
-	}
+                /* reset vol_FTtxt */
+                vol_FTtxt->utxt=NULL;
+                #if 1 /* set need refresh */
+                egi_ebox_needrefresh(ebox_voltxt);
+                #else  /* or refresh now */
+                ebox_voltxt->need_refresh=true;
+                ebox_voltxt->refresh(ebox_voltxt);
+                #endif
+
+                /* Hide to erase image */
+                //ebox_voltxt->sleep(ebox_voltxt);
+                egi_txtbox_hide(ebox_voltxt);
+
+                return btnret_OK;
+        }
         else /* bypass unwanted touch status */
               return btnret_IDLE;
 

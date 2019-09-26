@@ -225,9 +225,11 @@ void  egi_play_pcm_buff(void ** buffer, int nf)
         }
 }
 
-/*------------------------------------------------------------------------
+/*-------------------------------------------------------------------------------
 Get current volume value from the first available channel, and then set all
 volume to the given value.
+
+!!! --- WARNING: Static variabls applied, for one running thread only --- !!!
 
 pgetvol: 	[0-100], pointer to a value to pass the volume percentage value.
 		If NULL, ignore.
@@ -241,7 +243,7 @@ psetvol: 	[0-100], pointer to a volume value of percentage*100, which
 Return:
 	0	OK
 	<0	Fails
-------------------------------------------------------------------------*/
+------------------------------------------------------------------------------*/
 int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 {
 	int ret;
@@ -253,7 +255,6 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	static snd_mixer_elem_t* elem;
 	static snd_mixer_selem_channel_id_t chn;
 	const char *card="default";
-//	const char *selem_name="PCM";
 	static char selem_name[128]={0};
 	static bool has_selem=false;
 	static bool finish_setup=false;
@@ -327,27 +328,27 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	/* Find a mixer simple element */
 	elem=snd_mixer_find_selem(g_volmix_handle,sid);
 	if(elem==NULL){
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to find mixer simple element '%s'.\n",__func__, selem_name);
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to find mixer simple element '%s'.",__func__, selem_name);
 		ret=-5;
 		goto FAILS;
 	}
 
 	/* Get range for playback volume of a mixer simple element */
-	snd_mixer_selem_get_playback_volume_range(elem,&min,&max);
+	snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
 	if( min<0 || max<0 ){
-		EGI_PLOG(LOGLV_ERROR,"%s: Get range of volume fails.!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Get range of volume fails.!",__func__);
 		ret=-6;
 		goto FAILS;
 	}
-	//printf("Get playback range Min:%ld - Max:%ld.\n",min,max);
 	vrange=max-min+1;
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback volume range Min.%ld - Max.%ld.", __func__, min, max);
 
 	/* get volume , ret=0 Ok */
         for (chn = 0; chn < 32; chn++) {
 		/* Master control channel */
                 if (chn == 0 && snd_mixer_selem_has_playback_volume_joined(elem)) {
 			EGI_PLOG(LOGLV_CRITICAL,"%s: '%s' channle 0, Playback volume joined!",
-										selem_name, __func__);
+										__func__, selem_name);
 			finish_setup=true;
                         break;
 		}
@@ -382,21 +383,18 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		//printf("%s: Get volume: %ld[%d] on channle %d.\n",__func__,vol,*pgetvol,chn);
 
 		/*** Convert vol back to percentage value.
-		 *   lgpv=log10(pv^2)*vrange/log10(100*100)=log10(pv)*vrange/2;
-		 *   pv=10^(2.0*lgpv/vrange)
+		 *      pv=percentage*100; v=volume value in vrange.
+		 *	pv/100=lg(v^2)/lg(vrange^2)
+		 *	pv=lg(v^2)*100/lg(vrange^2)
 		 */
-		 #if 1
-		 *pgetvol=pow(10, 2.0*vol/vrange);
-		 #else
-		 *pgetvol=vol*100/vrange;  /* Unconverted volume value */
-		 #endif
+		 //printf("get alsa vol=%ld\n",vol);
+		  *pgetvol=log10(vol)*100.0/log10(vrange);  /* in percent*100 */
 	}
 
 	/* set volume, ret=0 OK */
 	//snd_mixer_selem_set_playback_volume_all(elem, val);
 	//snd_mixer_selem_set_playback_volume(elem, chn, val);
 	//snd_mixer_selem_set_playback_volume_range(elem,0,32);
-
 	// set_volume_mute_value()
 
 	/* set volume, ret=0 OK */
@@ -405,16 +403,16 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		//printf("%s: min=%ld, max=%ld\n",__func__, min,max);
 		if(*psetvol > 100)
 			*psetvol=100;
-		//vol=(*psetvol)*vrange/100;
 
 		/*** Covert percentage value to lg(pv^2) related value, so to sound dB relative.
-		 *  lgpv=log10(pv^2)*vrange/log10(100*100)=log10(pv)*vrange/2;
+		 *      pv=percentage*100; v=volume value in vrange.
+		 *	pv/100=lg(v^2)/lg(vrange^2)
+		 *	v=10^(pv*lg(vrange)/100)
 		 */
-		vol=*psetvol;
+		vol=*psetvol;  /* vol: in percent*100 */
 		if(vol<1)vol=1; /* to avoid 0 */
-		vol=1.0*log10(vol)*vrange;
-		vol >>= 1;
-		printf("%s: dB related vol=%ld\n", __func__, vol);
+		vol=pow(10, vol*log10(vrange)/100.0);
+		//printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
 
 		/* normalize vol, Not necessay now?  */
 		if(vol > max) vol=max;

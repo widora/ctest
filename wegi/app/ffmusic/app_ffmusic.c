@@ -221,15 +221,14 @@ int main(int argc, char **argv)
 	} else {
 		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s",__func__, music_dir);
 	}
-//	if( init_ffmuzCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
 	if( init_ffmuzCtx(music_dir, "mp3, wav") ) {
-	        EGI_PLOG(LOGLV_INFO,"%s: fail to initiate FFplay_Ctx.", __func__);
+	        EGI_PLOG(LOGLV_INFO,"%s: fail to initiate FFmuz_Ctx.", __func__);
 		return pgret_ERR;
 	}
 
 
 	/*  ---  2. EGI PAGE creation  ---  */
-	printf(" start page creation....\n");
+	printf("Start creating PAGE for FFmusic...\n");
         /* create page and load the page */
         page_ffmuz=create_ffmuzPage();
         EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.", app_name, page_ffmuz->ebox->tag);

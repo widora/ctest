@@ -3,7 +3,7 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-An EGI APP program for FFPLAY.
+An EGI APP program for FFmotion player.
 
    [  EGI_UI ]
 	|
@@ -13,11 +13,11 @@ An EGI APP program for FFPLAY.
            <<<  signal  >>>
 		  |
 		  |
-	      [ SUBPROCESS ] app_ffplay.c
+	      [ SUBPROCESS ] app_ffmotion.c
 				|
-	        		|____ [ UI_PAGE ] egi_pageffplay.c
+	        		|____ [ UI_PAGE ] page_ffmotion.c
 							|
-							|_____ [ extern OBJ FILE ] egi_ffplay.c
+							|_____ [ extern OBJ FILE ] ffmotion.c
 
 
 Midas Zhou
@@ -26,14 +26,15 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_utils.h"
 #include "egi_cstring.h"
-#include "egi_ffplay.h"
+#include "ffmotion.h"
 #include "egi_FTsymbol.h"
-#include "egi_pageffplay.h"
+#include "page_ffmotion.h"
 #include <signal.h>
 #include <sys/types.h>
+#include <malloc.h>
 
-static char app_name[]="app_ffplay";
-static EGI_PAGE *page_ffplay=NULL;
+static char app_name[]="app_ffmotion";
+static EGI_PAGE *page_ffmotion=NULL;
 
 static struct sigaction sigact_cont;
 static struct sigaction osigact_cont;
@@ -62,8 +63,8 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
 								app_name, __func__, spid);
 
 	/* set page refresh flag */
-//	egi_page_needrefresh(page_ffplay);
-	//page_ffplay->ebox->need_refresh=false; /* Do not refresh page bkcolor */
+//	egi_page_needrefresh(page_ffmotion);
+	//page_ffmotion->ebox->need_refresh=false; /* Do not refresh page bkcolor */
 
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
 //	fb_restore_FBimg(&gv_fb_dev, 0, false);
@@ -170,17 +171,20 @@ siginfo_t {
 int main(int argc, char **argv)
 {
 	int ret=0;
-	char music_dir[EGI_PATH_MAX]={0};
+	char video_dir[EGI_PATH_MAX]={0};
 	pthread_t thread_loopread;
 
+        /* Set memory allocation option */
+        mallopt(M_MMAP_MAX,0);          /* forbid calling mmap to allocate mem */
+        mallopt(M_TRIM_THRESHOLD,-1);   /* forbid memory trimming */
 
         /*  ---  0. assign signal actions  --- */
 	assign_signal_actions();
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
-        if(egi_init_log("/mmc/log_ffplay") != 0) {
-                printf("Fail to init logger,quit.\n");
+        if(egi_init_log("/mmc/log_ffmotion") != 0) {
+                printf("Fail to init logger for ffmotion,quit.\n");
                 return -1;
         }
         if(symbol_load_allpages() !=0 ) {
@@ -210,44 +214,44 @@ int main(int argc, char **argv)
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
-        if ( egi_get_config_value("EGI_FFPLAY","music_dir",music_dir) != 0) {
+        if ( egi_get_config_value("EGI_FFMOTION","video_dir",video_dir) != 0) {
 		/* use default dir */
-		EGI_PLOG(LOGLV_INFO,"%s: Fail to read config music_dir, use default: %s\n",__func__, music_dir);
-		strcpy(music_dir,"/mmc/ffplay");
+		EGI_PLOG(LOGLV_INFO,"%s: Fail to read config video_dir, use default: %s\n",__func__, video_dir);
+		strcpy(video_dir,"/mmc/ffplay");
 	} else {
-		EGI_PLOG(LOGLV_INFO,"%s: read config music_dir: %s\n",__func__, music_dir);
+		EGI_PLOG(LOGLV_INFO,"%s: read config video_dir: %s\n",__func__, video_dir);
 	}
-	if( egi_init_ffplayCtx(music_dir, "mp3, avi, jpg, png, wav") ) {
-	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFplay_Ctx.\n", __func__);
+	if( init_ffmotionCtx(video_dir, "avi,mp4") ) {
+	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFmotion_Ctx.\n", __func__);
 		return pgret_ERR;
 	}
 
 
 	/*  ---  2. EGI PAGE creation  ---  */
-	printf(" start page creation....\n");
+	printf(" Start creating PAGE for FFmotion ....\n");
         /* create page and load the page */
-        page_ffplay=egi_create_ffplaypage();
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffplay->ebox->tag);
+        page_ffmotion=create_ffmotionPage();
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffmotion->ebox->tag);
 
 	/* activate and display the page */
-        egi_page_activate(page_ffplay);
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffplay->ebox->tag);
+        egi_page_activate(page_ffmotion);
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffmotion->ebox->tag);
 
         /* trap into page routine loop */
-        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffplay->ebox->tag);
-        page_ffplay->routine(page_ffplay);
+        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffmotion->ebox->tag);
+        page_ffmotion->routine(page_ffmotion);
 
         /* get out of routine loop */
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
-		                                                app_name,page_ffplay->ebox->tag);
+		                                                app_name,page_ffmotion->ebox->tag);
 
 	tm_delayms(200); /* let page log_calling finish */
 
-        egi_page_free(page_ffplay);
+        egi_page_free(page_ffmotion);
 	ret=pgret_OK;
 
 	/* free FFLAY_CONTEXT */
-	egi_free_ffplayCtx();
+	free_ffmotionCtx();
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

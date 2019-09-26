@@ -442,6 +442,8 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 /*-------------------------------------------------------------------------------------
 Fixed point Fast Fourier Transform
 
+     !!! --- WARNING: Static arrays applied, for one running thread only --- !!!
+
 Parameter:
 @np:    Total number of data for FFT, will be ajusted to a number of 2 powers;
         np=1, result is 0!
@@ -483,13 +485,14 @@ Note:
    ,which also decides Min. analysis frequency.
 
 
-			  	-----	TBD & TODO &   -----
+			  	-----	TBD & TODO ?   -----
 
 	Frequent dynamic memory allocating will create huge numbers of memory
 	fregments, which will slow down next memory allocating speed, and further
 	to deteriorate system operation.
 	It's better to apply static memory allocation method.
 
+	!!! --- WARNING: Static memory allocation, for one instance only --- !!!
 
 Return:
         0       OK
@@ -504,7 +507,7 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
         static int nn=0;                    /* number of data for FFT analysis, a number of 2 powers */
         static EGI_FCOMPLEX *ffodd=NULL;    /* for FFT STAGE 1,3,5.. , store intermediate result */
         static EGI_FCOMPLEX *ffeven=NULL;   /* for FFT STAGE 0,2,4.. , store intermediate result */
-        static int *ffnin=NULL;             	    /* normal order mapped index */
+        static int *ffnin=NULL;             /* normal order mapped index */
 	int fftmp;
 
         /* check np  */
@@ -569,7 +572,7 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
         	}
 	}
 
-        ///////////////////    FFT    ////////////////////////
+        /* ----------    FFT  Algrithm  ---------- */
         /* 1. map normal order index to  input x[] index */
         for(i=0; i<nn; i++)
         {

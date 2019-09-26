@@ -163,7 +163,7 @@ midaszhou@yahoo.com
 			         */
 #define FFMUZ_CLIP_PLAYTIME 3   /* in second, set clip play time */
 #define FFMUZ_MEDIA_LOOP
-#define FFMUZ_END_PAUSETIME   0	 /* end pause time */
+#define END_PAUSE_TIME   0	 /* end pause time */
 
 
 /*-----------  FFPLAY ENVIRONTMENT SET  --------------
@@ -965,7 +965,7 @@ if(disable_video && videoStream>=0 )
 	display_height=(display_height>>1)<<1;
 
 	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n",
-					 				  display_width,display_height);
+					 				  display_width,  display_height);
 
 #if 0 ////////////////    NO need for FFMUZ    ///////////////
 	/* Addjust displaying window position */
@@ -1512,7 +1512,7 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	EGI_PDEBUG(DBG_FFPLAY," \n ---( End of playing file %s )--- \n",fpath[fnum_playing]);
 
 	/* sleep, to let sys release cache ....???? */
-	tm_delayms(FFMUZ_END_PAUSETIME);
+	tm_delayms(END_PAUSE_TIME);
 
    } /* end of for(...), loop playing input files*/
 

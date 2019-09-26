@@ -128,8 +128,9 @@ midaszhou@yahoo.com
 #include "sound/egi_pcm.h"
 #include "utils/egi_cstring.h"
 #include "utils/egi_utils.h"
-#include "ff_utils.h"
-#include "egi_ffplay.h"
+#include "page_ffmotion.h"
+#include "ffmotion_utils.h"
+#include "ffmotion.h"
 
 #include "libavutil/avutil.h"
 #include "libavutil/time.h"
@@ -143,13 +144,29 @@ midaszhou@yahoo.com
 #include "libavfilter/buffersrc.h"
 #include "libavutil/opt.h"
 
-#define FF_LOOP_TIMEGAP  1   /* in second, hold_on time after ffplaying a file, especially for a picture.
-			     *  set before FAIL_OR_TERM.
-			     */
-
-#define FF_CLIP_PLAYTIME 10   /* in second, set clip play time */
+#define LOOP_HOLDON_TIME  1  /* in second, hold_on time after ffplaying a file, especially for a picture.
+			      *  set before FAIL_OR_TERM.
+			      */
+#define CLIP_PLAYTIME 10     /* in second, set clip play time */
+#define END_PAUSE_TIME   0  /* end pause time */
 
 #define ENABLE_MEDIA_LOOP
+
+
+
+/*--------  FFPLAY ENVIRONTMENT SET  ------------
+ To set it up first before you call egi_ffplay()
+------------------------------------------------*/
+FFMOTION_CONTEXT *FFmotion_Ctx=NULL;
+
+/* FB DEV for picture displaying */
+FBDEV ff_fb_dev;
+
+int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
+int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
+int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
+
 
 
 /*
@@ -164,12 +181,6 @@ Note:
  *	1.
  *	2.
 */
-// in ffplay.h : static int ff_sec_Velapsed;  /* in seconds, playing time elapsed for Video */
-
-/*--------  FFPLAY ENVIRONTMENT SET  ------------
- To set it up first before you call egi_ffplay()
-------------------------------------------------*/
-FFPLAY_CONTEXT *FFplay_Ctx=NULL;
 
 /* expected display window size, LCD will be adjusted in the function */
 static int show_w= 240; //185; /* LCD row pixels */
@@ -183,7 +194,7 @@ static int offy;
  *   if True:	run thread ff_display_spectrum() to display audio spectrum
  *   if False:	disable it.
  */
-static bool enable_audio_spectrum=false;
+//static bool enable_audio_spectrum=false;
 
 /* seek position */
 //long start_tmsecs=60*55; /*in sec, starting position */
@@ -251,7 +262,7 @@ static bool disable_audio=false;
 static bool disable_video=false;
 
 /* param: ( enable_clip_test )
- *   if True:	play the beginning of a file for FF_CLIP_PLAYTIME seconds, then skip.
+ *   if True:	play the beginning of a file for CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
 static bool enable_clip_test=false;
@@ -262,11 +273,11 @@ static bool enable_clip_test=false;
  *   mode_repeat_one:	repeat current file
  *   mode_shuffle:	pick next file randomly
  */
-static enum ffplay_mode playmode=mode_loop_all;
+static enum ffmotion_mode playmode=mode_loop_all;
 
 
 /*-----------------------------------------------------
-Init FFplay context, allocate FFplay_Ctx, and sort out
+Init FFplay context, allocate FFmotion_Ctx, and sort out
 all media files in path.
 
 @path           path for media files
@@ -277,19 +288,19 @@ return:
         0       OK
         <0    Fails
 ------------------------------------------------------*/
-int egi_init_ffplayCtx(char *path, char *fext)
+int init_ffmotionCtx(char *path, char *fext)
 {
         int fcount;
 
-        FFplay_Ctx=calloc(1,sizeof(FFPLAY_CONTEXT));
-        if(FFplay_Ctx==NULL) {
-                printf("%s: Fail to calloc FFplay_Ctx.\n",__func__);
+        FFmotion_Ctx=calloc(1,sizeof(FFMOTION_CONTEXT));
+        if(FFmotion_Ctx==NULL) {
+                printf("%s: Fail to calloc FFmotion_Ctx.\n",__func__);
                 return -1;
         }
 
         /* search for files and put to ffCtx->fpath */
-        FFplay_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
-        FFplay_Ctx->ftotal=fcount;
+        FFmotion_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFmotion_Ctx->ftotal=fcount;
 
         return 0;
 }
@@ -298,16 +309,16 @@ int egi_init_ffplayCtx(char *path, char *fext)
 /*-----------------------------------------
 	Free a FFPLAY_CONTEXT struct
 -----------------------------------------*/
-void egi_free_ffplayCtx(void)
+void free_ffmotionCtx(void)
 {
-        if(FFplay_Ctx==NULL) return;
+        if(FFmotion_Ctx==NULL) return;
 
-        if( FFplay_Ctx->ftotal > 0 )
-                egi_free_buff2D((unsigned char **)FFplay_Ctx->fpath, FFplay_Ctx->ftotal);
+        if( FFmotion_Ctx->ftotal > 0 )
+                egi_free_buff2D((unsigned char **)FFmotion_Ctx->fpath, FFmotion_Ctx->ftotal);
 
-        free(FFplay_Ctx);
+        free(FFmotion_Ctx);
 
-        FFplay_Ctx=NULL;
+        FFmotion_Ctx=NULL;
 }
 
 
@@ -315,31 +326,31 @@ void egi_free_ffplayCtx(void)
 FFplay for most types of media files:
 	.mp3, .mp4, .avi, .jpg, .png, .gif, ...
 -----------------------------------------------------*/
-void * egi_thread_ffplay(EGI_PAGE *page)
-//void * egi_thread_ffplay(FFPLAY_CONTEXT *FFplay_Ctx)
+void * thread_ffplay_motion(EGI_PAGE *page)
+//void * thread_ffplay_motion(FFPLAY_CONTEXT *FFmotion_Ctx)
 {
         /*  Check ffplay context  */
-        if(FFplay_Ctx==NULL) {
-                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is NULL!", __func__);
+        if(FFmotion_Ctx==NULL) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmotion_Ctx is NULL!", __func__);
                 return (void *)-1;
         }
-        else if ( FFplay_Ctx->fpath==NULL || FFplay_Ctx->fpath[0]==NULL )
+        else if ( FFmotion_Ctx->fpath==NULL || FFmotion_Ctx->fpath[0]==NULL )
         {
-                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx has a NULL fpath!", __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmotion_Ctx has a NULL fpath!", __func__);
                 return (void *)-1;
         }
-        else if (FFplay_Ctx->ftotal<=0 )
+        else if (FFmotion_Ctx->ftotal<=0 )
         {
-                EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFplay_Ctx!", __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFmotion_Ctx!", __func__);
                 return (void *)-1;
         }
 
 
-	int ftotal=FFplay_Ctx->ftotal; /* number of multimedia files input from shell */
-	int fnum;		/* Index number of files in array FFplay_Ctx->fpath */
+	int ftotal=FFmotion_Ctx->ftotal; /* number of multimedia files input from shell */
+	int fnum;		/* Index number of files in array FFmotion_Ctx->fpath */
 	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
-	char **fpath=NULL; //FFplay_Ctx->fpath;  /* array of media file path */
+	char **fpath=NULL; //FFmotion_Ctx->fpath;  /* array of media file path */
 	char *fname=NULL;
 	char *fbsname=NULL;
 
@@ -444,10 +455,10 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 	/* thread for displaying RGB data */
 	pthread_t pthd_displayPic;
 	pthread_t pthd_displaySub;
-	pthread_t pthd_audioSpectrum;
+//	pthread_t pthd_audioSpectrum;
 	bool pthd_displayPic_running=false;
 	bool pthd_subtitle_running=false;
-	bool pthd_audioSpectrum_running=false;
+//	bool pthd_audioSpectrum_running=false;
 
 	char *pfsub=NULL; /* subtitle path */
 	int ret;
@@ -472,9 +483,64 @@ void * egi_thread_ffplay(EGI_PAGE *page)
         init_fbdev(&ff_fb_dev);
 
 	/* --- fill display area with BLACK --- */
-	fbset_color(WEGI_COLOR_BLACK);
+//	fbset_color(WEGI_COLOR_BLACK);
 	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
-	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
+//	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
+
+
+        /* ------- Get EBOX Time Slider -------- */
+        bool tmbox_needUpdate=false;
+        int psval; /* slider value in percentage [0 100] */
+        char strtm[64];
+        int tm_h,tm_min,tm_sec;
+	long velapsed_old=0;
+        EGI_EBOX        *ebox_tmslider=NULL;
+        EGI_DATA_SLIDER *data_slider=NULL;
+        EGI_EBOX        *ebox_tmtxt[2]={NULL,NULL};
+        EGI_DATA_TXT    *data_txt[2]={NULL,NULL};
+
+        if( page != NULL )
+        {
+                /* 1. get time slider */
+                ebox_tmslider=egi_page_pickebox(page, type_slider, TIME_SLIDER_ID);
+
+                if(ebox_tmslider!=NULL)
+                        data_slider=egi_slider_getdata(ebox_tmslider);
+
+                /* If null */
+                if( data_slider== NULL) {
+                        EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!",__func__);
+                        EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!",
+                                                __func__,
+                                                page==NULL?"NULL":"OK", ebox_tmslider==NULL?"NULL":"OK",
+                                                data_slider==NULL?"NULL":"OK"
+                        );
+                        /* reset all */
+                        ebox_tmslider=NULL;
+                        data_slider=NULL;
+                }
+
+                /* 2. get time txt ebox */
+                ebox_tmtxt[0]=egi_page_pickebox(page, type_txt, TIME_TXT0_ID);
+                ebox_tmtxt[1]=egi_page_pickebox(page, type_txt, TIME_TXT1_ID);
+
+                data_txt[0]=egi_txtbox_getdata(ebox_tmtxt[0]);
+                data_txt[1]=egi_txtbox_getdata(ebox_tmtxt[1]);
+
+                if( data_txt[0]==NULL || data_txt[1]==NULL ) {
+                        EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!",__func__);
+                        /* reset all */
+                        ebox_tmtxt[0]=NULL; ebox_tmtxt[1]=NULL;
+                        data_txt[0]=NULL;   data_txt[1]=NULL;
+                }
+
+                /* 3. set tmbox_needUpdate */
+                if( data_slider!=NULL && data_txt[0]!=NULL && data_txt[1]!=NULL ) {
+                        tmbox_needUpdate=true;
+                        EGI_PDEBUG(DBG_FFPLAY,"Succeed to get data from time slider and tmbox.\n");
+                }
+        }
+        /* ------- END Getting Time Slider -------- */
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
@@ -482,22 +548,22 @@ void * egi_thread_ffplay(EGI_PAGE *page)
 while(1) {
 
         /* For Each Loop:  Check ffplay context and re_gain fpath */
-        if(FFplay_Ctx==NULL) {
-                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx is NULL!", __func__);
+        if(FFmotion_Ctx==NULL) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmotion_Ctx is NULL!", __func__);
                 return (void *)-1;
         }
-        else if ( FFplay_Ctx->fpath==NULL || FFplay_Ctx->fpath[0]==NULL )
+        else if ( FFmotion_Ctx->fpath==NULL || FFmotion_Ctx->fpath[0]==NULL )
         {
-                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFplay_Ctx has a NULL fpath!", __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmotion_Ctx has a NULL fpath!", __func__);
                 return (void *)-1;
         }
-        else if (FFplay_Ctx->ftotal<=0 )
+        else if (FFmotion_Ctx->ftotal<=0 )
         {
-                EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFplay_Ctx!", __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: No media file in FFmotion_Ctx!", __func__);
                 return (void *)-1;
         }
 
-	fpath=FFplay_Ctx->fpath;  /* array of media file path */
+	fpath=FFmotion_Ctx->fpath;  /* array of media file path */
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
@@ -516,8 +582,11 @@ while(1) {
 	}
 
 	/* clear displaying area */
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
+//	fbset_color(WEGI_COLOR_BLACK);
+//	draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
+
+	/* refresh page */
+	egi_page_needrefresh(page);
 
 	/* reset display window size */
 	display_height=show_h;
@@ -548,12 +617,10 @@ while(1) {
 	/* Retrieve stream information, !!!!!  time consuming  !!!! */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):  Retrieving stream information... \n", tm_get_tmstampms());
 	/* ---- seems no use! ---- */
-	//
-pFormatCtx->probesize2=128*1024;
+	//pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
 		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
-
 #ifdef ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
@@ -777,42 +844,8 @@ if(disable_audio && audioStream>=0 )
 		}
 		else
 		{
-			/*  Use SWR to convert out sample rate to 44100  ...*/
-			if( sample_rate != 44100 ) {
-				EGI_PDEBUG(DBG_FFPLAY,"Sample rate is NOT 44.1k, try to convert...\n");
-				out_sample_rate=44100;
-				swr=swr_alloc();
-				av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
-				av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
-				av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
-				av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
-				av_opt_set_sample_fmt(swr, "in_sample_fmt",   sample_fmt, 0);
-				av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
-				EGI_PDEBUG(DBG_FFPLAY,"Start swr_init() ...\n");
-				swr_init(swr);
-
-				/* alloc outputBuffer */
-				EGI_PDEBUG(DBG_FFPLAY,"malloc outputBuffer ...\n");
-				outputBuffer=malloc( nb_channels*frame_size*bytes_per_sample);
-				if(outputBuffer == NULL)
-		       	 	{
-					EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
-					return (void *)-1;
-				}
-
-				/* open pcm play device and set parameters */
- 				if( egi_prepare_pcm_device(nb_channels,out_sample_rate,false) !=0 ) /* 'true' for interleaved access */
-				{
-					EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
-											__func__);
-					goto FAIL_OR_TERM;
-				}
-
-			}
-			/* END sample rate convert to 44100 */
-
 			/* Directly open pcm play device and set parameters */
- 			else if ( egi_prepare_pcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
+ 			if ( egi_prepare_pcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
 											__func__);
@@ -828,19 +861,9 @@ if(disable_audio && audioStream>=0 )
 			return (void *)-1;
 		}
 
-		/* <<<<<<<<<<<<     create a thread to display audio spectrum    >>>>>>>>>>>>>>> */
-	       if(enable_audio_spectrum)
-               {
-	           if(pthread_create(&pthd_audioSpectrum, NULL, ff_display_spectrum, NULL ) != 0) {
-        	        EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying audio spectrum! \n");
-                	return (void *)-1;
-	           }
-        	   else
-                	EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread to display audio spectrum.\n");
+		/* <<<<<<<<<<<<     create a thread to display audio spectrum (pending)   >>>>>>>>>>>>>>> */
 
-	           /* set running token */
-		   pthd_audioSpectrum_running=true;
-	       }
+
 
 	} /* end of if(audioStream =! -1) */
 
@@ -1029,8 +1052,8 @@ else
 	display_width=(display_width>>1)<<1;
 	display_height=(display_height>>1)<<1;
 }
-	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n", __func__,
-										display_width,display_height);
+	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n",
+										display_width, display_height);
 
 	/* Addjust displaying window position */
 	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
@@ -1105,7 +1128,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 /* Even if no video stream */
-	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_Pic,(void *)&pic_info) != 0) {
+	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_motionPic,(void *)&pic_info) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
 		return (void *)-1;
 	}
@@ -1280,6 +1303,24 @@ if(enable_avfilter)
   }/* end of (videoStream >=0 && pCodec != NULL) */
 
 
+        /* Get playing time (duration) */
+        if(audioStream>=0) {
+                ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
+                                                        &pFormatCtx->streams[audioStream]->time_base) );
+                /* Refresh duration txt ebox */
+                if( tmbox_needUpdate ) {
+                    memset(strtm,0,sizeof(strtm));
+                    snprintf(strtm, sizeof(strtm)-1, "%02d:%02d", ff_sec_Aduration/60, ff_sec_Aduration%60);
+                    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
+                    egi_ebox_needrefresh(ebox_tmtxt[1]);
+                }
+        }
+        if(videoStream>=0) {
+                ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+                                                        &pFormatCtx->streams[videoStream]->time_base) );
+                EGI_PLOG(LOGLV_TEST,"%s: Video duration is %lds.",__func__,ff_sec_Vduration);
+        }
+
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
 
@@ -1303,8 +1344,8 @@ else
 	 * Note:
 	 * 1. For MP3, to call av_seek_frame() will fail!
 	 */
-	if(FFplay_Ctx->start_tmsecs !=0 ) {
-	  av_seek_frame(pFormatCtx, videoStream,(FFplay_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
+	if(FFmotion_Ctx->start_tmsecs !=0 ) {
+	  av_seek_frame(pFormatCtx, videoStream,(FFmotion_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
 	}
 }
 
@@ -1381,17 +1422,47 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 				/* ---print playing time--- */
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
-				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
-							&pFormatCtx->streams[videoStream]->time_base) );
-/*
-				printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
-									ff_sec_Velapsed, ff_sec_Vduration );
-*/
-				//printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
-				fflush(stdout);
+				//ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+				//			&pFormatCtx->streams[videoStream]->time_base) );
 
-				//gettimeofday(&tm_end,NULL);
-				//printf(" LCD_Write_Block() for one frame cost time: %d ms\n",get_costtime(tm_start,tm_end) );				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+				//printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
+				//					ff_sec_Velapsed, ff_sec_Vduration );
+				//printf("\r ------ Time stamp: %llds  ------", packet.pts/ );
+				//fflush(stdout);
+
+                                /* --- Reset timing slider ---- */
+                                if( tmbox_needUpdate && velapsed_old !=ff_sec_Velapsed ) {
+				    velapsed_old=ff_sec_Velapsed;
+                                    /* --- 1. update slider position --- */
+                                     if(ff_sec_Vduration==0) { /* To avoid 0 */
+                                                data_slider->val=0;
+                                     } else {
+                                                /* get percentage value and set to time slider */
+                                                psval=ff_sec_Velapsed*100/ff_sec_Vduration;
+                                                egi_slider_setpsval(ebox_tmslider, psval);
+                                     }
+                                     /* --- 2. Update elapsed time txt ebox --- */
+                                     tm_h=ff_sec_Velapsed/3600;
+                                     tm_min=(ff_sec_Velapsed-tm_h*3600)/60;
+                                     tm_sec=ff_sec_Velapsed%60;
+                                            /* elapsed time */
+                                     memset(strtm,0,sizeof(strtm));
+                                     if(tm_h>0) {
+                                             snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",
+                                                                                  tm_h, tm_min,tm_sec);
+                                     } else {
+                                             snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
+                                                                                  tm_min, tm_sec);
+                                     }
+                                     egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
+
+                                     /* --- 3. Putting to PAGE routine for refresh. --- */
+                                     egi_ebox_needrefresh(ebox_tmslider);
+                                     egi_ebox_needrefresh(ebox_tmtxt[0]);
+                                 }
+                                /* ----- END reset timer slider ------ */
+
+
 			} /* end of if(FrameFinished) */
 
 		}/*  end  of vidoStream process  */
@@ -1455,23 +1526,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 					}
 
-					/*    ---- 1024 points FFT displaying handling ----
-					 *   Note:
-					 *     1. For sample rate 44100 only, noninterleaved.
-					 *     2. If channle >=2, framesize must > 1024, or two channel PCM 
-					 *	  data will be interfered.
-					 */
-					if( pthd_audioSpectrum_running ) {
-					        if( outputBuffer )  {     /* SWR ON, if sample_rate != 44100 */
-							ff_load_FFTdata(  (void **)&outputBuffer,
-									  aCodecCtx->frame_size   );
-						}
-						else {				/* direct data */
-							ff_load_FFTdata(  (void **)pAudioFrame->data,
-									  aCodecCtx->frame_size   );
-						}
-					}
-
+					/*    ---- 1024 points FFT displaying handling(pending) ---- */
 
 					/* print audio playing time, only if no video stream */
 					ff_sec_Aelapsed=atoi( av_ts2timestr(packet.pts,
@@ -1500,7 +1555,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 /* For clip test, just ffplay a short time then break */
 if(enable_clip_test)
 {
-		if( (audioStream >= 0) && (ff_sec_Aelapsed >= FF_CLIP_PLAYTIME) )
+		if( (audioStream >= 0) && (ff_sec_Aelapsed >= CLIP_PLAYTIME) )
 		{
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
@@ -1509,53 +1564,53 @@ if(enable_clip_test)
 		/* if a picture without audio */
 		else if( audioStream<0 )
 		{
-			tm_delayms(FF_CLIP_PLAYTIME*1000);
+			tm_delayms(CLIP_PLAYTIME*1000);
 			break;
 		}
 }
 
 	/*----------------<<<<< Check and parse commands >>>>>-----------------*/
-		if( FFplay_Ctx->ffcmd != cmd_none )
+		if( FFmotion_Ctx->ffcmd != cmd_none )
 		{
 		    /* 1. parse PAUSE/PLAY first */
-		    if(FFplay_Ctx->ffcmd==cmd_pause) {
+		    if(FFmotion_Ctx->ffcmd==cmd_pause) {
 			do {
 				egi_sleep(0,0,100);
-			} while(FFplay_Ctx->ffcmd==cmd_pause); // !=cmd_play;
+			} while(FFmotion_Ctx->ffcmd==cmd_pause); // !=cmd_play;
 
 			/* Don not reset, pass down curretn cmd */
 
 		    }
 	  	    /* 2. shift mode */
-		    else if( FFplay_Ctx->ffcmd==cmd_mode) {
+		    else if( FFmotion_Ctx->ffcmd==cmd_mode) {
 			    /* Note:
 			     *      1. Default enable_filesloop is true.
 			     *	    2. mode_loop_all means loop in order.
 			     */
-			    if(FFplay_Ctx->ffmode==mode_repeat_one) {
+			    if(FFmotion_Ctx->ffmode==mode_repeat_one) {
 				enable_seekloop=true;
 				enable_shuffle=false;
 			    }
-			    else if(FFplay_Ctx->ffmode==mode_shuffle) {
+			    else if(FFmotion_Ctx->ffmode==mode_shuffle) {
 				enable_shuffle=true;
 				enable_seekloop=false;
 			    }
-			    else if(FFplay_Ctx->ffmode==mode_loop_all) {
+			    else if(FFmotion_Ctx->ffmode==mode_loop_all) {
 				enable_seekloop=false;
 				enable_shuffle=false;
 			    }
 			    /* reset */
-	 		    FFplay_Ctx->ffcmd=cmd_none;
+	 		    FFmotion_Ctx->ffcmd=cmd_none;
 		    }
 
 		    /* 3. parse PREV/NEXT  */
-		    else if(FFplay_Ctx->ffcmd==cmd_next) {
-		    	FFplay_Ctx->ffcmd=cmd_none;
+		    else if(FFmotion_Ctx->ffcmd==cmd_next) {
+		    	FFmotion_Ctx->ffcmd=cmd_none;
 			//break;
 			goto FAIL_OR_TERM;
 		    }
-		    else if(FFplay_Ctx->ffcmd==cmd_prev) {
-			FFplay_Ctx->ffcmd=cmd_none;
+		    else if(FFmotion_Ctx->ffcmd==cmd_prev) {
+			FFmotion_Ctx->ffcmd=cmd_none;
 			//printf("xxxxxxxxx  fnum=%d  xxxxxxx", fnum );
 			if( fnum > 0 )
 				fnum-=2;
@@ -1567,17 +1622,17 @@ if(enable_clip_test)
 
 		    /* reset as cmd_none at last */
 		    else
-			FFplay_Ctx->ffcmd=cmd_none;
+			FFmotion_Ctx->ffcmd=cmd_none;
 		}
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
-	if(FF_LOOP_TIMEGAP>0)
+	if(LOOP_HOLDON_TIME>0)
 	{
 		/* NOTE: fnum may be illegal, as modified in ffcmd parsing, so skip to FAIL_OR_TERM! */
 		EGI_PDEBUG(DBG_FFPLAY,"End playing %s, hold on for a while...\n",fpath[fnum]);
-		tm_delayms(FF_LOOP_TIMEGAP*1000);
+		tm_delayms(LOOP_HOLDON_TIME*1000);
 	}
 
 #if 0 /* These codes may be skipped, move to FAIL_OR_TERM */
@@ -1657,16 +1712,7 @@ FAIL_OR_TERM:
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		egi_close_pcm_device();
 
-		/* exit audioSpectrum thread */
-		if( pthd_audioSpectrum_running ) {
-			/* wait for thread to join */
-			EGI_PDEBUG(DBG_FFPLAY,"Try to join audioSpectrum thread ...\n");
-			/* give a command to exit audioSpectrum thread */
-			control_cmd = cmd_exit_audioSpectrum_thread;
-			pthread_join(pthd_audioSpectrum,NULL);
-			control_cmd = cmd_none;/* call off command */
-			pthd_audioSpectrum_running=false; /* reset token */
-		}
+		/* exit audioSpectrum thread(pending) */
 	}
 
 	/* free outputBuffer */
@@ -1735,7 +1781,7 @@ if(enable_avfilter) /* free filter resources */
 	EGI_PDEBUG(DBG_FFPLAY," \n ---( End of playing file %s )--- \n",fpath[fnum_playing]);
 
 	/* sleep, to let sys release cache ....???? */
-	tm_delayms(1000);
+	tm_delayms(END_PAUSE_TIME);
 
    } /* end of for(...), loop playing input files*/
 

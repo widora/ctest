@@ -137,11 +137,11 @@ inline EGI_16BIT_COLOR egi_16bitColor_blend2(EGI_16BIT_COLOR front, unsigned cha
 /*-------------------------------------------------------------------------
 Get a random 16bit color from Douglas.R.Jacobs' RGB Hex Triplet Color Chart
 
-rang: color range:
-	0--all range
-	1--light color
-	2--medium range
-	3--deep color
+@rang:  Expected color range:
+		0--all range
+		1--light color
+		2--medium range
+		3--deep color
 
 with reference to  http://www.jakesan.com
 
@@ -150,12 +150,12 @@ G: 0x00-0x33-0x66-0x99-0xcc-0xff
 B: 0x00-0x33-0x66-0x99-0xcc-0xff
 
 ------------------------------------------------------------------------*/
-EGI_16BIT_COLOR egi_color_random(enum egi_color_range range)
+inline EGI_16BIT_COLOR egi_color_random(enum egi_color_range range)
 {
         int i,j;
         uint8_t color[3]; /*RGB*/
         struct timeval tmval;
-        uint16_t ret;
+        EGI_16BIT_COLOR retcolor;
 
         gettimeofday(&tmval,NULL);
         srand(tmval.tv_usec);
@@ -163,13 +163,18 @@ EGI_16BIT_COLOR egi_color_random(enum egi_color_range range)
         /* random number 0-5 */
         for(i=0;i<3;i++)
         {
+	        #if 0   /* Step 0x33 */
                 j=(int)(6.0*rand()/(RAND_MAX+1.0));
                 color[i]= 0x33*j;  /*i=0,1,2 -> R,G,B, j=0-5*/
+		#else   /* Step 0x11 */
+                j=(int)(15.0*rand()/(RAND_MAX+1.0));
+                color[i]= 0x11*j;  /*i=0,1,2 -> R,G,B, j=0-5*/
+		#endif
 
                 if( range > 0 && i==1) /* if not all color range */
 		{
 			/* to select G range, so as to select color range */
-                        if( color[i]==0x33*(2*range-2) || color[i]==0x33*(2*range-1) )
+                        if( color[i] >= 0x33*(2*range-2) && color[i] <= 0x33*(2*range-1) )
                         {
 		                EGI_PDEBUG(DBG_COLOR," ----------- color G =0X%02X\n",color[i]);
 				continue;
@@ -182,10 +187,46 @@ EGI_16BIT_COLOR egi_color_random(enum egi_color_range range)
 		}
         }
 
-        ret=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
+        retcolor=COLOR_RGB_TO16BITS(color[0],color[1],color[2]);
+
         EGI_PDEBUG(DBG_COLOR,"egi random color GRAY: 0x%04X(16bits) / 0x%02X%02X%02X(24bits) \n",
-										ret,color[0],color[1],color[2]);
-        return ret;
+									retcolor,color[0],color[1],color[2]);
+        return retcolor;
+}
+
+
+/*-----------------------------------------------------------
+Get a random color value with Min. Luma/brightness Y.
+
+!!! TOo big Luma will cost much more time !!!
+
+@rang:  Expected color range:
+		0--all range
+		1--light color
+		2--medium range
+		3--deep color
+
+@luman: Min. luminance of the color
+-------------------------------------------------------------*/
+EGI_16BIT_COLOR egi_color_random2(enum egi_color_range range, unsigned char luma)
+{
+	EGI_16BIT_COLOR color;
+
+	/* Set LIMIT of input Luma
+	 * Rmax=0xF8; Gmax=0xFC; Bmax=0xF8
+         * Max Luma=( 307*(31<<3)+604*(63<<2)+113*(31<<3) )>>10 = 250;
+	 */
+	if( luma > 220 ) {
+		printf("%s: Input luma is >220!\n",__func__);
+	}
+	if( luma > 250 )
+		luma=250;
+
+	do {
+		color=egi_color_random(range);
+	} while( egi_color_getY(color) < luma );
+
+	return color;
 }
 
 
@@ -204,7 +245,7 @@ R: 0x00-0x33-0x66-0x99-0xcc-0xff
 G: 0x00-0x33-0x66-0x99-0xcc-0xff
 B: 0x00-0x33-0x66-0x99-0xcc-0xff
 ---------------------------------------------------*/
-EGI_16BIT_COLOR egi_colorgray_random(enum egi_color_range range)
+EGI_16BIT_COLOR egi_colorGray_random(enum egi_color_range range)
 {
         int i;
         uint8_t color; /*R=G=B*/
@@ -240,8 +281,11 @@ EGI_16BIT_COLOR egi_colorgray_random(enum egi_color_range range)
 }
 
 /*---------------------------------------------------------------------
-Color brightness control, brightness to be increase/decreased according
-to k.
+Color Luminance/Brightness control, brightness to be increase/decreased
+according to k.
+
+@color	 Input color in 16bit
+@k	 Deviation value
 
 Note:
 1. Permit Y<0, otherwise R,G,or B MAY never get  to 0, when you need
@@ -262,7 +306,7 @@ G=Y-0.3455*(U-128)-0.7169*(V-128)=Y+136-0.3455U-0.7169V
 B=Y+1.779*(U-128)=Y+1.779*U-1.779*128
 	=(Y*4096+7287*U-932708)>>12
 ---------------------------------------------------------------------*/
-EGI_16BIT_COLOR egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k)
+EGI_16BIT_COLOR egi_colorLuma_adjust(EGI_16BIT_COLOR color, int k)
 {
 	int32_t R,G,B; /* !!! to be signed int32, same as YUV */
 	int32_t Y,U,V;
@@ -308,7 +352,7 @@ EGI_16BIT_COLOR egi_colorbrt_adjust(EGI_16BIT_COLOR color, int k)
 }
 
 /*--------------------------------------------------
- Get Y(brightness) value from a 16BIT RGB color
+ Get Y(Luma/Brightness) value from a 16BIT RGB color
  as of YUV
 
  Y=0.30R+0.59G+0.11B=(307R+604G+113G)>>10 [0 255]

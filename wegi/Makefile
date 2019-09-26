@@ -70,7 +70,7 @@ install: libegi.so.1.0.0 libegi.a
 
 #### ----- 清除目标 -----
 clean:
-	rm -rf test_*.o $(OBJS) $(APPS) $(DEP_FILES)
+	rm -rf test_*.o libegi.so.1.0.0 libegi.a $(OBJS) $(APPS) $(DEP_FILES)
 
 
 include $(DEP_FILES)

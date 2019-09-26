@@ -20,17 +20,16 @@ Midas_Zhou
 #include "egi_common.h"
 #include "utils/egi_utils.h"
 #include "sound/egi_pcm.h"
-
-#include "ff_utils.h"
+#include "egi_FTsymbol.h"
+#include "ffmotion.h"
+#include "ffmotion_utils.h"
 
 /* in seconds, playing time elapsed for Video */
-int ff_sec_Velapsed;
+//int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
 
-FBDEV ff_fb_dev;
-
 /* ff control command */
-enum ffplay_cmd control_cmd;
+enum ffmotion_cmd control_cmd;	/* Open to module caller for command convey  */
 
 /* predefine seek position */
 //long start_tmsecs=60*95; /* starting position */
@@ -39,22 +38,31 @@ enum ffplay_cmd control_cmd;
  * 1. Thanks to slow SPI transfering speed, producing speed is usually greater than consuming speed.
  * 2. Following keys to be initialized in ff_malloc_PICbuffs().
  */
-static int ifplay;	/* current playing frame index of pPICbuffs[] */
-unsigned long nfc;	/* total frames read from pPICbuffs and consumed */
-unsigned long nfp;	/* total frames produced and copied to pPICbuffs */
+static int ifplay;		/* Current playing frame index of pPICbuffs[] */
+static unsigned long nfc;	/* Total frames read from pPICbuffs and consumed */
+static unsigned long nfp;	/* Total frames produced and copied to pPICbuffs */
 
-static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures */
+static uint8_t** pPICbuffs=NULL; /* PIC_BUF_NUM*Screen_size*16bits, data buff for several screen pictures
+				  * malloc in thread_ffplay_music(), free in display_MusicPic()
+				  */
 
-static bool IsFree_PICbuff[PIC_BUFF_NUM]={false};  /* tag to indicate availiability of pPICbuffs[x].
+static bool IsFree_PICbuff[PIC_BUFF_NUM]={true,true,true};  /* Tag to indicate availiability of pPICbuffs[x].
+						    * True:  Obsoleted data inside, ready for new data input.
+						    * False: New image data inside, ready for displaying.
 						    * LoadPic2Buff() put 'false' tag
 						    * thdf_Display_Pic() put 'true' tag,
 						    */
 
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec);
+static bool bkimg_updated;  	/* TRUE: Indicating back ground image for music playing is updated,
+			     	 * It will reset to FALSE when display_MusicPic() exits.
+			     	 */
+static bool pic_off;	    	/* TRUE: Indicating there is no picture embedded in the audio file,
+			     	 *       or it's disabled by user.
+			     	 */
 
-
-
-/*--------------------------------------------------------------
+/*----------------------------------
+----------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
 
@@ -70,7 +78,7 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
 {
         int i,k;
 
-        pPICbuffs=(uint8_t **)malloc( PIC_BUFF_NUM* sizeof(uint8_t *) );
+        pPICbuffs=(uint8_t **)malloc( PIC_BUFF_NUM*sizeof(uint8_t *) );
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
@@ -99,8 +107,8 @@ uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
         return pPICbuffs;
 }
 
-/*----------------------------------------
-return a free PICbuff slot/tag number
+/*-------------------------------------------
+Return a free PICbuff slot/tag number.
 
 Return value:
         >=0  OK
@@ -125,7 +133,7 @@ static inline int ff_get_FreePicBuff(void)
 }
 
 /*----------------------------------
-   free pPICbuffs
+   	Free pPICbuffs
 ----------------------------------*/
 static void ff_free_PicBuffs(void)
 {
@@ -149,20 +157,20 @@ static void ff_free_PicBuffs(void)
 }
 
 
-/*--------------------------------------------------------
-	     a thread fucntion
- In a loop to display pPICBuffs[]
+/*----------------------------------------------------------
+		     A thread function
+In a loop to display pPICBuffs[]
 
 WARNING: !!! for 1_producer and 1_consumer scenario only!!!
-----------------------------------------------------------*/
-void* thdf_Display_Pic(void * argv)
+-----------------------------------------------------------*/
+void* thdf_Display_motionPic(void * argv)
 {
-   if(FFplay_Ctx==NULL) {
-	printf("%s: FFplay_Ctx is NULL!\n",__func__);
-	return (void *)-1;
+   if(FFmotion_Ctx==NULL) {
+        printf("%s: FFmotion_Ctx is NULL!\n",__func__);
+        return (void *)-1;
    }
 
-   int 	i;
+   int  i;
    int  index;
    unsigned long nfc_tmp;
    bool still_image;
@@ -171,76 +179,79 @@ void* thdf_Display_Pic(void * argv)
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc();
    if(imgbuf==NULL) {
-	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_new_imgbuf().\n",__func__);
-	return (void *)-1;
+        EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_new_imgbuf().\n",__func__);
+        return (void *)-1;
    }
 
    imgbuf->width=ppic->He - ppic->Hs +1;
    imgbuf->height=ppic->Ve - ppic->Vs +1;
 
    EGI_PLOG(LOGLV_INFO,"%s: imgbuf width=%d, imgbuf height=%d \n",
-						__func__, imgbuf->width, imgbuf->height );
+                                                __func__, imgbuf->width, imgbuf->height );
 
    /* check if it's image, TODO: still or motion image */
    if(IS_IMAGE_CODEC(ppic->vcodecID)) {
-	  still_image=true;
-	  EGI_PLOG(LOGLV_INFO,"%s: Playing an still image.\n",__func__);
+          still_image=true;
+          EGI_PLOG(LOGLV_INFO,"%s: Playing an still image.\n",__func__);
    }  else {
-	  still_image=false;
+          still_image=false;
    }
 
    /* check size limit */
    if(imgbuf->width>LCD_MAX_WIDTH || imgbuf->height>LCD_MAX_HEIGHT)
    {
-	EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
-	//exit(-1);
+        EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
+        //exit(-1);
    }
 
 
    while(1)
    {
-	   nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
-	   for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
-	   {
-//		if( !IsFree_PICbuff[i] ) { 	/* If new frame available */
-		index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
-		if( !IsFree_PICbuff[index] ) {
-			/* set index of pPICbuff[] for current playing frame*/
-			ifplay=index;
+           nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
+           for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
+           {
+//              if( !IsFree_PICbuff[i] ) {      /* If new frame available */
+                index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
+                if( !IsFree_PICbuff[index] ) {
+                        /* set index of pPICbuff[] for current playing frame*/
+                        ifplay=index;
 
-			//printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
-			imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
+                        //printf("imgbuf.width=%d, .height=%d \n",imgbuf.width,imgbuf.height);
+                        imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
-			/* window_position displaying */
-			egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
-					0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
+			/* adjust luma */
+			egi_imgbuf_adjust_luma(imgbuf, 135 );
 
-		   	/* put a FREE tag after display, then it can be overwritten. */
-	  	   	IsFree_PICbuff[index]=true;
+                        /* window_position displaying */
+                        egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
+                                        0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
 
-			tm_delayms(25);
-	   		//usleep(20000);
+                        /* put a FREE tag after display, then it can be overwritten. */
+                        IsFree_PICbuff[index]=true;
 
-			/* increase number of frames consumed */
-			nfc++;
-		}
-	   }
+                        tm_delayms(25);
+                        //usleep(20000);
 
-  	  /* revive slot [0] for still image */
-	  if( still_image )  {
-		tm_delayms(500);
-		nfc=1; /* since ff_get_FreePicBuff() from 1 */
-		IsFree_PICbuff[1]=false;
-	  }
+                        /* increase number of frames consumed */
+                        nfc++;
+                }
+           }
 
-	   /* quit ffplay */
-	   if(control_cmd == cmd_exit_display_thread ) {
-		EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
-		break;
-	   }
+          /* revive slot [0] for still image */
+          if( still_image )  {
+                tm_delayms(500);
+                nfc=1; /* since ff_get_FreePicBuff() from 1 */
+                IsFree_PICbuff[1]=false;
+          }
 
-	  tm_delayms(25);
-	  //usleep(2000);
+           /* quit ffplay */
+           if(control_cmd == cmd_exit_display_thread ) {
+                EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
+                break;
+           }
+
+          tm_delayms(25);
+          //usleep(2000);
   }
 
   ff_free_PicBuffs();
@@ -253,14 +264,13 @@ void* thdf_Display_Pic(void * argv)
 
 
 /*------------------------------------------------------------------------
- Copy RGB data from *data to PicInfo.data
+Copy RGB data from *data to PicInfo.data
 
   ppic: 	a PicInfo struct
   data:		data source
   numbytes:	amount of data copied, in byte.
 
 TODO: Pic data loading must NOT exceed displaying by one circle of PIC buff.
-
 
  Return value:
 	>=0 Ok (slot number of PICBuffs)
@@ -289,7 +299,6 @@ int ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 }
 
 
-
 /*-------------------------------------------------------------
 A thread function of displaying subtitles.
 Read a SRT substitle file and display it on a dedicated area.
@@ -306,8 +315,8 @@ WARNING: !!! for 1_producer and 1_consumer scenario only!!!
 -------------------------------------------------------------*/
 void* thdf_Display_Subtitle(void * argv)
 {
-	if(FFplay_Ctx==NULL) {
-		printf("%s: FFplay_Ctx is NULL!\n",__func__);
+	if(FFmotion_Ctx==NULL) {
+		printf("%s: FFmotion_Ctx is NULL!\n",__func__);
 		return (void *)-1;
 	}
 
@@ -332,7 +341,7 @@ void* thdf_Display_Subtitle(void * argv)
         }
 
 	/* seek to the start position */
-	off=seek_Subtitle_TmStamp(subpath, FFplay_Ctx->start_tmsecs);
+	off=seek_Subtitle_TmStamp(subpath, FFmotion_Ctx->start_tmsecs);
 	fseek(fil,off,SEEK_SET);
 
        	/* read subtitle section by section */
@@ -353,8 +362,6 @@ void* thdf_Display_Subtitle(void * argv)
 
         	/* 3. read a section of sub and display it */
 	        fbset_color(WEGI_COLOR_BLACK);
-//        	draw_filled_rect(&ff_fb_dev,subbox.startxy.x,subbox.startxy.y,
-//								subbox.endxy.x,subbox.endxy.y);
         	draw_filled_rect2(&ff_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
 								subbox.endxy.x,subbox.endxy.y);
 	        len=0;
@@ -399,7 +406,6 @@ void* thdf_Display_Subtitle(void * argv)
 		     tm_delayms(200);
 //		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
 		} while( end_secs > ff_sec_Velapsed - ff_sub_delays );
-
 
        	        /* 7. section number or a return code, ignore it. */
                 memset(strtm,0,sizeof(strtm));

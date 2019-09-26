@@ -901,7 +901,7 @@ Resize an image and create a new EGI_IMGBUF to hold the new image data.
 Only size/color/alpha of ineimg will be transfered to outeimg, others
 such as subimg will be ignored. )
 
-TODO: Before scale down an image, merge and shrink it to a certain size first!
+TODO: Before scale down an image, merge and shrink it to a certain size first!!!
 
 NOTE:
 1. Linear interpolation is carried out with fix point calculation.
@@ -1200,6 +1200,10 @@ int egi_imgbuf_resize_update(EGI_IMGBUF **pimg, unsigned int width, unsigned int
 	if( pimg==NULL || *pimg==NULL )
 		return -1;
 
+	/* If same size */
+	if( (*pimg)->width==width && (*pimg)->height==height )
+		return 0;
+
 	/* resize the imgbuf by egi_imgbuf_resize() */
 	tmpimg=egi_imgbuf_resize(*pimg, width, height);
 	if(tmpimg==NULL)
@@ -1238,7 +1242,7 @@ int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *
         EGI_16BIT_COLOR color;
         unsigned char alpha;
         unsigned long size; /* alpha size */
-        int     sumalpha;
+        int sumalpha;
         int epos,apos;
 
         if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
@@ -1644,7 +1648,7 @@ Write a sub image in the EGI_IMGBUF to FB.
 
 egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
 fb_dev:		FB device
-subindex:		index number of the sub image.
+subindex:	index number of the sub image.
 		if subindex<0 or EGI_IMGBOX subimgs==NULL, no sub_image defined in the
 		egi_imgbuf.
 subcolor:	substituting color, only applicable when >0.
@@ -1911,25 +1915,25 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 
 
 /*----------------------------------------------------------------
-Tune brightness of an image,
+Adjust average Luminance/brightness for an image
 
 Limit: [uint]2^31 = [Y 2^8] * [ Max. Pixel number 2^23 ]
 
 @eimg:	Input imgbuf
-@brt:	Expected average brightness value for the image. [0 255]
+@luma:	Expected average luminance/brightness value for the image. [0 255]
 
 
 Return:
 	0		OK
 	others		Fails
 ------------------------------------------------------------------*/
-int egi_imgbuf_adjust_bright( EGI_IMGBUF *eimg, unsigned char brt )
+int egi_imgbuf_adjust_luma( EGI_IMGBUF *eimg, unsigned char luma )
 {
 	int i,j;
 	int index;
 	unsigned int	pixnum;	/* total number of pixels in the image */
-	unsigned int	brtsum; /* sum of brightness Y */
-	unsigned int	brtdev; /* deviation of Y */
+	unsigned int	luma_sum; /* sum of brightness Y */
+	unsigned int	luma_dev; /* deviation of Y */
 
 	/* check input data */
 	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
@@ -1945,19 +1949,19 @@ int egi_imgbuf_adjust_bright( EGI_IMGBUF *eimg, unsigned char brt )
 	}
 
 	/* calculate average brightness of the image */
-	brtsum=0;
+	luma_sum=0;
 	for( i=0; i < eimg->height; i++ ) {
 		for( j=0; j < eimg->width; j++ ) {
-			brtsum += egi_color_getY(eimg->imgbuf[i*eimg->width+j]);
+			luma_sum += egi_color_getY(eimg->imgbuf[i*eimg->width+j]);
 		}
 	}
 
 	/* adjust brightness for each pixel */
-	brtdev=brt-brtsum/pixnum; /* get average dev. value */
+	luma_dev=luma-luma_sum/pixnum; /* get average dev. value */
 	for( i=0; i < eimg->height; i++ ) {
 		for( j=0; j < eimg->width; j++ ) {
 			index=i*eimg->width+j;
-			eimg->imgbuf[index]=egi_colorbrt_adjust(eimg->imgbuf[index], brtdev);
+			eimg->imgbuf[index]=egi_colorLuma_adjust(eimg->imgbuf[index], luma_dev);
 		}
 	}
 

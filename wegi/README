@@ -59,6 +59,7 @@ NOTE:
 
 5. To improve touch_read() logic, from time_consuming polling to event_driven. 
 
+6. A List operation for PAGE switchover.
 
 		----- 3. Main Source Files ( GPL v2 ) -----
 

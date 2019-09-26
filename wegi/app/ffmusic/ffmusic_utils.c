@@ -214,7 +214,7 @@ void* display_MusicPic(void * argv)
 	}
 
 	/* blur and resize the imgbuf  */
-	blur_size=tmpimg->height/80;
+	blur_size=tmpimg->height/100;
 	if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
   	     ret=egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
@@ -226,8 +226,8 @@ void* display_MusicPic(void * argv)
 	if(ret !=0 )
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!", __func__);
 
-	/* --- Adjust brighness --- */
-	egi_imgbuf_adjust_bright(tmpimg, 255/5);
+	/* --- Adjust Luminance --- */
+	egi_imgbuf_adjust_luma(tmpimg, 255/3);
 
         /* Free old frame_img in PAGE */
 	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
@@ -344,8 +344,8 @@ void* display_MusicPic(void * argv)
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 			}
 
-			/* --- Adjust brighness --- */
-			egi_imgbuf_adjust_bright(tmpimg, 255/5);
+			/* --- Adjust Luminance --- */
+			egi_imgbuf_adjust_luma(tmpimg, 255/4);
 
 			/*--- 3. Put image pointer to PAGE ---*/
 			/* Free old imagbuf
