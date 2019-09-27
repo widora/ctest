@@ -3,6 +3,7 @@ Based on:
         www.cnblogs.com/subo_peng/p/4848260.html
         Author: lzy
 
+Modified by:
 Midas Zhou
 -------------------------------------------------*/
 #ifndef __SPI_H__
@@ -23,12 +24,7 @@ Midas Zhou
 /* turn on/off SPI DEBUG */
 #define SPI_DEBUG 0
 
-//extern const char *str_spi_device;
-//extern uint8_t spi_mode;
-//extern uint8_t spi_bits; // 8bits,MSB first
-//extern uint32_t spi_speed;// set speed
-//extern uint16_t delay;
-//extern int g_SPI_Fd; //SPI device file descriptor
+extern const char *spi_fdev;
 
 /* FUCNTION DECLARATION */
 void pabort(const char *s);

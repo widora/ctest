@@ -83,7 +83,7 @@ void egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf)
 		egi_imgbuf->submax=0;
 	}
 
-	/* Only clear data !!!!DO NOT egi_imgbuf=NULL; */
+	/* Only clear data !!!!DO NOT free egi_imgbuf itself ; */
 }
 
 /*------------------------------------------
@@ -1392,7 +1392,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
 //replaced by draw_dot()        *(uint16_t *)(fbp+locfb)=0; /* black for outside */
-                                fbset_color(0); /* black for outside */
+                                fbset_color2(fb_dev,0); /* black for outside */
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
                         }
                         else {
@@ -1400,10 +1400,10 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                                 locimg= (i+yp)*imgw+(j+xp);
 
 				if(subcolor<0) {
-	                                fbset_color(imgbuf[locimg]);
+	                                fbset_color2(fb_dev,imgbuf[locimg]);
 				}
 				else {  /* use subcolor */
-	                                fbset_color((uint16_t)subcolor);
+	                                fbset_color2(fb_dev,(uint16_t)subcolor);
 				}
 
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
@@ -1431,7 +1431,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                         /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
-                                fbset_color(0); /* black for outside */
+                                fbset_color2(fb_dev,0); /* black for outside */
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
                         }
                         else {
@@ -1440,7 +1440,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 
                                 if( alpha[locimg]==0 ) {   /* ---- 100% backgroud color ---- */
                                         /* Transparent for background, do nothing */
-                                        //fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+                                        //fbset_color2(fb_dev,*(uint16_t *)(fbp+(locfb<<1)));
 
 				    	/* for Virt FB ???? */
                                 }
@@ -1448,10 +1448,10 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 				else if(subcolor<0) {	/* ---- No subcolor ---- */
 #if 0  ///////////////////////////// replaced by fb.pxialpha ///////////////////////
                                      if(alpha[locimg]==255) {    /* 100% front color */
-                                          fbset_color(*(uint16_t *)(imgbuf+locimg));
+                                          fbset_color2(fb_dev,*(uint16_t *)(imgbuf+locimg));
 				     }
                                      else {                           /* blend */
-                                          fbset_color(
+                                          fbset_color2(fb_dev,
                                               COLOR_16BITS_BLEND( *(uint16_t *)(imgbuf+locimg),   /* front pixel */
                                                             *(uint16_t *)(fbp+(locfb<<1)),  /* background */
                                                              alpha[locimg]  )               /* alpha value */
@@ -1459,17 +1459,17 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                                      }
 #endif  ///////////////////////////////////////////////////////////////////////////
 				     fb_dev->pixalpha=alpha[locimg];
-				     fbset_color(imgbuf[locimg]);
+				     fbset_color2(fb_dev,imgbuf[locimg]);
                                      draw_dot(fb_dev,j+xw,i+yw);
 				}
 
 				else  {  		/* ---- use subcolor ----- */
 #if 0  ///////////////////////////// replaced by fb.pxialpha ////////////////////////
                                     if(alpha[locimg]==255) {    /* 100% subcolor as front color */
-                                          fbset_color(subcolor);
+                                          fbset_color2(fb_dev,subcolor);
 				     }
                                      else {                           /* blend */
-                                          fbset_color(
+                                          fbset_color2(fb_dev,
                                               COLOR_16BITS_BLEND( subcolor,   /* subcolor as front pixel */
                                                             *(uint16_t *)(fbp+(locfb<<1)),  /* background */
                                                              alpha[locimg]  )               /* alpha value */
@@ -1477,7 +1477,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                                      }
 #endif  //////////////////////////////////////////////////////////////////////////
 				     fb_dev->pixalpha=alpha[locimg];
-				     fbset_color(subcolor);
+				     fbset_color2(fb_dev,subcolor);
                                      draw_dot(fb_dev,j+xw,i+yw);
 				}
 
@@ -1618,7 +1618,7 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
                                 if(alpha[locimg]==0) {           /* use backgroud color */
                                         /* Transparent for background, do nothing */
-                                        //fbset_color(*(uint16_t *)(fbp+(locfb<<1)));
+                                        //fbset_color2(fb_dev,*(uint16_t *)(fbp+(locfb<<1)));
                                 }
                                 else if(alpha[locimg]==255) {    /* use front color */
 			               *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
@@ -1915,7 +1915,7 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 
 
 /*----------------------------------------------------------------
-Adjust average Luminance/brightness for an image
+Set average Luminance/brightness for an image
 
 Limit: [uint]2^31 = [Y 2^8] * [ Max. Pixel number 2^23 ]
 
@@ -1927,7 +1927,7 @@ Return:
 	0		OK
 	others		Fails
 ------------------------------------------------------------------*/
-int egi_imgbuf_adjust_luma( EGI_IMGBUF *eimg, unsigned char luma )
+int egi_imgbuf_avgLuma( EGI_IMGBUF *eimg, unsigned char luma )
 {
 	int i,j;
 	int index;

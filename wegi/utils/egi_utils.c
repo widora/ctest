@@ -86,8 +86,6 @@ int egi_copy_file(char const *fsrc_path, char const *fdest_path)
 
 
 
-
-
 /*---------------------------------------------------------------------
 malloc 2 dimension buff.
 char** buff to be regarded as char buff[items][item_size];
@@ -154,8 +152,8 @@ NOTE:
      may NOT be able to reverted to the old_items.!!!!
 
 buff:		buffer to be reallocated
-old_items:	original item number as of buff[items][item_size]
-new_items:	new item number as of buff[items][item_size]
+old_items:	original item number as of buff[old_items][item_size]
+new_items:	new item number as of buff[new_items][item_size]
 item_size:	item size in byte.
 
 return:
@@ -225,28 +223,24 @@ void egi_free_buff2D(unsigned char **buff, int items)
 	int i;
 
 	/* check data */
-	if( items <= 0  )
-	{
-		printf("egi_free_buff2D(): Param 'items' is invalid.\n");
+	if( items <= 0 ) {
+		printf("%s: Param 'items' is invalid.\n",__func__);
 		return;
 	}
 
 	/* free buff items and buff */
-	if( buff == NULL)
-	{
-		//printf("egi_free_buff2D(): Input buff is already a NULL!\n");
+	if( buff == NULL ) {
 		return;
 	}
 	else
 	{
-		for(i=0; i<items; i++)
-		{
+		for(i=0; i<items; i++) {
 			free(buff[i]);
-//			buff[i]=NULL;
+			//buff[i]=NULL;
 		}
 
 		free(buff);
-		buff=NULL;
+		buff=NULL; /* ineffective */
 	}
 }
 

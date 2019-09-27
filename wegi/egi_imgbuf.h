@@ -23,14 +23,14 @@ typedef struct
 {
 	/* TODO NOTE: mutex only applied to several functions now....*/
 	pthread_mutex_t	img_mutex;	/* mutex lock for imgbuf */
-        int height;		 	/* image height */
-        int width;		 	/* image width */
+        int 		height;	 	/* image height */
+        int 		width;	 	/* image width */
 
 	/* for normal image data storage */
         EGI_16BIT_COLOR *imgbuf; 	/* color data, for RGB565 format */
-	EGI_IMGBOX *subimgs;	 	/* sub_image boxes */
-	int submax;		 	/* max index of subimg, from 0 */
-	unsigned char *alpha;    	/* 8bit, alpha channel value, if applicable: alpha=0,100%backcolor, alpha=1, 100% frontcolor */
+	EGI_IMGBOX 	*subimgs; 	/* sub_image boxes */
+	int 		submax;	 	/* max index of subimg, from 0 */
+	unsigned char 	*alpha;    	/* 8bit, alpha channel value, if applicable: alpha=0,100%backcolor, alpha=1, 100% frontcolor */
 
 	/* For image data processing
 	 * Note:For image processing, it will be better to define

@@ -62,13 +62,6 @@ static void sigcont_handler( int signum, siginfo_t *info, void *ucont )
         	EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGCONT received from process [PID:%d].\n",
 								app_name, __func__, spid);
 
-	/* set page refresh flag */
-//	egi_page_needrefresh(page_ffmotion);
-	//page_ffmotion->ebox->need_refresh=false; /* Do not refresh page bkcolor */
-
-	/* restore FBDEV buffer[0] to FB, do not clear buffer */
-//	fb_restore_FBimg(&gv_fb_dev, 0, false);
-
   }
 }
 
@@ -83,13 +76,6 @@ static void sigusr_handler( int signum, siginfo_t *info, void *ucont )
   if(signum==SIGUSR1) {
 	/* restore FBDEV buffer[0] to FB, do not clear buffer */
         EGI_PLOG(LOGLV_INFO,"%s:[%s] SIGSUR1 received from process [PID:%d].\n", app_name, __func__, spid);
-
-	/* buffer FB image */
-//	tm_delayms(1500);
-                         /* Delay to let touch_effect disappear before buffering the page image,
-			 * It seems need rather long time!
-			 */
-//	fb_buffer_FBimg(&gv_fb_dev, 0);
 
 	/* raise SIGSTOP */
         if(raise(SIGSTOP) !=0 ) {
@@ -172,6 +158,8 @@ int main(int argc, char **argv)
 {
 	int ret=0;
 	char video_dir[EGI_PATH_MAX]={0};
+	char url_addr[EGI_URL_MAX]={0};
+
 	pthread_t thread_loopread;
 
         /* Set memory allocation option */
@@ -202,15 +190,12 @@ int main(int argc, char **argv)
 
 	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
-        /* start touch_read thread */
-        SPI_Open();/* for touch_spi dev  */
-        if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
-        {
-                printf("%s: pthread_create(... egi_touch_loopread() ... ) fails!\n",app_name);
-                ret=-3;
-		goto FF_FAIL;
-        }
 
+        /* start touch_read thread */
+	if( egi_start_touchread() != 0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to start touch loopread thread!\n", __func__);
+		goto FF_FAIL;
+	}
 
 	/*  --- 1.1 set FFPLAY Context --- */
 	printf(" start set ffplay context....\n");
@@ -221,9 +206,9 @@ int main(int argc, char **argv)
 	} else {
 		EGI_PLOG(LOGLV_INFO,"%s: read config video_dir: %s\n",__func__, video_dir);
 	}
-	if( init_ffmotionCtx(video_dir, "avi,mp4") ) {
+	if( init_ffmotionCtx(video_dir, "avi, mp4,mp3") ) {
 	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFmotion_Ctx.\n", __func__);
-		return pgret_ERR;
+		goto FF_FAIL;
 	}
 
 
@@ -257,7 +242,7 @@ FF_FAIL:
        	release_fbdev(&gv_fb_dev);
         FTsymbol_release_allpages();
         symbol_release_allpages();
-	SPI_Close();
+	egi_end_touchread();
         egi_quit_log();
 
 	/* NOTE: APP ends, screen to be refreshed by the parent process!! */

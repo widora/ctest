@@ -78,7 +78,9 @@ enum ffmotion_status
  */
 typedef struct FFmotion_Context
 {
-	int	  ftotal;    	/* Total number of media files path in array 'fpath' */
+	int	 utotal;	/* Total number of URL addresses */
+	char	 **url;		/* Array of URL address for net media files */
+	int	 ftotal;    	/* Total number of media files path in array 'fpath' */
 	char     **fpath;   	/* 1. Array of media file paths, or address. #####
 				 * 2. Corresponding subtitle files with extension name of '.srt'
 			         *    will automatically be searched at the same path, and applied
@@ -96,9 +98,6 @@ typedef struct FFmotion_Context
 extern FBDEV ff_fb_dev;			/* For Pic displaying, defined in ffmusic.c */
 extern FFMOTION_CONTEXT *FFmotion_Ctx;	/* A global FFMOTION Context, defined in  */
 
-/* Functions */
-int 	init_ffmotionCtx(char *path, char *fext);
-void 	free_ffmotionCtx(void);
 
 /**
  *			A Thread Function

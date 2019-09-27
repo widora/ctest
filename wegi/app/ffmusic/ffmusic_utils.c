@@ -227,7 +227,7 @@ void* display_MusicPic(void * argv)
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to blur and resize tmpimg!", __func__);
 
 	/* --- Adjust Luminance --- */
-	egi_imgbuf_adjust_luma(tmpimg, 255/3);
+	egi_imgbuf_avgLuma(tmpimg, 255/3);
 
         /* Free old frame_img in PAGE */
 	/* !!!! NOT THREAD SAFE FOR PAGE OPERATION !!!, however we have a mutex lock in EGI_IMGBUF. */
@@ -345,7 +345,7 @@ void* display_MusicPic(void * argv)
 			}
 
 			/* --- Adjust Luminance --- */
-			egi_imgbuf_adjust_luma(tmpimg, 255/4);
+			egi_imgbuf_avgLuma(tmpimg, 255/3);
 
 			/*--- 3. Put image pointer to PAGE ---*/
 			/* Free old imagbuf

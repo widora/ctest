@@ -61,11 +61,84 @@ static bool pic_off;	    	/* TRUE: Indicating there is no picture embedded in th
 			     	 *       or it's disabled by user.
 			     	 */
 
-/*----------------------------------
-----------------------------
+/*-----------------------------------------------------
+Init FFplay context, allocate FFmotion_Ctx, and sort out
+all media files in path.
+
+@path           path for media files
+@fext:          File extension name, MUST exclude ".",
+                Example: "avi","mp3", "jpg, avi, mp3"
+
+return:
+        0       OK
+        <0    Fails
+------------------------------------------------------*/
+int init_ffmotionCtx(char *path, char *fext)
+{
+        int fcount;
+
+	/* Free ctxt then calloc */
+	if(FFmotion_Ctx != NULL)
+		free_ffmotionCtx();
+
+        FFmotion_Ctx=calloc(1,sizeof(FFMOTION_CONTEXT));
+        if(FFmotion_Ctx==NULL) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Fail to calloc FFmotion_Ctx.",__func__);
+                return -1;
+        }
+	/* Mem alloc for URL, ---- Now only 1 item ---- */
+	FFmotion_Ctx->utotal=1;
+	FFmotion_Ctx->url=egi_malloc_buff2D(FFmotion_Ctx->utotal, EGI_URL_MAX*sizeof(char));
+        if(FFmotion_Ctx->url==NULL) {
+                EGI_PLOG(LOGLV_ERROR,"%s: Fail to calloc FFmotion_Ctx->url.",__func__);
+		free_ffmotionCtx();
+                return -2;
+        }
+
+        /* search for files and put to ffCtx->fpath */
+        FFmotion_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFmotion_Ctx->ftotal=fcount;
+
+	/* get URL address if configured in conf */
+        if ( egi_get_config_value("EGI_FFMOTION","url_addr", FFmotion_Ctx->url[0] ) != 0) {
+                egi_free_buff2D((unsigned char **)FFmotion_Ctx->url, FFmotion_Ctx->utotal);
+		FFmotion_Ctx->url=NULL;
+		FFmotion_Ctx->utotal=0;
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to read url_addr from egi.conf",__func__);
+	}
+
+        return 0;
+}
+
+/*-----------------------------------------
+        Free a FFPLAY_CONTEXT struct
+-----------------------------------------*/
+void free_ffmotionCtx(void)
+{
+        if(FFmotion_Ctx==NULL) return;
+
+        if( FFmotion_Ctx->utotal > 0 ) {
+                egi_free_buff2D((unsigned char **)FFmotion_Ctx->url, FFmotion_Ctx->utotal);
+		FFmotion_Ctx->url=NULL;
+		FFmotion_Ctx->utotal=0;
+	}
+
+
+        if( FFmotion_Ctx->ftotal > 0 ) {
+                egi_free_buff2D((unsigned char **)FFmotion_Ctx->fpath, FFmotion_Ctx->ftotal);
+		FFmotion_Ctx->fpath=NULL;
+		FFmotion_Ctx->ftotal=0;
+	}
+
+        free(FFmotion_Ctx);
+
+        FFmotion_Ctx=NULL;
+}
+
+
+/*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
-
 
 width,height:	picture size
 pixel_size:	in byte, size for one pixel.
@@ -74,7 +147,7 @@ Return value:
 	 NULL   --- fails
 	!NULL 	--- OK
 ----------------------------------------------------------------*/
-uint8_t**  ff_malloc_PICbuffs(int width, int height, int pixel_size )
+uint8_t**  malloc_PicBuffs(int width, int height, int pixel_size )
 {
         int i,k;
 
@@ -114,7 +187,7 @@ Return value:
         >=0  OK
         <0   fails
 ---------------------------------------------*/
-static inline int ff_get_FreePicBuff(void)
+static inline int get_FreePicBuff(void)
 {
         int i;
 	int index;
@@ -124,7 +197,6 @@ static inline int ff_get_FreePicBuff(void)
 		index=(ifplay+i+1)&(PIC_BUFF_NUM-1);
 
                 if(IsFree_PICbuff[index]) {
-
                         return index;
 		}
         }
@@ -135,7 +207,7 @@ static inline int ff_get_FreePicBuff(void)
 /*----------------------------------
    	Free pPICbuffs
 ----------------------------------*/
-static void ff_free_PicBuffs(void)
+static void free_PicBuffs(void)
 {
         int i;
 
@@ -210,7 +282,6 @@ void* thdf_Display_motionPic(void * argv)
            nfc_tmp=nfc; /* starting from nfc_tmp, check PIC_BUFF_NUM buffs one by one */
            for(i=0;i<PIC_BUFF_NUM;i++) /* to display all pic buff in pPICbuff[] */
            {
-//              if( !IsFree_PICbuff[i] ) {      /* If new frame available */
                 index= (nfc_tmp+i) & (PIC_BUFF_NUM-1);
                 if( !IsFree_PICbuff[index] ) {
                         /* set index of pPICbuff[] for current playing frame*/
@@ -220,7 +291,7 @@ void* thdf_Display_motionPic(void * argv)
                         imgbuf->imgbuf=(uint16_t *)pPICbuffs[index]; /* Ownership transfered! */
 
 			/* adjust luma */
-			egi_imgbuf_adjust_luma(imgbuf, 135 );
+			//egi_imgbuf_avgLuma(imgbuf, 125);
 
                         /* window_position displaying */
                         egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
@@ -240,7 +311,7 @@ void* thdf_Display_motionPic(void * argv)
           /* revive slot [0] for still image */
           if( still_image )  {
                 tm_delayms(500);
-                nfc=1; /* since ff_get_FreePicBuff() from 1 */
+                nfc=1; /* since get_FreePicBuff() from 1 */
                 IsFree_PICbuff[1]=false;
           }
 
@@ -251,11 +322,12 @@ void* thdf_Display_motionPic(void * argv)
            }
 
           tm_delayms(25);
+	  //printf("nfc=%ld\n",nfc);
           //usleep(2000);
   }
 
-  ff_free_PicBuffs();
-  imgbuf->imgbuf=NULL; /* since freed by ff_free_PicBuffs() */
+  free_PicBuffs();
+  imgbuf->imgbuf=NULL; /* since freed by free_PicBuffs() */
 
   egi_imgbuf_free(imgbuf);
 
@@ -276,11 +348,11 @@ TODO: Pic data loading must NOT exceed displaying by one circle of PIC buff.
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
 --------------------------------------------------------------------------*/
-int ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
+int load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 
-	nbuff=ff_get_FreePicBuff(); /* get a slot number */
+	nbuff=get_FreePicBuff(); /* get a slot number */
 	//printf("Load_Pic2Buff(): get_FreePicBuff() =%d\n",nbuff);
 
 	/* only if PICBuff has free slot, and no more than PIC_BUFF_NUM(one circle of buff), then renew ppic */

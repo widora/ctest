@@ -17,8 +17,8 @@ TODO:
 
 Midas
 -----------------------------------------------------------------------*/
-
 #include "egi.h"
+#include "spi.h"
 #include "egi_debug.h"
 #include "egi_timer.h"
 #include "xpt2046.h"
@@ -26,6 +26,72 @@ Midas
 #include <stdbool.h>
 
 static EGI_TOUCH_DATA live_touch_data;
+static bool cmd_end_loopread;	   /* command to end loopread if true */
+static bool tok_loopread_running;  /* token for loopread is running if true */
+static pthread_t thread_loopread;
+
+/*-----------------------------------
+Start touch_loopread thread.
+Return:
+	0	Ok
+	<0	Fails
+------------------------------------*/
+int egi_start_touchread(void)
+{
+	/* open touch_spi dev  */
+        if( SPI_Open()<0 ) {
+                printf("%s: Fail to open spi device '%s' for touch screen reading!\n", __func__, spi_fdev);
+		return -1;
+	}
+
+	/* start touch_read thread */
+        if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
+        {
+                printf("%s: Fail to create touch_read thread!\n", __func__);
+		return -2;
+        }
+
+	/* reset token */
+	tok_loopread_running=true;
+
+	return 0;
+}
+
+
+/*-----------------------------------
+Stop touch read thread.
+Return:
+	0	Ok
+	<0	Fails
+	>0 	Thread is not running.
+------------------------------------*/
+int egi_end_touchread(void)
+{
+	int ret=0;
+
+	if(tok_loopread_running==false)
+		return 1;
+
+	/* Set indicator to end loopread */
+	cmd_end_loopread=true;
+
+	/* Wait to join touch_loopread thread */
+	ret=pthread_join(thread_loopread, NULL);
+
+	/* close SPI dev */
+	SPI_Close();
+
+	return ret;
+}
+
+/*------------------------------------------
+Return touch_loopread thread status.
+------------------------------------------*/
+bool egi_touchread_is_running(void)
+{
+	return tok_loopread_running;
+}
+
 
 /*------------------------------------------
 pass touch data to the caller
@@ -137,7 +203,7 @@ void egi_touch_loopread(void)
 	while(1)
  	{
 /*
-enum egi_touch_status
+enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 {
         unkown=-1,
         releasing=0,
@@ -148,8 +214,12 @@ enum egi_touch_status
         db_pressing=5,
 };
 */
+		/* Check ending indicator */
+		if(cmd_end_loopread) {
+			break;
+		}
+
 	        /* 1. necessary wait,just for XPT to prepare data */
-//
         	tm_delayms(2);
 
 		/* wait .... until read out */
@@ -255,6 +325,9 @@ enum egi_touch_status
 		}
 
 	}/* while() end */
+
+
+ 	return (void *)0;
 }
 
 

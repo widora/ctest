@@ -3,7 +3,7 @@ Base on:
         www.cnblogs.com/subo_peng/p/4848260.html
         Author: lzy
 
-Modified and improved for half-dual SPI transfer
+Modified and improved for half-dual SPI transfer, as of Openwrt for WidoraNEO.
 
 Noticed that tx_buf[] and rx_buf[] in spi_io_transfer is for full-dual transfer.
 for half-dual SPI transfer,we shall put send-mesg in tx_buf[0], while get recv_mesg
@@ -209,6 +209,9 @@ int SPI_Write_then_Write(const uint8_t *TxBuf1, int n_tx1, uint8_t *TxBuf2, int 
 
 /*----------------------------------------------
         Open SPI device and initialize it
+Return:
+	0	OK
+	<0	Fails
 -----------------------------------------------*/
 int SPI_Open(void)
 {
@@ -270,8 +273,6 @@ int SPI_Open(void)
 ---------------------------------------*/
 int SPI_Close(void)
 {
-//	int fd = g_SPI_Fd;
-
 	if (g_SPI_Fd == -1) //fd closed already
 		return -1;
 

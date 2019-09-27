@@ -10,6 +10,7 @@ Midas Zhou
 #include <stdio.h>
 #include <sys/stat.h>
 
+#define EGI_URL_MAX  256 /* Max length for a URL address */
 #define EGI_PATH_MAX 256 /* Max length for a file path, 4096 for PATH_MAX in <limit.h>  */
 #define EGI_NAME_MAX 128 /* Max length for a file name, 255 for NAME_MAX in <limit.h> */
 #define EGI_SEARCH_FILE_MAX (1<<10) /* to be 2**n, Max number of files */

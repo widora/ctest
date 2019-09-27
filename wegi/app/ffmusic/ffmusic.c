@@ -228,10 +228,14 @@ static bool disable_audio=false;
 static bool disable_video=false;
 
 /* param: ( enable_clip_test )
+ * NOTE:
+ *   Clip test only for media file with audioSrteams, if no audioStream or audioStream is disabled,
+ *   then is will only display the first picture from the videoStream and hold on for CLIP_PLAYTIME,
+ *   then skip to next file.
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=false;
+static bool enable_clip_test=true;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k
@@ -1311,6 +1315,10 @@ if(enable_clip_test)
 		/* if a picture without audio */
 		else if( audioStream<0 )
 		{
+			/* reset elapsed/duratoin time */
+			ff_sec_Aelapsed=0;
+			ff_sec_Aduration=0;
+
 			tm_delayms(FFMUZ_CLIP_PLAYTIME*1000);
 			break;
 		}
@@ -1382,6 +1390,7 @@ if(enable_clip_test)
 
 	}/*  end of while()  <<--- end of one file playing --->> */
 
+
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(FFMUZ_LOOP_TIMEGAP>0)
 	{
@@ -1431,6 +1440,13 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 		pFrame=NULL;
 		EGI_PDEBUG(DBG_FFPLAY,"	...pFrame freed.\n");
 	}
+
+        /* Free pAudioFrame */
+        if(pAudioFrame != NULL) {
+                av_frame_free(&pAudioFrame);
+                pAudioFrame=NULL;
+                EGI_PDEBUG(DBG_FFPLAY," ...pAudioFrame freed.\n");
+        }
 
 	/* Free the RGB image */
 	EGI_PDEBUG(DBG_FFPLAY,"free buffer...\n");
@@ -1491,18 +1507,18 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	}
 
 	/* Free SWR and SWS */
-	if(audioStream >= 0)
-	{
+//	if(audioStream >= 0)
+//	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free swr at last...\n");
 		swr_free(&swr);
 		swr=NULL;
-	}
-	if(videoStream >= 0)
-	{
+//	}
+//	if(videoStream >= 0)
+//	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free sws_ctx at last...\n");
 		sws_freeContext(sws_ctx);
 		sws_ctx=NULL;
-	}
+//	}
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);

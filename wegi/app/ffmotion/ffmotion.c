@@ -147,8 +147,8 @@ midaszhou@yahoo.com
 #define LOOP_HOLDON_TIME  1  /* in second, hold_on time after ffplaying a file, especially for a picture.
 			      *  set before FAIL_OR_TERM.
 			      */
-#define CLIP_PLAYTIME 10     /* in second, set clip play time */
-#define END_PAUSE_TIME   0  /* end pause time */
+#define CLIP_PLAYTIME 	  3     /* in second, set clip play time */
+#define END_PAUSE_TIME    0  /* 2 ?? end pause time */
 
 #define ENABLE_MEDIA_LOOP
 
@@ -254,14 +254,24 @@ static bool enable_shuffle=false;
  */
 static bool enable_filesloop=true;
 
-/* param: ( enable_audio )
+/* param:
  *   if True:	disbale audio/video playback.
  *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
 static bool disable_video=false;
 
+/* param: ( disable_fltp )
+ *   if True:	disbale AV_SAMPLE_FMT_FLTP playback.
+ *   if False:	enable AV_SAMPLE_FMT_FLTP playback..
+ */
+static bool disable_fltp=true;
+
 /* param: ( enable_clip_test )
+ * NOTE:
+ *   Clip test only for media file with audioSrteams, if no audioStream or audioStream is disabled,
+ *   then is will only display the first picture from the videoStream and hold on for CLIP_PLAYTIME,
+ *   then skip to next file.
  *   if True:	play the beginning of a file for CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
@@ -274,53 +284,6 @@ static bool enable_clip_test=false;
  *   mode_shuffle:	pick next file randomly
  */
 static enum ffmotion_mode playmode=mode_loop_all;
-
-
-/*-----------------------------------------------------
-Init FFplay context, allocate FFmotion_Ctx, and sort out
-all media files in path.
-
-@path           path for media files
-@fext:          File extension name, MUST exclude ".",
-                Example: "avi","mp3", "jpg, avi, mp3"
-
-return:
-        0       OK
-        <0    Fails
-------------------------------------------------------*/
-int init_ffmotionCtx(char *path, char *fext)
-{
-        int fcount;
-
-        FFmotion_Ctx=calloc(1,sizeof(FFMOTION_CONTEXT));
-        if(FFmotion_Ctx==NULL) {
-                printf("%s: Fail to calloc FFmotion_Ctx.\n",__func__);
-                return -1;
-        }
-
-        /* search for files and put to ffCtx->fpath */
-        FFmotion_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
-        FFmotion_Ctx->ftotal=fcount;
-
-        return 0;
-}
-
-
-/*-----------------------------------------
-	Free a FFPLAY_CONTEXT struct
------------------------------------------*/
-void free_ffmotionCtx(void)
-{
-        if(FFmotion_Ctx==NULL) return;
-
-        if( FFmotion_Ctx->ftotal > 0 )
-                egi_free_buff2D((unsigned char **)FFmotion_Ctx->fpath, FFmotion_Ctx->ftotal);
-
-        free(FFmotion_Ctx);
-
-        FFmotion_Ctx=NULL;
-}
-
 
 /*-----------------------------------------------------
 FFplay for most types of media files:
@@ -346,17 +309,17 @@ void * thread_ffplay_motion(EGI_PAGE *page)
         }
 
 
-	int ftotal=FFmotion_Ctx->ftotal; /* number of multimedia files input from shell */
+	int ftotal;		/* number of multimedia files */
 	int fnum;		/* Index number of files in array FFmotion_Ctx->fpath */
 	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
-	char **fpath=NULL; //FFmotion_Ctx->fpath;  /* array of media file path */
+	const char **fpath=NULL; //FFmotion_Ctx->fpath;  /* array of media file path */
 	char *fname=NULL;
 	char *fbsname=NULL;
 
 	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
 	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
-	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
+	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video, for subtitle synch. */
 	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
@@ -366,7 +329,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* for VIDEO  */
 	int			i;
 	int			videoStream=-1; /* >=0, if stream exists */
-	AVCodecContext		*pCodecCtxOrig=NULL;
+	AVCodecContext		*pCodecCtxOrig=NULL;  
 	AVCodecContext		*pCodecCtx=NULL;
 	AVCodec			*pCodec=NULL;
 	AVFrame			*pFrame=NULL;
@@ -481,6 +444,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
+	ff_fb_dev.pixcolor_on=true; /* Use private pixcolor */
 
 	/* --- fill display area with BLACK --- */
 //	fbset_color(WEGI_COLOR_BLACK);
@@ -563,7 +527,14 @@ while(1) {
                 return (void *)-1;
         }
 
-	fpath=FFmotion_Ctx->fpath;  /* array of media file path */
+	/* Get URL/fpath from FFmotion context */
+	if( FFmotion_Ctx->utotal > 0 ) {	/* URL first */
+		fpath=FFmotion_Ctx->url;
+		ftotal=FFmotion_Ctx->utotal;
+	} else {
+		fpath=FFmotion_Ctx->fpath;  	/* Local files then */
+		ftotal=FFmotion_Ctx->ftotal;
+	}
 
    	/* Register all formats and codecs, before loop for() is OK!! ??? */
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
@@ -576,6 +547,8 @@ while(1) {
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
    {
+
+
 	/* check if enable_shuffle */
 	if(enable_shuffle) {
 		fnum=egi_random_max(ftotal)-1;
@@ -787,8 +760,13 @@ if(disable_audio && audioStream>=0 )
 			goto FAIL_OR_TERM;
 		}
 
+		/* Disable audio if audio format is FLTP */
+		if( sample_fmt == AV_SAMPLE_FMT_FLTP && disable_fltp ) {
+			EGI_PLOG(LOGLV_WARN,"%s: Disable audio for AV_SAMPLE_FMT_FLTP!",__func__);
+			audioStream=-1;
+		}
 		/* prepare SWR context for FLTP format conversion, WARN: float points operations!!!*/
-		if(sample_fmt == AV_SAMPLE_FMT_FLTP ) {
+		else if(sample_fmt == AV_SAMPLE_FMT_FLTP ) {
 			/* set out sample rate for ffplaypcm */
 			out_sample_rate=44100;
 
@@ -853,19 +831,21 @@ if(disable_audio && audioStream>=0 )
 			}
 		}
 
-		/* allocate frame for audio */
-		EGI_PDEBUG(DBG_FFPLAY,"%s: av_frame_alloc() for Audio...\n",__func__);
-		pAudioFrame=av_frame_alloc();
-		if(pAudioFrame==NULL) {
-			EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
-			return (void *)-1;
+		/* Before allocate frame for audio, re_check audioStream as it may be reset! */
+		if(audioStream >=0 ) {
+			EGI_PDEBUG(DBG_FFPLAY,"%s: av_frame_alloc() for Audio...\n",__func__);
+			pAudioFrame=av_frame_alloc();
+			if(pAudioFrame==NULL) {
+				EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
+				return (void *)-1;
+			}
 		}
 
 		/* <<<<<<<<<<<<     create a thread to display audio spectrum (pending)   >>>>>>>>>>>>>>> */
 
 
 
-	} /* end of if(audioStream =! -1) */
+	} /* end of if(audioStream >0 ) */
 
 
 /* disable video */
@@ -1074,7 +1054,7 @@ else
 	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
-	if(ff_malloc_PICbuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
+	if(malloc_PicBuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return (void *)-1;
 	}
@@ -1303,6 +1283,11 @@ if(enable_avfilter)
   }/* end of (videoStream >=0 && pCodec != NULL) */
 
 
+	/* Final confirm if any media stream available */
+	if(audioStream<0 && videoStream<0)
+		goto FAIL_OR_TERM;
+
+
         /* Get playing time (duration) */
         if(audioStream>=0) {
                 ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
@@ -1349,12 +1334,14 @@ else
 	}
 }
 
+
 	EGI_PDEBUG(DBG_FFPLAY,"Start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
+
 		/* -----   process Video Stream   ----- */
 		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
-			//printf("...decoding video frame\n");
+			printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
 				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...\n");
@@ -1382,6 +1369,7 @@ if(enable_avfilter)
 				/* pull filtered frames from the filter graph */
 				while(1)
 				{
+					printf(" av_buffersink_get_frame....\n");
 					ret=av_buffersink_get_frame(avFltCtx_BufferSink, filt_pFrame);
 					if( ret==AVERROR(EAGAIN) || ret==AVERROR_EOF )
 						break;
@@ -1393,7 +1381,7 @@ if(enable_avfilter)
 					}
 					/* push data to pic buff for SPI LCD displaying */
 					printf(" start Load_Pic2Buff()....\n");
-					if( ff_load_Pic2Buff(&pic_info,filt_pFrame->data[0],numBytes) <0 )
+					if( load_Pic2Buff(&pic_info,filt_pFrame->data[0],numBytes) <0 )
 						EGI_PDEBUG(DBG_FFPLAY," [%lld] PICBuffs are full! video frame is dropped!\n",
 									tm_get_tmstampms());
 
@@ -1404,7 +1392,7 @@ if(enable_avfilter)
 else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
 {
 				/* convert the image from its native format to RGB */
-				//printf("%s: sws_scale converting ...\n",__func__);
+				printf("%s: sws_scale converting ...\n",__func__);
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -1412,10 +1400,11 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				//printf("%s: start Load_Pic2Buff()....\n",__func__);
-				if( ff_load_Pic2Buff(&pic_info,pFrameRGB->data[0],numBytes) <0 )
+				printf("%s: start Load_Pic2Buff()....\n",__func__);
+				if( load_Pic2Buff(&pic_info,pFrameRGB->data[0],numBytes) <0 ) {
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
+				}
 } /* end of AVFilter ON/OFF */
 
 
@@ -1432,6 +1421,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
                                 /* --- Reset timing slider ---- */
                                 if( tmbox_needUpdate && velapsed_old !=ff_sec_Velapsed ) {
+				    printf("%s: Reset timing slider...\n",__func__);
 				    velapsed_old=ff_sec_Velapsed;
                                     /* --- 1. update slider position --- */
                                      if(ff_sec_Vduration==0) { /* To avoid 0 */
@@ -1469,7 +1459,8 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 
 	/*----------------//////   process audio stream   \\\\\\\-----------------*/
-		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
+		//else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
+		else if( audioStream >0 && packet.stream_index==audioStream) { //only if audioStream exists
 			//printf("processing audio stream...\n");
 			/* bytes_used: indicates how many bytes of the data was consumed for decoding.
 			         when provided with a self contained packet, it should be used completely.
@@ -1555,15 +1546,21 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 /* For clip test, just ffplay a short time then break */
 if(enable_clip_test)
 {
+		/* Check audio playing time */
 		if( (audioStream >= 0) && (ff_sec_Aelapsed >= CLIP_PLAYTIME) )
 		{
+			/* reset timing */
 			ff_sec_Aelapsed=0;
 			ff_sec_Aduration=0;
 			break;
 		}
-		/* if a picture without audio */
+		/* If videoSteam or still pictures */
 		else if( audioStream<0 )
 		{
+			/* reset timimg */
+			ff_sec_Aelapsed=0;
+			ff_sec_Aduration=0;
+
 			tm_delayms(CLIP_PLAYTIME*1000);
 			break;
 		}
@@ -1572,6 +1569,7 @@ if(enable_clip_test)
 	/*----------------<<<<< Check and parse commands >>>>>-----------------*/
 		if( FFmotion_Ctx->ffcmd != cmd_none )
 		{
+		    printf("%s:ffcmd received!\n",__func__);
 		    /* 1. parse PAUSE/PLAY first */
 		    if(FFmotion_Ctx->ffcmd==cmd_pause) {
 			do {
@@ -1625,7 +1623,12 @@ if(enable_clip_test)
 			FFmotion_Ctx->ffcmd=cmd_none;
 		}
 
-	}/*  end of while()  <<--- end of one file playing --->> */
+	   printf("%s: restart av_read_frame()...\n",__func__);
+
+	}/*  end of while()  <<---  end of one file playing by av_read_frame()  --->>  */
+
+
+
 
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(LOOP_HOLDON_TIME>0)
@@ -1662,7 +1665,8 @@ FAIL_OR_TERM:
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 
 
-	if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
+	//if(videoStream >=0 && pthd_displayPic_running==true ) /* only if video stream exists */
+	if( pthd_displayPic_running==true )
 	{
 		/* wait for display_thread to join */
 		EGI_PDEBUG(DBG_FFPLAY,"Try to join picture and subtitle displaying thread ...\n");
@@ -1692,6 +1696,13 @@ FAIL_OR_TERM:
 		EGI_PDEBUG(DBG_FFPLAY,"	...pFrame freed.\n");
 	}
 
+	/* Free pAudioFrame */
+	if(pAudioFrame != NULL) {
+		av_frame_free(&pAudioFrame);
+		pAudioFrame=NULL;
+		EGI_PDEBUG(DBG_FFPLAY,"	...pAudioFrame freed.\n");
+	}
+
 	/* Free the RGB image */
 	EGI_PDEBUG(DBG_FFPLAY,"free buffer...\n");
 	if(buffer != NULL) {
@@ -1708,12 +1719,12 @@ FAIL_OR_TERM:
 	}
 
 	/* close pcm device and audioSpectrum */
-	if(audioStream >= 0) {
+//	if(audioStream >= 0) {
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		egi_close_pcm_device();
 
 		/* exit audioSpectrum thread(pending) */
-	}
+//	}
 
 	/* free outputBuffer */
 	if(outputBuffer != NULL)
@@ -1752,6 +1763,7 @@ if(enable_avfilter) /* free filter resources */
 	avcodec_close(aCodecCtxOrig);
 	aCodecCtxOrig=NULL;
 
+
 	/* Close the video file */
 	EGI_PDEBUG(DBG_FFPLAY,"avformat_close_input()...\n");
 	if(pFormatCtx != NULL) {
@@ -1759,19 +1771,19 @@ if(enable_avfilter) /* free filter resources */
 		pFormatCtx=NULL;
 	}
 
-	if(audioStream >= 0)
-	{
+//	if(audioStream >= 0)
+//	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free swr at last...\n");
 		swr_free(&swr);
 		swr=NULL;
-	}
+//	}
 
-	if(videoStream >= 0)
-	{
+//	if(videoStream >= 0)
+//	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free sws_ctx at last...\n");
 		sws_freeContext(sws_ctx);
 		sws_ctx=NULL;
-	}
+//	}
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);
@@ -1784,6 +1796,7 @@ if(enable_avfilter) /* free filter resources */
 	tm_delayms(END_PAUSE_TIME);
 
    } /* end of for(...), loop playing input files*/
+
 
    //tm_delayms(500);
 

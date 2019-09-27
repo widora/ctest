@@ -127,7 +127,7 @@ app_ffmusic.c + page_ffmusic.c <
 
 		   -----   4. Dependency   -----
 libubox, 
-libubus,                /* Option,  for ERING and IPC */
+libubus,               
 libpng, libjpeg, 
 libasound,
 libjson-c, 
@@ -144,8 +144,6 @@ neo_lcd_wiring.png	Wiring for Widora_NEO to TFT LCD with touch
 spi_cs2.patch		A patch to add two more SPI select pin ( dts to be modified accordingly ),
 			one is for LCD touch SPI selection.
 FB device		Create a FB device according to https://www.widora.io/zh/ips
-
-
 
 
 

@@ -36,11 +36,19 @@ EGI_BOX gv_fb_box;
 /* default color set */
 static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
 
-
 /*  set color for every dot */
 inline void fbset_color(uint16_t color)
 {
 	fb_color=color;
+}
+
+/*  set color for every dot */
+inline void fbset_color2(FBDEV *dev, uint16_t color)
+{
+	if(dev->pixcolor_on)	/* Set private pixcolor */
+		dev->pixcolor=color;
+	else			/* Set public pixcolor */
+		fb_color=color;
 }
 
 /*--------------------------------------------
