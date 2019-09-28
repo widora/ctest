@@ -24,8 +24,8 @@ TODO:
    However, fail to put logo on mp3 picture by AVFilter descr.
 
 3. FFmpeg PCM 'planar' format means noninterleaved? while 'packed' mean interleaved?
-	XXX_FMT_S16P --- packed	???
-	XXX_FMT_S16  --- planar ???
+	XXX_FMT_S16P --- packed	???  interleaved
+	XXX_FMT_S16  --- planar ???  noninterleaved
 
 4. ffmusic.c and egi_pcm.c only support AV_SAMPLE_FMT_S16(P) now:
 	enum AVSampleFormat {     ---  FFMPEG SAMPLE FORMAT  ---
@@ -235,7 +235,7 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=true;
+static bool enable_clip_test=false;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k
@@ -250,52 +250,6 @@ static bool enable_audio_resample=false;
  *   mode_shuffle:	pick next file randomly
  */
 static enum ffmuz_mode playmode=mode_loop_all;
-
-
-/*-----------------------------------------------------
-Init FFmuz context, allocate FFmuz_Ctx, and sort out
-all media files in path.
-
-@path           path for media files
-@fext:          File extension name, MUST exclude ".",
-                Example: "avi","mp3", "jpg, avi, mp3"
-
-return:
-        0       OK
-        <0    Fails
-------------------------------------------------------*/
-int init_ffmuzCtx(char *path, char *fext)
-{
-        int fcount;
-
-        FFmuz_Ctx=calloc(1,sizeof(FFMUSIC_CONTEXT));
-        if(FFmuz_Ctx==NULL) {
-                printf("%s: Fail to calloc FFmuz_Ctx.\n",__func__);
-                return -1;
-        }
-
-        /* search for files and put to ffCtx->fpath */
-        FFmuz_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
-        FFmuz_Ctx->ftotal=fcount;
-
-        return 0;
-}
-
-
-/*-----------------------------------------
-	Free a FFMUSIC_CONTEXT struct
------------------------------------------*/
-void free_ffmuzCtx(void)
-{
-        if(FFmuz_Ctx==NULL) return;
-
-        if( FFmuz_Ctx->ftotal > 0 )
-                egi_free_buff2D((unsigned char **)FFmuz_Ctx->fpath, FFmuz_Ctx->ftotal);
-
-        free(FFmuz_Ctx);
-
-        FFmuz_Ctx=NULL;
-}
 
 
 /*-----------------------------------------------------
@@ -443,59 +397,6 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
 	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
 #endif
-
-	/* ------- Get EBOX Time Slider -------- */
-	bool tmbox_needUpdate=false;
-	int psval; /* slider value in percentage [0 100] */
-	char strtm[64];
-	int tm_h,tm_min,tm_sec;
-	EGI_EBOX 	*ebox_tmslider=NULL;
-	EGI_DATA_SLIDER *data_slider=NULL;
-	EGI_EBOX 	*ebox_tmtxt[2]={NULL,NULL};
-	EGI_DATA_TXT 	*data_txt[2]={NULL,NULL};
-
-	if( page != NULL )
-	{
-		/* 1. get time slider */
-		ebox_tmslider=egi_page_pickebox(page, type_slider, TIME_SLIDER_ID);
-
-		if(ebox_tmslider!=NULL)
-			data_slider=egi_slider_getdata(ebox_tmslider);
-
-		/* If null */
-		if( data_slider== NULL) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!",__func__);
-			EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!",
-						__func__,
-						page==NULL?"NULL":"OK", ebox_tmslider==NULL?"NULL":"OK",
-						data_slider==NULL?"NULL":"OK"
-			);
-			/* reset all */
-			ebox_tmslider=NULL;
-			data_slider=NULL;
-		}
-
-		/* 2. get time txt ebox */
-		ebox_tmtxt[0]=egi_page_pickebox(page, type_txt, TIME_TXT0_ID);
-		ebox_tmtxt[1]=egi_page_pickebox(page, type_txt, TIME_TXT1_ID);
-
-		data_txt[0]=egi_txtbox_getdata(ebox_tmtxt[0]);
-		data_txt[1]=egi_txtbox_getdata(ebox_tmtxt[1]);
-
-		if( data_txt[0]==NULL || data_txt[1]==NULL ) {
-			EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!",__func__);
-			/* reset all */
-			ebox_tmtxt[0]=NULL; ebox_tmtxt[1]=NULL;
-			data_txt[0]=NULL;   data_txt[1]=NULL;
-		}
-
-		/* 3. set tmbox_needUpdate */
-		if( data_slider!=NULL && data_txt[0]!=NULL && data_txt[1]!=NULL ) {
-			tmbox_needUpdate=true;
-			EGI_PDEBUG(DBG_FFPLAY,"Succeed to get data from time slider and tmbox.\n");
-		}
-	}
-	/* ------- END Getting Time Slider -------- */
 
 
 
@@ -761,7 +662,7 @@ if(disable_audio && audioStream>=0 )
 			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
 			av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
-			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16P, 0);
 
 #else  /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
 	/* Function definition:
@@ -773,7 +674,7 @@ if(disable_audio && audioStream>=0 )
 			/* allocate and set opts for swr */
 			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...",__func__);
 			swr=swr_alloc_set_opts( swr,
-						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
+						channel_layout,AV_SAMPLE_FMT_S16P, out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
 						0, NULL );
 
@@ -1087,13 +988,6 @@ else
 	if(audioStream>=0) {
 		ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
 							&pFormatCtx->streams[audioStream]->time_base) );
-		/* Refresh duration txt ebox */
-		if( tmbox_needUpdate ) {
-	            memset(strtm,0,sizeof(strtm));
-	            snprintf(strtm, sizeof(strtm)-1, "%02d:%02d", ff_sec_Aduration/60, ff_sec_Aduration%60);
-	            egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
-	            egi_ebox_needrefresh(ebox_tmtxt[1]);
-		}
 	}
 	if(videoStream>=0) {
 		ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
@@ -1192,7 +1086,7 @@ else
 						// Number of samples per channel in an audio frame
 					/* 1.1 SWR ON, if sample_fmt == AV_SAMPLE_FMT_FLTP */
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"FLTP outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
 						}
@@ -1260,35 +1154,7 @@ else
 					//printf(" egi_play_pcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
 					/* --- Reset timing slider ---- */
-					if( tmbox_needUpdate ) {
-					    /* --- 1. update slider position --- */
-					    if(ff_sec_Aduration==0) { /* To avoid 0 */
-						data_slider->val=0;
-					    } else {
-					        /* get percentage value and set to time slider */
-					    	psval=ff_sec_Aelapsed*100/ff_sec_Aduration;
-					    	egi_slider_setpsval(ebox_tmslider, psval);
-					    }
-					    /* --- 2. Update elapsed time txt ebox --- */
-					    tm_h=ff_sec_Aelapsed/3600;
-					    tm_min=(ff_sec_Aelapsed-tm_h*3600)/60;
-					    tm_sec=ff_sec_Aelapsed%60;
-						/* elapsed time */
-					    memset(strtm,0,sizeof(strtm));
-					    if(tm_h>0) {
-					            snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",
-											tm_h, tm_min,tm_sec);
-					    } else {
-					            snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
-											tm_min, tm_sec);
-					    }
-					    egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
-
-					    /* --- 3. Putting to PAGE routine for refresh. --- */
-					    egi_ebox_needrefresh(ebox_tmslider);
-					    egi_ebox_needrefresh(ebox_tmtxt[0]);
-					}
-				        /* ----- END reset timer slider ------ */
+					muzpage_update_timingBar(ff_sec_Aelapsed, ff_sec_Aduration);
 
 				}
 				packet.size -= bytes_used;

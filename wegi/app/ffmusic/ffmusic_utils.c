@@ -61,8 +61,53 @@ static bool pic_off;	    	/* TRUE: Indicating there is no picture embedded in th
 			     	 *       or it's disabled by user.
 			     	 */
 
-/*----------------------------------
-----------------------------
+
+/*-----------------------------------------------------
+Init FFmuz context, allocate FFmuz_Ctx, and sort out
+all media files in path.
+
+@path           path for media files
+@fext:          File extension name, MUST exclude ".",
+                Example: "avi","mp3", "jpg, avi, mp3"
+
+return:
+        0       OK
+        <0    Fails
+------------------------------------------------------*/
+int init_ffmuzCtx(char *path, char *fext)
+{
+        int fcount;
+
+        FFmuz_Ctx=calloc(1,sizeof(FFMUSIC_CONTEXT));
+        if(FFmuz_Ctx==NULL) {
+                printf("%s: Fail to calloc FFmuz_Ctx.\n",__func__);
+                return -1;
+        }
+
+        /* search for files and put to ffCtx->fpath */
+        FFmuz_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFmuz_Ctx->ftotal=fcount;
+
+        return 0;
+}
+
+/*-----------------------------------------
+        Free a FFMUSIC_CONTEXT struct
+-----------------------------------------*/
+void free_ffmuzCtx(void)
+{
+        if(FFmuz_Ctx==NULL) return;
+
+        if( FFmuz_Ctx->ftotal > 0 )
+                egi_free_buff2D((unsigned char **)FFmuz_Ctx->fpath, FFmuz_Ctx->ftotal);
+
+        free(FFmuz_Ctx);
+
+        FFmuz_Ctx=NULL;
+}
+
+
+/*--------------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
 
@@ -334,7 +379,7 @@ void* display_MusicPic(void * argv)
 			}
 
 			/*--- 2. Blur and resize the imgbuf ---*/
-			blur_size=imgbuf->height/90; /* original imgbuf */
+			blur_size=imgbuf->height/60; /* original imgbuf */
 			if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
 				egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 				egi_imgbuf_resize_update( &tmpimg, xsize, ysize);

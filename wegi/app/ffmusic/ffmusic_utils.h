@@ -62,7 +62,11 @@ struct PicInfo {
                                     vcodecID == AV_CODEC_ID_TIFF     || vcodecID == AV_CODEC_ID_GIF  ||	\
                                     vcodecID == AV_CODEC_ID_LJPEG    || vcodecID == AV_CODEC_ID_JPEGLS   )
 
+
+
 /*  functions	*/
+int 		init_ffmuzCtx(char *path, char *fext);
+void 		free_ffmuzCtx(void);
 uint8_t**  	ff_malloc_PICbuffs(int width, int height, int pixel_size );
 //static void  	ff_free_PicBuffs(void);
 int 	   	ff_load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);

@@ -23,7 +23,29 @@ TODO:
    !!! NOTE: Use libs of ffmpeg-2.8.15, except libavcodec.so.56.26.100 of ffmpeg-2.6.9 from openwrt !!!
    However, fail to put logo on mp3 picture by AVFilter descr.
 
-3. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
+3. FFmpeg PCM 'planar' format means noninterleaved? while 'packed' mean interleaved?
+        XXX_FMT_S16P --- packed ???  interleaved
+        XXX_FMT_S16  --- planar ???  noninterleaved
+
+4. ffmusic.c and egi_pcm.c only support AV_SAMPLE_FMT_S16(P) now:
+        enum AVSampleFormat {     ---  FFMPEG SAMPLE FORMAT  ---
+            AV_SAMPLE_FMT_NONE = -1,
+            AV_SAMPLE_FMT_U8,          ///< unsigned 8 bits
+            AV_SAMPLE_FMT_S16,         ///< signed 16 bits
+            AV_SAMPLE_FMT_S32,         ///< signed 32 bits
+            AV_SAMPLE_FMT_FLT,         ///< float
+            AV_SAMPLE_FMT_DBL,         ///< double
+
+            AV_SAMPLE_FMT_U8P,         ///< unsigned 8 bits, planar
+            AV_SAMPLE_FMT_S16P,        ///< signed 16 bits, planar
+            AV_SAMPLE_FMT_S32P,        ///< signed 32 bits, planar
+            AV_SAMPLE_FMT_FLTP,        ///< float, planar
+            AV_SAMPLE_FMT_DBLP,        ///< double, planar
+
+            AV_SAMPLE_FMT_NB           ///< Number of sample formats. DO NOT USE if linking dynamically
+        };
+
+5. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
 	... error log ...
 	...
 	filter graph args: video_size=160x90:pix_fmt=0:time_base=125/2997:pixel_aspect=45/44
@@ -168,7 +190,6 @@ int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
 int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
 
 
-
 /*
 ffplay() parameters:
  *	0. displaying window offset x0,y0
@@ -265,7 +286,7 @@ static bool disable_video=false;
  *   if True:	disbale AV_SAMPLE_FMT_FLTP playback.
  *   if False:	enable AV_SAMPLE_FMT_FLTP playback..
  */
-static bool disable_fltp=true;
+static bool disable_fltp=false;
 
 /* param: ( enable_clip_test )
  * NOTE:
@@ -450,61 +471,6 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 //	fbset_color(WEGI_COLOR_BLACK);
 	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
 //	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-
-
-        /* ------- Get EBOX Time Slider -------- */
-        bool tmbox_needUpdate=false;
-        int psval; /* slider value in percentage [0 100] */
-        char strtm[64];
-        int tm_h,tm_min,tm_sec;
-	long velapsed_old=0;
-        EGI_EBOX        *ebox_tmslider=NULL;
-        EGI_DATA_SLIDER *data_slider=NULL;
-        EGI_EBOX        *ebox_tmtxt[2]={NULL,NULL};
-        EGI_DATA_TXT    *data_txt[2]={NULL,NULL};
-
-        if( page != NULL )
-        {
-                /* 1. get time slider */
-                ebox_tmslider=egi_page_pickebox(page, type_slider, TIME_SLIDER_ID);
-
-                if(ebox_tmslider!=NULL)
-                        data_slider=egi_slider_getdata(ebox_tmslider);
-
-                /* If null */
-                if( data_slider== NULL) {
-                        EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer slider EBOX!",__func__);
-                        EGI_PLOG(LOGLV_CRITICAL,"%s: page=%s, tmslider:%s  data_slider:%s!",
-                                                __func__,
-                                                page==NULL?"NULL":"OK", ebox_tmslider==NULL?"NULL":"OK",
-                                                data_slider==NULL?"NULL":"OK"
-                        );
-                        /* reset all */
-                        ebox_tmslider=NULL;
-                        data_slider=NULL;
-                }
-
-                /* 2. get time txt ebox */
-                ebox_tmtxt[0]=egi_page_pickebox(page, type_txt, TIME_TXT0_ID);
-                ebox_tmtxt[1]=egi_page_pickebox(page, type_txt, TIME_TXT1_ID);
-
-                data_txt[0]=egi_txtbox_getdata(ebox_tmtxt[0]);
-                data_txt[1]=egi_txtbox_getdata(ebox_tmtxt[1]);
-
-                if( data_txt[0]==NULL || data_txt[1]==NULL ) {
-                        EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to get timer txt EBOX!",__func__);
-                        /* reset all */
-                        ebox_tmtxt[0]=NULL; ebox_tmtxt[1]=NULL;
-                        data_txt[0]=NULL;   data_txt[1]=NULL;
-                }
-
-                /* 3. set tmbox_needUpdate */
-                if( data_slider!=NULL && data_txt[0]!=NULL && data_txt[1]!=NULL ) {
-                        tmbox_needUpdate=true;
-                        EGI_PDEBUG(DBG_FFPLAY,"Succeed to get data from time slider and tmbox.\n");
-                }
-        }
-        /* ------- END Getting Time Slider -------- */
 
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
@@ -767,8 +733,9 @@ if(disable_audio && audioStream>=0 )
 		}
 		/* prepare SWR context for FLTP format conversion, WARN: float points operations!!!*/
 		else if(sample_fmt == AV_SAMPLE_FMT_FLTP ) {
-			/* set out sample rate for ffplaypcm */
-			out_sample_rate=44100;
+
+			/* Just same */
+			out_sample_rate=sample_rate;
 
 #if 1 /* -----METHOD (1)-----:  or to be replaced by swr_alloc_set_opts() */
 			EGI_PLOG(LOGLV_INFO,"%s: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n",
@@ -779,7 +746,7 @@ if(disable_audio && audioStream>=0 )
 			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
 			av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
-			av_opt_set_sample_fmt(swr, "out_sample_fmt",   AV_SAMPLE_FMT_S16, 0);
+			av_opt_set_sample_fmt(swr, "out_sample_fmt",  AV_SAMPLE_FMT_S16P, 0);
 
 #else  /* -----METHOD (2)-----:  call swr_alloc_set_opts() */
 	/* Function definition:
@@ -791,14 +758,13 @@ if(disable_audio && audioStream>=0 )
 			/* allocate and set opts for swr */
 			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
 			swr=swr_alloc_set_opts( swr,
-						channel_layout,AV_SAMPLE_FMT_S16, out_sample_rate,
+						channel_layout,AV_SAMPLE_FMT_S16P,  out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
 						0, NULL );
 
 			/* how to dither ...?? */
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
-
 
 			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...\n", __func__);
 			swr_init(swr);
@@ -813,7 +779,7 @@ if(disable_audio && audioStream>=0 )
 			}
 
 			/* open pcm play device and set parameters */
- 			if( egi_prepare_pcm_device(nb_channels,out_sample_rate,true) !=0 ) /* true for interleaved access */
+ 			if( egi_prepare_pcm_device(nb_channels,out_sample_rate,false) !=0 ) /* true for interleaved access */
 			{
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
 											__func__);
@@ -1292,13 +1258,6 @@ if(enable_avfilter)
         if(audioStream>=0) {
                 ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
                                                         &pFormatCtx->streams[audioStream]->time_base) );
-                /* Refresh duration txt ebox */
-                if( tmbox_needUpdate ) {
-                    memset(strtm,0,sizeof(strtm));
-                    snprintf(strtm, sizeof(strtm)-1, "%02d:%02d", ff_sec_Aduration/60, ff_sec_Aduration%60);
-                    egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
-                    egi_ebox_needrefresh(ebox_tmtxt[1]);
-                }
         }
         if(videoStream>=0) {
                 ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
@@ -1420,38 +1379,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 				//fflush(stdout);
 
                                 /* --- Reset timing slider ---- */
-                                if( tmbox_needUpdate && velapsed_old !=ff_sec_Velapsed ) {
-				    printf("%s: Reset timing slider...\n",__func__);
-				    velapsed_old=ff_sec_Velapsed;
-                                    /* --- 1. update slider position --- */
-                                     if(ff_sec_Vduration==0) { /* To avoid 0 */
-                                                data_slider->val=0;
-                                     } else {
-                                                /* get percentage value and set to time slider */
-                                                psval=ff_sec_Velapsed*100/ff_sec_Vduration;
-                                                egi_slider_setpsval(ebox_tmslider, psval);
-                                     }
-                                     /* --- 2. Update elapsed time txt ebox --- */
-                                     tm_h=ff_sec_Velapsed/3600;
-                                     tm_min=(ff_sec_Velapsed-tm_h*3600)/60;
-                                     tm_sec=ff_sec_Velapsed%60;
-                                            /* elapsed time */
-                                     memset(strtm,0,sizeof(strtm));
-                                     if(tm_h>0) {
-                                             snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",
-                                                                                  tm_h, tm_min,tm_sec);
-                                     } else {
-                                             snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",
-                                                                                  tm_min, tm_sec);
-                                     }
-                                     egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
-
-                                     /* --- 3. Putting to PAGE routine for refresh. --- */
-                                     egi_ebox_needrefresh(ebox_tmslider);
-                                     egi_ebox_needrefresh(ebox_tmtxt[0]);
-                                 }
-                                /* ----- END reset timer slider ------ */
-
+				motpage_update_timingBar(ff_sec_Velapsed, ff_sec_Vduration);
 
 			} /* end of if(FrameFinished) */
 
@@ -1489,7 +1417,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
 							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
 						}

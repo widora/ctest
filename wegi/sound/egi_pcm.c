@@ -247,10 +247,16 @@ Return:
 int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 {
 	int ret;
-	static long min=-1; /* selem volume value limit */
-	static long max=-2;
-	static long vrange;
-	long int vol;
+	static long  min=-1; /* selem volume value limit */
+	static long  max=-2;
+	static long  vrange;
+	long int     vol;
+
+	static long  dBmin=-50; /* selem volume value limit */
+	static long  dBmax=-50;
+	static long  dBvrange;
+	long int     dBvol;
+
 	static snd_mixer_selem_id_t *sid;
 	static snd_mixer_elem_t* elem;
 	static snd_mixer_selem_channel_id_t chn;
@@ -343,6 +349,20 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	vrange=max-min+1;
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback volume range Min.%ld - Max.%ld.", __func__, min, max);
 
+	/* Get dB range for playback volume of a mixer simple element
+	 * dBmin and dBmax in dB*100
+	 */
+	ret=snd_mixer_selem_get_playback_dB_range(elem, &dBmin, &dBmax);
+	if( ret !=0 ){
+		EGI_PLOG(LOGLV_ERROR,"%s: Get range of playback dB range fails.!",__func__);
+		ret=-6;
+		goto FAILS;
+	}
+	dBvrange=dBmax-dBmin+1;
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback volume dB range Min.dB%ld - Max.dB%ld.",
+											__func__, dBmin, dBmax);
+
+
 	/* get volume , ret=0 Ok */
         for (chn = 0; chn < 32; chn++) {
 		/* Master control channel */
@@ -370,8 +390,9 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
      }	/*  ---------   Now we finish first setup  ---------  */
 
 
-	/* try to get volum value on the channel */
+	/* try to get playback volume value on the channel */
 	snd_mixer_handle_events(g_volmix_handle); /* handle events first */
+
 	ret=snd_mixer_selem_get_playback_volume(elem, chn, &vol); /* suppose that each channel has same volume value */
 	if(ret<0) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Get playback volume error on channle %d.",
@@ -379,16 +400,29 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-7;
 		goto FAILS;
 	}
+
+	/* try to get playback dB value on the channel */
+	ret=snd_mixer_selem_get_playback_dB(elem, chn, &dBvol); /* suppose that each channel has same volume value */
+	if(ret<0) {
+		EGI_PLOG(LOGLV_ERROR,"%s: Get playback dB error on channle %d.",
+										__func__, chn);
+		ret=-7;
+		goto FAILS;
+	}
+
+
 	if( pgetvol!=NULL ) {
 		//printf("%s: Get volume: %ld[%d] on channle %d.\n",__func__,vol,*pgetvol,chn);
 
 		/*** Convert vol back to percentage value.
+		 *  	--- NOT GOOD! ---
 		 *      pv=percentage*100; v=volume value in vrange.
 		 *	pv/100=lg(v^2)/lg(vrange^2)
 		 *	pv=lg(v^2)*100/lg(vrange^2)
 		 */
 		 //printf("get alsa vol=%ld\n",vol);
-		  *pgetvol=log10(vol)*100.0/log10(vrange);  /* in percent*100 */
+		 // *pgetvol=log10(vol)*100.0/log10(vrange);  /* in percent*100 */
+		*pgetvol=vol*100/vrange;  /* actual volume value to percent. value */
 	}
 
 	/* set volume, ret=0 OK */
@@ -400,25 +434,36 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	/* set volume, ret=0 OK */
 	if(psetvol != NULL) {
 		/* limit input to [0-100] */
-		//printf("%s: min=%ld, max=%ld\n",__func__, min,max);
+		printf("%s: min=%ld, max=%ld vrange=%ld\n",__func__, min,max, vrange);
 		if(*psetvol > 100)
 			*psetvol=100;
 
 		/*** Covert percentage value to lg(pv^2) related value, so to sound dB relative.
+		 *  	--- NOT GOOD! ---
 		 *      pv=percentage*100; v=volume value in vrange.
 		 *	pv/100=lg(v^2)/lg(vrange^2)
 		 *	v=10^(pv*lg(vrange)/100)
 		 */
 		vol=*psetvol;  /* vol: in percent*100 */
 		if(vol<1)vol=1; /* to avoid 0 */
-		vol=pow(10, vol*log10(vrange)/100.0);
-		//printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
+
+		#if 0 /* Call snd_mixer_selem_set_playback_volume_all() */
+		//vol=pow(10, vol*log10(vrange)/100.0);
+		vol=vol*vrange/100;  /* percent. vol to actual volume value  */
+		printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
 
 		/* normalize vol, Not necessay now?  */
 		if(vol > max) vol=max;
 		else if(vol < min) vol=min;
 	        snd_mixer_selem_set_playback_volume_all(elem, vol);
 		//printf("Set playback all volume to: %ld.\n",vol);
+
+		#else
+		dBvol=dBvrange*vol/100;
+		/* dB_all(elem, vol, dir)  vol: dB*100 dir>0 round up, otherwise down */
+	        snd_mixer_selem_set_playback_dB_all(elem, dBvol, 1);
+		#endif
+
 	}
 
 	return 0;

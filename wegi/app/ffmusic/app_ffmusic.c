@@ -204,12 +204,9 @@ int main(int argc, char **argv)
 	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
         /* start touch_read thread */
-        SPI_Open();/* for touch_spi dev  */
-        if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
-        {
-                printf("%s: pthread_create(... egi_touch_loopread() ... ) fails!\n",app_name);
-                ret=-3;
-		goto FF_FAIL;
+        if( egi_start_touchread() != 0 ) {
+                EGI_PLOG(LOGLV_ERROR, "%s: Fail to start touch loopread thread!\n", __func__);
+                goto FF_FAIL;
         }
 
 	/*  --- 1.1 set FFPLAY Context --- */
@@ -257,7 +254,7 @@ FF_FAIL:
        	release_fbdev(&gv_fb_dev);
         FTsymbol_release_allpages();
         symbol_release_allpages();
-	SPI_Close();
+	egi_end_touchread();
         egi_quit_log();
 
 	/* NOTE: APP ends, screen to be refreshed by the parent process!! */

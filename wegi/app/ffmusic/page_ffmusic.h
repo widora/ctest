@@ -16,5 +16,6 @@ Midas Zhou
 
 EGI_PAGE  *create_ffmuzPage(void);
 void 	   free_ffmuzPage(void);
+void muzpage_update_timingBar(int tm_elapsed, int tm_duration );
 
 #endif

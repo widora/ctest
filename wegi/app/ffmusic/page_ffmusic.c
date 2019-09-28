@@ -77,10 +77,13 @@ static EGI_EBOX *ffmuz_btns[5];
 static EGI_DATA_TXT *vol_FTtxt;
 static EGI_EBOX     *ebox_voltxt;
 
+/* Timing slider */
+static EGI_DATA_BTN *data_slider;
+static EGI_EBOX     *time_slider;
+
 /* Time sliding bar txt, for time elapsed and duration */
 static EGI_DATA_TXT *data_tmtxt[2];
 static EGI_EBOX	    *ebox_tmtxt[2];
-
 
 static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -213,7 +216,7 @@ EGI_PAGE *create_ffmuzPage(void)
         int sb_pv=0; /* initial  percent value */
 	EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
 
-        EGI_DATA_BTN *data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
+        data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
                                         1, btnType_square,      /* data id, enum egi_btn_type shape */
                                         NULL,           	/* struct symbol_page *icon */
@@ -229,7 +232,7 @@ EGI_PAGE *create_ffmuzPage(void)
                                         WEGI_COLOR_WHITE   	/* EGI_16BIT_COLOR slider_color */
                             );
 
-        EGI_EBOX *time_slider=egi_slider_new(
+        time_slider=egi_slider_new(
                                 "volume slider",  	/* char *tag, or NULL to ignore */
                                 data_slider, 		/* EGI_DATA_BTN *egi_data */
                                 15,15,       		/* slider block: ebox->width/height, to be Min. if possible */
@@ -657,14 +660,13 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		if(vol>100) vol=100;
 		else if(vol<0) vol=0;
 
-		printf("\n%s --- pvol=d% --- \n",__func__, vol);
+		printf("%s: --- pvol=%d --- \n",__func__, vol);
 
 		/* set volume */
                 if( egi_getset_pcm_volume(NULL,&vol)==0 )
 			sprintf(strp,"音量 %d%%",vol);
 		else
 			sprintf(strp,"音量 无效");
-		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
 
 		/* set utxt to ebox_voltxt */
 		vol_FTtxt->utxt=strp;
@@ -735,5 +737,69 @@ void egi_free_ffplaypage(void)
     */
 
 
+}
+
+
+/*------------------------------------------------------------
+Update timing bar and its txt.
+
+In order to improve efficiency, it's better to check whether
+tm_druation or tm_elapsed is updated first, then call this
+function only if they have been changed.
+
+@tm_duratoin:   duration time in second.
+@tm_elapsed:    elapsed time in second.
+---------------------------------------------------------------*/
+void muzpage_update_timingBar(int tm_elapsed, int tm_duration )
+{
+        int psval;
+        char strtm[64];
+        int tm_h=0,tm_min=0,tm_sec=0;
+        static int old_duration=-1;  /* ensure first tm_duration != old_duration for the first time ! */
+        static int old_elapsed=-1;
+
+
+        /* --- 1. Update sliding bar duration TXT ebox --- */
+        if( old_duration != tm_duration ) {
+                tm_h=tm_duration/3600;
+                tm_min=(tm_duration-tm_h*3600)/60;
+                tm_sec=tm_duration%60;
+
+                memset(strtm,0,sizeof(strtm));
+                if(tm_h>0)
+                        snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",tm_h, tm_min,tm_sec);
+                else
+                        snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",tm_min, tm_sec);
+
+                egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
+                egi_ebox_needrefresh(ebox_tmtxt[1]);
+        }
+
+        /* --- 2. Update elapsed time TXT ebox AND slider indicator positon --- */
+        if( old_elapsed != tm_elapsed ) {
+                /*  3.1 update elapsed time TXT ebox */
+                tm_h=tm_elapsed/3600;
+                tm_min=(tm_elapsed-tm_h*3600)/60;
+                tm_sec=tm_elapsed%60;
+
+                memset(strtm,0,sizeof(strtm));
+                if(tm_h>0)
+                        snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",tm_h, tm_min,tm_sec);
+                else
+                        snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",tm_min, tm_sec);
+                egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
+                egi_ebox_needrefresh(ebox_tmtxt[0]);
+
+                /*  3.2 update sliding indicator position */
+                if(tm_duration==0) { /* To avoid divisor 0 */
+                        //data_slider->val=0;
+                        egi_slider_setpsval(time_slider, 0);
+                } else {
+                        /* get percentage value and set to time slider */
+                        psval=tm_elapsed*100/tm_duration;
+                        egi_slider_setpsval(time_slider, psval);
+                }
+                egi_ebox_needrefresh(time_slider);
+        }
 }
 
