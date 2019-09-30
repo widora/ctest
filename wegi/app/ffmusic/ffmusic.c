@@ -161,7 +161,7 @@ midaszhou@yahoo.com
 #define FFMUZ_LOOP_TIMEGAP  1   /*  in second, hold_on time after ffplaying a file, especially for a picture.
 			         *  set before FAIL_OR_TERM.
 			         */
-#define FFMUZ_CLIP_PLAYTIME 3   /* in second, set clip play time */
+#define FFMUZ_CLIP_PLAYTIME 2   /* in second, set clip play time */
 #define FFMUZ_MEDIA_LOOP
 #define END_PAUSE_TIME   0	 /* end pause time */
 
@@ -225,7 +225,7 @@ static bool enable_filesloop=true;
  *   if False:	enable audio/video playback.
  */
 static bool disable_audio=false;
-static bool disable_video=false;
+static bool disable_video=true;
 
 /* param: ( enable_clip_test )
  * NOTE:
@@ -235,7 +235,7 @@ static bool disable_video=false;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=false;
+static bool enable_clip_test=true;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k
@@ -932,6 +932,7 @@ if(disable_video && videoStream>=0 )
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
 			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles!");
 			pthd_subtitle_running=false;
+			free(pfsub); pfsub=NULL;
 			//Go on anyway. //return (void *)-1;
 		}
 		else {
@@ -941,6 +942,7 @@ if(disable_video && videoStream>=0 )
 	}
 	else {
 		pthd_subtitle_running=false;
+		free(pfsub); pfsub=NULL;
 	}
 
   }/* end of (videoStream >=0 && pCodec != NULL) */
@@ -1055,7 +1057,7 @@ else
 
 
 	/*----------------//////   process audio stream   \\\\\\\-----------------*/
-		else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
+		else if( audioStream >=0 && packet.stream_index==audioStream) { //only if audioStream exists
 			//printf("processing audio stream...\n");
 			/* bytes_used: indicates how many bytes of the data was consumed for decoding.
 			         when provided with a self contained packet, it should be used completely.
@@ -1330,7 +1332,7 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 	}
 
 	/* close pcm device and audioSpectrum */
-	if(audioStream >= 0) {
+//	if(audioStream >= 0) {
 		EGI_PDEBUG(DBG_FFPLAY,"Close PCM device...\n");
 		egi_close_pcm_device();
 
@@ -1344,7 +1346,7 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 			control_cmd = cmd_none;/* call off command */
 			pthd_audioSpectrum_running=false; /* reset token */
 		}
-	}
+//	}
 
 	/* free outputBuffer */
 	if(outputBuffer != NULL)
@@ -1385,6 +1387,12 @@ FAIL_OR_TERM:	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 		sws_freeContext(sws_ctx);
 		sws_ctx=NULL;
 //	}
+
+	/* free buff for subtitle fpath */
+	if( pfsub != NULL ) {
+		free(pfsub);
+		pfsub=NULL;
+	}
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);

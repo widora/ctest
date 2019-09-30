@@ -62,6 +62,8 @@ int init_fbdev(FBDEV *fr_dev)
 
 	/* reset pos_rotate */
 	fr_dev->pos_rotate=0;
+        fr_dev->pos_xres=fr_dev->vinfo.xres;
+        fr_dev->pos_yres=fr_dev->vinfo.yres;
 
         /* reset pixcolor and pixalpha */
 	fr_dev->pixcolor_on=false;
@@ -165,8 +167,6 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 	/* reset virtual FB, as EGI_IMGBUF */
 	fr_dev->virt_fb=eimg;
 
-	/* reset pos_rotate */
-	fr_dev->pos_rotate=0;
 
         /* reset pixcolor and pixalpha */
 	fr_dev->pixcolor_on=false;
@@ -181,6 +181,11 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 	fr_dev->vinfo.xoffset=0;
 	fr_dev->vinfo.yoffset=0;
 	fr_dev->screensize=eimg->height*eimg->width;
+
+	/* reset pos_rotate */
+	fr_dev->pos_rotate=0;
+	fr_dev->pos_xres=fr_dev->vinfo.xres;
+	fr_dev->pos_yres=fr_dev->vinfo.yres;
 
 	/* clear buffer */
 	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
@@ -266,4 +271,32 @@ void fb_filo_dump(FBDEV *dev)
                 return;
 
         while( egi_filo_pop(dev->fb_filo, NULL)==0 ){};
+}
+
+
+/*--------------------------------------------------
+Rotate FB displaying position relative to LCD screen
+Landscape displaying: pos=1,3,...
+Postrait displaying: pos=0,2,...
+---------------------------------------------------*/
+void fb_position_rotate(FBDEV *dev, unsigned char pos)
+{
+
+        if(dev==NULL || dev->fbfd<0 ) {
+		printf("%s: Input FBDEV is invalid!\n");
+		return;
+	}
+
+        /* set pos_rotate */
+        dev->pos_rotate=pos;
+
+	/* set pos_xres and pos_yres */
+	if( (pos & 0x1) == 0 ) {
+	        dev->pos_xres=dev->vinfo.xres;
+        	dev->pos_yres=dev->vinfo.yres;
+	}
+	else {
+	        dev->pos_xres=dev->vinfo.yres;
+        	dev->pos_yres=dev->vinfo.xres;
+	}
 }

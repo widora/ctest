@@ -260,12 +260,18 @@ void clear_screen(FBDEV *dev, uint16_t color)
 */
 }
 
-/*-----------------------------------------------------------
-    Return:
+/*------------------------------------------------------------------
+Assign color value to a pixel in framebuffer.
+1. The pixel color value will be system color fb_color, or as its
+   private color of FBDEV.pixcolor.
+2. The caller shall do boudary check first, to ensure that coordinates
+   (x,y) is within screen size range. or just rule it out.
+
+Return:
 	0	OK
 	<0	Fails
 	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
-------------------------------------------------------------*/
+-------------------------------------------------------------------*/
 inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 {
         FBDEV *fr_dev=dev;

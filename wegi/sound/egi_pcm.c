@@ -57,6 +57,8 @@ enum AVSampleFormat {
     AV_SAMPLE_FMT_NB           ///< Number of sample formats. DO NOT USE if linking dynamically
 };
 
+#define AV_CH_LAYOUT_MONO              (AV_CH_FRONT_CENTER)  4
+#define AV_CH_LAYOUT_STEREO            (AV_CH_FRONT_LEFT|AV_CH_FRONT_RIGHT) 1+2=3
 
 
 Note:
@@ -250,18 +252,24 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	static long  min=-1; /* selem volume value limit */
 	static long  max=-2;
 	static long  vrange;
+	int	     pvol;   /* vol in percentage*100 */
 	long int     vol;
 
-	static long  dBmin=-50; /* selem volume value limit */
-	static long  dBmax=-50;
-	static long  dBvrange;
-	long int     dBvol;
+	/* Min dBmute */
+	const long int  dBmute=-114*100; 	/* in dB*100, Set Mute level */
+
+	static long  dBmin=-114*100;	/* in dB*100 selem volume value limit */
+	static long  dBmax=-114*100; 	/* in dB*100 */
+	static long  dBvrange;		/* in dB*100 */
+	static long  dBvol;     	/* in dB*100 */
 
 	static snd_mixer_selem_id_t *sid;
 	static snd_mixer_elem_t* elem;
 	static snd_mixer_selem_channel_id_t chn;
 	const char *card="default";
 	static char selem_name[128]={0};
+	static char dBvol_type[128];	 /* linear or nonlinear */
+	static bool linear_dBvol=false;  /* default as nonlinear */
 	static bool has_selem=false;
 	static bool finish_setup=false;
 
@@ -275,8 +283,9 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	has_selem=false;
 	finish_setup=false;
 
-        /* read egi.conf and get selem_name */
+        /* read egi.conf and get selem_name and volume adjusting method */
         if ( !has_selem ) {
+		/* To get simple mixer name */
 		if(egi_get_config_value("EGI_SOUND","selem_name",selem_name) != 0) {
 			EGI_PLOG(LOGLV_ERROR,"%s: Fail to get config value 'selem_name'.",__func__);
 			has_selem=false;
@@ -287,7 +296,25 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 										__func__, selem_name);
 			has_selem=true;
 		}
+
+		/* To get dB volume type, volume adjusted accordingly */
+		memset(dBvol_type,0,sizeof(dBvol_type));
+		if(egi_get_config_value("EGI_SOUND","dBvol_type", dBvol_type) != 0) {
+			EGI_PLOG(LOGLV_ERROR,"%s: Fail to get config value 'dBvol_type'.",__func__);
+			/* Ingore, use default dBvol type. */
+		}
+		else {
+			EGI_PLOG(LOGLV_INFO,"%s: Succeed to get config value dBvol_type='%s'",
+										__func__, dBvol_type);
+			if( strcmp(dBvol_type,"linear")==0 )
+				linear_dBvol=true;
+			else
+				linear_dBvol=false;
+		}
+
+
 	}
+
 
 	//printf(" --- Selem: %s --- \n", selem_name);
 
@@ -358,10 +385,12 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-6;
 		goto FAILS;
 	}
-	dBvrange=dBmax-dBmin+1;
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback volume dB range Min.dB%ld - Max.dB%ld.",
-											__func__, dBmin, dBmax);
-
+										__func__, dBmin, dBmax);
+	/* Reset dBmin to dBmute */
+	if(dBmin < dBmute)
+		dBmin=dBmute;
+	dBvrange=dBmax-dBmin+1;
 
 	/* get volume , ret=0 Ok */
         for (chn = 0; chn < 32; chn++) {
@@ -400,6 +429,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-7;
 		goto FAILS;
 	}
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback vol=%ld.", __func__, vol);
 
 	/* try to get playback dB value on the channel */
 	ret=snd_mixer_selem_get_playback_dB(elem, chn, &dBvol); /* suppose that each channel has same volume value */
@@ -409,11 +439,13 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-7;
 		goto FAILS;
 	}
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback dBvol=%ld.", __func__, dBvol);
 
-
+	/* To get volume in percentage */
 	if( pgetvol!=NULL ) {
 		//printf("%s: Get volume: %ld[%d] on channle %d.\n",__func__,vol,*pgetvol,chn);
 
+	#if 0 /* ---- (Option 1) : in volume_percentage*100 ---  */
 		/*** Convert vol back to percentage value.
 		 *  	--- NOT GOOD! ---
 		 *      pv=percentage*100; v=volume value in vrange.
@@ -423,6 +455,24 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		 //printf("get alsa vol=%ld\n",vol);
 		 // *pgetvol=log10(vol)*100.0/log10(vrange);  /* in percent*100 */
 		*pgetvol=vol*100/vrange;  /* actual volume value to percent. value */
+
+	#else /* ---- (Option 2) : in dB_percentage *100 ---
+		       *  lg(pv)/lg(100) = (dBvol-dBmin)/(dBmax-dBmin) = (dBvol-dBmin)/dBvrange
+		       *   2*(dBvol-dBmin)=lg(pv)*dBvrange  --->  pv=pow(10, 2*(dBvol-dBmin)/dBvrange )
+		       */
+		if(dBvol<dBmin+1)
+			dBvol=dBmin+1; /* to avoid dBvol-dBmin==0 */
+
+		if(linear_dBvol) {
+			/* 1. Linear type dB curve */
+			*pgetvol=(dBvol-dBmin)*100/dBvrange;
+			printf("get alsa dBvol=%ld  percent.=%d\n", dBvol, *pgetvol);
+		}
+		else {
+			/* 2. Nonlinear type dB curve */
+			*pgetvol=pow(10,2.0*(dBvol-dBmin)/dBvrange);  /* in percent*100 */
+		}
+	#endif
 	}
 
 	/* set volume, ret=0 OK */
@@ -431,25 +481,28 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	//snd_mixer_selem_set_playback_volume_range(elem,0,32);
 	// set_volume_mute_value()
 
-	/* set volume, ret=0 OK */
+	/* set volume in percentage, ret=0 OK */
 	if(psetvol != NULL) {
 		/* limit input to [0-100] */
-		printf("%s: min=%ld, max=%ld vrange=%ld\n",__func__, min,max, vrange);
+		//printf("%s: min=%ld, max=%ld vrange=%ld\n",__func__, min,max, vrange);
+		printf("%s: dBmin=%ld, dBmax=%ld dBvrange=%ld\n",__func__, dBmin,dBmax, dBvrange);
 		if(*psetvol > 100)
 			*psetvol=100;
+		if(*psetvol < 0 )
+			*psetvol=0;
 
+		pvol=*psetvol;  /* vol: in percent*100 */
+
+	#if 0 /* ----- (OPTION 1) : Call snd_mixer_selem_set_playback_volume_all() ------ */
 		/*** Covert percentage value to lg(pv^2) related value, so to sound dB relative.
 		 *  	--- NOT GOOD! ---
 		 *      pv=percentage*100; v=volume value in vrange.
 		 *	pv/100=lg(v^2)/lg(vrange^2)
 		 *	v=10^(pv*lg(vrange)/100)
 		 */
-		vol=*psetvol;  /* vol: in percent*100 */
-		if(vol<1)vol=1; /* to avoid 0 */
-
-		#if 0 /* Call snd_mixer_selem_set_playback_volume_all() */
+		if(pvol<1)pvol=1; /* to avoid 0 */
 		//vol=pow(10, vol*log10(vrange)/100.0);
-		vol=vol*vrange/100;  /* percent. vol to actual volume value  */
+		vol=pvol*vrange/100;  /* percent. vol to actual volume value  */
 		printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
 
 		/* normalize vol, Not necessay now?  */
@@ -458,11 +511,27 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	        snd_mixer_selem_set_playback_volume_all(elem, vol);
 		//printf("Set playback all volume to: %ld.\n",vol);
 
-		#else
-		dBvol=dBvrange*vol/100;
+	#else /* ----- (Option 2) : Call snd_mixer_selem_set_playback_dB_all() ----
+		       *  lg(pv)/lg(100) = (dBvol-dBmin)/(dBmax-dBmin) = (dBvol-dBmin)/dBvrange
+		       *   2*(dBvol-dBmin)=lg(pv)*dBvrange  --->  dBvol=0.5*lg(pv)*dBvrange+dBmin;
+		       */
+		//dBvol=dBmin+dBvrange*vol/100;
+		if(pvol==0)
+			dBvol=dBmin;
+		else {
+			if(linear_dBvol) {
+				/* 1. Linear type dB curve */
+				dBvol=pvol*dBvrange/100+dBmin;
+			}
+			else {
+				/* 2. Nonlinear tyep dB curve */
+				dBvol=0.5*log10(pvol)*dBvrange+dBmin;
+			}
+		}
+		printf("%s: set %s dBvol=%ld\n", __func__, linear_dBvol?"linear":"nonlinear" ,dBvol);
 		/* dB_all(elem, vol, dir)  vol: dB*100 dir>0 round up, otherwise down */
 	        snd_mixer_selem_set_playback_dB_all(elem, dBvol, 1);
-		#endif
+	#endif
 
 	}
 

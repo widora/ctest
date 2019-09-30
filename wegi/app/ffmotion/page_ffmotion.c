@@ -86,6 +86,10 @@ static EGI_EBOX 	*time_slider;
 /* Time sliding bar txt, for time elapsed and duration */
 static EGI_DATA_TXT 	*data_tmtxt[2];
 static EGI_EBOX	    	*ebox_tmtxt[2];
+static int tmSymHeight=18;              /* symbol height */
+static int tmX0[2], tmY0[2];            /* txt EBOX x0,y0  */
+
+
 
 
 /* static functions */
@@ -204,8 +208,7 @@ EGI_PAGE *create_ffmotionPage(void)
         ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
                                      vol_FTtxt,      /* EGI_DATA_TXT pointer */
                                      true,           /* bool movable */
-                                     70, 60,      /* int x0, int y0 */
-                                     //70,320-75,      /* int x0, int y0 */
+                                     70, 60,         /* int x0, int y0 */
                                      80, 30,         /* width, height(adjusted as per nl and fw) */
                                      frame_round_rect,  /* int frame, -1 or frame_none = no frame */
                                      WEGI_COLOR_GRAY3   /* prmcolor,<0 transparent*/
@@ -216,9 +219,10 @@ EGI_PAGE *create_ffmotionPage(void)
 	ebox_voltxt->status=status_hidden;
 
         /* --------- 4. create a horizontal sliding bar --------- */
-        int sb_len=200; /* slot length */
+        int sb_len=gv_fb_dev.pos_xres-40; //200; /* slot length */
         int sb_pv=0; /* initial  percent value */
-	EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
+	//EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
+	EGI_POINT sbx0y0={ 40/2, 260 }; /* starting point */
 
         data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
@@ -254,8 +258,7 @@ EGI_PAGE *create_ffmotionPage(void)
 
 
         /* --------- 3 create a TXT ebox for displaying time elapsed and duration  ------- */
-	int tmSymHeight=18;		/* symbol height */
-	int tmX0[2], tmY0[2];		/* EBOX x0,y0  */
+	tmSymHeight=18;		/* symbol height */
 
 	/* position of txt ebox */
 	tmX0[0]=sbx0y0.x;
@@ -312,9 +315,9 @@ EGI_PAGE *create_ffmotionPage(void)
         //page_ffmotion->routine=egi_page_routine; /* use default routine function */
 	page_ffmotion->routine=egi_homepage_routine;  /* for sliding operation */
 	#if 0
-	page_ffmotion->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
+	page_ffmotion->slide_handler=sliding_volume;  /* sliding handler for volume adjust */
 	#else
-	page_ffmotion->slide_handler=circling_volume; /* sliding handler for volume ajust */
+	page_ffmotion->slide_handler=circling_volume; /* sliding handler for volume adjust */
 	#endif
 	page_ffmotion->page_refresh_misc=refresh_misc; /* random colro for btn */
 
@@ -621,6 +624,7 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	int initvol;
 	static int vol;
 	static char strp[64];
+        static bool slide_activated=false; /* indicator */
 	static EGI_POINT pts[3];	/* 3 points */
 	int	vc;			/* pseudo curvature value */
 	int	adv;			/* adjusting value */
@@ -633,13 +637,16 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	printf("%s: touch(x,y): %d, %d \n",__func__, touch_data->coord.x, touch_data->coord.y );
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
-        if(touch_data->status==pressing)
+        if(touch_data->status==pressing || (slide_activated==false && touch_data->status==pressed_hold) )
         {
                 printf("vol pressing\n");
                 egi_getset_pcm_volume(&vol,NULL); /* get volume */
 
 		/* reset points coordinates */
 		pts[2]=pts[1]=pts[0]=(EGI_POINT){ touch_data->coord.x, touch_data->coord.y };
+
+                /* set indicator */
+                slide_activated=true;
 
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
@@ -706,13 +713,15 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		//ebox_voltxt->sleep(ebox_voltxt);
 		egi_txtbox_hide(ebox_voltxt);
 
+                /* set indicator */
+                slide_activated=false;
+
 		return btnret_OK;
 	}
         else /* bypass unwanted touch status */
               return btnret_IDLE;
 
 }
-
 
 
 /*--------------------------------------------
@@ -775,6 +784,8 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
         	tm_min=(tm_duration-tm_h*3600)/60;
 	        tm_sec=tm_duration%60;
 
+		old_duration=tm_duration;
+
         	memset(strtm,0,sizeof(strtm));
 		if(tm_h>0)
 	        	snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",tm_h, tm_min,tm_sec);
@@ -791,6 +802,8 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
 	        tm_h=tm_elapsed/3600;
         	tm_min=(tm_elapsed-tm_h*3600)/60;
 	        tm_sec=tm_elapsed%60;
+
+		old_elapsed=tm_elapsed;
 
 	        memset(strtm,0,sizeof(strtm));
         	if(tm_h>0)
@@ -813,3 +826,37 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
 	}
 }
 
+
+/*-----------------------------------------------------
+Change PAGE displaying mode.
+
+@pos  PAGE displaying position.
+      0: default X,Y coordinate of FB (Portrait mode)
+      1: clockwise rotation 90 deg.   (Landscape mode)
+      2: clockwise rotation 180 deg.  (Portrait mode)
+      3: clockwise rotation 270 deg.  (Landscape mode)
+
+----------------------------------------------------*/
+void motpage_rotate(unsigned char pos)
+{
+	EGI_POINT pxy={ 40/2, 225 }; /* sliding bar starting point */
+	EGI_DATA_SLIDER *prvdata_slider=(EGI_DATA_SLIDER *)data_slider->prvdata;
+
+	/* adjust FBDEV param */
+	fb_position_rotate(&gv_fb_dev, pos);
+
+	/* modify timing slide bar position */
+	prvdata_slider->sl=gv_fb_dev.pos_xres-40; /* total length of the bar */
+	prvdata_slider->sxy=pxy;        /* starting point */
+
+	/* modify position of timing TXT eBox */
+	ebox_tmtxt[0]->x0=pxy.x;
+	ebox_tmtxt[0]->y0=pxy.y-tmSymHeight-5;
+	ebox_tmtxt[1]->x0=pxy.x+prvdata_slider->sl-50;
+	ebox_tmtxt[1]->y0=ebox_tmtxt[0]->y0;
+
+	/* Other child ebox keep unchanged */
+
+	/* refresh the PAGE */
+	egi_page_needrefresh(time_slider->container);
+}

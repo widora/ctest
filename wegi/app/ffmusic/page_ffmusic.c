@@ -307,8 +307,11 @@ EGI_PAGE *create_ffmuzPage(void)
         /* 5.3 set default routine job */
         //page_ffmuz->routine=egi_page_routine; /* use default routine function */
 	page_ffmuz->routine=egi_homepage_routine;  /* for sliding operation */
-//	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume ajust */
-	page_ffmuz->slide_handler=circling_volume; /* sliding handler for volume ajust */
+	#if 0 /* vertical sliding */
+	page_ffmuz->slide_handler=sliding_volume;  /* sliding handler for volume adjust */
+	#else /* circle sliding */
+	page_ffmuz->slide_handler=circling_volume; /* sliding handler for volume adjust */
+	#endif
 	page_ffmuz->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 set wallpaper */
@@ -614,6 +617,7 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         static int mark;
 	static int vol;
 	static char strp[64];
+	static bool slide_activated=false; /* indicator */
 	static EGI_POINT pts[3];	/* 3 points */
 	int	vc;			/* pseudo curvature value */
 	int	adv;			/* adjusting value */
@@ -626,13 +630,17 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	printf("%s: touch(x,y): %d, %d \n",__func__, touch_data->coord.x, touch_data->coord.y );
 
         /* 1. set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
-        if(touch_data->status==pressing)
+        if(touch_data->status==pressing || (slide_activated==false && touch_data->status==pressed_hold) )
         {
                 printf("vol pressing\n");
                 egi_getset_pcm_volume(&vol,NULL); /* get volume */
+		printf("%s: Get vol percentage=%d\n",__func__,vol);
 
 		/* reset points coordinates */
 		pts[2]=pts[1]=pts[0]=(EGI_POINT){ touch_data->coord.x, touch_data->coord.y };
+
+		/* set indicator */
+		slide_activated=true;
 
                 return btnret_OK; /* do not refresh page, or status will be cut to release_hold */
         }
@@ -696,6 +704,9 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		/* Hide to erase image */
 		//ebox_voltxt->sleep(ebox_voltxt);
 		egi_txtbox_hide(ebox_voltxt);
+
+		/* reset indicator */
+		slide_activated=false;
 
 		return btnret_OK;
 	}
@@ -765,6 +776,8 @@ void muzpage_update_timingBar(int tm_elapsed, int tm_duration )
                 tm_min=(tm_duration-tm_h*3600)/60;
                 tm_sec=tm_duration%60;
 
+		old_duration=tm_duration;
+
                 memset(strtm,0,sizeof(strtm));
                 if(tm_h>0)
                         snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",tm_h, tm_min,tm_sec);
@@ -781,6 +794,8 @@ void muzpage_update_timingBar(int tm_elapsed, int tm_duration )
                 tm_h=tm_elapsed/3600;
                 tm_min=(tm_elapsed-tm_h*3600)/60;
                 tm_sec=tm_elapsed%60;
+
+		old_elapsed=tm_elapsed;
 
                 memset(strtm,0,sizeof(strtm));
                 if(tm_h>0)

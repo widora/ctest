@@ -61,6 +61,8 @@ typedef struct fbdev{
 				         * 2: clockwise rotation 180 deg
 					 * 3: clockwise rotation 270 deg
 					 */
+	int		pos_xres;	/* Resultion for X and Y direction, as per pos_rotate */
+	int		pos_yres;
 
 	/* pthread_mutex_t fbmap_lock; */
 	EGI_FILO *fb_filo;
@@ -88,5 +90,6 @@ inline void     fb_filo_on(FBDEV *dev);
 inline void     fb_filo_off(FBDEV *dev);
 void            fb_filo_flush(FBDEV *dev);
 void            fb_filo_dump(FBDEV *dev);
+void		fb_position_rotate(FBDEV *dev, unsigned char pos);
 
 #endif

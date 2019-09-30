@@ -125,7 +125,7 @@ EGI_PAGE *egi_create_slidepage(void)
 	EGI_EBOX *title_bar= create_ebox_titlebar(
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
-		egi_colorgray_random(color_medium), //light),  /* int16_t bkcolor */
+		egi_colorGray_random(color_medium), //light),  /* int16_t bkcolor */
     		NULL	/* char *title */
 	);
 	egi_txtbox_settitle(title_bar, "      Test Sliding Bar ");
@@ -141,7 +141,7 @@ EGI_PAGE *egi_create_slidepage(void)
 			page_slide=egi_page_new("page_slide");
 			usleep(100000);
 	}
-	page_slide->ebox->prmcolor=egi_colorgray_random(color_light);
+	page_slide->ebox->prmcolor=egi_colorGray_random(color_light);
 	page_slide->fpath="/tmp/slide.jpg";
 
         /* 3.2 put pthread runner */

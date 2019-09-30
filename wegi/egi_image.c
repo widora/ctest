@@ -1360,9 +1360,9 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 //	printf("%s: height=%d, width=%d \n",__func__, imgh,imgw);
 
         int i,j;
-        int xres=fb_dev->vinfo.xres;
-        int yres=fb_dev->vinfo.yres;
-        long int screen_pixels=xres*yres;
+        int xres;
+        int yres;
+        long int screen_pixels;
 
         unsigned char *fbp=fb_dev->map_fb;
         uint16_t *imgbuf=egi_imgbuf->imgbuf;
@@ -1371,6 +1371,19 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
         long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
         long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
 //      int bytpp=2; /* bytes per pixel */
+
+  /* If FB position rotate 90deg or 270deg, swap xres and yres */
+  if(fb_dev->pos_rotate & 0x1) {	/* Landscape mode */
+	xres=fb_dev->vinfo.yres;
+	yres=fb_dev->vinfo.xres;
+  }
+  else {				/* Portrait mode */
+	xres=fb_dev->vinfo.xres;
+	yres=fb_dev->vinfo.yres;
+  }
+  /* pixel total number */
+  screen_pixels=xres*yres;
+
 
   /* if no alpha channle*/
   if( egi_imgbuf->alpha==NULL )
@@ -1392,7 +1405,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
 //replaced by draw_dot()        *(uint16_t *)(fbp+locfb)=0; /* black for outside */
-                                fbset_color2(fb_dev,0); /* black for outside */
+                                fbset_color2(fb_dev,0);     /* black for outside */
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
                         }
                         else {

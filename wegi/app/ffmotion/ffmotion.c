@@ -45,6 +45,10 @@ TODO:
             AV_SAMPLE_FMT_NB           ///< Number of sample formats. DO NOT USE if linking dynamically
         };
 
+#define AV_CH_LAYOUT_MONO              (AV_CH_FRONT_CENTER)  4
+#define AV_CH_LAYOUT_STEREO            (AV_CH_FRONT_LEFT|AV_CH_FRONT_RIGHT) 1+2=3
+
+
 5. Start ffplay movie with png logo from script /etc/rc.local fails when reboot Openwrt:
 	... error log ...
 	...
@@ -203,9 +207,11 @@ Note:
  *	2.
 */
 
-/* expected display window size, LCD will be adjusted in the function */
-static int show_w= 240; //185; /* LCD row pixels */
-static int show_h= 200; //144; //240; //185;/* LCD column pixels */
+/* Expected display window size, LCD will be adjusted in the function
+ * If actual image size is smaller, then show_w/h will be ingored.
+ */
+static int show_w= 240; //240; //185; /* LCD row pixels */
+static int show_h= 320; //200; //144; //240; //185;/* LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
@@ -243,7 +249,11 @@ static bool enable_auto_rotate=false;
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-static int transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!! */
+static unsigned char transpose_clock=3; /* when 0, make sure enable_auto_rotate=false !!!
+			       * 1 --- rotate clockwise 90deg.
+			       * 2 --- rotate clockwise 180deg.
+			       * 3 --- rotate clockwise 270deg.
+			       */
 
 /* param: ( enable_stretch )
  *   if True:	stretch the image to fit for expected H&W, original image ratio is ignored.
@@ -282,11 +292,14 @@ static bool enable_filesloop=true;
 static bool disable_audio=false;
 static bool disable_video=false;
 
+
 /* param: ( disable_fltp )
  *   if True:	disbale AV_SAMPLE_FMT_FLTP playback.
  *   if False:	enable AV_SAMPLE_FMT_FLTP playback..
  */
 static bool disable_fltp=false;
+/* Force audio to be MONO */
+static bool enable_audio_mono=true;
 
 /* param: ( enable_clip_test )
  * NOTE:
@@ -350,7 +363,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* for VIDEO  */
 	int			i;
 	int			videoStream=-1; /* >=0, if stream exists */
-	AVCodecContext		*pCodecCtxOrig=NULL;  
+	AVCodecContext		*pCodecCtxOrig=NULL;
 	AVCodecContext		*pCodecCtx=NULL;
 	AVCodec			*pCodec=NULL;
 	AVFrame			*pFrame=NULL;
@@ -366,6 +379,10 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* for Pic Info. */
 	struct PicInfo pic_info;
 	pic_info.app_page=page; /* for PAGE wallpaper */
+
+	/* Absolute screen size under LCD coord. */
+	int scrnX;
+	int scrnY;
 
 	/* origin movie/image size */
 	int widthOrig;
@@ -460,12 +477,17 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	}
 
 	/*MOVED: addjust offset of display window */
-	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
+	//offx=(ff_fb_dev.pos_xres-show_w)>>1; /* put display window in mid. of width */
 	//offy=50;//40;
 
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
+	scrnX=ff_fb_dev.vinfo.xres;
+	scrnY=ff_fb_dev.vinfo.yres;
 	ff_fb_dev.pixcolor_on=true; /* Use private pixcolor */
+	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
+	motpage_rotate(transpose_clock);  /* rotate PAGE */
+
 
 	/* --- fill display area with BLACK --- */
 //	fbset_color(WEGI_COLOR_BLACK);
@@ -513,8 +535,6 @@ while(1) {
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
    {
-
-
 	/* check if enable_shuffle */
 	if(enable_shuffle) {
 		fnum=egi_random_max(ftotal)-1;
@@ -664,10 +684,10 @@ while(1) {
 	fname=strdup(fpath[fnum]);
 	printf("fname:%s\n",fname);
 	fbsname=basename(fname);
-        FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
+        FTsymbol_uft8strings_writeFB(&ff_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
                                     18, 18, fbsname,               	/* fw,fh, pstr */
-                                    240, 1, 0,           		/* pixpl, lines, gap */
-                                    0, 10,                      	/* x0,y0, */
+                                    ff_fb_dev.pos_xres, 1, 0,  		/* pixpl, lines, gap */
+                                    5, 5,                      		/* x0,y0, */
                                     WEGI_COLOR_GRAY, -1, -1);   	/* fontcolor, stranscolor,opaque */
 	pic_info.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
@@ -742,7 +762,11 @@ if(disable_audio && audioStream>=0 )
 									__func__);
 			swr=swr_alloc();
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
-			av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
+			/* out channel layout to be mono */
+			if(enable_audio_mono)
+				av_opt_set_channel_layout(swr, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
+			else
+				av_opt_set_channel_layout(swr, "out_channel_layout", channel_layout, 0);
 			av_opt_set_int(swr, "in_sample_rate", 	sample_rate, 0); // for FLTP sample_rate = 24000
 			av_opt_set_int(swr, "out_sample_rate", 	out_sample_rate, 0);
 			av_opt_set_sample_fmt(swr, "in_sample_fmt",   AV_SAMPLE_FMT_FLTP, 0);
@@ -759,7 +783,7 @@ if(disable_audio && audioStream>=0 )
 			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16P,  out_sample_rate,
-						channel_layout,AV_SAMPLE_FMT_FLTP, sample_rate,
+						channel_layout,AV_SAMPLE_FMT_FLTP,  sample_rate,
 						0, NULL );
 
 			/* how to dither ...?? */
@@ -890,11 +914,12 @@ if(disable_video && videoStream>=0 )
 if(enable_auto_rotate)
 {
 	if( pCodecCtx->height >= pCodecCtx->width ) /*if image upright H>W */
-		transpose_clock=false;
+		transpose_clock=0;
 	else
-		transpose_clock=true;
+		transpose_clock=1;
 }
-/* get original video size, swap width and height if clock/cclock_transpose 
+
+/* get original video size, swap width and height if clock/cclock_transpose
  * pCodecCtx->heidth and width is the upright image size.
  */
 if(enable_avfilter)
@@ -908,10 +933,18 @@ if(enable_avfilter)
 		heightOrig=pCodecCtx->height;
 	}
 }
-else /* keep original size */
+else
 {
-	widthOrig=pCodecCtx->width;
-	heightOrig=pCodecCtx->height;
+	/* Landscape mode */
+	if(transpose_clock & 0x1) {
+		widthOrig=pCodecCtx->height;
+		heightOrig=pCodecCtx->width;
+	}
+	/* Portrait mode */
+	else {
+		widthOrig=pCodecCtx->width;
+		heightOrig=pCodecCtx->height;
+	}
 }
 
 
@@ -921,11 +954,11 @@ if(enable_stretch)
 	/* <<<<<<< stretch image size, will NOT keep H/W ratio !!!  >>>>>> */
 	scwidth=widthOrig;
 	scheight=heightOrig;
-        if( widthOrig > LCD_MAX_WIDTH ) {
-		scwidth=LCD_MAX_WIDTH;
+        if( widthOrig > scrnX ) {
+		scwidth=scrnX;
 	}
-	if( heightOrig > LCD_MAX_HEIGHT) {
-		scheight=LCD_MAX_HEIGHT;
+	if( heightOrig > scrnY) {
+		scheight=scrnY;
 	}
 }
 else /* if NOT stretch, then keep original ratio */
@@ -934,22 +967,20 @@ else /* if NOT stretch, then keep original ratio */
 	 * 1. widthOrig and heightOrig are the original image size.
 	 * 2. scwidth and scheight are scaled/converted to be the best fit size for LCD.
          */
-        if( widthOrig > LCD_MAX_WIDTH || heightOrig > LCD_MAX_HEIGHT ) {
-		if( (1.0*widthOrig/heightOrig) >= (1.0*LCD_MAX_WIDTH/LCD_MAX_HEIGHT) )
+        if( widthOrig > scrnX || heightOrig > scrnY ) {
+		if( (1.0*widthOrig/heightOrig) >= (1.0*scrnX/scrnY) )
 		{
-			//printf("width/height >= LCD_MAX_WIDTH/LCD_MAX_HEIGHT \n");
 			/* fit for width, only if video width > screen width */
-			if(widthOrig>LCD_MAX_WIDTH) {
-				scwidth=LCD_MAX_WIDTH;
+			if(widthOrig>scrnX) {
+				scwidth=scrnX;
 				scheight=heightOrig*scwidth/widthOrig;
 			}
 		}
-		else if ( (1.0*heightOrig/widthOrig) > (1.0*LCD_MAX_HEIGHT/LCD_MAX_WIDTH) )
+		else if ( (1.0*heightOrig/widthOrig) > (1.0*scrnY/scrnX) )
 		{
-			//printf("height/width > LCD_MAX_HEIGHT/LCD_MAX_WIDTH \n");
 			/* fit for height, only if video height > screen height */
-			if(heightOrig>LCD_MAX_HEIGHT) {
-				scheight=LCD_MAX_HEIGHT;
+			if(heightOrig>scrnY) {
+				scheight=scrnY;
 				scwidth=widthOrig*scheight/heightOrig;
 			}
 		}
@@ -963,13 +994,13 @@ else /* if NOT stretch, then keep original ratio */
 	EGI_PDEBUG(DBG_FFPLAY,"Max. scale video size: scwidth=%d, scheight=%d \n",scwidth,scheight);
 
 	/* re-check size limit, in case data corrupted! */
-	if( scwidth>LCD_MAX_WIDTH ||
-            scheight>LCD_MAX_HEIGHT ||
+	if( scwidth > scrnX ||
+            scheight > scrnY ||
 	    scwidth <= 0 || scheight <= 0  )
         {
-		EGI_PLOG(LOGLV_WARN, "!!! WARNING !!! scwidth or scheight out of limit! reset to 240x240.");
-		scwidth=240;
-		scheight=240;
+		EGI_PLOG(LOGLV_WARN, "!!! WARNING !!! scwidth or scheight out of limit! reset to scrnX*scrnX.");
+		scwidth=scrnX;
+		scheight=scrnX;
 	}
 
 	/* <<<<<<<<<<<<   Decide final display Width and Heigh    >>>>>>>>>> */
@@ -1002,11 +1033,21 @@ else
 										display_width, display_height);
 
 	/* Addjust displaying window position */
-	offx=(LCD_MAX_WIDTH-display_width)>>1; /* put display window in mid. of width */
-	if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
-		offy=((265-29-display_height)>>1) +30;
-	else					/* for MOTION PIC */
-		offy=50;
+//	offx=100; offy=0;
+#if 1
+	/* Landscape mode */
+	if(transpose_clock & 0x1 ) {
+		offx=(ff_fb_dev.pos_xres-display_height)>>1;
+		offy=(ff_fb_dev.pos_yres-display_width)>>1; /* put display window in mid. of width */
+	}
+	/* Portrait mode */
+        else {
+		if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
+			offy=((265-29-display_height)>>1) +30;
+		else					/* for MOTION PIC */
+			offy=50;
+	}
+#endif
 
 	/* clear displaying zone */
 #if 0
@@ -1037,37 +1078,66 @@ else
 */
 	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
 	 /* in order to put displaying window in center of the screen */
-//	 Hb=(LCD_MAX_WIDTH-display_width+1)/2; /* horizontal offset */
-//	 Vb=(LCD_MAX_HEIGHT-display_height+1)/2; /* vertical offset */
+//	 Hb=(ff_fb_dev.pos_xres-display_width+1)/2; /* horizontal offset */
+//	 Vb=(ff_fb_dev.pos_yres-display_height+1)/2; /* vertical offset */
 //	 pic.Hs=Hb; pic.He=Hb+display_width-1;
 //	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
 
 	 Hb=offx;
 	 Vb=offy;
-	 pic_info.Hs=Hb; pic_info.He=Hb+display_width-1;
-	 pic_info.Vs=Vb; pic_info.Ve=Vb+display_height-1;
+	 pic_info.Hs=Hb;
+	 pic_info.Vs=Vb;
+	 if(transpose_clock) {
+		pic_info.Ve=Vb+display_width-1;
+		pic_info.He=Hb+display_height-1;
+	 }
+	 else {
+	 	 pic_info.Ve=Vb+display_height-1;
+		 pic_info.He=Hb+display_width-1;
+	 }
+
 	 pic_info.vcodecID=vcodecID;
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
-	 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
-
+	 if(transpose_clock)
+		 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_height, display_width); //pCodecCtx->width, pCodecCtx->height);
+	 else
+		 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
 
 if(!enable_avfilter) /* use SWS, if not AVFilter */
 {
 	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
 	EGI_PDEBUG(DBG_FFPLAY, "Initialize SWS context for software scaling... \n");
-	sws_ctx = sws_getContext( pCodecCtx->width,
-				  pCodecCtx->height,
-				  pCodecCtx->pix_fmt,
-				  display_width, //scwidth,/* scaled output size */
-				  display_height, //scheight,
-				  AV_PIX_FMT_RGB565LE,
-				  SWS_BILINEAR,
-				  NULL,
-				  NULL,
-				  NULL
-				);
+        printf("---- SWS_CTX: display_width=%d, display_height=%d ---- \n", display_width, display_height);
+
+	if(transpose_clock) {
+		printf("----- SWS_CTX with transpose_clock -----\n");
+		sws_ctx = sws_getContext( pCodecCtx->width,
+					  pCodecCtx->height,
+					  pCodecCtx->pix_fmt,
+					  display_height, //scwidth,/* scaled output size */
+					  display_width, //scheight,
+					  AV_PIX_FMT_RGB565LE,
+					  SWS_BILINEAR,
+					  NULL,
+					  NULL,
+					  NULL
+					);
+	}
+	else {
+		sws_ctx = sws_getContext( pCodecCtx->width,
+					  pCodecCtx->height,
+					  pCodecCtx->pix_fmt,
+					  display_width, //scwidth,/* scaled output size */
+					  display_height, //scheight,
+					  AV_PIX_FMT_RGB565LE,
+					  SWS_BILINEAR,
+					  NULL,
+					  NULL,
+					  NULL
+					);
+	}
 
 //	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
 }
@@ -1095,6 +1165,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
 			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
 			pthd_subtitle_running=false;
+			free(pfsub); pfsub=NULL;
 			//Go on anyway. //return (void *)-1;
 		}
 		else {
@@ -1104,6 +1175,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 	}
 	else {
 		pthd_subtitle_running=false;
+		free(pfsub); pfsub=NULL;
 	}
 
 
@@ -1300,7 +1372,7 @@ else
 		/* -----   process Video Stream   ----- */
 		if( videoStream >=0 && packet.stream_index==videoStream)
 		{
-			printf("...decoding video frame\n");
+			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
 				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...\n");
@@ -1351,7 +1423,7 @@ if(enable_avfilter)
 else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
 {
 				/* convert the image from its native format to RGB */
-				printf("%s: sws_scale converting ...\n",__func__);
+				//printf("%s: sws_scale converting ...\n",__func__);
 				sws_scale( sws_ctx,
 					   (uint8_t const * const *)pFrame->data,
 					   pFrame->linesize, 0, pCodecCtx->height,
@@ -1359,7 +1431,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 					);
 
 				/* push data to pic buff for SPI LCD displaying */
-				printf("%s: start Load_Pic2Buff()....\n",__func__);
+				//printf("%s: start Load_Pic2Buff()....\n",__func__);
 				if( load_Pic2Buff(&pic_info,pFrameRGB->data[0],numBytes) <0 ) {
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
@@ -1387,8 +1459,7 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 
 	/*----------------//////   process audio stream   \\\\\\\-----------------*/
-		//else if( audioStream != -1 && packet.stream_index==audioStream) { //only if audioStream exists
-		else if( audioStream >0 && packet.stream_index==audioStream) { //only if audioStream exists
+		else if( audioStream >=0 && packet.stream_index==audioStream) { //only if audioStream exists
 			//printf("processing audio stream...\n");
 			/* bytes_used: indicates how many bytes of the data was consumed for decoding.
 			         when provided with a self contained packet, it should be used completely.
@@ -1413,18 +1484,15 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 				{
 					//gettimeofday(&tm_start,NULL);
 					/* playback audio data */
-					if(pAudioFrame->data[0] && pAudioFrame->data[1]) {
+					if( !enable_audio_mono && pAudioFrame->data[0] && pAudioFrame->data[1])
+					{
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
+						printf("Stereo.\n");
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
-							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
+							//EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
 							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
-						}
-						else if( outputBuffer )  {  /* SWR ON,  if sample_rate != 44100 */
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
-							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							egi_play_pcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
 						}
 						else {
 							 egi_play_pcm_buff( (void **)pAudioFrame->data, aCodecCtx->frame_size);// 1 frame each time
@@ -1432,17 +1500,15 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 
 					}
 					else if(pAudioFrame->data[0]) {  /* one channel only */
-						 //printf("One channel only\n");
-						if(sample_rate != 44100) {
-							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->data, aCodecCtx->frame_size);
-							EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
-							egi_play_pcm_buff( (void **)&outputBuffer,aCodecCtx->frame_size);
-						}
+						 printf("Mono.\n");
 						/* direct output */
+						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
+							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
+							egi_play_pcm_buff( (void **)&outputBuffer,outsamples);
+						}
 						else {
 						        egi_play_pcm_buff( (void **)(&pAudioFrame->data[0]), aCodecCtx->frame_size);// 1 frame each time
 						}
-
 					}
 
 					/*    ---- 1024 points FFT displaying handling(pending) ---- */
@@ -1456,20 +1522,19 @@ else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff f
 					printf("\r	     audio Elapsed time: %ds  ---  Duration: %ds  ",
 								ff_sec_Aelapsed, ff_sec_Aduration );
 */
-					//gettimeofday(&tm_end,NULL);
-					//printf(" egi_play_pcm_buff() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
+
+                                	/* --- Reset timing slider, if NO video stream ---- */
+					motpage_update_timingBar(ff_sec_Aelapsed, ff_sec_Aduration);
 
 				}
 				packet.size -= bytes_used;
 				packet.data += bytes_used;
 			}/* end of while(packet.size>0) */
 
-
 		}/*   end of audioStream process  */
 
                 /* free OLD packet each time, that was allocated by av_read_frame */
                 av_free_packet(&packet);
-
 
 /* For clip test, just ffplay a short time then break */
 if(enable_clip_test)
@@ -1699,6 +1764,13 @@ if(enable_avfilter) /* free filter resources */
 		pFormatCtx=NULL;
 	}
 
+        /* free buff for subtitle fpath */
+        if( pfsub != NULL ) {
+		EGI_PDEBUG(DBG_FFPLAY,"Free pfsub of subtitle fpath...\n");
+                free(pfsub);
+                pfsub=NULL;
+        }
+
 //	if(audioStream >= 0)
 //	{
 		EGI_PDEBUG(DBG_FFPLAY,"Free swr at last...\n");
@@ -1712,6 +1784,7 @@ if(enable_avfilter) /* free filter resources */
 		sws_freeContext(sws_ctx);
 		sws_ctx=NULL;
 //	}
+
 
 	/* print total playing time for the file */
 	gettimeofday(&tm_end,NULL);

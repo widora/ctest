@@ -19,6 +19,7 @@ Midas Zhou
 /*------------------------------------------------------------------
 Duplicate a file path string, then replace the extension name
 with the given one.
+	!!! --- Don't forget to free it! --- !!!
 
 fpath:		a file path string.
 new_extname:	new extension name for the fpath.

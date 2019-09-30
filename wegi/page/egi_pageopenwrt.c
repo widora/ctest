@@ -109,7 +109,7 @@ EGI_PAGE *egi_create_openwrtpage(void)
 	        0, 0, /* int x0, int y0 */
         	0, 2,  /* int offx, int offy */
 		//egi_color_random(light),  /* uint16_t bkcolor */
-		egi_colorgray_random(color_light),  /* uint16_t bkcolor */
+		egi_colorGray_random(color_light),  /* uint16_t bkcolor */
     		NULL	/* char *title */
 	);
 	egi_txtbox_settitle(title_bar, "	OpenWRT SysInfo");
@@ -125,7 +125,7 @@ EGI_PAGE *egi_create_openwrtpage(void)
 			usleep(100000);
 	}
 	/* set prmcolor */
-	page_openwrt->ebox->prmcolor=(int)egi_colorgray_random(color_medium);
+	page_openwrt->ebox->prmcolor=(int)egi_colorGray_random(color_medium);
 
 	/* set wallpaper */
 	//page_openwrt->fpath="/tmp/mplay.jpg";

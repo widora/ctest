@@ -1348,10 +1348,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 				 *     speed keeps constantly.
 			         *  2. When tdx/tdy is too small from egi_touch_peekdxdy(), slide_touch status
 				 *     will NOT be detected with following algrithm!!!
+				 *     Hence, in following 2.2 we try to restore it.
 				 */
 				printf("pressing check slide: dx=%d dy=%d \n",tdx, tdy);
 				if( tdx>3 || tdx<-3 || tdy>3 || tdy<-3 ) {  //|| egi_touch_peekstatus()==releasing) {
-					printf("--- start sliding ---\n");
+					printf(" start sliding --->>> \n");
 					slide_touch=true;
 
 					/*** TODO: btn touch_effect()
@@ -1365,7 +1366,9 @@ int egi_homepage_routine(EGI_PAGE *page)
 //				}
 			}
 
-			/* 2.2 between two press_hold status, if dxdy is detected, also trigger slide_touch */
+			/* 2.2 If we missed to detect sliding action when "last_status==pressing",then we try
+			 *     to restore it between two press_hold status, if dx/dy is detected as sufficient,
+			 */
 			else if( slide_touch != true && last_status==pressed_hold ) {
 				/* Don't wait, peek imediately */
 				egi_touch_peekdxdy(&tdx,&tdy);
@@ -1374,7 +1377,12 @@ int egi_homepage_routine(EGI_PAGE *page)
 				if( tdx>3 || tdx<-3 || tdy>3 || tdy<-3 ) {  //|| egi_touch_peekstatus()==releasing) {
 					printf("--- hold sliding ---\n");
 					slide_touch=true;
+
 				}
+
+				/* revive 'pressing' status for slide_handler */
+				last_status==pressing;
+		    		touch_data.status=pressing;
 			}
 
 			/* 2.3 sliding handling func */
@@ -1383,7 +1391,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 				/* OR to ignore 'releasing' to let button icons stop at current position */
 				#if 1  /* --- TEST --- */
 				if(last_status==releasing)
-					printf(" --- sliding release! --- \n");
+					printf(" <<<--- sliding release! \n");
 
 				else if(last_status==pressing)
 					printf(" --- sliding press start! --- \n");
@@ -1408,7 +1416,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 				/* Continue routine loop if sliding_touch session not end! */
 			}
 
-	} /* END if(!page->slide_off) */
+	} /* END  if(!page->slide_off) */
 
 	/* >>>>> (  Button Hit Handling  ) >>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
