@@ -207,11 +207,19 @@ Note:
  *	2.
 */
 
-/* Expected display window size, LCD will be adjusted in the function
- * If actual image size is smaller, then show_w/h will be ingored.
+/* Expected display window size, relative to coord. of LCD.
+ * Will be adjusted in the function, if actual image size is smaller, then show_w/h will be ingored.
+ *
+ * Landscape mode:
+ *  	show_w MAX. 240-40-20,  40 for timing bar. 20 for title
+ *	show_h MAX. 320
+ *
+ * Portrait  mode:
+ *  	show_w MAX. 240,
+ *	show_h MAX. 230.
  */
-static int show_w= 240; //240; //185; /* LCD row pixels */
-static int show_h= 320; //200; //144; //240; //185;/* LCD column pixels */
+static int show_w= 240; //240-40-20; /* in LCD row pixels */
+static int show_h= 220; //320;       /* in LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
@@ -482,12 +490,15 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
+	ff_fb_dev.pixcolor_on=true; 	  /* Use private pixcolor */
+
+	/* Get screen size, absolute position/size */
 	scrnX=ff_fb_dev.vinfo.xres;
 	scrnY=ff_fb_dev.vinfo.yres;
-	ff_fb_dev.pixcolor_on=true; /* Use private pixcolor */
+
+	/* roate displaying area and PAGE */
 	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
 	motpage_rotate(transpose_clock);  /* rotate PAGE */
-
 
 	/* --- fill display area with BLACK --- */
 //	fbset_color(WEGI_COLOR_BLACK);
@@ -688,7 +699,7 @@ while(1) {
                                     18, 18, fbsname,               	/* fw,fh, pstr */
                                     ff_fb_dev.pos_xres, 1, 0,  		/* pixpl, lines, gap */
                                     5, 5,                      		/* x0,y0, */
-                                    WEGI_COLOR_GRAY, -1, -1);   	/* fontcolor, stranscolor,opaque */
+                                    WEGI_COLOR_GRAYB, -1, -1);   	/* fontcolor, stranscolor,opaque */
 	pic_info.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
 
@@ -1033,12 +1044,10 @@ else
 										display_width, display_height);
 
 	/* Addjust displaying window position */
-//	offx=100; offy=0;
-#if 1
 	/* Landscape mode */
 	if(transpose_clock & 0x1 ) {
 		offx=(ff_fb_dev.pos_xres-display_height)>>1;
-		offy=(ff_fb_dev.pos_yres-display_width)>>1; /* put display window in mid. of width */
+		offy=((ff_fb_dev.pos_yres-40-20-display_width)>>1) +20; /* bottom 40 for timing bar */
 	}
 	/* Portrait mode */
         else {
@@ -1047,7 +1056,6 @@ else
 		else					/* for MOTION PIC */
 			offy=50;
 	}
-#endif
 
 	/* clear displaying zone */
 #if 0

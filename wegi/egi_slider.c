@@ -416,6 +416,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
         }
 	EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
 
+
 	/* only if it has an icon */
 	if(data_btn->icon != NULL)
 	{
@@ -468,6 +469,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		return -4;
 	}
    } /* end of movable codes */
+
 
 	/*  ---- update slider value according to ebox->x0y0 position and redraw sliding slot */
 	if(data_slider->ptype==slidType_horiz)  	/* Horizontal sliding bar */
@@ -550,7 +552,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 			);
 		}
 
-		else  {   /* Vertical bar */
+		else  {   			/* Vertical bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x, data_slider->sxy.y-data_slider->val,
 					   data_slider->sw + 2
@@ -683,6 +685,8 @@ use following COLOR:
 
 /*------------------------------------------------
 Set slider percentage value in range [0 100]
+reset slider ebox x0y0 as per data_slider->sxy and
+psval.
 
 @slider:	The concerning slider.
 @psval:		Percentage value [0 100]
@@ -716,14 +720,22 @@ int egi_slider_setpsval(EGI_EBOX *slider, int psval)
 	if(psval<0)psval=0;
 	else if(psval > sl-1)psval=sl-1;
 
+	data_slider->val=psval;
 	/* Slider value is drivered from ebox->x0/y0 for Horizotal slider in refresh().
 	 * So set slider->x0/y0, NOT data_slider->val.
 	 */
 	if(data_slider->ptype==slidType_horiz) {     	/* Horizontal sliding bar */
         	slider->x0=data_slider->sxy.x+psval-(slider->width>>1);
+		/* Here also refresh y0, in case we want to refresh slider x0y0 as per updated
+		 * data_slider->sxy !!! */
+        	slider->y0=data_slider->sxy.y-(slider->height>>1);
+
 	}
 	else if(data_slider->ptype==slidType_vert) {	/* Vertical sliding bar */
-        	slider->y0=data_slider->sxy.y+psval-(slider->height>>1);
+        	slider->y0=data_slider->sxy.y-psval-(slider->height>>1);
+		/* Here also refresh x0, in case we want to refresh slider x0y0 as per updated
+		 * data_slider->sxy !!! */
+        	slider->x0=data_slider->sxy.x-(slider->width>>1);
 	}
 	else {
 		EGI_PDEBUG(DBG_SLIDER,"Warning: Undefined slider type! Fail to set value.\n");
@@ -731,6 +743,24 @@ int egi_slider_setpsval(EGI_EBOX *slider, int psval)
 	}
 
 	return 0;
+}
+
+
+/*------------------------------------------------
+reset slider ebox to the starting position, where
+data_slider->val=0.
+
+@slider:        The concerning slider.
+
+Return:
+        0       OK
+        <0      Fails
+-------------------------------------------------*/
+int egi_slider_reset(EGI_EBOX *slider)
+{
+
+	return egi_slider_setpsval(slider, 0);
+
 }
 
 

@@ -1073,11 +1073,12 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		-1	fails
    Midas Zhou
 ----------------------------------------------------------------------------*/
-   int fb_cpyto_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, uint16_t *buf)
+   int fb_cpyto_buf(FBDEV *fb_dev, int px1, int py1, int px2, int py2, uint16_t *buf)
    {
 	int i,j;
-	int xl,xr; /* left right */
-	int yu,yd; /* up down */
+	int x1,y1,x2,y2;  /* maps to default screen coord. */
+	int xl,xr; /* left, right */
+	int yu,yd; /* up, down */
 	int ret=0;
 	long int location=0;
 	int xres=fb_dev->vinfo.xres;
@@ -1090,6 +1091,29 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		printf("fb_cpyto_buf(): buf is NULL!\n");
 		return -1;
 	}
+
+	/* check FB.pos_roate
+	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
+        */
+	switch(fb_dev->pos_rotate) {
+		case 0:			/* FB defaul position */
+			x1=px1;	 y1=py1;
+			x2=px2;  y2=py2;
+			break;
+		case 1:			/* Clockwise 90 deg */
+			x1=(xres-1)-py1;  y1=px1;
+			x2=(xres-1)-py2;  y2=px2;
+			break;
+		case 2:			/* Clockwise 180 deg */
+			x1=(xres-1)-px1;  y1=(yres-1)-py1;
+			x2=(xres-1)-px2;  y2=(yres-1)-py2;
+			break;
+		case 3:			/* Clockwise 270 deg */
+			x1=py1;  y1=(yres-1)-px1;
+			x2=py2;  y2=(yres-1)-px2;
+			break;
+	}
+
 
 	/* sort point coordinates */
 	if(x1>x2){
@@ -1213,9 +1237,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		-1	fails
    Midas
    ----------------------------------------------------------------------------*/
-   int fb_cpyfrom_buf(FBDEV *fb_dev, int x1, int y1, int x2, int y2, const uint16_t *buf)
+   int fb_cpyfrom_buf(FBDEV *fb_dev, int px1, int py1, int px2, int py2, const uint16_t *buf)
    {
 	int i,j;
+	int x1,y1,x2,y2;  /* maps to default screen coord. */
 	int xl,xr; /* left right */
 	int yu,yd; /* up down */
 	int ret=0;
@@ -1229,6 +1254,28 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	{
 		printf("fb_cpyfrom_buf(): buf is NULL!\n");
 		return -1;
+	}
+
+	/* check FB.pos_roate
+	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
+        */
+	switch(fb_dev->pos_rotate) {
+		case 0:			/* FB defaul position */
+			x1=px1;	 y1=py1;
+			x2=px2;  y2=py2;
+			break;
+		case 1:			/* Clockwise 90 deg */
+			x1=(xres-1)-py1;  y1=px1;
+			x2=(xres-1)-py2;  y2=px2;
+			break;
+		case 2:			/* Clockwise 180 deg */
+			x1=(xres-1)-px1;  y1=(yres-1)-py1;
+			x2=(xres-1)-px2;  y2=(yres-1)-py2;
+			break;
+		case 3:			/* Clockwise 270 deg */
+			x1=py1;  y1=(yres-1)-px1;
+			x2=py2;  y2=(yres-1)-px2;
+			break;
 	}
 
 	/* sort point coordinates */

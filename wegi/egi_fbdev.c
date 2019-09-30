@@ -275,9 +275,11 @@ void fb_filo_dump(FBDEV *dev)
 
 
 /*--------------------------------------------------
-Rotate FB displaying position relative to LCD screen
-Landscape displaying: pos=1,3,...
-Postrait displaying: pos=0,2,...
+Rotate FB displaying position relative to LCD screen.
+
+Landscape displaying: pos=1 or 3
+Postrait displaying: pos=0 or 2
+
 ---------------------------------------------------*/
 void fb_position_rotate(FBDEV *dev, unsigned char pos)
 {
@@ -288,14 +290,14 @@ void fb_position_rotate(FBDEV *dev, unsigned char pos)
 	}
 
         /* set pos_rotate */
-        dev->pos_rotate=pos;
+        dev->pos_rotate=(pos & 0x3); /* Restricted to 0,1,2,3 only */
 
 	/* set pos_xres and pos_yres */
-	if( (pos & 0x1) == 0 ) {
+	if( (pos & 0x1) == 0 ) {		/* Portrait mode */
 	        dev->pos_xres=dev->vinfo.xres;
         	dev->pos_yres=dev->vinfo.yres;
 	}
-	else {
+	else {					/* Landscape mode */
 	        dev->pos_xres=dev->vinfo.yres;
         	dev->pos_yres=dev->vinfo.xres;
 	}

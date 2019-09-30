@@ -43,6 +43,7 @@ EGI_EBOX * egi_slider_new(
 int egi_slider_activate(EGI_EBOX *ebox);
 int egi_slider_refresh(EGI_EBOX *ebox);
 int egi_slider_setpsval(EGI_EBOX *ebox, int psval);
+int egi_slider_reset(EGI_EBOX *slider);
 EGI_DATA_SLIDER *egi_slider_getdata(EGI_EBOX *slider);
 void egi_free_data_slider(EGI_DATA_BTN *data_btn);
 

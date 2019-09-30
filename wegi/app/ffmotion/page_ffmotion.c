@@ -243,7 +243,7 @@ EGI_PAGE *create_ffmotionPage(void)
         time_slider=egi_slider_new(
           	                    "volume slider",  		/* char *tag, or NULL to ignore */
                 	            data_slider, 		/* EGI_DATA_BTN *egi_data */
-                                    15,15,       		/* slider block: ebox->width/height, to be Min. if possible */
+                                    20,20,    			/* slider block: ebox->width/height, to be Min. if possible */
                                     50,50,       		/* touchbox size, twidth/theight */
                                     -1,          		/* int frame, <0 no frame */
                                     -1      /* prmcolor
@@ -322,7 +322,7 @@ EGI_PAGE *create_ffmotionPage(void)
 	page_ffmotion->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 set wallpaper */
-        //page_ffmotion->fpath="/home/musicback.jpg";
+        page_ffmotion->fpath="/tmp/mplay.jpg";
 
 	/* 5.5 add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* Add buttons */
@@ -777,7 +777,6 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
 	static int old_duration=-1;  /* ensure first tm_duration != old_duration for the first time ! */
 	static int old_elapsed=-1;
 
-
         /* --- 1. Update sliding bar duration TXT ebox --- */
 	if( old_duration != tm_duration ) {
 	        tm_h=tm_duration/3600;
@@ -839,21 +838,29 @@ Change PAGE displaying mode.
 ----------------------------------------------------*/
 void motpage_rotate(unsigned char pos)
 {
-	EGI_POINT pxy={ 40/2, 225 }; /* sliding bar starting point */
+	EGI_POINT pxy={ 40/2, 230 }; /* sliding bar starting point */
 	EGI_DATA_SLIDER *prvdata_slider=(EGI_DATA_SLIDER *)data_slider->prvdata;
 
-	/* adjust FBDEV param */
+	/* adjust FBDEV position param */
 	fb_position_rotate(&gv_fb_dev, pos);
 
 	/* modify timing slide bar position */
 	prvdata_slider->sl=gv_fb_dev.pos_xres-40; /* total length of the bar */
 	prvdata_slider->sxy=pxy;        /* starting point */
 
+	/* ------!!! reset slider x0y0 as per starting point pxy ----*/
+        //egi_slider_setpsval(time_slider, 0);
+	egi_slider_reset(time_slider);
+
 	/* modify position of timing TXT eBox */
 	ebox_tmtxt[0]->x0=pxy.x;
-	ebox_tmtxt[0]->y0=pxy.y-tmSymHeight-5;
+	ebox_tmtxt[0]->y0=pxy.y-tmSymHeight-8;
 	ebox_tmtxt[1]->x0=pxy.x+prvdata_slider->sl-50;
 	ebox_tmtxt[1]->y0=ebox_tmtxt[0]->y0;
+
+	/* relocate Button PLAYMODE */
+	ffmot_btns[BTN_ID_PLAYMODE]->x0=gv_fb_dev.pos_xres-60;
+	ffmot_btns[BTN_ID_PLAYMODE]->y0=0;
 
 	/* Other child ebox keep unchanged */
 
