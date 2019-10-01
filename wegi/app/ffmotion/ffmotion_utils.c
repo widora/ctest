@@ -321,7 +321,7 @@ void* thdf_Display_motionPic(void * argv)
                 break;
            }
 
-          tm_delayms(25);
+          tm_delayms(125); //25
 	  //printf("nfc=%ld\n",nfc);
           //usleep(2000);
   }

@@ -191,7 +191,7 @@ static int offy;
  *   if True:	run thread ff_display_spectrum() to display audio spectrum
  *   if False:	disable it.
  */
-static bool enable_audio_spectrum=true;
+static bool enable_audio_spectrum=false;
 
 /* seek position */
 //long start_tmsecs=60*55; /*in sec, starting position */

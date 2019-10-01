@@ -256,7 +256,6 @@ EGI_PAGE *create_ffmotionPage(void)
         /* set reaction function */
         time_slider->reaction=NULL;
 
-
         /* --------- 3 create a TXT ebox for displaying time elapsed and duration  ------- */
 	tmSymHeight=18;		/* symbol height */
 
@@ -293,7 +292,6 @@ EGI_PAGE *create_ffmotionPage(void)
 	egi_push_datatxt(ebox_tmtxt[0], "00.000", NULL);
 	egi_push_datatxt(ebox_tmtxt[1], "00.000", NULL);
 
-
 	/* --------- 5. create ffplay page ------- */
 	/* 5.1 create ffplay page */
 	EGI_PAGE *page_ffmotion=egi_page_new("page_ffmotion");
@@ -322,7 +320,7 @@ EGI_PAGE *create_ffmotionPage(void)
 	page_ffmotion->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 set wallpaper */
-        page_ffmotion->fpath="/tmp/mplay.jpg";
+        //page_ffmotion->fpath="/tmp/mplay.jpg";
 
 	/* 5.5 add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* Add buttons */
@@ -859,8 +857,8 @@ void motpage_rotate(unsigned char pos)
 	ebox_tmtxt[1]->y0=ebox_tmtxt[0]->y0;
 
 	/* relocate Button PLAYMODE */
-	ffmot_btns[BTN_ID_PLAYMODE]->x0=gv_fb_dev.pos_xres-60;
-	ffmot_btns[BTN_ID_PLAYMODE]->y0=0;
+	ffmot_btns[BTN_ID_PLAYMODE]->x0=gv_fb_dev.pos_xres-50;
+	ffmot_btns[BTN_ID_PLAYMODE]->y0=-10;
 
 	/* Other child ebox keep unchanged */
 

@@ -207,23 +207,47 @@ Note:
  *	2.
 */
 
-/* Expected display window size, relative to coord. of LCD.
- * Will be adjusted in the function, if actual image size is smaller, then show_w/h will be ingored.
+
+
+/* Margins than NOT for displaying image, X aligned to screen W, Y alinged to screen H */
+static int  scrnMargX_Upp=30;    /* 40 for timing bar. ---- for Landscape mode ---- */
+static int  scrnMargX_Down=40;   /* 20 for title       */
+static int  scrnMargX =30+40;   /* = scrnMargX_Upp+scrnMargX_Down */
+static int  scrnMargY =0;
+
+/* Expected Max. display window size, aligned with original LCD screen coord. W/H !!!
+ * 1. It will be adjusted according to the actual image size/ratio and useful screen size
+ *    (deduct scrnMargX and scrnMargY).
+ *				( --- displaying window size processing routine  --- )
+ *    1.1 display_width*height ---> fit into (scrnX-scrnMargX)*(scrnY-scrnMargY)---> newdisplay_width*height
+ *    1.2 widthOrig*heightOrig ---> fit into new display_width*hegith ---> scwidth*scheight
+ *    1.3 Finally re_assign: display_width=scwidth; display_height=scheight
  *
- * Landscape mode:
- *  	show_w MAX. 240-40-20,  40 for timing bar. 20 for title
- *	show_h MAX. 320
+ * 2. If actual image W and H are both smaller, then display_width/h will be ingored.
+ * 3. If disable_scale_size=true, then display_width and display_height will be assigned as scrnUseX and scrnUseY
+ *    at first.
  *
- * Portrait  mode:
- *  	show_w MAX. 240,
- *	show_h MAX. 230.
+ *		( --- Landscape mode --- )
+ *  	display_width MAX. 240-scrnMargX,
+ *	display_height MAX. 320-scrnMargY.
+ *
+ * 		( --- Portrait  mode --- )
+ *	display_width MAX. 240
+ *	display_height MAX. 230
  */
-static int show_w= 240; //240-40-20; /* in LCD row pixels */
-static int show_h= 220; //320;       /* in LCD column pixels */
+static int display_width= 160;  //120; //240-70;        /* in LCD row pixels,  */
+static int display_height= 160;  //320;       /* in LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
 static int offy;
+
+
+/***  ( precondition: image size can fit into scrnUseX*scrnUseY, OR disable_scale_size will be reset to FALSE )
+ *  If true:  Original image size will be applied, if precondition is OK.
+ *  Note: We can NOT disable SWS, as it converts color format to AV_PIX_FMT_RGB565LE.
+ */
+static bool disable_scale_size=true;
 
 /* param: ( enable_audio_spectrum ) ( precondition: audio is ON and available  )
  *   if True:	run thread ff_display_spectrum() to display audio spectrum
@@ -388,19 +412,37 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	struct PicInfo pic_info;
 	pic_info.app_page=page; /* for PAGE wallpaper */
 
-	/* Absolute screen size under LCD coord. */
+	/* Absolute screen size, aligned with original LCD coord X/Y ->W/H */
 	int scrnX;
 	int scrnY;
+	/* Available displaying area in the screen */
+	int scrnUseX;
+	int scrnUseY;
 
-	/* origin movie/image size */
+	/* origin movie/image size, aligned with original LCD coord W/H. */
 	int widthOrig;
 	int heightOrig;
 
-	/* for scaled movie size, mapped as scwidth->LCD(fb) row, scheight->LCD(fb) column
-	   will be adjusted to fit for LCD WxH, clock transpose is also considered.
+	/* for scaled movie size, aligned with original LCD coord W/H.
+         * Intermediate variables.
          */
 	int scwidth;
 	int scheight;
+
+	/* display window, the final window_size that will be applied to AVFilter or SWS.
+	   0. Display width/height are NOT image upright width/height, their are related to LCD coordinate!
+	      If auto_rotation enabled, final display WxH are mapped to LCD row_pixel_number x column_pixel_number .
+	   1. Display_width/height are limited by scwidth/scheight, which are decided by original movie size
+	      and LCD size limits.
+	   2. When disable AVFILTER, display_width/disaply_height are just same as scwidth/scheight.
+        */
+//	int display_width;
+//	int display_height;
+
+	/* width and height for SWS output */
+	int sws_width;
+	int sws_height;
+
 
 	/*  for AUDIO  ::  for audio   */
 	int			audioStream=-1;/* >=0, if stream exists */
@@ -445,15 +487,6 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* scale = Width x Height */
 	/* transpose: transpose rows with columns in the input video */
 
-	/* display window, the final window_size that will be applied to AVFilter or SWS.
-	   0. Display width/height are NOT image upright width/height, their are related to LCD coordinate!
-	      If auto_rotation enabled, final display WxH are mapped to LCD row_pixel_number x column_pixel_number .
-	   1. Display_width/height are limited by scwidth/scheight, which are decided by original movie size
-	      and LCD size limits.
-	   2. When disable AVFILTER, display_width/disaply_height are just same as scwidth/scheight.
-        */
-	int display_width;
-	int display_height;
 
 	/* for AVFilter description, which will be parsed to apply on movie frames */
 	char filters_descr[512]={0};
@@ -476,35 +509,66 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 
 	/* check expected display window size */
 	if(enable_avfilter) {
-		if( (show_w&0xF) != 0 || (show_h&0xF) !=0 ) {
+		if( (display_width&0xF) != 0 || (display_height&0xF) !=0 ) {
 			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 16 for AVFiler.\n");
 		}
 	}
-	else if( (show_w&0x1) != 0 || (show_h&0x1) !=0 ) {
+	else if( (display_width&0x1) != 0 || (display_height&0x1) !=0 ) {
 			EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
 	}
 
-	/*MOVED: addjust offset of display window */
-	//offx=(ff_fb_dev.pos_xres-show_w)>>1; /* put display window in mid. of width */
-	//offy=50;//40;
 
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
 	ff_fb_dev.pixcolor_on=true; 	  /* Use private pixcolor */
 
 	/* Get screen size, absolute position/size */
-	scrnX=ff_fb_dev.vinfo.xres;
+	scrnX=ff_fb_dev.vinfo.xres; /* Use system vinfo */
 	scrnY=ff_fb_dev.vinfo.yres;
+
+	/* Get available/useful area for displaying */
+	scrnUseX=scrnX-scrnMargX;
+	scrnUseY=scrnY-scrnMargY;
+
+	/* If SWS is disabled, then set display_width and display_height to MAX. size  */
+	if(disable_scale_size) {
+		display_width=scrnUseX;
+		display_height=scrnUseY;
+	}
+
+	/* Fit display_width * display_height into (scrnX-scrnMargX)*(scrnY-scrnMargY) */
+//	if(display_height>scrnY-scrnMargY)
+//		display_height=scrnY-scrnMargY;
+//	if(display_width>scrnX-scrnMargX)
+//		display_width=scrnX-scrnMargX;
+
+        if( display_width > scrnUseX || display_height > scrnUseY ) {
+		if( (1.0*display_width/display_height) >= (1.0*scrnUseX/scrnUseY) )
+		{
+			/* fit for width, only if display_width > scrnX-scrnMargX, keep ratio */
+			if(display_width>scrnUseX) {
+				scwidth=scrnUseX;
+				scheight=scwidth*display_height/display_width;
+			}
+		}
+		else if ( (1.0*display_height/display_width) > (1.0*scrnUseY/scrnUseX) )
+		{
+			/* fit for height, only if video height > screen height, keep ratio */
+			if(display_height>scrnUseY) {
+				scheight=scrnUseY;
+				scwidth=scheight*display_width/display_height;
+			}
+		}
+
+		/* re_assign back */
+		display_width=scwidth;
+		display_height=scheight;
+	}
+	/* ELSE:  keep original display_width*display_height size */
 
 	/* roate displaying area and PAGE */
 	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
-	motpage_rotate(transpose_clock);  /* rotate PAGE */
-
-	/* --- fill display area with BLACK --- */
-//	fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
-//	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-
+	motpage_rotate(transpose_clock);  /* rotate main PAGE */
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -558,9 +622,6 @@ while(1) {
 	/* refresh page */
 	egi_page_needrefresh(page);
 
-	/* reset display window size */
-	display_height=show_h;
-	display_width=show_w;
 
 	/* reset elaped time recorder */
 	ff_sec_Velapsed=0;
@@ -915,8 +976,9 @@ if(disable_video && videoStream>=0 )
 		return (void *)-1;
 	}
 	/* get original video size */
-	EGI_PDEBUG(DBG_FFPLAY,"original video image size: widthOrig=%d, heightOrig=%d\n",
+	EGI_PDEBUG(DBG_FFPLAY,"original video image size: width=%d, height=%d\n",
 					 		pCodecCtx->width,pCodecCtx->height);
+
 
 
 /* if enable_auto_rotate, then map long side to H, and shore side to W
@@ -946,7 +1008,7 @@ if(enable_avfilter)
 }
 else
 {
-	/* Landscape mode */
+	/* Landscape modem, align image height to screen width */
 	if(transpose_clock & 0x1) {
 		widthOrig=pCodecCtx->height;
 		heightOrig=pCodecCtx->width;
@@ -957,44 +1019,54 @@ else
 		heightOrig=pCodecCtx->height;
 	}
 }
+EGI_PDEBUG(DBG_FFPLAY,"Rotated video size: widthOrig=%d, heightOrig=%d \n",widthOrig, heightOrig);
+
+/* Check original size and re_set disable_scale_size */
+if( widthOrig > scrnUseX || heightOrig > scrnUseY )
+	disable_scale_size=true;
 
 
-/* stretch image size to expected */
-if(enable_stretch)
+/* Calculate scwidth and scheight */
+if(enable_stretch)  /* stretch image size to expected */
 {
 	/* <<<<<<< stretch image size, will NOT keep H/W ratio !!!  >>>>>> */
 	scwidth=widthOrig;
 	scheight=heightOrig;
-        if( widthOrig > scrnX ) {
-		scwidth=scrnX;
+        if( widthOrig > scrnX-scrnMargX ) {
+		scwidth=scrnX-scrnMargX;
 	}
-	if( heightOrig > scrnY) {
-		scheight=scrnY;
+	if( heightOrig > scrnY-scrnMargY) {
+		scheight=scrnY-scrnMargY;
 	}
 }
-else /* if NOT stretch, then keep original ratio */
+else /* if NOT stretch, then keep original ratio,and fit into display_width*display_height */
 {
-	/* <<<<<<<   calculate scaled movie size to fit for the screen, keep H/W ratio!!!  >>>>>>>
-	 * 1. widthOrig and heightOrig are the original image size.
-	 * 2. scwidth and scheight are scaled/converted to be the best fit size for LCD.
+	/* <<<<<<<   calculate scaled movie size to fit into display_height*display_width >>>>>>>
+	 * 1. widthOrig and heightOrig are the original image size,
+	 *    widthOrig and heightOrig are aligned with screen H and W respectively.
+	 * 2. scwidth and scheight are scaled/converted to be the best fit size into
+	 *     display_width*display_height, which are already well fitted into scrnUseX*scrnUseY.
          */
-        if( widthOrig > scrnX || heightOrig > scrnY ) {
-		if( (1.0*widthOrig/heightOrig) >= (1.0*scrnX/scrnY) )
+	if( widthOrig > display_width || heightOrig > display_height )
+	{
+		if( (1.0*widthOrig/heightOrig) >= (1.0*display_width/display_height) )
 		{
-			/* fit for width, only if video width > screen width */
-			if(widthOrig>scrnX) {
-				scwidth=scrnX;
+			/* Fit for width, only if widthOrig > display_width */
+			if( widthOrig > display_width ) {
+				scwidth=display_width;
 				scheight=heightOrig*scwidth/widthOrig;
 			}
 		}
-		else if ( (1.0*heightOrig/widthOrig) > (1.0*scrnY/scrnX) )
+		else if( (1.0*heightOrig/widthOrig) > (1.0*display_height/display_width) )
 		{
-			/* fit for height, only if video height > screen height */
-			if(heightOrig>scrnY) {
-				scheight=scrnY;
+			/* Fit for height, only if heightOrig > display_height */
+			if( heightOrig > display_height ) {
+				scheight=display_height;
 				scwidth=widthOrig*scheight/heightOrig;
 			}
 		}
+
+
 	}
 	else {
 		/* keep original movie/image size */
@@ -1002,29 +1074,21 @@ else /* if NOT stretch, then keep original ratio */
 	 	scheight=heightOrig;
 	}
 }
-	EGI_PDEBUG(DBG_FFPLAY,"Max. scale video size: scwidth=%d, scheight=%d \n",scwidth,scheight);
+EGI_PDEBUG(DBG_FFPLAY,"Fit and scale video size into display_widthxdisplay_height: scwidth=%d, scheight=%d \n",
+											scwidth, scheight);
 
-	/* re-check size limit, in case data corrupted! */
-	if( scwidth > scrnX ||
-            scheight > scrnY ||
-	    scwidth <= 0 || scheight <= 0  )
-        {
-		EGI_PLOG(LOGLV_WARN, "!!! WARNING !!! scwidth or scheight out of limit! reset to scrnX*scrnX.");
-		scwidth=scrnX;
-		scheight=scrnX;
+	/* <<<<<------   Get final displaying area size   ----->>>>> */
+	if( disable_scale_size ) {
+		/* re_assign back to display_width and display_height */
+		display_width=widthOrig;
+		display_height=heightOrig;
 	}
-
-	/* <<<<<<<<<<<<   Decide final display Width and Heigh    >>>>>>>>>> */
-	/* We get scwidth/scheight accroding to LCD Limts and original movie size, now we
- 	 * can get decide display H/W according to scwidth/scheight.
-	 * just not to exceed scwidth/scheight, will not keep ratio if enable_strech=1.!!!
-	 */
-	if(display_width > scwidth) {
+	else {
+		/* re_assign back to display_width and display_height */
 		display_width=scwidth;
-	}
-	if(display_height > scheight) {
 		display_height=scheight;
 	}
+
 
 
 /*  Double check here, should alread have been checked at the very begin
@@ -1032,36 +1096,36 @@ else /* if NOT stretch, then keep original ratio */
 */
 if(enable_avfilter)
 {
-   	display_width=(display_width>>4)<<4;
-   	display_height=(display_height>>4)<<4;
+   	display_width=(display_width>>2)<<2;  /*4?*/
+   	display_height=(display_height>>2)<<2;
 }
 else
 {
-	display_width=(display_width>>1)<<1;
-	display_height=(display_height>>1)<<1;
+	display_width=(display_width>>2)<<2;
+	display_height=(display_height>>2)<<2;
 }
-	EGI_PDEBUG(DBG_FFPLAY,"Finally adjusted display window size: display_width=%d, display_height=%d\n",
-										display_width, display_height);
+
+EGI_PDEBUG(DBG_FFPLAY,"SWS: %s;  Final display area size: W%d*H%d \n",
+		 				(disable_scale_size)?"OFF":"ON", display_width, display_height);
+
 
 	/* Addjust displaying window position */
 	/* Landscape mode */
 	if(transpose_clock & 0x1 ) {
-		offx=(ff_fb_dev.pos_xres-display_height)>>1;
-		offy=((ff_fb_dev.pos_yres-40-20-display_width)>>1) +20; /* bottom 40 for timing bar */
+		offx=(ff_fb_dev.vinfo.yres-display_height)>>1;
+		offy=((ff_fb_dev.vinfo.xres-scrnMargX-display_width)>>1)+scrnMargX_Upp; /* bottom 40 for timing bar */
+		EGI_PDEBUG(DBG_FFPLAY," offx=%d,  offy=%d\n", offx, offy);
 	}
 	/* Portrait mode */
         else {
-		if(IS_IMAGE_CODEC(vcodecID))		/* for IMAGE */
+		offx=(ff_fb_dev.vinfo.xres-display_width)>>1;
+		if(IS_IMAGE_CODEC(vcodecID)) 		/* for IMAGE */
 			offy=((265-29-display_height)>>1) +30;
-		else					/* for MOTION PIC */
+		else 					/* for MOTION PIC */
 			offy=50;
 	}
 
-	/* clear displaying zone */
-#if 0
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-#endif
+
 	/* Determine required buffer size and allocate buffer for scaled picture size */
 	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
 	pic_info.numBytes=numBytes;
@@ -1076,30 +1140,20 @@ else
 	else
 		EGI_PDEBUG(DBG_FFPLAY, "finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
 
-	/* ---  PICBuff TEST....  --- */
-/*
-	printf("----- test to get ALL free PICbuff \n");
-	for(i=0;i<PIC_BUFF_NUM;i++){
-		printf("	get_FreePicBuff()=%d\n",get_FreePicBuff());
-		IsFree_PICbuff[i]=false;
-	}
-*/
-	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
-	 /* in order to put displaying window in center of the screen */
-//	 Hb=(ff_fb_dev.pos_xres-display_width+1)/2; /* horizontal offset */
-//	 Vb=(ff_fb_dev.pos_yres-display_height+1)/2; /* vertical offset */
-//	 pic.Hs=Hb; pic.He=Hb+display_width-1;
-//	 pic.Vs=Vb; pic.Ve=Vb+display_height-1;
 
+
+	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
 	 Hb=offx;
 	 Vb=offy;
 	 pic_info.Hs=Hb;
 	 pic_info.Vs=Vb;
-	 if(transpose_clock) {
+
+	/* NOte: V, H is aligned with image coord. */
+	 if(transpose_clock & 0x1) {		/* Landscape mode */
 		pic_info.Ve=Vb+display_width-1;
 		pic_info.He=Hb+display_height-1;
 	 }
-	 else {
+	 else {					/* Portrait mode */
 	 	 pic_info.Ve=Vb+display_height-1;
 		 pic_info.He=Hb+display_width-1;
 	 }
@@ -1117,35 +1171,27 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 {
 	/* Initialize SWS context for software scaling, allocate and return a SwsContext */
 	EGI_PDEBUG(DBG_FFPLAY, "Initialize SWS context for software scaling... \n");
-        printf("---- SWS_CTX: display_width=%d, display_height=%d ---- \n", display_width, display_height);
 
-	if(transpose_clock) {
-		printf("----- SWS_CTX with transpose_clock -----\n");
-		sws_ctx = sws_getContext( pCodecCtx->width,
-					  pCodecCtx->height,
-					  pCodecCtx->pix_fmt,
-					  display_height, //scwidth,/* scaled output size */
-					  display_width, //scheight,
-					  AV_PIX_FMT_RGB565LE,
-					  SWS_BILINEAR,
-					  NULL,
-					  NULL,
-					  NULL
-					);
+	if(transpose_clock & 0x1) {	/* Landscap mode */
+		sws_width=display_height;
+		sws_height=display_width;
+	} else {			/* Portrait mode */
+		sws_width=display_width;
+		sws_height=display_height;
 	}
-	else {
-		sws_ctx = sws_getContext( pCodecCtx->width,
-					  pCodecCtx->height,
-					  pCodecCtx->pix_fmt,
-					  display_width, //scwidth,/* scaled output size */
-					  display_height, //scheight,
-					  AV_PIX_FMT_RGB565LE,
-					  SWS_BILINEAR,
-					  NULL,
-					  NULL,
-					  NULL
-					);
-	}
+        printf("---- SWS_CTX: sws_width=%d, sws_height=%d ---- \n", sws_width, sws_height);
+
+	sws_ctx = sws_getContext( pCodecCtx->width,
+				  pCodecCtx->height,
+				  pCodecCtx->pix_fmt,
+				  sws_width, 		/* scaled output size */
+				  sws_height,
+				  AV_PIX_FMT_RGB565LE,
+				  SWS_BILINEAR,
+				  NULL,
+				  NULL,
+				  NULL
+				);
 
 //	av_opt_set(sws_ctx,"dither_method",SWR_DITHER_RECTANGULAR,0);
 }
@@ -1428,7 +1474,7 @@ if(enable_avfilter)
 				}
 				av_frame_unref(filt_pFrame);
 }
-else /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
+else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff for display */
 {
 				/* convert the image from its native format to RGB */
 				//printf("%s: sws_scale converting ...\n",__func__);
@@ -1662,6 +1708,7 @@ FAIL_OR_TERM:
 	fbset_color(WEGI_COLOR_BLACK);
 	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
 #endif
+
 
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */
 
