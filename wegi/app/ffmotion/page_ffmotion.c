@@ -836,29 +836,39 @@ Change PAGE displaying mode.
 ----------------------------------------------------*/
 void motpage_rotate(unsigned char pos)
 {
-	EGI_POINT pxy={ 40/2, 230 }; /* sliding bar starting point */
+	int i;
+	EGI_POINT pxy;			/* sliding bar starting point */
+	int sl;  		     	/* length of sliding bar */
 	EGI_DATA_SLIDER *prvdata_slider=(EGI_DATA_SLIDER *)data_slider->prvdata;
 
 	/* adjust FBDEV position param */
 	fb_position_rotate(&gv_fb_dev, pos);
 
 	/* modify timing slide bar position */
-	prvdata_slider->sl=gv_fb_dev.pos_xres-40; /* total length of the bar */
-	prvdata_slider->sxy=pxy;        /* starting point */
+	//prvdata_slider->sl=gv_fb_dev.pos_xres-40; /* total length of the bar */
+	//prvdata_slider->sxy=pxy;        /* starting point */
 
-	/* ------!!! reset slider x0y0 as per starting point pxy ----*/
-        //egi_slider_setpsval(time_slider, 0);
-	egi_slider_reset(time_slider);
+	/* Get new pxy and sl after FB position rotation! */
+	pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10};
+	if(pos&0x1)
+		sl=gv_fb_dev.pos_xres-40-55;
+	else
+		sl=gv_fb_dev.pos_xres-40;
 
-	/* modify position of timing TXT eBox */
+	/* reset slider x0y0 and sl */
+	egi_slider_reset(time_slider, 0, sl, pxy); /* slider, psval, sl, pxy */
+
+	/* modify position of timing TXT eBox, as of current coord.  */
 	ebox_tmtxt[0]->x0=pxy.x;
 	ebox_tmtxt[0]->y0=pxy.y-tmSymHeight-8;
 	ebox_tmtxt[1]->x0=pxy.x+prvdata_slider->sl-50;
 	ebox_tmtxt[1]->y0=ebox_tmtxt[0]->y0;
 
-	/* relocate Button PLAYMODE */
-	ffmot_btns[BTN_ID_PLAYMODE]->x0=gv_fb_dev.pos_xres-50;
-	ffmot_btns[BTN_ID_PLAYMODE]->y0=-10;
+	/* relocate control Button */
+	for(i=0; i<btnum; i++) {
+		ffmot_btns[i]->x0=gv_fb_dev.pos_xres-(60-5);
+		ffmot_btns[i]->y0=48*i;
+	}
 
 	/* Other child ebox keep unchanged */
 

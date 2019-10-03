@@ -300,7 +300,7 @@ void* thdf_Display_motionPic(void * argv)
                         /* put a FREE tag after display, then it can be overwritten. */
                         IsFree_PICbuff[index]=true;
 
-                        tm_delayms(25);
+                        tm_delayms(15); //25;
                         //usleep(20000);
 
                         /* increase number of frames consumed */
@@ -321,7 +321,7 @@ void* thdf_Display_motionPic(void * argv)
                 break;
            }
 
-          tm_delayms(125); //25
+          tm_delayms(25); //25
 	  //printf("nfc=%ld\n",nfc);
           //usleep(2000);
   }

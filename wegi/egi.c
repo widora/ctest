@@ -247,23 +247,28 @@ int egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num)
 }
 
 
+/*-----------------------------------------------------------------------------
+1. In a page, find the ebox index according to given x,y
+2. A sleeping/hidden ebox will be ignored.
+3. Type may be multiple, like: type_txt|type_slider|type_btn ...etc.
 
-/*------------------------------------------------------------------
-1. in a page, find the ebox index according to given x,y
-2. a sleeping ebox will be ignored.
-3. type may be multiple, like: type_txt|type_slider|type_btn ...etc.
+@x,y:   Point under request, under default coordinate system!!!
 
-x,y: point under request
+	!!! TBD&TODO: Current ONLY for default gv_fb_dev coord. mapping !!!
 
-page:  a egi page containing eboxes
+@page:  An egi page containing eboxes
 
 return:
-	pointer to a ebox  	Ok
+	pointer to an ebox  	Ok
 	NULL			fail or no ebox is hit.
--------------------------------------------------------------------*/
-EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
+------------------------------------------------------------------------------*/
+EGI_EBOX *egi_hit_pagebox(int px, int py, EGI_PAGE *page, enum egi_ebox_type type)
 {
+	int x,y;
 	struct list_head *tnode;
+	int xres= gv_fb_dev.vinfo.xres;
+	int yres= gv_fb_dev.vinfo.yres;
+
 	EGI_EBOX *ebox;
 	EGI_POINT *sxy;
 	EGI_POINT *exy;
@@ -282,6 +287,28 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
                 return NULL;
         }
 
+        /* check FB.pos_rotate
+	 * Map default touch coordinates to current pos_rotate coordinates.
+         */
+        switch(gv_fb_dev.pos_rotate) {
+                case 0:                 /* FB defaul position */
+                        x=px;
+                        y=py;
+                        break;
+                case 1:                 /* Clockwise 90 deg */
+			x=py;
+                        y=(xres-1)-px;
+                        break;
+                case 2:                 /* Clockwise 180 deg */
+			x=(xres-1)-px;
+			y=(yres-1)-py;
+                        break;
+                case 3:                 /* Clockwise 270 deg */
+			x=(yres-1)-py;
+			y=px;
+                        break;
+        }
+
 
         /* traverse the list, not safe */
         list_for_each(tnode, &page->list_head)
@@ -294,7 +321,8 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
 
 		if(ebox->type & type)
 		{
-	        	 if(ebox->status==status_sleep)  /* ignore sleeping ebox */
+			/* ignore sleeping and hidden ebox */
+	        	 if(ebox->status==status_sleep || ebox->status==status_hidden )
 				continue;
 
 			 /* check whether the ebox is hit */
@@ -303,7 +331,7 @@ EGI_EBOX *egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type type)
                 	                	&& y > ebox->y0 && y < ebox->y0+ebox->height )
 	                  	return ebox;
 			 }
-			 else {    /* 2. If touch box defined */
+			 else {    			   /* 2. If touch box defined */
 				if( x > sxy->x && x < exy->x  && y > sxy->y && y < exy->y )
 				  return ebox;
 			 }

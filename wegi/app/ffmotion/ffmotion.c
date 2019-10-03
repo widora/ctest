@@ -209,11 +209,14 @@ Note:
 
 
 
-/* Margins than NOT for displaying image, X aligned to screen W, Y alinged to screen H */
-static int  scrnMargX_Upp=30;    /* 40 for timing bar. ---- for Landscape mode ---- */
-static int  scrnMargX_Down=40;   /* 20 for title       */
-static int  scrnMargX =30+40;   /* = scrnMargX_Upp+scrnMargX_Down */
-static int  scrnMargY =0;
+/* Margins than NOT for displaying image, X aligned to screen W, Y alinged to screen H, as of SCREEN COORD. */
+static int  scrnMargX_Left=30;    /* 40 for timing bar. ---- for Landscape mode ---- */
+static int  scrnMargX_Right=40;   /* 20 for title       */
+static int  scrnMargX =30+40;     /* = scrnMargX_Left+scrnMargX_Right */
+
+static int  scrnMargY_Upp=60-5;
+static int  scrnMargY_Down=0;
+static int  scrnMargY =55;	 /* = scrnMargY_Upp+scrnMargY_Down */
 
 /* Expected Max. display window size, aligned with original LCD screen coord. W/H !!!
  * 1. It will be adjusted according to the actual image size/ratio and useful screen size
@@ -235,8 +238,8 @@ static int  scrnMargY =0;
  *	display_width MAX. 240
  *	display_height MAX. 230
  */
-static int display_width= 160;  //120; //240-70;        /* in LCD row pixels,  */
-static int display_height= 160;  //320;       /* in LCD column pixels */
+static int display_width=  240-70;        /* in LCD row pixels,  */
+static int display_height= 320;       /* in LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
@@ -1021,9 +1024,9 @@ else
 }
 EGI_PDEBUG(DBG_FFPLAY,"Rotated video size: widthOrig=%d, heightOrig=%d \n",widthOrig, heightOrig);
 
-/* Check original size and re_set disable_scale_size */
+/* Check original size and re_set disable_scale_size to FALSE */
 if( widthOrig > scrnUseX || heightOrig > scrnUseY )
-	disable_scale_size=true;
+	disable_scale_size=false;
 
 
 /* Calculate scwidth and scheight */
@@ -1057,7 +1060,7 @@ else /* if NOT stretch, then keep original ratio,and fit into display_width*disp
 				scheight=heightOrig*scwidth/widthOrig;
 			}
 		}
-		else if( (1.0*heightOrig/widthOrig) > (1.0*display_height/display_width) )
+		else if( (1.0*heightOrig/widthOrig) >= (1.0*display_height/display_width) )
 		{
 			/* Fit for height, only if heightOrig > display_height */
 			if( heightOrig > display_height ) {
@@ -1065,7 +1068,6 @@ else /* if NOT stretch, then keep original ratio,and fit into display_width*disp
 				scwidth=widthOrig*scheight/heightOrig;
 			}
 		}
-
 
 	}
 	else {
@@ -1105,16 +1107,19 @@ else
 	display_height=(display_height>>2)<<2;
 }
 
-EGI_PDEBUG(DBG_FFPLAY,"SWS: %s;  Final display area size: W%d*H%d \n",
-		 				(disable_scale_size)?"OFF":"ON", display_width, display_height);
+EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d \n",
+		 				(disable_scale_size)?"YES":"NO", display_width, display_height);
 
 
 	/* Addjust displaying window position */
 	/* Landscape mode */
 	if(transpose_clock & 0x1 ) {
-		offx=(ff_fb_dev.vinfo.yres-display_height)>>1;
-		offy=((ff_fb_dev.vinfo.xres-scrnMargX-display_width)>>1)+scrnMargX_Upp; /* bottom 40 for timing bar */
-		EGI_PDEBUG(DBG_FFPLAY," offx=%d,  offy=%d\n", offx, offy);
+		offx=((ff_fb_dev.vinfo.yres-scrnMargY-display_height)>>1)
+					+ ( (transpose_clock==1)?scrnMargY_Upp:scrnMargY_Down );
+		offy=((ff_fb_dev.vinfo.xres-scrnMargX-display_width)>>1)
+					+ ( (transpose_clock==1)?scrnMargX_Right:scrnMargX_Left );
+		EGI_PDEBUG(DBG_FFPLAY," yres=%d, xres=%d, offx=%d,  offy=%d  as of current coord.\n",
+						ff_fb_dev.vinfo.yres, ff_fb_dev.vinfo.xres, offx, offy);
 	}
 	/* Portrait mode */
         else {
@@ -1492,12 +1497,11 @@ else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff 
 				}
 } /* end of AVFilter ON/OFF */
 
-
 				/* ---print playing time--- */
 				ff_sec_Velapsed=atoi( av_ts2timestr(packet.pts,
 				     			&pFormatCtx->streams[videoStream]->time_base) );
-				//ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
-				//			&pFormatCtx->streams[videoStream]->time_base) );
+				ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
+							&pFormatCtx->streams[videoStream]->time_base) );
 
 				//printf("\r	     video Elapsed time: %ds  ---  Duration: %ds  ",
 				//					ff_sec_Velapsed, ff_sec_Vduration );
@@ -1542,7 +1546,7 @@ else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff 
 					{
 						// pAuioFrame->nb_sample = aCodecCtx->frame_size !!!!
 						// Number of samples per channel in an audio frame
-						printf("Stereo.\n");
+						//printf("Stereo.\n");
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
 							//EGI_PDEBUG(DBG_FFPLAY,"outsamples=%d, frame_size=%d \n",outsamples,aCodecCtx->frame_size);
@@ -1554,7 +1558,7 @@ else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff 
 
 					}
 					else if(pAudioFrame->data[0]) {  /* one channel only */
-						 printf("Mono.\n");
+						 //printf("Mono.\n");
 						/* direct output */
 						if(sample_fmt == AV_SAMPLE_FMT_FLTP) {
 							outsamples=swr_convert(swr,&outputBuffer, pAudioFrame->nb_samples, (const uint8_t **)pAudioFrame->extended_data, aCodecCtx->frame_size);
@@ -1578,7 +1582,8 @@ else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff 
 */
 
                                 	/* --- Reset timing slider, if NO video stream ---- */
-					motpage_update_timingBar(ff_sec_Aelapsed, ff_sec_Aduration);
+					if( videoStream < 0 )
+						motpage_update_timingBar(ff_sec_Aelapsed, ff_sec_Aduration);
 
 				}
 				packet.size -= bytes_used;
@@ -1670,7 +1675,7 @@ if(enable_clip_test)
 			FFmotion_Ctx->ffcmd=cmd_none;
 		}
 
-	   printf("%s: restart av_read_frame()...\n",__func__);
+	   //printf("%s: restart av_read_frame()...\n",__func__);
 
 	}/*  end of while()  <<---  end of one file playing by av_read_frame()  --->>  */
 

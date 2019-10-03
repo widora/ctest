@@ -55,7 +55,9 @@ typedef struct fbdev{
 	uint16_t 	pixcolor;	/* pixel color */
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
-	int   		pos_rotate;	/* 0: default X,Y coordinate of FB
+	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!  */
+	int   		pos_rotate;
+					/* 0: default X,Y coordinate of FB
 					 * 1: clockwise rotation 90 deg: Y  maps to (vinfo.xres-1)-FB.X,
 					 *				 X  maps to FB.Y
 				         * 2: clockwise rotation 180 deg
@@ -78,7 +80,7 @@ typedef struct fbpixel {
 	uint16_t color;
 }FBPIX;
 
-/* global variale, Frame buffer device */
+/* Default FBDEV, global variale, Frame buffer device */
 extern FBDEV   gv_fb_dev;
 
 /* functions */

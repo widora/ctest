@@ -1378,11 +1378,10 @@ int egi_homepage_routine(EGI_PAGE *page)
 					printf("--- hold sliding ---\n");
 					slide_touch=true;
 
+					/* revive 'pressing' status for slide_handler */
+					last_status==pressing;
+			    		touch_data.status=pressing;
 				}
-
-				/* revive 'pressing' status for slide_handler */
-				last_status==pressing;
-		    		touch_data.status=pressing;
 			}
 
 			/* 2.3 sliding handling func */
@@ -1421,6 +1420,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 	/* >>>>> (  Button Hit Handling  ) >>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
 			/* 2.4 check if any ebox was hit */
+			printf("--- penXY(%d,%d) ---\n",sx,sy);
 		        hitbtn=egi_hit_pagebox(sx, sy, page, type_btn|type_slider);
 
 			/* 2.4 check if last hold btn losing foucs */

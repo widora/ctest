@@ -299,7 +299,7 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 		yres=fr_dev->vinfo.yres;
 	}
 
-	/* check FB.pos_roate
+	/* check FB.pos_rotate
 	* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
         */
 	switch(fr_dev->pos_rotate) {
@@ -1092,7 +1092,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		return -1;
 	}
 
-	/* check FB.pos_roate
+	/* check FB.pos_rotate
 	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
         */
 	switch(fb_dev->pos_rotate) {
@@ -1256,7 +1256,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		return -1;
 	}
 
-	/* check FB.pos_roate
+	/* check FB.pos_rotate
 	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
         */
 	switch(fb_dev->pos_rotate) {

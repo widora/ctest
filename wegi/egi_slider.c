@@ -716,7 +716,7 @@ int egi_slider_setpsval(EGI_EBOX *slider, int psval)
 	sl=data_slider->sl; /* slider bar length */
 
 	/* convert psval to within range [0 data_slider->sl-1] */
-	psval=psval*data_slider->sl/100;
+	psval=psval*(data_slider->sl-1)/100;
 	if(psval<0)psval=0;
 	else if(psval > sl-1)psval=sl-1;
 
@@ -746,21 +746,44 @@ int egi_slider_setpsval(EGI_EBOX *slider, int psval)
 }
 
 
-/*------------------------------------------------
-reset slider ebox to the starting position, where
-data_slider->val=0.
+/*--------------------------------------------------------------------
+Reset parameters for slider ebox according to psval, sl, and sxy.
 
 @slider:        The concerning slider.
+@psval:		Percentage value [0 100]
+@sl:		total length of the bar
+@sxy:		starting point of the bar
 
 Return:
         0       OK
         <0      Fails
--------------------------------------------------*/
-int egi_slider_reset(EGI_EBOX *slider)
+--------------------------------------------------------------------*/
+int egi_slider_reset(EGI_EBOX *slider, int psval, int sl, EGI_POINT sxy)
 {
+        EGI_DATA_BTN *data_ebox=NULL;
+        EGI_DATA_SLIDER *data_slider=NULL;
 
-	return egi_slider_setpsval(slider, 0);
+        if( slider==NULL || slider->egi_data==NULL )
+                return -1;
 
+        if( slider->type != type_slider)
+                return -2;
+
+        /* Get data */
+        data_ebox=(EGI_DATA_BTN *)(slider->egi_data);
+        data_slider=(EGI_DATA_SLIDER *)(data_ebox->prvdata);
+        if(data_slider==NULL)
+                return -3;
+
+	/* reset sl and sxy */
+        data_slider->sl=sl; 	/* total length of the bar */
+        data_slider->sxy=sxy;   /* starting point */
+
+	/* set x0y0 of sliding bar as per psval */
+	if( egi_slider_setpsval(slider, psval) !=0 )
+		return -4;
+
+	return 0;
 }
 
 
