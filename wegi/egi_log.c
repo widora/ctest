@@ -50,6 +50,7 @@ Midas Zhou
 #include <string.h>
 #include <stdarg.h> /* va_list, va_start */
 #include <pthread.h>
+#include <errno.h>
 #include "egi_log.h"
 #include "egi_timer.h"
 #include "egi_utils.h"
@@ -402,7 +403,7 @@ int egi_init_log(const char *fpath)
 	egi_log_fp=fopen(fpath,"ae+");//EGI_LOGFILE_PATH,"a+");
 	if(egi_log_fp==NULL)
 	{
-		printf("egi_init_log():fail to open log file %s\n",EGI_LOGFILE_PATH);
+		printf("egi_init_log(): %s\n", strerror(errno)); //fail to open log file %s\n", fpath);
 		ret=-3;
 		goto init_fail;
 	}

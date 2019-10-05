@@ -66,7 +66,7 @@ struct PicInfo {
 /*  functions  */
 int 		init_ffmotionCtx(char *path, char *fext);
 void 		free_ffmotionCtx(void);
-uint8_t**  	malloc_PicBuffs(int width, int height, int pixel_size );
+uint8_t**  	malloc_PicBuffs(int pic_size, int pixel_size );
 int 	   	load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   	thdf_Display_motionPic(void * argv);
 void* 	   	thdf_Display_Subtitle(void * argv);

@@ -81,10 +81,12 @@ int init_fbdev(FBDEV *fr_dev)
         }
 
         /* assign fb box */
-        gv_fb_box.startxy.x=0;
-        gv_fb_box.startxy.y=0;
-        gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
-        gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
+	if(fr_dev==&gv_fb_dev) {
+	        gv_fb_box.startxy.x=0;
+        	gv_fb_box.startxy.y=0;
+	        gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
+        	gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
+	}
 
 	/* clear buffer */
 	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
@@ -289,16 +291,30 @@ void fb_position_rotate(FBDEV *dev, unsigned char pos)
 		return;
 	}
 
-        /* set pos_rotate */
+        /* Set pos_rotate */
         dev->pos_rotate=(pos & 0x3); /* Restricted to 0,1,2,3 only */
 
 	/* set pos_xres and pos_yres */
-	if( (pos & 0x1) == 0 ) {		/* Portrait mode */
+	if( (pos & 0x1) == 0 ) {		/* 0,2  Portrait mode */
+		/* reset new resolution */
 	        dev->pos_xres=dev->vinfo.xres;
         	dev->pos_yres=dev->vinfo.yres;
+
+		/* reset gv_fb_box END point */
+		if(dev==&gv_fb_dev) {
+			gv_fb_box.endxy.x=dev->vinfo.xres-1;
+			gv_fb_box.endxy.y=dev->vinfo.yres-1;
+		}
 	}
-	else {					/* Landscape mode */
+	else {					/* 1,3  Landscape mode */
+		/* reset new resolution */
 	        dev->pos_xres=dev->vinfo.yres;
         	dev->pos_yres=dev->vinfo.xres;
+
+		/* reset gv_fb_box END point */
+		if(dev==&gv_fb_dev) {
+			gv_fb_box.endxy.x=dev->vinfo.yres-1;
+			gv_fb_box.endxy.y=dev->vinfo.xres-1;
+		}
 	}
 }

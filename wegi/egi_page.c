@@ -573,7 +573,7 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
 	{
-		//printf("egi_page_refresh(): refresh page '%s' wallpaper.\n",page->ebox->tag);
+		printf("egi_page_refresh(): refresh page '%s'.\n",page->ebox->tag);
 		EGI_PDEBUG(DBG_PAGE,"refresh page '%s' wallpaper.\n",page->ebox->tag);
 
 		/* Also see egi_page_activate(EGI_PAGE *page) */
@@ -672,10 +672,18 @@ int egi_page_refresh(EGI_PAGE *page)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret *= ebox->refresh(ebox);
+
 #if 1 /* debug only */
-		if(ret==0)
-		    EGI_PDEBUG(DBG_PAGE,"refresh page '%s' list item ebox: '%s' with ret=%d \
-			 	 	ret=1 need_refresh=false \n", page->ebox->tag,ebox->tag,ret);
+
+		if(ret==0) {
+		    /* ret==1, means need_refresh=false */
+		    EGI_PDEBUG(DBG_PAGE,"Succeed to refresh page '%s' item ebox: '%s'.\n",
+			 						page->ebox->tag,ebox->tag,ret);
+		}
+//		else if(ret==1) {
+//	            EGI_PDEBUG(DBG_PAGE,"Fail to refresh page '%s' item ebox: '%s'. need_refresh is false.\n",
+//			 	 					page->ebox->tag,ebox->tag,ret);
+//		}
 #endif
 	}
 
@@ -1267,6 +1275,9 @@ int egi_homepage_routine(EGI_PAGE *page)
 
 	while(1)
 	{
+		/* ---- TEST TEST ---- */
+		//egi_page_refresh(page);
+
 		/* 0. backup old touch status */
 		if( touch_data.status==releasing ) {
 			//printf(" --- 'releasing' --- \n");
@@ -1441,12 +1452,21 @@ int egi_homepage_routine(EGI_PAGE *page)
 				    /* remember last hold btn */
 				    if(last_status==pressed_hold) last_holdbtn=hitbtn;
 
-				    /* call touch_effect()
-				     * 'releasing' will trigger ebox refresh in egi_btn_touch_effect() !!!
-				     */
+		    /* call touch_effect()
+		     *  !!! 'releasing' will trigger ebox refresh in egi_btn_touch_effect() !!!
+		     *
+		     *  If a 'pressing' triggers touch_effect() first, then trigger hitbtin->reaction().
+		     *  in such a case, the reaction function may set refresh flag for the PAGE and hopes
+		     *  to refresh all eboxes of the PAGE in next 'realsed_hold' status. Unfortunately, it may
+		     *  happens that next status is 'releasing', which will trigger touch_effect() again, just
+		     *  before the PAGE refreshs! we will see unexpected results then!
+		     *  One solution is to put egi_page_refresh() at the beginning of the while() loop, NOT in
+		     *  'released_hold' status.
+		     */
 //		                    if( hitbtn->need_refresh==false  &&  /* In case SIGCONT triggered */
 				    if( ((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect != NULL )
 					((EGI_DATA_BTN *)hitbtn->egi_data)->touch_effect(hitbtn,&touch_data);//last_status);
+
 				}
 
 				/* 2.5.2 trigger reaction func */

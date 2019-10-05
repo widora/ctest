@@ -31,7 +31,6 @@ Modified and appended by: Midas Zhou
 #define FBDEV_MAX_BUFFER 3
 
 typedef struct fbdev{
-
         int 		fbfd; 		/* FB device file descriptor, open "dev/fb0" */
 
         bool 		virt;           /* 1. TRUE: virtural fbdev, it maps to an EGI_IMGBUF
@@ -55,7 +54,9 @@ typedef struct fbdev{
 	uint16_t 	pixcolor;	/* pixel color */
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
-	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!  */
+	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!
+	  *  Call fb_position_rotate() to change following items.
+	  */
 	int   		pos_rotate;
 					/* 0: default X,Y coordinate of FB
 					 * 1: clockwise rotation 90 deg: Y  maps to (vinfo.xres-1)-FB.X,
@@ -68,7 +69,7 @@ typedef struct fbdev{
 
 	/* pthread_mutex_t fbmap_lock; */
 	EGI_FILO *fb_filo;
-	int filo_on;		/* >0, activate FILO push */
+	int filo_on;			/* >0, activate FILO push */
 
 	uint16_t *buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
 

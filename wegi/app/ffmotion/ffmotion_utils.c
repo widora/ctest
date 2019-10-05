@@ -123,7 +123,6 @@ void free_ffmotionCtx(void)
 		FFmotion_Ctx->utotal=0;
 	}
 
-
         if( FFmotion_Ctx->ftotal > 0 ) {
                 egi_free_buff2D((unsigned char **)FFmotion_Ctx->fpath, FFmotion_Ctx->ftotal);
 		FFmotion_Ctx->fpath=NULL;
@@ -136,18 +135,18 @@ void free_ffmotionCtx(void)
 }
 
 
-/*--------------------------------------------------------------
+/*----------------------------------------------------------
 WARNING: !!! for 1_producer and 1_consumer scenario only !!!
 Allocate memory for PICbuffs[]
 
-width,height:	picture size
-pixel_size:	in byte, size for one pixel.
+@pic_size:	Total pixels of a picture.
+@pixel_size:	in byte, size for one pixel.
 
 Return value:
 	 NULL   --- fails
 	!NULL 	--- OK
-----------------------------------------------------------------*/
-uint8_t**  malloc_PicBuffs(int width, int height, int pixel_size )
+----------------------------------------------------------*/
+uint8_t**  malloc_PicBuffs(int pic_size, int pixel_size )
 {
         int i,k;
 
@@ -155,7 +154,7 @@ uint8_t**  malloc_PicBuffs(int width, int height, int pixel_size )
         if(pPICbuffs == NULL) return NULL;
 
         for(i=0;i<PIC_BUFF_NUM;i++) {
-                pPICbuffs[i]=(uint8_t *)calloc(1,width*height*pixel_size); /* default BLACK */
+                pPICbuffs[i]=(uint8_t *)calloc(1,pic_size*pixel_size); /* default BLACK */
 
                 /* if fails, free those buffs */
                 if(pPICbuffs[i] == NULL) {
@@ -203,6 +202,7 @@ static inline int get_FreePicBuff(void)
 
         return -1;
 }
+
 
 /*----------------------------------
    	Free pPICbuffs
@@ -268,14 +268,6 @@ void* thdf_Display_motionPic(void * argv)
    }  else {
           still_image=false;
    }
-
-   /* check size limit */
-   if(imgbuf->width>LCD_MAX_WIDTH || imgbuf->height>LCD_MAX_HEIGHT)
-   {
-        EGI_PLOG(LOGLV_WARN,"%s: movie size is too big to display.\n",__FUNCTION__);
-        //exit(-1);
-   }
-
 
    while(1)
    {
@@ -371,7 +363,7 @@ int load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
 }
 
 
-/*-------------------------------------------------------------
+/*------------------------------------------------------------
 A thread function of displaying subtitles.
 Read a SRT substitle file and display it on a dedicated area.
 
@@ -496,7 +488,7 @@ void* thdf_Display_Subtitle(void * argv)
 }
 
 
-/* --------------------------------------------------
+/*--------------------------------------------------------
 Seek subtitle file, get offset with right time stamp
 
 subpath:	path to the subtitle file.
@@ -505,7 +497,7 @@ tmsec:		time elapsed for the movie.
 return:
 	>0 	OK, offset
 	<0 	Fails
-----------------------------------------------------*/
+---------------------------------------------------------*/
 static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
 {
         char strtm[32]={0}; /* time stamp */

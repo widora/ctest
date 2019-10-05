@@ -16,5 +16,6 @@ Midas Zhou
 EGI_PAGE *create_ffmotionPage(void);
 void free_ffmotionPage(void);
 void motpage_update_timingBar(int tm_elapsed, int tm_duration );
+void motpage_update_title(const unsigned char *title);
 void motpage_rotate(unsigned char pos);
 #endif

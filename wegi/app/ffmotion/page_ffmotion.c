@@ -14,14 +14,12 @@ page creation jobs:
 4. button reaction functins
 
 
-                        (((  --------  PAGE DIVISION  --------  )))
-//[Y0-Y29]
-//{0,0},{240-1, 29}               ---  Head title bar
+                (((  --------  PAGE DIVISION  --------  )))
+[Y0-Y29]
+{0,0},{240-1, 29}               ---  Head title bar
 
 //[Y150-Y265]
 //{0,150}, {240-1, 260}           --- box area for subtitle display
-
-Audio sprectrum BASE_LINE Y=210
 
 [Y266-Y319]
 {0,266}, {240-1, 320-1}         --- Buttons
@@ -75,6 +73,10 @@ static int btnum=5;
 static EGI_DATA_BTN 	*data_btns[5];
 static EGI_EBOX 	*ffmot_btns[5];
 
+/* title txt ebox */
+static EGI_DATA_TXT	*title_FTtxt;
+static EGI_EBOX		*ebox_title;
+
 /* volume txt ebox */
 static EGI_DATA_TXT 	*vol_FTtxt;
 static EGI_EBOX     	*ebox_voltxt;
@@ -86,10 +88,8 @@ static EGI_EBOX 	*time_slider;
 /* Time sliding bar txt, for time elapsed and duration */
 static EGI_DATA_TXT 	*data_tmtxt[2];
 static EGI_EBOX	    	*ebox_tmtxt[2];
-static int tmSymHeight=18;              /* symbol height */
-static int tmX0[2], tmY0[2];            /* txt EBOX x0,y0  */
-
-
+static int 		tmSymHeight=18;              /* symbol height */
+static int 		tmX0[2], tmY0[2];            /* txt EBOX x0,y0  */
 
 
 /* static functions */
@@ -98,7 +98,7 @@ static int ffmot_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmot_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmot_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int pageFFmot_decorate(EGI_EBOX *ebox);
+//static int pageFFmot_decorate(EGI_EBOX *ebox);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 static int refresh_misc(EGI_PAGE *page);
@@ -180,20 +180,34 @@ EGI_PAGE *create_ffmotionPage(void)
 	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
 	ffmot_btns[4]->reaction=ffmot_playmode;
 
+	/* --------- 2. create title bar for movie title --------- */
+	title_FTtxt=NULL;
+	ebox_title=NULL;
 
-	/* --------- 2. create title bar --------- */
-//	EGI_EBOX *title_bar= create_ebox_titlebar(
-//	        0, 0, /* int x0, int y0 */
-//       		0, 2,  /* int offx, int offy, offset for txt */
-//		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
-//    		NULL	/* char *title */
-//	);
-//	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
+        /* For FTsymbols TXT */
+        title_FTtxt=egi_utxtdata_new( 5, 5,                       /* offset from ebox left top */
+                                      2, 240,                     /* lines, pixels per line */
+                                      egi_appfonts.regular,  	  /* font face type */
+                                      18, 18,                     /* font width and height, in pixels */
+                                      0,                          /* adjust gap, minus also OK */
+                                      WEGI_COLOR_GRAYB            /* font color  */
+                                    );
+        /* assign uft8 string */
+        //title_FTtxt->utxt=NULL;
 
-        /* --------- 3 create a TXT ebox for Volume value displaying  --------- */
+	/* create volume EBOX */
+        ebox_title=egi_txtbox_new( "Title",    		/* tag */
+                                     title_FTtxt,       /* EGI_DATA_TXT pointer */
+                                     true,              /* bool movable */
+                                     0, 0,              /* int x0, int y0 */
+                                     240,40,            /* width, height(adjusted as per nl and fw) */
+                                     frame_none,        /* int frame, -1 or frame_none = no frame */
+                                     -1   		/* prmcolor,<0 transparent */
+                                   );
+
+        /* --------- 3. create a TXT ebox for Volume value displaying  --------- */
 	vol_FTtxt=NULL;
 	ebox_voltxt=NULL;
-
         /* For FTsymbols TXT */
         vol_FTtxt=egi_utxtdata_new( 10, 3,                        /* offset from ebox left top */
                                     1, 100,                       /* lines, pixels per line */
@@ -204,6 +218,7 @@ EGI_PAGE *create_ffmotionPage(void)
                                   );
         /* assign uft8 string */
         vol_FTtxt->utxt=NULL;
+
 	/* create volume EBOX */
         ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
                                      vol_FTtxt,      /* EGI_DATA_TXT pointer */
@@ -215,14 +230,14 @@ EGI_PAGE *create_ffmotionPage(void)
                                    );
 	/* set frame type */
         //ebox_voltxt->frame_alpha; /* No frame and prmcolor*/
+
 	/* set status as hidden, activate it only by touching */
 	ebox_voltxt->status=status_hidden;
 
         /* --------- 4. create a horizontal sliding bar --------- */
-        int sb_len=gv_fb_dev.pos_xres-40; //200; /* slot length */
-        int sb_pv=0; /* initial  percent value */
-	//EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
-	EGI_POINT sbx0y0={ 40/2, 260 }; /* starting point */
+        int sb_len=gv_fb_dev.pos_xres-40; 	/* Sliding slot length */
+        int sb_pv=0; 				/* initial  percent value */
+	EGI_POINT sbx0y0={ 40/2, 260 }; 	/* starting point */
 
         data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
@@ -247,16 +262,16 @@ EGI_PAGE *create_ffmotionPage(void)
                                     50,50,       		/* touchbox size, twidth/theight */
                                     -1,          		/* int frame, <0 no frame */
                                     -1      /* prmcolor
-					 * 1. Let <0, it will draw default slider, instead of applying gemo or icon.
-                                         * 2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon!=NULL
-					 */
+					     * 1. Let <0, it will draw default slider, instead of applying gemo or icon.
+                                             * 2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon!=NULL
+					     */
                            );
 	/* set EBOX id for time_slider */
 	time_slider->id=TIME_SLIDER_ID;
         /* set reaction function */
         time_slider->reaction=NULL;
 
-        /* --------- 3 create a TXT ebox for displaying time elapsed and duration  ------- */
+        /* --------- 3. Create a TXT ebox for displaying time elapsed and duration  ------- */
 	tmSymHeight=18;		/* symbol height */
 
 	/* position of txt ebox */
@@ -268,20 +283,20 @@ EGI_PAGE *create_ffmotionPage(void)
 	/* create playing time TXT EBOX for sliding bar */
 	for(i=0; i<2; i++) {
 	        /* For symbols TXT */
-		data_tmtxt[i]=egi_txtdata_new( 0, 0,    /* offx,offy from EBOX */
+		data_tmtxt[i]=egi_txtdata_new( 0, 0,    		/* offx,offy from EBOX */
                 	      	               1,                       /* lines */
                         	               10,                      /* chars per line */
                                 	       &sympg_ascii,       	/* font */
 	                                       WEGI_COLOR_WHITE         /* txt color */
         	                      );
 		/* create volume EBOX */
-        	ebox_tmtxt[i]=egi_txtbox_new( "playTM_txt",    /* tag */
-                                     data_tmtxt[i],     /* EGI_DATA_TXT pointer */
-                                     true,              /* bool movable */
-                                     tmX0[i], tmY0[i],  /* int x0, int y0 */
-                                     120, 15,           /* width, height(adjusted as per nl and symheight ) */
-                                     -1,  		/* int frame, -1 or frame_none = no frame */
-                                     -1	   		/* prmcolor,<0 transparent*/
+        	ebox_tmtxt[i]=egi_txtbox_new( i==0?"TMbar_txt0":"TMbar_txt1",    	/* tag */
+                                     data_tmtxt[i],     	/* EGI_DATA_TXT pointer */
+                                     true,              	/* bool movable */
+                                     tmX0[i], tmY0[i],  	/* int x0, int y0 */
+                                     120, 15,           	/* width, height(adjusted as per nl and symheight ) */
+                                     -1,  			/* int frame, -1 or frame_none = no frame */
+                                     -1	   			/* prmcolor,<0 transparent*/
                                    );
 	}
 	/* set ID */
@@ -306,10 +321,10 @@ EGI_PAGE *create_ffmotionPage(void)
 	/* decoration */
 	//page_ffmotion->ebox->method.decorate=pageffmot_decorate; /* draw lower buttons canvas */
 
-        /* 5.2 put pthread runner */
+        /* 5.2 Put pthread runner */
         page_ffmotion->runner[0]= thread_ffplay_motion;
 
-        /* 5.3 set default routine job */
+        /* 5.3 Set default routine job */
         //page_ffmotion->routine=egi_page_routine; /* use default routine function */
 	page_ffmotion->routine=egi_homepage_routine;  /* for sliding operation */
 	#if 0
@@ -319,19 +334,19 @@ EGI_PAGE *create_ffmotionPage(void)
 	#endif
 	page_ffmotion->page_refresh_misc=refresh_misc; /* random colro for btn */
 
-        /* 5.4 set wallpaper */
+        /* 5.4 Set wallpaper */
         //page_ffmotion->fpath="/tmp/mplay.jpg";
 
-	/* 5.5 add ebox to home page */
-	for(i=0; i<btnum; i++) 	/* Add buttons */
+	/* 5.5 Add ebox to home page */
+	for(i=0; i<btnum; i++) 	/* 5.5.1 Add control buttons */
 		egi_page_addlist(page_ffmotion, ffmot_btns[i]);
 
-	for(i=0; i<2; i++)	/* Add time txt for time sliding bar */
+	for(i=0; i<2; i++)	/* 5.5.2 Add time txt for time sliding bar */
 		egi_page_addlist(page_ffmotion, ebox_tmtxt[i]);
 
-	egi_page_addlist(page_ffmotion, ebox_voltxt); /* add volume txt ebox */
-	egi_page_addlist(page_ffmotion, time_slider); /* add time_slider ebox */
-//	egi_page_addlist(page_ffmotion, title_bar); /* add title bar */
+	egi_page_addlist(page_ffmotion, ebox_title);  	/* 5.5.3 Add title txt ebox */
+	egi_page_addlist(page_ffmotion, ebox_voltxt); 	/* 5.5.4 Add volume txt ebox */
+	egi_page_addlist(page_ffmotion, time_slider); 	/* 5.5.5 Add time_slider ebox */
 
 	return page_ffmotion;
 }
@@ -436,8 +451,11 @@ static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+#if   1 /* --------- AS SCREEN ROTATION   ---------*/
+	motpage_rotate(gv_fb_dev.pos_rotate+1);
+	return btnret_OK;
 
-#if 1 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
+#elif 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
 
 	/* only react to status 'pressing' */
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
@@ -755,7 +773,25 @@ void free_ffmotionPage(void)
 
 }
 
+/*------------------------------------------------------------
+Update timing bar and its txt.
 
+@title:	Pointer to a title string, with UTF-8 encoding.
+	Title
+
+---------------------------------------------------------------*/
+void motpage_update_title(const unsigned char *title)
+{
+	static unsigned char strtmp[256];
+
+	memset(strtmp,0,sizeof(strtmp));
+
+	strncpy(strtmp,title, sizeof(strtmp)-1);
+
+        title_FTtxt->utxt=strtmp;
+
+	egi_page_needrefresh(ebox_title->container);
+}
 
 /*------------------------------------------------------------
 Update timing bar and its txt.
@@ -844,16 +880,15 @@ void motpage_rotate(unsigned char pos)
 	/* adjust FBDEV position param */
 	fb_position_rotate(&gv_fb_dev, pos);
 
-	/* modify timing slide bar position */
-	//prvdata_slider->sl=gv_fb_dev.pos_xres-40; /* total length of the bar */
-	//prvdata_slider->sxy=pxy;        /* starting point */
-
 	/* Get new pxy and sl after FB position rotation! */
-	pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10};
-	if(pos&0x1)
+	if(pos&0x1) {
+		pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10};
 		sl=gv_fb_dev.pos_xres-40-55;
-	else
+	}
+	else {
+		pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10-60};
 		sl=gv_fb_dev.pos_xres-40;
+	}
 
 	/* reset slider x0y0 and sl */
 	egi_slider_reset(time_slider, 0, sl, pxy); /* slider, psval, sl, pxy */
@@ -866,8 +901,14 @@ void motpage_rotate(unsigned char pos)
 
 	/* relocate control Button */
 	for(i=0; i<btnum; i++) {
-		ffmot_btns[i]->x0=gv_fb_dev.pos_xres-(60-5);
-		ffmot_btns[i]->y0=48*i;
+		if(pos&0x1) {		/* Landscape mode */
+			ffmot_btns[i]->x0=gv_fb_dev.pos_xres-(60-5);
+			ffmot_btns[i]->y0=48*i;
+		}
+		else {			/* Portrait mode */
+			ffmot_btns[i]->x0=48*i;
+			ffmot_btns[i]->y0=gv_fb_dev.pos_yres-(60-5);
+		}
 	}
 
 	/* Other child ebox keep unchanged */

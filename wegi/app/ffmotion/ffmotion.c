@@ -216,7 +216,7 @@ static int  scrnMargX =30+40;     /* = scrnMargX_Left+scrnMargX_Right */
 
 static int  scrnMargY_Upp=60-5;
 static int  scrnMargY_Down=0;
-static int  scrnMargY =55;	 /* = scrnMargY_Upp+scrnMargY_Down */
+static int  scrnMargY =60-5;	 /* = scrnMargY_Upp+scrnMargY_Down */
 
 /* Expected Max. display window size, aligned with original LCD screen coord. W/H !!!
  * 1. It will be adjusted according to the actual image size/ratio and useful screen size
@@ -239,7 +239,7 @@ static int  scrnMargY =55;	 /* = scrnMargY_Upp+scrnMargY_Down */
  *	display_height MAX. 230
  */
 static int display_width=  240-70;        /* in LCD row pixels,  */
-static int display_height= 320;       /* in LCD column pixels */
+static int display_height= 320;       	  /* in LCD column pixels */
 
 /* offset of the show window relating to LCD origin */
 static int offx;
@@ -539,12 +539,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 		display_height=scrnUseY;
 	}
 
-	/* Fit display_width * display_height into (scrnX-scrnMargX)*(scrnY-scrnMargY) */
-//	if(display_height>scrnY-scrnMargY)
-//		display_height=scrnY-scrnMargY;
-//	if(display_width>scrnX-scrnMargX)
-//		display_width=scrnX-scrnMargX;
-
+	/* Fit display_width * display_height into scrnUseX*scrnUseY */
         if( display_width > scrnUseX || display_height > scrnUseY ) {
 		if( (1.0*display_width/display_height) >= (1.0*scrnUseX/scrnUseY) )
 		{
@@ -569,9 +564,11 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	}
 	/* ELSE:  keep original display_width*display_height size */
 
-	/* roate displaying area and PAGE */
+	/* rotate displaying area and PAGE */
+	printf("Rotate motion fb and PAGE...\n");
 	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
 	motpage_rotate(transpose_clock);  /* rotate main PAGE */
+
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -618,12 +615,9 @@ while(1) {
 		fnum=egi_random_max(ftotal)-1;
 	}
 
-	/* clear displaying area */
-//	fbset_color(WEGI_COLOR_BLACK);
-//	draw_filled_rect(&ff_fb_dev, 0,30, 239,265);
 
 	/* refresh page */
-	egi_page_needrefresh(page);
+//	egi_page_needrefresh(page);
 
 
 	/* reset elaped time recorder */
@@ -759,11 +753,14 @@ while(1) {
 	fname=strdup(fpath[fnum]);
 	printf("fname:%s\n",fname);
 	fbsname=basename(fname);
+	motpage_update_title(fname);
+#if 0
         FTsymbol_uft8strings_writeFB(&ff_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
                                     18, 18, fbsname,               	/* fw,fh, pstr */
                                     ff_fb_dev.pos_xres, 1, 0,  		/* pixpl, lines, gap */
                                     5, 5,                      		/* x0,y0, */
                                     WEGI_COLOR_GRAYB, -1, -1);   	/* fontcolor, stranscolor,opaque */
+#endif 
 	pic_info.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
 
@@ -992,7 +989,7 @@ if(enable_auto_rotate)
 	if( pCodecCtx->height >= pCodecCtx->width ) /*if image upright H>W */
 		transpose_clock=0;
 	else
-		transpose_clock=1;
+		transpose_clock=3;
 }
 
 /* get original video size, swap width and height if clock/cclock_transpose
@@ -1000,7 +997,7 @@ if(enable_auto_rotate)
  */
 if(enable_avfilter)
 {
-	if(transpose_clock) { /* if clock/cclock, swap H & W */
+	if(transpose_clock & 0x1 ) { /* if clock/cclock, swap H & W */
 		widthOrig=pCodecCtx->height;
 		heightOrig=pCodecCtx->width;
 	}
@@ -1094,17 +1091,23 @@ EGI_PDEBUG(DBG_FFPLAY,"Fit and scale video size into display_widthxdisplay_heigh
 
 
 /*  Double check here, should alread have been checked at the very begin
- *  reset display window size to be multiples of 4(for AVFilter Descr) or 2(for SWS).
+ *  Linesize will be aligned to 16?
+ *  reset display window size to be multiples of 16(for AVFilter Descr) or 2/4/16(for SWS).
+ *  Note: For SWS, size of 2/4/8 multiples may lost some pixels at the right most of each scaneline.
+ *  linesize of AVFrame: w_align=16, h_align=16*2 ?
 */
 if(enable_avfilter)
 {
-   	display_width=(display_width>>2)<<2;  /*4?*/
-   	display_height=(display_height>>2)<<2;
+   	display_width=(display_width>>4)<<4;  /*4?*/
+   	display_height=(display_height>>4)<<4;
 }
 else
 {
-	display_width=(display_width>>2)<<2;
-	display_height=(display_height>>2)<<2;
+     /* Line size to be aligned to 16 */
+     if(transpose_clock & 0x1)
+	display_height=( (display_height+7)>>4)<<4;
+     else
+	display_width=( (display_width+7)>>4)<<4;
 }
 
 EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d \n",
@@ -1138,7 +1141,7 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 	buffer=(uint8_t *)av_malloc(numBytes);
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
-	if(malloc_PicBuffs(display_width,display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
+	if(malloc_PicBuffs(display_width*display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
 		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
 		return (void *)-1;
 	}
@@ -1167,10 +1170,10 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
 	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
-	 if(transpose_clock)
-		 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_height, display_width); //pCodecCtx->width, pCodecCtx->height);
+	 if(transpose_clock & 0x1)
+	     avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_height, display_width);
 	 else
-		 avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height); //pCodecCtx->width, pCodecCtx->height);
+	     avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_width, display_height);
 
 if(!enable_avfilter) /* use SWS, if not AVFilter */
 {
@@ -1248,12 +1251,15 @@ if(enable_avfilter)
 	/* prepare filters description
 	 * WARNING: if original image is much bigger than logo, then the logo maybe invisible after scale.
          */
+#if 0 /////////////////  NO transpose_clock for avfilter //////////////////////
 	if(transpose_clock) /* image WxH to LCD HxW */
 	{
 		sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d,transpose=clock[out]",
 							display_height, display_width);
 	}
 	else /* image WxH map to LCD WxH */
+#endif ////////////////////////////////////////////////////////////////////////////////
+
 	{
 		sprintf(filters_descr,"movie=logo.png[logo];[in][logo]overlay=5:5,scale=%d:%d[out]",
 							display_width, display_height);
@@ -1680,8 +1686,6 @@ if(enable_clip_test)
 	}/*  end of while()  <<---  end of one file playing by av_read_frame()  --->>  */
 
 
-
-
 	/* hold on for a while, also let pic buff to be cleared before fbset_color!!! */
 	if(LOOP_HOLDON_TIME>0)
 	{
@@ -1690,12 +1694,6 @@ if(enable_clip_test)
 		tm_delayms(LOOP_HOLDON_TIME*1000);
 	}
 
-#if 0 /* These codes may be skipped, move to FAIL_OR_TERM */
-	/* fill display area with BLACK */
-	fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&ff_fb_dev, pic.Hs ,pic.Vs, pic.He, pic.Ve); /* pic area */
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
-#endif
 
 /* if loop playing one file, then got to seek start  */
 if(enable_seekloop)
@@ -1709,10 +1707,6 @@ FAIL_OR_TERM:
 	 * NOTE: As thread audioSpectrum is still working for a while after draw_filled_rect() here,
 	 * 	 it's NOT the right itme to clear screen!
 	 */
-#if 0
-	fbset_color(WEGI_COLOR_BLACK);
-	draw_filled_rect(&ff_fb_dev, 0,30, 239,265); /* display zone */
-#endif
 
 
 	/*  <<<<<<<<<<  start to release all resources  >>>>>>>>>>  */

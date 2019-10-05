@@ -349,7 +349,6 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		}
 	}
 
-
    } /* end of movable codes before update data */
 
 
@@ -418,8 +417,10 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		}
 		ebox->bkimg_valid=true;
 	}
-	else
+	else {
+		printf("'%s' bkbox out of gv_fb_box!\n",ebox->tag);
 		ebox->bkimg_valid=false;
+	}
 
    } /* end of movable codes */
 
@@ -914,6 +915,7 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	 */
 	if(touch_data->status == pressing ) {
 
+		printf("'%s' trigger touch effect for 'pressing'.\n", ebox->tag);
 	/* for Circle shape */
 //	  if(btn_shape==circle) {
 	        draw_filled_annulus(&gv_fb_dev, ebox->x0+ebox->width/2, ebox->y0+ebox->height/2,
@@ -933,8 +935,9 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
 	/* If touch sliding a distance, refresh and restore btn icon */
 	else if(  ebox->movable
 		  && (touch_data->dx)*(touch_data->dx)+(touch_data->dy)*(touch_data->dy) >25 ) {
+		printf("'%s' trigger touch effect for sliding.\n", ebox->tag);
 		egi_ebox_needrefresh(ebox);
-		egi_ebox_refresh(ebox);
+		//egi_ebox_refresh(ebox);  Let page routine do it!
 	}
 
 	/* refresh button icon for 'releasing's:
@@ -945,10 +948,10 @@ static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data) //e
                     /* NOTE: to avoid refresh unmovalbe btn with opaque value */
           	    && ((EGI_DATA_BTN*)ebox->egi_data)->opaque <= 0 )
 	{
+		printf("'%s' trigger touch effect for 'releasing'.\n", ebox->tag);
 	        egi_ebox_needrefresh(ebox);
-      		egi_ebox_refresh(ebox);
+      		//egi_ebox_refresh(ebox);   Let page routine do it!
 	}
-
 
 	/* NOTE: In page routine, if a touch is sliding away from a btn(losing focus), it will
 	 *    	 trigger egi_ebox_forcerefresh().

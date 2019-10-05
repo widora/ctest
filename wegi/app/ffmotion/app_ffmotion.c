@@ -172,7 +172,7 @@ int main(int argc, char **argv)
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
         if(egi_init_log("/mmc/log_ffmotion") != 0) {
-                printf("Fail to init logger for ffmotion,quit.\n");
+                printf("Fail to init logger for ffmotion,  quit.\n");
                 return -1;
         }
         if(symbol_load_allpages() !=0 ) {

@@ -1381,6 +1381,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 	xres=fb_dev->vinfo.xres;
 	yres=fb_dev->vinfo.yres;
   }
+
   /* pixel total number */
   screen_pixels=xres*yres;
 
@@ -1388,8 +1389,8 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
   /* if no alpha channle*/
   if( egi_imgbuf->alpha==NULL )
   {
-        for(i=0;i<winh;i++) {  /* row of the displaying window */
-                for(j=0;j<winw;j++) {
+        for(i=0; i<winh; i++) {  /* row of the displaying window */
+                for(j=0; j<winw; j++) {
 
 			/* Rule out points which are out of the SCREEN boundary */
 			if( i+yw<0 || i+yw>yres-1 || j+xw<0 || j+xw>xres-1 )
@@ -1399,7 +1400,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                         locfb = (i+yw)*xres+(j+xw);
 
                      /*  ---- draw only within screen  ---- */
-                     if( locfb>=0 && locfb <= (screen_pixels-1) ) {
+//                     if( locfb>=0 && locfb <= (screen_pixels-1) ) {
 
                         /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
@@ -1421,7 +1422,9 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
                          }
-                     } /* if within screen */
+
+//                     } /* --- if within screen --- */
+
                 }
         }
   }
@@ -1439,7 +1442,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
                         locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
 
                      /*  ---- draw_dot() only within screen  ---- */
-                     if(  locfb>=0 && locfb<screen_pixels ) {
+//                     if(  locfb>=0 && locfb<screen_pixels ) {
 
                         /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
@@ -1495,7 +1498,9 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 				}
 
                             }
-                        }  /* if within screen */
+
+//                        }  /* --- if within screen --- */
+
                 } /* for() */
         }/* for()  */
   }/* end alpha case */
