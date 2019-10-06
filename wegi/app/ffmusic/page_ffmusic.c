@@ -134,7 +134,7 @@ EGI_PAGE *create_ffmuzPage(void)
 					        48*i, 320-(60-5), /* int x0, int y0 */
 						48, 60, /* int width, int height */
 				       		0, /* int frame,<0 no frame */
-		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
+		       				WEGI_COLOR_GRAY /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
 		if(ffmuz_btns[i]==NULL) {
@@ -768,7 +768,6 @@ void muzpage_update_timingBar(int tm_elapsed, int tm_duration )
         int tm_h=0,tm_min=0,tm_sec=0;
         static int old_duration=-1;  /* ensure first tm_duration != old_duration for the first time ! */
         static int old_elapsed=-1;
-
 
         /* --- 1. Update sliding bar duration TXT ebox --- */
         if( old_duration != tm_duration ) {

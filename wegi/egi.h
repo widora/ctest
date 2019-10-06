@@ -612,6 +612,9 @@ struct egi_data_page
 
 struct egi_page
 {
+	/* Mutex for PAGE resource access */
+	pthread_mutex_t pgmutex;
+
 	/* egi page is based on egi_ebox */
 	EGI_EBOX *ebox;   /* NOTE:
 			   * 1. Here ebox->need_refresh indicates that the PAGE elements(wallpaper etc.),

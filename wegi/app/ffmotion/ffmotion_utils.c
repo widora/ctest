@@ -24,6 +24,9 @@ Midas_Zhou
 #include "ffmotion.h"
 #include "ffmotion_utils.h"
 
+
+struct ffmotion_PicInfo motPicInfo;
+
 /* in seconds, playing time elapsed for Video */
 //int ff_sec_Velapsed;
 int ff_sub_delays=3; /* delay sub display in seconds, relating to ff_sec_Velapsed */
@@ -247,7 +250,7 @@ void* thdf_Display_motionPic(void * argv)
    unsigned long nfc_tmp;
    bool still_image;
 
-   struct PicInfo *ppic =(struct PicInfo *) argv;
+//   struct ffmotion_PicInfo *ppic =(struct ffmotion_PicInfo *) argv;
 
    EGI_IMGBUF *imgbuf=egi_imgbuf_alloc();
    if(imgbuf==NULL) {
@@ -255,14 +258,14 @@ void* thdf_Display_motionPic(void * argv)
         return (void *)-1;
    }
 
-   imgbuf->width=ppic->He - ppic->Hs +1;
-   imgbuf->height=ppic->Ve - ppic->Vs +1;
+   imgbuf->width=motPicInfo.dispBox.endxy.x-motPicInfo.dispBox.startxy.x +1;
+   imgbuf->height=motPicInfo.dispBox.endxy.y-motPicInfo.dispBox.startxy.y +1;
 
    EGI_PLOG(LOGLV_INFO,"%s: imgbuf width=%d, imgbuf height=%d \n",
                                                 __func__, imgbuf->width, imgbuf->height );
 
    /* check if it's image, TODO: still or motion image */
-   if(IS_IMAGE_CODEC(ppic->vcodecID)) {
+   if(IS_IMAGE_CODEC(motPicInfo.vcodecID)) {
           still_image=true;
           EGI_PLOG(LOGLV_INFO,"%s: Playing an still image.\n",__func__);
    }  else {
@@ -287,7 +290,8 @@ void* thdf_Display_motionPic(void * argv)
 
                         /* window_position displaying */
                         egi_imgbuf_windisplay(imgbuf, &ff_fb_dev, -1,
-                                        0, 0, ppic->Hs, ppic->Vs, imgbuf->width, imgbuf->height);
+                                        0, 0, motPicInfo.dispBox.startxy.x, motPicInfo.dispBox.startxy.y,
+					imgbuf->width, imgbuf->height);
 
                         /* put a FREE tag after display, then it can be overwritten. */
                         IsFree_PICbuff[index]=true;
@@ -328,9 +332,9 @@ void* thdf_Display_motionPic(void * argv)
 
 
 /*------------------------------------------------------------------------
-Copy RGB data from *data to PicInfo.data
+Copy RGB data from *data to ffmotion_PicInfo.data
 
-  ppic: 	a PicInfo struct
+  ppic: 	a ffmotion_PicInfo struct
   data:		data source
   numbytes:	amount of data copied, in byte.
 
@@ -340,7 +344,7 @@ TODO: Pic data loading must NOT exceed displaying by one circle of PIC buff.
 	>=0 Ok (slot number of PICBuffs)
 	<0  fails
 --------------------------------------------------------------------------*/
-int load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes)
+int load_Pic2Buff(struct ffmotion_PicInfo *ppic,const uint8_t *data, int numBytes)
 {
 	int nbuff;
 

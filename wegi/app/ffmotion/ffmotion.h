@@ -46,6 +46,9 @@ enum ffmotion_cmd {
         cmd_prev,
 	cmd_mode,
 
+	cmd_rotate_clock,
+	cmd_rotate_cclock,
+
         cmd_exit_display_thread,        /* stop display thread */
         cmd_exit_subtitle_thread,       /* stop subtitle thread */
 //	cmd_exit_audioSpectrum_thread   /* stop audio spectrum displaying thread */
@@ -86,10 +89,12 @@ typedef struct FFmotion_Context
 			         *    will automatically be searched at the same path, and applied
 				 *    if it exists.
 				 */
+	int  pos_rotate;		/* Rotation position for FB displaying 0-3
+					 * Just to synchronize gv_fb_dev with ff_fb_dev if necessary.
+					 */
+	long start_tmsecs;  		/* start_playing time, default 0 */
 
-	long start_tmsecs;  	/* start_playing time, default 0 */
-
-	enum ffmotion_cmd     ffcmd;      /* 0 default none*/
+	enum ffmotion_cmd     ffcmd;    /* 0 default none*/
 	enum ffmotion_mode    ffmode;	/* 0 default mode_loop_all */
 	enum ffmotion_status  ffstatus;	/* 0 default mode_stop */
 }FFMOTION_CONTEXT;

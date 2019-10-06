@@ -136,13 +136,13 @@ EGI_PAGE *create_ffmotionPage(void)
 //default	data_btns[i]->showtag=false;
 
 		/* 2. create new btn eboxes */
-		ffmot_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
-						data_btns[i], /* EGI_DATA_BTN *egi_data */
-				        	1, /* bool movable */
+		ffmot_btns[i]=egi_btnbox_new(  NULL, 		  /* put tag later */
+						data_btns[i],     /* EGI_DATA_BTN *egi_data */
+				        	1, 		  /* bool movable */
 					        48*i, 320-(60-5), /* int x0, int y0 */
-						48, 60, /* int width, int height */
-				       		0, /* int frame,<0 no frame */
-		       				egi_color_random(color_medium) /*int prmcolor, for geom button only. */
+						48, 60, 	  /* int width, int height */
+				       		0, 		  /* int frame,<0 no frame */
+		       				WEGI_COLOR_GRAY  /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
 		if(ffmot_btns[i]==NULL) {
@@ -186,7 +186,7 @@ EGI_PAGE *create_ffmotionPage(void)
 
         /* For FTsymbols TXT */
         title_FTtxt=egi_utxtdata_new( 5, 5,                       /* offset from ebox left top */
-                                      2, 240,                     /* lines, pixels per line */
+                                      2, 240-5,                   /* lines, pixels per line */
                                       egi_appfonts.regular,  	  /* font face type */
                                       18, 18,                     /* font width and height, in pixels */
                                       0,                          /* adjust gap, minus also OK */
@@ -452,7 +452,10 @@ static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 return btnret_IDLE;
 
 #if   1 /* --------- AS SCREEN ROTATION   ---------*/
-	motpage_rotate(gv_fb_dev.pos_rotate+1);
+	motpage_rotate(gv_fb_dev.pos_rotate+1);	/* +1 rotate clockwise 90deg */
+	FFmotion_Ctx->ffcmd=cmd_rotate_clock;
+
+
 	return btnret_OK;
 
 #elif 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/

@@ -246,6 +246,9 @@ static int offx;
 static int offy;
 
 
+/* If true: Play media file from a random selected timing point */
+static bool enable_random_start=true;
+
 /***  ( precondition: image size can fit into scrnUseX*scrnUseY, OR disable_scale_size will be reset to FALSE )
  *  If true:  Original image size will be applied, if precondition is OK.
  *  Note: We can NOT disable SWS, as it converts color format to AV_PIX_FMT_RGB565LE.
@@ -411,9 +414,9 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	AVRational 		time_base; /*get from video stream, pFormatCtx->streams[videoStream]->time_base*/
 
 	int Hb,Vb;  /* Horizontal and Veritcal size of a picture */
-	/* for Pic Info. */
-	struct PicInfo pic_info;
-	pic_info.app_page=page; /* for PAGE wallpaper */
+
+	/* set PAGE for motPicInfo */
+	motPicInfo.app_page=page; /* for PAGE wallpaper */
 
 	/* Absolute screen size, aligned with original LCD coord X/Y ->W/H */
 	int scrnX;
@@ -565,10 +568,11 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* ELSE:  keep original display_width*display_height size */
 
 	/* rotate displaying area and PAGE */
+#if 0
 	printf("Rotate motion fb and PAGE...\n");
 	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
-	motpage_rotate(transpose_clock);  /* rotate main PAGE */
-
+	motpage_rotate(transpose_clock);  		  /* rotate main PAGE */
+#endif
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -754,14 +758,7 @@ while(1) {
 	printf("fname:%s\n",fname);
 	fbsname=basename(fname);
 	motpage_update_title(fname);
-#if 0
-        FTsymbol_uft8strings_writeFB(&ff_fb_dev, egi_appfonts.regular,  /* FBdev, fontface */
-                                    18, 18, fbsname,               	/* fw,fh, pstr */
-                                    ff_fb_dev.pos_xres, 1, 0,  		/* pixpl, lines, gap */
-                                    5, 5,                      		/* x0,y0, */
-                                    WEGI_COLOR_GRAYB, -1, -1);   	/* fontcolor, stranscolor,opaque */
-#endif 
-	pic_info.fname=fbsname;
+	motPicInfo.fname=fbsname;
 	//free(fname); fname=NULL; /* to be freed at last */
 
 /* disable audio */
@@ -1113,7 +1110,6 @@ else
 EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d \n",
 		 				(disable_scale_size)?"YES":"NO", display_width, display_height);
 
-
 	/* Addjust displaying window position */
 	/* Landscape mode */
 	if(transpose_clock & 0x1 ) {
@@ -1133,10 +1129,9 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 			offy=50;
 	}
 
-
 	/* Determine required buffer size and allocate buffer for scaled picture size */
-	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);//pCodecCtx->width, pCodecCtx->height);
-	pic_info.numBytes=numBytes;
+	numBytes=avpicture_get_size(PIX_FMT_RGB565LE, display_width, display_height);
+	motPicInfo.numBytes=numBytes;
 	/* malloc buffer for pFrameRGB */
 	buffer=(uint8_t *)av_malloc(numBytes);
 
@@ -1149,27 +1144,22 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 		EGI_PDEBUG(DBG_FFPLAY, "finish allocate memory for uint8_t *PICbuffs[%d]\n",PIC_BUFF_NUM);
 
 
-
-	/*<<<<<<<<<<<<<     Hs He Vs Ve for IMAGE layout on LCD    >>>>>>>>>>>>>>>>*/
-	 Hb=offx;
-	 Vb=offy;
-	 pic_info.Hs=Hb;
-	 pic_info.Vs=Vb;
-
-	/* NOte: V, H is aligned with image coord. */
+	 /*  For motion picture layout on LCD
+	  *  Note W/H of dispBox is aligned with W/H of upright picture
+	  */
+	 motPicInfo.dispBox.startxy=(EGI_POINT){offx,offy};
 	 if(transpose_clock & 0x1) {		/* Landscape mode */
-		pic_info.Ve=Vb+display_width-1;
-		pic_info.He=Hb+display_height-1;
+		motPicInfo.dispBox.endxy=(EGI_POINT){offx+display_height-1, offy+display_width-1};
 	 }
 	 else {					/* Portrait mode */
-	 	 pic_info.Ve=Vb+display_height-1;
-		 pic_info.He=Hb+display_width-1;
+		motPicInfo.dispBox.endxy=(EGI_POINT){offx+display_width-1, offy+display_height-1};
 	 }
 
-	 pic_info.vcodecID=vcodecID;
+	 motPicInfo.vcodecID=vcodecID;
 
 	 /* Assign appropriate parts of buffer to image planes in pFrameRGB
-	 Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture */
+	  *  Note that pFrameRGB is an AVFrame, but AVFrame is a superset of AVPicture
+	  */
 	 if(transpose_clock & 0x1)
 	     avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB565LE, display_height, display_width);
 	 else
@@ -1206,7 +1196,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 /* Even if no video stream */
-	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_motionPic,(void *)&pic_info) != 0) {
+	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_motionPic,(void *)&motPicInfo) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
 		return (void *)-1;
 	}
@@ -1402,6 +1392,15 @@ if(enable_avfilter)
                 EGI_PLOG(LOGLV_TEST,"%s: Video duration is %lds.",__func__,ff_sec_Vduration);
         }
 
+/* reset a random start point */
+if(enable_random_start)
+{
+	if(videoStream>=0)
+		FFmotion_Ctx->start_tmsecs=egi_random_max(ff_sec_Vduration);
+	else
+		FFmotion_Ctx->start_tmsecs=egi_random_max(ff_sec_Aduration);
+}
+
 
 /*  --------  LOOP  ::  Read packets and process data  --------   */
 
@@ -1410,6 +1409,8 @@ if(enable_avfilter)
 	//printf("	 converting video frame to RGB and then send to display...\n");
 	//printf("	 sending audio frame data to playback ... \n");
 	i=0;
+
+
 
 /* if loop playing for only ONE file ..... */
 SEEK_LOOP_START:
@@ -1429,7 +1430,6 @@ else
 	  av_seek_frame(pFormatCtx, videoStream,(FFmotion_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
 	}
 }
-
 
 	EGI_PDEBUG(DBG_FFPLAY,"Start while() for loop reading, decoding and playing frames ...\n");
 	while( av_read_frame(pFormatCtx, &packet) >= 0) {
@@ -1477,7 +1477,7 @@ if(enable_avfilter)
 					}
 					/* push data to pic buff for SPI LCD displaying */
 					printf(" start Load_Pic2Buff()....\n");
-					if( load_Pic2Buff(&pic_info,filt_pFrame->data[0],numBytes) <0 )
+					if( load_Pic2Buff(&motPicInfo,filt_pFrame->data[0],numBytes) <0 )
 						EGI_PDEBUG(DBG_FFPLAY," [%lld] PICBuffs are full! video frame is dropped!\n",
 									tm_get_tmstampms());
 
@@ -1497,7 +1497,7 @@ else  /* elif AVFilter OFF, then apply SWS and send scaled RGB data to pic buff 
 
 				/* push data to pic buff for SPI LCD displaying */
 				//printf("%s: start Load_Pic2Buff()....\n",__func__);
-				if( load_Pic2Buff(&pic_info,pFrameRGB->data[0],numBytes) <0 ) {
+				if( load_Pic2Buff(&motPicInfo,pFrameRGB->data[0],numBytes) <0 ) {
 					EGI_PDEBUG(DBG_FFPLAY,"[%lld] PICBuffs are full! video frame is dropped!\n",
 								tm_get_tmstampms());
 				}
@@ -1637,7 +1637,15 @@ if(enable_clip_test)
 			/* Don not reset, pass down curretn cmd */
 
 		    }
-	  	    /* 2. shift mode */
+
+		    /* 2. Adjust/transpose ff_fb_dev position clockwise */
+		    else if( FFmotion_Ctx->ffcmd==cmd_rotate_clock ) {
+		    	FFmotion_Ctx->ffcmd=cmd_none;
+			/* !Just to synchronize with gv_fb_dev */
+			fb_position_rotate(&ff_fb_dev, gv_fb_dev.pos_rotate);
+		    }
+
+	  	    /* 3. shift mode */
 		    else if( FFmotion_Ctx->ffcmd==cmd_mode) {
 			    /* Note:
 			     *      1. Default enable_filesloop is true.
@@ -1659,13 +1667,15 @@ if(enable_clip_test)
 	 		    FFmotion_Ctx->ffcmd=cmd_none;
 		    }
 
-		    /* 3. parse PREV/NEXT  */
+		    /* 4. parse PREV/NEXT  */
 		    else if(FFmotion_Ctx->ffcmd==cmd_next) {
+			printf(" cmd_next received! \n");
 		    	FFmotion_Ctx->ffcmd=cmd_none;
 			//break;
 			goto FAIL_OR_TERM;
 		    }
 		    else if(FFmotion_Ctx->ffcmd==cmd_prev) {
+			printf(" cmd_prev received! \n");
 			FFmotion_Ctx->ffcmd=cmd_none;
 			//printf("xxxxxxxxx  fnum=%d  xxxxxxx", fnum );
 			if( fnum > 0 )

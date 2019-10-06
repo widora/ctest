@@ -389,6 +389,9 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	int x0=ebox->x0;
 	int y0=ebox->y0;
 
+	int height=ebox->height;
+	int width=ebox->width;
+
    if(ebox->movable) /* only if ebox is movale, TODO: or prmcolor < 0 */
    {
        /* ---- 4. redefine bkimg box range, in case it changes
@@ -425,11 +428,9 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
    } /* end of movable codes */
 
 
-        /* ---- 6. set color and drawing shape ----- */
+        /* --- 6.1 Draw shape --- */
         if(ebox->prmcolor >= 0 && data_btn->icon == NULL )
         {
-		int height=ebox->height;
-		int width=ebox->width;
 
                 /* set color */
            	fbset_color(ebox->prmcolor);
@@ -437,17 +438,19 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 		{
 			case btnType_square:
 			        draw_filled_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
-        			/* --- draw frame --- */
+
+			#if 0 	/* --- draw frame --- */
        			        if(ebox->frame >= 0) /* 0: simple type */
        				{
                 			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
                 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
 			        }
+			#endif
 				break;
 			case btnType_circle:
 				draw_filled_circle(&gv_fb_dev, x0+width/2, y0+height/2,
 								width>height?height/2:width/2);
-        			/* --- draw frame --- */
+        		#if 0	/* --- draw frame --- */
        			        if(ebox->frame == 0) /* 0: simple type */
        				{
                 			fbset_color(ebox->tag_color); /* use ebox->tag_color  */
@@ -460,7 +463,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 					draw_filled_annulus( &gv_fb_dev, x0+width/2, y0+height/2,
 								width>height ? (height/2-1):(width/2-1), 3);
 			        }
-
+			#endif
 				break;
 
 			default:
@@ -468,6 +471,36 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 				break;
 		}
         }
+
+
+	/* 6.2 Draw simple outline frames */
+	if( ebox->frame >= 0 && ebox->frame < 100 ) /* >=100 for frame_img */
+	{
+       	    fbset_color(ebox->prmcolor);
+	    switch(data_btn->shape)
+	    {
+		case btnType_square:
+		        if(ebox->frame >= 0) /* 0: simple type */
+				draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);
+			break;
+		case btnType_circle:
+		        if(ebox->frame == 0) /* 0: simple type */
+       			{
+				draw_circle(&gv_fb_dev, x0+width/2, y0+height/2,
+							width>height?height/2:width/2);
+		        }
+       		        else if(ebox->frame > 0) /* >0: width=3 circle  */
+       			{
+				draw_filled_annulus( &gv_fb_dev, x0+width/2, y0+height/2,
+							width>height ? (height/2-1):(width/2-1), 3);
+		        }
+			break;
+
+		default:
+			break;
+	    }
+	}
+
 
 	/* 7. draw the button symbol if it has an icon */
 	if(data_btn->icon != NULL)

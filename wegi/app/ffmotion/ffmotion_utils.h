@@ -24,8 +24,8 @@ Midas_Zhou
 #include "ffmotion.h"
 #include "libavcodec/avcodec.h"
 
-#define LCD_MAX_WIDTH 240
-#define LCD_MAX_HEIGHT 320
+//#define LCD_MAX_WIDTH 240
+//#define LCD_MAX_HEIGHT 320
 //#define FFPLAY_MUSIC_PATH "/mmc/"
 
 /* in seconds, playing time elapsed for Video */
@@ -41,20 +41,19 @@ extern FBDEV ff_fb_dev;
 #define PIC_BUFF_NUM  		(1<<BUFF_NUM_EXPONENT)  /* total number of RGB picture data buffers. */
 
 /* information of a decoded picture, for pthread params */
-struct PicInfo {
-        /* coordinate for display window layout on LCD */
-	int Hs; 		/* Horizontal start pixel column number */
-	int He; 		/* Horizontal end */
-	int Vs; 		/* Vertical start pixel row number */
-	int Ve; 		/* Vertical end */
-	int nPICbuff; 		/* slot number of buff data in pPICbuffs[] */
-	uint8_t *data; 		/* RGB data, pointer to pPICbuffs[] page */
-	int numBytes;  		/* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
-	enum AVCodecID vcodecID; /* Video codec ID */
-	char *fname;		/* current file name */
-	EGI_PAGE*  app_page; 	/*  PAGE */
-//	EGI_IMGBUF *imgbuf;	/* destination imgbuf if applied, now for page->ebox->imgbuf */
+struct ffmotion_PicInfo {
+	EGI_BOX 	dispBox;	/* Displaying area */
+	int 		nPICbuff; 	/* slot number of buff data in pPICbuffs[] */
+	uint8_t 	*data; 		/* RGB data, pointer to pPICbuffs[] page */
+	int 		numBytes;  	/* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
+	enum AVCodecID 	vcodecID; 	/* Video codec ID */
+	char 		*fname;		/* current file name */
+	EGI_PAGE*  	app_page; 	/*  PAGE for the Pic to display */
+//	EGI_IMGBUF 	*imgbuf;	/* destination imgbuf if applied, now for page->ebox->imgbuf */
 };
+
+extern struct ffmotion_PicInfo motPicInfo;
+
 
 /* check if it's image */
 #define IS_IMAGE_CODEC(vcodecID)  ( vcodecID == AV_CODEC_ID_MJPEG    || vcodecID == AV_CODEC_ID_BMP  ||	\
@@ -67,7 +66,7 @@ struct PicInfo {
 int 		init_ffmotionCtx(char *path, char *fext);
 void 		free_ffmotionCtx(void);
 uint8_t**  	malloc_PicBuffs(int pic_size, int pixel_size );
-int 	   	load_Pic2Buff(struct PicInfo *ppic,const uint8_t *data, int numBytes);
+int 	   	load_Pic2Buff(struct ffmotion_PicInfo *ppic,const uint8_t *data, int numBytes);
 void* 	   	thdf_Display_motionPic(void * argv);
 void* 	   	thdf_Display_Subtitle(void * argv);
 

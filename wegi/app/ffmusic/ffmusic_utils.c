@@ -260,11 +260,11 @@ void* display_MusicPic(void * argv)
 
 	/* blur and resize the imgbuf  */
 	blur_size=tmpimg->height/100;
-	if( tmpimg->height <240 ) {		/* A. If a small size image, blur then resize */
+	if( tmpimg->height <240 ) {	/* A. If a small size image, blur then resize */
 		egi_imgbuf_blur_update( &tmpimg, blur_size, false);
   	     ret=egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 	}
-	else if(tmpimg) {			/* B. If a big size image, resize then blur */
+	else  {				/* B. If a big size image, resize then blur */
 		egi_imgbuf_resize_update( &tmpimg, xsize, ysize);
 	    ret=egi_imgbuf_blur_update( &tmpimg, blur_size, false);
 	}
@@ -298,6 +298,7 @@ void* display_MusicPic(void * argv)
 	                               	240, 2, 0,                      /* pixpl, lines, gap */
                                    	5, 10,                          /* x0,y0, */
                	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor, opaque */
+
 	/* set token */
 	bkimg_updated=true;
    }

@@ -47,6 +47,7 @@ EGI_PAGE * egi_page_new(char *tag)
 	if( page == NULL)
 	{
 		printf("%s: egi_ebox_new() fails.\n", __func__);
+		free(page);
 		return NULL;
 	}
 	/* set page as its container */
@@ -74,6 +75,15 @@ EGI_PAGE * egi_page_new(char *tag)
 
 	/* 8. init list */
         INIT_LIST_HEAD(&page->list_head);
+
+	/* 9. init pgmutex */
+	if(pthread_mutex_init(&page->pgmutex,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to pathread_mutex_init page.pgmutex!", __func__ );
+		egi_ebox_free(page->ebox);
+		free(page);
+		return NULL;
+	}
+
 
 	return page;
 }
@@ -569,6 +579,12 @@ int egi_page_refresh(EGI_PAGE *page)
 		return -1;
 	}
 
+	/* Get pgmutex for PAGE resource access */
+        if(pthread_mutex_lock(&page->pgmutex) !=0) {
+                printf("%s: Fail to get PAGE.pgmutex!\n",__func__);
+                return -1;
+        }
+
 	/* --------------- ***** 1. FOR 'PAGE' REFRESH, wallpaper etc. ***** ------------ */
 	/* only if need_refresh */
 	if(page->ebox->need_refresh)
@@ -673,8 +689,7 @@ int egi_page_refresh(EGI_PAGE *page)
 		ebox=list_entry(tnode, EGI_EBOX, node);
 		ret *= ebox->refresh(ebox);
 
-#if 1 /* debug only */
-
+#if 0 /* Debug only, it will prints out whether need_refresh flag is on or off! */
 		if(ret==0) {
 		    /* ret==1, means need_refresh=false */
 		    EGI_PDEBUG(DBG_PAGE,"Succeed to refresh page '%s' item ebox: '%s'.\n",
@@ -699,6 +714,9 @@ int egi_page_refresh(EGI_PAGE *page)
 	/* reset page_update, synchronized with page->ebox->need_refresh currently. */
 	page->page_update=false;
 
+	/* put PAGE.pgmutex */
+        pthread_mutex_unlock(&page->pgmutex);
+
 	return ret; /* if any ebox refreshed, return 0 */
 }
 
@@ -713,6 +731,7 @@ return:
 ----------------------------------------------------------------*/
 int egi_page_flag_needrefresh(EGI_PAGE *page)
 {
+
         /* 1. check data */
         if(page==NULL || page->ebox==NULL)
         {
@@ -720,11 +739,20 @@ int egi_page_flag_needrefresh(EGI_PAGE *page)
                 return -1;
         }
 
-	/*** 2. set page need_refresh flag
-         *   Wait and let current refreshing finish.
-         *   TODO: Race condition may still exist!
+
+	/* Get pgmutex for PAGE resource access */
+        if(pthread_mutex_lock(&page->pgmutex) !=0) {
+                printf("%s: Fail to get PAGE.pgmutex!\n",__func__);
+                return -1;
+        }
+
+	/*
+         *  Race condition may still exist?
          */
 	page->ebox->need_refresh=true;
+
+	/* put PAGE.pgmutex */
+        pthread_mutex_unlock(&page->pgmutex);
 
 	return 0;
 }
@@ -748,29 +776,35 @@ int egi_page_needrefresh(EGI_PAGE *page)
 		return -1;
 	}
 
-	/* 2. check list */
+	/* 2. Get pgmutex for PAGE resource access */
+        if(pthread_mutex_lock(&page->pgmutex) !=0) {
+                printf("%s: Fail to get PAGE.pgmutex!\n",__func__);
+                return -1;
+        }
+
+	/* 3. check list */
 	if(list_empty(&page->list_head))
 	{
 		printf("egi_page_needrefresh(): page '%s' has an empty list_head.\n",page->ebox->tag);
 		return -2;
 	}
 
-	/* 3. set page->ebox */
-        /***  Wait and let current refreshing finish.
-         *    TODO: Race condition may still exist!
-         */
+	/* 4. set page->ebox */
 	page->ebox->need_refresh=true;
 
-	/* 4. traverse the list and set page need_refresh, not safe */
+	/* 5. traverse the list and set page need_refresh, not safe */
+	/* WARNING: to avoid mutex deadlock, DO NOT call egi_ebox_needrefresh() */
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
-		/*  Wait and let current refreshing finish.
-		 *  TODO: Race condition may still exist!
-		 */
+
 		ebox->need_refresh=true;
 		EGI_PDEBUG(DBG_PAGE,"find child ebox: '%s' \n",ebox->tag);
 	}
+
+	/* 6.put PAGE.pgmutex */
+        pthread_mutex_unlock(&page->pgmutex);
+
 
 	return 0;
 }
@@ -1067,8 +1101,6 @@ int egi_page_routine(EGI_PAGE *page)
 								   last_status==releasing ||
 								   last_status==db_pressing  )  )
 				{
-
-
 
 					/*if ret<0, button pressed to exit current page
 					   usually fall back to its page's routine caller to release page...

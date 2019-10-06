@@ -389,18 +389,31 @@ inline void egi_ebox_settag(EGI_EBOX *ebox, const char *tag)
 }
 
 
-/*-----------------------------------
+/*-------------------------------------------------------------------
 put need_refresh flag true
-------------------------------------*/
+
+!!! WARNING: The Caller must alert to avoid PAGE.pgmutex deadlock !!!
+
+-------------------------------------------------------------------*/
 inline void egi_ebox_needrefresh(EGI_EBOX *ebox)
 {
-    if(ebox != NULL) {
+    	if(ebox == NULL)
+		return;
 
-        /***  Wait and let current refreshing finish.
-	 *    TODO: Race condition may still exist!
-	 */
+       /* Get pgmutex for parent PAGE resource access/synch */
+       if(ebox->container != NULL) {
+	        if(pthread_mutex_lock(&(ebox->container)->pgmutex) !=0) {
+        	        printf("%s: Fail to get PAGE.pgmutex!\n",__func__);
+                	return;
+        	}
+	}
+
+	/*  Race condition may still exist? */
 	ebox->need_refresh=true;
-   }
+
+       if(ebox->container != NULL)
+		pthread_mutex_unlock(&(ebox->container)->pgmutex);
+
 }
 
 

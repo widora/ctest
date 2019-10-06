@@ -63,6 +63,9 @@ typedef struct fbdev{
 					 *				 X  maps to FB.Y
 				         * 2: clockwise rotation 180 deg
 					 * 3: clockwise rotation 270 deg
+					 * Note: Default FB set, as pos_rotate=0, is faster than other sets.
+					 *	for it only needs value assignment, while other sets need
+					 *	coordinate transforming/mapping calculations.
 					 */
 	int		pos_xres;	/* Resultion for X and Y direction, as per pos_rotate */
 	int		pos_yres;

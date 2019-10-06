@@ -260,6 +260,24 @@ thread_ffplay_music() is only for audio files.
 -----------------------------------------------------*/
 void * thread_ffplay_music(EGI_PAGE *page)
 {
+
+	/*----- TEST -------*/
+	int m=0;
+	while(1) {
+		m++;
+		muzpage_update_timingBar(m, m);
+        	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
+                	                        18, 18, m&0x1?"奇ODD":"偶EVEN",            /* fw,fh, pstr */
+                        	                240, 2, 0,                      /* pixpl, lines, gap */
+                                	        5, 10,                          /* x0,y0, */
+                                        	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor, opaque */
+		sleep(1);
+		egi_page_needrefresh(page);
+		sleep(1);
+
+	}
+
+
 	/* Check ffplay context */
 	if(FFmuz_Ctx==NULL) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Context struct FFmuz_Ctx is NULL!", __func__);
