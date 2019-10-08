@@ -458,17 +458,35 @@ int egi_ebox_refresh(EGI_EBOX *ebox)
 }
 
 
-/*----------------------------------------
+/*----------- NOT GOOD! ---------------
 	Force an ebox to refresh
+
 ----------------------------------------*/
 int egi_ebox_forcerefresh(EGI_EBOX *ebox)
 {
-	if(ebox !=NULL ) {
-		ebox->need_refresh=true;
-	        return egi_ebox_refresh(ebox);
-	}
+	int ret;
 
-	return -1;
+	if(ebox==NULL)
+		return -1;
+
+       /* Get pgmutex for parent PAGE resource access/synch */
+       if(ebox->container != NULL) {
+                if(pthread_mutex_lock(&(ebox->container)->pgmutex) !=0) {
+                        printf("%s: Fail to get PAGE.pgmutex!\n",__func__);
+                        return -2;
+                }
+        }
+
+	ebox->need_refresh=true;
+        if(egi_ebox_refresh(ebox)!=0)
+		ret=-3;
+
+	/* Put parent PAGE.pgmutex */
+	if(ebox->container != NULL)
+       		pthread_mutex_unlock(&(ebox->container)->pgmutex);
+
+
+	return ret;
 }
 
 

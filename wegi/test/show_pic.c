@@ -5,7 +5,7 @@ published by the Free Software Foundation.
 
 Test EGI_PIC functions
 
-Usage:	test_pic /photos/
+Usage:	show_pic /photos/
 
 Midas Zhou
 ------------------------------------------------------------------*/

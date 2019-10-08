@@ -98,6 +98,8 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
 #endif
 	printf("blur_size=%d\n", blur_size);
 
+
+
 /* ------------------------------------------------------------------------------------
 NOTE:
 1. egi_imgbuf_avgsoft(), operating 2D array data of color/alpha, is faster than
@@ -189,10 +191,10 @@ study cases:
 
 
 #if 0  /* ------------- Test egi_imgbuf_newFrameImg() ----------- */
-        framimg=egi_imgbuf_newFrameImg( 80, 180,		  /* int height, int width */
-                          	  255, egi_color_random(color_medium), /* alpha, color */
-				  frame_round_rect,	  /* enum imgframe_type */
-                               	  1, &rad );		  /* int pn, int *param */
+        framimg=egi_imgbuf_newFrameImg( 80, 180,		  	/* int height, int width */
+                          	  255, egi_color_random(color_medium), 	/* alpha, color */
+				  frame_round_rect,	  		/* enum imgframe_type */
+                               	  1, &rad );		  		/* int pn, int *param */
 
 	egi_imgbuf_windisplay( frameimg, &gv_fb_dev, -1,    	/* img, FB, subcolor */
                                0, 0,   				/* int xp, int yp */
@@ -201,6 +203,12 @@ study cases:
 
 	egi_imgbuf_free(frameimg);
 #endif
+
+
+
+
+
+
 
 
 

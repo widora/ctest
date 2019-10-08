@@ -161,7 +161,7 @@ midaszhou@yahoo.com
 #define FFMUZ_LOOP_TIMEGAP  1   /*  in second, hold_on time after ffplaying a file, especially for a picture.
 			         *  set before FAIL_OR_TERM.
 			         */
-#define FFMUZ_CLIP_PLAYTIME 2   /* in second, set clip play time */
+#define FFMUZ_CLIP_PLAYTIME 3   /* in second, set clip play time */
 #define FFMUZ_MEDIA_LOOP
 #define END_PAUSE_TIME   0	 /* end pause time */
 
@@ -261,7 +261,7 @@ thread_ffplay_music() is only for audio files.
 void * thread_ffplay_music(EGI_PAGE *page)
 {
 
-	/*----- TEST -------*/
+#if 0	/*------------- TEST ------------------*/
 	int m=0;
 	while(1) {
 		m++;
@@ -274,8 +274,8 @@ void * thread_ffplay_music(EGI_PAGE *page)
 		sleep(1);
 		egi_page_needrefresh(page);
 		sleep(1);
-
 	}
+#endif ///////////////////////////////////////////////
 
 
 	/* Check ffplay context */
@@ -304,11 +304,6 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	char *fname=NULL;
 	char *fbsname=NULL;
 
-//	int ff_sec_Vduration=0; /* in seconds, multimedia file Video duration */
-//	int ff_sec_Aduration=0; /* in seconds, multimedia file Audio duration */
-//	//Global int ff_sec_Velapsed=0;  /* in seconds, playing time elapsed for Video */
-//	int ff_sec_Aelapsed=0;  /* in seconds, playing time elapsed for Audio */
-
 	/* for VIDEO and AUDIO  ::  Initializing these to NULL prevents segfaults! */
 	AVFormatContext		*pFormatCtx=NULL;
 	AVDictionaryEntry 	*tag=NULL;
@@ -331,16 +326,6 @@ void * thread_ffplay_music(EGI_PAGE *page)
 	/* for Pic Info. */
 	struct PicInfo pic_info;
 	pic_info.app_page=page; /* for PAGE wallpaper */
-
-	/* origin movie/image size */
-//	int widthOrig;
-//	int heightOrig;
-
-	/* for scaled movie size, mapped as scwidth->LCD(fb) row, scheight->LCD(fb) column
-	   will be adjusted to fit for LCD WxH, clock transpose is also considered.
-         */
-//	int scwidth;
-//	int scheight;
 
 	/*  for AUDIO  ::  for audio   */
 	int			audioStream=-1;/* >=0, if stream exists */
@@ -398,16 +383,9 @@ void * thread_ffplay_music(EGI_PAGE *page)
 
 	EGI_PDEBUG(DBG_FFPLAY," start ffplay with input ftotal=%d.\n", ftotal);
 
-	/* check expected display window size */
-	//if( (show_w&0x1) != 0 || (show_h&0x1) !=0 )
-	//     EGI_PLOG(LOGLV_WARN,"ffplay: WARING!!! Size of display_window side must be multiples of 2 for SWS.\n");
-
-	/*MOVED: addjust offset of display window */
-	//offx=(LCD_MAX_WIDTH-show_w)>>1; /* put display window in mid. of width */
-	//offy=50;//40;
-
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
+
 
 	/* --- fill display area with BLACK --- */
 #if 0 /* Let PAGE handle it ...*/
@@ -444,6 +422,7 @@ while(1) {
 	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ...",__func__);
    	av_register_all();
    	avformat_network_init();
+
 
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
@@ -512,18 +491,14 @@ pFormatCtx->probesize2=128*1024;
 
 		/* Get Title name */
 		if( strcmp( tag->key, "title")==0 ) {
-			fname=strdup(tag->value);
+			muzpage_update_title(tag->value);
 		}
 	}
 
 	/* If no Title, then use base file name, and put to pic_info for display */
 	if( fname==NULL ) {
-		fname=strdup(fpath[fnum]);
+		muzpage_update_title(fpath[fnum]);
 	}
-	fbsname=basename(fname);
-	//printf("fname:%s\n",fname);
-	pic_info.fname=fbsname;  fbsname=NULL; /*  OK 'fname' is the Owner */
-	//free(fname); fname=NULL; /* to be freed at last */
 
 	/* Find the first video stream and audio stream */
 	EGI_PDEBUG(DBG_FFPLAY,"%lld(ms):	Try to find the first video stream... \n",tm_get_tmstampms());
@@ -833,13 +808,13 @@ if(disable_video && videoStream>=0 )
 	EGI_PDEBUG(DBG_FFPLAY,"Try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
-		EGI_PLOG(LOGLV_WARN,"Unsupported video codec! try to continue to decode audio...\n");
+		EGI_PLOG(LOGLV_WARN,"Unsupported video codec! try to continue to decode audio...");
 		videoStream=-1;
 		//return (void *)-1;
 	}
 	/* if video size is illegal, then reset videoStream to -1, to ignore video processing */
 	if(pCodecCtxOrig->width <= 0 || pCodecCtxOrig->height <= 0) {
-		EGI_PLOG(LOGLV_WARN,"Video width=%d or height=%d illegal! try to continue to decode audio...\n",
+		EGI_PLOG(LOGLV_WARN,"Video width=%d or height=%d illegal! try to continue to decode audio...",
 				   pCodecCtxOrig->width, pCodecCtxOrig->height);
 		videoStream=-1;
 	}
@@ -945,7 +920,7 @@ if(disable_video && videoStream>=0 )
 		pfsub=NULL;
 	}
 	pfsub=cstr_dup_repextname(fpath[fnum],".srt");
-	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
+	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
 	if( pfsub != NULL && access(pfsub,F_OK)==0 ) {
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
 			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles!");
@@ -969,11 +944,13 @@ if(disable_video && videoStream>=0 )
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 
 	/* Even if no video stream */
+
 	if( videoStream <0 )
 		pic_info.PicOff=true;
 	else
 		pic_info.PicOff=false;
 
+#if 0
 	if(pthread_create(&pthd_displayPic,NULL,display_MusicPic,(void *)&pic_info) != 0) {
 		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures!");
 		return (void *)-1;
@@ -982,7 +959,7 @@ if(disable_video && videoStream>=0 )
 		EGI_PDEBUG(DBG_FFPLAY,"Finish creating thread for displaying pictures.\n");
 	/* set running token */
 	pthd_displayPic_running=true;
-
+#endif
 
 /* if loop playing for only ONE file ..... */
 SEEK_LOOP_START:

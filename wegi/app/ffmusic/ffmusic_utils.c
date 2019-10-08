@@ -226,14 +226,13 @@ void* display_MusicPic(void * argv)
 
    struct PicInfo *ppic =(struct PicInfo *) argv;
    EGI_IMGBUF  *tmpimg=NULL;
-   EGI_IMGBUF *imgbuf=NULL;
+   EGI_IMGBUF  *imgbuf=NULL;
 
    imgbuf=egi_imgbuf_alloc(); /* To hold motion/still picture data */
    if(imgbuf==NULL) {
-	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for imgbuf.\n",__func__);
+	EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for imgbuf.",__func__);
 	return (void *)-1;
    }
-
 
    /* Get screen size */
    xsize= ff_fb_dev.vinfo.xres;
@@ -243,7 +242,7 @@ void* display_MusicPic(void * argv)
    printf("%s: Check ppic->PicOff...\n", __func__);
    if(ppic->PicOff) {	/* 1. If no picture embedded in the media file. */
 	pic_off=true;
-	printf("%s: No picture in the media file, use default wallpaper.\n", __func__);
+	printf("%s: No picture in the media file/Or disabled, use default wallpaper.\n", __func__);
 
 	/* Load pic to imgbuf */
 	tmpimg=egi_imgbuf_alloc();
@@ -286,19 +285,6 @@ void* display_MusicPic(void * argv)
 	/* Put to page and its child eboxes for refresh */
 	egi_page_needrefresh(ppic->app_page);
 
-	/* Wait for PAGE to refresh wallpaper first. make sure that this is the only thread
-	 * to affect PAGE rendering.
-	 * TODO: Race condition exists with PAGE routine, Put fname to an TXT ebox....
-         */
-	while(ppic->app_page->ebox->need_refresh==true)
-		tm_delayms(25);
-
- 	FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
-                              		18, 18, ppic->fname,          	/* fw,fh, pstr */
-	                               	240, 2, 0,                      /* pixpl, lines, gap */
-                                   	5, 10,                          /* x0,y0, */
-               	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor, opaque */
-
 	/* set token */
 	bkimg_updated=true;
    }
@@ -309,7 +295,7 @@ void* display_MusicPic(void * argv)
 		   still_image=true;
 		   imgbuf->width=ppic->width;
 		   imgbuf->height=ppic->height;
-		   EGI_PLOG(LOGLV_INFO,"%s: Still image width=%d, height=%d \n",
+		   EGI_PLOG(LOGLV_INFO,"%s: Still image width=%d, height=%d",
 							__func__, imgbuf->width, imgbuf->height );
 	   }  else {
 		  still_image=false;
@@ -352,7 +338,7 @@ void* display_MusicPic(void * argv)
 	  /* Still picture handling */
 	  if( still_image )  {
 		/* reset PAGE frame_img,
-                 * Call only once for bkimg_updated....
+                 * Call only once, for bkimg_updated....
 		 */
 		if( !bkimg_updated && imgbuf->imgbuf != NULL ) { /* Only if imgbuf holds an image */
 			printf("%s: Start to set imgbuf as PAGE wallpaper...\n",__func__);
@@ -404,24 +390,8 @@ void* display_MusicPic(void * argv)
 			printf("%s: set page frame_img needrefresh...\n",__func__);
 			egi_page_needrefresh(ppic->app_page);/* page and its child eboxes */
 
-			/* Wait for PAGE to refresh wallpaper first. make sure that this is the only thread
-			 * to affect PAGE rendering.
-			 * TODO: Race condition exists with PAGE routine, Put fname to an TXT ebox....
-		         */
-			while(ppic->app_page->ebox->need_refresh==true)
-				tm_delayms(25);
-
 			/*--- 5. Reset update token ---*/
 			bkimg_updated=true;
-
-			/*--- 6. Refreshing file name... or add it to the imgbuf ---*/
-			//tm_delayms(100); /* wait for PAGE to refresh wallpaper first...*/
-			/* Display song name/file name, TODO: to put to an txt ebox!  */
-        		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_appfonts.regular, /* FBdev, fontface */
-                                    		18, 18, ppic->fname,          	/* fw,fh, pstr */
-	                                    	240, 2, 0,                      /* pixpl, lines, gap */
-        	                            	0, 10,                          /* x0,y0, */
-                	                    	WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor,opaque */
 
 		} /* End set PAGE frame_img as song file embedded image */
 
@@ -437,7 +407,7 @@ void* display_MusicPic(void * argv)
 
 	   /* Check command & Quit thread function */
 	   if(control_cmd == cmd_exit_display_thread ) {
-		EGI_PLOG(LOGLV_INFO,"%s: Exit commmand is received!\n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Exit commmand is received!",__func__);
 		break;
 	   }
 
@@ -445,6 +415,7 @@ void* display_MusicPic(void * argv)
 	  //usleep(2000);
 
   } /* End While() */
+
 
   /* Free tmpimg */
   egi_imgbuf_free(tmpimg);
@@ -462,9 +433,9 @@ void* display_MusicPic(void * argv)
 
   /* Free PicBuffs */
   ff_free_PicBuffs();
+  imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() already. */
 
   /* Free imgbuf, WARN: imgbuf->imgbuf refers to PICbuffs[] */
-  imgbuf->imgbuf=NULL; /* As freed by ff_free_PicBuffs() already. */
   egi_imgbuf_free(imgbuf);
 
   return (void *)0;
@@ -894,7 +865,7 @@ static  bool	factors_ready=false;
 
      /* check cmd to quit thread */
      if(control_cmd == cmd_exit_audioSpectrum_thread ) {
-             EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!\n",__func__);
+             EGI_PLOG(LOGLV_INFO,"%s: exit commmand is received!",__func__);
              break;
      }
 

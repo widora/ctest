@@ -133,12 +133,17 @@ int egi_page_free(EGI_PAGE *page)
 										page->ebox->tag,i);
 		}
 	}
-	/* Destroy thread mutex locks and conds */
+	/* Destroy mutex locks and conds for runner signals */
 	if(pthread_mutex_destroy(&page->runner_mutex) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_destroy()!", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to destroy PAGE.runner_mutex!", __func__ );
 	}
 	if(pthread_cond_destroy(&page->runner_cond) !=0 ) {
-		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_destroy()!", __func__ );
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to destroy PAGE.runner_cond!", __func__ );
+	}
+
+	/* Destroy thread mutex lock for page resource access */
+	if(pthread_mutex_destroy(&page->pgmutex) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to destroy PAGE.pgmutex!", __func__ );
 	}
 
 	/*  free every child in list */

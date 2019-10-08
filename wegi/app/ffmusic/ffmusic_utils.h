@@ -50,7 +50,7 @@ struct PicInfo {
 	uint8_t *data; 		/* RGB data, pointer to pPICbuffs[] page */
 	int numBytes;  		/* total bytes for a picture RGB data, depend on pixel format and pixel numbers */
 	enum AVCodecID vcodecID; /* Video codec ID */
-	char *fname;		/* current file name */
+//	char *fname;		/* current file name */
 	EGI_PAGE*  app_page; 	/*  PAGE */
 //	EGI_IMGBUF *imgbuf;	/* destination imgbuf if applied, now for page->ebox->imgbuf */
 };

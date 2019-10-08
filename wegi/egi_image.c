@@ -14,6 +14,7 @@ Midas Zhou
 #include "egi_image.h"
 #include "egi_bjp.h"
 #include "egi_utils.h"
+#include "egi_log.h"
 
 typedef struct fbdev FBDEV; /* Just a declaration, referring to definition in egi_fbdev.h */
 
@@ -96,7 +97,8 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
                 return;
 
 	/* Hope there is no other user */
-	pthread_mutex_lock(&egi_imgbuf->img_mutex);
+	if(pthread_mutex_lock(&egi_imgbuf->img_mutex) !=0 )
+		EGI_PLOG(LOGLV_TEST,"%s:Fail to lock img_mutex!\n",__func__);
 
 	/* !MOVE TO egi_imgbuf_cleardata(), free 2D array data if any */
         //egi_free_buff2D((unsigned char **)egi_imgbuf->pcolors, egi_imgbuf->height);
@@ -105,8 +107,12 @@ void egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf)
 	/* free data inside */
 	egi_imgbuf_cleardata(egi_imgbuf);
 
-	/* TODO :  ??????? necesssary ????? */
+	/*  ??????? necesssary ????? */
 	pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+
+        /* Destroy thread mutex lock for page resource access */
+        if(pthread_mutex_destroy(&egi_imgbuf->img_mutex) !=0 )
+		EGI_PLOG(LOGLV_TEST,"%s:Fail to destroy img_mutex!\n",__func__);
 
 	free(egi_imgbuf);
 
@@ -132,6 +138,9 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 {
 	if(egi_imgbuf==NULL)
 		return -1;
+
+	if(height==0 || width==0)
+		return -2;
 
 	/* empty old data if any */
 	egi_imgbuf_cleardata(egi_imgbuf);

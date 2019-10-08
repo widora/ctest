@@ -208,9 +208,9 @@ Note:
 */
 
 
-
-/* Margins than NOT for displaying image, X aligned to screen W, Y alinged to screen H, as of SCREEN COORD. */
-static int  scrnMargX_Left=30;    /* 40 for timing bar. ---- for Landscape mode ---- */
+/* Margins that NOT for displaying image, X aligned to screen W, Y alinged to screen H, as of SCREEN COORD.
+ * --- Following is only for LANDSCAPE  mode --- */
+static int  scrnMargX_Left=30;    /* 40 for timing bar */
 static int  scrnMargX_Right=40;   /* 20 for title       */
 static int  scrnMargX =30+40;     /* = scrnMargX_Left+scrnMargX_Right */
 
@@ -247,7 +247,7 @@ static int offy;
 
 
 /* If true: Play media file from a random selected timing point */
-static bool enable_random_start=true;
+static bool enable_random_start=false; //true;
 
 /***  ( precondition: image size can fit into scrnUseX*scrnUseY, OR disable_scale_size will be reset to FALSE )
  *  If true:  Original image size will be applied, if precondition is OK.
@@ -287,7 +287,7 @@ static bool enable_auto_rotate=false;
 	  if image H>W, transpose_colck=0, otherwise transpose_clock=1.
  *  if 1, enable_avfilter MUST be 1, and transpose clock or cclock.
  */
-static unsigned char transpose_clock=3; /* when 0, make sure enable_auto_rotate=false !!!
+static unsigned char transpose_clock=0; /* when 0, make sure enable_auto_rotate=false !!!
 			       * 1 --- rotate clockwise 90deg.
 			       * 2 --- rotate clockwise 180deg.
 			       * 3 --- rotate clockwise 270deg.
@@ -537,7 +537,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	scrnUseY=scrnY-scrnMargY;
 
 	/* If SWS is disabled, then set display_width and display_height to MAX. size  */
-	if(disable_scale_size) {
+	if(disable_scale_size ) {
 		display_width=scrnUseX;
 		display_height=scrnUseY;
 	}
@@ -566,6 +566,14 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 		display_height=scheight;
 	}
 	/* ELSE:  keep original display_width*display_height size */
+
+	/* However, If disable_scale_size and in Portrait Mode */
+	if(disable_scale_size && transpose_clock&0x1==0) {
+		display_width=256; /* .... */
+		display_height=110;
+	}
+
+
 
 	/* rotate displaying area and PAGE */
 #if 0
@@ -977,7 +985,6 @@ if(disable_video && videoStream>=0 )
 					 		pCodecCtx->width,pCodecCtx->height);
 
 
-
 /* if enable_auto_rotate, then map long side to H, and shore side to W
  * here assume LCD_H > LCD_W, and FB linesize is pixel number of LCD_W.
  */
@@ -1018,10 +1025,13 @@ else
 }
 EGI_PDEBUG(DBG_FFPLAY,"Rotated video size: widthOrig=%d, heightOrig=%d \n",widthOrig, heightOrig);
 
-/* Check original size and re_set disable_scale_size to FALSE */
-if( widthOrig > scrnUseX || heightOrig > scrnUseY )
+/* Check original size and re_set disable_scale_size to FALSE
+ * Only for Landscape mode!
+ */
+if(  (transpose_clock&0x1==0) && (widthOrig > scrnUseX || heightOrig > scrnUseY) ) {
+	EGI_PDEBUG(DBG_FFPLAY,"Picture size is too big, reset disable_scale_size as FALSE.\n");
 	disable_scale_size=false;
-
+}
 
 /* Calculate scwidth and scheight */
 if(enable_stretch)  /* stretch image size to expected */
@@ -1101,10 +1111,16 @@ if(enable_avfilter)
 else
 {
      /* Line size to be aligned to 16 */
-     if(transpose_clock & 0x1)
+     if(transpose_clock & 0x1) {
 	display_height=( (display_height+7)>>4)<<4;
-     else
+	if(display_height<16)
+		display_height=16;
+     }
+     else {
 	display_width=( (display_width+7)>>4)<<4;
+	if(display_width<16)
+		display_width=16;
+     }
 }
 
 EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d \n",
@@ -1112,21 +1128,24 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 
 	/* Addjust displaying window position */
 	/* Landscape mode */
-	if(transpose_clock & 0x1 ) {
-		offx=((ff_fb_dev.vinfo.yres-scrnMargY-display_height)>>1)
+	if( transpose_clock & 0x1 ) {
+		offx=(ff_fb_dev.vinfo.yres-scrnMargY-display_height)/2
 					+ ( (transpose_clock==1)?scrnMargY_Upp:scrnMargY_Down );
-		offy=((ff_fb_dev.vinfo.xres-scrnMargX-display_width)>>1)
+		offy=(ff_fb_dev.vinfo.xres-scrnMargX-display_width)/2
 					+ ( (transpose_clock==1)?scrnMargX_Right:scrnMargX_Left );
-		EGI_PDEBUG(DBG_FFPLAY," yres=%d, xres=%d, offx=%d,  offy=%d  as of current coord.\n",
+		EGI_PDEBUG(DBG_FFPLAY," Landscape mode: yres=%d, xres=%d, offx=%d,  offy=%d  as of current coord.\n",
 						ff_fb_dev.vinfo.yres, ff_fb_dev.vinfo.xres, offx, offy);
 	}
 	/* Portrait mode */
         else {
-		offx=(ff_fb_dev.vinfo.xres-display_width)>>1;
-		if(IS_IMAGE_CODEC(vcodecID)) 		/* for IMAGE */
-			offy=((265-29-display_height)>>1) +30;
-		else 					/* for MOTION PIC */
-			offy=50;
+		if(display_width > ff_fb_dev.vinfo.xres)
+			offx=0;
+		else
+			offx=(ff_fb_dev.vinfo.xres-display_width)/2;
+		offy=45;
+
+		EGI_PDEBUG(DBG_FFPLAY," Portrait mode: yres=%d, xres=%d, offx=%d,  offy=%d  as of current coord.\n",
+						ff_fb_dev.vinfo.yres, ff_fb_dev.vinfo.xres, offx, offy);
 	}
 
 	/* Determine required buffer size and allocate buffer for scaled picture size */
@@ -1379,7 +1398,6 @@ if(enable_avfilter)
 	/* Final confirm if any media stream available */
 	if(audioStream<0 && videoStream<0)
 		goto FAIL_OR_TERM;
-
 
         /* Get playing time (duration) */
         if(audioStream>=0) {

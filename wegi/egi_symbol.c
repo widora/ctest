@@ -147,9 +147,9 @@ struct symbol_page sympg_sbuttons=
 	.path="/home/sbuttons.img",
 	.bkcolor=0x0000,
 	.data=NULL,
-	.maxnum=5*3-1, /* 5 rows of ioncs */
-	.sqrow=5, /* 4 icons per row */
-	.symheight=60,
+	.maxnum=5*3-1, 	/* 5 rows of ioncs */
+	.sqrow=5, 	/* 4 icons per row */
+	.symheight=48, 	/*60, */
 	.symwidth=sbuttons_width, /* width list */
 };
 

@@ -70,20 +70,24 @@ Midas Zhou
 static EGI_BOX slide_zone={ {0,0}, {239,260} };
 static uint16_t btn_symcolor;
 static int btnum=5;
-static EGI_DATA_BTN *data_btns[5];
-static EGI_EBOX *ffmuz_btns[5];
+static EGI_DATA_BTN 	*data_btns[5];
+static EGI_EBOX 	*ffmuz_btns[5];
+
+/* title txt ebox */
+static EGI_DATA_TXT     *title_FTtxt;
+static EGI_EBOX         *ebox_title;
 
 /* volume txt ebox */
-static EGI_DATA_TXT *vol_FTtxt;
-static EGI_EBOX     *ebox_voltxt;
+static EGI_DATA_TXT 	*vol_FTtxt;
+static EGI_EBOX     	*ebox_voltxt;
 
 /* Timing slider */
-static EGI_DATA_BTN *data_slider;
-static EGI_EBOX     *time_slider;
+static EGI_DATA_BTN 	*data_slider;
+static EGI_EBOX     	*time_slider;
 
 /* Time sliding bar txt, for time elapsed and duration */
-static EGI_DATA_TXT *data_tmtxt[2];
-static EGI_EBOX	    *ebox_tmtxt[2];
+static EGI_DATA_TXT 	*data_tmtxt[2];
+static EGI_EBOX	    	*ebox_tmtxt[2];
 
 static int ffmuz_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmuz_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -110,12 +114,12 @@ EGI_PAGE *create_ffmuzPage(void)
 	/* --------- 1. create buttons --------- */
         for(i=0;i<btnum;i++) /* row of buttons*/
         {
-		/* 1. create new data_btns */
-		data_btns[i]=egi_btndata_new(	i, /* int id */
-						btnType_square, /* enum egi_btn_type shape */
-						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
-						0, /* int icon_code, assign later.. */
-						&sympg_testfont /* for ebox->tag font */
+		/* create new data_btns */
+		data_btns[i]=egi_btndata_new(	i, 			/* int id */
+						btnType_square, 	/* enum egi_btn_type shape */
+						&sympg_sbuttons, 	/* struct symbol_page *icon. If NULL, use geometry. */
+						0, 			/* int icon_code, assign later.. */
+						&sympg_testfont 	/* for ebox->tag font */
 					);
 		/* if fail, try again ... */
 		if(data_btns[i]==NULL) {
@@ -127,13 +131,13 @@ EGI_PAGE *create_ffmuzPage(void)
 		/* Do not show tag on the button */
 //default	data_btns[i]->showtag=false;
 
-		/* 2. create new btn eboxes */
-		ffmuz_btns[i]=egi_btnbox_new(  NULL, /* put tag later */
-						data_btns[i], /* EGI_DATA_BTN *egi_data */
-				        	1, /* bool movable */
-					        48*i, 320-(60-5), /* int x0, int y0 */
-						48, 60, /* int width, int height */
-				       		0, /* int frame,<0 no frame */
+		/* create new btn eboxes */
+		ffmuz_btns[i]=egi_btnbox_new(  NULL, 		/* put tag later */
+						data_btns[i], 	/* EGI_DATA_BTN *egi_data */
+				        	1, 		/* bool movable */
+					        48*i, 320-48, 	/* int x0, int y0 */
+						48, 48, 	/* int width, int height */
+				       		0, 		/* int frame,<0 no frame */
 		       				WEGI_COLOR_GRAY /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
@@ -173,14 +177,31 @@ EGI_PAGE *create_ffmuzPage(void)
 	ffmuz_btns[4]->reaction=ffmuz_playmode;
 
 
-	/* --------- 2. create title bar --------- */
-//	EGI_EBOX *title_bar= create_ebox_titlebar(
-//	        0, 0, /* int x0, int y0 */
-//       		0, 2,  /* int offx, int offy, offset for txt */
-//		WEGI_COLOR_GRAY, //egi_colorgray_random(medium), //light),  /* int16_t bkcolor */
-//    		NULL	/* char *title */
-//	);
-//	egi_txtbox_settitle(title_bar, "	eFFplay V0.0 ");
+	/* --------- 2. create title TXT --------- */
+        title_FTtxt=NULL;
+        ebox_title=NULL;
+
+        /* For FTsymbols TXT */
+        title_FTtxt=egi_utxtdata_new( 5, 5,                       /* offset from ebox left top */
+                                      2, 240-5,                   /* lines, pixels per line */
+                                      egi_appfonts.regular,       /* font face type */
+                                      18, 18,                     /* font width and height, in pixels */
+                                      0,                          /* adjust gap, minus also OK */
+                                      WEGI_COLOR_GRAYB            /* font color  */
+                                    );
+        /* assign uft8 string */
+        //title_FTtxt->utxt=NULL;
+
+        /* create volume EBOX */
+        ebox_title=egi_txtbox_new( "Title",             /* tag */
+                                     title_FTtxt,       /* EGI_DATA_TXT pointer */
+                                     true,              /* bool movable */
+                                     0, 0,              /* int x0, int y0 */
+                                     240,50,            /* width, height(adjusted as per nl and fw) */
+                                     frame_none,        /* int frame, -1 or frame_none = no frame */
+                                     -1                 /* prmcolor,<0 transparent */
+                                   );
+
 
         /* --------- 3 create a TXT ebox for Volume value displaying  --------- */
 	vol_FTtxt=NULL;
@@ -197,12 +218,11 @@ EGI_PAGE *create_ffmuzPage(void)
         /* assign uft8 string */
         vol_FTtxt->utxt=NULL;
 	/* create volume EBOX */
-        ebox_voltxt=egi_txtbox_new( "volume_txt",    /* tag */
-                                     vol_FTtxt,      /* EGI_DATA_TXT pointer */
-                                     true,           /* bool movable */
-                                     70, 60,      /* int x0, int y0 */
-                                     //70,320-75,      /* int x0, int y0 */
-                                     80, 30,         /* width, height(adjusted as per nl and fw) */
+        ebox_voltxt=egi_txtbox_new( "volume_txt",    	/* tag */
+                                     vol_FTtxt,      	/* EGI_DATA_TXT pointer */
+                                     true,           	/* bool movable */
+                                     70, 60,      	/* int x0, int y0 */
+                                     80, 30,         	/* width, height(adjusted as per nl and fw) */
                                      frame_round_rect,  /* int frame, -1 or frame_none = no frame */
                                      WEGI_COLOR_GRAY3   /* prmcolor,<0 transparent*/
                                    );
@@ -211,10 +231,11 @@ EGI_PAGE *create_ffmuzPage(void)
 	/* set status as hidden, activate it only by touching */
 	ebox_voltxt->status=status_hidden;
 
+
         /* --------- 4. create a horizontal sliding bar --------- */
         int sb_len=200; /* slot length */
         int sb_pv=0; /* initial  percent value */
-	EGI_POINT sbx0y0={(240-sb_len)/2, 260 }; /* starting point */
+	EGI_POINT sbx0y0={(240-sb_len)/2, 320-58 }; /* starting point */
 
         data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
@@ -249,7 +270,7 @@ EGI_PAGE *create_ffmuzPage(void)
         time_slider->reaction=NULL;
 
 
-        /* --------- 3 create a TXT ebox for displaying time elapsed and duration  ------- */
+        /* --------- 5 create a TXT ebox for displaying time elapsed and duration  ------- */
 	int tmSymHeight=18;		/* symbol height */
 	int tmX0[2], tmY0[2];		/* EBOX x0,y0  */
 
@@ -286,9 +307,8 @@ EGI_PAGE *create_ffmuzPage(void)
 	egi_push_datatxt(ebox_tmtxt[0], "00.000", NULL);
 	egi_push_datatxt(ebox_tmtxt[1], "00.000", NULL);
 
-
-	/* --------- 5. create ffplay page ------- */
-	/* 5.1 create ffplay page */
+	/* --------- 6. create ffplay page ------- */
+	/* 6.1 create ffplay page */
 	EGI_PAGE *page_ffmuz=egi_page_new("page_ffmuz");
 	while(page_ffmuz==NULL)
 	{
@@ -301,10 +321,10 @@ EGI_PAGE *create_ffmuzPage(void)
 	/* decoration */
 //	page_ffmuz->ebox->method.decorate=pageffmuz_decorate; /* draw lower buttons canvas */
 
-        /* 5.2 put pthread runner */
+        /* 6.2 put pthread runner */
         page_ffmuz->runner[0]= thread_ffplay_music;
 
-        /* 5.3 set default routine job */
+        /* 6.3 set default routine job */
         //page_ffmuz->routine=egi_page_routine; /* use default routine function */
 	page_ffmuz->routine=egi_homepage_routine;  /* for sliding operation */
 	#if 0 /* vertical sliding */
@@ -314,10 +334,10 @@ EGI_PAGE *create_ffmuzPage(void)
 	#endif
 	page_ffmuz->page_refresh_misc=refresh_misc; /* random colro for btn */
 
-        /* 5.4 set wallpaper */
+        /* 6.4 set wallpaper */
         page_ffmuz->fpath="/home/musicback.jpg";
 
-	/* 5.5 add ebox to home page */
+	/* 6.5 add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* Add buttons */
 		egi_page_addlist(page_ffmuz, ffmuz_btns[i]);
 
@@ -326,7 +346,7 @@ EGI_PAGE *create_ffmuzPage(void)
 
 	egi_page_addlist(page_ffmuz, ebox_voltxt); /* add volume txt ebox */
 	egi_page_addlist(page_ffmuz, time_slider); /* add time_slider ebox */
-//	egi_page_addlist(page_ffmuz, title_bar); /* add title bar */
+	egi_page_addlist(page_ffmuz, ebox_title); /* add title TXT ebox */
 
 	return page_ffmuz;
 }
@@ -748,6 +768,28 @@ void egi_free_ffplaypage(void)
     */
 
 
+}
+
+
+/*-----------------------------------------------------
+Update title txt.
+
+@title: Pointer to a title string, with UTF-8 encoding.
+        Title
+
+-----------------------------------------------------*/
+void muzpage_update_title(const unsigned char *title)
+{
+        static unsigned char strtmp[512];
+
+        memset(strtmp,0,sizeof(strtmp));
+
+        strncpy(strtmp,title, sizeof(strtmp)-1);
+
+        title_FTtxt->utxt=strtmp;
+
+	egi_ebox_needrefresh(ebox_title);
+        //egi_page_needrefresh(ebox_title->container);
 }
 
 

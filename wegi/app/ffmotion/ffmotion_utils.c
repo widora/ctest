@@ -19,6 +19,7 @@ Midas_Zhou
 
 #include "egi_common.h"
 #include "utils/egi_utils.h"
+#include "utils/egi_cstring.h"
 #include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
 #include "ffmotion.h"
@@ -399,7 +400,7 @@ void* thdf_Display_Subtitle(void * argv)
         int  end_secs=0; 			/* sub section end time, in seconds */
 	long off; 				/* offset to start position */
         char strsub[32*4]={0}; 			/* 64_chars x 4_lines, for subtitle content */
-        EGI_BOX subbox={{0,150}, {240-1, 260}}; /* box area for subtitle display */
+        EGI_BOX subbox={{0,150}, {240-1, 240}}; /* box area for subtitle display */
 
         /* open subtitle file */
        	fil=fopen(subpath,"r");
@@ -415,29 +416,30 @@ void* thdf_Display_Subtitle(void * argv)
        	/* read subtitle section by section */
         while(!(feof(fil)))
         {
+
 	        /* 2. get time stamp first! */
 	        memset(strtm,0,sizeof(strtm));
 	        fgets(strtm,sizeof(strtm),fil);/* time stamp */
 	        if(strstr(strtm,"-->")!=NULL) {  /* to confirm the stime stamp string */
-//	                printf("time stamp: %s\n",strtm);
+	                //printf("time stamp: %s\n",strtm);
         	        start_secs=atoi(strtm)*3600+atoi(strtm+3)*60+atoi(strtm+6);
-//                	printf("Start(sec): %d\n",start_secs);
+                	//printf("Start(sec): %d\n",start_secs);
                        	end_secs=atoi(strtm+17)*3600+atoi(strtm+20)*60+atoi(strtm+23);
-//                     	printf("End(sec): %d\n",end_secs);
+                     	//printf("End(sec): %d\n",end_secs);
 	        }
 		else
 			continue;
 
         	/* 3. read a section of sub and display it */
-	        fbset_color(WEGI_COLOR_BLACK);
-        	draw_filled_rect2(&ff_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
+	        //fbset_color(WEGI_COLOR_BLACK);
+        	draw_filled_rect2(&gv_fb_dev,WEGI_COLOR_BLACK,subbox.startxy.x,subbox.startxy.y,
 								subbox.endxy.x,subbox.endxy.y);
 	        len=0;
         	memset(strsub,0,sizeof(strsub));
 	        do {   /* read a section of subtitle */
         	       pt=fgets(strsub+len,subln*32-len-1,fil);
                        if(pt==NULL)break;
-//	               printf("fgets pt:%s\n",pt);
+	               //printf("fgets pt:%s\n",pt);
         	       len+=strlen(pt); /* fgets also add a '\0\ */
                        if(len>=subln*32-1)
                         	        break;
@@ -453,13 +455,13 @@ void* thdf_Display_Subtitle(void * argv)
 		     }
 
 		     tm_delayms(200);
-//		     printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
+		     //printf("Elapsed time:%d  Start_secs:%d\n",ff_sec_Velapsed, start_secs);
 		} while( start_secs > ff_sec_Velapsed - ff_sub_delays );
 
 		/* 5. Disply subtitle */
        	        //symbol_strings_writeFB(&ff_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
        	        symbol_strings_writeFB(&ff_fb_dev, &sympg_ascii, 240, subln, 0, WEGI_COLOR_ORANGE,
-                                                                                1, 0, 170, strsub,-1);
+                                                                                1, 0, 160, strsub,-1);
 
 		/* 6. wait for a right time to let go to erase the sub. */
 		do{
@@ -472,7 +474,7 @@ void* thdf_Display_Subtitle(void * argv)
 		     }
 
 		     tm_delayms(200);
-//		     printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
+		     //printf("Elapsed time:%d  End_secs:%d\n",ff_sec_Velapsed, end_secs);
 		} while( end_secs > ff_sec_Velapsed - ff_sub_delays );
 
        	        /* 7. section number or a return code, ignore it. */
@@ -482,7 +484,7 @@ void* thdf_Display_Subtitle(void * argv)
        	                continue;  /* or continue if its a return */
           	else {
                    	 nsect=atoi(strtm);
-//                       printf("Section: %d\n",nsect);
+                       //printf("Section: %d\n",nsect);
                 }
 
         }/* end of sub file */
@@ -530,13 +532,13 @@ static long seek_Subtitle_TmStamp(char *subpath, unsigned int tmsec)
                 memset(strtm,0,sizeof(strtm));
                 fgets(strtm,sizeof(strtm),fil);/* time stamp */
                 if(strstr(strtm,"-->")!=NULL) {  /* to confirm the time stamp string */
-//                        printf("Seek time stamp: %s\n",strtm);
+                        //printf("Seek time stamp: %s\n",strtm);
                         start_secs=atoi(strtm)*3600+atoi(strtm+3)*60+atoi(strtm+6);
 			start_ms=atoi(strtm+9);
-//                        printf("Seek Start(sec): %d\n",start_secs);
+                        //printf("Seek Start(sec): %d\n",start_secs);
                         end_secs=atoi(strtm+17)*3600+atoi(strtm+20)*60+atoi(strtm+23);
 			end_ms=atoi(strtm+9);
-//                        printf("Seek End(sec): %d\n",end_secs);
+                        //printf("Seek End(sec): %d\n",end_secs);
                 }
 		/* get offset position */
 		if(start_secs > tmsec-ff_sub_delays) {

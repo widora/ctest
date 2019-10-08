@@ -139,9 +139,9 @@ EGI_PAGE *create_ffmotionPage(void)
 		ffmot_btns[i]=egi_btnbox_new(  NULL, 		  /* put tag later */
 						data_btns[i],     /* EGI_DATA_BTN *egi_data */
 				        	1, 		  /* bool movable */
-					        48*i, 320-(60-5), /* int x0, int y0 */
-						48, 60, 	  /* int width, int height */
-				       		0, 		  /* int frame,<0 no frame */
+					        48*i, 320-48, /* int x0, int y0 */
+						48, 48, 	  /* int width, int height */
+				       		-1, 		  /* int frame,<0 no frame */
 		       				WEGI_COLOR_GRAY  /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
@@ -777,7 +777,7 @@ void free_ffmotionPage(void)
 }
 
 /*------------------------------------------------------------
-Update timing bar and its txt.
+Update title txt.
 
 @title:	Pointer to a title string, with UTF-8 encoding.
 	Title
@@ -785,7 +785,7 @@ Update timing bar and its txt.
 ---------------------------------------------------------------*/
 void motpage_update_title(const unsigned char *title)
 {
-	static unsigned char strtmp[256];
+	static unsigned char strtmp[512];
 
 	memset(strtmp,0,sizeof(strtmp));
 
@@ -815,7 +815,7 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
 	static int old_elapsed=-1;
 
         /* --- 1. Update sliding bar duration TXT ebox --- */
-	if( old_duration != tm_duration ) {
+//	if( old_duration != tm_duration ) {
 	        tm_h=tm_duration/3600;
         	tm_min=(tm_duration-tm_h*3600)/60;
 	        tm_sec=tm_duration%60;
@@ -830,10 +830,10 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
 
                 egi_push_datatxt(ebox_tmtxt[1], strtm, NULL);
                 egi_ebox_needrefresh(ebox_tmtxt[1]);
-	}
+//	}
 
         /* --- 2. Update elapsed time TXT ebox AND slider indicator positon --- */
-	if( old_elapsed != tm_elapsed ) {
+//	if( old_elapsed != tm_elapsed ) {
 		/*  3.1 update elapsed time TXT ebox */
 	        tm_h=tm_elapsed/3600;
         	tm_min=(tm_elapsed-tm_h*3600)/60;
@@ -859,7 +859,7 @@ void motpage_update_timingBar(int tm_elapsed, int tm_duration )
         	        egi_slider_setpsval(time_slider, psval);
 	        }
         	egi_ebox_needrefresh(time_slider);
-	}
+//	}
 }
 
 
@@ -884,12 +884,12 @@ void motpage_rotate(unsigned char pos)
 	fb_position_rotate(&gv_fb_dev, pos);
 
 	/* Get new pxy and sl after FB position rotation! */
-	if(pos&0x1) {
+	if(pos&0x1) {						/* Landscape mode */
 		pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10};
 		sl=gv_fb_dev.pos_xres-40-55;
 	}
-	else {
-		pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10-60};
+	else {							/* Portrait mode */
+		pxy=(EGI_POINT){40/2, gv_fb_dev.pos_yres-10-48};
 		sl=gv_fb_dev.pos_xres-40;
 	}
 
@@ -905,12 +905,12 @@ void motpage_rotate(unsigned char pos)
 	/* relocate control Button */
 	for(i=0; i<btnum; i++) {
 		if(pos&0x1) {		/* Landscape mode */
-			ffmot_btns[i]->x0=gv_fb_dev.pos_xres-(60-5);
+			ffmot_btns[i]->x0=gv_fb_dev.pos_xres-48;
 			ffmot_btns[i]->y0=48*i;
 		}
 		else {			/* Portrait mode */
 			ffmot_btns[i]->x0=48*i;
-			ffmot_btns[i]->y0=gv_fb_dev.pos_yres-(60-5);
+			ffmot_btns[i]->y0=gv_fb_dev.pos_yres-48;
 		}
 	}
 
