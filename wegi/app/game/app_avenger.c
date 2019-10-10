@@ -3,22 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-An EGI APP program for FFmotion player.
-
-   [  EGI_UI ]
-	|
-	|____ [ BUTTON ]
-		  |
-		  |
-           <<<  signal  >>>
-		  |
-		  |
-	      [ SUBPROCESS ] app_ffmotion.c
-				|
-	        		|____ [ UI_PAGE ] page_ffmotion.c
-							|
-							|_____ [ extern OBJ FILE ] ffmotion.c
-
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -26,16 +10,14 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_utils.h"
 #include "egi_cstring.h"
-#include "ffmotion.h"
 #include "egi_FTsymbol.h"
-#include "page_ffmotion.h"
-#include "ffmotion_utils.h"
+#include "page_avenger.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <malloc.h>
 
-static char app_name[]="app_ffmotion";
-static EGI_PAGE *page_ffmotion=NULL;
+static char app_name[]="app_avenger";
+static EGI_PAGE *page_avenger=NULL;
 
 static struct sigaction sigact_cont;
 static struct sigaction osigact_cont;
@@ -158,8 +140,6 @@ siginfo_t {
 int main(int argc, char **argv)
 {
 	int ret=0;
-	char video_dir[EGI_PATH_MAX]={0};
-	char url_addr[EGI_URL_MAX]={0};
 
         /* Set memory allocation option */
         mallopt(M_MMAP_MAX,0);          /* forbid calling mmap to allocate mem */
@@ -197,45 +177,31 @@ int main(int argc, char **argv)
 	}
 
 	/*  --- 1.1 set FFPLAY Context --- */
-	printf(" start set ffplay context....\n");
-        if ( egi_get_config_value("EGI_FFMOTION","video_dir",video_dir) != 0) {
-		/* use default dir */
-		EGI_PLOG(LOGLV_INFO,"%s: Fail to read config video_dir, use default: %s\n",__func__, video_dir);
-		strcpy(video_dir,"/mmc/ffplay");
-	} else {
-		EGI_PLOG(LOGLV_INFO,"%s: read config video_dir: %s\n",__func__, video_dir);
-	}
-	if( init_ffmotionCtx(video_dir, "avi, mp4,mp3") ) {
-	        EGI_PLOG(LOGLV_INFO,"%s: fail to init FFmotion_Ctx.\n", __func__);
-		goto FF_FAIL;
-	}
-
 
 	/*  ---  2. EGI PAGE creation  ---  */
 	printf(" Start creating PAGE for FFmotion ....\n");
         /* create page and load the page */
-        page_ffmotion=create_ffmotionPage();
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_ffmotion->ebox->tag);
+        page_avenger=create_avengerPage();
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is created.\n", app_name, page_avenger->ebox->tag);
 
 	/* activate and display the page */
-        egi_page_activate(page_ffmotion);
-        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_ffmotion->ebox->tag);
+        egi_page_activate(page_avenger);
+        EGI_PLOG(LOGLV_INFO,"%s: [page '%s'] is activated.\n", app_name, page_avenger->ebox->tag);
 
         /* trap into page routine loop */
-        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_ffmotion->ebox->tag);
-        page_ffmotion->routine(page_ffmotion);
+        EGI_PLOG(LOGLV_INFO,"%s: Now trap into routine of [page '%s']...\n", app_name, page_avenger->ebox->tag);
+        page_avenger->routine(page_avenger);
 
         /* get out of routine loop */
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
-		                                                app_name,page_ffmotion->ebox->tag);
+		                                                app_name,page_avenger->ebox->tag);
 
-	tm_delayms(200); /* let page log_calling finish */
+	/* free page */
+	tm_delayms(2000); /* let page log_calling finish */
+        egi_page_free(page_avenger);
 
-        egi_page_free(page_ffmotion);
+
 	ret=pgret_OK;
-
-	/* free FFLAY_CONTEXT */
-	free_ffmotionCtx();
 
 FF_FAIL:
        	release_fbdev(&gv_fb_dev);

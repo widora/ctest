@@ -386,15 +386,10 @@ void * thread_ffplay_music(EGI_PAGE *page)
         /* prepare fb device just for FFPLAY */
         init_fbdev(&ff_fb_dev);
 
-
-	/* --- fill display area with BLACK --- */
-#if 0 /* Let PAGE handle it ...*/
-	fbset_color(WEGI_COLOR_BLACK);
-	//draw_filled_rect(&ff_fb_dev, offx, offy, offx+show_w, offy+show_h);
-	draw_filled_rect(&ff_fb_dev, 0, 30, 239, 319-55);
-#endif
-
-
+   	/* Register all formats and codecs, before loop for() is OK!! ??? */
+	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ...",__func__);
+   	av_register_all();
+   	avformat_network_init();
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -418,10 +413,6 @@ while(1) {
 
 	fpath=FFmuz_Ctx->fpath;  /* array of media file path */
 
-   	/* Register all formats and codecs, before loop for() is OK!! ??? */
-	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ...",__func__);
-   	av_register_all();
-   	avformat_network_init();
 
 
    /* play all input files, one by one. */
@@ -960,6 +951,7 @@ if(disable_video && videoStream>=0 )
 	/* set running token */
 	pthd_displayPic_running=true;
 #endif
+
 
 /* if loop playing for only ONE file ..... */
 SEEK_LOOP_START:

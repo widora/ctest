@@ -267,6 +267,8 @@ struct egi_element_box
 	   draw the moving ebox. It's sure not efficient when bkimg is very large, you would
 	   rather refresh the whole FB memory.
 	   4.Not applicable for an immovable ebox.
+	   5. TODO: An alternative solution is to create a background FB buffer, from where image data
+	      will be copied to restore the backbground first before an ebox changes/moves.
       */
 	uint16_t *bkimg;
 	bool bkimg_valid;  /* Only ebox btn is applied now.

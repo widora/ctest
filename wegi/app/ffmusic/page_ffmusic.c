@@ -276,7 +276,7 @@ EGI_PAGE *create_ffmuzPage(void)
 
 	/* position of txt ebox */
 	tmX0[0]=sbx0y0.x;
-	tmY0[0]=sbx0y0.y-tmSymHeight-5;
+	tmY0[0]=sbx0y0.y-tmSymHeight-8;
 	tmX0[1]=sbx0y0.x+sb_len-50;
 	tmY0[1]=tmY0[0];
 

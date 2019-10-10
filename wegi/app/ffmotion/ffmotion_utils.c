@@ -400,7 +400,7 @@ void* thdf_Display_Subtitle(void * argv)
         int  end_secs=0; 			/* sub section end time, in seconds */
 	long off; 				/* offset to start position */
         char strsub[32*4]={0}; 			/* 64_chars x 4_lines, for subtitle content */
-        EGI_BOX subbox={{0,150}, {240-1, 240}}; /* box area for subtitle display */
+        EGI_BOX subbox={{0,150}, {240-1, 240-10}}; /* box area for subtitle display */
 
         /* open subtitle file */
        	fil=fopen(subpath,"r");
@@ -460,7 +460,7 @@ void* thdf_Display_Subtitle(void * argv)
 
 		/* 5. Disply subtitle */
        	        //symbol_strings_writeFB(&ff_fb_dev, &sympg_testfont, 240, subln, -5, WEGI_COLOR_ORANGE,
-       	        symbol_strings_writeFB(&ff_fb_dev, &sympg_ascii, 240, subln, 0, WEGI_COLOR_ORANGE,
+       	        symbol_strings_writeFB(&ff_fb_dev, &sympg_ascii, 240, subln, -2, WEGI_COLOR_ORANGE,
                                                                                 1, 0, 160, strsub,-1);
 
 		/* 6. wait for a right time to let go to erase the sub. */
@@ -490,7 +490,8 @@ void* thdf_Display_Subtitle(void * argv)
         }/* end of sub file */
 
        	fclose(fil);
-	return NULL;
+
+	return (void *)0;
 }
 
 

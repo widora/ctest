@@ -16,11 +16,11 @@ Midas Zhou
 #include <freetype2/ftglyph.h>
 
 enum imgframe_type {
-	frame_simple=0,		/* <1000 , defined by ebox type, check in egi_btn.c, egi_txt.c...  */
+	frame_simple=0,		/* <100 , outline frame defined by ebox type, check in egi_btn.c, egi_txt.c...  */
 	frame_dbline=1,
 	frame_inner=2,
 
-	frame_none=100,		/* incoporate with ebox->frame, <100  */
+	frame_none=100,		/* incoporate with ebox->frame and ebox->frame_img, <100  */
 	frame_round_rect,
 	frame_circle,
 	frame_oval,
@@ -32,11 +32,14 @@ enum imgframe_type {
 	2. Necessary to use pthread mutex for EGI_IMGBUF???
 */
 
-EGI_IMGBUF*	egi_imgbuf_alloc(void); //new(void);
+EGI_IMGBUF*	egi_imgbuf_alloc(void);
+EGI_IMGBOX*	egi_imgboxes_alloc(int n);
+void 		egi_imgboxes_free(EGI_IMGBOX *imboxes);
 void 		egi_imgbuf_cleardata(EGI_IMGBUF *egi_imgbuf); /* free data inside */
 void 		egi_imgbuf_free(EGI_IMGBUF *egi_imgbuf);
 int 		egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width);
 EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_16BIT_COLOR color );
+EGI_IMGBUF*	egi_imgbuf_readfile(const char* fpath);
 EGI_IMGBUF*	egi_imgbuf_blockCopy( const EGI_IMGBUF *ineimg,
                 	              int px, int py, int height, int width );
 int 		egi_imgbuf_setFrame( EGI_IMGBUF *eimg, enum imgframe_type type,
@@ -58,8 +61,8 @@ EGI_IMGBUF  *egi_imgbuf_resize(const EGI_IMGBUF *ineimg, unsigned int width, uns
 int 	egi_imgbuf_blur_update(EGI_IMGBUF **pimg, int size, bool alpha_on);
 int 	egi_imgbuf_resize_update(EGI_IMGBUF **pimg, unsigned int width, unsigned int height);
 
-int 		egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );
-int 		egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+int	egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );
+int	egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
 int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,

@@ -42,6 +42,37 @@ EGI_IMGBUF *egi_imgbuf_alloc(void) //new(void)
 }
 
 
+/*-----------------------------------------
+Allocate an array of EGI_BOX
+
+@n: Size of EGI_BOX array.
+
+Return:
+	Pointer to an array of EGI_BOX   OK
+	NULL	Fails
+-----------------------------------------*/
+EGI_IMGBOX *egi_imgboxes_alloc(int n)
+{
+	EGI_IMGBOX* boxes;
+
+	if(n<=0)
+		return NULL;
+
+	boxes=calloc(n, sizeof(EGI_IMGBOX));
+
+	return boxes;
+}
+/*-----------------------------------------
+Free an array of EGI_BOX
+
+@n: Size of EGI_BOX array.
+-----------------------------------------*/
+void egi_imgboxes_free(EGI_IMGBOX *imboxes)
+{
+	free(imboxes);
+}
+
+
 /*------------------------------------------------------------
 Free data in EGI_IMGBUF, but NOT itself!
 
@@ -201,6 +232,33 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 	return imgbuf;
 }
 
+
+
+/*--------------------------------------------------------------
+Read an image file and load data to an EGI_IMGBUF as for return.
+
+@fpath:	Full path to an image file.
+	Supports only JPG and PNG currently.
+
+Return:
+	A pointer to EGI_IMGBUF		Ok
+	NULL				Fails
+----------------------------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_readfile(const char* fpath)
+{
+	EGI_IMGBUF *eimg=egi_imgbuf_alloc();
+	if(eimg==NULL)
+		return NULL;
+
+        if( egi_imgbuf_loadjpg(fpath, eimg)!=0 ) {
+                if ( egi_imgbuf_loadpng(fpath, eimg)!=0 ) {
+			egi_imgbuf_free(eimg);
+			return NULL;
+                }
+        }
+
+	return eimg;
+}
 
 /*----------------------------------------------------------------
 Copy a block of image from input EGI_IMGBUF, and create
@@ -1330,7 +1388,7 @@ subcolor:	substituting color, only applicable when >0.
 (xw,yw):        displaying window origin, relate to the LCD coord system.
 winw,winh:      width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
-                waste time calling draw_dot() for pixels outsie FB zone.
+                waste time calling draw_dot() for pixels outsie FB zone. --- OK
 
 Return:
 		0	OK
@@ -1709,7 +1767,7 @@ int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex
 	}
 
 	/* get position and size of the subimage */
-	if( subindex<=0 || egi_imgbuf->subimgs==NULL ) {	/* No subimg, only one image */
+	if( subindex<0 || egi_imgbuf->subimgs==NULL ) {	/* No subimg, only one image */
 		xp=0;
 		yp=0;
 		w=egi_imgbuf->width;

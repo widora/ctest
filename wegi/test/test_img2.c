@@ -58,22 +58,45 @@ int ysize=320;
 EGI_IMGBUF* eimg=NULL;
 EGI_IMGBUF* tmpimg=NULL;
 
+char**	fpaths=NULL;	/* File paths */
+int	ftotal=0; 	/* File counts */
+int	num=0;		/* File index */
+
+    /* search for files and put to ffCtx->fpath */
+    fpaths=egi_alloc_search_files(argv[1], "jpg,png", &ftotal);
+    if(fpaths==NULL) {
+		printf("No recognizable image file found!\n");
+		exit(-1);
+    }
+
 
 do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////////////
 
+	/* 0. Check/reset index */
+	if(num>ftotal-1)
+		num=0;
+
         /* 1. Load pic to imgbuf */
+	eimg=egi_imgbuf_readfile(fpaths[num]);
+	if(eimg==NULL) {
+        	EGI_PLOG(LOGLV_ERROR, "%s: Fail to read and load file '%s'!", __func__, fpaths[num]);
+		return -1;
+	}
+
+#if 0
         eimg=egi_imgbuf_alloc();
 
         if(eimg==NULL) {
                 EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for eimg.",__func__);
                 return -1;
         }
-        if( egi_imgbuf_loadjpg(argv[1],eimg)!=0 ) {
-                if ( egi_imgbuf_loadpng(argv[1],eimg)!=0 ) {
-                         EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!", __func__, argv[1]);
+        if( egi_imgbuf_loadjpg(fpaths[num],eimg)!=0 ) {
+                if ( egi_imgbuf_loadpng(fpaths[num],eimg)!=0 ) {
+                         EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!", __func__, fpaths[num]);
                          //Go on...
                 }
         }
+#endif
 
         /* 2. Copy a Block from the image */
         /* If original image ratio is H4:W3, just same as SCREEN's. */
@@ -122,9 +145,11 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
 	egi_imgbuf_free(tmpimg);
 	tmpimg=NULL;
 
-
+	/* 6. Clear screen and increase num */
 	tm_delayms(500);
 	clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
+	num++;
+
 }while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
 

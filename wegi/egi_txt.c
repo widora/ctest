@@ -694,7 +694,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		}
 
 		/* --- 8.2 draw frame according to its type  --- */
-		if(ebox->frame >= 0) /* 0: simple type */
+		if(ebox->frame >= 0 && ebox->frame<100 ) /* 0: simple type */
 		{
 			fbset_color(0); /* use black as frame color  */
 			draw_rect(&gv_fb_dev,x0,y0,x0+width-1,y0+height-1);

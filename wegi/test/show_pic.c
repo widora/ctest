@@ -23,7 +23,14 @@ int main(int argc, char **argv)
 	int i,j;
 	int ret;
 
+	if(argc<2) {
+		printf("Usage: %s file\n",argv[0]);
+		exit(-1);
+	}
+
+
         /* EGI general init */
+#if 0
         tm_start_egitick();
         if(egi_init_log("/mmc/log_color") != 0) {
                 printf("Fail to init logger,quit.\n");
@@ -33,6 +40,7 @@ int main(int argc, char **argv)
                 printf("Fail to load sym pages,quit.\n");
                 return -2;
         }
+#endif
         init_fbdev(&gv_fb_dev);
 
 	char *path= argv[1]; //"/mmc/photos";
@@ -56,21 +64,12 @@ int main(int argc, char **argv)
 	//EGI_BOX  box={ {0,0},{240-picw-poffx-1,320-pich-poffy-symh-1}};
 
 #if 1 //////////////////// Display one file only /////////////////////
-	imgbuf=egi_imgbuf_alloc();
-	/* load jpg file to buf */
-	if(egi_imgbuf_loadjpg(path, imgbuf) !=0) {
-		printf("Load JPG imgbuf fail, try egi_imgbuf_loadpng()...\n");
-		if(egi_imgbuf_loadpng(path, imgbuf) !=0) {
-			printf("Load PNG imgbuf fail, try egi_imgbuf_free...\n");
-			egi_imgbuf_free(imgbuf);
-			exit(0);
-		}
-		else {
-			printf("Finish loading PNG image file...\n");
-		}
-	}
-	else {
-		printf("Finish loading JPG image file...\n");
+
+	/* readin file */
+	imgbuf=egi_imgbuf_readfile(path);
+	if(imgbuf==NULL) {
+		printf("Fail to read image file '%s'.\n", path);
+		exit(-1);
 	}
 
 	/* display */

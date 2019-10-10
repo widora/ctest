@@ -276,7 +276,7 @@ EGI_PAGE *create_ffmotionPage(void)
 
 	/* position of txt ebox */
 	tmX0[0]=sbx0y0.x;
-	tmY0[0]=sbx0y0.y-tmSymHeight-5;
+	tmY0[0]=sbx0y0.y-tmSymHeight-8;
 	tmX0[1]=sbx0y0.x+sb_len-50;
 	tmY0[1]=tmY0[0];
 
@@ -445,7 +445,6 @@ return
 ----------------------------------------------------------------------*/
 static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	static int count=0;
 
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
@@ -459,6 +458,7 @@ static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 
 #elif 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
+	static int count=0;
 
 	/* only react to status 'pressing' */
 	struct egi_data_btn *data_btn=(struct egi_data_btn *)(ebox->egi_data);
@@ -586,7 +586,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		if(vol>100) vol=100;
 		else if(vol<0) vol=0;
 
-		printf("\n%s --- pvol=d% --- \n",__func__, vol);
+		printf("%s pvol=%d \n",__func__, vol);
 
 		/* set volume */
                 if( egi_getset_pcm_volume(NULL,&vol)==0 )
@@ -597,7 +597,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
 
 		/* set utxt to ebox_voltxt */
-		vol_FTtxt->utxt=strp;
+		vol_FTtxt->utxt=(unsigned char *)strp;
 		#if 1  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX at once! */
@@ -693,7 +693,7 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		if(vol>100) vol=100;
 		else if(vol<0) vol=0;
 
-		printf("\n%s --- pvol=d% --- \n",__func__, vol);
+		printf("%s pvol=%d \n",__func__, vol);
 
 		/* set volume */
                 if( egi_getset_pcm_volume(&initvol,&vol)==0 )
@@ -704,7 +704,7 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		//printf("dy=%d, vol=%d\n",touch_data->dy, vol);
 
 		/* set utxt to ebox_voltxt */
-		vol_FTtxt->utxt=strp;
+		vol_FTtxt->utxt=(unsigned char *)strp;
 		#if 1  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX now! */
@@ -789,7 +789,7 @@ void motpage_update_title(const unsigned char *title)
 
 	memset(strtmp,0,sizeof(strtmp));
 
-	strncpy(strtmp,title, sizeof(strtmp)-1);
+	strncpy((char *)strtmp,(char *)title, sizeof(strtmp)-1);
 
         title_FTtxt->utxt=strtmp;
 

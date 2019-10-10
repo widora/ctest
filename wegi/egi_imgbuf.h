@@ -7,7 +7,7 @@
 
 
 typedef	struct {
-		int x0;		/* subimage left top starting point */
+		int x0;		/* subimage left top starting point coordinates relative to image origin */
 		int y0;
 		int w;		/* size of subimage */
 		int h;
@@ -28,8 +28,10 @@ typedef struct
 
 	/* for normal image data storage */
         EGI_16BIT_COLOR *imgbuf; 	/* color data, for RGB565 format */
-	EGI_IMGBOX 	*subimgs; 	/* sub_image boxes */
-	int 		submax;	 	/* max index of subimg, from 0 */
+	EGI_IMGBOX 	*subimgs; 	/* sub_image boxes, subimgs[0] - subimgs[submax] */
+	int 		submax;	 	/* max index of subimg,
+					 * >=0, Max. index as for subimgs[index].
+					 */
 	unsigned char 	*alpha;    	/* 8bit, alpha channel value, if applicable: alpha=0,100%backcolor, alpha=1, 100% frontcolor */
 
 	/* For image data processing

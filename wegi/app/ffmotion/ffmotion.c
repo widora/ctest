@@ -381,7 +381,7 @@ void * thread_ffplay_motion(EGI_PAGE *page)
         }
 
 
-	int ftotal;		/* number of multimedia files */
+	int ftotal=0;		/* number of multimedia files */
 	int fnum;		/* Index number of files in array FFmotion_Ctx->fpath */
 	int fnum_playing;	/* Current playing fpath index, fnum may be changed by command PRE/NEXT */
 
@@ -568,11 +568,10 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	/* ELSE:  keep original display_width*display_height size */
 
 	/* However, If disable_scale_size and in Portrait Mode */
-	if(disable_scale_size && transpose_clock&0x1==0) {
+	if(disable_scale_size && (transpose_clock&0x1)==0) {
 		display_width=256; /* .... */
 		display_height=110;
 	}
-
 
 
 	/* rotate displaying area and PAGE */
@@ -581,6 +580,16 @@ void * thread_ffplay_motion(EGI_PAGE *page)
 	fb_position_rotate(&ff_fb_dev, transpose_clock);  /* rotate displaying position */
 	motpage_rotate(transpose_clock);  		  /* rotate main PAGE */
 #endif
+
+
+   	/* Register all formats and codecs, before loop for() is OK!! ??? */
+	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
+   	av_register_all();
+   	avformat_network_init();
+	if(enable_avfilter) {
+		avfilter_register_all(); /* register all default builtin filters */
+   	}
+
 
 /*<<<<<<<<<<<<<<<<<<<<<<<< 	 LOOP PLAYING LIST    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 /* loop playing all files, check if enable_filesloop==true at the end of while(1) */
@@ -611,13 +620,6 @@ while(1) {
 		ftotal=FFmotion_Ctx->ftotal;
 	}
 
-   	/* Register all formats and codecs, before loop for() is OK!! ??? */
-	EGI_PLOG(LOGLV_INFO,"%s: Init and register codecs ... \n",__func__);
-   	av_register_all();
-   	avformat_network_init();
-	if(enable_avfilter) {
-		avfilter_register_all(); /* register all default builtin filters */
-   	}
 
    /* play all input files, one by one. */
    for(fnum=0; fnum < ftotal; fnum++)
@@ -1896,5 +1898,5 @@ if(enable_avfilter) /* free filter resources */
 	/* close fb dev */
 	release_fbdev(&ff_fb_dev);
 
-        return 0;
+        return (void *)0;
 }
