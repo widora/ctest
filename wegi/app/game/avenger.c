@@ -21,8 +21,9 @@ static int upward_trail(AVG_PLANE *plane)
 
 	/* loop */
 	if(plane->pxy.y<-50) {
-		plane->pxy.x=egi_random_max(240-50);
+		plane->pxy.x=egi_random_max(240)-25;
 		plane->pxy.y=320;
+		plane->speed=egi_random_max(12)+2;
 	}
 
 	return 0;
@@ -58,7 +59,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 	EGI_IMGBOX *imboxes=NULL;
 	EGI_IMGBUF *plane_icons=NULL;
 
-	AVG_PLANE  planes[8];
+	AVG_PLANE  planes[15];
 
 
 	printf("Start GAME avenger...\n");
@@ -90,12 +91,12 @@ void *thread_game_avenger(EGI_PAGE *page)
 	plane_icons->submax=8-1;
 
 	/* Prepare data for planes */
-	for(i=0; i<8; i++) {
+	for(i=0; i<15; i++) {
 		planes[i].icons=plane_icons;
-		planes[i].icon_index=i;	/* 0 for whole image, subimg from 1 */
-		planes[i].pxy.x=egi_random_max(240-50);
+		planes[i].icon_index=egi_random_max(8)-1;
+		planes[i].pxy.x=egi_random_max(240)-25;
 		planes[i].pxy.y=320;
-		planes[i].speed=egi_random_max(8)+2;
+		planes[i].speed=egi_random_max(12)+1;
 		planes[i].trail_mode=upward_trail;
 	}
 
@@ -108,7 +109,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 	        fb_filo_on(&gv_fb_dev);    /* start collecting old FB pixel data */
 
 
-		for(i=0; i<8; i++)
+		for(i=0; i<15; i++)
 			refresh_plane(&planes[i]);
 
 

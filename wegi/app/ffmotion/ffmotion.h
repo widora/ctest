@@ -45,6 +45,7 @@ enum ffmotion_cmd {
         cmd_next,
         cmd_prev,
 	cmd_mode,
+	cmd_seek,
 
 	cmd_rotate_clock,
 	cmd_rotate_cclock,
@@ -93,6 +94,9 @@ typedef struct FFmotion_Context
 					 * Just to synchronize gv_fb_dev with ff_fb_dev if necessary.
 					 */
 	long start_tmsecs;  		/* start_playing time, default 0 */
+	int  sec_Vduration;		/* Audio duration in seconds */
+	int  sec_Aduration;		/* Video duration in seconds */
+	int  seek_pval;			/* Seek position, in percentage */
 
 	enum ffmotion_cmd     ffcmd;    /* 0 default none*/
 	enum ffmotion_mode    ffmode;	/* 0 default mode_loop_all */

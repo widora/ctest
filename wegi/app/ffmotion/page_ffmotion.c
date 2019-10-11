@@ -65,7 +65,7 @@ Midas Zhou
 //#define TIME_TXT0_ID		101
 //#define TIME_TXT1_ID		102
 
-static EGI_BOX slide_zone={ {0,0}, {239,260} };
+static EGI_BOX slide_zone={ {0,0}, {239,230} }; /* Sliding zone for volume adjusting */
 static uint16_t btn_symcolor;
 
 /* buttons */
@@ -76,6 +76,10 @@ static EGI_EBOX 	*ffmot_btns[5];
 /* title txt ebox */
 static EGI_DATA_TXT	*title_FTtxt;
 static EGI_EBOX		*ebox_title;
+
+/* circling/sliding pad */
+static EGI_DATA_BTN 	*data_pad;
+static EGI_EBOX		*ebox_pad;
 
 /* volume txt ebox */
 static EGI_DATA_TXT 	*vol_FTtxt;
@@ -99,8 +103,10 @@ static int ffmot_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int ffmot_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 //static int pageFFmot_decorate(EGI_EBOX *ebox);
+static int sliding_timebar(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
-static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
+//static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
+static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int refresh_misc(EGI_PAGE *page);
 
 
@@ -119,11 +125,11 @@ EGI_PAGE *create_ffmotionPage(void)
         for(i=0;i<btnum;i++) /* row of buttons*/
         {
 		/* 1. create new data_btns */
-		data_btns[i]=egi_btndata_new(	i, /* int id */
-						btnType_square, /* enum egi_btn_type shape */
-						&sympg_sbuttons, /* struct symbol_page *icon. If NULL, use geometry. */
-						0, /* int icon_code, assign later.. */
-						&sympg_testfont /* for ebox->tag font */
+		data_btns[i]=egi_btndata_new(	i, 		  /* int id */
+						btnType_square,   /* enum egi_btn_type shape */
+						&sympg_sbuttons,  /* struct symbol_page *icon. If NULL, use geometry. */
+						0, 		  /* int icon_code, assign later.. */
+						&sympg_testfont   /* for ebox->tag font */
 					);
 		/* if fail, try again ... */
 		if(data_btns[i]==NULL) {
@@ -154,6 +160,7 @@ EGI_PAGE *create_ffmotionPage(void)
 		}
 	}
 
+
 	/* get a random color for the icon */
 //	btn_symcolor=egi_color_random(color_medium);
 //	EGI_PLOG(LOGLV_INFO,"%s: set 24bits btn_symcolor as 0x%06X \n",	__FUNCTION__, COLOR_16TO24BITS(btn_symcolor) );
@@ -180,7 +187,28 @@ EGI_PAGE *create_ffmotionPage(void)
 	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
 	ffmot_btns[4]->reaction=ffmot_playmode;
 
-	/* --------- 2. create title bar for movie title --------- */
+
+	/* --------- 2. create a circling/sliding area ebox --------- */
+	data_pad=egi_btndata_new( 111, 		  /* int id */
+				  btnType_square, /* enum egi_btn_type shape */
+				  NULL,  	  /* struct symbol_page *icon. If NULL, use geometry. */
+				  0, 		  /* int icon_code, assign later.. */
+				  NULL   	  /* for ebox->tag font */
+				);
+	ebox_pad=egi_btnbox_new(  NULL, 		  /* put tag later */
+				  data_pad,     	  /* EGI_DATA_BTN *egi_data */
+		        	  0, 		  	  /* bool movable */
+			          0, 40, 	  	  /* int x0, int y0 */
+				  240, 200, 	  	  /* int width, int height */
+		       		  -1, 		  	  /* int frame,<0 no frame */
+	       			  -1  	  		  /*int prmcolor, for geom button only. */
+			   );
+	if(ebox_pad==NULL)
+		printf("%s: Fail to create ebox_pad!\n",__func__);
+
+	ebox_pad->reaction=circling_volume;
+
+	/* --------- 3. create title bar for movie title --------- */
 	title_FTtxt=NULL;
 	ebox_title=NULL;
 
@@ -205,7 +233,7 @@ EGI_PAGE *create_ffmotionPage(void)
                                      -1   		/* prmcolor,<0 transparent */
                                    );
 
-        /* --------- 3. create a TXT ebox for Volume value displaying  --------- */
+        /* --------- 4. create a TXT ebox for Volume value displaying  --------- */
 	vol_FTtxt=NULL;
 	ebox_voltxt=NULL;
         /* For FTsymbols TXT */
@@ -234,7 +262,7 @@ EGI_PAGE *create_ffmotionPage(void)
 	/* set status as hidden, activate it only by touching */
 	ebox_voltxt->status=status_hidden;
 
-        /* --------- 4. create a horizontal sliding bar --------- */
+        /* --------- 5. create a horizontal sliding bar --------- */
         int sb_len=gv_fb_dev.pos_xres-40; 	/* Sliding slot length */
         int sb_pv=0; 				/* initial  percent value */
 	EGI_POINT sbx0y0={ 40/2, 260 }; 	/* starting point */
@@ -259,7 +287,7 @@ EGI_PAGE *create_ffmotionPage(void)
           	                    "volume slider",  		/* char *tag, or NULL to ignore */
                 	            data_slider, 		/* EGI_DATA_BTN *egi_data */
                                     20,20,    			/* slider block: ebox->width/height, to be Min. if possible */
-                                    50,50,       		/* touchbox size, twidth/theight */
+                                    50,30,       		/* touchbox size, twidth/theight */
                                     -1,          		/* int frame, <0 no frame */
                                     -1      /* prmcolor
 					     * 1. Let <0, it will draw default slider, instead of applying gemo or icon.
@@ -269,9 +297,9 @@ EGI_PAGE *create_ffmotionPage(void)
 	/* set EBOX id for time_slider */
 	time_slider->id=TIME_SLIDER_ID;
         /* set reaction function */
-        time_slider->reaction=NULL;
+        time_slider->reaction=sliding_timebar;
 
-        /* --------- 3. Create a TXT ebox for displaying time elapsed and duration  ------- */
+        /* --------- 6. Create a TXT ebox for displaying time elapsed and duration  ------- */
 	tmSymHeight=18;		/* symbol height */
 
 	/* position of txt ebox */
@@ -307,8 +335,8 @@ EGI_PAGE *create_ffmotionPage(void)
 	egi_push_datatxt(ebox_tmtxt[0], "00.000", NULL);
 	egi_push_datatxt(ebox_tmtxt[1], "00.000", NULL);
 
-	/* --------- 5. create ffplay page ------- */
-	/* 5.1 create ffplay page */
+	/* --------- 7. create PAGE ffmotion ------- */
+	/* 7.1 create PAGE ffmotion  */
 	EGI_PAGE *page_ffmotion=egi_page_new("page_ffmotion");
 	while(page_ffmotion==NULL)
 	{
@@ -317,36 +345,41 @@ EGI_PAGE *create_ffmotionPage(void)
 		tm_delayms(10);
 	}
 	page_ffmotion->ebox->prmcolor=WEGI_COLOR_BLACK;
+	/* Set slide off */
+	page_ffmotion->slide_off=true;
 
 	/* decoration */
 	//page_ffmotion->ebox->method.decorate=pageffmot_decorate; /* draw lower buttons canvas */
 
-        /* 5.2 Put pthread runner */
+        /* 7.2 Put pthread runner */
         page_ffmotion->runner[0]= thread_ffplay_motion;
 
-        /* 5.3 Set default routine job */
+        /* 7.3 Set default routine job */
         //page_ffmotion->routine=egi_page_routine; /* use default routine function */
 	page_ffmotion->routine=egi_homepage_routine;  /* for sliding operation */
-	#if 0
-	page_ffmotion->slide_handler=sliding_volume;  /* sliding handler for volume adjust */
-	#else
-	page_ffmotion->slide_handler=circling_volume; /* sliding handler for volume adjust */
-	#endif
+
+//	#if 0
+//	page_ffmotion->slide_handler=sliding_volume;  /* sliding handler for volume adjust */
+//	#else
+//	page_ffmotion->slide_handler=circling_volume; /* sliding handler for volume adjust */
+//	#endif
+
 	page_ffmotion->page_refresh_misc=refresh_misc; /* random colro for btn */
 
-        /* 5.4 Set wallpaper */
+        /* 7.4 Set wallpaper */
         //page_ffmotion->fpath="/tmp/mplay.jpg";
 
-	/* 5.5 Add ebox to home page */
-	for(i=0; i<btnum; i++) 	/* 5.5.1 Add control buttons */
+	/* 7.5 Add ebox to home page */
+	for(i=0; i<btnum; i++) 	/* 7.5.1 Add control buttons */
 		egi_page_addlist(page_ffmotion, ffmot_btns[i]);
 
-	for(i=0; i<2; i++)	/* 5.5.2 Add time txt for time sliding bar */
+	for(i=0; i<2; i++)	/* 7.5.2 Add time txt for time sliding bar */
 		egi_page_addlist(page_ffmotion, ebox_tmtxt[i]);
 
-	egi_page_addlist(page_ffmotion, ebox_title);  	/* 5.5.3 Add title txt ebox */
-	egi_page_addlist(page_ffmotion, ebox_voltxt); 	/* 5.5.4 Add volume txt ebox */
-	egi_page_addlist(page_ffmotion, time_slider); 	/* 5.5.5 Add time_slider ebox */
+	egi_page_addlist(page_ffmotion, ebox_pad);  	/* 7.5.3 Add circling pad ebox */
+	egi_page_addlist(page_ffmotion, ebox_title);  	/* 7.5.4 Add title txt ebox */
+	egi_page_addlist(page_ffmotion, ebox_voltxt); 	/* 7.5.5 Add volume txt ebox */
+	egi_page_addlist(page_ffmotion, time_slider); 	/* 7.5.6 Add time_slider ebox */
 
 	return page_ffmotion;
 }
@@ -548,6 +581,79 @@ static int pageFFmot_decorate(EGI_EBOX *ebox)
 }
 
 
+/*-------------------------------------------------------------------
+		Horizontal Sliding bar reaction
+---------------------------------------------------------------------*/
+static int sliding_timebar(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+        static int 	mark;
+        EGI_DATA_SLIDER *data_slider;
+        int 		minx,maxx;
+        static int 	pval;		/* playing time position in percentage */
+	static int	secval;		/* playing time in seconds */
+        int 		tm_h=0,tm_min=0,tm_sec=0;
+        char 		strtm[64];
+        static char 	strcmd[50];
+
+        /* bypass unwanted touch status */
+        if( touch_data->status != pressed_hold && touch_data->status != pressing
+					       && touch_data->status != releasing )
+                return btnret_IDLE;
+
+        /* set mark when press down, !!!! egi_touch_getdata() may miss this status !!! */
+        if(touch_data->status==pressing)
+        {
+                printf("pressing slider...\n");
+                mark=ebox->x0;
+        }
+        else if(touch_data->status==pressed_hold) /* sliding */
+        {
+		/* Get slider data */
+		data_slider=egi_slider_getdata(ebox);
+                minx=data_slider->sxy.x-(ebox->width>>1);
+                maxx=minx+data_slider->sl-1;
+
+                /* Update slider x0y0, it's coupled with touchbox position */
+                ebox->x0 = mark+(touch_data->dx);
+                if(ebox->x0 < minx) ebox->x0=minx;
+                else if(ebox->x0 > maxx) ebox->x0=maxx;
+
+                #if 0   /* set need refresh for PAGE routine */
+                egi_ebox_needrefresh(ebox);
+                #else  /* or force to refresh EBOX now! -- Quik response!*/
+		egi_ebox_forcerefresh(ebox);
+                #endif
+
+                /* adjust pval in percentage of sliding bar */
+                pval=100*data_slider->val/(data_slider->sl-1);
+		secval=pval*FFmotion_Ctx->sec_Vduration/100;
+		//printf("pval=%%%d\n",pval);
+
+        	/* Update sliding bar TXT immediately */
+	        tm_h=secval/3600;
+        	tm_min=(secval-tm_h*3600)/60;
+	        tm_sec=secval%60;
+        	memset(strtm,0,sizeof(strtm));
+		if(tm_h>0)
+	        	snprintf(strtm, sizeof(strtm)-1, "%d:%02d:%02d",tm_h, tm_min,tm_sec);
+		else
+	                snprintf(strtm, sizeof(strtm)-1, "%02d:%02d",tm_min, tm_sec);
+
+                egi_push_datatxt(ebox_tmtxt[0], strtm, NULL);
+		egi_ebox_forcerefresh(ebox_tmtxt[0]);
+        }
+	else if(touch_data->status==releasing)  /* Send ffcmd */
+	{
+		/* Send ffcmd cmd_seek*/
+		FFmotion_Ctx->seek_pval=pval;
+		FFmotion_Ctx->ffcmd=cmd_seek;
+	}
+
+
+        return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */
+}
+
+
 /*-----------------------------------------------------------------
                    Sliding Operation handler
 Slide up/down to adjust ALSA volume.
@@ -601,8 +707,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		#if 1  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX at once! */
-		ebox_voltxt->need_refresh=true;
-		ebox_voltxt->refresh(ebox_voltxt);
+		//ebox_voltxt->need_refresh=true;
+		//ebox_voltxt->refresh(ebox_voltxt);
+		egi_ebox_forcerefresh(ebox_voltxt);
 		#endif
 
 		return btnret_OK;
@@ -618,8 +725,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		#if 1 /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or refresh now */
-		ebox_voltxt->need_refresh=true;
-		ebox_voltxt->refresh(ebox_voltxt);
+		//ebox_voltxt->need_refresh=true;
+		//ebox_voltxt->refresh(ebox_voltxt);
+		egi_ebox_forcerefresh(ebox);
 		#endif
 
 		/* Hide to erase image */
@@ -638,7 +746,8 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
                    Circling Operation handler
 Circling CW/CCW to adjust ALSA volume.
 ------------------------------------------------------------------*/
-static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
+//static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
+static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	int initvol;
 	static int vol;
@@ -708,8 +817,9 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		#if 1  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX now! */
-		ebox_voltxt->need_refresh=true;
-		ebox_voltxt->refresh(ebox_voltxt);
+		//ebox_voltxt->need_refresh=true;
+		//ebox_voltxt->refresh(ebox_voltxt);
+		egi_ebox_forcerefresh(ebox);
 		#endif
 
 		return btnret_OK;
@@ -724,8 +834,9 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 		#if 1 /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or refresh now */
-		ebox_voltxt->need_refresh=true;
-		ebox_voltxt->refresh(ebox_voltxt);
+		//ebox_voltxt->need_refresh=true;
+		//ebox_voltxt->refresh(ebox_voltxt);
+		egi_ebox_forcerefresh(ebox);
 		#endif
 
 		/* Hide to erase image */

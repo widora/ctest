@@ -188,27 +188,30 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_DATA_BTN *data_slider=egi_sliderdata_new(	/* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
 	                                /* for btnbox */
         	                        SLIDER_ID, btnType_square,  	/* int id, enum egi_btn_type shape */
-                	                NULL,		/* struct symbol_page *icon */
-					0,		/* int icon_code, */
-                        	        &sympg_testfont,/* struct symbol_page *font */
+                	                NULL,				/* struct symbol_page *icon */
+					0,				/* int icon_code, */
+                        	        &sympg_testfont,		/* struct symbol_page *font */
 	                                /* for slider */
-					slidType_horiz,		/* enum egi_slid_type */
-        	                        (EGI_POINT){(240-sl)/2,100},/* slider starting EGI_POINT pxy */
-                	                5,sl,	 	/* slot width, slot length */
-	                       	        pvol*sl/100,      /* init val, usually to be 0 */
-                               	 	WEGI_COLOR_GRAY,  /* EGI_16BIT_COLOR val_color */
-					WEGI_COLOR_GRAY5,   /* EGI_16BIT_COLOR void_color */
-	                                WEGI_COLOR_WHITE   /* EGI_16BIT_COLOR slider_color */
+					slidType_horiz,			/* enum egi_slid_type */
+        	                        (EGI_POINT){(240-sl)/2,100},	/* slider starting EGI_POINT pxy */
+                	                5,sl,	 	  		/* slot width, slot length */
+	                       	        pvol*sl/100,      		/* init val, usually to be 0 */
+                               	 	WEGI_COLOR_GRAY,  		/* EGI_16BIT_COLOR val_color */
+					WEGI_COLOR_GRAY5,   		/* EGI_16BIT_COLOR void_color */
+	                                WEGI_COLOR_WHITE   		/* EGI_16BIT_COLOR slider_color */
        	                    );
 
 	EGI_EBOX *sliding_bar=egi_slider_new(
-  	 			"volume slider",  /* char *tag, or NULL to ignore */
-			        data_slider, /* EGI_DATA_BTN *egi_data */
-			        15,15,	     /* slider block: ebox->width/height, to be Min. if possible */
-				50,50,	     /* touchbox size, twidth/theight */
-			        -1,	     /* int frame,<0 no frame */
-			        -1          /* 1. Let <0, it will draw slider, instead of applying gemo or icon.
-			                       2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon != NULL */
+  	 			"volume slider",  	/* char *tag, or NULL to ignore */
+			        data_slider, 		/* EGI_DATA_BTN *egi_data */
+			        15,15,	     		/* slider block: ebox->width/height, to be Min. if possible */
+				50,50,	     		/* touchbox size, twidth/theight */
+			        -1,	     		/* int frame,<0 no frame */
+			        -1          		/* 1. Let <0, it will draw slider, instead of applying
+							      gemo or icon.
+			                       		   2. prmcolor geom applys only if prmcolor>=0 and
+							      egi_data->icon != NULL.
+							 */
 		     	   );
 
 	/* reset touch area */
@@ -329,9 +332,10 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         }
 	else if(touch_data->status==pressed_hold) /* sliding */
 	{
-		data_slider=(EGI_DATA_SLIDER *)(((EGI_DATA_BTN *)(ebox->egi_data))->prvdata);
+		//data_slider=(EGI_DATA_SLIDER *)(((EGI_DATA_BTN *)(ebox->egi_data))->prvdata);
+		data_slider=egi_slider_getdata(ebox);
 		minx=data_slider->sxy.x-(ebox->width>>1);
-		maxx=minx+data_slider->sl;
+		maxx=minx+data_slider->sl-1;
 
 		/* update slider x0y0, it's coupled with touchbox position */
 		//printf("touch_data->dx = %d\n",touch_data->dx);
@@ -339,16 +343,17 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		if(ebox->x0 < minx) ebox->x0=minx;
 		else if(ebox->x0 > maxx) ebox->x0=maxx;
 
-		/* adjust volume */
-		vol=100*data_slider->val/data_slider->sl;
-		egi_getset_pcm_volume(NULL,&vol);
-
 		#if 0   /* set need refresh for PAGE routine */
                 egi_ebox_needrefresh(ebox);
 		#else  /* or force to refresh EBOX now! -- Quik response! */
                 ebox->need_refresh=true;
                 ebox->refresh(ebox);
                 #endif
+
+		/* adjust volume */
+		vol=100*data_slider->val/(data_slider->sl-1);
+		egi_getset_pcm_volume(NULL,&vol);
+
 	}
 
 	return btnret_IDLE; /* OK, page need not refresh, ebox self refreshed. */

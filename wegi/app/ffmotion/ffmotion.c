@@ -1405,10 +1405,12 @@ if(enable_avfilter)
         if(audioStream>=0) {
                 ff_sec_Aduration=atoi( av_ts2timestr(pFormatCtx->streams[audioStream]->duration,
                                                         &pFormatCtx->streams[audioStream]->time_base) );
+		FFmotion_Ctx->sec_Aduration=ff_sec_Aduration;
         }
         if(videoStream>=0) {
                 ff_sec_Vduration=atoi( av_ts2timestr(pFormatCtx->streams[videoStream]->duration,
                                                         &pFormatCtx->streams[videoStream]->time_base) );
+		FFmotion_Ctx->sec_Vduration=ff_sec_Vduration;
                 EGI_PLOG(LOGLV_TEST,"%s: Video duration is %lds.",__func__,ff_sec_Vduration);
         }
 
@@ -1665,7 +1667,20 @@ if(enable_clip_test)
 			fb_position_rotate(&ff_fb_dev, gv_fb_dev.pos_rotate);
 		    }
 
-	  	    /* 3. shift mode */
+		    /* 3. Seek postion */
+		    else if( FFmotion_Ctx->ffcmd==cmd_seek ) {
+		    	FFmotion_Ctx->ffcmd=cmd_none;
+			if( ff_sec_Vduration > 0 ) {
+				FFmotion_Ctx->start_tmsecs=FFmotion_Ctx->seek_pval*ff_sec_Vduration/100;
+				goto  SEEK_LOOP_START;
+			}
+			else if( ff_sec_Aduration > 0 ) {
+				FFmotion_Ctx->start_tmsecs=FFmotion_Ctx->seek_pval*ff_sec_Aduration/100;
+				goto  SEEK_LOOP_START;
+			}
+
+		    }
+	  	    /* 4. shift mode */
 		    else if( FFmotion_Ctx->ffcmd==cmd_mode) {
 			    /* Note:
 			     *      1. Default enable_filesloop is true.
@@ -1687,7 +1702,7 @@ if(enable_clip_test)
 	 		    FFmotion_Ctx->ffcmd=cmd_none;
 		    }
 
-		    /* 4. parse PREV/NEXT  */
+		    /* 5. parse PREV/NEXT  */
 		    else if(FFmotion_Ctx->ffcmd==cmd_next) {
 			printf(" cmd_next received! \n");
 		    	FFmotion_Ctx->ffcmd=cmd_none;
