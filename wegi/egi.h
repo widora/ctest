@@ -438,7 +438,7 @@ struct egi_data_txt
 struct egi_data_btn
 {
 	//char tag[32]; 	  /* short description of the button */
-	unsigned int id; 	  /* unique id number for btn, MUST >0, default 0 for ignored
+	unsigned int id; 	  /* unique id number for btn, MUST >0, default 0 as for ignored
 				   *
 				   */
 	enum egi_btn_type shape;  /* button shape type, square or circle */
@@ -448,11 +448,14 @@ struct egi_data_btn
 //	uint16_t font_color; 	use ebox->tag_color instead  /* tag font color, defaul is black */
 	int opaque; 		  /* opaque value for the icon, <0 no effect, 0-255 as alpha value */
 	enum egi_touch_status status; /* ??? button status, pressed or released */
-	bool showtag;             /* to show tag on button or not, default 0, */
+	bool showtag;             /* to show tag on button or not, default FALSE, */
+
+	/* Move touch_effect() to concept EBOX ???? */
 	void (*touch_effect)(EGI_EBOX *, EGI_TOUCH_DATA *);
-                                  /* If not NULL, to be called when the btn is touched in page routine,
-				   *  depends on touch status.
-				   *  default set in egi_btn.c, or to be re-define later.
+                                  /*  1. If not NULL, to be called when the btn is touched in page routine,
+				   *     depends on touch status.
+				   *  2. Default set in egi_btn.c, or to be re-define later.
+				   *  3. The ebox must be movable, if touch_effect() is applied.
 				   */
 
 	void *prvdata;		  /* private data for derivative ebox, slider etc. */

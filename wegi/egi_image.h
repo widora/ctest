@@ -42,6 +42,7 @@ EGI_IMGBUF*	egi_imgbuf_create( int height, int width, unsigned char alpha, EGI_1
 EGI_IMGBUF*	egi_imgbuf_readfile(const char* fpath);
 EGI_IMGBUF*	egi_imgbuf_blockCopy( const EGI_IMGBUF *ineimg,
                 	              int px, int py, int height, int width );
+EGI_IMGBUF*	egi_imgbuf_subImgCopy( const EGI_IMGBUF *eimg, int index );
 int 		egi_imgbuf_setFrame( EGI_IMGBUF *eimg, enum imgframe_type type,
                          	     int alpha, int pn, const int *param );
 
@@ -62,6 +63,8 @@ int 	egi_imgbuf_blur_update(EGI_IMGBUF **pimg, int size, bool alpha_on);
 int 	egi_imgbuf_resize_update(EGI_IMGBUF **pimg, unsigned int width, unsigned int height);
 
 int	egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *addimg );
+EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int ang);
+
 int	egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */

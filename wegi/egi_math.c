@@ -670,7 +670,7 @@ angle in degree
 fb16 precision is abt.   0.0001, that means 1 deg rotation of
 a 10000_pixel long radius causes only 1_pixel distance error.??
 ---------------------------------------------------------------*/
-void mat_create_fptrigontab(void)
+void mat_create_fpTrigonTab(void)
 {
 	double pi=3.1415926535897932;  /* double: 16 digital precision excluding '.' */
 	int i;
@@ -745,7 +745,7 @@ num:	item size of the array
 min,max:	Min and Max value of the array
 
 ---------------------------------------------------------------------*/
-void egi_float_limits(float *data, int num, float *min, float *max)
+void mat_floatArray_limits(float *data, int num, float *min, float *max)
 {
 
 	int i=num;
@@ -769,7 +769,7 @@ void egi_float_limits(float *data, int num, float *min, float *max)
 }
 
 /*---------------------------------------------------------------------------------------
-generate a rotation lookup map for a square image block
+Generate a rotation lookup map for a square image block
 
 1. rotation center is the center of the square area.
 2. The square side length must be in form of 2n+1, so the center is just at the middle of
@@ -802,7 +802,7 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 
 
 	/* check if n can be resolved in form of 2*m+1 */
-	if( (n-1)%2 != 0)
+	if( n&0x1 == 0)
 	{
 		printf("mat_pointrotate_SQMap(): the number of pixels on the square side must be n=2*m+1.\n");
 	 	return;
@@ -888,7 +888,7 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
 
 	/* check if n can be resolved in form of 2*m+1 */
-	if( (n-1)%2 != 0)
+	if( n&0x1 == 0 )
 	{
 		printf("!!! WARNING !!! mat_pointrotate_SQMap(): the number of pixels on	\
 							the square side is NOT in form of n=2*m+1.\n");
@@ -936,34 +936,29 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 #endif
 
 /*----------------------- Method 3: revert rotation (fixed point)  -------------------------*/
-void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
-                       					 struct egi_point_coord *SQMat_XRYR)
+void mat_pointrotate_fpSQMap(int n, int angle, EGI_POINT centxy, EGI_POINT *SQMat_XRYR)
 {
 	int i,j;
-//	int sinang,cosang;
 	int xr,yr;
 
-	/* normalize angle to be within 0-360 */
-	int ang=angle%360;
+	/* Normalize angle to be within [0-360] */
+	int ang=angle%360;	/* !!! WARING !!!  The result is depended on the Compiler */
 	int asign=ang >= 0 ? 1:-1; /* angle sign */
-	ang=ang>=0 ? ang:-ang ;
+	ang= (ang>=0 ? ang: 360+ang) ;
 
+	/* Clear the result matrix */
+	memset(SQMat_XRYR,0,n*n*sizeof(EGI_POINT));
 
-	/* clear the result matrix */
-	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
-
-	/* check if n can be resolved in form of 2*m+1 */
-	if( (n-1)%2 != 0)
+	/* Check if n can be resolved in form of 2*m+1 */
+	if( n&0x1 == 0 )
 	{
 		printf("!!! WARNING !!! mat_pointrotate_fpSQMap(): the number of pixels on	\
 							the square side is NOT in form of n=2*m+1.\n");
 	}
 
-
-	/* check whether fp16_cos[] and fp16_sin[] is generated */
+	/* Check whether lookup table fp16_cos[] and fp16_sin[] is generated */
 	if( fp16_sin[30] == 0)
-		mat_create_fptrigontab();
-
+		mat_create_fpTrigonTab();
 
 /* 1. generate matrix of point_coordinates for the square, result Matrix is centered at square center. */
 	/* */
@@ -973,9 +968,7 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 		{
 			/*   get XRYR revert rotation matrix centered at SQMat_XRYU's center
 			this way can ensure all SQMat_XRYR[] points are filled!!!  */
-			//xr = j*cosang+i*sinang;
 			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16; /* !!! Arithmetic_Right_Shifting */
-			//yr = -j*sinang+i*cosang;
 			yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
 
                 	/* check if new piont coordinate is within the square */
@@ -987,7 +980,6 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 			}
 		}
 	}
-
 
 /* 2. transform coordinate origin back to X0Y0  */
 	for(i=0;i<n*n;i++)
@@ -1001,9 +993,9 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 	}
 	//printf("FINAL: SQMat_XRYR[%d]=(%d,%d)\n",i, SQMat_XRYR[i].x, SQMat_XRYR[i].y);
 
-
-//	free(Mat_tmp);
 }
+
+
 
 
 /*----------------------- Annulus Mapping: revert rotation (fixed point)  ------------------
@@ -1031,7 +1023,7 @@ void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coo
 	int xr,yr;
 
 	/* normalize angle to be within 0-359 */
-	int ang=angle%360;
+	int ang=angle%360; /* !!! WARING !!!  The result is depended on the Compiler */
 	int asign=ang >= 0 ? 1:-1; /* angle sign */
 	ang=(ang>=0 ? ang:-ang) ;
 
@@ -1049,7 +1041,7 @@ void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coo
 	/* check whether fp16_cos[] and fp16_sin[] is generated */
 	//printf("prepare fixed point sin/cos ...\n");
 	if( fp16_sin[30] == 0)
-		mat_create_fptrigontab();
+		mat_create_fpTrigonTab();
 
 
 /* 1. generate matrix of point_coordinates for the square, result Matrix is centered at square center. */

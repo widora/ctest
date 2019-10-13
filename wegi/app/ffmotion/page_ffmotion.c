@@ -188,13 +188,18 @@ EGI_PAGE *create_ffmotionPage(void)
 	ffmot_btns[4]->reaction=ffmot_playmode;
 
 
-	/* --------- 2. create a circling/sliding area ebox --------- */
+	/* --------- 2. create a circling/sliding pad ebox --------- */
 	data_pad=egi_btndata_new( 111, 		  /* int id */
 				  btnType_square, /* enum egi_btn_type shape */
 				  NULL,  	  /* struct symbol_page *icon. If NULL, use geometry. */
 				  0, 		  /* int icon_code, assign later.. */
 				  NULL   	  /* for ebox->tag font */
 				);
+
+	if(data_pad != NULL) {
+		data_pad->touch_effect=NULL;		/* No touch_effect as unmovable */
+	}
+
 	ebox_pad=egi_btnbox_new(  NULL, 		  /* put tag later */
 				  data_pad,     	  /* EGI_DATA_BTN *egi_data */
 		        	  0, 		  	  /* bool movable */
@@ -203,10 +208,11 @@ EGI_PAGE *create_ffmotionPage(void)
 		       		  -1, 		  	  /* int frame,<0 no frame */
 	       			  -1  	  		  /*int prmcolor, for geom button only. */
 			   );
+
 	if(ebox_pad==NULL)
 		printf("%s: Fail to create ebox_pad!\n",__func__);
-
-	ebox_pad->reaction=circling_volume;
+	else
+		ebox_pad->reaction=circling_volume;	/*  Assign reaction */
 
 	/* --------- 3. create title bar for movie title --------- */
 	title_FTtxt=NULL;
@@ -814,12 +820,12 @@ static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 		/* set utxt to ebox_voltxt */
 		vol_FTtxt->utxt=(unsigned char *)strp;
-		#if 1  /* set need refresh for PAGE routine */
+		#if 0  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX now! */
 		//ebox_voltxt->need_refresh=true;
 		//ebox_voltxt->refresh(ebox_voltxt);
-		egi_ebox_forcerefresh(ebox);
+		egi_ebox_forcerefresh(ebox_voltxt);
 		#endif
 
 		return btnret_OK;

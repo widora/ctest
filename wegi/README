@@ -91,6 +91,7 @@ egi_slider.c	type_slier ebox, for sliding bar.
 egi_list.c	type_list ebox
 egi_pic.c	type_pic ebox
 egi_iwinfo.c	wifi info. extraction
+egi_procman.c   subprocess handling and its signal actions.
 
 sys_list.h	from list operation derived from Linux kernel codes. 
 

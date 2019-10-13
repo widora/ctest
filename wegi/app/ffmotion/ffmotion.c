@@ -640,10 +640,10 @@ while(1) {
 	vcodecID=AV_CODEC_ID_NONE;
 
 	/* Open media stream or file */
-	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...\n", __func__, fnum, fpath[fnum]);
+	EGI_PLOG(LOGLV_INFO,"%s: [fnum=%d] Start to open file %s...", __func__, fnum, fpath[fnum]);
 	if(avformat_open_input(&pFormatCtx, fpath[fnum], NULL, NULL)!=0)
 	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open the file, or file type is not recognizable.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to open the file, or file type is not recognizable.",__func__);
 
 	   if(enable_filesloop) {	/* if loop, skip to next one */
 		avformat_close_input(&pFormatCtx);
@@ -652,6 +652,7 @@ while(1) {
 		continue;
 	   }
 	   else {
+		avformat_close_input(&pFormatCtx);
 		return (void *)-1;
 	   }
 	}
@@ -662,12 +663,14 @@ while(1) {
 	//pFormatCtx->probesize2=128*1024;
 	//pFormatCtx->max_analyze_duration2=8*AV_TIME_BASE;
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
-		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to find stream information!");
+
 #ifdef ENABLE_MEDIA_LOOP
 		avformat_close_input(&pFormatCtx);
         	pFormatCtx=NULL;
 		continue;
 #else
+		avformat_close_input(&pFormatCtx);
 		return (void *)-1;
 #endif
 	}
@@ -711,7 +714,7 @@ while(1) {
 			-------------------------------*/
 		        vcodecDespt=avcodec_descriptor_get(vcodecID);
 			if(vcodecDespt != NULL) {
-				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s\n",
+				EGI_PLOG(LOGLV_INFO,"%s: Video codec name: %s, %s",
 							__func__, vcodecDespt->name, vcodecDespt->long_name);
 			}
 		   }
@@ -737,7 +740,7 @@ while(1) {
 			-------------------------------*/
 		        acodecDespt=avcodec_descriptor_get(acodecID);
 			if(acodecDespt != NULL) {
-				EGI_PLOG(LOGLV_INFO,"%s: Audio codec name: %s, %s\n",
+				EGI_PLOG(LOGLV_INFO,"%s: Audio codec name: %s, %s",
 							__func__, acodecDespt->name, acodecDespt->long_name);
 			}
 		   }
@@ -745,20 +748,20 @@ while(1) {
 			EGI_PDEBUG(DBG_FFPLAY,"Audio is also found in stream[%d], to be ignored.\n",i);
 		}
 	}
-	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] \n", __func__,
+	EGI_PLOG(LOGLV_INFO,"%s: get videoStream [%d], audioStream [%d] ", __func__,
 				 videoStream, audioStream);
 
 	if(videoStream == -1) {
-		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!\n");
+		EGI_PLOG(LOGLV_INFO,"Didn't find a video stream!");
 //		return (void *)-1;
 	}
 	if(audioStream == -1) {
-		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!\n");
+		EGI_PLOG(LOGLV_WARN,"Didn't find an audio stream!");
 //go on   	return (void *)-1;
 	}
 
 	if(videoStream == -1 && audioStream == -1) {
-		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...\n");
+		EGI_PLOG(LOGLV_ERROR,"No stream found for video or audio! quit ffplay now...");
 		return (void *)-1;
 	}
 
@@ -781,26 +784,26 @@ if(disable_audio && audioStream>=0 )
 	/* proceed --- audio --- stream */
 	if(audioStream >= 0) /* only if audioStream exists */
   	{
-		EGI_PLOG(LOGLV_INFO,"%s: Prepare for audio stream processing ...\n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Prepare for audio stream processing ...",__func__);
 		/* Get a pointer to the codec context for the audio stream */
 		aCodecCtxOrig=pFormatCtx->streams[audioStream]->codec;
 		/* Find the decoder for the audio stream */
-		EGI_PLOG(LOGLV_INFO,"%s: Try to find the decoder for the audio stream... \n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Try to find the decoder for the audio stream... ",__func__);
 		aCodec=avcodec_find_decoder(aCodecCtxOrig->codec_id);
 		if(aCodec == NULL) {
-			EGI_PLOG(LOGLV_ERROR, "Unsupported audio codec! quit ffplay now...\n");
+			EGI_PLOG(LOGLV_ERROR, "Unsupported audio codec! quit ffplay now...");
 			return (void *)-1;
 		}
 		/* copy audio codec context */
 		aCodecCtx=avcodec_alloc_context3(aCodec);
 		if(avcodec_copy_context(aCodecCtx, aCodecCtxOrig) != 0) {
-			EGI_PLOG(LOGLV_ERROR, "Couldn't copy audio code context! quit ffplay now...\n");
+			EGI_PLOG(LOGLV_ERROR, "Couldn't copy audio code context! quit ffplay now...");
 			return (void *)-1;
 		}
 		/* open audio codec */
-		EGI_PLOG(LOGLV_INFO,"%s: Try to open audio stream with avcodec_open2()... \n",__func__);
+		EGI_PLOG(LOGLV_INFO,"%s: Try to open audio stream with avcodec_open2()... ",__func__);
 		if(avcodec_open2(aCodecCtx, aCodec, NULL) <0 ) {
-			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit ffplay now...!\n");
+			EGI_PLOG(LOGLV_ERROR, "Could not open audio codec with avcodec_open2(), quit ffplay now...!");
 			return (void *)-1;
 		}
 		/* get audio stream parameters */
@@ -837,7 +840,7 @@ if(disable_audio && audioStream>=0 )
 			out_sample_rate=sample_rate;
 
 #if 1 /* -----METHOD (1)-----:  or to be replaced by swr_alloc_set_opts() */
-			EGI_PLOG(LOGLV_INFO,"%s: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...\n",
+			EGI_PLOG(LOGLV_INFO,"%s: alloc swr and set_opts for converting AV_SAMPLE_FMT_FLTP to S16 ...",
 									__func__);
 			swr=swr_alloc();
 			av_opt_set_channel_layout(swr, "in_channel_layout",  channel_layout, 0);
@@ -859,7 +862,7 @@ if(disable_audio && audioStream>=0 )
                            int log_offset, void *log_ctx);		 */
 
 			/* allocate and set opts for swr */
-			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...\n",__func__);
+			EGI_PLOG(LOGLV_INFO,"%s: swr_alloc_set_opts()...",__func__);
 			swr=swr_alloc_set_opts( swr,
 						channel_layout,AV_SAMPLE_FMT_S16P,  out_sample_rate,
 						channel_layout,AV_SAMPLE_FMT_FLTP,  sample_rate,
@@ -869,7 +872,7 @@ if(disable_audio && audioStream>=0 )
 			//av_opt_set(swr,"dither_method",SWR_DITHER_RECTANGULAR,0);
 #endif
 
-			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...\n", __func__);
+			EGI_PLOG(LOGLV_INFO,"%s: start swr_init() ...", __func__);
 			swr_init(swr);
 
 			/* alloc outputBuffer */
@@ -877,14 +880,14 @@ if(disable_audio && audioStream>=0 )
 			outputBuffer=malloc(2*frame_size * bytes_per_sample);
 			if(outputBuffer == NULL)
 	       	 	{
-				EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!\n",__func__);
+				EGI_PLOG(LOGLV_ERROR,"%s: malloc() outputBuffer failed!",__func__);
 				return (void *)-1;
 			}
 
 			/* open pcm play device and set parameters */
  			if( egi_prepare_pcm_device(nb_channels,out_sample_rate,false) !=0 ) /* true for interleaved access */
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.\n",
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for interleaved access.",
 											__func__);
 				goto FAIL_OR_TERM;
 			}
@@ -894,7 +897,7 @@ if(disable_audio && audioStream>=0 )
 			/* Directly open pcm play device and set parameters */
  			if ( egi_prepare_pcm_device(nb_channels,sample_rate,false) !=0 ) /* 'false' as for 'noninterleaved access' */
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.\n",
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to prepare pcm device for noninterleaved access.",
 											__func__);
 				goto FAIL_OR_TERM;
 			}
@@ -905,7 +908,7 @@ if(disable_audio && audioStream>=0 )
 			EGI_PDEBUG(DBG_FFPLAY,"%s: av_frame_alloc() for Audio...\n",__func__);
 			pAudioFrame=av_frame_alloc();
 			if(pAudioFrame==NULL) {
-				EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!\n");
+				EGI_PLOG(LOGLV_ERROR, "Fail to allocate pAudioFrame!");
 				return (void *)-1;
 			}
 		}
@@ -939,13 +942,13 @@ if(disable_video && videoStream>=0 )
 	EGI_PDEBUG(DBG_FFPLAY,"Try to find the decoder for the video stream... \n");
 	pCodec=avcodec_find_decoder(pCodecCtxOrig->codec_id);
 	if(pCodec == NULL) {
-		EGI_PLOG(LOGLV_WARN,"Unsupported video codec! try to continue to decode audio...\n");
+		EGI_PLOG(LOGLV_WARN,"Unsupported video codec! try to continue to decode audio...");
 		videoStream=-1;
 		//return (void *)-1;
 	}
 	/* if video size is illegal, then reset videoStream to -1, to ignore video processing */
 	if(pCodecCtxOrig->width <= 0 || pCodecCtxOrig->height <= 0) {
-		EGI_PLOG(LOGLV_WARN,"Video width=%d or height=%d illegal! try to continue to decode audio...\n",
+		EGI_PLOG(LOGLV_WARN,"Video width=%d or height=%d illegal! try to continue to decode audio...",
 				   pCodecCtxOrig->width, pCodecCtxOrig->height);
 		videoStream=-1;
 	}
@@ -959,27 +962,27 @@ if(disable_video && videoStream>=0 )
 	/* copy video codec context */
 	pCodecCtx=avcodec_alloc_context3(pCodec);
 	if(avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
-		EGI_PLOG(LOGLV_ERROR,"Couldn't copy video code context!\n");
+		EGI_PLOG(LOGLV_ERROR,"Couldn't copy video code context!");
 		return (void *)-1;
 	}
 
 	/* open video codec */
 	if(avcodec_open2(pCodecCtx, pCodec, NULL) <0 ) {
-		EGI_PLOG(LOGLV_WARN, "Cound not open video codec!\n");
+		EGI_PLOG(LOGLV_WARN, "Cound not open video codec!");
 		return (void *)-1;
 	}
 
 	/* Allocate video frame */
 	pFrame=av_frame_alloc();
 	if(pFrame==NULL) {
-		EGI_PLOG(LOGLV_ERROR,"Fail to allocate pFrame!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate pFrame!");
 		return (void *)-1;
 	}
 	/* allocate an AVFrame structure */
 	EGI_PDEBUG(DBG_FFPLAY,"Try to allocate an AVFrame structure for RGB data...\n");
 	pFrameRGB=av_frame_alloc();
 	if(pFrameRGB==NULL) {
-		EGI_PLOG(LOGLV_ERROR, "Fail to allocate a AVFrame struct for RGB data !\n");
+		EGI_PLOG(LOGLV_ERROR, "Fail to allocate a AVFrame struct for RGB data !");
 		return (void *)-1;
 	}
 	/* get original video size */
@@ -1158,7 +1161,7 @@ EGI_PDEBUG(DBG_FFPLAY,"disable_scale_size: %s;  Final display area size: W%d*H%d
 
 	/* <<<<<<<<    allocate mem. for PIC buffers   >>>>>>>> */
 	if(malloc_PicBuffs(display_width*display_height,2) == NULL) { /* pixel_size=2bytes for PIX_FMT_RGB565LE */
-		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to allocate memory for PICbuffs!");
 		return (void *)-1;
 	}
 	else
@@ -1218,7 +1221,7 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 /* <<<<<<<<<<<<     create a thread to display picture to LCD    >>>>>>>>>>>>>>> */
 /* Even if no video stream */
 	if(pthread_create(&pthd_displayPic,NULL,thdf_Display_motionPic,(void *)&motPicInfo) != 0) {
-		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures! \n");
+		EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying pictures!");
 		return (void *)-1;
 	}
 	else
@@ -1233,10 +1236,10 @@ if(!enable_avfilter) /* use SWS, if not AVFilter */
 		pfsub=NULL;
 	}
 	pfsub=cstr_dup_repextname(fpath[fnum],".srt");
-	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s\n",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
+	EGI_PLOG(LOGLV_CRITICAL,"Subtitle file: %s,  Access: %s",pfsub, ( access(pfsub,F_OK)==0 ) ? "OK" : "FAIL" );
 	if( pfsub != NULL && access(pfsub,F_OK)==0 ) {
 		if( pthread_create(&pthd_displaySub,NULL,thdf_Display_Subtitle,(void *)pfsub ) != 0) {
-			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles! \n");
+			EGI_PLOG(LOGLV_ERROR, "Fails to create thread for displaying subtitles!");
 			pthd_subtitle_running=false;
 			free(pfsub); pfsub=NULL;
 			//Go on anyway. //return (void *)-1;
@@ -1257,7 +1260,7 @@ if(enable_avfilter)
 {
   	/*---------<<< START: prepare filters >>>--------*/
 
-   	EGI_PLOG(LOGLV_INFO, "%s: prepare VIDEO avfilters ...\n",__func__);
+   	EGI_PLOG(LOGLV_INFO, "%s: prepare VIDEO avfilters ...",__func__);
 
 	/* prepare filters description
 	 * WARNING: if original image is much bigger than logo, then the logo maybe invisible after scale.
@@ -1276,7 +1279,7 @@ if(enable_avfilter)
 							display_width, display_height);
 
 	}
-	EGI_PLOG(LOGLV_INFO,"AVFilter Descr: %s\n",filters_descr);
+	EGI_PLOG(LOGLV_INFO,"AVFilter Descr: %s",filters_descr);
 
 	/* initiliaze avfilter graph */
 	//printf("start av_frame_alloc() for filtered frame... \n");
@@ -1286,7 +1289,7 @@ if(enable_avfilter)
    	avFlt_BufferSrc=avfilter_get_by_name("buffer");
    	if(avFlt_BufferSink==NULL || avFlt_BufferSrc==NULL)
    	{
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to get avFlt_BufferSink or avFlt_BufferSrc.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to get avFlt_BufferSink or avFlt_BufferSrc.",__func__);
 		goto FAIL_OR_TERM;
    	}
 	//printf("start avliter_inout_alloc()... \n");
@@ -1296,7 +1299,7 @@ if(enable_avfilter)
    	filter_graph=avfilter_graph_alloc();
 	if( !avFltIO_InPuts | !avFltIO_OutPuts | !filter_graph )
 	{
-		EGI_PLOG(LOGLV_ERROR,"fail to alloc filter inputs/outputs or graph.\n");
+		EGI_PLOG(LOGLV_ERROR,"fail to alloc filter inputs/outputs or graph.");
 		goto FAIL_OR_TERM;
 	}
 
@@ -1317,7 +1320,7 @@ if(enable_avfilter)
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...\n",
+		EGI_PLOG(LOGLV_ERROR,"%s, %s(): Fail to call avfilter_graph_create_filter() to create BufferSrc filter...",
 							__FILE__, __FUNCTION__ );
 		goto FAIL_OR_TERM;
    	}
@@ -1327,7 +1330,7 @@ if(enable_avfilter)
    	if(ret<0)
    	{
         	//av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_create_filter() to create BufferSink filter...\n",
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_create_filter() to create BufferSink filter...",
 							__func__);
 		goto FAIL_OR_TERM;
    	}
@@ -1347,7 +1350,7 @@ if(enable_avfilter)
 		        	                      AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
    	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
-		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to call av_opt_set_int_list() to set pixel format for output filter...");
         	goto FAIL_OR_TERM;
     	}
    	/* set the endpoints for the filter graph --- Source */
@@ -1373,7 +1376,7 @@ if(enable_avfilter)
     	ret=avfilter_graph_parse_ptr(filter_graph,filters_descr,&avFltIO_InPuts,&avFltIO_OutPuts,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.\n",
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call avfilter_graph_parse_ptr() to parse fitler graph descriptions.",
 							__func__);
         	goto FAIL_OR_TERM;
     	}
@@ -1381,7 +1384,7 @@ if(enable_avfilter)
     	ret=avfilter_graph_config(filter_graph,NULL);
     	if (ret < 0) {
         	//av_log(NULL, AV_LOG_ERROR, "Fail to parse avfilter graph.\n");
-		EGI_PLOG(LOGLV_ERROR,"Fail to call avfilter_graph_config() to configure filter graph.\n");
+		EGI_PLOG(LOGLV_ERROR,"Fail to call avfilter_graph_config() to configure filter graph.");
         	goto FAIL_OR_TERM;
     	}
     	/* free temp. vars */
@@ -1451,6 +1454,8 @@ else
 	if(FFmotion_Ctx->start_tmsecs !=0 ) {
 	  av_seek_frame(pFormatCtx, videoStream,(FFmotion_Ctx->start_tmsecs)*time_base.den/time_base.num, AVSEEK_FLAG_ANY);
 	}
+	/* reset starting time */
+	FFmotion_Ctx->start_tmsecs=0;
 }
 
 	EGI_PDEBUG(DBG_FFPLAY,"Start while() for loop reading, decoding and playing frames ...\n");
@@ -1462,7 +1467,7 @@ else
 			//printf("...decoding video frame\n");
 			//gettimeofday(&tm_start,NULL);
 			if( avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet)<0 )
-				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...\n");
+				EGI_PLOG(LOGLV_ERROR,"Error decoding video, try to carry on...");
 			//gettimeofday(&tm_end,NULL);
 			//printf(" avcode_decode_video2() cost time: %d ms\n",get_costtime(tm_start,tm_end) );
 
@@ -1480,7 +1485,7 @@ if(enable_avfilter)
 									AV_BUFFERSRC_FLAG_KEEP_REF) <0 )
 				{
 				    //av_log(NULL,AV_LOG_ERROR,"Error while feeding pFrame to filter graph through avFltCtx_BufferSrc.\n");
-				    EGI_PLOG(LOGLV_ERROR, "Error feeding decoded pFrame to filter graph, try to carry on...\n");
+				    EGI_PLOG(LOGLV_ERROR, "Error feeding decoded pFrame to filter graph, try to carry on...");
 				    //break;
 				}
 
@@ -1493,7 +1498,7 @@ if(enable_avfilter)
 						break;
 					else if(ret<0)
 					{
-				    		EGI_PLOG(LOGLV_WARN, "AVFlilter operation av_buffersink_get_frame()<0, break while()...\n");
+				    		EGI_PLOG(LOGLV_WARN, "AVFlilter operation av_buffersink_get_frame()<0, break while()...");
 						break; /* try to carry on */
 						//goto FAIL_OR_TERM;
 					}

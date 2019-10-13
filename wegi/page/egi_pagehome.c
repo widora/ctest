@@ -53,7 +53,7 @@ static int egi_homebtn_mplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_openwrt(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_book(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int egi_homebtn_ffmusic(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_ebook(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
@@ -185,8 +185,8 @@ EGI_PAGE *egi_create_homepage(void)
 
 	egi_ebox_settag(home_btns[2], "btn_alarm");
 
-	egi_ebox_settag(home_btns[3], "btn_ffplay");
-	home_btns[3]->reaction=egi_homebtn_ffplay;
+	egi_ebox_settag(home_btns[3], "FFmusic");
+	home_btns[3]->reaction=egi_homebtn_ffmusic;
 
 	egi_ebox_settag(home_btns[4], "btn_key");
 
@@ -775,11 +775,11 @@ static int egi_homebtn_test(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 /*--------------------------------------------------------------------
 			button FFPLAY
 ----------------------------------------------------------------------*/
-static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int egi_homebtn_ffmusic(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
 	int status;
 	int ret;
-	static pid_t pid_ffplay=-1;
+	static pid_t pid_ffmusic=-1;
 
 	/* bypass unwanted touch status */
 	if( touch_data->status != pressing )
@@ -816,7 +816,7 @@ static int egi_homebtn_ffplay(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
     	 */
 
 	/* activate APP and wait untill it STOP or TERM */
-        egi_process_activate_APP(&pid_ffplay, "/home/app_ffmusic");
+        egi_process_activate_APP(&pid_ffmusic, "/home/app_ffmusic");
 
 	/* resume runner CPULOAD */
 	egi_resume_runner(ebox->container, RUNNER_CPULOAD_ID);
@@ -1022,7 +1022,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 /*-----------------------------------------------------------
 Activate an APP and wait for its state to change.
 
-1. If apid<0 then fork() and excev() the APP.
+1. If apid<0 then vfork() and excev() the APP.
 2. If apid>0, try to send SIGCONT to activate it.
 3. Wait for state change for the apid, that means the parent
    process is hung up until apid state changes(STOP/TERM).

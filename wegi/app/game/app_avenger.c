@@ -16,7 +16,7 @@ midaszhou@yahoo.com
 #include <sys/types.h>
 #include <malloc.h>
 
-static char app_name[]="app_avenger";
+char *app_name="app_avenger";
 static EGI_PAGE *page_avenger=NULL;
 
 static struct sigaction sigact_cont;

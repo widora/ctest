@@ -77,9 +77,11 @@ return:
         0       OK
         <0    Fails
 ------------------------------------------------------*/
-int init_ffmotionCtx(char *path, char *fext)
+int init_ffmotionCtx(char *fext)
 {
         int fcount;
+        char video_dir[EGI_PATH_MAX]={0};
+        char url_addr[EGI_URL_MAX]={0};
 
 	/* Free ctxt then calloc */
 	if(FFmotion_Ctx != NULL)
@@ -99,8 +101,18 @@ int init_ffmotionCtx(char *path, char *fext)
                 return -2;
         }
 
+        /* Get video_dir from EGI config file, OR use default dir. */
+        if ( egi_get_config_value("EGI_FFMOTION","video_dir",video_dir) != 0) {
+                /* use default dir */
+                strcpy(video_dir,"/mmc");
+                EGI_PLOG(LOGLV_INFO,"%s: Fail to read config video_dir, use default dir: %s\n",
+                                                                                __func__, video_dir);
+        } else {
+                EGI_PLOG(LOGLV_INFO,"%s: read egi.config and get video_dir: %s\n",__func__, video_dir);
+        }
+
         /* search for files and put to ffCtx->fpath */
-        FFmotion_Ctx->fpath=egi_alloc_search_files(path, fext, &fcount);
+        FFmotion_Ctx->fpath=egi_alloc_search_files(video_dir, fext, &fcount);
         FFmotion_Ctx->ftotal=fcount;
 
 	/* get URL address if configured in conf */
@@ -108,7 +120,8 @@ int init_ffmotionCtx(char *path, char *fext)
                 egi_free_buff2D((unsigned char **)FFmotion_Ctx->url, FFmotion_Ctx->utotal);
 		FFmotion_Ctx->url=NULL;
 		FFmotion_Ctx->utotal=0;
-                EGI_PLOG(LOGLV_WARN,"%s: Fail to read url_addr from egi.conf",__func__);
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to read url_addr from egi.conf, apply video_dir for FFmotion.",
+												__func__);
 	}
 
         return 0;
@@ -121,18 +134,21 @@ void free_ffmotionCtx(void)
 {
         if(FFmotion_Ctx==NULL) return;
 
+	/* Free URL buffer */
         if( FFmotion_Ctx->utotal > 0 ) {
                 egi_free_buff2D((unsigned char **)FFmotion_Ctx->url, FFmotion_Ctx->utotal);
 		FFmotion_Ctx->url=NULL;
 		FFmotion_Ctx->utotal=0;
 	}
 
+	/* Free medial file path buffer */
         if( FFmotion_Ctx->ftotal > 0 ) {
                 egi_free_buff2D((unsigned char **)FFmotion_Ctx->fpath, FFmotion_Ctx->ftotal);
 		FFmotion_Ctx->fpath=NULL;
 		FFmotion_Ctx->ftotal=0;
 	}
 
+	/* Free iteslf */
         free(FFmotion_Ctx);
 
         FFmotion_Ctx=NULL;

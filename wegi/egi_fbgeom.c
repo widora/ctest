@@ -1386,6 +1386,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 /*--------------------------------------------
 Save whole data of FB to buffer.
+
 @fb_dev:	pointer to FB dev.
 @nb:		index of FBDEV.buffer[]
 

@@ -449,6 +449,7 @@ while(1) {
 		continue;
 	   }
 	   else {
+		avformat_close_input(&pFormatCtx);
 		return (void *)-1;
 	   }
 	}
@@ -467,6 +468,7 @@ pFormatCtx->probesize2=128*1024;
         	pFormatCtx=NULL;
 		continue;
 #else
+		avformat_close_input(&pFormatCtx);
 		return (void *)-1;
 #endif
 	}

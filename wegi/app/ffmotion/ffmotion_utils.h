@@ -63,7 +63,7 @@ extern struct ffmotion_PicInfo motPicInfo;
                                     vcodecID == AV_CODEC_ID_LJPEG    || vcodecID == AV_CODEC_ID_JPEGLS   )
 
 /*  functions  */
-int 		init_ffmotionCtx(char *path, char *fext);
+int 		init_ffmotionCtx(char *fext);
 void 		free_ffmotionCtx(void);
 uint8_t**  	malloc_PicBuffs(int pic_size, int pixel_size );
 int 	   	load_Pic2Buff(struct ffmotion_PicInfo *ppic,const uint8_t *data, int numBytes);

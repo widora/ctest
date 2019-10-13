@@ -9,12 +9,13 @@ EGI_IMGBUF functions
 
 Midas Zhou
 -------------------------------------------------------------------*/
-
 #include <pthread.h>
 #include "egi_image.h"
 #include "egi_bjp.h"
 #include "egi_utils.h"
 #include "egi_log.h"
+#include "egi_math.h"
+#include <math.h>
 
 typedef struct fbdev FBDEV; /* Just a declaration, referring to definition in egi_fbdev.h */
 
@@ -170,7 +171,7 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 	if(egi_imgbuf==NULL)
 		return -1;
 
-	if(height==0 || width==0)
+	if(height<=0 || width<=0)
 		return -2;
 
 	/* empty old data if any */
@@ -327,6 +328,30 @@ EGI_IMGBUF *egi_imgbuf_blockCopy( const EGI_IMGBUF *ineimg,
 
 
 
+/*-------------------------------------------------------------------
+Copy a subimage from input EGI_IMGBUF, and create
+a new EGI_IMGBUF to hold the data.
+
+@eimg:		An EGI_IMGBUF with subimges inside.
+@index:		Index of subimage, as of eimg->subimg[x]
+
+Return:
+	A pointer to EGI_IMGBUF		Ok
+	NULL				Fails
+--------------------------------------------------------------------*/
+EGI_IMGBUF *egi_imgbuf_subImgCopy( const EGI_IMGBUF *eimg, int index )
+{
+        /* Check input data */
+        if( eimg==NULL || eimg->subimgs==NULL || index<0 || index > eimg->submax ) {
+                printf("%s:Input eimg or subimage index is invalid!\n",__func__);
+                return NULL;
+        }
+
+	return egi_imgbuf_blockCopy( eimg, eimg->subimgs[index].x0, eimg->subimgs[index].y0,
+					   eimg->subimgs[index].h,  eimg->subimgs[index].w    );
+}
+
+
 /*-----------------------------------------------------------
 Set/create a frame for an EGI_IMGBUF.
 The frame are formed by different patterns of alpha values.
@@ -445,7 +470,6 @@ EGI_IMGBUF *egi_imgbuf_newFrameImg( int height, int width,
 				 enum imgframe_type type,
 				 int pn, const int *param )
 {
-	int i,j;
 
 	EGI_IMGBUF *imgbuf=egi_imgbuf_create(height, width, alpha, color);
 	if(imgbuf==NULL)
@@ -996,12 +1020,12 @@ Return:
 EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 				unsigned int width, unsigned int height )
 {
-	int i,j,k;
+	int i,j;
 	int ln,rn;		/* left/right(or up/down) index of pixel in a row of ineimg */
 	int f15_ratio;
 	unsigned int color_rowsize, alpha_rowsize;
 	EGI_IMGBUF *outeimg=NULL;
-	EGI_IMGBUF *tmpeimg=NULL;
+//	EGI_IMGBUF *tmpeimg=NULL;
 
 
 	/* for intermediate processing */
@@ -1013,7 +1037,7 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	unsigned char 	**falphas=NULL;
 
 
-	if( ineimg==NULL || ineimg->imgbuf==NULL ) //|| width==0 || height==0 ) adjust to 2
+	if( ineimg==NULL || ineimg->imgbuf==NULL ) //|| width<=0 || height<=0 ) adjust to 2
 		return NULL;
 
 	unsigned int oldwidth=ineimg->width;
@@ -1312,7 +1336,7 @@ int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *
         int sumalpha;
         int epos,apos;
 
-        if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+        if(eimg==NULL || eimg->imgbuf==NULL || eimg->height<=0 || eimg->width<=0 ) {
                 printf("%s: input holding eimg is NULL or uninitiliazed!\n", __func__);
                 return -1;
         }
@@ -1365,6 +1389,112 @@ int egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *
         }
 
         return 0;
+}
+
+
+/*-------------------------------------------------------------------------------
+Create an EGI_IMGBUF by rotating the input eimg.
+
+1. The new imgbuf size(H&W) are made odd, so it has a symmetrical center point.
+2. Only imgbuf and alpha data are created in new EGI_IMGBUF, other memebers such
+   as subimgs are ignored hence.
+
+@eimg:		Original imgbuf;
+@angle: 	Rotating angle in degree, positive as clockwise.
+
+Return:
+	A pointer to EGI_IMGBUF with new image 		OK
+	NULL						Fails
+--------------------------------------------------------------------------------*/
+EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int angle)
+{
+	int i,j;
+	int m,n;
+	int xr,yr;
+	int width, height;	/* W,H for outimg */
+	int wsin,wcos, hsin,hcos;
+	int index_in, index_out;
+	int ang, asign;
+	EGI_IMGBUF *outimg=NULL;
+
+        /* Normalize angle to be within [0-360] */
+        ang=angle%360;      /* !!! WARING !!!  The result is depended on the Compiler */
+        asign= ang >= 0 ? 1 : -1; /* angle sign */
+        ang= ang>=0 ? ang : -ang ;
+
+        if(eimg==NULL || eimg->imgbuf==NULL || eimg->height<=0 || eimg->width<=0 ) {
+                printf("%s: input holding eimg is NULL or uninitiliazed!\n", __func__);
+                return NULL;
+        }
+
+
+        /* Check whether lookup table fp16_cos[] and fp16_sin[] is generated */
+        if( fp16_sin[30] == 0)
+                mat_create_fpTrigonTab();
+
+	/* Get size for rotated imgbuf, which shall cover original eimg at least */
+#if 0	/* Float point method */
+	height=0.5+abs(eimg->width*sin(ang/180.0*MATH_PI))+abs(eimg->height*cos(ang/180.0*MATH_PI));
+	width=0.5+abs(eimg->width*cos(ang/180.0*MATH_PI))+abs(eimg->height*sin(ang/180.0*MATH_PI));
+#else	/* Fixed point method */
+	wsin=eimg->width*fp16_sin[ang]>>16;
+	wsin=wsin>0 ? wsin : -wsin;
+	hcos=eimg->height*fp16_cos[ang]>>16;
+	hcos=hcos>0 ? hcos : -hcos;
+	height=wsin+hcos;
+
+	wcos=eimg->width*fp16_cos[ang]>>16;
+	wcos=wcos>0 ? wcos : -wcos;
+	hsin=eimg->height*fp16_sin[ang]>>16;
+	hsin=hsin>0 ? hsin : -hsin;
+	width=wcos+hsin;
+#endif
+
+	/* Make H/W an odd value, then it has a symmetrical center point.   */
+	height |= 0x1;
+	width |= 0x1;
+	if(height<3)height=3;
+	if(width<3)width=3;
+	printf("Angle=%d, rotated imgbuf: height=%d, width=%d \n", ang, height, width);
+
+	/* Create an imgbuf accordingly */
+	outimg=egi_imgbuf_create( height, width, 0, 0); /* H, W, alpah, color */
+	if(outimg==NULL) {
+		printf("%s: Fail to create outimg!\n",__func__);
+		return NULL;
+	}
+	/* Check ALPHA data */
+	if(eimg->alpha==NULL) {
+		free(outimg->alpha);
+		outimg->alpha=NULL;
+	}
+
+	/* Rotation map and copy */
+	m=height>>1;
+	n=width>>1;
+	for(i=-m; i<=m; i++) {
+		for(j=-n; j<=n; j++) {
+			/* Map to original coordiante (xr,yr), Origin at center. */
+			xr = (j*fp16_cos[ang]+i*asign*fp16_sin[ang])>>16; /* !!! Arithmetic_Right_Shifting */
+                        yr = (-j*asign*fp16_sin[ang]+i*fp16_cos[ang])>>16;
+
+			/* Shift Origin to left_top, as of eimg->imgbuf */
+			xr += eimg->width>>1;
+			yr += eimg->height>>1;
+
+			/* Copy pixel alpha and color */
+			if( xr >= 0 && xr < eimg->width && yr >=0 && yr < eimg->height) {
+				index_out=width*(i+m)+(j+n);
+				index_in=eimg->width*yr+xr;
+				outimg->imgbuf[index_out]=eimg->imgbuf[index_in];
+				if(eimg->alpha!=NULL)
+					outimg->alpha[index_out]=eimg->alpha[index_in];
+			}
+		}
+	}
+
+
+	return outimg;
 }
 
 
@@ -1435,7 +1565,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
         uint16_t *imgbuf=egi_imgbuf->imgbuf;
         unsigned char *alpha=egi_imgbuf->alpha;
 
-        long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
+//        long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
         long int locimg=0; /* location of image buf, in pixel, xxxxin byte */
 //      int bytpp=2; /* bytes per pixel */
 
@@ -1464,7 +1594,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 				continue;
 
                         /* FB data location */
-                        locfb = (i+yw)*xres+(j+xw);
+//                        locfb = (i+yw)*xres+(j+xw);
 
                      /*  ---- draw only within screen  ---- */
 //                     if( locfb>=0 && locfb <= (screen_pixels-1) ) {
@@ -1506,7 +1636,7 @@ int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subc
 				continue;
 
                         /* FB data location, in pixel */
-                        locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
+//                        locfb = (i+yw)*xres+(j+xw); /*in pixel,  2 bytes per pixel */
 
                      /*  ---- draw_dot() only within screen  ---- */
 //                     if(  locfb>=0 && locfb<screen_pixels ) {
@@ -1936,7 +2066,7 @@ int egi_imgbuf_blend_FTbitmap(EGI_IMGBUF* eimg, int xb, int yb, FT_Bitmap *bitma
 	int	sumalpha;
 	int pos;
 
-	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height<=0 || eimg->width<=0 ) {
 		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
 		return -1;
 	}
@@ -2021,7 +2151,7 @@ int egi_imgbuf_avgLuma( EGI_IMGBUF *eimg, unsigned char luma )
 	unsigned int	luma_dev; /* deviation of Y */
 
 	/* check input data */
-	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height==0 || eimg->width==0 ) {
+	if(eimg==NULL || eimg->imgbuf==NULL || eimg->height<=0 || eimg->width<=0 ) {
 		printf("%s: input EGI_IMBUG is NULL or uninitiliazed!\n", __func__);
 		return -1;
 	}

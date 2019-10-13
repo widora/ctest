@@ -474,7 +474,7 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 
 
 	/* 6.2 Draw simple outline frames */
-	if( ebox->frame >= 0 && ebox->frame < 100 ) /* >=100 for frame_img */
+	if( ebox->prmcolor >0 && ebox->frame >= 0 && ebox->frame < 100 ) /* >=100 for frame_img */
 	{
        	    fbset_color(ebox->prmcolor);
 	    switch(data_btn->shape)

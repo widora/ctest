@@ -6,7 +6,7 @@ published by the Free Software Foundation.
 Test image blur/resize/update functions.
 
 Usage:
-	./test_img2
+	./test_img2  dir
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -15,7 +15,7 @@ midaszhou@yahoo.com
 #include "egi_common.h"
 #include "egi_pcm.h"
 #include "egi_FTsymbol.h"
-
+#include "egi_utils.h"
 
 int main(int argc, char** argv)
 {
@@ -35,6 +35,8 @@ int main(int argc, char** argv)
                 return -1;
         }
 #endif
+
+#if 0
         printf("symbol_load_allpages()...\n");
         if(symbol_load_allpages() !=0 ) {   	/* load sys fonts */
                 printf("Fail to load sym pages,quit.\n");
@@ -44,6 +46,8 @@ int main(int argc, char** argv)
                 printf("Fail to load FT appfonts, quit.\n");
                 return -2;
         }
+#endif
+
         printf("init_fbdev()...\n");
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
@@ -82,21 +86,6 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
         	EGI_PLOG(LOGLV_ERROR, "%s: Fail to read and load file '%s'!", __func__, fpaths[num]);
 		return -1;
 	}
-
-#if 0
-        eimg=egi_imgbuf_alloc();
-
-        if(eimg==NULL) {
-                EGI_PLOG(LOGLV_INFO,"%s: fail to call egi_imgbuf_alloc() for eimg.",__func__);
-                return -1;
-        }
-        if( egi_imgbuf_loadjpg(fpaths[num],eimg)!=0 ) {
-                if ( egi_imgbuf_loadpng(fpaths[num],eimg)!=0 ) {
-                         EGI_PLOG(LOGLV_ERROR, "%s: Fail to load file '%s' to tmping!", __func__, fpaths[num]);
-                         //Go on...
-                }
-        }
-#endif
 
         /* 2. Copy a Block from the image */
         /* If original image ratio is H4:W3, just same as SCREEN's. */

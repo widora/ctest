@@ -19,9 +19,11 @@ typedef struct {
 		unsigned char 	alpha;
 }EGI_16BIT_PIXEL;			/* also see PIXEL in egi_bjp.h */
 
+
 typedef struct
 {
-	/* TODO NOTE: mutex only applied to several functions now....*/
+	/* TODO NOTE: mutex only applied to several functions now....
+	 */
 	pthread_mutex_t	img_mutex;	/* mutex lock for imgbuf */
         int 		height;	 	/* image height */
         int 		width;	 	/* image width */

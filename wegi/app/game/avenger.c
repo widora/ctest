@@ -4,10 +4,93 @@ typedef struct avg_plane_data AVG_PLANE;
 struct avg_plane_data {
   const	EGI_IMGBUF	*icons;	 		/* Icons collection */
 	int		icon_index;	 	/* Index of the icons for the plane image */
-	EGI_POINT	pxy;	 		/* Current position*/
-	int		speed;   		/* in pixles per refreshing */
-	int (*trail_mode)(AVG_PLANE *)  	/* Method to refresh trail */
+	EGI_IMGBUF	*refimg;		/* Loaded image as for refrence */
+	EGI_IMGBUF	*actimg;		/* Image for displaying */
+	EGI_POINT	pxy;	 		/* Current position, image center hopefully.*/
+	int		heading;		/* Current heading, in Degree */
+	int		speed;   		/* Current speed, in pixles per refreshing */
+	int (*trail_mode)(AVG_PLANE *);w  	/* Method to refresh trail */
 };
+
+
+/* --------------------------------------------------------------
+		Create a new plane
+Return:
+	Pointer to an AVG_PLANE		OK
+	NULL				Fails
+-----------------------------------------------------------------*/
+AVG_PLANE* avg_create_plane(    EGI_IMGBUF *icons,  int icon_index,
+				EGI_POINT pxy, int heading, int speed,
+				int (*trail_mode)(AVG_PLANE *)
+			    )
+{
+	AVG_PLANE   *plane=NULL;
+	EGI_IMGBUF  *refimg=NULL;
+	EGI_IMGBUF  *actimg=NULL;
+
+	/* Check input data */
+	if( icons==NULL || icons->subimgs==NULL || icon_index<0 || icon_index > icons->submax ) {
+		printf("%s:Input icons is NULL or icon_index invalid!\n",__func__);
+		return NULL;
+	}
+
+	/* Copy icons->subimg[] to refimg */
+	refimg=egi_imgbuf_subImgCopy( icons, icon_index );
+	if(refimg==NULL)
+		return NULL;
+
+	/* Create actimg according to heading */
+	actimg=egi_imgbuf_rotate(refimg, heading);
+	if(actimg==NULL) {
+		egi_imgbuf_free(refimg);
+		return NULL;
+	}
+
+	/* Calloc AVG_PLANE */
+	plane=calloc(1, sizeof(AVG_PLANE));
+	if(plane==NULL) {
+		printf("%s:Fail to call calloc() !\n",__func__);
+		egi_imgbuf_free(refimg);
+		egi_imgbuf_free(actimg);
+		return NULL;
+	}
+
+	/* Assign memebers */
+	plane->icons=icons;
+	plane->icon_index=icon_index;
+	plane->refimg=refimg;
+	plane->actimg=actimg;
+	plane->pxy=pxy;
+	plane->heading=heading;
+	plane->speed=speed;
+	plane->trail_mode=trail_mode;
+
+	return plane;
+}
+
+
+/*--------------------------------------
+	Destroy a plane
+---------------------------------------*/
+void avg_destroy_plane(AVG_PLANE **plane)
+{
+	if(*plane==NULL)
+		return;
+
+	if( (*plane)->refimg != NULL) {
+		free((*plane)->refimg);
+		(*plane)->refimg=NULL;
+	}
+
+	if( (*plane)->actimg != NULL) {
+		free((*plane)->actimg);
+		(*plane)->actimg=NULL;
+	}
+
+	free(*plane);
+	*plane=NULL;
+}
+
 
 /* ------------------------------
 A straight upward trail.
@@ -42,10 +125,15 @@ inline static int refresh_plane(AVG_PLANE *plane)
 	if(plane->trail_mode != NULL)
 		plane->trail_mode(plane);
 
+	/* Refresh image */
+        egi_imgbuf_windisplay( 	plane->actimg, &gv_fb_dev, -1,           /* img, fb, subcolor */
+                               	0, 0,					 /* xp,yp */
+				plane->pxy.x + plane->actimg->width/2,		 /* xw */
+				plane->pxy.y + plane->actimg->height/2,          /* yw */
+                               	plane->actimg->width, plane->actimg->height );   /* winw, winh */
 
 	/* (const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex, int subcolor, int x0,   int y0) */
-	egi_subimg_writeFB(plane->icons, &gv_fb_dev, plane->icon_index, -1, plane->pxy.x, plane->pxy.y);
-
+	//egi_subimg_writeFB(plane->icons, &gv_fb_dev, plane->icon_index, -1, plane->pxy.x, plane->pxy.y);
 
 	return 0;
 }
@@ -59,8 +147,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 	EGI_IMGBOX *imboxes=NULL;
 	EGI_IMGBUF *plane_icons=NULL;
 
-	AVG_PLANE  planes[15];
-
+	AVG_PLANE  *planes[15];
 
 	printf("Start GAME avenger...\n");
 
@@ -90,7 +177,8 @@ void *thread_game_avenger(EGI_PAGE *page)
 	plane_icons->subimgs=imboxes; imboxes=NULL; /* Ownership transferred */
 	plane_icons->submax=8-1;
 
-	/* Prepare data for planes */
+
+#if 0	/* Prepare data for planes */
 	for(i=0; i<15; i++) {
 		planes[i].icons=plane_icons;
 		planes[i].icon_index=egi_random_max(8)-1;
@@ -99,7 +187,18 @@ void *thread_game_avenger(EGI_PAGE *page)
 		planes[i].speed=egi_random_max(12)+1;
 		planes[i].trail_mode=upward_trail;
 	}
+#endif
 
+	/* Create planes */
+	for(i=0; i<15; i++)  {
+		planes[i]=avg_create_plane( plane_icons, egi_random_max(8)-1,   /* EGI_IMGBUF *icons, icon_index */
+       	                              (EGI_POINT){egi_random_max(240)-25, 320},	/* EGI_POINT pxy */
+		    			    egi_random_max(360),		/* int heading */
+					    egi_random_max(12)+1,		/* int speed */
+					    upward_trail		/* int (*trail_mode)(AVG_PLANE *) */
+                        	    	 );
+
+	}
 
 	/* 	----- GAME Loop -----	  */
 	while(1) {
@@ -110,7 +209,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 
 
 		for(i=0; i<15; i++)
-			refresh_plane(&planes[i]);
+			refresh_plane(planes[i]);
 
 
 	        /* <<<<< Turn off FILO  >>>>> */
@@ -119,8 +218,11 @@ void *thread_game_avenger(EGI_PAGE *page)
 	}
 
 
+
 	/* Destroy facility and free resources */
 	egi_imgbuf_free(plane_icons);
+	for(i=0; i<15; i++)
+		avg_destroy_plane(&planes[i]);
 
 	return (void *)0;
 }

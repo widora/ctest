@@ -81,9 +81,9 @@ int 			mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
                                      const float *x, const int *nx, EGI_FCOMPLEX *ffx);
 
 /* other math functions */
-void 			mat_create_fptrigontab(void);
+void 			mat_create_fpTrigonTab(void);
 uint64_t 		mat_fp16_sqrtu32(uint32_t x);
-void 			egi_float_limits(float *data, int num, float *min, float *max);
+void 			mat_floatArray_limits(float *data, int num, float *min, float *max);
 
 /*
 void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,

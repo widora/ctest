@@ -314,9 +314,9 @@ inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
 Search given SECTION and KEY string in the config file, copy VALUE
 string to the char *value if found.
 
-sect:	Char pointer to a given SECTION name.
-key:	Char pointer to a given KEY name.
-pvalue:	Char pointer to a char buff that will receive found VALUE string.
+@sect:		Char pointer to a given SECTION name.
+@key:		Char pointer to a given KEY name.
+@pvalue:	Char pointer to a char buff that will receive found VALUE string.
 
 NOTE:
 1. A config file should be edited like this:
@@ -346,7 +346,7 @@ KEY2= VALUE2
 6. Max. length for one line in a config file is 256-1. ( see. line_buff[256] )
 7. Max. length of a SECTION/KEY/VALUE string is 64-1. ( see. str_test[64] )
 
-TODO:	If key value includes BLANKS, use "".
+TODO:	If key value includes BLANKS, use "".--- OK, sustained.
 
 
 Return:
@@ -447,7 +447,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 
 			/* find first '=' */
 			ps=strstr(line_buff,"=");
-			/* assure NOT null and '=' is NOT a starting char 
+			/* assure NOT null and '=' is NOT a starting char
 			 * But, we can not exclude spaces before '='.
 			 */
 			if( ps!=NULL && ps != line_buff ) {
@@ -464,7 +464,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 				else if( strcmp(key,ps)==0 ) {
 					//printf("found KEY:%s \n",str_test);
 					ps=strstr(line_buff,"="); /* !!! again, point ps to '=' */
-					pt=cstr_trim_space(ps+1);
+			           pt=cstr_trim_space(ps+1); /* trim ending spaces and replace \r,\n with \0 */
 					/* Assure the value is NOT null */
 					if(pt==NULL) {
 					   printf("%s: Value of key [%s] is NULL in line_buff: '%s' \n",
