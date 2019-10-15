@@ -68,8 +68,8 @@ static EGI_DATA_TXT	*title_FTtxt;
 static EGI_EBOX		*ebox_title;
 
 /* Time sliding bar txt, for time elapsed and duration */
-static EGI_DATA_TXT 	*data_tmtxt[2];
-static EGI_EBOX	    	*ebox_tmtxt[2];
+static EGI_DATA_TXT 	*data_CreditTxt[2];
+static EGI_EBOX	    	*ebox_CreditTxt[2];
 static int 		tmSymHeight=18;              /* symbol height */
 static int 		tmX0[2], tmY0[2];            /* txt EBOX x0,y0  */
 
@@ -119,6 +119,9 @@ EGI_PAGE *create_avengerPage(void)
 				       		-1, 		  /* int frame,<0 no frame */
 		       				WEGI_COLOR_GRAY  /*int prmcolor, for geom button only. */
 					   );
+		/* hide it */
+		egi_btnbox_hide(ebox_btns[i]);
+
 		/* if fail, try again ... */
 		if(ebox_btns[i]==NULL) {
 			printf("egi_create_ffplaypage(): fail to call egi_btnbox_new() for ebox_btns[%d]. retry...\n", i);
@@ -187,21 +190,21 @@ EGI_PAGE *create_avengerPage(void)
 	/* position of txt ebox */
 	tmX0[0]=0;
 	tmY0[0]=5;
-	tmX0[1]=240-60;
+	tmX0[1]=240-70;
 	tmY0[1]=5;
 
 	/* create playing time TXT EBOX for sliding bar */
 	for(i=0; i<2; i++) {
 	        /* For symbols TXT */
-		data_tmtxt[i]=egi_txtdata_new( 0, 0,    		/* offx,offy from EBOX */
+		data_CreditTxt[i]=egi_txtdata_new( 0, 0,    		/* offx,offy from EBOX */
                 	      	               1,                       /* lines */
-                        	               10,                      /* chars per line */
+                        	               16,                      /* chars per line */
                                 	       &sympg_ascii,       	/* font */
 	                                       WEGI_COLOR_WHITE         /* txt color */
         	                      );
 		/* create volume EBOX */
-        	ebox_tmtxt[i]=egi_txtbox_new( i==0?"TMbar_txt0":"TMbar_txt1",    	/* tag */
-                                     data_tmtxt[i],     	/* EGI_DATA_TXT pointer */
+        	ebox_CreditTxt[i]=egi_txtbox_new( i==0?"score":"time",    	/* tag */
+                                     data_CreditTxt[i],     	/* EGI_DATA_TXT pointer */
                                      true,              	/* bool movable */
                                      tmX0[i], tmY0[i],  	/* int x0, int y0 */
                                      120, 15,           	/* width, height(adjusted as per nl and symheight ) */
@@ -210,12 +213,12 @@ EGI_PAGE *create_avengerPage(void)
                                    );
 	}
 	/* set ID */
-	ebox_tmtxt[0]->id=TIME_TXT0_ID;
-	ebox_tmtxt[1]->id=TIME_TXT1_ID;
+	ebox_CreditTxt[0]->id=TIME_TXT0_ID;
+	ebox_CreditTxt[1]->id=TIME_TXT1_ID;
 
 	/* initial value in tmtxt */
-	egi_push_datatxt(ebox_tmtxt[0], "00.000", NULL);
-	egi_push_datatxt(ebox_tmtxt[1], "00.000", NULL);
+	egi_push_datatxt(ebox_CreditTxt[0], "000", NULL);
+	egi_push_datatxt(ebox_CreditTxt[1], "00:00:00", NULL);
 
 	/* --------- 5. create ffplay page ------- */
 	/* 5.1 create ffplay page */
@@ -247,7 +250,7 @@ EGI_PAGE *create_avengerPage(void)
 		egi_page_addlist(page_avenger, ebox_btns[i]);
 
 	for(i=0; i<2; i++)	/* 5.5.2 Add time txt for time sliding bar */
-		egi_page_addlist(page_avenger, ebox_tmtxt[i]);
+		egi_page_addlist(page_avenger, ebox_CreditTxt[i]);
 
 	egi_page_addlist(page_avenger, ebox_title);  	/* 5.5.3 Add title txt ebox */
 
@@ -363,4 +366,31 @@ void  avenpage_update_title(const unsigned char *title)
         title_FTtxt->utxt=strtmp;
 
 	egi_page_needrefresh(ebox_title->container);
+}
+
+
+/*-------------------------------------------------------
+Update credit txt.
+
+-------------------------------------------------------*/
+void avenpage_update_creditTxt(int score, int tick)
+{
+	char strtmp[64];
+	int tm_h,tm_min,tm_sec;
+
+	/* update credit */
+	memset(strtmp,0, sizeof(strtmp));
+	snprintf(strtmp, 32-1, "SCORE: %03d", score);
+	egi_push_datatxt(ebox_CreditTxt[0], strtmp, NULL);
+	egi_ebox_forcerefresh(ebox_CreditTxt[0]);
+
+	/* update time */
+        tm_h=tick/3600;
+        tm_min=(tick-tm_h*3600)/60;
+        tm_sec=tick%60;
+
+	memset(strtmp,0, sizeof(strtmp));
+	snprintf(strtmp, 32-1, "%02d:%02d:%02d", tm_h, tm_min, tm_sec);
+	egi_push_datatxt(ebox_CreditTxt[1], strtmp, NULL);
+	egi_ebox_forcerefresh(ebox_CreditTxt[1]);
 }

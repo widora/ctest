@@ -254,10 +254,16 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 
     } /* end of movable codes */
 
-
 	/* 6. set button status */
-	ebox->status=status_active; /* if not, you can not refresh */
 	data_btn->status=released_hold;
+
+	/*** In case _hide() is called just before _activate()!
+	 * Do not display for a hidden ebox */
+        if( ebox->status==status_hidden )
+                goto BTN_ACTIVATE_END;
+
+	/* Set ebox status */
+	ebox->status=status_active; /* If not, you can not refresh */
 
 	/* 7. set need_refresh */
 	ebox->need_refresh=true;
@@ -266,7 +272,7 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	if( egi_btnbox_refresh(ebox) != 0)
 		return -4;
 
-
+BTN_ACTIVATE_END:
 	EGI_PDEBUG(DBG_BTN,"egi_btnbox_activate(): a '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
@@ -313,12 +319,12 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
                 return -1;
         }
 
-	/*  check the ebox status  */
-	if( ebox->status != status_active )
-	{
-		EGI_PDEBUG(DBG_BTN,"ebox '%s' is not active! refresh action is ignored! \n",ebox->tag);
-		return -2;
-	}
+        /* check the ebox status */
+        if( ebox->status != status_active && ebox->status != status_hidden )
+        {
+                EGI_PDEBUG(DBG_TXT,"Ebox '%s' is not active/hidden! refresh action is ignored! \n",ebox->tag);
+                return -2;
+        }
 
 	/* only if need_refresh is true */
 	if(!ebox->need_refresh)
@@ -426,6 +432,14 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	}
 
    } /* end of movable codes */
+
+
+        /* If status is hidden, then skip displaying codes */
+        if( ebox->status == status_hidden )
+                goto BTN_REFRESH_END;
+
+
+        /*  ------------>   DISPLAYING CODES STARTS  <----------  */
 
 
         /* --- 6.1 Draw shape --- */
@@ -583,6 +597,7 @@ use following COLOR:
    }/* endif: data_btn->font != NULL */
 
 
+BTN_REFRESH_END:
 	/* 10. finally, reset need_refresh */
 	ebox->need_refresh=false;
 
@@ -906,6 +921,63 @@ use following COLOR:
 
 }
 
+
+/*----------------------------------------
+Put a button ebox to disappear from FB.
+1. Restore bkimg to erase image of itself.
+2. Reset status
+
+Return
+        0       OK
+        <0      fail
+-----------------------------------------*/
+int egi_btnbox_hide(EGI_EBOX *ebox)
+{
+        if( ebox==NULL ) {
+                printf("%s: ebox is NULL or type error, fail to make it hidden.\n",__func__);
+                return -1;
+        }
+
+        if( ebox->movable && ebox->bkimg !=NULL ) { /* only for movable ebox, it holds bkimg. */
+                /* restore bkimg */
+                if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+                               ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
+                {
+                        printf("%s: Fail to restor bkimg for a '%s' ebox.\n", __func__, ebox->tag);
+                        return -1;
+                }
+        }
+
+        /* reset status */
+        ebox->status=status_hidden;
+
+        EGI_PDEBUG(DBG_BTN,"A '%s' ebox is put to hide.\n",ebox->tag);
+
+        return 0;
+}
+
+
+/*----------------------------------------
+Bring a hidden ebox back to active by set
+status to status_active.
+
+Return
+        0       OK
+        <0      fail
+-----------------------------------------*/
+int egi_btnbox_unhide(EGI_EBOX *ebox)
+{
+        if(ebox==NULL) {
+                printf("%s: ebox is NULL, fail to make it hidden.\n",__func__);
+                return -1;
+        }
+
+        /* reset status */
+        ebox->status=status_active;
+
+        EGI_PDEBUG(DBG_TXT,"Unhide a '%s' ebox and set status as active.\n",ebox->tag);
+        return 0;
+}
 
 
 /*-------------------------------------------------

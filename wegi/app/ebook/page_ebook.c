@@ -72,10 +72,11 @@ static int fd=-1;;
 static int fsize;
 static struct stat sb;
 static const unsigned char *faddr;
+
 /* ebook displaying */
 static const char *fpath="/mmc/xyj_uft8.txt";
 
-static wchar_t *title=L"《西 游 记》";
+static  wchar_t *title=L"《西 游 记》";
 static  int fh,fw; /* font Height,Width */
 static  int lines;
 static  int pixpl;

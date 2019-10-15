@@ -28,11 +28,13 @@ EGI_EBOX * egi_btnbox_new( char *tag,
         int prmcolor
 );
 
-int egi_btnbox_activate(EGI_EBOX *ebox);
-int egi_btnbox_refresh(EGI_EBOX *ebox);
-void egi_btngroup_refresh(EGI_EBOX **ebox_group, int num);
-void egi_free_data_btn(EGI_DATA_BTN *data_btn);
-int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
+int 	egi_btnbox_activate(EGI_EBOX *ebox);
+int 	egi_btnbox_refresh(EGI_EBOX *ebox);
+void 	egi_btngroup_refresh(EGI_EBOX **ebox_group, int num);
+int 	egi_btnbox_hide(EGI_EBOX *ebox);
+int 	egi_btnbox_unhide(EGI_EBOX *ebox);
+void 	egi_free_data_btn(EGI_DATA_BTN *data_btn);
+int 	egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
 EGI_EBOX *egi_copy_btn_ebox(EGI_EBOX *ebox); /* Wait to be tested! */
 //static void egi_btn_touch_effect(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data);
 

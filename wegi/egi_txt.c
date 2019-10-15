@@ -407,7 +407,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 			return -3;
 		}
 
-		EGI_PDEBUG(DBG_TXT,"Wake up a sleeping/hidden '%s' ebox.\n",ebox->tag);
+		EGI_PDEBUG(DBG_TXT,"Wake up a sleeping '%s' ebox.\n",ebox->tag);
 		return 0;
 	}
 
@@ -497,7 +497,6 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
 	}
 
 TXT_ACTIVATE_END:
-
 	EGI_PDEBUG(DBG_TXT,"A '%s' ebox is activated.\n",ebox->tag);
 	return 0;
 }
@@ -816,7 +815,7 @@ int egi_txtbox_hide(EGI_EBOX *ebox)
                 return -1;
         }
 
-   	if(ebox->movable) { /* only for movable ebox, it holds bkimg. */
+   	if( ebox->movable && ebox->bkimg != NULL ) { /* only for movable ebox, it holds bkimg. */
 		/* restore bkimg */
        		if(fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0 )
@@ -1197,8 +1196,7 @@ buf:		the source buffer
         2.1 Max. char number per line   =  llen;
         2.2 Max. pixel number per line  =  bxwidth
 
-
-return:
+Return:
 	>0	bytes of char pushed
 	<0	fails
 --------------------------------------------------------------------*/
@@ -1216,15 +1214,14 @@ int egi_push_datatxt(EGI_EBOX *ebox, char *buf, int *pnl)
 	int bxwidth=ebox->width; /* in pixel, ebox width for txt  */
 	int offx=data_txt->offx;
 	char **txt=data_txt->txt;
-	int nt=0; /* index, txt[][nt] */
-	int nl=data_txt->nl; /* total number of txt lines */
-	int nlw=0; /* current written line index, txt[nlw][] */
-	int llen=data_txt->llen -1; /*in bytes(chars), length for each line, one byte for /0 */
-	int ncount=0; /*in pixel, counter for used pixels per line, MAX=bxwidth.*/
-	int *symwidth=data_txt->font->symwidth;/* width list for each char code */
+	int nt=0; 				/* index, txt[][nt] */
+	int nl=data_txt->nl; 			/* total number of txt lines */
+	int nlw=0; 				/* current written line index, txt[nlw][] */
+	int llen=data_txt->llen -1; 		/*in bytes(chars), length for each line, one byte for /0 */
+	int ncount=0; 				/*in pixel, counter for used pixels per line, MAX=bxwidth.*/
+	int *symwidth=data_txt->font->symwidth;	/* width list for each char code */
 //	int symheight=data_txt->font->symheight;
 	int maxnum=data_txt->font->maxnum;
-
 	int nread=strlen(buf); /* total bytes of chars */
 
 	/* clear data */

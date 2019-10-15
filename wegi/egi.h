@@ -173,7 +173,7 @@ struct egi_ebox_method
 	int (*decorate)(EGI_EBOX *);
 	int (*play)(EGI_EBOX *); 	/* for motion pic ebox, or.. */
 	int (*sleep)(EGI_EBOX *);
-//TODO	int (*hiden)(EGI_EBOX *);
+//TODO	int (*hiden)(EGI_EBOX *);	/* And apply mutex lock if necessary */
 	int (*free)(EGI_EBOX *);
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * touch_data); /* enum egi_touch_status */
 };
@@ -287,7 +287,7 @@ struct egi_element_box
 	/* private data, for concept ebox */
 	void *prvdata;
 
-	/* child defined method, or use default method as follows */
+	/* child defined method, or use default method as followed */
 	EGI_METHOD method;
 
 	/* <<< ------------- DEFAULT METHODS -------------- >>> */
