@@ -22,6 +22,7 @@ Midas Zhou
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "egi.h"
 #include "egi_color.h"
 #include "egi_txt.h"
@@ -38,6 +39,7 @@ Midas Zhou
 #define MPFIFO_NAME "/tmp/mpfifo"	/* fifo for mplayer */
 static int pfd=-1;			/* file descriptor for open() fifo */
 static FILE *pfil;			/* file stream of popen() mplayer */
+static pid_t mpid=-1;			/* pid for mplayer */
 
 static int  nlist=0;			/* list index */
 static char *str_option[]={"RADIO","XM","MP3","MPP","ENG"};
@@ -67,7 +69,7 @@ static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int react_option(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 
-static void check_volume_runner(EGI_PAGE *page);
+static void* check_volume_runner(EGI_PAGE *page);
 
 
 
@@ -90,13 +92,10 @@ EGI_PAGE *egi_create_mplaypage(void)
 	EGI_EBOX *mplay_btns[6];
 	EGI_DATA_BTN *data_btns[6];
 	enum egi_btn_type btn_type;
-	EGI_16BIT_COLOR color;
-
 
 	/* --------- 1. create buttons --------- */
         for(i=0;i<2;i++) /* row of buttons*/
         {
-		color=egi_color_random(color_deep);
 
                 for(j=0;j<3;j++) /* column of buttons */
                 {
@@ -150,7 +149,7 @@ EGI_PAGE *egi_create_mplaypage(void)
 			/* set tag color */
 			mplay_btns[3*i+j]->tag_color=WEGI_COLOR_WHITE;
 			/* set container for ebox*/
-			// in egi_page_addlist() 
+			// in egi_page_addlist()
 		}
 	}
 
@@ -268,7 +267,7 @@ EGI_PAGE *egi_create_mplaypage(void)
   so keep slider postion just for a little while before
   you release it.
 ----------------------------------------------------------*/
-static void check_volume_runner(EGI_PAGE *page)
+static void* check_volume_runner(EGI_PAGE *page)
 {
      int pvol;
      int sval=0;
@@ -285,7 +284,7 @@ static void check_volume_runner(EGI_PAGE *page)
 	   /* check page status for exit */
 	   //Not necessary anymore? use pthread_cancel() fro PAGE */
 	   if(page->ebox->status==status_page_exiting)
-	   	return;
+	   	return (void *)0;
 
 	   /* get palyback volume */
 	   egi_getset_pcm_volume(&pvol,NULL);
@@ -305,6 +304,8 @@ static void check_volume_runner(EGI_PAGE *page)
            egi_ebox_needrefresh(slider); /* No need for quick response */
 
      }
+
+  	return (void *)0;
 }
 
 
@@ -318,7 +319,7 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	EGI_DATA_SLIDER *data_slider;
 	int minx,maxx;
 	int vol;
-	static char strcmd[50];
+//	static char strcmd[50];
 
         /* bypass unwanted touch status */
         if( touch_data->status != pressed_hold && touch_data->status != pressing )
@@ -369,6 +370,14 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	char strcmd[256];
 	static char *cmdPause="pause\n";
 
+	/* args for mplayer */
+	char arg_fin[256]="file=/tmp/mpfifo";
+	char arg_playlist[256]="/home/radio.list";
+	char *mplayer_args[]={ "mplayer", "-cache", "512", "-cache-min", "5", "-slave", "-input", arg_fin, \
+			"-aid", "1", "-loop", "0", "-playlist", arg_playlist, NULL };
+//						">/dev/null", "2>&1", NULL };
+
+
         /* bypass unwanted touch status */
         if( touch_data->status != pressing )
                 return btnret_IDLE;
@@ -382,7 +391,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		EGI_PLOG(LOGLV_TEST,"%s: mkfifo for mplayer...",__func__);
 		if (mkfifo(MPFIFO_NAME,0766) !=0) {
 			EGI_PLOG(LOGLV_ERROR,"%s:Fail to mkfifo for mplayer.",__func__);
-			return NULL;
+			return -1;
 		}
 		EGI_PLOG(LOGLV_ASSERT,"%s: mkfifo finish.",__func__);
 	}
@@ -397,9 +406,16 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		printf("--- cmd: start mplayer ---\n");
 	        sprintf(strcmd,"mplayer -cache 512 -cache-min 5 -slave -input file=%s -aid 1 -loop 0 -playlist %s >/dev/null 2>&1",
 									MPFIFO_NAME,str_playlist[nlist] );
+
+		/* Renew args for mplayer */
+		sprintf(arg_fin,"file=%s",MPFIFO_NAME);
+		sprintf(arg_playlist,"%s",str_playlist[nlist] );
+
+
+	#if 0 /* ----------  Call popen() to execute mplayer  --------- */
 	    	do {
 			EGI_PLOG(LOGLV_TEST,"%s: start to popen() mplayer...",__func__);
-			/* TODO: popen() wiillcall fork() to start a new process, it's time consuming!
+			/* TODO: popen() will call fork() to start a new process, it's time consuming!
 			 *	 Use UBUS to manage and communicate with sub_processes.
 			 */
 			pfil=popen(strcmd,"we");
@@ -412,6 +428,29 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 				EGI_PLOG(LOGLV_ERROR,"%s: Fail to popen() mplayer! retry...",__func__);
 			}
 		} while( pfil==NULL );
+
+	#else /* -----------  Call vfor() and execv() to launch mplayer --------- */
+		while( mpid<0 )
+		{
+			EGI_PLOG(LOGLV_TEST,"%s: Start to vfork() a process...",__func__);
+			mpid=vfork();
+
+			if(mpid==0) {
+				EGI_PLOG(LOGLV_TEST,"%s: Start to execv() mplayer...",__func__);
+				execv("/bin/mplayer", mplayer_args);
+				printf("execv() triggered process quit!\n");
+			}
+			else if(mpid<0) {
+				EGI_PLOG(LOGLV_TEST,"%s: Fail to execv() mplayer, retry...",__func__);
+			}
+			else {
+				EGI_PLOG(LOGLV_TEST,"%s: Succeed to execv() mplayer, retry...",__func__);
+				status=mp_playing;
+				egi_ebox_settag(ebox, "Pause");
+				egi_ebox_forcerefresh(ebox);
+			}
+		}
+	#endif
 
 		/* open fifo for command input */
 		pfd=open(MPFIFO_NAME,O_WRONLY|O_CLOEXEC);//|O_NONBLOCK);
@@ -440,7 +479,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 			pfd=-1;
 			unlink(MPFIFO_NAME);
 
-			status==mp_stop;
+			status=mp_stop;
 			egi_ebox_settag(ebox, "Start");
 			egi_ebox_forcerefresh(ebox);
 		}
@@ -519,7 +558,15 @@ static int react_stop(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	if(status==mp_playing || status==mp_pause ) {
 		printf("--------- Stop mplayer ------\n");
 		write(pfd,cmdQuit,strlen(cmdQuit));
+
+	#if 0 /* ----------  Call popen() to execute mplayer  --------- */
 		pclose(pfil);
+	#else /* -----------  Call vfor() and execv() to launch mplayer --------- */
+		if(mpid>0) {
+			kill(mpid, SIGTERM);
+			mpid=-1;
+		}
+	#endif
 		status=mp_stop;
 	}
 	close(pfd);

@@ -23,7 +23,7 @@ enum stock_compress_type {
 	fold_avg,       /* avg data_point[0], then [1], then[2]....  */
 };
 
-void egi_stockchart(EGI_PAGE *page);
+void *egi_stockchart(EGI_PAGE *page);
 
 
 #endif

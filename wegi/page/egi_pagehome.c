@@ -25,6 +25,7 @@ Midas Zhou
 #include <errno.h>
 #include <sys/wait.h>
 #include "egi_common.h"
+#include "egi_procman.h"
 #include "egi_FTsymbol.h"
 #include "egi_pagehome.h"
 #include "egi_pagetest.h"
@@ -59,7 +60,7 @@ static int egi_homebtn_stock(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 static int deco_calendar(EGI_EBOX *ebox);
-static int egi_process_activate_APP(pid_t *apid, char* app_path);
+//static int egi_process_activate_APP(pid_t *apid, char* app_path);
 
 
 static	EGI_EBOX *home_btns[9*HOME_PAGE_MAX]; 		/* set MAX */
@@ -624,7 +625,7 @@ static void update_weathericon(EGI_PAGE *page)
 
 SLEEP_WAITING:
 //	printf("%s: Start Delay or Sleep ....\n",__func__);
-	egi_sleep(0,3,0); /* 3s */
+	egi_sleep(0,10,0); /* 3s */
 
 	/* handler for signal_suspend, If get suspend_signal,wait until runner_cond comes.
 	 * !!! Meaningless, since the period of thread loop is too big!
@@ -1019,6 +1020,7 @@ static int slide_handler(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 }
 
 
+#if 0 /////////////////////////////////////////////////////////////
 /*-----------------------------------------------------------
 Activate an APP and wait for its state to change.
 
@@ -1124,4 +1126,5 @@ static int egi_process_activate_APP(pid_t *apid, char* app_path)
 	return 0;
 }
 
+#endif ///////////////////////////////////////////////////////////////////
 

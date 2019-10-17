@@ -530,7 +530,6 @@ struct egi_data_slider
 	EGI_POINT sxy;
 
 	/* position/shape type of the sliding bar */
-	//int ptype;
 	enum egi_slid_type ptype;    /*** NOW only 2 types applied, H and V.
 				      * 0 -- Horizontal,
 				      * 1 -- Vertical,
@@ -552,11 +551,15 @@ struct egi_data_slider
 	/* icon for the slot bar, if not NULL */
 //	struct symbol_page *slot_icon;
 //	int slot_code;
+	/* bkimg for slot bar, to cover slider and slot image */
+	uint16_t *slot_bkimg;
+	struct egi_box_coords bkbox;
 
 	/* Icon for the slider block:
 	 * if ebox->prmcolor <0 && data_btn->icon ==NULL
 	 *  then it will draw D=3*sw circle as for the slider
 	 */
+
 };
 
 /*

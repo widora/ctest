@@ -51,7 +51,7 @@ midaszhou@yahoo.com
 /*------------------------------------
 	APP func, thread func
 ------------------------------------*/
-void egi_stockchart(EGI_PAGE *page)
+void *egi_stockchart(EGI_PAGE *page)
 {
 	int i,k;
 

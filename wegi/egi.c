@@ -98,7 +98,7 @@ int egi_random_max(int max)
 }
 
 
-/*-----------------------------------------------------------------------
+/*---------------------------------------------------------------------
 allocate memory for ebox->bkimg with specified H and W, in 16bit color.
 !!! height/width and ebox->height/width MAY NOT be the same.
 
@@ -109,7 +109,7 @@ width: width of an image.
 Return:
 	pointer to the mem.	OK
 	NULL			fail
-----------------------------------------------------------------------*/
+------ --------------------------------------------------------------*/
 void *egi_alloc_bkimg(EGI_EBOX *ebox, int width, int height)
 {
 	/* 1. check data */

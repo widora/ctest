@@ -73,13 +73,20 @@ static int btnum=5;
 static EGI_DATA_BTN 	*data_btns[5];
 static EGI_EBOX 	*ffmot_btns[5];
 
+/* btn group */
+static EGI_EBOX		*ebox_group[8];
+
 /* title txt ebox */
 static EGI_DATA_TXT	*title_FTtxt;
 static EGI_EBOX		*ebox_title;
 
-/* circling/sliding pad */
-static EGI_DATA_BTN 	*data_pad;
-static EGI_EBOX		*ebox_pad;
+/* circling/sliding pad for volume adjust */
+static EGI_DATA_BTN 	*data_circlePad;
+static EGI_EBOX		*ebox_circlePad;
+
+/* touch pad for btn scroll */
+static EGI_DATA_BTN 	*data_touchPad;
+static EGI_EBOX		*ebox_touchPad;
 
 /* volume txt ebox */
 static EGI_DATA_TXT 	*vol_FTtxt;
@@ -107,6 +114,7 @@ static int sliding_timebar(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 //static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int scroll_btns(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int refresh_misc(EGI_PAGE *page);
 
 
@@ -188,31 +196,59 @@ EGI_PAGE *create_ffmotionPage(void)
 	ffmot_btns[4]->reaction=ffmot_playmode;
 
 
-	/* --------- 2. create a circling/sliding pad ebox --------- */
-	data_pad=egi_btndata_new( 111, 		  /* int id */
+	/* --------- 2.1 create a circling/sliding pad ebox for volume adjust  --------- */
+	data_circlePad=egi_btndata_new( 111, 		  /* int id */
 				  btnType_square, /* enum egi_btn_type shape */
 				  NULL,  	  /* struct symbol_page *icon. If NULL, use geometry. */
 				  0, 		  /* int icon_code, assign later.. */
 				  NULL   	  /* for ebox->tag font */
 				);
 
-	if(data_pad != NULL) {
-		data_pad->touch_effect=NULL;		/* No touch_effect as unmovable */
+	if(data_circlePad != NULL) {
+		data_circlePad->touch_effect=NULL;		/* No touch_effect as unmovable */
 	}
 
-	ebox_pad=egi_btnbox_new(  NULL, 		  /* put tag later */
-				  data_pad,     	  /* EGI_DATA_BTN *egi_data */
+	ebox_circlePad=egi_btnbox_new(  NULL, 		  /* put tag later */
+				  data_circlePad,     	  /* EGI_DATA_BTN *egi_data */
 		        	  0, 		  	  /* bool movable */
 			          0, 40, 	  	  /* int x0, int y0 */
-				  240, 200, 	  	  /* int width, int height */
+				  240, 120, 	  	  /* int width, int height */
 		       		  -1, 		  	  /* int frame,<0 no frame */
 	       			  -1  	  		  /*int prmcolor, for geom button only. */
 			   );
 
-	if(ebox_pad==NULL)
-		printf("%s: Fail to create ebox_pad!\n",__func__);
+	if(ebox_circlePad==NULL)
+		printf("%s: Fail to create ebox_circlePad!\n",__func__);
 	else
-		ebox_pad->reaction=circling_volume;	/*  Assign reaction */
+		ebox_circlePad->reaction=circling_volume;	/*  Assign reaction */
+
+
+	/* --------- 2.2 create a touch_pad for btns scroll --------- */
+	data_touchPad=egi_btndata_new( 112, 		/* int id */
+				  btnType_square, 	/* enum egi_btn_type shape */
+				  NULL,  	  	/* struct symbol_page *icon. If NULL, use geometry. */
+				  0, 		  	/* int icon_code, assign later.. */
+				  NULL   	  	/* for ebox->tag font */
+				);
+
+	if(data_touchPad != NULL) {
+		data_touchPad->touch_effect=NULL;	/* No touch_effect */
+	}
+
+	ebox_touchPad=egi_btnbox_new(  NULL, 		  /* put tag later */
+				  data_touchPad,     	  /* EGI_DATA_BTN *egi_data */
+		        	  0, 		  	  /* bool movable */
+			          0, 160, 	  	  /* int x0, int y0 */
+				  240, 60, 	  	  /* int width, int height */
+		       		  -1, 		  	  /* int frame,<0 no frame */
+	       			  -1  	  		  /*int prmcolor, for geom button only. */
+			   );
+
+	if(ebox_touchPad==NULL)
+		printf("%s: Fail to create ebox_touchPad!\n",__func__);
+	else
+		ebox_touchPad->reaction=scroll_btns;	/*  Assign reaction */
+
 
 	/* --------- 3. create title bar for movie title --------- */
 	title_FTtxt=NULL;
@@ -375,6 +411,7 @@ EGI_PAGE *create_ffmotionPage(void)
         /* 7.4 Set wallpaper */
         //page_ffmotion->fpath="/tmp/mplay.jpg";
 
+
 	/* 7.5 Add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* 7.5.1 Add control buttons */
 		egi_page_addlist(page_ffmotion, ffmot_btns[i]);
@@ -382,10 +419,20 @@ EGI_PAGE *create_ffmotionPage(void)
 	for(i=0; i<2; i++)	/* 7.5.2 Add time txt for time sliding bar */
 		egi_page_addlist(page_ffmotion, ebox_tmtxt[i]);
 
-	egi_page_addlist(page_ffmotion, ebox_pad);  	/* 7.5.3 Add circling pad ebox */
-	egi_page_addlist(page_ffmotion, ebox_title);  	/* 7.5.4 Add title txt ebox */
-	egi_page_addlist(page_ffmotion, ebox_voltxt); 	/* 7.5.5 Add volume txt ebox */
-	egi_page_addlist(page_ffmotion, time_slider); 	/* 7.5.6 Add time_slider ebox */
+	egi_page_addlist(page_ffmotion, ebox_circlePad);  	/* 7.5.3 Add circling pad ebox */
+	egi_page_addlist(page_ffmotion, ebox_touchPad); 	/* 7.5.4 Add touch pad ebox */
+	egi_page_addlist(page_ffmotion, ebox_title);  		/* 7.5.5 Add title txt ebox */
+	egi_page_addlist(page_ffmotion, ebox_voltxt); 		/* 7.5.6 Add volume txt ebox */
+	egi_page_addlist(page_ffmotion, time_slider); 		/* 7.5.7 Add time_slider ebox */
+
+
+	/* ebox group */
+	for(i=0; i<5; i++)
+		ebox_group[i]=ffmot_btns[i];
+	ebox_group[5]=time_slider;
+	ebox_group[6]=ebox_tmtxt[0];
+	ebox_group[7]=ebox_tmtxt[1];
+
 
 	return page_ffmotion;
 }
@@ -399,7 +446,7 @@ static void pageFFmotion_runner(EGI_PAGE *page)
 
 }
 
-/*---------------------------------------------------------------
+/*------------------------ BTN REACTION --------------------------
 			ffmotion play PREV
 ----------------------------------------------------------------*/
 static int ffmot_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
@@ -424,7 +471,8 @@ static int ffmot_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	return btnret_OK;
 }
 
-/*----------------------------------------------------------------
+
+/*------------------------ BTN REACTION --------------------------
 			ffmotion play NEXT
 ----------------------------------------------------------------*/
 static int ffmot_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
@@ -449,7 +497,7 @@ static int ffmot_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 }
 
 
-/*--------------------------------------------------------------------
+/*-------------------------  BTN REACTION  ---------------------------
 ffmusic palypause
 return
 ----------------------------------------------------------------------*/
@@ -478,7 +526,7 @@ static int ffmot_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 }
 
 
-/*--------------------------------------------------------------------
+/*-------------------------  BTN REACTION  ---------------------------
 ffplay play mode rotate.
 return
 ----------------------------------------------------------------------*/
@@ -536,7 +584,8 @@ static int ffmot_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 }
 
-/*--------------------------------------------------------------------
+
+/*-------------------------  BTN REACTION  ---------------------------
 ffmotion exit
 ???? do NOT call long sleep function in button functions.
 return
@@ -660,7 +709,7 @@ static int sliding_timebar(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 }
 
 
-/*-----------------------------------------------------------------
+/*----------------------  BTN REACTION  ---------------------------
                    Sliding Operation handler
 Slide up/down to adjust ALSA volume.
 ------------------------------------------------------------------*/
@@ -690,7 +739,6 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
         else if( touch_data->status==pressed_hold )
         {
 		/* unhide vol_FTtxt */
-		//egi_txtbox_activate(ebox_voltxt);
 		egi_txtbox_unhide(ebox_voltxt);
 
                 /* adjust volume */
@@ -710,11 +758,9 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		/* set utxt to ebox_voltxt */
 		vol_FTtxt->utxt=(unsigned char *)strp;
-		#if 1  /* set need refresh for PAGE routine */
+		#if 0  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX at once! */
-		//ebox_voltxt->need_refresh=true;
-		//ebox_voltxt->refresh(ebox_voltxt);
 		egi_ebox_forcerefresh(ebox_voltxt);
 		#endif
 
@@ -728,16 +774,13 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 
 		/* reset vol_FTtxt */
 		vol_FTtxt->utxt=NULL;
-		#if 1 /* set need refresh */
+		#if 0 /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or refresh now */
-		//ebox_voltxt->need_refresh=true;
-		//ebox_voltxt->refresh(ebox_voltxt);
-		egi_ebox_forcerefresh(ebox);
+		egi_ebox_forcerefresh(ebox_voltxt);
 		#endif
 
 		/* Hide to erase image */
-		//ebox_voltxt->sleep(ebox_voltxt);
 		egi_txtbox_hide(ebox_voltxt);
 
 		return btnret_OK;
@@ -748,7 +791,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 }
 
 
-/*-----------------------------------------------------------------
+/*----------------------  BTN REACTION  ---------------------------
                    Circling Operation handler
 Circling CW/CCW to adjust ALSA volume.
 ------------------------------------------------------------------*/
@@ -823,8 +866,6 @@ static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 		#if 0  /* set need refresh for PAGE routine */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or force to refresh EBOX now! */
-		//ebox_voltxt->need_refresh=true;
-		//ebox_voltxt->refresh(ebox_voltxt);
 		egi_ebox_forcerefresh(ebox_voltxt);
 		#endif
 
@@ -837,16 +878,13 @@ static int circling_volume(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 		/* reset vol_FTtxt */
 		vol_FTtxt->utxt=NULL;
-		#if 1 /* set need refresh */
+		#if 0 /* set need refresh */
 		egi_ebox_needrefresh(ebox_voltxt);
 		#else  /* or refresh now */
-		//ebox_voltxt->need_refresh=true;
-		//ebox_voltxt->refresh(ebox_voltxt);
 		egi_ebox_forcerefresh(ebox);
 		#endif
 
 		/* Hide to erase image */
-		//ebox_voltxt->sleep(ebox_voltxt);
 		egi_txtbox_hide(ebox_voltxt);
 
                 /* set indicator */
@@ -1035,4 +1073,46 @@ void motpage_rotate(unsigned char pos)
 
 	/* refresh the PAGE */
 	egi_page_needrefresh(time_slider->container);
+}
+
+
+
+/*----------------------  BTN REACTION  ---------------------------
+Scroll down/up buttons and timing bar.
+------------------------------------------------------------------*/
+static int scroll_btns(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+{
+	int i,j;
+	int delt;
+	static bool scroll_up=true;
+
+        /* bypass unwanted touch status */
+        if( touch_data->status !=  pressing )
+                return btnret_IDLE;
+
+	/* set delt */
+	if(scroll_up) {
+		printf("Scroll down\n");
+		delt=2;
+	}
+	else {
+		printf("Scroll up\n");
+		delt=-2;
+	}
+
+	/* Step shift btns */
+	for(i=0; i<25; i++) {
+
+		for(j=0; j<8; j++) {
+			ebox_group[j]->y0 += delt;
+			egi_ebox_forcerefresh(ebox_group[j]);
+		}
+
+		usleep(50000);
+	}
+
+	/* reset token */
+	scroll_up = !scroll_up;
+
+	return btnret_OK;
 }

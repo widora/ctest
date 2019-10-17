@@ -429,7 +429,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-7;
 		goto FAILS;
 	}
-	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback vol=%ld.", __func__, vol);
+//	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback vol=%ld.", __func__, vol);
 
 	/* try to get playback dB value on the channel */
 	ret=snd_mixer_selem_get_playback_dB(elem, chn, &dBvol); /* suppose that each channel has same volume value */
@@ -439,7 +439,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-7;
 		goto FAILS;
 	}
-	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback dBvol=%ld.", __func__, dBvol);
+//	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback dBvol=%ld.", __func__, dBvol);
 
 	/* To get volume in percentage */
 	if( pgetvol!=NULL ) {

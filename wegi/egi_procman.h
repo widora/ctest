@@ -10,6 +10,6 @@ Midas Zhou
 
 extern const char *app_name;
 int egi_assign_AppSigActions(void);
-
+int egi_process_activate_APP(pid_t *apid, char* app_path);
 
 #endif

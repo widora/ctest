@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 egi slider type ebox functions
 
 1. A slider_ebox is derived from a btn_ebox.
@@ -156,8 +155,8 @@ EGI_EBOX * egi_slider_new(
 	egi_ebox_settag(ebox,tag);
         ebox->egi_data=egi_data; /* ----- assign egi data here !!!!! */
         ebox->movable=true; /* MUST true for a slider */
-        ebox->width=width;
-	ebox->height=height;
+        ebox->width=((width>>1)<<1)+1;	 /* ODD */
+	ebox->height=((height>>1)<<1)+1; /* ODD */
 	if(data_slider->ptype==slidType_horiz) /* Horizontal Type */
 	{
 		/* ebox->x0,y0 */
@@ -284,12 +283,38 @@ int egi_slider_activate(EGI_EBOX *ebox)
 
    if(ebox->movable) /* only if ebox is movale */
    {
+	/* A.1 Calloc data_slider->slot_bkimg */
+	int slot_width=(data_slider->sw>>1)*2+5; /* !!!!! to cover simple circulare slider */
+	int slot_length=data_slider->sl+slot_width; /* For two round ends */
+
+	data_slider->slot_bkimg=calloc(1, slot_width*slot_length*sizeof(uint16_t));
+        if(data_slider==NULL) {
+ 		printf("%s: Fail to calloc data_slider->slot_bkimg for Ebox '%s'!\n", __func__, ebox->tag);
+		return -2;
+    	}
+
+	/* A.2 update slot_bkimg box */
+        if(data_slider->ptype==slidType_horiz) {
+		data_slider->bkbox.startxy.x=data_slider->sxy.x-slot_width/2;
+		data_slider->bkbox.startxy.y=data_slider->sxy.y-slot_width/2;
+		data_slider->bkbox.endxy.x=data_slider->sxy.x+data_slider->sl+slot_width/2;
+		data_slider->bkbox.endxy.y=data_slider->sxy.y+slot_width/2;
+	}
+	else {
+		data_slider->bkbox.startxy.x=data_slider->sxy.x+slot_width/2;
+		data_slider->bkbox.startxy.y=data_slider->sxy.y+slot_width/2;
+		data_slider->bkbox.endxy.x=data_slider->sxy.x-slot_width/2;
+		data_slider->bkbox.endxy.y=data_slider->sxy.y-data_slider->sl-slot_width/2;
+	}
+
 	/* 3. malloc bkimg width re_assigned/updated width and height  */
 	if(egi_alloc_bkimg(ebox, ebox->height, ebox->width)==NULL)
 	{
 		printf("%s: Fail to egi_alloc_bkimg() for Ebox '%s'!\n", __func__, ebox->tag);
+		free(data_slider->slot_bkimg); data_slider->slot_bkimg=NULL;
 		return -2;
 	}
+
 
 	/* 4. update bkimg box */
 	ebox->bkbox.startxy.x=x0;
@@ -302,10 +327,19 @@ int egi_slider_activate(EGI_EBOX *ebox)
 			ebox->bkbox.endxy.x, ebox->bkbox.endxy.y);
 	#endif
 
+
 	/* 5. store bk image which will be restored when this ebox position/size changes */
-	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
-				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)
+	/* 5.1 slot_bkimg */
+	if( fb_cpyto_buf(&gv_fb_dev, data_slider->bkbox.startxy.x, data_slider->bkbox.startxy.y,
+		    data_slider->bkbox.endxy.x, data_slider->bkbox.endxy.y, data_slider->slot_bkimg) <0) {
 		return -3;
+	}
+	/* 5.2 ebox bkimg */
+	if( fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
+				ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) <0)  {
+		return -3;
+	}
+
 
     } /* end of movable codes */
 
@@ -335,8 +369,12 @@ refresh a slider type ebox:
 	3. drawing the icon
 	4. take actions according to btn_status (released, pressed).
 
+	5. A H_slider can move only vertically as whole, while a V_slider
+	   can only move horizontally as whole.
+
 TODO:
 	1. if ebox size changes(enlarged), how to deal with bkimg!!??
+
 
 Return:
 	1	need_refresh=false
@@ -351,6 +389,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	int symwidth;
 	int icon_code=0; 	 /* 0, first ICON */;
 	uint16_t sym_subcolor=0; /* symbol substitute color, 0 as no subcolor */
+	int x0,y0;		 /* slider left top */
 	int twidth,theight;      /* widht/height of ebox->touchbox */
 
 	/* check data */
@@ -368,9 +407,12 @@ int egi_slider_refresh(EGI_EBOX *ebox)
                 return -1;
         }
 
-	/* get touchbox height and width */
-	twidth=ebox->touchbox.endxy.x - ebox->touchbox.startxy.x;
-	theight=ebox->touchbox.endxy.y - ebox->touchbox.startxy.y;
+	/* check ebox size */
+        if( ebox->height==0 || ebox->width==0)
+        {
+                printf("%s: Ebox '%s' has 0 height or width!\n", __func__, ebox->tag);
+                return -1;
+        }
 
 	/*  check the ebox status  */
 	if( ebox->status != status_active )
@@ -386,9 +428,21 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 		return 1;
 	}
 
+	/* 2.1 get updated data */
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+        if( data_btn == NULL || data_btn->prvdata == NULL ) {
+                printf("%s: data_btn or its prvdata is NULL!\n",__func__);
+                return -1;
+        }
+	EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
+
+	/* 2.2 get touchbox height and width */
+	twidth=ebox->touchbox.endxy.x - ebox->touchbox.startxy.x;
+	theight=ebox->touchbox.endxy.y - ebox->touchbox.startxy.y;
+
    if(ebox->movable) /* only if ebox is movale */
    {
-	/* 2. restore bk image use old bkbox data, before refresh */
+	/* 3. restore bk image use old bkbox data, before refresh */
 	#if 0 /* DEBUG */
 	EGI_PDEBUG(DBG_SLIDER,"button refresh... fb_cpyfrom_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
 			ebox->bkbox.endxy.x,ebox->bkbox.endxy.y);
@@ -398,24 +452,21 @@ int egi_slider_refresh(EGI_EBOX *ebox)
          * If changed, do NOT copy old ebox->bkimg to FB, as PAGE bkimg is already the new one!
          */
         if( ebox->container==NULL || ebox->container->page_update !=true ) {
+		/* slot_bkimg */
+		if( fb_cpyfrom_buf(&gv_fb_dev, data_slider->bkbox.startxy.x, data_slider->bkbox.startxy.y,
+		     data_slider->bkbox.endxy.x, data_slider->bkbox.endxy.y, data_slider->slot_bkimg) <0) {
+		          printf("%s: Fail to call fb_cpyfrom_buf() for data_slider->slot_bkimg of '%s'.\n",__func__, ebox->tag);
+			  return -3;
+		}
+		/* ebox bkimg */
 	        if( fb_cpyfrom_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
         	                       ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0) {
-			printf("%s: Fail to call fb_cpyfrom_buf() for Ebox '%s'.\n",__func__, ebox->tag);
-			return -3;
+			 printf("%s: Fail to call fb_cpyfrom_buf() for ebox->bkimg of '%s'.\n",__func__, ebox->tag);
+			 return -3;
 		}
 	}
 
    } /* end of movable codes */
-
-
-	/* 3. get updated data */
-	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
-        if( data_btn == NULL || data_btn->prvdata == NULL ) {
-                printf("%s: data_btn or its prvdata is NULL!\n",__func__);
-                return -1;
-        }
-	EGI_DATA_SLIDER *data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
-
 
 	/* only if it has an icon */
 	if(data_btn->icon != NULL)
@@ -435,26 +486,45 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	}
 	/* else if no icon, use prime shape */
 
-	/* check ebox size */
-        if( ebox->height==0 || ebox->width==0)
-        {
-                printf("%s: Ebox '%s' has 0 height or width!\n", __func__, ebox->tag);
-                return -1;
-        }
+	/* Update btn origin(left top),  for btn H&W x0,y0 is same as ebox */
+	x0=ebox->x0;
+	y0=ebox->y0;
+        if(data_slider->ptype==slidType_horiz) {  /* Horizontal type:  Y0 is to drive data_slider->sxy.y */
+		data_slider->sxy.y=y0+(ebox->height>>1);
+	}
+	else {					  /* Vertical type: X0 is to drive data_slider->sxy.x */
+		data_slider->sxy.x=x0+(ebox->width>>1);
+	}
 
-	/* origin(left top) for btn H&W x0,y0 is same as ebox */
-	int x0=ebox->x0;  /* x0 is fixed for Vertical slider */
-	int y0=ebox->y0;  /* y0 is fixed for HOrizontal slider */
 
    if(ebox->movable) /* only if ebox is movale, For SLIDER it's sure!!! */
    {
-       /* ---- 4. redefine bkimg box range, in case it changes */
+       /* ---- 4. Update bkimg box range, in case it changes */
+
+	int slot_width=(data_slider->sw>>1)*2+5; /* !!!!! to cover simple circulare slider */
+	int slot_length=data_slider->sl+slot_width; /* For two round ends */
+
+	/* 4.1  update slot_bkimg data_slider->bkbox */
+        if(data_slider->ptype==slidType_horiz) {
+		data_slider->bkbox.startxy.x=data_slider->sxy.x-slot_width/2;
+		data_slider->bkbox.startxy.y=data_slider->sxy.y-slot_width/2;
+		data_slider->bkbox.endxy.x=data_slider->sxy.x+data_slider->sl+slot_width/2;
+		data_slider->bkbox.endxy.y=data_slider->sxy.y+slot_width/2;
+	}
+	else {
+		data_slider->bkbox.startxy.x=data_slider->sxy.x+slot_width/2;
+		data_slider->bkbox.startxy.y=data_slider->sxy.y+slot_width/2;
+		data_slider->bkbox.endxy.x=data_slider->sxy.x-slot_width/2;
+		data_slider->bkbox.endxy.y=data_slider->sxy.y-data_slider->sl-slot_width/2;
+	}
+
 	/* check ebox height and font lines in case it changes, then adjust the height */
-	/* updata bkimg->bkbox according */
+	/* 4. 2 updata bkimg->bkbox according */
         ebox->bkbox.startxy.x=x0;
         ebox->bkbox.startxy.y=y0;
         ebox->bkbox.endxy.x=x0+ebox->width-1;
         ebox->bkbox.endxy.y=y0+ebox->height-1;
+
 
 	#if 1 /* DEBUG */
 	EGI_PDEBUG(DBG_SLIDER,"fb_cpyto_buf: startxy(%d,%d)   endxy(%d,%d)\n",ebox->bkbox.startxy.x,ebox->bkbox.startxy.y,
@@ -462,12 +532,21 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	#endif
         /* ---- 5. store bk image which will be restored when you refresh it later,
 		this ebox position/size changes */
+	/* 5.1 slot_bkimg */
+	if( fb_cpyto_buf(&gv_fb_dev, data_slider->bkbox.startxy.x, data_slider->bkbox.startxy.y,
+	     data_slider->bkbox.endxy.x, data_slider->bkbox.endxy.y, data_slider->slot_bkimg) <0) {
+	          printf("%s: fb_cpyto_buf() for data_slider->slot_bkimg of '%s' fails.\n",__func__, ebox->tag);
+		  return -3;
+	}
+	/* 5.2 ebox bkimg */
         if(fb_cpyto_buf(&gv_fb_dev, ebox->bkbox.startxy.x, ebox->bkbox.startxy.y,
                                 ebox->bkbox.endxy.x, ebox->bkbox.endxy.y, ebox->bkimg) < 0)
 	{
 		printf("%s: fb_cpyto_buf() for Ebox '%s' fails.\n",__func__, ebox->tag);
 		return -4;
 	}
+
+
    } /* end of movable codes */
 
 
@@ -539,7 +618,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 	{
 		/* draw a circle with R=sw */
 		fbset_color(data_slider->color_slider);
-		if(data_slider->ptype==0) {	/* Horizontal bar */
+		if(data_slider->ptype==slidType_horiz) {	/* Horizontal bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x+data_slider->val, data_slider->sxy.y,
 					   data_slider->sw + 2
@@ -552,7 +631,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 			);
 		}
 
-		else  {   			/* Vertical bar */
+		else  {   					/* Vertical bar */
 			draw_filled_circle(&gv_fb_dev,
 				 	   data_slider->sxy.x, data_slider->sxy.y-data_slider->val,
 					   data_slider->sw + 2
@@ -727,15 +806,19 @@ int egi_slider_setpsval(EGI_EBOX *slider, int psval)
 	if(data_slider->ptype==slidType_horiz) {     	/* Horizontal sliding bar */
         	slider->x0=data_slider->sxy.x+psval-(slider->width>>1);
 		/* Here also refresh y0, in case we want to refresh slider x0y0 as per updated
-		 * data_slider->sxy !!! */
-        	slider->y0=data_slider->sxy.y-(slider->height>>1);
+		 * data_slider->sxy !!! ---
+		 * NO!!! slider->y0 will drive sxy.y again !!!!
+		 */
+        	//slider->y0=data_slider->sxy.y-(slider->height>>1);
 
 	}
 	else if(data_slider->ptype==slidType_vert) {	/* Vertical sliding bar */
         	slider->y0=data_slider->sxy.y-psval-(slider->height>>1);
 		/* Here also refresh x0, in case we want to refresh slider x0y0 as per updated
-		 * data_slider->sxy !!! */
-        	slider->x0=data_slider->sxy.x-(slider->width>>1);
+		 * data_slider->sxy !!!
+		 * NO!!! slider->x0 will drive sxy.x again !!!!
+		 */
+        	//slider->x0=data_slider->sxy.x-(slider->width>>1);
 	}
 	else {
 		EGI_PDEBUG(DBG_SLIDER,"Warning: Undefined slider type! Fail to set value.\n");
@@ -816,13 +899,21 @@ Remember data slider is contained in data_btn.
 ------------------------------------------------------*/
 void egi_free_data_slider(EGI_DATA_BTN *data_btn)
 {
+        EGI_DATA_SLIDER *data_slider=NULL;
+
 	if(data_btn != NULL)
 	{
-		if(data_btn->prvdata !=NULL )
+		if(data_btn->prvdata !=NULL ) {
+		        data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata);
+			if(data_slider->slot_bkimg != NULL)
+				free(data_slider->slot_bkimg);
+
 			free(data_btn->prvdata);
+		}
+
 		free(data_btn);
 
-		data_btn=NULL;
+		data_btn=NULL;  /* ineffective though */
 	}
 }
 

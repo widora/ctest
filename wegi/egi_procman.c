@@ -7,8 +7,13 @@ Midas_Zhou
 ------------------------------------------------------------------*/
 #include <stdio.h>
 #include <signal.h>
+#include <unistd.h>
+#include <errno.h>
 #include "egi_log.h"
+#include "egi_debug.h"
 #include "egi_procman.h"
+
+__attribute__((weak)) const char *app_name="etouch test";
 
 static struct sigaction sigact_cont;
 static struct sigaction osigact_cont;  /* Old one */
@@ -124,4 +129,113 @@ int egi_assign_AppSigActions(void)
 
         return 0;
 }
+
+
+
+/*-----------------------------------------------------------
+Activate an APP and wait for its state to change.
+
+1. If apid<0 then vfork() and excev() the APP.
+2. If apid>0, try to send SIGCONT to activate it.
+3. Wait for state change for the apid, that means the parent
+   process is hung up until apid state changes(STOP/TERM).
+
+@apid:          PID of the subprocess.
+@app_path:      Path to an executiable APP file.
+
+Return:
+        <0      Fail to execute or send signal to the APP.
+        0       Ok, succeed to execute APP, and get the latest
+                changed state.
+-------------------------------------------------------------*/
+int egi_process_activate_APP(pid_t *apid, char* app_path)
+{
+        int status;
+        int ret;
+
+        EGI_PDEBUG(DBG_PAGE,"------- start check accessibility of the APP --------\n");
+        if( access(app_path, X_OK) !=0 ) {
+                EGI_PDEBUG(DBG_PAGE,"'%s' is not a recognizble executive file.\n", app_path);
+                return -1;
+        }
+
+        /* TODO: SIGCHLD handler for exiting child processes
+         *      NOTE: STOP/CONTINUE/EXIT of a child process will produce signal SIGCHLD!
+         */
+
+        /* 1. If app_ffplay not running, fork() and execv() to launch it. */
+        if(*apid<0) {
+
+                EGI_PDEBUG(DBG_PAGE,"----- start fork APP -----\n");
+                *apid=vfork();
+
+                /* In APP */
+                if(*apid==0) {
+                        EGI_PDEBUG(DBG_PAGE,"----- start execv APP -----\n");
+                        execv(app_path, NULL);
+                        /* Warning!!! if fails! it still holds whole copied context data!!! */
+                        EGI_PLOG(LOGLV_ERROR, "%s: fail to execv '%s' after fork(), error:%s",
+                                                                __func__, app_path, strerror(errno) );
+                        exit(255); /* 8bits(255) will be passed to parent */
+                }
+                /* In the caller's context */
+                else if(*apid <0) {
+                        EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch APP '%s'!",__func__, app_path);
+                        return -2;
+                }
+                else {
+                        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' launched successfully!\n",
+                                                                                __func__, app_path);
+                }
+        }
+
+        /* 2. Else, assume APP is hungup(stopped), send SIGCONT to activate it. */
+        else {
+                        EGI_PLOG(LOGLV_CRITICAL, "%s: send SIGCONT to activate '%s'[pid:%d].",
+                                                                                __func__, app_path, *apid);
+                        if( kill(*apid,SIGCONT)<0 ) {
+                                EGI_PLOG(LOGLV_ERROR, "%s: Fail to send SIGCONT to '%s'[pid:%d].",
+                                                                                __func__, app_path, *apid);
+                                return -3;
+                        }
+        }
+
+        /* 3. Wait for status of APP to change */
+        if(*apid>0) {
+                /* wait for status changes,a state change is considered to be:
+                 * 1. the child is terminated;
+                 * 2. the child is stopped by a signal;
+                 * 3. or the child is resumed by a signal.
+                 */
+                waitpid(*apid, &status, WUNTRACED); /* block |WCONTINUED */
+
+                /* 1. Exit normally */
+                if(WIFEXITED(status)){
+                        ret=WEXITSTATUS(status);
+                        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' exits with ret value: %d.",
+                                                                        __func__, app_path, ret);
+                        *apid=-1; /* retset */
+                }
+                /* 2. Terminated by signal, in case APP already terminated. */
+                else if( WIFSIGNALED(status) ) {
+                        EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' terminated by signal number: %d.",
+                                                                __func__, app_path, WTERMSIG(status));
+                        *apid=-1; /* reset */
+                }
+                /* 3. Stopped */
+                else if(WIFSTOPPED(status)) {
+                                EGI_PLOG(LOGLV_CRITICAL, "%s: APP '%s' is just STOPPED!",
+                                                                                 __func__, app_path);
+                }
+                /* 4. Other status */
+                else {
+                        EGI_PLOG(LOGLV_WARN, "%s: APP '%s' returned with unparsed status=%d",
+                                                                        __func__, app_path, status);
+                        *apid=-1; /* reset */
+                }
+        }
+
+        return 0;
+}
+
 
