@@ -851,16 +851,18 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 		 * If return to next line
 		 */
 		if(*p=='\n') {
-//			printf("%s: ASCII code: Next Line\n", __func__);
+			printf("%s: ASCII code: Next Line\n", __func__);
 			/* change to next line, +gap */
 			ln++;
 			xleft=pixpl;
 			py+= fh+gap;
+			p++;
 			continue;
 		}
 		/* If other control codes or DEL, skip it */
 		else if( *p < 32 || *p==127  ) {
 //			printf("%s: ASCII control code: %d\n", *p,__func__);
+			p++;
 			continue;
 		}
 
@@ -987,7 +989,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 		 * If return to next line
 		 */
 		if(*wcstr=='\n') {
-//			printf("ASCII code: Next Line\n");
+//			printf(" ... ASCII code: Next Line ...\n ");
 			/* change to next line, +gap */
 			ln++;
 			xleft=pixpl;

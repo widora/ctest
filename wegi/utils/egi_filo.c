@@ -38,13 +38,13 @@ EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc)
 	EGI_FILO *efilo=NULL;
 
         if( buff_size<=0 || item_size<=0 ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input buff_size or item_size is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input buff_size or item_size is invalid.",__func__);
                 return NULL;
         }
         /* calloc efilo */
         efilo=(EGI_FILO *)calloc(1, sizeof(EGI_FILO));
         if(efilo==NULL) {
-                EGI_PLOG(LOGLV_ERROR,"%s: Fail to malloc efilo.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Fail to malloc efilo.",__func__);
                 return NULL;
         }
 
@@ -58,7 +58,7 @@ EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc)
         /* malloc buff, and memset inside... */
         efilo->buff=egi_malloc_buff2D(buff_size, item_size);
         if(efilo->buff==NULL) {
-                EGI_PLOG(LOGLV_ERROR,"%s: Fail to malloc efilo->buff.\n", __func__);
+                EGI_PLOG(LOGLV_ERROR,"%s: Fail to malloc efilo->buff.", __func__);
                 free(efilo);
                 efilo=NULL;
                 return NULL;
@@ -107,11 +107,11 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return -1;
         }
 	if( data==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input data is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input data is invalid.",__func__);
                 return -2;
         }
 	/* check buff space */
@@ -121,15 +121,15 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
 		 	if( egi_realloc_buff2D( &filo->buff, filo->buff_size,
 					    		(filo->buff_size)<<1, filo->item_size ) !=0 )
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to double size.\n", __func__);
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to double size.", __func__);
 				return -3;
 			}
 			filo->buff_size <<= 1;
-			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is doubled to be %d.\n",
+			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is doubled to be %d.",
 									__func__, filo->buff_size);
 		}
 		else {
-			EGI_PLOG(LOGLV_ERROR,"%s: FILO buff is full. no more data to push in.\n", __func__);
+			EGI_PLOG(LOGLV_ERROR,"%s: FILO buff is full. no more data to push in.", __func__);
 			return 1;
 		}
 	}
@@ -157,12 +157,12 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return -1;
         }
 	/* check buff point */
 	if( filo->pt==0 ) {
-//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
+//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.",
 //												__func__);
 		return 1;
 	}
@@ -173,11 +173,11 @@ int egi_filo_pop(EGI_FILO *filo, void* data)
 			if( egi_realloc_buff2D( &filo->buff, filo->buff_size,
 				    		(filo->buff_size)>>1, filo->item_size ) !=0 )
 			{
-				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to half size.\n", __func__);
+				EGI_PLOG(LOGLV_ERROR,"%s: fail to realloc filo buff to half size.", __func__);
 				return -3;
 			}
 			filo->buff_size >>= 1;
-			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is halved to be %d.\n",
+			EGI_PLOG(LOGLV_INFO,"%s: FILO buff_size is halved to be %d.",
 									__func__, filo->buff_size);
 		}
 	}
@@ -206,17 +206,17 @@ int egi_filo_read(EGI_FILO *filo, int pn, void* data)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return -1;
         }
 	/* check buff point */
 	if( filo->pt==0 ) {
-//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.\n",
+//		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.",
 //												__func__);
 		return 1;
 	}
 	if( pn < 0 || pn > filo->pt-1 ) {
-//		EGI_PLOG(LOGLV_ERROR,"%s: input pn is invalid.\n",__func__);
+//		EGI_PLOG(LOGLV_ERROR,"%s: input pn is invalid.",__func__);
 		return -2;
 	}
 
@@ -240,7 +240,7 @@ int egi_filo_itemtotal(EGI_FILO *filo)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
-                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.\n",__func__);
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return 0;
         }
 

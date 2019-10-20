@@ -685,6 +685,18 @@ void mat_create_fpTrigonTab(void)
 }
 
 
+/*--------------------------------------------------------------
+Create fixed point lookup table for  atan()
+angle in degree
+
+fb16 precision is abt.   0.0001, that means 1 deg rotation of
+a 10000_pixel long radius causes only 1_pixel distance error.??
+---------------------------------------------------------------*/
+void mat_create_fpAtanTab(void)
+{
+
+}
+
 /*----------------------------------------------------------------------------------
 Fix point square root for uint32_t, the result is <<16 shifted, so you need to shift
 >>16 back after call to get the right answer.

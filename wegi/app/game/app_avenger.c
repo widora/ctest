@@ -1,12 +1,11 @@
-/*-------------------------------------------------------------------------------------
+/*------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Midas Zhou
 midaszhou@yahoo.com
----------------------------------------------------------------------------------------*/
+-------------------------------------------------------------------*/
 #include "egi_common.h"
 #include "egi_utils.h"
 #include "egi_procman.h"
@@ -64,8 +63,6 @@ int main(int argc, char **argv)
 		goto FF_FAIL;
 	}
 
-	/*  --- 1.1 set FFPLAY Context --- */
-
 	/*  ---  2. EGI PAGE creation  ---  */
 	printf(" Start creating PAGE for FFmotion ....\n");
         /* create page and load the page */
@@ -84,7 +81,7 @@ int main(int argc, char **argv)
         EGI_PLOG(LOGLV_INFO,"%s: Exit routine of [page '%s'], start to free the page...\n",
 		                                                app_name,page_avenger->ebox->tag);
 
-	/* free page */
+	/* --- 3. Free page --- */
 	tm_delayms(2000); /* let page log_calling finish */
         egi_page_free(page_avenger);
 

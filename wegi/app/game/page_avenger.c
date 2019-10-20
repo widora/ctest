@@ -220,8 +220,8 @@ EGI_PAGE *create_avengerPage(void)
 	egi_push_datatxt(ebox_CreditTxt[0], "000", NULL);
 	egi_push_datatxt(ebox_CreditTxt[1], "00:00:00", NULL);
 
-	/* --------- 5. create ffplay page ------- */
-	/* 5.1 create ffplay page */
+	/* --------- 5. create page ------- */
+	/* 5.1 create page */
 	EGI_PAGE *page_avenger=egi_page_new("page_avenger");
 	while(page_avenger==NULL)
 	{
@@ -243,7 +243,7 @@ EGI_PAGE *create_avengerPage(void)
 	page_avenger->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 Set wallpaper */
-        page_avenger->fpath="/mmc/avenger/areana0.jpg";
+        page_avenger->fpath="/mmc/avenger/areana.jpg";
 
 	/* 5.5 Add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* 5.5.1 Add control buttons */

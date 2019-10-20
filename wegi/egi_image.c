@@ -1427,7 +1427,6 @@ EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int angle)
                 return NULL;
         }
 
-
         /* Check whether lookup table fp16_cos[] and fp16_sin[] is generated */
         if( fp16_sin[30] == 0)
                 mat_create_fpTrigonTab();
