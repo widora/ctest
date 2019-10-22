@@ -851,7 +851,7 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 		 * If return to next line
 		 */
 		if(*p=='\n') {
-			printf("%s: ASCII code: Next Line\n", __func__);
+//			printf("%s: ASCII code: Next Line\n", __func__);
 			/* change to next line, +gap */
 			ln++;
 			xleft=pixpl;

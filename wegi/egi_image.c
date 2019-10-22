@@ -1454,7 +1454,7 @@ EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int angle)
 	width |= 0x1;
 	if(height<3)height=3;
 	if(width<3)width=3;
-	printf("Angle=%d, rotated imgbuf: height=%d, width=%d \n", ang, height, width);
+//	printf("Angle=%d, rotated imgbuf: height=%d, width=%d \n", ang, height, width);
 
 	/* Create an imgbuf accordingly */
 	outimg=egi_imgbuf_create( height, width, 0, 0); /* H, W, alpah, color */

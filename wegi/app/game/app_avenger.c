@@ -57,13 +57,14 @@ int main(int argc, char **argv)
 	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
 
+
         /* start touch_read thread */
 	if( egi_start_touchread() != 0 ) {
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to start touch loopread thread!\n", __func__);
 		goto FF_FAIL;
 	}
 
-	/*  ---  2. EGI PAGE creation  ---  */
+	/* ---  2. EGI PAGE creation  --- */
 	printf(" Start creating PAGE for FFmotion ....\n");
         /* create page and load the page */
         page_avenger=create_avengerPage();

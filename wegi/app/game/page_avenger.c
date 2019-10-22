@@ -198,7 +198,7 @@ EGI_PAGE *create_avengerPage(void)
 	        /* For symbols TXT */
 		data_CreditTxt[i]=egi_txtdata_new( 0, 0,    		/* offx,offy from EBOX */
                 	      	               1,                       /* lines */
-                        	               16,                      /* chars per line */
+                        	               18,                      /* chars per line */
                                 	       &sympg_ascii,       	/* font */
 	                                       WEGI_COLOR_WHITE         /* txt color */
         	                      );

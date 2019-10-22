@@ -147,6 +147,7 @@ static void tm_tick_settimer(int us)
 	/* time interval for periodic timer */
 	tm_tick_val.it_interval.tv_sec=0;
 	tm_tick_val.it_interval.tv_usec=us;
+
 	/* use real time */
 	setitimer(ITIMER_REAL,&tm_tick_val,NULL); /* NULL get rid of old time value */
 }

@@ -9,8 +9,10 @@ Midas_Zhou
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
-#include "egi_log.h"
-#include "egi_debug.h"
+#include <malloc.h>
+#include "egi_common.h"
+#include "egi_FTsymbol.h"
+#include "egi_utils.h"
 #include "egi_procman.h"
 
 __attribute__((weak)) const char *app_name="etouch test";
@@ -56,6 +58,68 @@ siginfo_t {
            }
 #endif////////////////////////////////////////////////////////////////////////////
 
+
+
+/*----------------  For APP  ------------------------------
+ Common actions for APP constructor and destructor.
+
+Note: If more than one constructor/destructor funcs exists,
+they will be launched one after another.
+
+----------------------------------------------------------*/
+void __attribute__((constructor)) app_common_constructor(void)
+{
+	char log_path[EGI_PATH_MAX];
+
+	printf("APP %s: start  common constructor...\n", app_name);
+
+        /* Set memory allocation option */
+        mallopt(M_MMAP_MAX,0);          /* forbid calling mmap to allocate mem */
+        mallopt(M_TRIM_THRESHOLD,-1);   /* forbid memory trimming */
+
+        /*  ---  assign signal actions  --- */
+        if(egi_assign_AppSigActions() != 0 ) {
+                printf("Fail to call egi_assign_AppSigActions() for APP %s.\n", app_name);
+                exit(-1);
+	}
+
+        /*  ---  Start systick  --- */
+        tm_start_egitick();
+
+        /*  ---  EGI General Init Jobs  --- */
+	sprintf(log_path,"/mmc/log_%s", app_name);
+        if(egi_init_log(log_path) != 0) {
+                printf("Fail to init logger for APP %s, quit now.\n", app_name);
+                exit(-2);
+        }
+        if(symbol_load_allpages() !=0 ) {
+                printf("Fail to load sym pages for APP %s, quit now.\n", app_name);
+		exit(-3);
+        }
+        if(FTsymbol_load_allpages() !=0 ) {
+                printf("Fail to load FTsym pages for APP %s, quit now.\n", app_name);
+		exit(-4);
+	}
+
+        /* --- FT fonts needs more memory, disable it if not necessary --- */
+        if( FTsymbol_load_appfonts() !=0 ) {
+                printf("Fail to load FTsym fonts for APP %s, quit now.\n", app_name);
+		exit(-5);
+	}
+
+        /* --- Init FB device,for sys displaying --- */
+        if( init_fbdev(&gv_fb_dev) !=0 ) {
+                printf("Fail to initiate FBDEV for APP %s, quit now.\n", app_name);
+		exit(-6);
+	}
+
+}
+
+void __attribute__((destructor)) app_common_destructor(void)
+{
+	printf("APP %s: start common destructor...\n", app_name);
+	/* ... */
+}
 
 
 /*----------------  For APP  -------------------------
