@@ -381,6 +381,10 @@ void avenpage_update_creditTxt(int score, int tick)
 	/* update credit */
 	memset(strtmp,0, sizeof(strtmp));
 	snprintf(strtmp, 32-1, "SCORE: %03d", score);
+	if(score>=0)
+		data_CreditTxt[0]->color=WEGI_COLOR_GREEN;
+	else
+		data_CreditTxt[0]->color=WEGI_COLOR_RED;
 	egi_push_datatxt(ebox_CreditTxt[0], strtmp, NULL);
 	egi_ebox_forcerefresh(ebox_CreditTxt[0]);
 

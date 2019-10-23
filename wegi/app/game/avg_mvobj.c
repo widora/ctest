@@ -12,12 +12,13 @@ Midas Zhou
 
 #define AVG_FIXED_POINT
 
+
 /* --------------------------------------------------------------
 		Create a new mvobj
 
 @icons:		icon collection
 @icon_index:    icon index for the mvobj, as of above icon collection.
-@pxy:		initial coordinate
+@pxy:		initial position/coordinate
 @heading:	heading angle in degree
 @speed:		speed in pixel per refresh
 @trail_mode:	function to parse the trail
@@ -94,7 +95,7 @@ Reset mvobj speed to a random value.
 -----------------------------------------------*/
 inline int avg_random_speed(void)
 {
-        return egi_random_max(5)+1;
+        return egi_random_max(10)+2;
 }
 
 
@@ -164,6 +165,9 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 	if(plane==NULL)
 		return -1;
 
+	/* reset refcnt */
+	plane->refcnt=0;
+
 	/* Start point,  from to of the screen, screen Y=0  -25  */
 	plane->pxy.x=egi_random_max(240+50)-25;
 	plane->pxy.y=0-25;
@@ -208,6 +212,7 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 		default:
 			fbset_color(WEGI_COLOR_WHITE); break;
 	}
+  #if 0 /* -------- Draw initial heading line --------  */
     //fb_filo_off(&gv_fb_dev);
 	#ifdef AVG_FIXED_POINT  /* use plane->fvpx */
 	draw_wline(&gv_fb_dev, (plane->fvpx.num)>>MATH_DIVEXP, (plane->fvpy.num)>>MATH_DIVEXP,
@@ -216,6 +221,8 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 	draw_wline(&gv_fb_dev, plane->pxy.x, plane->pxy.y, endx, endy, 1+egi_random_max(5));
 	#endif
     //fb_filo_on(&gv_fb_dev);
+  #endif /*---------------------------------------*/
+
 #endif
 
 	/* ---------- Set Heading Angle ------------
@@ -254,8 +261,6 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 }
 
 
-
-
 /*---------------------------------------------------------
 		Renew a bullet
 Chane param and start trail from a gun station.
@@ -276,6 +281,9 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 	/* A gun station to fire the bullet. */
 	AVG_MVOBJ *station=bullet->station;
 
+	/* reset refcnt */
+	bullet->refcnt=0;
+
 	/* Position: Integer */
 	bullet->pxy=station->pxy;
 
@@ -291,7 +299,7 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 
 	/* Set bullet speed */
 	bullet->vang=0;
-	bullet->speed=-15; /* direction  SCREEN -Y */
+	bullet->speed=-15; /* */
 
 	/* Set heading */
 	bullet->heading=station->heading;
@@ -307,7 +315,6 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 
 
 
-
 /*-----------------------------------------------------------
 		A heading line trail
 
@@ -316,7 +323,7 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
    Use float type otherwise to improve the precision.
 
 ------------------------------------------------------------*/
-int fly_trail(AVG_MVOBJ *mvobj)
+int plane_trail(AVG_MVOBJ *mvobj)
 {
 	int ang;	/* heading angle [0 360] */
 	int asign;	/* -1 if ang<0,  1 otherwise */
@@ -392,57 +399,72 @@ int fly_trail(AVG_MVOBJ *mvobj)
    Use float type otherwise to improve the precision.
 
 ------------------------------------------------------------*/
-int bullet_trail(AVG_MVOBJ *mvobj)
+int bullet_trail(AVG_MVOBJ *bullet)
 {
 	int ang;	/* heading angle [0 360] */
 	int asign;	/* -1 if ang<0,  1 otherwise */
 
-	if(mvobj==NULL)
+	if(bullet==NULL)
 		return -1;
 
 	/* 1. update heading */
-	mvobj->heading += mvobj->vang;	/* degree per refresh */
+	bullet->heading += bullet->vang;	/* degree per refresh */
 
         /* 2. Normalize heading angle to be within [0-360] */
-        ang=(mvobj->heading)%360;      /* !!! WARING !!!  The result is depended on the Compiler */
+        ang=(bullet->heading)%360;      /* !!! WARING !!!  The result is depended on the Compiler */
         asign= ang >= 0 ? 1 : -1; /* angle sign for sin */
         ang= ang>=0 ? ang : -ang ;
 
-	/* 3. Update mvobj position */
-#ifdef AVG_FIXED_POINT	/* 1.3 Fixed point for sin()/cons() AND mvobj->fvxy */
-	mvobj->fvpx.num += mvobj->speed*asign*fp16_sin[ang]>>(16-MATH_DIVEXP);
-	mvobj->fvpy.num += mvobj->speed*fp16_cos[ang]>>(16-MATH_DIVEXP);
+	/* 3. Update bullet position */
+#ifdef AVG_FIXED_POINT	/* 1.3 Fixed point for sin()/cons() AND bullet->fvxy */
+	bullet->fvpx.num += bullet->speed*asign*fp16_sin[ang]>>(16-MATH_DIVEXP);
+	bullet->fvpy.num += bullet->speed*fp16_cos[ang]>>(16-MATH_DIVEXP);
 
-#else 	/*  Float type for mvobj->fpx AND sin()/cos() */
-	mvobj->fpx += mvobj->speed*sin(mvobj->heading/180.0*MATH_PI);
-	mvobj->pxy.x = mvobj->fpx;
+#else 	/*  Float type for bullet->fpx AND sin()/cos() */
+	bullet->fpx += bullet->speed*sin(bullet->heading/180.0*MATH_PI);
+	bullet->pxy.x = bullet->fpx;
 
-	mvobj->fpy -= mvobj->speed*cos(mvobj->heading/180.0*MATH_PI);
-	mvobj->pxy.y = mvobj->fpy;
+	bullet->fpy -= bullet->speed*cos(bullet->heading/180.0*MATH_PI);
+	bullet->pxy.y = bullet->fpy;
 #endif
 
 	/* 4. Check if it's out of visible region, then renew it to starting position.
 	 *    active zone { (-55,-55), (295,375) }
 	 */
-#ifdef AVG_FIXED_POINT  /* use mvobj->fvpx/fvpy */
-	if( (mvobj->fvpx.num>>MATH_DIVEXP) < 0-100 ||  (mvobj->fvpx.num>>MATH_DIVEXP) > 240+100
-			|| (mvobj->fvpy.num>>MATH_DIVEXP) < 0-55 || (mvobj->fvpy.num>>MATH_DIVEXP) > 320 + 55 )
+#ifdef AVG_FIXED_POINT  /* use bullet->fvpx/fvpy */
+	if( (bullet->fvpx.num>>MATH_DIVEXP) < 0-100 ||  (bullet->fvpx.num>>MATH_DIVEXP) > 240+100
+			|| (bullet->fvpy.num>>MATH_DIVEXP) < 0-55 || (bullet->fvpy.num>>MATH_DIVEXP) > 320 + 55
+			|| (bullet->fvpy.num>>MATH_DIVEXP) > 320-30   )  /* OR in rest */
 	{
-		avg_renew_bullet(mvobj);
+		if(bullet->renew_method != NULL) {
+			/* Wait for interval time between two bullet, then renew(re_launch) it. */
+			if( bullet->station->refcnt/8%4 == bullet->id ) /* 4 bullets totally */
+				bullet->renew_method(bullet);
+			/* Put it in storage  */
+			else {
+				/* For bullets that not in storage */
+				if( bullet->fvpy.num>>MATH_DIVEXP < 320-30 ) {
+					bullet->fvpy.num=(320-10)<<MATH_DIVEXP;  /* Move to storage */
+					bullet->fvpx.num=(10*bullet->id+10)<<MATH_DIVEXP;  /* Move to storage */
+					bullet->heading=0;			 /* up_right */
+					bullet->speed=0;
+				}
+			}
+		}
 
         }
-#else  /* use mvobj->pxy instead */
-	if( mvobj->pxy.x < 0-55 || mvobj->pxy.x > 240+55
-				|| mvobj->pxy.y < 0-55 || mvobj->pxy.y > 320 + 55 )
+#else  /* use bullet->pxy instead */
+	if( bullet->pxy.x < 0-55 || bullet->pxy.x > 240+55
+				|| bullet->pxy.y < 0-55 || bullet->pxy.y > 320 + 55 )
 	{
-		//avg_renew_bullet(mvobj, NULL);
-
+		if(bullet->renew_method != NULL)
+			bullet->renew_method(bullet);
         }
 #endif
 
         /* 5. Update actimg, Create actimg according to heading */
-	egi_imgbuf_free(mvobj->actimg); mvobj->actimg=NULL;
-       	mvobj->actimg=egi_imgbuf_rotate(mvobj->refimg, -mvobj->heading); /* Here clockwise is positive */
+	egi_imgbuf_free(bullet->actimg); bullet->actimg=NULL;
+       	bullet->actimg=egi_imgbuf_rotate(bullet->refimg, -bullet->heading); /* Here clockwise is positive */
 
 	return 0;
 }
@@ -454,8 +476,6 @@ int bullet_trail(AVG_MVOBJ *mvobj)
 -----------------------------------------*/
 int turn_trail(AVG_MVOBJ *mvobj)
 {
-	int ang;	/* heading angle [0 360] */
-
 	if(mvobj==NULL)
 		return -1;
 
@@ -488,17 +508,22 @@ int refresh_mvobj(AVG_MVOBJ *mvobj)
 	if(mvobj==NULL || mvobj->icons==NULL)
 		return -1;
 
+	/* increase refresh count */
+	mvobj->refcnt++;
+
 	/* If hit, show special effect */
 	if(mvobj->is_hit) {
 		/* Show hit effect stage by stage */
-		if(mvobj->hit_effect != NULL)
+		if(mvobj->hit_effect != NULL) {
 			mvobj->hit_effect(mvobj);
+		}
 
 		/* End of stages, renew the mvobj then */
 		if( mvobj->stage > mvobj->effect_stages-1 ) {
-			/* TODO: renew method for defferent mvobjs */
-			//avg_renew_mvobj(mvobj);
-			avg_renew_plane(mvobj);
+
+			/* --- renew method for defferent types of mvobjs --- */
+			if(mvobj->renew_method != NULL)
+				mvobj->renew_method(mvobj);
 		}
 
 		return 0;
@@ -508,8 +533,7 @@ int refresh_mvobj(AVG_MVOBJ *mvobj)
 	if(mvobj->trail_mode != NULL)
 		mvobj->trail_mode(mvobj);
 
-	/* Refresh active image one the trail */
-
+	/* Refresh active image on the trail */
 #ifdef AVG_FIXED_POINT /* Use mvobj->fvpx/fvpy */
         egi_imgbuf_windisplay( 	mvobj->actimg, &gv_fb_dev, -1,           /* img, fb, subcolor */
        	                       	0, 0,					 /* xp, yp */
@@ -533,9 +557,10 @@ int refresh_mvobj(AVG_MVOBJ *mvobj)
 --------------------------*/
 void game_readme(void)
 {
+	/* title */
 	const wchar_t *title=L"AVENGER V1.0";
 
-	/* Following will produce 4 RETURE codes */
+	/* README */
 	const wchar_t *readme=L"    复仇之箭 made by EGI\n \
  运行平台 WIDORA_NEO \n \
    更猛烈的一波攻击来袭! \n \n \
@@ -546,14 +571,14 @@ void game_readme(void)
                                           24, 24, title,                /* fw,fh, pstr */
                                           240, 1,  6,                   /* pixpl, lines, gap */
                                           30, 60,                      /* x0,y0, */
-                                          WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, stranscolor,opaque */
+                                          WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor,opaque */
 
 	/* README */
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,   /* FBdev, fontface */
                                           18, 18, readme,                /* fw,fh, pstr */
                                           240, 6,  7,                    /* pixpl, lines, gap */
                                           0, 100,                        /* x0,y0, */
-                                          WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, stranscolor,opaque */
+                                          WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, transcolor,opaque */
 
 }
 

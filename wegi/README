@@ -93,7 +93,7 @@ egi_pic.c	type_pic ebox
 egi_iwinfo.c	wifi info. extraction
 egi_procman.c   subprocess handling and its signal actions.
 
-sys_list.h	from list operation derived from Linux kernel codes. 
+sys_list.h	list operation derived from Linux kernel codes. 
 
 
 			( --- 3.2 Derived EBOXs --- )
@@ -108,7 +108,7 @@ egi_pagehome.c		PAGE home
 egi_pagemplay.c	        PAGE mplayer
 egi_pageopenwrt.c	PAGE openwrt info.
 egi_pagetest.c		PAGE test
-egi_pageslide.c		PAGE sliding bar test
+egi_pageslide.c		PAGE sliding bar test (obselete)
 
 
 			( --- 3.4 APP Engines  --- )
@@ -121,8 +121,8 @@ he_weather.c		API for www.heweather.com
 
 app_ffplay.c + egi_pageffplay.c		
 app_ebook.c + page_ebook.c
-app_ffmusic.c + page_ffmusic.c <
-
+app_ffmusic.c + page_ffmusic.c 
+app_avenger.c + page_avenger.c + ...
 
 
 
@@ -132,10 +132,10 @@ libubus,
 libpng, libjpeg, 
 libasound,
 libjson-c, 
-libffmpeg,		
+libfreetype2
+libffmpeg,		/* Option,  for FFMUSIC and FFMOTION */
 libshine,		/* Option,  for fixed point MP3 enconding */
 libcurl,		/* Option,  for HTTP and HTTPS */ 
-libfreetype2
 ... ... 
 
 			-----  5. OTHERS  -----
@@ -151,5 +151,6 @@ FB device		Create a FB device according to https://www.widora.io/zh/ips
 
 Midas Zhou
 midaszhou@yahoo.com
+
 
 Don't forget why we start! ---Just for FUN!

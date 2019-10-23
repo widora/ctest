@@ -15,9 +15,10 @@ Midas Zhou
 
 
 typedef struct avg_mvobj_data AVG_MVOBJ; /* movable object */
-
-
 struct avg_mvobj_data {
+	unsigned int		id;		/* Identity number */
+	unsigned long int   refcnt;		/* Refresh count */
+
 	/* Icons and images */
   const	EGI_IMGBUF	*icons;	 		/* Icons collection */
 	int		icon_index;	 	/* Index of the icons for the mvobj image */
@@ -28,10 +29,10 @@ struct avg_mvobj_data {
 	AVG_MVOBJ	*station;		/* A station, as a ref. obj to the mvobj */
 
 	/* Position, center of the mvobj */
-	EGI_POINT	pxy;	 		/* Current position, image center hopefully.*/
+	EGI_POINT	pxy;	 		/* Current position in integer, image center hopefully.*/
 	float		fpx;			/* Coord. in float, to improve calculation precision  */
 	float		fpy;
-	EGI_FVAL	fvpx;			/* Fixed point for pxy.x */
+	EGI_FVAL	fvpx;			/* Fixed point value for pxy.x */
 	EGI_FVAL	fvpy;
 
 	/* Heading & Speed */
@@ -46,8 +47,16 @@ struct avg_mvobj_data {
 	/* Trail mode */
 	int (*trail_mode)(AVG_MVOBJ *);  	/* Method to refresh trail
 						 * Jobs:
-						 *	1. Update positon AND heading of the mvobj
-						 *	2. Check if its out of visible region. then renew it.
+						 *	1. Update params(positon/heading/vang...) of the mvobj.
+						 *	2. Check if its out of visible region. then renew the
+						 *	   mvobj or destroy it.
+						 *	3. Update actimg and/or refimg.
+						 */
+
+	/* Renew mode */
+	int (*renew_method)(AVG_MVOBJ *);	/* Method to renew a mvobj
+						 * 	1. Reset necessary parameters.
+						 *	2. Reset refimg and/or actimg.
 						 */
 
 	/* For hit effect */
@@ -66,15 +75,21 @@ AVG_MVOBJ* avg_create_mvobj(    EGI_IMGBUF *icons,  int icon_index,
 				int (*trail_mode)(AVG_MVOBJ *)
 			    );
 
-inline int avg_random_speed(void);
 void 	avg_destroy_mvobj(AVG_MVOBJ **mvobj);
+
 int 	avg_effect_exploding(AVG_MVOBJ *mvobj);
-int 	avg_renew_plane(AVG_MVOBJ *plane);
+
 int 	upward_trail(AVG_MVOBJ *mvobj);
-int 	fly_trail(AVG_MVOBJ *plane);
+int 	plane_trail(AVG_MVOBJ *plane);
 int 	bullet_trail(AVG_MVOBJ *mvobj);
 int 	turn_trail(AVG_MVOBJ *mvobj);
+
+int 	avg_renew_plane(AVG_MVOBJ *plane);
+int 	avg_renew_bullet(AVG_MVOBJ *bullet);
+
 int 	refresh_mvobj(AVG_MVOBJ *mvobj);
+
+inline int avg_random_speed(void);
 void 	game_readme(void);
 
 #endif
