@@ -442,8 +442,8 @@ EGI_FCOMPLEX *mat_CompFFTAng(uint16_t np)
 /*-------------------------------------------------------------------------------------
 Fixed point Fast Fourier Transform
 
-     !!! --- WARNING: Static arrays applied, for one running thread only --- !!!
-
+     !!! --- WARNING: Static arrays applied, for one running instance only --- !!!
+		( Use variable length arrays instead ??!?!?! )
 Parameter:
 @np:    Total number of data for FFT, will be ajusted to a number of 2 powers;
         np=1, result is 0!
@@ -482,15 +482,15 @@ Note:
                 Ok, with reduced precision as you decrease MATH_DIVEXP !!!!!
 
 5. So,you have to balance between data precision, data scope and number of sample points(np)
-   ,which also decides Min. analysis frequency.
+   , which also decides Min. analysis frequency.
 
 
 			  	-----	TBD & TODO ?   -----
 
 	Frequent dynamic memory allocating will create huge numbers of memory
-	fregments, which will slow down next memory allocating speed, and further
+	fregments????(doublt!), which will slow down next memory allocating speed, and further
 	to deteriorate system operation.
-	It's better to apply static memory allocation method.
+	It's better to apply static memory allocation method. (variable length arrays ?!?!)
 
 	!!! --- WARNING: Static memory allocation, for one instance only --- !!!
 

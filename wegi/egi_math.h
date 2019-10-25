@@ -37,7 +37,8 @@ EGI_FVAL       imag;	/* imaginery part */
 
 /* create a fix value */
 /* (a) is float */
-#define MAT_FVAL(a) ( (EGI_FVAL){ (a)*(1U<<MATH_DIVEXP), MATH_DIVEXP} )
+#define MAT_FVAL(a) ( (EGI_FVAL){ (a)*(1U<<MATH_DIVEXP), MATH_DIVEXP} ) /* 1U */
+
 /* (a) is INT, suppose left bit_shift is also arithmatic !!! */
 #define MAT_FVAL_INT(a) ( (EGI_FVAL){ a<<MATH_DIVEXP, MATH_DIVEXP} )
 

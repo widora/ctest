@@ -190,7 +190,7 @@ EGI_PAGE *create_avengerPage(void)
 	/* position of txt ebox */
 	tmX0[0]=0;
 	tmY0[0]=5;
-	tmX0[1]=240-70;
+	tmX0[1]=240-90;
 	tmY0[1]=5;
 
 	/* create playing time TXT EBOX for sliding bar */
@@ -203,7 +203,7 @@ EGI_PAGE *create_avengerPage(void)
 	                                       WEGI_COLOR_WHITE         /* txt color */
         	                      );
 		/* create volume EBOX */
-        	ebox_CreditTxt[i]=egi_txtbox_new( i==0?"score":"time",    	/* tag */
+        	ebox_CreditTxt[i]=egi_txtbox_new( i==0?"score":"level",    	/* tag */
                                      data_CreditTxt[i],     	/* EGI_DATA_TXT pointer */
                                      true,              	/* bool movable */
                                      tmX0[i], tmY0[i],  	/* int x0, int y0 */
@@ -217,8 +217,8 @@ EGI_PAGE *create_avengerPage(void)
 	ebox_CreditTxt[1]->id=TIME_TXT1_ID;
 
 	/* initial value in tmtxt */
-	egi_push_datatxt(ebox_CreditTxt[0], "000", NULL);
-	egi_push_datatxt(ebox_CreditTxt[1], "00:00:00", NULL);
+	egi_push_datatxt(ebox_CreditTxt[0], "SCORE: ", NULL);
+	egi_push_datatxt(ebox_CreditTxt[1], "Level: ", NULL);
 
 	/* --------- 5. create page ------- */
 	/* 5.1 create page */
@@ -243,7 +243,8 @@ EGI_PAGE *create_avengerPage(void)
 	page_avenger->page_refresh_misc=refresh_misc; /* random colro for btn */
 
         /* 5.4 Set wallpaper */
-        page_avenger->fpath="/mmc/avenger/areana.jpg";
+        //page_avenger->fpath="/mmc/avenger/areana.jpg";
+	page_avenger->ebox->frame_img=egi_imgbuf_readfile("/mmc/avenger/scene/areana.jpg");
 
 	/* 5.5 Add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* 5.5.1 Add control buttons */
@@ -373,10 +374,9 @@ void  avenpage_update_title(const unsigned char *title)
 Update credit txt.
 
 -------------------------------------------------------*/
-void avenpage_update_creditTxt(int score, int tick)
+void avenpage_update_creditTxt(int score, int level)
 {
 	char strtmp[64];
-	int tm_h,tm_min,tm_sec;
 
 	/* update credit */
 	memset(strtmp,0, sizeof(strtmp));
@@ -388,13 +388,9 @@ void avenpage_update_creditTxt(int score, int tick)
 	egi_push_datatxt(ebox_CreditTxt[0], strtmp, NULL);
 	egi_ebox_forcerefresh(ebox_CreditTxt[0]);
 
-	/* update time */
-        tm_h=tick/3600;
-        tm_min=(tick-tm_h*3600)/60;
-        tm_sec=tick%60;
-
+	/* update level */
 	memset(strtmp,0, sizeof(strtmp));
-	snprintf(strtmp, 32-1, "%02d:%02d:%02d", tm_h, tm_min, tm_sec);
+	snprintf(strtmp, 32-1, "LEVEL: %d", level);
 	egi_push_datatxt(ebox_CreditTxt[1], strtmp, NULL);
 	egi_ebox_forcerefresh(ebox_CreditTxt[1]);
 }

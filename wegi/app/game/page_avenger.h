@@ -10,7 +10,7 @@ Midas Zhou
 #define __PAGE_AVENGER_H__
 
 EGI_PAGE *create_avengerPage(void);
-void 	avenpage_update_creditTxt(int score, int tick);
+void 	avenpage_update_creditTxt(int score, int level);
 void 	free_avengerPage(void);
 
 #endif

@@ -90,6 +90,5 @@ int 	avg_renew_bullet(AVG_MVOBJ *bullet);
 int 	refresh_mvobj(AVG_MVOBJ *mvobj);
 
 inline int avg_random_speed(void);
-void 	game_readme(void);
 
 #endif

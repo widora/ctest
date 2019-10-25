@@ -59,10 +59,12 @@ int main(int argc, char **argv)
 
 
         /* start touch_read thread */
+	#if 1
 	if( egi_start_touchread() != 0 ) {
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to start touch loopread thread!\n", __func__);
 		goto FF_FAIL;
 	}
+	#endif
 
 	/* ---  2. EGI PAGE creation  --- */
 	printf(" Start creating PAGE for FFmotion ....\n");

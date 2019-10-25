@@ -77,8 +77,8 @@ AVG_MVOBJ* avg_create_mvobj(    EGI_IMGBUF *icons,  int icon_index,
 	mvobj->fpx=pxy.x;	/* Position: Float type */
 	mvobj->fpy=pxy.y;
 
-	mvobj->fvpx=MAT_FVAL(mvobj->pxy.x); /* Position: Fixed point value */
-	mvobj->fvpy=MAT_FVAL(mvobj->pxy.y);
+	mvobj->fvpx=MAT_FVAL_INT(mvobj->pxy.x); /* Position: Fixed point value */
+	mvobj->fvpy=MAT_FVAL_INT(mvobj->pxy.y);
 
 	mvobj->heading=heading;
 	mvobj->speed=speed;
@@ -432,22 +432,26 @@ int bullet_trail(AVG_MVOBJ *bullet)
 	 *    active zone { (-55,-55), (295,375) }
 	 */
 #ifdef AVG_FIXED_POINT  /* use bullet->fvpx/fvpy */
+			/* Which are out of sight */
 	if( (bullet->fvpx.num>>MATH_DIVEXP) < 0-100 ||  (bullet->fvpx.num>>MATH_DIVEXP) > 240+100
 			|| (bullet->fvpy.num>>MATH_DIVEXP) < 0-55 || (bullet->fvpy.num>>MATH_DIVEXP) > 320 + 55
-			|| (bullet->fvpy.num>>MATH_DIVEXP) > 320-30   )  /* OR in rest */
+			/* Or in storage */
+			|| (bullet->fvpy.num>>MATH_DIVEXP) > 320-30   )
 	{
 		if(bullet->renew_method != NULL) {
-			/* Wait for interval time between two bullet, then renew(re_launch) it. */
-			if( bullet->station->refcnt/8%4 == bullet->id ) /* 4 bullets totally */
+			/* Wait for interval time between two bullet, then renew(re_launch) it.
+			 * 5_refresh interval between two fires.
+			 */
+			if( bullet->station->refcnt/5%4 == bullet->id ) /* 4/8 active bullets totally */
 				bullet->renew_method(bullet);
 			/* Put it in storage  */
 			else {
 				/* For bullets that not in storage */
 				if( bullet->fvpy.num>>MATH_DIVEXP < 320-30 ) {
-					bullet->fvpy.num=(320-10)<<MATH_DIVEXP;  /* Move to storage */
-					bullet->fvpx.num=(10*bullet->id+10)<<MATH_DIVEXP;  /* Move to storage */
-					bullet->heading=0;			 /* up_right */
-					bullet->speed=0;
+/* Move to storage Y */		     bullet->fvpy.num=(320-10)<<MATH_DIVEXP;
+/* Move to storage X */ 	     bullet->fvpx.num=( 10*bullet->id+15+(bullet->id/4*140 ) )<<MATH_DIVEXP;
+				     bullet->heading=0;			 /* up_right */
+				     bullet->speed=0;
 				}
 			}
 		}
@@ -486,10 +490,10 @@ int turn_trail(AVG_MVOBJ *mvobj)
 	 * 30 deg. is accumulated by angular speed. it's not default heading angle.
 	 */
 	if( mvobj->heading > 60  ) {
-		mvobj->vang=egi_random_max(3)-4;
+		mvobj->vang=-6; //egi_random_max(3)-4;
 	}
 	else if( mvobj->heading < -60 ) {
-		mvobj->vang=egi_random_max(3);
+		mvobj->vang=6;//egi_random_max(3);
 	}
 
         /* 1. Rotate the object:  update actimg, Create actimg according to heading */
@@ -551,36 +555,6 @@ int refresh_mvobj(AVG_MVOBJ *mvobj)
 	return 0;
 }
 
-
-/*--------------------------
-	Game README
---------------------------*/
-void game_readme(void)
-{
-	/* title */
-	const wchar_t *title=L"AVENGER V1.0";
-
-	/* README */
-	const wchar_t *readme=L"    复仇之箭 made by EGI\n \
- 运行平台 WIDORA_NEO \n \
-   更猛烈的一波攻击来袭! \n \n \
-	            READY?!!";
-
-        /*  title  */
-        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
-                                          24, 24, title,                /* fw,fh, pstr */
-                                          240, 1,  6,                   /* pixpl, lines, gap */
-                                          30, 60,                      /* x0,y0, */
-                                          WEGI_COLOR_GRAYC, -1, -1 );     /* fontcolor, transcolor,opaque */
-
-	/* README */
-        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,   /* FBdev, fontface */
-                                          18, 18, readme,                /* fw,fh, pstr */
-                                          240, 6,  7,                    /* pixpl, lines, gap */
-                                          0, 100,                        /* x0,y0, */
-                                          WEGI_COLOR_GRAYC, -1, -1 );      /* fontcolor, transcolor,opaque */
-
-}
 
 
 
