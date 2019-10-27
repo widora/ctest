@@ -36,7 +36,10 @@ recmp3: recmp3.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o recmp3 recmp3.c
 
 test_snd: test_snd.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_snd test_snd.c
+	$(CC) -o test_snd test_snd.c $(CFLAGS) $(LDFLAGS) $(LIBS) -lesound
+
+sndfile-to-text: sndfile-to-text.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o sndfile-to-text sndfile-to-text.c
 
 test_tone: test_tone.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o test_tone test_tone.c

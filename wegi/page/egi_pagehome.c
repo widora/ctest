@@ -625,7 +625,7 @@ static void update_weathericon(EGI_PAGE *page)
 
 SLEEP_WAITING:
 //	printf("%s: Start Delay or Sleep ....\n",__func__);
-	egi_sleep(0,10,0); /* 3s */
+	egi_sleep(0,5,0); /* 3s */
 
 	/* handler for signal_suspend, If get suspend_signal,wait until runner_cond comes.
 	 * !!! Meaningless, since the period of thread loop is too big!

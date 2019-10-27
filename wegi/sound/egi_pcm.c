@@ -76,19 +76,28 @@ Midas Zhou
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <inttypes.h>
+#include <sndfile.h>
 #include "egi_pcm.h"
 #include "egi_log.h"
 #include "egi_debug.h"
 #include "egi_timer.h"
 #include "egi_cstring.h"
 
+
+/* --- For system PCM PLAY/CAPTURE -- */
 static snd_pcm_t *g_ffpcm_handle;	/* for PCM playback */
 static snd_mixer_t *g_volmix_handle; 	/* for volume control */
 static bool g_blInterleaved;		/* Interleaved or Noninterleaved */
 static char g_snd_device[256]; 		/* Pending, use "default" now. */
+static int period_size;			/* period size of HW, in frames. */
 
 /*-------------------------------------------------------------------------------
  Open an PCM device and set following parameters:
+
+@nchan:			number of channels
+@srate:			sample rate
+@bl_interleaved:	TRUE/FALSE for interleaved/non-interleaved data
 
  1.  access mode:		(SND_PCM_ACCESS_RW_INTERLEAVED)
  2.  PCM format:		(SND_PCM_FORMAT_S16_LE)
@@ -161,11 +170,22 @@ int egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_inter
 
 	/* get period size */
 	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
-//	EGI_PDEBUG(DBG_NONE, "%s: snd pcm period size = %d frames\n",__func__, (int)frames);
-	printf("%s: snd pcm period size = %d frames\n",__func__, (int)frames);
+	period_size=(int)frames;
+//	EGI_PDEBUG(DBG_NONE, "snd pcm period size = %d frames\n", (int)frames);
+	EGI_PLOG(LOGLV_CRITICAL,"%s: snd pcm period size = %d frames.", __func__, (int)frames);
+	printf("%s: snd pcm period size = %d frames.\n", __func__, (int)frames);
 
 	return rc;
 }
+
+/*----------------------------------------------
+	Return period size of the PCM HW
+----------------------------------------------*/
+int egi_pcm_period_size(void)
+{
+	return period_size;
+}
+
 
 /*----------------------------------------------
   close pcm device and free resources
@@ -545,3 +565,314 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 }
 
 
+
+
+/*-----------------------------------------------------------------------------------
+Open a PLAYBACK device and set params.
+
+@dev_name:		name of PCM device, Example: "default", "plughw:0,0"
+@sformat:	 	Sample format, Example: SND_PCM_FORMAT_S16_LE
+@access_type:		PCM access type, Exmple: SND_PCM_ACCESS_RW_INTERLEAVED
+@soft_resample:		0 = disallow alsa-lib resample stream, 1 = allow resampling
+@nchanl:		Number of channels
+@srate:		 	Sample rate
+@latency:		required overall latency in us
+
+Return:
+	A poiter to snd_pcm_t	OK
+	NULL			Fails
+------------------------------------------------------------------------------------*/
+snd_pcm_t*  egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sformat,
+					snd_pcm_access_t access_type, bool soft_resample,
+					unsigned int nchanl, unsigned int srate, unsigned int latency
+				    )
+{
+	snd_pcm_t *pcm_handle=NULL;
+
+        /* open pcm play device */
+        if( snd_pcm_open(&pcm_handle, dev_name, SND_PCM_STREAM_PLAYBACK, 0) <0 ) {
+                printf("%s: Fail to open PCM device '%s'.\n",__func__, dev_name);
+                return NULL;
+        }
+
+        /* set params for pcm play handle */
+        if( snd_pcm_set_params( pcm_handle, sformat, access_type,
+                                nchanl, srate, soft_resample, latency )  <0 ) {
+                printf("%s: Fail to set params for pcm handle.!\n",__func__);
+                snd_pcm_close(pcm_handle);
+                return NULL;
+        }
+
+	return pcm_handle;
+}
+
+
+/*--------------------------------------------------------------
+Create an EGI_PCMBUF with given paramters
+
+@size:	   	in bytes, size of buff in EGI_PCMBUF
+@nchanl:   	number of channles
+@srate:	   	sample rate
+@sformat:  	sample format,Example: SND_PCM_FORMAT_S16_LE
+@access_type:   access type,Exmple: SND_PCM_ACCESS_RW_INTERLEAVED
+
+Return:
+	A poiter to EGI_PCMBUF	OK
+	NULL			Fails
+---------------------------------------------------------------*/
+EGI_PCMBUF* egi_pcmbuf_create(  unsigned long size, unsigned int nchanl, unsigned int srate,
+				snd_pcm_format_t sformat, snd_pcm_access_t access_type )
+{
+	EGI_PCMBUF* pcmbuf=NULL;
+
+	if( size==0 || nchanl==0 ||srate==0)
+		return NULL;
+
+	pcmbuf=calloc(1, sizeof(EGI_PCMBUF));
+	if(pcmbuf==NULL)
+		return NULL;
+
+	pcmbuf->pcmbuf=calloc(1, size);
+	if(pcmbuf->pcmbuf==NULL) {
+		free(pcmbuf);
+		return NULL;
+	}
+
+	/* Assign members */
+	pcmbuf->size=size;
+	pcmbuf->nchanl=nchanl;
+	pcmbuf->srate=srate;
+	pcmbuf->sformat=sformat;
+	pcmbuf->access_type=access_type;
+
+	/* For depth, Only support U8,S8,S16 NOW... TODO */
+	if(sformat<2)
+		pcmbuf->depth=1;
+	else
+		pcmbuf->depth=2;
+
+	return pcmbuf;
+}
+
+
+/*--------------------------------------
+	Free an EGI_PCMBUF
+--------------------------------------*/
+void egi_pcmbuf_free(EGI_PCMBUF **pcmbuf)
+{
+	if(pcmbuf==NULL || *pcmbuf==NULL)
+		return;
+
+	if( (*pcmbuf)->pcmbuf != NULL )
+		free((*pcmbuf)->pcmbuf);
+
+	free(*pcmbuf);
+	*pcmbuf=NULL;
+}
+
+/* -------------- For Libsndfile ------------------*/
+
+#define SF_CONTAINER(x)         ((x) & SF_FORMAT_TYPEMASK)
+#define SF_CODEC(x)                     ((x) & SF_FORMAT_SUBMASK)
+#define CASE_NAME(x)            case x : return #x ; break ;
+
+static const char* str_of_major_format(int format)
+{
+        switch (SF_CONTAINER (format))
+        {       CASE_NAME (SF_FORMAT_WAV) ;
+                CASE_NAME (SF_FORMAT_AIFF) ;
+                CASE_NAME (SF_FORMAT_AU) ;
+                CASE_NAME (SF_FORMAT_RAW) ;
+                CASE_NAME (SF_FORMAT_PAF) ;
+                CASE_NAME (SF_FORMAT_SVX) ;
+                CASE_NAME (SF_FORMAT_NIST) ;
+                CASE_NAME (SF_FORMAT_VOC) ;
+                CASE_NAME (SF_FORMAT_IRCAM) ;
+                CASE_NAME (SF_FORMAT_W64) ;
+                CASE_NAME (SF_FORMAT_MAT4) ;
+                CASE_NAME (SF_FORMAT_MAT5) ;
+                CASE_NAME (SF_FORMAT_PVF) ;
+                CASE_NAME (SF_FORMAT_XI) ;
+                CASE_NAME (SF_FORMAT_HTK) ;
+                CASE_NAME (SF_FORMAT_SDS) ;
+                CASE_NAME (SF_FORMAT_AVR) ;
+                CASE_NAME (SF_FORMAT_WAVEX) ;
+                CASE_NAME (SF_FORMAT_SD2) ;
+                CASE_NAME (SF_FORMAT_FLAC) ;
+                CASE_NAME (SF_FORMAT_CAF) ;
+                CASE_NAME (SF_FORMAT_WVE) ;
+                CASE_NAME (SF_FORMAT_OGG) ;
+                default :
+                        break ;
+          } ;
+
+        return "BAD_MAJOR_FORMAT" ;
+} /* ----------- str_of_major_format ------------- */
+
+static const char* str_of_minor_format (int format)
+{
+        switch (SF_CODEC (format) )
+	{
+                CASE_NAME (SF_FORMAT_PCM_S8) ;
+                CASE_NAME (SF_FORMAT_PCM_16) ;
+                CASE_NAME (SF_FORMAT_PCM_24) ;
+                CASE_NAME (SF_FORMAT_PCM_32) ;
+                CASE_NAME (SF_FORMAT_PCM_U8) ;
+                CASE_NAME (SF_FORMAT_FLOAT) ;
+                CASE_NAME (SF_FORMAT_DOUBLE) ;
+                CASE_NAME (SF_FORMAT_ULAW) ;
+                CASE_NAME (SF_FORMAT_ALAW) ;
+                CASE_NAME (SF_FORMAT_IMA_ADPCM) ;
+                CASE_NAME (SF_FORMAT_MS_ADPCM) ;
+                CASE_NAME (SF_FORMAT_GSM610) ;
+                CASE_NAME (SF_FORMAT_VOX_ADPCM) ;
+                CASE_NAME (SF_FORMAT_G721_32) ;
+                CASE_NAME (SF_FORMAT_G723_24) ;
+                CASE_NAME (SF_FORMAT_G723_40) ;
+                CASE_NAME (SF_FORMAT_DWVW_12) ;
+                CASE_NAME (SF_FORMAT_DWVW_16) ;
+                CASE_NAME (SF_FORMAT_DWVW_24) ;
+                CASE_NAME (SF_FORMAT_DWVW_N) ;
+                CASE_NAME (SF_FORMAT_DPCM_8) ;
+                CASE_NAME (SF_FORMAT_DPCM_16) ;
+                CASE_NAME (SF_FORMAT_VORBIS) ;
+                default :
+                        break ;
+         } ;
+
+        return "BAD_MINOR_FORMAT" ;
+} /* -------------------  str_of_minor_format  ---------------*/
+
+
+
+
+/*------------------------------------------------------------------
+Read a sound file by libsndfile, then create an EGI_PCMBUF and
+load data to it.
+
+Note: 1. Now only support for PCM_S8, PCM_U8, and PCM_16
+      2. For wav files, the format for ALSA is SND_PCM_FORMAT_S16_LE.
+      3. For wav files, access type is SND_PCM_ACCESS_RW_INTERLEAVED.
+
+@path:	path of a sound file.
+
+Return:
+        A poiter to EGI_PCMBUF  OK
+        NULL                    Fails
+-------------------------------------------------------------------*/
+EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
+{
+        SNDFILE *snf;
+        SF_INFO  sinfo={.format=0 };
+	int ret;
+
+	EGI_PCMBUF *pcmbuf=NULL;
+	unsigned int  depth;
+	unsigned long size;
+        snd_pcm_format_t sformat;
+
+	/* open wav file */
+        snf=sf_open(path, SFM_READ, &sinfo); /* SFM_READ, SFM_WRITE, SFM_RDWR */
+        if(snf==NULL) {
+                printf("%s: Fail to open wav file, %s \n",__func__, sf_strerror(NULL));
+                return NULL;
+        }
+
+#if 1
+        printf("--- Sound File Info. --- \n");
+        printf("Frames:         %"PRIu64"\n", sinfo.frames);
+        printf("Sample Rate:    %d\n", sinfo.samplerate);
+        printf("Channels:       %d\n", sinfo.channels);
+        printf("Formate:        %s %s\n", str_of_major_format(sinfo.format),
+                                          str_of_minor_format(sinfo.format) );
+        printf("Sections:       %d\n", sinfo.sections);
+        printf("Seekable:       %d\n", sinfo.seekable);
+        printf("COPYRIGHT:      %s\n", sf_get_string(snf,SF_STR_COPYRIGHT) );
+        printf("TITLE:          %s\n", sf_get_string(snf,SF_STR_TITLE) );
+        printf("ARTIST:         %s\n", sf_get_string(snf,SF_STR_ARTIST) );
+        printf("COMMENT:        %s\n", sf_get_string(snf,SF_STR_COMMENT) );
+#endif
+
+	/* get ALSA format */
+	switch( (sinfo.format) & SF_FORMAT_SUBMASK ) {
+		case SF_FORMAT_PCM_S8:
+			sformat=SND_PCM_FORMAT_S8;
+			depth=1;
+			break;
+		case SF_FORMAT_PCM_U8:
+			sformat=SND_PCM_FORMAT_U8;
+			depth=1;
+			break;
+		case SF_FORMAT_PCM_16:
+			sformat=SND_PCM_FORMAT_S16;
+			depth=2;
+			break;
+		default:
+			sformat=SND_PCM_FORMAT_UNKNOWN;
+	}
+	if(sformat==SND_PCM_FORMAT_UNKNOWN) {
+		printf("%s: Unsupported format!\n",__func__);
+		sf_close(snf);
+		return NULL;
+	}
+
+	/* get size of pcm data, in bytes */
+	size=depth*(sinfo.channels)*(sinfo.frames);
+
+	/* create EGI_PCMBUF */
+	pcmbuf=egi_pcmbuf_create( size, sinfo.channels, sinfo.samplerate,
+	                                  sformat, SND_PCM_ACCESS_RW_INTERLEAVED );
+	if(pcmbuf==NULL) {
+		sf_close(snf);
+		return NULL;
+	}
+
+        /* read interleaved data and load to pcmbuf */
+        ret=sf_readf_short(snf, (short int *)pcmbuf->pcmbuf, sinfo.frames);
+	if(ret<0) {
+		printf("%s: Fail to call sf_readf_short()!\n",__func__);
+		sf_close(snf);
+		egi_pcmbuf_free(&pcmbuf);
+		return NULL;
+	}
+        else if( ret != sinfo.frames ) {
+		printf("%s: WARNING!!! sf_readf_short() NOT return complete frames!\n",__func__);
+        }
+
+	sf_close(snf);
+	return pcmbuf;
+}
+
+
+
+/*----------------------------------------------
+Playback a EGI_PCMIMG
+
+@handle:	pcm handle;
+@pcmbuf:	An EGI_PCMBUF;
+@nf:		frames write to HW each time.
+
+Return:
+	0	OK
+	<0	Fails
+-----------------------------------------------*/
+int  egi_pcmbuf_playback(snd_pcm_t* handle, const EGI_PCMBUF *pcmbuf, unsigned int nf)
+{
+	int rec
+
+        /* write interleaved frame data */
+        if(g_blInterleaved)
+                rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf );
+        /* write noninterleaved frame data */
+        else
+                rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback
+        if (rc == -EPIPE)
+        {
+            /* EPIPE means underrun */
+            //fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
+            EGI_PDEBUG(DBG_PCM,"[%lld]: snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n",
+                                                        tm_get_tmstampms() );
+            snd_pcm_prepare(g_ffpcm_handle);
+        }
+
+}
