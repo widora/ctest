@@ -9,6 +9,7 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "page_avenger.h"
 #include "avg_mvobj.h"
+#include "avg_sound.h"
 
 #define AVG_FIXED_POINT
 
@@ -135,6 +136,10 @@ int avg_effect_exploding(AVG_MVOBJ *mvobj)
 	/* End of stage */
 	if( mvobj->stage > mvobj->effect_stages-1 )
 		return -1;
+
+	/* sound effect */
+	if(mvobj->stage==0)
+		avg_sound_explode();
 
 	/* display image */
      #ifdef AVG_FIXED_POINT  /* use mvobj->fvpx/fvpy */
@@ -309,6 +314,10 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 	bullet->stage=0;
 
 	/* NOTE: Assume that other params need NOT re_assign */
+
+
+	/* sound effect */
+	avg_sound_launch();
 
 	return 0;
 }

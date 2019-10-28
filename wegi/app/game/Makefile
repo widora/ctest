@@ -9,13 +9,13 @@ DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
 CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
 
-CFLAGS  = -I$(COMMON_USRDIR)/include  -I$(SRC_PATH) -I$(SRC_PATH)/utils -I$(SRC_PATH)/page
+CFLAGS  = -I$(COMMON_USRDIR)/include  -I$(SRC_PATH) -I$(SRC_PATH)/sound -I$(SRC_PATH)/utils -I$(SRC_PATH)/page
 CFLAGS  += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS  += -Wall -O2
 
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
-LIBS	= -lepages -lesound
+LIBS	= -lepages -lesound -lsndfile
 #LIBS	+= -legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread

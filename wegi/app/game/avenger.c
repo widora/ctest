@@ -12,10 +12,11 @@ midaszhou@yahoo.com
 #include "egi_FTsymbol.h"
 #include "avg_mvobj.h"
 #include "avg_utils.h"
+#include "avg_sound.h"
 #include "page_avenger.h"
 
 
-static int win_score=8;
+static int win_score=20;
 static int lose_score=-5;
 static	int score=0;
 static	int game_level=0;
@@ -81,6 +82,9 @@ void *thread_game_avenger(EGI_PAGE *page)
 
 
 	printf("Start GAME avenger...\n");
+
+	/* Load sound effect files to EGI_PCMBUF */
+	avg_load_sound();
 
         /* Get all image file for GAME scenes bkimg */
         scene_paths=egi_alloc_search_files("/mmc/avenger/scene", "png, jpg", &scene_total);

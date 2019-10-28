@@ -35,6 +35,9 @@ all:	$(APP) libesound.a
 recmp3: recmp3.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o recmp3 recmp3.c
 
+test_pcmbuf: test_pcmbuf.c
+	$(CC) -o test_pcmbuf test_pcmbuf.c $(CFLAGS) $(LDFLAGS) $(LIBS) -lesound -pthread
+
 test_snd: test_snd.c
 	$(CC) -o test_snd test_snd.c $(CFLAGS) $(LDFLAGS) $(LIBS) -lesound
 

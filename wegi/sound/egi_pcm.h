@@ -31,6 +31,7 @@ Midas Zhou
 
 /* EGI_PCMBUF */
 typedef struct {
+	snd_pcm_t 		*pcm_handle;	/* PCM handle */
 
 	unsigned long	 	size;		/* in bytes(TODO inframes), size of pcmbuf[]*/
 	unsigned char*   	pcmbuf;		/* PCM data, with following params */
@@ -43,6 +44,7 @@ typedef struct {
 						 * Example: SND_PCM_FORMAT_S16_LE
 						 */
 	snd_pcm_access_t 	access_type;	/* access type, Exmple: SND_PCM_ACCESS_RW_INTERLEAVED */
+	bool			noninterleaved;	/* Defaul as interleaved type */
 
 } EGI_PCMBUF;
 
@@ -72,22 +74,24 @@ typedef enum _snd_pcm_format {
 
 
 
-/* pcm function */
-int egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
-int egi_pcm_period_size(void);
-void egi_close_pcm_device(void);
-void egi_play_pcm_buff(void** buffer, int nf);
-int  egi_getset_pcm_volume(int *pvol, int *percnt);
+/* --- SYS PCM functions --- */
+int	egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved);
+int 	egi_pcm_period_size(void);
+void 	egi_close_pcm_device(void);
+void 	egi_play_pcm_buff(void** buffer, int nf);
+int  	egi_getset_pcm_volume(int *pvol, int *percnt);
 
-snd_pcm_t*  egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sformat,
+snd_pcm_t*  	egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sformat,
                                         snd_pcm_access_t access_type, bool soft_resample,
                                         unsigned int nchanl, unsigned int srate, unsigned int latency
                                     );
 
-/* EGI_PCMBUF functions */
-EGI_PCMBUF* egi_pcmbuf_create(  unsigned long size, unsigned int nchanl, unsigned int srate,
-                                snd_pcm_format_t sformat, snd_pcm_access_t access_type );
-void egi_pcmbuf_free(EGI_PCMBUF **pcmbuf);
-EGI_PCMBUF* egi_pcmbuf_readfile(char *path);
+/* --- EGI_PCMBUF functions --- */
+EGI_PCMBUF* 	egi_pcmbuf_create(  unsigned long size, unsigned int nchanl, unsigned int srate,
+                                	  snd_pcm_format_t sformat, snd_pcm_access_t access_type );
+void 	        egi_pcmbuf_free(EGI_PCMBUF **pcmbuf);
+EGI_PCMBUF*     egi_pcmbuf_readfile(char *path);
+int  		egi_pcmbuf_playback(const char* dev_name, const EGI_PCMBUF *pcmbuf, unsigned int nf);
+
 
 #endif

@@ -66,6 +66,7 @@ Note:
 2. ctrl_c also send interrupt signal to MPlayer to cause it stuck.
    Mplayer interrrupted by signal 2 in Module: enable_cache
    Mplayer interrrupted by signal 2 in Module: play_audio
+3. Balance between lantency, frames per write, conf rate.
 
 TODO:
 1. To play PCM data with format other than SND_PCM_FORMAT_S16_LE.
@@ -106,7 +107,7 @@ static int period_size;			/* period size of HW, in frames. */
  5.  bl_interleaved:		TRUE for INTERLEAVED access,
 				FALSE for NONINTERLEAVED access
 Return:
-a	0  :  OK
+	0  :  OK
 	<0 :  fails
 -----------------------------------------------------------------------------------*/
 int egi_prepare_pcm_device(unsigned int nchan, unsigned int srate, bool bl_interleaved)
@@ -226,7 +227,7 @@ void  egi_play_pcm_buff(void ** buffer, int nf)
 	        rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf );
 	/* write noninterleaved frame data */
 	else
-       	        rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback
+       	        rc=snd_pcm_writen(g_ffpcm_handle, buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback
         if (rc == -EPIPE)
         {
             /* EPIPE means underrun */
@@ -588,6 +589,10 @@ snd_pcm_t*  egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sf
 				    )
 {
 	snd_pcm_t *pcm_handle=NULL;
+        snd_pcm_hw_params_t *params;
+        int dir=0;
+	snd_pcm_uframes_t frames;
+	int rc;
 
         /* open pcm play device */
         if( snd_pcm_open(&pcm_handle, dev_name, SND_PCM_STREAM_PLAYBACK, 0) <0 ) {
@@ -595,6 +600,40 @@ snd_pcm_t*  egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sf
                 return NULL;
         }
 
+#if 1 //////////////////////////////////////////////////////////////////////////////
+        /* allocate a hardware parameters object */
+        snd_pcm_hw_params_alloca(&params);
+
+        /* fill it in with default values */
+        snd_pcm_hw_params_any(pcm_handle, params);
+
+        /* set access type  */
+        snd_pcm_hw_params_set_access(pcm_handle, params, access_type);
+
+        /* HW signed 16-bit little-endian format */
+        snd_pcm_hw_params_set_format(pcm_handle, params, sformat); //SND_PCM_FORMAT_S16_LE);
+
+        /* set channel  */
+        snd_pcm_hw_params_set_channels(pcm_handle, params, nchanl);
+
+        /* sampling rate */
+        snd_pcm_hw_params_set_rate_near(pcm_handle, params, &srate, &dir);
+        if(dir != 0)
+                printf("%s: Actual sampling rate is set to %d HZ!\n",__func__, srate);
+
+        /* set HW params */
+        if ( (rc=snd_pcm_hw_params(pcm_handle,params)) != 0 )
+	{
+		printf("%s: unable to set hw parameter: %s\n",__func__, snd_strerror(rc));
+		snd_pcm_close(pcm_handle);
+		return NULL;
+	}
+
+	/* get period size */
+	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
+	printf("%s: snd pcm period size is %d frames.\n", __func__, (int)frames);
+
+#else  ///////////////////////////////////////////////////////////////////////////////
         /* set params for pcm play handle */
         if( snd_pcm_set_params( pcm_handle, sformat, access_type,
                                 nchanl, srate, soft_resample, latency )  <0 ) {
@@ -602,6 +641,10 @@ snd_pcm_t*  egi_open_playback_device(  const char *dev_name, snd_pcm_format_t sf
                 snd_pcm_close(pcm_handle);
                 return NULL;
         }
+
+
+#endif
+
 
 	return pcm_handle;
 }
@@ -665,6 +708,9 @@ void egi_pcmbuf_free(EGI_PCMBUF **pcmbuf)
 
 	if( (*pcmbuf)->pcmbuf != NULL )
 		free((*pcmbuf)->pcmbuf);
+
+	if( (*pcmbuf)->pcm_handle != NULL )
+		snd_pcm_close((*pcmbuf)->pcm_handle);
 
 	free(*pcmbuf);
 	*pcmbuf=NULL;
@@ -751,6 +797,7 @@ Read a sound file by libsndfile, then create an EGI_PCMBUF and
 load data to it.
 
 Note: 1. Now only support for PCM_S8, PCM_U8, and PCM_16
+	 depth max.=2. see in sf_readf_short(...)
       2. For wav files, the format for ALSA is SND_PCM_FORMAT_S16_LE.
       3. For wav files, access type is SND_PCM_ACCESS_RW_INTERLEAVED.
 
@@ -778,7 +825,7 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
                 return NULL;
         }
 
-#if 1
+#if 1 /* ------------  verbos  ----------- */
         printf("--- Sound File Info. --- \n");
         printf("Frames:         %"PRIu64"\n", sinfo.frames);
         printf("Sample Rate:    %d\n", sinfo.samplerate);
@@ -820,6 +867,7 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
 	size=depth*(sinfo.channels)*(sinfo.frames);
 
 	/* create EGI_PCMBUF */
+	printf("%s: pcmbuf create with size=%ld, depth=%d ...\n",__func__, size, depth);
 	pcmbuf=egi_pcmbuf_create( size, sinfo.channels, sinfo.samplerate,
 	                                  sformat, SND_PCM_ACCESS_RW_INTERLEAVED );
 	if(pcmbuf==NULL) {
@@ -828,16 +876,31 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
 	}
 
         /* read interleaved data and load to pcmbuf */
-        ret=sf_readf_short(snf, (short int *)pcmbuf->pcmbuf, sinfo.frames);
+#if 0
+	printf("%s: sf_readf_short...\n",__func__);
+        ret=sf_readf_short(snf, (short int *)pcmbuf->pcmbuf, sinfo.frames/(2/depth) );
 	if(ret<0) {
 		printf("%s: Fail to call sf_readf_short()!\n",__func__);
 		sf_close(snf);
 		egi_pcmbuf_free(&pcmbuf);
 		return NULL;
 	}
-        else if( ret != sinfo.frames ) {
-		printf("%s: WARNING!!! sf_readf_short() NOT return complete frames!\n",__func__);
+        else if( ret != sinfo.frames/(2/depth) ) {
+		printf("%s: WARNING!!! sf_readf_short() return uncomplete frames!\n",__func__);
         }
+#else
+	printf("%s: sf_readf_raw...\n",__func__);
+	ret=sf_read_raw(snf, (void *)pcmbuf->pcmbuf, (sf_count_t)(sinfo.frames*sinfo.channels*depth) ) ;
+	if(ret<0) {
+		printf("%s: Fail to call sf_read_raw()!\n",__func__);
+		sf_close(snf);
+		egi_pcmbuf_free(&pcmbuf);
+		return NULL;
+	}
+        else if( ret != sinfo.frames*sinfo.channels*depth ) {
+		printf("%s: WARNING!!! sf_read_raw() return uncomplete frames!\n",__func__);
+        }
+#endif
 
 	sf_close(snf);
 	return pcmbuf;
@@ -848,31 +911,84 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
 /*----------------------------------------------
 Playback a EGI_PCMIMG
 
-@handle:	pcm handle;
-@pcmbuf:	An EGI_PCMBUF;
-@nf:		frames write to HW each time.
-
+@dev_name:	PCM device
+@pcmbuf:	An EGI_PCMBUF holding pcm data.
+@nf:		frames for each write to HW.
+		take a small proper value
 Return:
 	0	OK
 	<0	Fails
 -----------------------------------------------*/
-int  egi_pcmbuf_playback(snd_pcm_t* handle, const EGI_PCMBUF *pcmbuf, unsigned int nf)
+int  egi_pcmbuf_playback(const char* dev_name, const EGI_PCMBUF *pcmbuf, unsigned int nf)
 {
-	int rec
+	int ret;
+	int frames;
+	unsigned char *pbuf=NULL;
+	int pos;
+	snd_pcm_t *pcm_handle=NULL;
 
-        /* write interleaved frame data */
-        if(g_blInterleaved)
-                rc=snd_pcm_writei(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf );
-        /* write noninterleaved frame data */
-        else
-                rc=snd_pcm_writen(g_ffpcm_handle,buffer,(snd_pcm_uframes_t)nf ); //write to hw to playback
-        if (rc == -EPIPE)
-        {
-            /* EPIPE means underrun */
-            //fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-            EGI_PDEBUG(DBG_PCM,"[%lld]: snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n",
-                                                        tm_get_tmstampms() );
-            snd_pcm_prepare(g_ffpcm_handle);
-        }
+	/* check input data */
+	if(pcmbuf==NULL || pcmbuf->pcmbuf==NULL)
+		return -1;
 
+	/* open pcm device */
+	printf("%s: open playback device...\n",__func__);
+	pcm_handle=egi_open_playback_device( dev_name, pcmbuf->sformat,     /* dev_name, sformat */
+                                             pcmbuf->access_type, true,	    /* access_type, bool soft_resample */
+					     pcmbuf->nchanl, pcmbuf->srate, /* nchanl, srate */
+                                             50000			    /* latency (us), syssrate, */
+                                    	    );
+	if(pcm_handle==NULL) {
+		return -2;
+	}
+
+	/* Write data to PCM for PLAYBACK */
+	printf("%s: start pcm write...\n",__func__);
+	frames=pcmbuf->size/pcmbuf->depth/pcmbuf->nchanl; /* Total frames */
+	pos=0;
+	pbuf=pcmbuf->pcmbuf;
+
+	while( frames !=0 )
+	{
+        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
+			printf("%s:snd_pcm_writei()...\n",__func__);
+                	ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)nf );
+		}
+	        else {  /* TODO: TEST,   write noninterleaved frame data */
+			printf("%s:snd_pcm_writen()...\n",__func__);
+                	//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
+        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)nf );
+		}
+		printf("%s: pcm written ret=%d\n", __func__, ret);
+
+	        if (ret == -EPIPE) {
+        	    /* EPIPE means underrun */
+	            fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
+        	    //EGI_PDEBUG(DBG_PCM,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n" );
+	            snd_pcm_prepare(pcm_handle);
+		    continue;
+        	}
+	        else if(ret<0) {
+        	    fprintf(stderr,"snd_pcm_writei():%s\n",snd_strerror(ret));
+		    snd_pcm_close(pcm_handle);
+		    return -3;
+		    //continue;
+	        }
+        	else if (ret!=nf) {
+                	 fprintf(stderr,"snd_pcm_writei(): short write, write %d of total %d frames\n",
+                        	                                                        ret, nf );
+		}
+
+		/* move pos forward */
+		frames -= ret;
+		if(frames<nf)nf=frames; /* for the last write session */
+
+		pos += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
+		pbuf=pcmbuf->pcmbuf+pos;
+	   }
+
+
+	/* close pcm handle */
+	snd_pcm_close(pcm_handle);
+	return 0;
 }
