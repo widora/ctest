@@ -12,6 +12,7 @@ Midas Zhou
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <wchar.h>
 #include "egi_cstring.h"
 #include "egi_log.h"
 
@@ -60,7 +61,8 @@ char * cstr_dup_repextname(char *fpath, char *new_extname)
 	if(new_fpath==NULL)
 		return NULL;
 
-	snprintf(new_fpath,len,fpath);
+	//snprintf(new_fpath,len,fpath);
+	strncpy(new_fpath,fpath,len);
 	strcat(new_fpath,new_extname);
 
 	return new_fpath;

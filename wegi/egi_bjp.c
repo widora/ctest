@@ -24,6 +24,7 @@ Modified by Midas Zhou
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <string.h>
 #include <linux/fb.h> //u
 #include <sys/mman.h>

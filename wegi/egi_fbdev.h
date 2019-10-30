@@ -26,7 +26,11 @@ Modified and appended by: Midas Zhou
 #include "egi_imgbuf.h"
 //#include "egi_image.h" /* definition conflict */
 
+#ifdef LETS_NOTE
+#define EGI_FBDEV_NAME "/dev/fb1"
+#else
 #define EGI_FBDEV_NAME "/dev/fb0"
+#endif
 
 #define FBDEV_MAX_BUFFER 3
 
@@ -92,8 +96,8 @@ int             init_fbdev(FBDEV *dev);
 void            release_fbdev(FBDEV *dev);
 int 		init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
 void		release_virt_fbdev(FBDEV *dev);
-inline void     fb_filo_on(FBDEV *dev);
-inline void     fb_filo_off(FBDEV *dev);
+void     	fb_filo_on(FBDEV *dev);
+void     	fb_filo_off(FBDEV *dev);
 void            fb_filo_flush(FBDEV *dev);
 void            fb_filo_dump(FBDEV *dev);
 void		fb_position_rotate(FBDEV *dev, unsigned char pos);

@@ -13,7 +13,8 @@ Midas Zhou
 //#include "egi_FTsymbol.h"
 //#include "page_avenger.h"
 
+int 	avg_intAbs(int a);
 void    game_readme(void);
-void  game_levelUp(bool levelup, int level);
+void  	game_levelUp(bool levelup, int level);
 
 #endif

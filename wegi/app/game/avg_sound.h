@@ -11,6 +11,7 @@ midaszhou@yahoo.com
 #define __AVG_SOUND_H__
 
 int avg_load_sound(void);
-
+void avg_sound_launch(void);
+void avg_sound_explode(void);
 
 #endif

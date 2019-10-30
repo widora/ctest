@@ -8,6 +8,7 @@ Midas Zhou
 #ifndef __AVENGER_H__
 #define __AVENGER_H__
 
+extern bool disable_avgsound;
 void *thread_game_avenger(EGI_PAGE *page);
 
 #endif

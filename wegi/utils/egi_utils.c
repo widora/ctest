@@ -68,7 +68,7 @@ int egi_copy_file(char const *fsrc_path, char const *fdest_path)
 		return -1;
 	}
 
-	fd_dest=open(fdest_path,O_RDWR|O_CREAT|O_CLOEXEC);
+	fd_dest=open(fdest_path,O_RDWR|O_CREAT|O_CLOEXEC,S_IRWXU|S_IRWXG);
 	if(fd_dest<0) {
 		perror("egi_copy_file() open dest file");
 		return -1;

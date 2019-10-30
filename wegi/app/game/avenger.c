@@ -15,14 +15,29 @@ midaszhou@yahoo.com
 #include "avg_sound.h"
 #include "page_avenger.h"
 
+/* ON/OFF  */
+bool disable_avgsound=false;
 
-static int win_score=20;
-static int lose_score=-5;
-static	int score=0;
+/* Game level and Score relevant */
 static	int game_level=0;
 
+static int credit_PlaneHitStation=-3;
+static int credit_PlaneHitFender=-1;
+static int credit_GunHitPlane=2;
+static int win_score=20;
+static int lose_score=-3;
+static int score=0;
+
+
 /* path for icons collection */
+#ifdef LETS_NOTE
+static const char *icon_path="/home/midas-zhou/avenger/icon_collections.png";
+static const char *scene_path="/home/midas-zhou/avenger/scene";
+#else
 static const char *icon_path="/mmc/avenger/icon_collections.png";
+static const char *scene_path="/mmc/avenger/scene";
+#endif
+
 
 /* image for PAGE bkground */
 static char **scene_paths=NULL;
@@ -84,10 +99,11 @@ void *thread_game_avenger(EGI_PAGE *page)
 	printf("Start GAME avenger...\n");
 
 	/* Load sound effect files to EGI_PCMBUF */
-	avg_load_sound();
+	if(!disable_avgsound)
+		avg_load_sound();
 
         /* Get all image file for GAME scenes bkimg */
-        scene_paths=egi_alloc_search_files("/mmc/avenger/scene", "png, jpg", &scene_total);
+        scene_paths=egi_alloc_search_files(scene_path, "png, jpg", &scene_total);
 	if(scene_total==0) {
 		printf("%s: No game scene image file found!\n",__func__);
 		return (void *)-1;
@@ -289,22 +305,23 @@ void *thread_game_avenger(EGI_PAGE *page)
 			    && px < 240/2+40 	) {
 				planes[i]->is_hit=true;
 				printf("Plane py=%d crash on gun station!\n", py);
-				score -= 3;
+				score +=credit_PlaneHitStation;
 			}
 			/* 2.4.2 Plane crash on fender wall */
 			else if( py > 320-wblk_height ) {
 				planes[i]->is_hit=true;
 				printf("Plane py=%d crash on fender wall!\n",py);
-				score -= 1;
+				score += credit_PlaneHitFender;
 			}
 
 			/* 2.4.3 Bullet hit plane */
 			for( j=0; j<num_bullet; j++ ) {
 				bltx=bullet[j]->fvpx.num>>MATH_DIVEXP;
 				blty=bullet[j]->fvpy.num>>MATH_DIVEXP;
-				if( abs(py-blty)<15 && abs(px-bltx)<15 ) {
+				//if( abs(py-blty)<15 && abs(px-bltx)<15 ) {
+				if( avg_intAbs(py-blty)<15 && avg_intAbs(px-bltx)<15 ) {
 						planes[i]->is_hit=true;
-						score +=2;
+						score +=credit_GunHitPlane;
 				}
 			}
 		}
@@ -315,7 +332,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 
 
 #if 0		/*  --- 3. Demo. and Advertise --- */
-		
+
 		if( (secTick&(32-1)) == 0 && (nget !=secTick>>5) ) {
 			nget=secTick>>5;
 			game_readme(); sleep(3);
@@ -324,7 +341,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 
           /* <<<<< Turn off FILO  >>>>> */
        	  fb_filo_off(&gv_fb_dev);  /* Stop filo */
-	  tm_delayms(75);
+	  tm_delayms(100);
 	}
 
 

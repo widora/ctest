@@ -708,14 +708,14 @@ void*		egi_realloc_bkimg(EGI_EBOX *ebox, int width, int height);
 bool		egi_point_inbox(int px,int py, EGI_EBOX *ebox);
 int 		egi_get_boxindex(int x,int y, EGI_EBOX *ebox, int num);
 EGI_EBOX 	*egi_hit_pagebox(int x, int y, EGI_PAGE *page, enum egi_ebox_type);
-inline void 	egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
+void 		egi_ebox_settag(EGI_EBOX *ebox, const char *tag);
 enum 		egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
 EGI_EBOX*	egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
 
 int egi_ebox_activate(EGI_EBOX *ebox);
-inline void egi_ebox_needrefresh(EGI_EBOX *ebox);
-inline void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
+void egi_ebox_needrefresh(EGI_EBOX *ebox);
+void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
 int egi_ebox_refresh(EGI_EBOX *ebox);
 int egi_ebox_forcerefresh(EGI_EBOX *ebox);
 int egi_ebox_decorate(EGI_EBOX *ebox);

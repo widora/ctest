@@ -59,7 +59,7 @@ siginfo_t {
 #endif////////////////////////////////////////////////////////////////////////////
 
 
-
+#if 0
 /*----------------  For APP  ------------------------------
  Common actions for APP constructor and destructor.
 
@@ -120,6 +120,8 @@ void __attribute__((destructor)) app_common_destructor(void)
 	printf("APP %s: start common destructor...\n", app_name);
 	/* ... */
 }
+
+#endif 
 
 
 /*----------------  For APP  -------------------------

@@ -75,6 +75,7 @@ Midas Zhou
 -------------------------------------------------------------------*/
 #include <stdint.h>
 #include <alsa/asoundlib.h>
+//#include <sound/asound.h>
 #include <stdbool.h>
 #include <math.h>
 #include <inttypes.h>

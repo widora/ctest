@@ -3,7 +3,8 @@
 
 #include "egi_color.h"
 #include <freetype2/ft2build.h>
-#include <freetype2/ftglyph.h>
+#include FT_FREETYPE_H
+//#include <freetype2/ftglyph.h>
 
 
 typedef	struct {

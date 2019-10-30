@@ -89,6 +89,6 @@ int 	avg_renew_bullet(AVG_MVOBJ *bullet);
 
 int 	refresh_mvobj(AVG_MVOBJ *mvobj);
 
-inline int avg_random_speed(void);
+int avg_random_speed(void);
 
 #endif

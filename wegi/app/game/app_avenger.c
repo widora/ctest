@@ -37,10 +37,12 @@ int main(int argc, char **argv)
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
+#ifndef  LETS_NOTE
         if(egi_init_log("/mmc/log_ffmotion") != 0) {
                 printf("Fail to init logger for ffmotion,  quit.\n");
                 return -1;
         }
+#endif
         if(symbol_load_allpages() !=0 ) {
                 printf("Fail to load sym pages,quit.\n");
                 ret=-2;
@@ -59,12 +61,12 @@ int main(int argc, char **argv)
 
 
         /* start touch_read thread */
-	#if 1
+#ifndef LETS_NOTE
 	if( egi_start_touchread() != 0 ) {
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to start touch loopread thread!\n", __func__);
 		goto FF_FAIL;
 	}
-	#endif
+#endif
 
 	/* ---  2. EGI PAGE creation  --- */
 	printf(" Start creating PAGE for FFmotion ....\n");

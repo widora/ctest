@@ -33,12 +33,12 @@ extern EGI_BOX gv_fb_box;
 
 /* functions */
 #if 0
-int 		init_fbdev(FBDEV *dev);
-void 		release_fbdev(FBDEV *dev);
-inline void 	fbset_homepage_loop(bool loop);
-void 		fb_filo_flush(FBDEV *dev);
-inline void 	fb_filo_on(FBDEV *dev);
-inline void 	fb_filo_off(FBDEV *dev);
+int 	init_fbdev(FBDEV *dev);
+void	release_fbdev(FBDEV *dev);
+void	fbset_homepage_loop(bool loop);
+void	fb_filo_flush(FBDEV *dev);
+void 	fb_filo_on(FBDEV *dev);
+void 	fb_filo_off(FBDEV *dev);
 #endif
 
 //////////////////////////////////////////////////////////
@@ -46,13 +46,13 @@ void 	fbset_color(uint16_t color);
 void	fbset_color2(FBDEV *dev, uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);
 bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
-inline bool point_inbox2(const EGI_POINT *point, const EGI_BOX* box);
+bool 	point_inbox2(const EGI_POINT *point, const EGI_BOX* box);
 bool    box_inbox(EGI_BOX* box, EGI_BOX* container);
 bool    box_outbox(EGI_BOX* box, EGI_BOX* container);
 
 ////////////////  Draw function   ///////////////
    /******  NOTE: for 16bit color only!  ******/
-inline int 	draw_dot(FBDEV *dev,int x,int y);
+int 	draw_dot(FBDEV *dev,int x,int y);
 void 	draw_line(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
 void 	draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);

@@ -14,7 +14,7 @@ Midas Zhou
 #include <freetype2/ft2build.h>
 #include <freetype2/ftglyph.h>
 #include <arpa/inet.h>
-#include FT_FREETYPE_H
+//#include FT_FREETYPE_H
 
 /* <<<<<<<<<<<<<<<<<<   FreeType Fonts  >>>>>>>>>>>>>>>>>>>>>>*/
 

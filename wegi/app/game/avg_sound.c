@@ -3,6 +3,10 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+Note:
+	1. To make sample rate of effect sound same as of alsa config
+	   value will improve sound mixing speed?
+
 
 Midas Zhou
 midaszhou@yahoo.com

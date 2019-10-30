@@ -12,6 +12,15 @@ Midas Zhou
 
 
 
+/*---------------------------
+Absolute value of an integer.
+---------------------------*/
+int avg_intAbs(int a)
+{
+	return a > 0 ? a : -a;
+}
+
+
 /*--------------------------
         Game README
 --------------------------*/

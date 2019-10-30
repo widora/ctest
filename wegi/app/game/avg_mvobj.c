@@ -8,6 +8,7 @@ Midas Zhou
 #include "egi_common.h"
 #include "egi_FTsymbol.h"
 #include "page_avenger.h"
+#include "avenger.h"
 #include "avg_mvobj.h"
 #include "avg_sound.h"
 
@@ -96,7 +97,7 @@ Reset mvobj speed to a random value.
 -----------------------------------------------*/
 inline int avg_random_speed(void)
 {
-        return egi_random_max(10)+2;
+        return egi_random_max(8)+2;
 }
 
 
@@ -138,7 +139,7 @@ int avg_effect_exploding(AVG_MVOBJ *mvobj)
 		return -1;
 
 	/* sound effect */
-	if(mvobj->stage==0)
+	if(mvobj->stage==0 && !disable_avgsound)
 		avg_sound_explode();
 
 	/* display image */
@@ -205,7 +206,7 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 	plane->stage=0;
 
 
-#if 1	/* Draw xxx course line */
+#if 0 /* -------- Draw initial heading line --------  */
 	switch(egi_random_max(3))
 	{
 		case 1:
@@ -217,7 +218,6 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 		default:
 			fbset_color(WEGI_COLOR_WHITE); break;
 	}
-  #if 0 /* -------- Draw initial heading line --------  */
     //fb_filo_off(&gv_fb_dev);
 	#ifdef AVG_FIXED_POINT  /* use plane->fvpx */
 	draw_wline(&gv_fb_dev, (plane->fvpx.num)>>MATH_DIVEXP, (plane->fvpy.num)>>MATH_DIVEXP,
@@ -226,8 +226,6 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 	draw_wline(&gv_fb_dev, plane->pxy.x, plane->pxy.y, endx, endy, 1+egi_random_max(5));
 	#endif
     //fb_filo_on(&gv_fb_dev);
-  #endif /*---------------------------------------*/
-
 #endif
 
 	/* ---------- Set Heading Angle ------------
@@ -317,7 +315,8 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 
 
 	/* sound effect */
-	avg_sound_launch();
+	if(!disable_avgsound)
+		avg_sound_launch();
 
 	return 0;
 }

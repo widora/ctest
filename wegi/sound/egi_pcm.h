@@ -27,6 +27,7 @@ Midas Zhou
 
 #include <stdint.h>
 #include <alsa/asoundlib.h>
+//#include <sound/asound.h>
 #include <stdbool.h>
 
 /* EGI_PCMBUF */
