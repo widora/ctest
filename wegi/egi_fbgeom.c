@@ -272,13 +272,14 @@ Return:
 	<0	Fails
 	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
 -------------------------------------------------------------------*/
-inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
+inline int draw_dot(FBDEV *dev,int x,int y)
 {
         FBDEV *fr_dev=dev;
 	EGI_IMGBUF *virt_fb;
 	int fx;
 	int fy;
         long int location=0;
+	unsigned char* pARGB;
 	int xres;
 	int yres;
 	FBPIX fpix;
@@ -396,9 +397,67 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
    /* ------------------------ ( for real FB ) ---------------------- */
    else {
 
+    #ifdef LETS_NOTE /* --------- FOR 32BITS COLOR (ARGB) FBDEV ------------ */
+
+	/*(in bytes:) data location of the point pixel */
+        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel>>3)+
+                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+
+	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
+	if( location<0 || location > (fr_dev->screensize-sizeof(uint32_t)) ) /* screensize in bytes! */
+	{
+		printf("WARNING: point location out of fb mem.!\n");
+		return -1;
+	}
+
+	/* push old data to FB FILO */
+	if(fr_dev->filo_on && fr_dev->pixalpha>0 )
+        {
+                fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
+                // fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
+		pARGB=fr_dev->map_fb+location;
+		fpix.argb=*(uint32_t *)pARGB;
+		//fpix.alpha=*(pRGB+3);
+		/* FB alpha value no more use ? */
+                egi_filo_push(fr_dev->fb_filo, &fpix);
+        }
+
+	/* assign or blend FB pixel data */
+	if(fr_dev->pixalpha==255) {	/* if 100% front color */
+		if(fr_dev->pixcolor_on) /* use fbdev pixcolor */
+		        // *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)+(255<<24);
+		else			/* use system pixcolor */
+		        // *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)+(255<<24);
+	}
+	else {	/* otherwise, blend with original color */
+		if(fr_dev->pixcolor_on) { 	/* use fbdev pixcolor */
+			// fb_color=COLOR_16BITS_BLEND(  fr_dev->pixcolor,			     /* Front color */
+			//			     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
+			//			      fr_dev->pixalpha );		     /* Alpha value */
+		        // *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+
+		  *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)	\
+									      + (fr_dev->pixalpha<<24);
+		}
+		else {				/* use system pxicolor */
+			// fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
+			//			     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
+			//			      fr_dev->pixalpha );		     /* Alpha value */
+		        // *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+
+			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)	\
+										+ (fr_dev->pixalpha<<24);
+		}
+	}
+
+
+    #else /* --------- FOR 16BITS COLOR FBDEV ------------ */
+
 	/*(in bytes:) data location of the point pixel */
         location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+	                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
 
 	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
 	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) ) /* screensize in bytes! */
@@ -437,6 +496,8 @@ inline int draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
 		        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
 		}
 	}
+
+    #endif /* --------- END 16/32BITS BPP FBDEV SELECT ------------ */
 
 	/* reset alpha to 255 as default */
 	fr_dev->pixalpha=255;

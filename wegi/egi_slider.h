@@ -17,8 +17,8 @@ Midas Zhou
 EGI_DATA_BTN *egi_sliderdata_new(
                                 /* for btnbox */
                                 int id, enum egi_btn_type btn_shape,
-                                struct symbol_page *icon, int icon_code,
-                                struct symbol_page *font,
+                                EGI_SYMPAGE *icon, int icon_code,
+                                EGI_SYMPAGE *font,
 
                                 /* for slider */
 				enum egi_slid_type   slid_type, /* slider type */

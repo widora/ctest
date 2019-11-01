@@ -27,7 +27,7 @@ LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS =  test_fb test_sym tmp_app show_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
-APPS += test_txt test_img test_resizeimg test_zoomimg test_etouch
+APPS += test_txt test_img test_img2 test_img3 test_resizeimg test_zoomimg test_etouch  test_geom
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic

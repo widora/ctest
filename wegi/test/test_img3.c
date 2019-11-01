@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 	struct timeval tm_end;
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 1
+#if 0
         printf("tm_start_egitick()...\n");
         tm_start_egitick();		   	/* start sys tick */
         printf("egi_init_log()...\n");
@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 
 
 #if 0 ///////////////////////////////////////////////////////
-EGI_IMGBUF *test_img=egi_imgbuf_create(50, 180, 0, 0);/* H,W, alpha ,color */
+EGI_IMGBUF *test_img=egi_imgbuf_create(50, 180, 0, WEGI_COLOR_RED);/* H,W, alpha ,color */
 printf("(-30)%%360=%d;  (-390)%%360=%d;  30%%(-360)=%d;  390%%(-360)=%d \n",
 					(-30)%360, (-390)%360, 30%(-360), 390%(-360) );
 for(i=0; i<361; i+=10)
@@ -86,7 +86,7 @@ int	num=0;		/* File index */
 
 do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////////////
 
-	i+=-5;
+	i+=-2;
 
 	/* restore FB data */
 	fb_restore_FBimg(&gv_fb_dev, 0, false);
@@ -115,13 +115,15 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
 	eimg=NULL;
 
 	/* 6. Clear screen and increase num */
-	tm_delayms(200);
+	usleep(200000);
+	//tm_delayms(200);
 	//clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
 
 
-}while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
+} while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
 
+	#if 0
         /* <<<<<  EGI general release >>>>> */
         printf("FTsymbol_release_allfonts()...\n");
         FTsymbol_release_allfonts();
@@ -133,6 +135,7 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
         printf("egi_quit_log()...\n");
         egi_quit_log();
         printf("<-------  END  ------>\n");
+	#endif
 
 return 0;
 }

@@ -9,7 +9,11 @@ Midas Zhou
 #define __EGI_CSTRING_H__
 
 
-#define EGI_CONFIG_PATH "/home/egi.conf"
+#ifdef LETS_NOTE
+ #define EGI_CONFIG_PATH "/home/midas-zhou/egi/egi.conf"
+#else
+ #define EGI_CONFIG_PATH "/home/egi.conf"
+#endif
 
 char * cstr_dup_repextname(char *fpath, char *new_extname);
 char * cstr_split_nstr(char *str, char *split, unsigned n);

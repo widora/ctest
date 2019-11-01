@@ -49,8 +49,8 @@ return:
 EGI_DATA_BTN *egi_sliderdata_new(
 			      	/* for btnbox */
 			      	int id, enum egi_btn_type btn_shape,
-			      	struct symbol_page *icon, int icon_code,
-			      	struct symbol_page *font,
+			      	EGI_SYMPAGE *icon, int icon_code,
+			      	EGI_SYMPAGE *font,
 
 			     	/* for slider */
 				enum egi_slid_type   slid_type,	/* slider type */
@@ -745,7 +745,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 use following COLOR:
 #define SYM_NOSUB_COLOR -1  --- no substitute color defined for a symbol or font
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
-48void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+48void symbol_string_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str)
 */
 		symbol_string_writeFB(&gv_fb_dev, data_btn->font, ebox->tag_color, 1,

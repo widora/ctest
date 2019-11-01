@@ -32,14 +32,22 @@ int avg_load_sound(void)
 	int ret=0;
 
 	/* launching sound */
+	#ifdef LETS_NOTE
+	pcmbuf_launch=egi_pcmbuf_readfile("/home/midas-zhou/avenger/launch.wav");
+	#else
 	pcmbuf_launch=egi_pcmbuf_readfile("/mmc/avenger/launch.wav");
+	#endif
 	if(pcmbuf_launch==NULL) {
 		printf("%s: Fail to load sound file for pcmbuf_launch.\n", __func__);
 		ret--;
 	}
 
 	/* exploding sound */
+	#ifdef LETS_NOTE
+	pcmbuf_explode=egi_pcmbuf_readfile("/home/midas-zhou/avenger/explode.wav");
+	#else
 	pcmbuf_explode=egi_pcmbuf_readfile("/mmc/avenger/explode.wav");
+	#endif
 	if(pcmbuf_explode==NULL) {
 		printf("%s: Fail to load sound file for pcmbuf_explode.\n", __func__);
 		ret--;
@@ -57,7 +65,7 @@ static void *  thread_sound_launch(void *arg)
      pthread_detach(pthread_self());
 
      egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_launch, 512);
-     usleep(10000);
+//     usleep(10000);
 
      pthread_exit(0);
 }
@@ -71,7 +79,7 @@ static void *  thread_sound_explode(void *arg)
      pthread_detach(pthread_self());
 
      egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_explode, 512);
-     usleep(10000);
+  //   usleep(10000);
 
      pthread_exit(0);
 }

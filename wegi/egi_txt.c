@@ -47,7 +47,7 @@ Y	NULL		fail
 EGI_DATA_TXT *egi_txtdata_new(	int offx, int offy,
 				int nl,
 				int llen,
-				struct symbol_page *font,
+				EGI_SYMPAGE *font,
 				uint16_t color
 )
 {
@@ -261,7 +261,7 @@ offx,offy:			offset from prime ebox
 int nl:   			number of txt lines
 int llen:  			in byte, data length for each line,
 			!!!!! -	llen deciding howmany symbols it may hold.
-struct symbol_page *font:	txt font
+EGI_SYMPAGE *font:	txt font
 uint16_t color:     		txt color
 char **txt:       		multiline txt data
 
@@ -270,7 +270,7 @@ Return:
         NULL            fails
 ---------------------------------------------------------------------------------*/
 EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt,
-			int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color)
+			int offx, int offy, int nl, int llen, EGI_SYMPAGE *font, uint16_t color)
 {
 	int i,j;
 
@@ -732,7 +732,7 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 		for(i=0;i<nl;i++)
 		{
 			EGI_PDEBUG(DBG_TXT,"egi_txtbox_refresh(): txt[%d]='%s' \n",i,txt[i]);
-			/* (FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+			/* (FBDEV *fb_dev, const EGI_SYMPAGE *sym_page,   \
                 		int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);
 			    1, for font/icon symbol: tranpcolor is its img symbol bkcolor!!! */
 

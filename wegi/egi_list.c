@@ -74,7 +74,7 @@ EGI_EBOX *egi_listbox_new (
 	int frame, 	/* -1 no frame for ebox, 0 simple .. */
 	int nl,		/* number of txt lines for each txt ebox */
 	int llen,  	/* in byte, length for each txt line */
-        struct symbol_page *font, /* txt font */
+        EGI_SYMPAGE *font, /* txt font */
         int txtoffx,	 /* offset of txt from the ebox, all the same */
         int txtoffy,
         int iconoffx, 	/* offset of icon from the ebox, all the same */
@@ -139,13 +139,13 @@ printf("egi_listbox_new(): malloc **data_txt end...\n");
 printf("egi_listbox_new(): malloc txtboxes end...\n");
 
 	/* 7. init **icon */
-	struct symbol_page **icons=malloc(inum*sizeof(struct symbol_page *));
+	EGI_SYMPAGE **icons=malloc(inum*sizeof(EGI_SYMPAGE *));
 	if( icons == NULL )
 	{
 		printf("egi_listbox_new(): fail to malloc a symbol_page **icon.\n");
 		return NULL;
 	}
-	memset(icons,0,inum*sizeof(struct symbol_page *));
+	memset(icons,0,inum*sizeof(EGI_SYMPAGE *));
 printf("egi_listbox_new(): malloc icons end...\n");
 
 	/* 8. init *icon_code */
@@ -199,7 +199,7 @@ printf("egi_listbox_new(): malloc data_list end...\n");
 				txtoffx,txtoffy, /* offset X,Y */
       	 		 	nl, /*int nl, lines  */
        	 			llen, /*int llen, chars per line, however also limited by width */
-        			font, /*struct symbol_page *font */
+        			font, /*EGI_SYMPAGE *font */
         			WEGI_COLOR_BLACK /* int16_t color */
 			     );
 		if(data_txt[i] == NULL) /* if fail retry...*/

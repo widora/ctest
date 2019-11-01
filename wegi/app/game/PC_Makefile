@@ -14,7 +14,7 @@ CFLAGS += -I/usr/local/include/freetype2
 CFLAGS += -I/usr/local/include/libpng12
 CFLAGS += -Wall -O2 -DLETS_NOTE
 
-LDFLAGS = -L$(SRC_PATH)/lib
+LDFLAGS = -L$(SRC_PATH)/pclib
 LDFLAGS += -L/lib
 LDFLAGS += -L/usr/lib/i386-linux-gnu
 

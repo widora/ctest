@@ -32,7 +32,7 @@ Midas Zhou
 					use symbol back color as transparent tunnel */
 
 
-/* APP ICON Index of struct symbol_page sympg_icon  */
+/* APP ICON Index of EGI_SYMPAGE sympg_icon  */
 #define ICON_DISKPLAY_INDEX	4
 #define ICON_NETRADIO_INDEX	8
 #define ICON_MEMOTXT_INDEX	5
@@ -111,15 +111,15 @@ struct symbol_page
 
 
 /*--------------  shared symbol data  -------------*/
-extern struct symbol_page sympg_testfont;
-extern struct symbol_page sympg_numbfont;
-extern struct symbol_page sympg_buttons;
-extern struct symbol_page sympg_sbuttons;
-extern struct symbol_page sympg_icons;
-extern struct symbol_page sympg_icons_2;
-extern struct symbol_page sympg_heweather;
+extern EGI_SYMPAGE sympg_testfont;
+extern EGI_SYMPAGE sympg_numbfont;
+extern EGI_SYMPAGE sympg_buttons;
+extern EGI_SYMPAGE sympg_sbuttons;
+extern EGI_SYMPAGE sympg_icons;
+extern EGI_SYMPAGE sympg_icons_2;
+extern EGI_SYMPAGE sympg_heweather;
 
-extern struct symbol_page sympg_ascii;
+extern EGI_SYMPAGE sympg_ascii;
 
 extern char symmic_cpuload[6][5];
 extern char symmic_iotload[9];
@@ -128,11 +128,11 @@ extern char symmic_iotload[9];
 /*------------------- functions ---------------------*/
 int 	symbol_load_allpages(void); //__attribute__((constructor))
 void 	symbol_release_allpages(void);
-//static uint16_t *symbol_load_page(struct symbol_page *sym_page);
-void 	symbol_release_page(struct symbol_page *sym_page);
-int 	symbol_check_page(const struct symbol_page *sym_page, char *func);
-void 	symbol_save_pagemem(struct symbol_page *sym_page);
-int 	symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf);
+//static uint16_t *symbol_load_page(EGI_SYMPAGE *sym_page);
+void 	symbol_release_page(EGI_SYMPAGE *sym_page);
+int 	symbol_check_page(const EGI_SYMPAGE *sym_page, char *func);
+void 	symbol_save_pagemem(EGI_SYMPAGE *sym_page);
+int 	symbol_load_page_from_imgbuf(EGI_SYMPAGE *sym_page, EGI_IMGBUF *imgbuf);
 
 /*--------------------------------------------------------------------------------------------
 transpcolor:    >=0 transparent pixel will not be written to FB, so backcolor is shown there.
@@ -147,24 +147,24 @@ use following COLOR:
 #define SYM_NOTRANSP_COLOR -1 --- no transparent color defined for a symbol or font
 
 ----------------------------------------------------------------------------------------------*/
-void symbol_print_symbol(const struct symbol_page *sym_page, int symbol, uint16_t transpcolor);
+void symbol_print_symbol(const EGI_SYMPAGE *sym_page, int symbol, uint16_t transpcolor);
 
-int symbol_string_pixlen(char *str, const struct symbol_page *font);
+int symbol_string_pixlen(char *str, const EGI_SYMPAGE *font);
 
-void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,  \
+void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page,  \
                 int fontcolor, int transpcolor, int x0, int y0, unsigned int sym_code, int opaque);
 
-void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page,   \
+void symbol_string_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page,   \
                 int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque);
 
-int symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,	\
+int symbol_strings_writeFB( FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, unsigned int pixpl,	\
                              unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,	\
                              int x0, int y0, const char* str, int opaque);
 
-void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+void symbol_motion_string(FBDEV *fb_dev, int dt, const EGI_SYMPAGE *sym_page,   \
                 	 		int transpcolor, int x0, int y0, const char* str);
 
-void symbol_rotate(const struct symbol_page *sym_page,	\
+void symbol_rotate(const EGI_SYMPAGE *sym_page,	\
                                                  int x0, int y0, int sym_code);
 
 

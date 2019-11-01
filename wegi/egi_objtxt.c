@@ -39,7 +39,7 @@ EGI_EBOX *create_ebox_memo(void)
 		5,5, /* offset X,Y */
       	  	12, /*int nl, lines  */
        	 	24, /*int llen, chars per line */
-        	&sympg_testfont, /*struct symbol_page *font */
+        	&sympg_testfont, /*EGI_SYMPAGE *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
@@ -75,7 +75,7 @@ EGI_EBOX *create_ebox_clock(void)
 		20,0, /* offset X,Y */
       	  	3, /*int nl, lines  */
        	 	64, /*int llen, chars per line */
-        	&sympg_testfont, /*struct symbol_page *font */
+        	&sympg_testfont, /*EGI_SYMPAGE *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
@@ -105,7 +105,7 @@ EGI_EBOX *create_ebox_note(void)
 		5,5, /* offset X,Y */
       	  	2, /*int nl, lines  */
        	 	32, /*int llen, chars per line */
-        	&sympg_testfont, /*struct symbol_page *font */
+        	&sympg_testfont, /*EGI_SYMPAGE *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
@@ -143,7 +143,7 @@ EGI_EBOX *create_ebox_notes(int num, int x0, int y0, uint16_t bkcolor)
 		10,30, /* offset X,Y */
       	  	3, /*int nl, lines  */
        	 	64, /*int llen, chars per line */
-        	&sympg_testfont, /*struct symbol_page *font */
+        	&sympg_testfont, /*EGI_SYMPAGE *font */
         	WEGI_COLOR_BLACK /* uint16_t color */
 	);
 
@@ -267,7 +267,7 @@ EGI_EBOX *create_ebox_titlebar(
 		offx,offy, /* offset X,Y */
       	  	1, /*int nl, lines  */
        	 	64, /*int llen, chars per line, however also limited by width */
-        	&sympg_testfont, /*struct symbol_page *font */
+        	&sympg_testfont, /*EGI_SYMPAGE *font */
         	WEGI_COLOR_BLACK /* int16_t color */
 	);
 
@@ -370,7 +370,7 @@ EGI_EBOX * egi_msgbox_create(char *msg, long ms, uint16_t bkcolor)
 			offx,offy, 	 /* offset X,Y */
       		  	nl, 		 /*int nl, lines  */
        	 		llen, 		 /*int llen, chars per line, however also limited by ebox width */
-        		&sympg_testfont, /*struct symbol_page *font */
+        		&sympg_testfont, /*EGI_SYMPAGE *font */
         		WEGI_COLOR_BLACK /* int16_t color */
 		);
 

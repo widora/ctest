@@ -10,18 +10,19 @@ Midas Zhou
 #define __EGI_TXT_H__
 
 #include "egi.h"
+#include "egi_symbol.h"
 #include <stdio.h>
 #include <stdbool.h>
 
 /* for txt ebox */
 EGI_DATA_TXT *egi_init_data_txt(EGI_DATA_TXT *data_txt, 	/* ----- OBSOLETE ----- */
-                 int offx, int offy, int nl, int llen, struct symbol_page *font, uint16_t color);
+                 int offx, int offy, int nl, int llen, EGI_SYMPAGE *font, uint16_t color);
 
 /* For non_FTsymbols */
 EGI_DATA_TXT *egi_txtdata_new(  int offx, int offy, 		/* create new txt data */
 			        int nl,				/* lines */
 			        int llen,			/* chars per line */
-			        struct symbol_page *font,	/* font */
+			        EGI_SYMPAGE *font,	/* font */
 			        uint16_t color			/* txt color */
 			      );
 

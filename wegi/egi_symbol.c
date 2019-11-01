@@ -74,10 +74,14 @@ static int testfont_width[16*8] = /* check with maxnum */
 	11,11,7,8,7,11,9,15,9,10,8,7,10,7,10,5 /*pqrstuvwxyz{|}~ blank */
 };
 /* symbole page struct for testfont */
-struct symbol_page sympg_testfont=
+EGI_SYMPAGE sympg_testfont=
 {
 	.symtype=symtype_font,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/testfont.img",
+	#else
 	.path="/home/testfont.img",
+	#endif
 	.bkcolor=0xffff,
 	.data=NULL,
 	.maxnum=128-1,
@@ -99,10 +103,14 @@ static int numbfont_width[16*8] = /* check with maxnum */
 	15,15,15,15,15,15,15,15,15,15,15,0,0,0,0,0, /* 0123456789: */
 };
 /* symbole page struct for numbfont */
-struct symbol_page sympg_numbfont=
+EGI_SYMPAGE sympg_numbfont=
 {
 	.symtype=symtype_font,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/numbfont.img",
+	#else
 	.path="/home/numbfont.img",
+	#endif
 	.bkcolor=0x0000,
 	.data=NULL,
 	.maxnum=16*4-1,
@@ -121,10 +129,14 @@ static int buttons_width[4*5] =  /* check with maxnum */
 	60,60,60,60,
 	60,60,60,60,
 };
-struct symbol_page sympg_buttons=
+EGI_SYMPAGE sympg_buttons=
 {
 	.symtype=symtype_icon,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/buttons.img",
+	#else
 	.path="/home/buttons.img",
+	#endif
 	.bkcolor=0x0000,
 	.data=NULL,
 	.maxnum=4*5-1, /* 5 rows of ioncs */
@@ -141,10 +153,14 @@ static int sbuttons_width[5*3] =  /* check with maxnum */
 	48,48,48,48,
 	48,48,48,48,
 };
-struct symbol_page sympg_sbuttons=
+EGI_SYMPAGE sympg_sbuttons=
 {
 	.symtype=symtype_icon,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/sbuttons.img",
+	#else
 	.path="/home/sbuttons.img",
+	#endif
 	.bkcolor=0x0000,
 	.data=NULL,
 	.maxnum=5*3-1, 	/* 5 rows of ioncs */
@@ -168,10 +184,14 @@ static int icons_width[8*12] =  /* element number MUST >= maxnum */
         30,30,30,30,30,30,30,30,
         30,30,30,30,30,30,30,30,
 };
-struct symbol_page sympg_icons=
+EGI_SYMPAGE sympg_icons=
 {
         .symtype=symtype_font,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/icons.img",
+	#else
         .path="/home/icons.img",
+	#endif
         .bkcolor=0x0000,
         .data=NULL,
         .maxnum=11*8-1, /* 11 rows of ioncs */
@@ -207,10 +227,14 @@ static int icons_2_width[4*5] =  /* element number MUST >= maxnum */
 	60,60,60,60,
 };
 /* symbole page struct for testfont */
-struct symbol_page sympg_icons_2=
+EGI_SYMPAGE sympg_icons_2=
 {
         .symtype=symtype_icon,
+	#ifdef LETS_NOTE
+	.path="/home/midas-zhou/egi/icons_2.img",
+	#else
         .path="/home/icons_2.img",
+	#endif
         .bkcolor=0x0000,
         .data=NULL,
         .maxnum=4*5-1, /* 5 rows of ioncs */
@@ -225,7 +249,7 @@ static int heweather_width[1*1] =
 {
 	60
 };
-struct symbol_page sympg_heweather =
+EGI_SYMPAGE sympg_heweather =
 {
         .symtype=symtype_icon,
         .path=NULL,			/* NOT applied */
@@ -241,7 +265,7 @@ struct symbol_page sympg_heweather =
 
 
 /* -----  All static functions ----- */
-static uint16_t *symbol_load_page(struct symbol_page *sym_page);
+static uint16_t *symbol_load_page(EGI_SYMPAGE *sym_page);
 
 /* -------------------------------------------------------------
 TODO: Only for one symbol NOW!!!!!
@@ -254,7 +278,7 @@ Return:
 	0	ok
 	<0	fails
 --------------------------------------------------------------*/
-int symbol_load_page_from_imgbuf(struct symbol_page *sym_page, EGI_IMGBUF *imgbuf)
+int symbol_load_page_from_imgbuf(EGI_SYMPAGE *sym_page, EGI_IMGBUF *imgbuf)
 {
 	int i;
 	int off;
@@ -371,7 +395,7 @@ width:	list for all symbol widthes
 sqrow:	symbol number in each row of an img page
 
 ------------------------------------------------------------------*/
-static uint16_t *symbol_load_page(struct symbol_page *sym_page)
+static uint16_t *symbol_load_page(EGI_SYMPAGE *sym_page)
 {
 	int fd;
 	int datasize; /* memsize for all symbol data */
@@ -532,7 +556,7 @@ static uint16_t *symbol_load_page(struct symbol_page *sym_page)
 /*--------------------------------------------------
 	Release data in a symbol page
 ---------------------------------------------------*/
-void symbol_release_page(struct symbol_page *sym_page)
+void symbol_release_page(EGI_SYMPAGE *sym_page)
 {
 	if(sym_page==NULL)
 		return;
@@ -583,7 +607,7 @@ return:
 	0	OK
 	<0	fails
 -----------------------------------------------------------------------*/
-int symbol_check_page(const struct symbol_page *sym_page, char *func)
+int symbol_check_page(const EGI_SYMPAGE *sym_page, char *func)
 {
 
 	/* check sym_page */
@@ -624,7 +648,7 @@ sym_page: 	a mem symbol page pointer.
 transpcolor:	color treated as transparent.
 		black =0x0000; white = 0xffff;
 ----------------------------------------------------------------------------*/
-void symbol_print_symbol( const struct symbol_page *sym_page, int symbol, uint16_t transpcolor)
+void symbol_print_symbol( const EGI_SYMPAGE *sym_page, int symbol, uint16_t transpcolor)
 {
         int i;
 	int j,k;
@@ -671,7 +695,7 @@ void symbol_print_symbol( const struct symbol_page *sym_page, int symbol, uint16
 /*-----------------------------------------------------
 	save mem of a symbol page to a file
 -------------------------------------------------------*/
-void symbol_save_pagemem(struct symbol_page *sym_page)
+void symbol_save_pagemem(EGI_SYMPAGE *sym_page)
 {
 
 
@@ -682,7 +706,7 @@ void symbol_save_pagemem(struct symbol_page *sym_page)
 @str	string
 @font	font for the string
 -------------------------------------------*/
-int symbol_string_pixlen(char *str, const struct symbol_page *font)
+int symbol_string_pixlen(char *str, const EGI_SYMPAGE *font)
 {
 	int i;
         int len=strlen(str);
@@ -734,7 +758,7 @@ use following COLOR:
 		255	100% front color
 
 -----------------------------------------------------------------------------------------*/
-void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
+void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, unsigned int sym_code, int opaque)
 {
 	/* check data */
@@ -750,6 +774,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 	int yres;
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
+	uint32_t pargb;
 	unsigned char palpha=0; /* pixel alpha value if applicable */
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page, for FT2 sympage, it's NULL! */
 	int offset;
@@ -879,7 +904,7 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			if(sym_page->alpha)
 				palpha=*(sym_page->alpha+poff);  	/*  get alpha */
 
-			/* for FT font sympage, only alpah value */
+			/* for FT font sympage, only alpah value and data is NULL. */
 			if( data==NULL ) {
 				pcolor=WEGI_COLOR_BLACK;
 			}
@@ -898,11 +923,16 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 			if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
 				/* push original fb data to FB FILO, before write new color */
-//				if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
+				//if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
 				if(fb_dev->filo_on) {		/* For real FB device */
+					#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
+					fpix.position=pos<<2; /* pixel to bytes, !!! FAINT !!! */
+					fpix.argb=*(uint32_t *)(fb_dev->map_fb+(pos<<2));
+					#else		  /*--- 2 bytes per pixel ---*/
 					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
 					fpix.color=*(uint16_t *)(fb_dev->map_fb+(pos<<1));
 					//printf("symbol push FILO: pos=%ld.\n",fpix.position);
+					#endif
 					egi_filo_push(fb_dev->fb_filo,&fpix);
 				}
 
@@ -984,6 +1014,34 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 		 	   /* ------------------------ ( for Real FB ) ---------------------- */
 			   else
 			   {
+			   #ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
+
+				/* check available space for a 4bytes pixel color fb memory boundary */
+				pos<<=2; /*pixel to byte */
+			        if( pos > (fb_dev->screensize-sizeof(uint32_t)) )
+        			{
+	                		printf("symbol_writeFB(): WARNING!!! symbol point reach boundary of FB mem.!\n");
+					printf("pos=%ld, screensize=%ld    mapx=%d,mapy=%d\n",
+						 pos, fb_dev->screensize, mapx, mapy);
+                			return;
+        			}
+				/* if apply alpha */
+				if(sym_page->alpha) {
+					if(opaque==255)  /* Speed UP!! */
+					    pargb=COLOR_16TO24BITS(pcolor)+(palpha<<24);
+					else
+				            pargb=COLOR_16TO24BITS(pcolor)+((palpha*opaque>>8)<<24); //>>8<<24, /255
+				}
+				//else if (opaque > 0) {  /* 0 as 100% transparent */
+				else if(opaque!=255)  /* opaque alread reset to [0 255] at beginning */
+					pargb=COLOR_16TO24BITS(pcolor)+(opaque<<24);
+				/* else if opaque==255, use original pcolor */
+
+				/* write to FB */
+				*(uint32_t *)(fb_dev->map_fb+pos)=pargb; /* in pixel, deref. to uint32_t */
+
+			   #else             /*--- 2 bytes per pixel ---*/
+
 				/* check available space for a 2bytes pixel color fb memory boundary,
 				  !!! though FB has self roll back mechanism.  */
 				pos<<=1; /*pixel to byte,  pos=pos*2 */
@@ -1023,6 +1081,8 @@ void symbol_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
 				/* write to FB */
 				*(uint16_t *)(fb_dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
 
+			     #endif  /* END 32/16 bits FB SELECT  */
+
 			   } /* end IF(real FB and virt FB) */
 
 			}
@@ -1058,7 +1118,7 @@ opaque:		set aplha value (0-255)
 		0 	100% back ground color/transparent
 		255	100% front color
 -------------------------------------------------------------------------------*/
-void symbol_string_writeFB(FBDEV *fb_dev, const struct symbol_page *sym_page, 	\
+void symbol_string_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 		int fontcolor, int transpcolor, int x0, int y0, const char* str, int opaque)
 {
 	const char *p=str;
@@ -1122,7 +1182,7 @@ return:
 		>=0   	bytes write to FB
 		<0	fails
 ---------------------------------------------------------------------------------------------*/
-int  symbol_strings_writeFB( FBDEV *fb_dev, const struct symbol_page *sym_page, unsigned int pixpl,
+int  symbol_strings_writeFB( FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, unsigned int pixpl,
 			     unsigned int lines,  unsigned int gap, int fontcolor, int transpcolor,
 			     int x0, int y0, const char* str, int opaque )
 {
@@ -1293,7 +1353,7 @@ str:            pointer to a char string(or symbol codes[]);
 		!!! code /0 as the end token of the string.
 
 -------------------------------------------------------------------------------*/
-void symbol_motion_string(FBDEV *fb_dev, int dt, const struct symbol_page *sym_page,   \
+void symbol_motion_string(FBDEV *fb_dev, int dt, const EGI_SYMPAGE *sym_page,   \
                 			int transpcolor, int x0, int y0, const char* str)
 {
         const char *p=str;
@@ -1322,7 +1382,7 @@ sym_page: 	symbol page
 x0,y0: 		start position coordinate in screen, left top point of a symbol.
 sym_code:	symbole code
 ------------------------------------------------------------------------------*/
-void symbol_rotate(const struct symbol_page *sym_page,
+void symbol_rotate(const EGI_SYMPAGE *sym_page,
 						 int x0, int y0, int sym_code)
 {
         /* check page data */

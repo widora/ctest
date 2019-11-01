@@ -27,14 +27,14 @@ CFLAGS += -I/usr/local/include/freetype2
 CFLAGS += -I/usr/local/include/libpng12
 #CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 #CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
-CFLAGS += -Wall -fPIC -O2
+CFLAGS += -Wall -fPIC -O2 -DLETS_NOTE
 CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
 CFLAGS += -fno-stack-protector  ## disable stack protector
 
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG
 
-LDFLAGS += -L./lib
+LDFLAGS += -L./pclib
 
 
 LIBS = -ljpeg -lm -lpthread #-ljson-c -lasound
@@ -54,10 +54,10 @@ static_egilib: $(OBJS)
 
 install: libegi.so.1.0.0 libegi.a
 	cd $(SRC_PATH)
-	cp -rf libegi.a ./lib/libegi.a
-	cp -rf libegi.so.1.0.0 ./lib/libegi.so.1.0.0
-	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so.1
-	ln -s -f $(SRC_PATH)/lib/libegi.so.1.0.0 $(SRC_PATH)/lib/libegi.so
+	cp -rf libegi.a ./pclib/libegi.a
+	cp -rf libegi.so.1.0.0 ./pclib/libegi.so.1.0.0
+	ln -s -f $(SRC_PATH)/pclib/libegi.so.1.0.0 $(SRC_PATH)/pclib/libegi.so.1
+	ln -s -f $(SRC_PATH)/pclib/libegi.so.1.0.0 $(SRC_PATH)/pclib/libegi.so
 	rm libegi.so.1.0.0 libegi.a
 
 #### ----- 目标文件自动生成规则 -----

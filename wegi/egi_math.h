@@ -61,30 +61,30 @@ EGI_FVAL       imag;	/* imaginery part */
 #define MAT_FHAMMING(n, N)  ( MAT_FVAL(0.54-0.46*cos(2.0*n*MATH_PI/N)) )
 
 /* complex and FFT functions */
-void 			mat_FixPrint(EGI_FVAL a);
-void 			mat_CompPrint(EGI_FCOMPLEX a);
-inline float 		mat_floatFix(EGI_FVAL a);
-inline EGI_FVAL 	mat_FixAdd(EGI_FVAL a, EGI_FVAL b);
-inline EGI_FVAL 	mat_FixSub(EGI_FVAL a, EGI_FVAL b);
-inline EGI_FVAL 	mat_FixMult(EGI_FVAL a, EGI_FVAL b);
-inline int 		mat_FixIntMult(EGI_FVAL a, int b);
-inline EGI_FVAL 	mat_FixDiv(EGI_FVAL a, EGI_FVAL b);
-inline EGI_FCOMPLEX 	mat_CompAdd(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
-inline EGI_FCOMPLEX 	mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
-inline EGI_FCOMPLEX 	mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
-inline EGI_FCOMPLEX 	mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
-float 			mat_floatCompAmp( EGI_FCOMPLEX a );
-unsigned int 		mat_uint32Log2(uint32_t np);
-unsigned int 		mat_uintCompAmp( EGI_FCOMPLEX a );
-uint64_t 		mat_uintCompSAmp( EGI_FCOMPLEX a );
-EGI_FCOMPLEX 		*mat_CompFFTAng(uint16_t np);
-int 			mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
+void 		mat_FixPrint(EGI_FVAL a);
+void 		mat_CompPrint(EGI_FCOMPLEX a);
+float 		mat_floatFix(EGI_FVAL a);
+EGI_FVAL 	mat_FixAdd(EGI_FVAL a, EGI_FVAL b);
+EGI_FVAL 	mat_FixSub(EGI_FVAL a, EGI_FVAL b);
+EGI_FVAL 	mat_FixMult(EGI_FVAL a, EGI_FVAL b);
+int 		mat_FixIntMult(EGI_FVAL a, int b);
+EGI_FVAL 	mat_FixDiv(EGI_FVAL a, EGI_FVAL b);
+EGI_FCOMPLEX 	mat_CompAdd(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
+EGI_FCOMPLEX 	mat_CompSub(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
+EGI_FCOMPLEX 	mat_CompMult(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
+EGI_FCOMPLEX 	mat_CompDiv(EGI_FCOMPLEX a, EGI_FCOMPLEX b);
+float 		mat_floatCompAmp( EGI_FCOMPLEX a );
+unsigned int 	mat_uint32Log2(uint32_t np);
+unsigned int 	mat_uintCompAmp( EGI_FCOMPLEX a );
+uint64_t 	mat_uintCompSAmp( EGI_FCOMPLEX a );
+EGI_FCOMPLEX 	*mat_CompFFTAng(uint16_t np);
+int 		mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
                                      const float *x, const int *nx, EGI_FCOMPLEX *ffx);
 
 /* other math functions */
-void 			mat_create_fpTrigonTab(void);
-uint64_t 		mat_fp16_sqrtu32(uint32_t x);
-void 			mat_floatArray_limits(float *data, int num, float *min, float *max);
+void 		mat_create_fpTrigonTab(void);
+uint64_t 	mat_fp16_sqrtu32(uint32_t x);
+void 		mat_floatArray_limits(float *data, int num, float *min, float *max);
 
 /*
 void mat_pointrotate_SQMap(int n, int angle, struct egi_point_coord centxy,
@@ -101,7 +101,7 @@ void mat_pointrotate_fpSQMap(int n, int angle, struct egi_point_coord centxy,
 void mat_pointrotate_fpAnnulusMap(int n, int ni, int angle, struct egi_point_coord centxy,
                                                          struct egi_point_coord *ANMat_XRYR);
 
-inline int  mat_pseudo_curvature(const EGI_POINT *pt);
+int  mat_pseudo_curvature(const EGI_POINT *pt);
 
 
 

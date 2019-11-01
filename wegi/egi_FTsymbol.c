@@ -18,7 +18,7 @@ Midas Zhou
 
 /* <<<<<<<<<<<<<<<<<<   FreeType Fonts  >>>>>>>>>>>>>>>>>>>>>>*/
 
-struct symbol_page sympg_ascii={0}; /* default  LiberationMono-Regular */
+EGI_SYMPAGE sympg_ascii={0}; /* default  LiberationMono-Regular */
 
 EGI_FONTS  egi_sysfonts = {.ftname="sysfonts",};
 EGI_FONTS  egi_appfonts = {.ftname="appfonts",};
@@ -288,7 +288,7 @@ void FTsymbol_release_library( EGI_FONTS *symlib )
 1. This program is ONLY for horizontal text layout !!!
 
 2. To get the MAX boudary box heigh: symheight, which is capable of containing each character in a font set.
-   (symheight as for struct symbol_page)
+   (symheight as for EGI_SYMPAGE)
 
    1.1	base_uppmost + base_lowmost +1    --->  symheight  (same height for all chars)
 	base_uppmost = MAX( slot->bitmap_top )			    ( pen.y set to 0 as for baseline )
@@ -365,7 +365,7 @@ int  FTsymbol_load_asciis_from_fontfile(  EGI_SYMPAGE *symfont_page, const char 
 	int bbox_W; // bbox_H; 	/* Width and Height of the boundary box */
 	int base_uppmost; 	/* in pixels, from baseline to the uppermost scanline */
 	int base_lowmost; 	/* in pixels, from baseline to the lowermost scanline */
-	int symheight;	  	/* in pixels, =base_uppmost+base_lowmost+1, symbol height for struct symbol_page */
+	int symheight;	  	/* in pixels, =base_uppmost+base_lowmost+1, symbol height for EGI_SYMPAGE */
 	int symwidth_sum; 	/* sum of all charachter widths, as all symheight are the same,
 			      	 * so symwidth_total*symheight is required mem space */
 	int sympix_total;	/* total pixel number of all symbols in a sympage */
@@ -512,7 +512,7 @@ int  FTsymbol_load_asciis_from_fontfile(  EGI_SYMPAGE *symfont_page, const char 
 	/* 3. Set Maxnum for symbol_page*/
 	symfont_page->maxnum=128-1; /* 0-127 */
 
-	/* 4. allocate struct symbol_page .data, .alpha, .symwidth, .symoffset */
+	/* 4. allocate EGI_SYMPAGE .data, .alpha, .symwidth, .symoffset */
 	sympix_total=symheight*symwidth_sum; /* total pixel number in the symbol page */
 
 	/* release all data before allocate it */
@@ -700,7 +700,7 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 {
   	FT_Error      error;
   	FT_GlyphSlot slot = face->glyph;
-	struct symbol_page ftsympg={0};	/* a symbol page to hold the character bitmap */
+	EGI_SYMPAGE ftsympg={0};	/* a symbol page to hold the character bitmap */
 	ftsympg.symtype=symtype_FT2;
 
 	int advanceX;   /* X advance in pixels */

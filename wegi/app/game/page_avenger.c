@@ -244,7 +244,11 @@ EGI_PAGE *create_avengerPage(void)
 
         /* 5.4 Set wallpaper */
         //page_avenger->fpath="/mmc/avenger/areana.jpg";
+	#ifdef LETS_NOTE
+	page_avenger->ebox->frame_img=egi_imgbuf_readfile("/home/midas-zhou/avenger/scene/areana.jpg");
+	#else
 	page_avenger->ebox->frame_img=egi_imgbuf_readfile("/mmc/avenger/scene/areana.jpg");
+	#endif
 
 	/* 5.5 Add ebox to home page */
 	for(i=0; i<btnum; i++) 	/* 5.5.1 Add control buttons */

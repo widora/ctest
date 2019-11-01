@@ -247,7 +247,7 @@ inline void fb_filo_off(FBDEV *dev)
 Pop out all FBPIXs in the fb filo
 Midas Zhou
 ----------------------------------------------*/
-void fb_filo_flush(FBDEV *dev)
+inline void fb_filo_flush(FBDEV *dev)
 {
         FBPIX fpix;
 
@@ -258,7 +258,11 @@ void fb_filo_flush(FBDEV *dev)
         {
                 /* write back to FB */
                 //printf("EGI FILO pop out: pos=%ld, color=%d\n",fpix.position,fpix.color);
+		#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
+                *((uint32_t *)(dev->map_fb+fpix.position)) = fpix.argb; //COLOR_16TO24BITS(fpix.color) + (fpix.alpha<<24);
+		#else		/*--- 2 bytes per pixel ---*/
                 *((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
+		#endif
         }
 }
 

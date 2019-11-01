@@ -29,11 +29,11 @@ int main(int argc, char **argv)
 	int ret=0;
 
         /* Set memory allocation option */
-        mallopt(M_MMAP_MAX,0);          /* forbid calling mmap to allocate mem */
-        mallopt(M_TRIM_THRESHOLD,-1);   /* forbid memory trimming */
+  //      mallopt(M_MMAP_MAX,0);          /* forbid calling mmap to allocate mem */
+  //      mallopt(M_TRIM_THRESHOLD,-1);   /* forbid memory trimming */
 
         /*  ---  0. assign signal actions  --- */
-	egi_assign_AppSigActions();
+//	egi_assign_AppSigActions();
 
         /*  ---  1. EGI General Init Jobs  --- */
         tm_start_egitick();
@@ -58,7 +58,6 @@ int main(int argc, char **argv)
 
 	/* Init FB device,for PAGE displaying */
         init_fbdev(&gv_fb_dev);
-
 
         /* start touch_read thread */
 #ifndef LETS_NOTE

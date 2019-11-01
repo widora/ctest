@@ -16,7 +16,7 @@ midaszhou@yahoo.com
 #include "page_avenger.h"
 
 /* ON/OFF  */
-bool disable_avgsound=false;
+bool disable_avgsound=true; //false;
 
 /* Game level and Score relevant */
 static	int game_level=0;
@@ -24,12 +24,15 @@ static	int game_level=0;
 static int credit_PlaneHitStation=-3;
 static int credit_PlaneHitFender=-1;
 static int credit_GunHitPlane=2;
-static int win_score=20;
-static int lose_score=-3;
+
+static int win_score=100;   //20;
+static int lose_score=-100; //-3;
+
+
 static int score=0;
 
 
-/* path for icons collection */
+/* path for icon collections */
 #ifdef LETS_NOTE
 static const char *icon_path="/home/midas-zhou/avenger/icon_collections.png";
 static const char *scene_path="/home/midas-zhou/avenger/scene";
@@ -49,22 +52,22 @@ static	EGI_IMGBUF *scene_img=NULL;
 static	EGI_IMGBOX *imboxes=NULL;
 static	EGI_IMGBUF *icon_collection=NULL;
 
-/* Plane icons */
+/* Plane obj and icons */
 /* 	    plane_icon_index = 0 - 23 */
 static	AVG_MVOBJ  *planes[15];
 static	int	    px,py;
 
-/* Gun icons */
+/* Gun obj and icons */
 static	int	    GunStation_icon_index=24;
 static	AVG_MVOBJ  *gun_station=NULL;
 
-/* Bullet icon */
+/* Bullet obj and icon */
 static	int	    bullet_icon_index=26;
 static	AVG_MVOBJ  *bullet[8]={NULL,NULL,NULL,NULL};
 static	int	    num_bullet=4; /* Active bullet */
 static	int 	    bltx, blty;
 
-/* Wall block icons */
+/* Wall block and icons */
 static	int	    wallblock_icon_index=25;
 static	int 	    wblk_width=60;
 static	int	    wblk_height=45;
@@ -79,7 +82,7 @@ void draw_scene_setting(void)
 	        egi_subimg_writeFB( icon_collection, &gv_fb_dev, wallblock_icon_index, -1,
 				    i*wblk_width, 320-wblk_height +10);
 
-        /* For bullets that alway in storage */
+        /* For bullets that always in storage */
 	for(i=4; i<8; i++)
 	        egi_subimg_writeFB( icon_collection, &gv_fb_dev, bullet_icon_index, -1,
 				    140+10*i, 320-40);
@@ -190,12 +193,11 @@ void *thread_game_avenger(EGI_PAGE *page)
 		bullet[i]->renew_method=avg_renew_bullet;
 		/* It has a station */
 		bullet[i]->station=gun_station;
-		/* assing fixed type pos from gun to bullet */
+		/* assign fixed type pos from gun to bullet */
 		bullet[i]->fvpx.num=gun_station->fvpx.num;
 		bullet[i]->fvpx.div=gun_station->fvpx.div;
 		bullet[i]->fvpy.num=gun_station->fvpy.num;
 		bullet[i]->fvpy.div=gun_station->fvpy.div;
-
 
 	}
 
@@ -257,7 +259,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 			/* A-2. Reset socre */
 			score=0;
 
-			/* A-3. Change GAME difficult level */
+			/* A-3. Change GAME difficulty level */
 
 			/* A-4. Refresh PAGE setting */
 			egi_page_needrefresh(page);
@@ -283,7 +285,6 @@ void *thread_game_avenger(EGI_PAGE *page)
 			refresh_mvobj(bullet[i]);
 
 		/* 2.4 TODO: Crash/Hit_target calculaiton and Score */
-
 		/*  			--- Score Rules ---
 		 *	1. If a suicide plane hits the fender wall, the gamer loses 1 point.
 		 *	2. If a suicide plane hits the gun station, the gamer loses 3 points.
@@ -304,13 +305,13 @@ void *thread_game_avenger(EGI_PAGE *page)
 			    && px > 240/2-40
 			    && px < 240/2+40 	) {
 				planes[i]->is_hit=true;
-				printf("Plane py=%d crash on gun station!\n", py);
+				//printf("Plane py=%d crash on gun station!\n", py);
 				score +=credit_PlaneHitStation;
 			}
 			/* 2.4.2 Plane crash on fender wall */
 			else if( py > 320-wblk_height ) {
 				planes[i]->is_hit=true;
-				printf("Plane py=%d crash on fender wall!\n",py);
+				//printf("Plane py=%d crash on fender wall!\n",py);
 				score += credit_PlaneHitFender;
 			}
 
@@ -341,7 +342,11 @@ void *thread_game_avenger(EGI_PAGE *page)
 
           /* <<<<< Turn off FILO  >>>>> */
        	  fb_filo_off(&gv_fb_dev);  /* Stop filo */
+	  #ifdef LETS_NOTE
+	  tm_delayms(20);
+	  #else
 	  tm_delayms(100);
+	  #endif
 	}
 
 

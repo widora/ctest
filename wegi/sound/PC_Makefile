@@ -9,7 +9,7 @@ CFLAGS += -I/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_
 CFLAGS += -Wall -O2
 
 LDFLAGS  += -L.
-LDFLAGS += -L../lib
+LDFLAGS += -L../pclib
 
 LIBS	+= -lasound  -lshine -lsndfile
 LIBS    += -legi -lpng -ljpeg -lz
@@ -43,7 +43,7 @@ egi_pcm.o: egi_pcm.c egi_pcm.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -c egi_pcm.c
 
 install:
-	cp -rf libesound.a $(SRC_PATH)/lib
+	cp -rf libesound.a $(SRC_PATH)/pclib
 	rm libesound.a
 
 clean:

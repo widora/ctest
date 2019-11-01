@@ -97,7 +97,11 @@ Reset mvobj speed to a random value.
 -----------------------------------------------*/
 inline int avg_random_speed(void)
 {
+	#ifdef LETS_NOTE
+        return egi_random_max(3)+1;
+	#else
         return egi_random_max(8)+2;
+	#endif
 }
 
 
@@ -234,9 +238,11 @@ int avg_renew_plane(AVG_MVOBJ *plane)
 	 * ----------------------------------------*/
 #ifdef AVG_FIXED_POINT /*  use plane->fvpx/fvpy */
 	plane->heading=atan( 1.0*(endx-(plane->fvpx.num>>MATH_DIVEXP))/(endy-(plane->fvpy.num>>MATH_DIVEXP)) )/MATH_PI*180.0;
+    /*
 	printf("---  Pxy=(%d, %d),  Endxy=(%d, %d),  speed=%d  Heading=%d Deg. ---\n",
 			(int)(plane->fvpx.num>>MATH_DIVEXP), (int)(plane->fvpy.num>>MATH_DIVEXP), \
 			endx, endy, 	plane->speed, plane->heading );
+    */
 #else 	/* use plane->pxy or instead */
 	plane->heading=atan( 1.0*(endx-plane->pxy.x)/(endy-plane->pxy.y) )/MATH_PI*180.0;
 	printf("---  Pxy=(%d, %d),  Endxy=(%d, %d),  speed=%d  Heading=%d Deg. ---\n",

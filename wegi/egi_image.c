@@ -1796,13 +1796,21 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                         /* check if exceed image boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
-			        *(uint16_t *)(fbp+locfb)=0; /* black for outside */
+				#ifdef LETS_NOTE /*--- 4 bytes per pixel ---*/
+				*(uint32_t *)(fbp+(locfb<<2))=0;
+				#else		/*--- 2 bytes per pixel ---*/
+			        *(uint16_t *)(fbp+(locfb<<1))=0; /* black for outside */
+				#endif
                         }
                         else {
                                 /* image data location */
                                 locimg= (i+yp)*imgw+(j+xp);
+				#ifdef LETS_NOTE /*--- 4 bytes per pixel ---*/
+	         		*(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg))+(255<<24);
+				#else		/*--- 2 bytes per pixel ---*/
+			         *(uint16_t *)(fbp+(locfb<<1))=*(uint16_t *)(imgbuf+locimg);
+				#endif
 
-			         *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
                             }
                 }
         }
@@ -1821,7 +1829,11 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
-       				*(uint16_t *)(fbp+locfb*2)=0;   /* black */
+				#ifdef LETS_NOTE /*--- 4 bytes per pixel ---*/
+				*(uint32_t *)(fbp+(locfb<<2))=0;
+				#else		/*--- 2 bytes per pixel ---*/
+       				*(uint16_t *)(fbp+(locfb<<1))=0;   /* black */
+				#endif
                         }
                         else {
                             /* image data location, 2 bytes per pixel */
@@ -1834,15 +1846,34 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         /* Transparent for background, do nothing */
                                         //fbset_color2(fb_dev,*(uint16_t *)(fbp+(locfb<<1)));
                                 }
+
+			     #ifdef LETS_NOTE   /* ------- 4 bytes per pixel ------ */
                                 else if(alpha[locimg]==255) {    /* use front color */
-			               *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
+			               // *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
+	         		      *(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg)) \
+												+(255<<24);
 				}
                                 else {                           /* blend */
-                                            *(uint16_t *)(fbp+locfb*2)= COLOR_16BITS_BLEND(
+                                        //    *(uint16_t *)(fbp+locfb*2)= COLOR_16BITS_BLEND(
+					//		*(uint16_t *)(imgbuf+locimg),   /* front pixel */
+                                       //              *(uint16_t *)(fbp+(locfb<<1)),  /* background */
+                                        //            alpha[locimg]  );               /* alpha value */
+					*(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg))	\
+										  +(alpha[locimg]<<24);
+				}
+
+			     #else 		/* ------ 2 bytes per pixel ------- */
+                                else if(alpha[locimg]==255) {    /* use front color */
+			               *(uint16_t *)(fbp+(locfb<<1))=*(uint16_t *)(imgbuf+locimg);
+				}
+                                else {                           /* blend */
+                                            *(uint16_t *)(fbp+(locfb<<1))= COLOR_16BITS_BLEND(
 							*(uint16_t *)(imgbuf+locimg),   /* front pixel */
                                                         *(uint16_t *)(fbp+(locfb<<1)),  /* background */
                                                         alpha[locimg]  );               /* alpha value */
 				}
+
+			    #endif /*  <<< end 4/2 Bpp select  >>> */
                             }
                        } /* if  within screen */
                 } /* for() */

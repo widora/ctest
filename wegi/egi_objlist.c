@@ -41,7 +41,7 @@ int egi_listbox_test(EGI_EBOX *ebox, EGI_TOUCH_DATA *touch_data)
 	        0,      //frame, 	  /* -1 no frame for ebox, 0 simple .. */
 	        2,	//int nl,         /* number of txt lines for each txt ebox */
 	        30,	//int llen,       /* in byte, length for each txt line */
-	        &sympg_testfont,	//struct symbol_page *font, /* txt font */
+	        &sympg_testfont,	//EGI_SYMPAGE *font, /* txt font */
 	        45,	//int txtoffx,     /* offset of txt from the ebox, all the same */
 	        2,	//int txtoffy,
 	        0,	//int iconoffx,   /* offset of icon from the ebox, all the same */

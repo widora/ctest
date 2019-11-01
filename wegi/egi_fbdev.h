@@ -55,7 +55,9 @@ typedef struct fbdev{
 					 */
 
 	bool		pixcolor_on;	/* default/init as off */
+
 	uint16_t 	pixcolor;	/* pixel color */
+
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
 	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!
@@ -85,7 +87,11 @@ typedef struct fbdev{
 /* distinguished from PIXEL in egi_bjp.h */
 typedef struct fbpixel {
 	long int position;
+	#ifdef LETS_NOTE
+	uint32_t argb;
+	#else
 	uint16_t color;
+	#endif
 }FBPIX;
 
 /* Default FBDEV, global variale, Frame buffer device */

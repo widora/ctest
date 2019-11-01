@@ -27,19 +27,19 @@ Midas Zhou
 
 int main(int argc, char ** argv)
 {
-	int i,k;
-//	EGI_16BIT_COLOR color[3],subcolor[3];
 	EGI_16BIT_COLOR color;
 	struct timeval tms,tme;
 
 
-
-
+#if 0
+	int i;
 //   for(i=0;i<30;i++) {
 //	printf("sqrt of %ld is %ld. \n", 1<<i, (mat_fp16_sqrtu32(1<<i)) >> 16 );
 //  }
+#endif
+
         /* --- start egi tick --- */
-        tm_start_egitick();
+//        tm_start_egitick();
 
 	/* --- init logger --- */
   	if(egi_init_log("/tmp/log_geom") != 0)
@@ -49,15 +49,14 @@ int main(int argc, char ** argv)
 	}
 
         /* --- prepare fb device --- */
-        gv_fb_dev.fdfd=-1;
-        init_dev(&gv_fb_dev);
+        init_fbdev(&gv_fb_dev);
 
 	/* --- load all symbol pages --- */
 	symbol_load_allpages();
 
 
 
-#if 1  /* <<<<<<<<<<<<<<  test inbox  <<<<<<<<<<<<<<<*/
+#if 0  /* <<<<<<<<<<<<<<  1. test inbox  <<<<<<<<<<<<<<<*/
 	EGI_BOX inbox[4];
 	inbox[0]= (EGI_BOX){(EGI_POINT){0,0}, (EGI_POINT){23,45} };
 	inbox[1]= (EGI_BOX){(EGI_POINT){23,59}, (EGI_POINT){20,310} };
@@ -75,11 +74,27 @@ int main(int argc, char ** argv)
 #endif
 
 
-#if 0  /* <<<<<<<<<<<<<<  test draw trianle  <<<<<<<<<<<<<<<*/
 
-	EGI_BOX box={0,0,239,319};
+#if 1  /* <<<<<<<<<<<<<<  2. test draw_dot()  <<<<<<<<<<<<<<<*/
+	int i,j;
+	fbset_color(WEGI_COLOR_RED);
+	printf("draw block...\n");
+	for(i=500; i<800; i++) {
+		for(j=500; j<800; j++) {
+			draw_dot(&gv_fb_dev, j, i);  /* (fb,x,y) */
+		}
+	}
+
+	usleep(900000);
+	usleep(900000);
+#endif
+
+
+#if 1  /* <<<<<<<<<<<<<<  3. test draw triangle  <<<<<<<<<<<<<<<*/
+
+	EGI_BOX box={ {0,0},{600,800}}; //239,319}};
 	EGI_BOX tri_box;
-	EGI_POINT pts[3]={ 50,50, 100,100, 75, 90};
+	EGI_POINT pts[3]={ {50,50}, {100,100}, {75, 90}};
 
 while(1) {
 
@@ -90,17 +105,18 @@ while(1) {
 	for(i=0;i<3;i++)
 		egi_randp_inbox(pts+i, &tri_box);
 
-        color=egi_color_random(all);
+        color=egi_color_random(color_all);
 	fbset_color(color);
 	draw_filled_triangle(&gv_fb_dev, pts);
-	tm_delayms(75);
+	//usleep(5000);
+	//tm_delayms(75);
 }
 	return 0;
 #endif
 
 
 
-#if 0  /* <<<<<<<<<<<<<<  test draw pcircle  <<<<<<<<<<<<<<<*/
+#if 0  /* <<<<<<<<<<<<<<  4. test draw pcircle  <<<<<<<<<<<<<<<*/
 	int w;
 
 	if(argc>1) w=atoi(argv[1]);
@@ -136,7 +152,7 @@ while(1) {
 #endif
 
 
-#if 0  /* <<<<<<<<<<<<<<  test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
+#if 0  /* <<<<<<<<<<<<<<  5. test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*
 	EGI_POINT p1,p2;
 	EGI_BOX box={{0,0},{240-1,320-1,}};
@@ -210,7 +226,7 @@ while(1)
 #endif
 
 
-#if 0 /* <<<<<<<<<<<<<<  test line Chart  <<<<<<<<<<<<<<<*/
+#if 0 /* <<<<<<<<<<<<<<  6. test line Chart  <<<<<<<<<<<<<<<*/
 	int num=240/10+1; /* number of data */
 	int cdata[240]={0}; /* 240 data */
 	EGI_POINT points[240/1]; /* points */
@@ -257,8 +273,7 @@ while(1)
   	egi_quit_log();
 
         /* close fb dev */
-        munmap(gv_fb_dev.map_fb,gv_fb_dev.screensize);
-        close(gv_fb_dev.fdfd);
+        release_fbdev(&gv_fb_dev);
 
 	return 0;
 }

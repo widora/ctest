@@ -19,7 +19,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 			       EGI_IMGBUF **imgbuf,
                                int imgpx, int imgpy,
 			       int bkcolor,
-                               struct symbol_page *font
+                               EGI_SYMPAGE *font
                              );
 
 EGI_EBOX * egi_picbox_new( char *tag, /* or NULL to ignore */

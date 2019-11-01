@@ -61,7 +61,7 @@ EGI_DATA_PIC *egi_picdata_new( int offx, int offy,
 			       EGI_IMGBUF **pimgbuf,
 			       int imgpx, int imgpy,
 			       int bkcolor,
-			       struct symbol_page *font
+			       EGI_SYMPAGE *font
 			     )
 {
 	EGI_IMGBUF *eimg=NULL;

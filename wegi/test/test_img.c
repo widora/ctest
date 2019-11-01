@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 	struct timeval tm_end;
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 1
+#if 0
         printf("tm_start_egitick()...\n");
         tm_start_egitick();		   	/* start sys tick */
         printf("egi_init_log()...\n");
@@ -65,17 +65,22 @@ EGI_IMGBUF* frameimg=NULL;
 show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
 
-
+#if 1 /* ------------- egi_imgbuf_alloc() and egi_imgbuf_loadjpg(), egi_imgbuf_loadpng() ----------*/
 pimg=egi_imgbuf_alloc();
-
-//(egi_imgbuf_loadjpg("/tmp/test.jpg", pimg);
-//egi_imgbuf_loadpng("/tmp/test.png", pimg);
 
 if( egi_imgbuf_loadjpg(argv[1],pimg)!=0 && egi_imgbuf_loadpng(argv[1],pimg)!=0 ) {
   printf(" Fail to load file %s!\n", argv[1]);
   exit(-1);
 }
 
+egi_subimg_writeFB(pimg, &gv_fb_dev, 0, -1, 0,0);  /* imgbuf, fbdev, subnum, subcolor, x0, y0 */
+egi_imgbuf_free(pimg);
+
+exit(0);
+#endif /* <<<<<<    >>>>>> */
+
+
+pimg=egi_imgbuf_readfile(argv[1]);
 
 blur_size=45;
 
@@ -120,6 +125,7 @@ study cases:
 -------------------------------------------------------------------------------- */
 
 #if 1 /* <<<<<<<<<<<<<<<<<    1.1 TEST  egi_imgbuf_avgsoft(), 2D array  >>>>>>>>>>>>>> */
+
 	gettimeofday(&tm_start,NULL);
 	softimg=egi_imgbuf_avgsoft(pimg, blur_size, true, false); /* eimg, size, alpha_on, hold_on */
 	gettimeofday(&tm_end,NULL);
