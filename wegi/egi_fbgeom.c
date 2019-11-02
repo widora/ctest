@@ -34,7 +34,8 @@ midaszhou@yahoo.com
 EGI_BOX gv_fb_box;
 
 /* default color set */
-static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)
+static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)   /* For 16bpp */
+static uint32_t fb_rgb=0x0000ff;				/* For 24/32 bpp */
 
 /*  set color for every dot */
 inline void fbset_color(uint16_t color)
@@ -414,10 +415,8 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 	if(fr_dev->filo_on && fr_dev->pixalpha>0 )
         {
                 fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
-                // fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
 		pARGB=fr_dev->map_fb+location;
 		fpix.argb=*(uint32_t *)pARGB;
-		//fpix.alpha=*(pRGB+3);
 		/* FB alpha value no more use ? */
                 egi_filo_push(fr_dev->fb_filo, &fpix);
         }
@@ -425,30 +424,33 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 	/* assign or blend FB pixel data */
 	if(fr_dev->pixalpha==255) {	/* if 100% front color */
 		if(fr_dev->pixcolor_on) /* use fbdev pixcolor */
-		        // *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
 			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)+(255<<24);
 		else			/* use system pixcolor */
-		        // *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
 			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)+(255<<24);
 	}
 	else {	/* otherwise, blend with original color */
 		if(fr_dev->pixcolor_on) { 	/* use fbdev pixcolor */
-			// fb_color=COLOR_16BITS_BLEND(  fr_dev->pixcolor,			     /* Front color */
-			//			     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
-			//			      fr_dev->pixalpha );		     /* Alpha value */
-		        // *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
 
-		  *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)	\
-									      + (fr_dev->pixalpha<<24);
+		     /* !!! LETS_NOTE FB only support 1 and 0 for alpha value of ARGB  */
+//	             *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)   \
+//										+ (fr_dev->pixalpha<<24);
+
+			fb_rgb=(*((uint32_t *)(fr_dev->map_fb+location)))&0xFFFFFF; /* Get back color */
+			/* front, back, alpha */
+			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fr_dev->pixcolor), fb_rgb, fr_dev->pixalpha);
+			*((uint32_t *)(fr_dev->map_fb+location))=fb_rgb+(255<<24);
+
 		}
 		else {				/* use system pxicolor */
-			// fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
-			//			     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
-			//			      fr_dev->pixalpha );		     /* Alpha value */
-		        // *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
 
-			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)	\
-										+ (fr_dev->pixalpha<<24);
+		     /* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB  */
+//		     *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)	\
+//										+ (fr_dev->pixalpha<<24);
+
+			fb_rgb=(*((uint32_t *)(fr_dev->map_fb+location)))&0xFFFFFF; /* Get back color */
+			/* front, back, alpha */
+			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fb_color), fb_rgb, fr_dev->pixalpha);
+			*((uint32_t *)(fr_dev->map_fb+location))=fb_rgb+(255<<24);
 		}
 	}
 

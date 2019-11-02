@@ -86,6 +86,7 @@ inline EGI_16BIT_COLOR egi_16bitColor_avg(EGI_16BIT_COLOR *colors, int n)
         return COLOR_RGB_TO16BITS(avgR/n, avgG/n, avgB/n);
 }
 
+
 /*------------------------------------------------------------------
                 16bit color blend function
 Note: Ignore back alpha value.

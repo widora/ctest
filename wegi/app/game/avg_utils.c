@@ -38,6 +38,7 @@ void game_readme(void)
              READY?!!";
 
 	/* Create a pad */
+#if 1
 		/* (int height, int width, unsigned char alpha, EGI_16BIT_COLOR color) */
  	EGI_IMGBUF *pad=egi_imgbuf_create(200, 220, 200, WEGI_COLOR_LTBLUE);
 		/* ( EGI_IMGBUF *eimg, enum imgframe_type type, int alpha, int pn, const int *param );  */
@@ -46,7 +47,10 @@ void game_readme(void)
                                 0, 0, 10, 50,              /* int xp, int yp, int xw, int yw */
 				pad->width, pad->height    /*	int winw, int winh */
 			     );
+	/* free */
+	egi_imgbuf_free(pad);
 
+#endif
 
         /*  title  */
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
@@ -63,7 +67,6 @@ void game_readme(void)
                                           WEGI_COLOR_DARKRED, -1, -1 );      /* fontcolor, transcolor,opaque */
 
 	/* free */
-	egi_imgbuf_free(pad);
 }
 
 

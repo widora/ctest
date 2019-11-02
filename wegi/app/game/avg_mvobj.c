@@ -98,7 +98,7 @@ Reset mvobj speed to a random value.
 inline int avg_random_speed(void)
 {
 	#ifdef LETS_NOTE
-        return egi_random_max(3)+1;
+        return egi_random_max(3);
 	#else
         return egi_random_max(8)+2;
 	#endif
@@ -308,7 +308,11 @@ int avg_renew_bullet(AVG_MVOBJ *bullet)
 
 	/* Set bullet speed */
 	bullet->vang=0;
-	bullet->speed=-15; /* */
+	#ifdef LETS_NOTE
+	bullet->speed=-10; /* */
+	#else
+	bullet->speed=-15;
+	#endif
 
 	/* Set heading */
 	bullet->heading=station->heading;
@@ -456,8 +460,13 @@ int bullet_trail(AVG_MVOBJ *bullet)
 			/* Wait for interval time between two bullet, then renew(re_launch) it.
 			 * 5_refresh interval between two fires.
 			 */
-			if( bullet->station->refcnt/5%4 == bullet->id ) /* 4/8 active bullets totally */
+		        #ifdef LETS_NOTE
+			if( bullet->station->refcnt/15%4 == bullet->id ) { /* 4/8 active bullets totally */
+			#else
+			if( bullet->station->refcnt/5%4 == bullet->id ) { /* 4/8 active bullets totally */
+			#endif
 				bullet->renew_method(bullet);
+			}
 			/* Put it in storage  */
 			else {
 				/* For bullets that not in storage */
@@ -504,10 +513,18 @@ int turn_trail(AVG_MVOBJ *mvobj)
 	 * 30 deg. is accumulated by angular speed. it's not default heading angle.
 	 */
 	if( mvobj->heading > 60  ) {
-		mvobj->vang=-6; //egi_random_max(3)-4;
+	        #ifdef LETS_NOTE
+		mvobj->vang=-3;
+		#else
+		mvobj->vang=-6;
+		#endif
 	}
 	else if( mvobj->heading < -60 ) {
-		mvobj->vang=6;//egi_random_max(3);
+	        #ifdef LETS_NOTE
+		mvobj->vang=3;
+		#else
+		mvobj->vang=6;
+		#endif
 	}
 
         /* 1. Rotate the object:  update actimg, Create actimg according to heading */

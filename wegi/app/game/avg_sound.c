@@ -6,7 +6,7 @@ published by the Free Software Foundation.
 Note:
 	1. To make sample rate of effect sound same as of alsa config
 	   value will improve sound mixing speed?
-
+	   OR a fraction of Max HW sample rate?
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -64,8 +64,8 @@ static void *  thread_sound_launch(void *arg)
 {
      pthread_detach(pthread_self());
 
-     egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_launch, 512);
-//     usleep(10000);
+     egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_launch, 1024);
+     usleep(10000);
 
      pthread_exit(0);
 }
@@ -78,8 +78,8 @@ static void *  thread_sound_explode(void *arg)
 {
      pthread_detach(pthread_self());
 
-     egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_explode, 512);
-  //   usleep(10000);
+     egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_explode, 1024);
+     usleep(10000);
 
      pthread_exit(0);
 }

@@ -267,7 +267,7 @@ EGI_SYMPAGE sympg_heweather =
 /* -----  All static functions ----- */
 static uint16_t *symbol_load_page(EGI_SYMPAGE *sym_page);
 
-/* -------------------------------------------------------------
+/* ----------------------------------------------------------------------
 TODO: Only for one symbol NOW!!!!!
 
 load a symbol_page struct from a EGI_IMGBUF
@@ -277,7 +277,7 @@ load a symbol_page struct from a EGI_IMGBUF
 Return:
 	0	ok
 	<0	fails
---------------------------------------------------------------*/
+------------------------------------------------------------------------*/
 int symbol_load_page_from_imgbuf(EGI_SYMPAGE *sym_page, EGI_IMGBUF *imgbuf)
 {
 	int i;
@@ -774,7 +774,8 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	int yres;
 	int mapx=0,mapy=0; /* if need ROLLBACK effect,then map x0,y0 to LCD coordinate range when they're out of range*/
 	uint16_t pcolor;
-	uint32_t pargb;
+	uint32_t pargb; /* ARGB, !!! init for non FT type fonts, alpha is 255. */
+	uint32_t prgb;  /* RGB */
 	unsigned char palpha=0; /* pixel alpha value if applicable */
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page, for FT2 sympage, it's NULL! */
 	int offset;
@@ -794,7 +795,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 
 	/* check sym_code */
 	if( sym_code > sym_page->maxnum && sym_page->symtype!=symtype_FT2 ) {
-		EGI_PLOG(LOGLV_ERROR,"symbole code number out of range! sympg->path: %s\n", sym_page->path);
+		EGI_PDEBUG(DBG_SYMBOL,"symbole code number out of range! sympg->path: %s\n", sym_page->path);
 		return;
 	}
 
@@ -822,6 +823,12 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	/* check and reset opaque to [0 255] */
 	if( opaque < 0 || opaque > 255)
 		opaque=255;
+
+	/* init palpha for non FT symobls */
+	if(sym_page->alpha == NULL) {
+		palpha=255;
+		pargb=255<<24; /* For LETS_NOTE */
+	}
 
 	/* get symbol pixel and copy it to FB mem */
 	for(i=0;i<height;i++)
@@ -904,9 +911,9 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 			if(sym_page->alpha)
 				palpha=*(sym_page->alpha+poff);  	/*  get alpha */
 
-			/* for FT font sympage, only alpah value and data is NULL. */
+			/* for FT font sympage, only alpah value, and data is NULL. */
 			if( data==NULL ) {
-				pcolor=WEGI_COLOR_BLACK;
+				pcolor=WEGI_COLOR_BLACK; /* pcolor will(may) be re_assigned to fontcolor later ... */
 			}
 			/* get symbol pixel in page data */
 			else {
@@ -1014,7 +1021,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 		 	   /* ------------------------ ( for Real FB ) ---------------------- */
 			   else
 			   {
-			   #ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
+			   #ifdef LETS_NOTE  /* ------ 4 bytes per pixel ------ */
 
 				/* check available space for a 4bytes pixel color fb memory boundary */
 				pos<<=2; /*pixel to byte */
@@ -1038,9 +1045,17 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 				/* else if opaque==255, use original pcolor */
 
 				/* write to FB */
-				*(uint32_t *)(fb_dev->map_fb+pos)=pargb; /* in pixel, deref. to uint32_t */
+				/* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB  */
+				  // *(uint32_t *)(fb_dev->map_fb+pos)=pargb; /* in pixel, deref. to uint32_t */
 
-			   #else             /*--- 2 bytes per pixel ---*/
+				/* Blend manually */
+	                        prgb=(*(uint32_t *)(fb_dev->map_fb+pos))&0xFFFFFF; /* Get back color */
+                        	prgb=COLOR_24BITS_BLEND(pargb&0xFFFFFF, prgb, pargb>>24); /* front,back,alpha */
+
+                               *((uint32_t *)(fb_dev->map_fb+pos))=prgb+(255<<24); /* 1<<24 */
+
+
+			   #else             /* ----- 2 bytes per pixel ----- */
 
 				/* check available space for a 2bytes pixel color fb memory boundary,
 				  !!! though FB has self roll back mechanism.  */
@@ -1076,7 +1091,8 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 								     opaque
 								  );
 				}
-				/* opaque==255, use original pcolor */
+				/* sym_page->alpha=NULL && opaque==255, use original pcolor */
+
 
 				/* write to FB */
 				*(uint16_t *)(fb_dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */

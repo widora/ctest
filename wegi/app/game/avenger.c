@@ -16,7 +16,7 @@ midaszhou@yahoo.com
 #include "page_avenger.h"
 
 /* ON/OFF  */
-bool disable_avgsound=true; //false;
+bool disable_avgsound=false;
 
 /* Game level and Score relevant */
 static	int game_level=0;
@@ -99,7 +99,13 @@ void *thread_game_avenger(EGI_PAGE *page)
 	int nget=0;
 
 
+
 	printf("Start GAME avenger...\n");
+        game_readme();
+	sleep(3);
+	egi_page_needrefresh(page);
+	egi_page_refresh(page);
+
 
 	/* Load sound effect files to EGI_PCMBUF */
 	if(!disable_avgsound)
@@ -177,7 +183,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 					    0,				  /* int speed */
 					    turn_trail			  /* int (*trail_mode)(AVG_MVOBJ *) */
                                          );
-	gun_station->vang=12;  /* station turning angular velocity */
+	gun_station->vang=3;//12;  /* station turning angular velocity */
 
 	/* 2.3 Create a bullet */
 	for(i=0; i<num_bullet; i++) {
@@ -245,7 +251,8 @@ void *thread_game_avenger(EGI_PAGE *page)
 			sleep(3);
 
 			/* dump old image data in FB filo */
-			fb_filo_dump(&gv_fb_dev);
+//			fb_filo_dump(&gv_fb_dev);
+       	  fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
 
 			/* A-1. Change scene background image */
 			printf("Update scene bk image...\n");
@@ -343,10 +350,11 @@ void *thread_game_avenger(EGI_PAGE *page)
           /* <<<<< Turn off FILO  >>>>> */
        	  fb_filo_off(&gv_fb_dev);  /* Stop filo */
 	  #ifdef LETS_NOTE
-	  tm_delayms(20);
+	  tm_delayms(55);
 	  #else
 	  tm_delayms(100);
 	  #endif
+
 	}
 
 
