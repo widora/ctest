@@ -934,7 +934,8 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 				if(fb_dev->filo_on) {		/* For real FB device */
 					#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
 					fpix.position=pos<<2; /* pixel to bytes, !!! FAINT !!! */
-					fpix.argb=*(uint32_t *)(fb_dev->map_fb+(pos<<2));
+					//fpix.argb=*(uint32_t *)(fb_dev->map_fb+(pos<<2));
+					fpix.argb=*(uint32_t *)(fb_dev->map_bk+(pos<<2));
 					#else		  /*--- 2 bytes per pixel ---*/
 					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
 					fpix.color=*(uint16_t *)(fb_dev->map_fb+(pos<<1));
@@ -1049,10 +1050,12 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 				  // *(uint32_t *)(fb_dev->map_fb+pos)=pargb; /* in pixel, deref. to uint32_t */
 
 				/* Blend manually */
-	                        prgb=(*(uint32_t *)(fb_dev->map_fb+pos))&0xFFFFFF; /* Get back color */
+				//prgb=(*(uint32_t *)(fb_dev->map_fb+pos))&0xFFFFFF; /* Get back color */
+				prgb=(*(uint32_t *)(fb_dev->map_bk+pos))&0xFFFFFF; /* Get back color */
                         	prgb=COLOR_24BITS_BLEND(pargb&0xFFFFFF, prgb, pargb>>24); /* front,back,alpha */
 
-                               *((uint32_t *)(fb_dev->map_fb+pos))=prgb+(255<<24); /* 1<<24 */
+                               // *((uint32_t *)(fb_dev->map_fb+pos))=prgb+(255<<24); /* 1<<24 */
+                               *((uint32_t *)(fb_dev->map_bk+pos))=prgb+(255<<24); /* 1<<24 */
 
 
 			   #else             /* ----- 2 bytes per pixel ----- */

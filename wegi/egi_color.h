@@ -22,14 +22,14 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
-#define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( (rgb>>16), ((rgb&0x00ff00)>>8), (rgb&0xff) ) )
-#define COLOR_16TO24BITS(rgb)   ((uint32_t)( ((rgb&0xF800)<<8) + ((rgb&0x7E0)<<5) + ((rgb&0x1F)<<3) ))
+#define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( ((rgb)>>16), (((rgb)&0x00ff00)>>8), ((rgb)&0xff) ) )
+#define COLOR_16TO24BITS(rgb)   ((uint32_t)( (((rgb)&0xF800)<<8) + (((rgb)&0x7E0)<<5) + (((rgb)&0x1F)<<3) ))
 
 
 /* get 16bit complementary colour for a 16bit color
  * !!! NOTE: For 16bit color, it's NOT possible to get a ture complementary color !!!
  */
-#define COLOR_COMPLEMENT_16BITS(rgb)	 ( 0xFFFF-rgb )
+#define COLOR_COMPLEMENT_16BITS(rgb)	 ( 0xFFFF-(rgb) )
 
 
 /*  MACRO 16bit color blend

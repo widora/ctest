@@ -218,7 +218,7 @@ EGI_PAGE *create_avengerPage(void)
 
 	/* initial value in tmtxt */
 	egi_push_datatxt(ebox_CreditTxt[0], "SCORE: ", NULL);
-	egi_push_datatxt(ebox_CreditTxt[1], "Level: ", NULL);
+	egi_push_datatxt(ebox_CreditTxt[1], "LEVEL: ", NULL);
 
 	/* --------- 5. create page ------- */
 	/* 5.1 create page */

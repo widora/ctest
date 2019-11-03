@@ -28,78 +28,90 @@ Return:
         0       OK
         <0      Fails
 ---------------------------------------*/
-int init_fbdev(FBDEV *fr_dev)
+int init_fbdev(FBDEV *fb_dev)
 {
-//        FBDEV *fr_dev=dev;
+//        FBDEV *fb_dev=dev;
 	int i;
 
-        if(fr_dev->fbfd > 0) {
+        if(fb_dev->fbfd > 0) {
            printf("Input FBDEV already open!\n");
            return -1;
         }
 
-        fr_dev->fbfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
-        if(fr_dev<0) {
+        fb_dev->fbfd=open(EGI_FBDEV_NAME,O_RDWR|O_CLOEXEC);
+        if(fb_dev<0) {
           printf("Open /dev/fb0: %s\n",strerror(errno));
           return -1;
         }
         printf("%s:Framebuffer device opened successfully.\n",__func__);
-        ioctl(fr_dev->fbfd,FBIOGET_FSCREENINFO,&(fr_dev->finfo));
-        ioctl(fr_dev->fbfd,FBIOGET_VSCREENINFO,&(fr_dev->vinfo));
-        fr_dev->screensize=fr_dev->vinfo.xres*fr_dev->vinfo.yres*fr_dev->vinfo.bits_per_pixel/8;
+        ioctl(fb_dev->fbfd,FBIOGET_FSCREENINFO,&(fb_dev->finfo));
+        ioctl(fb_dev->fbfd,FBIOGET_VSCREENINFO,&(fb_dev->vinfo));
+        fb_dev->screensize=fb_dev->vinfo.xres*fb_dev->vinfo.yres*fb_dev->vinfo.bits_per_pixel/8;
 
         /* mmap FB */
-        fr_dev->map_fb=(unsigned char *)mmap(NULL,fr_dev->screensize,PROT_READ|PROT_WRITE,MAP_SHARED,
-                                                                                        fr_dev->fbfd,0);
-        if(fr_dev->map_fb==MAP_FAILED) {
-                printf("Fail to mmap FB!\n");
-                close(fr_dev->fbfd);
+        fb_dev->map_fb=(unsigned char *)mmap(NULL,fb_dev->screensize,PROT_READ|PROT_WRITE, MAP_SHARED,
+                                                                                        fb_dev->fbfd, 0);
+        if(fb_dev->map_fb==MAP_FAILED) {
+                printf("Fail to mmap FB: %s\n", strerror(errno));
+                close(fb_dev->fbfd);
                 return -2;
         }
 
+	/* ---- mmap back mem, map_bk ---- */
+	#ifdef LETS_NOTE
+	fb_dev->map_bk=(unsigned char *)mmap(NULL,fb_dev->screensize, PROT_READ|PROT_WRITE,
+									MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	if(fb_dev->map_bk==MAP_FAILED) {
+                printf("Fail to mmap back mem map_bk for FB: %s\n", strerror(errno));
+                munmap(fb_dev->map_fb,fb_dev->screensize);
+                close(fb_dev->fbfd);
+                return -2;
+	}
+	#endif
+
 	/* reset virtual FB, as EGI_IMGBUF */
-	fr_dev->virt_fb=NULL;
+	fb_dev->virt_fb=NULL;
 
 	/* reset pos_rotate */
-	fr_dev->pos_rotate=0;
-        fr_dev->pos_xres=fr_dev->vinfo.xres;
-        fr_dev->pos_yres=fr_dev->vinfo.yres;
+	fb_dev->pos_rotate=0;
+        fb_dev->pos_xres=fb_dev->vinfo.xres;
+        fb_dev->pos_yres=fb_dev->vinfo.yres;
 
         /* reset pixcolor and pixalpha */
-	fr_dev->pixcolor_on=false;
-        fr_dev->pixcolor=(30<<11)|(10<<5)|10;
-        fr_dev->pixalpha=255;
+	fb_dev->pixcolor_on=false;
+        fb_dev->pixcolor=(30<<11)|(10<<5)|10;
+        fb_dev->pixalpha=255;
 
         /* init fb_filo */
-        fr_dev->filo_on=0;
-        fr_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
-        if(fr_dev->fb_filo==NULL) {
+        fb_dev->filo_on=0;
+        fb_dev->fb_filo=egi_malloc_filo(1<<13, sizeof(FBPIX), FILO_AUTO_DOUBLE);//|FILO_AUTO_HALVE
+        if(fb_dev->fb_filo==NULL) {
                 printf("%s: Fail to malloc FB FILO!\n",__func__);
-                munmap(fr_dev->map_fb,fr_dev->screensize);
-                close(fr_dev->fbfd);
+                munmap(fb_dev->map_fb,fb_dev->screensize);
+                close(fb_dev->fbfd);
                 return -3;
         }
 
         /* assign fb box */
-	if(fr_dev==&gv_fb_dev) {
+	if(fb_dev==&gv_fb_dev) {
 	        gv_fb_box.startxy.x=0;
         	gv_fb_box.startxy.y=0;
-	        gv_fb_box.endxy.x=fr_dev->vinfo.xres-1;
-        	gv_fb_box.endxy.y=fr_dev->vinfo.yres-1;
+	        gv_fb_box.endxy.x=fb_dev->vinfo.xres-1;
+        	gv_fb_box.endxy.y=fb_dev->vinfo.yres-1;
 	}
 
 	/* clear buffer */
 	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
-		fr_dev->buffer[i]=NULL;
+		fb_dev->buffer[i]=NULL;
 	}
 
-//      printf("init_dev successfully. fr_dev->map_fb=%p\n",fr_dev->map_fb);
+//      printf("init_dev successfully. fb_dev->map_fb=%p\n",fb_dev->map_fb);
         printf(" \n------- FB Parameters -------\n");
-        printf(" bits_per_pixel: %d bits \n",fr_dev->vinfo.bits_per_pixel);
-        printf(" line_length: %d bytes\n",fr_dev->finfo.line_length);
-        printf(" xres: %d pixels, yres: %d pixels \n", fr_dev->vinfo.xres, fr_dev->vinfo.yres);
-        printf(" xoffset: %d,  yoffset: %d \n", fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
-        printf(" screensize: %ld bytes\n", fr_dev->screensize);
+        printf(" bits_per_pixel: %d bits \n",fb_dev->vinfo.bits_per_pixel);
+        printf(" line_length: %d bytes\n",fb_dev->finfo.line_length);
+        printf(" xres: %d pixels, yres: %d pixels \n", fb_dev->vinfo.xres, fb_dev->vinfo.yres);
+        printf(" xoffset: %d,  yoffset: %d \n", fb_dev->vinfo.xoffset, fb_dev->vinfo.yoffset);
+        printf(" screensize: %ld bytes\n", fb_dev->screensize);
         printf(" ----------------------------\n\n");
 
         return 0;
@@ -118,7 +130,11 @@ void release_fbdev(FBDEV *dev)
 	/* free FILO, reset fb_filo to NULL inside */
         egi_free_filo(dev->fb_filo);
 
-        munmap(dev->map_fb,dev->screensize);
+	/* unmap FB and back mem */
+        if( munmap(dev->map_fb,dev->screensize) != 0)
+		printf("Fail to unmap FB: %s\n", strerror(errno));
+        if( munmap(dev->map_bk,dev->screensize) !=0 )
+		printf("Fail to unmap back mem for FB: %s\n", strerror(errno));
 
 	/* free buffer */
 	for( i=0; i<FBDEV_MAX_BUFFER; i++ )
@@ -143,7 +159,7 @@ Return:
         0       OK
         <0      Fails
 ---------------------------------------------------*/
-int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
+int init_virt_fbdev(FBDEV *fb_dev, EGI_IMGBUF *eimg)
 {
 	int i;
 
@@ -158,49 +174,48 @@ int init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg)
 	 */
 
 	/* set virt */
-	fr_dev->virt=true;
+	fb_dev->virt=true;
 
 	/* disable FB parmas */
-	fr_dev->fbfd=-1;
-	fr_dev->map_fb=NULL;
-	fr_dev->fb_filo=NULL;
-	fr_dev->filo_on=0;
+	fb_dev->fbfd=-1;
+	fb_dev->map_fb=NULL;
+	fb_dev->fb_filo=NULL;
+	fb_dev->filo_on=0;
 
 	/* reset virtual FB, as EGI_IMGBUF */
-	fr_dev->virt_fb=eimg;
-
+	fb_dev->virt_fb=eimg;
 
         /* reset pixcolor and pixalpha */
-	fr_dev->pixcolor_on=false;
-        fr_dev->pixcolor=(30<<11)|(10<<5)|10;
-        fr_dev->pixalpha=255;
+	fb_dev->pixcolor_on=false;
+        fb_dev->pixcolor=(30<<11)|(10<<5)|10;
+        fb_dev->pixalpha=255;
 
 	/* set params for virt FB */
-	fr_dev->vinfo.bits_per_pixel=16;
-	fr_dev->finfo.line_length=eimg->width*2;
-	fr_dev->vinfo.xres=eimg->width;
-	fr_dev->vinfo.yres=eimg->height;
-	fr_dev->vinfo.xoffset=0;
-	fr_dev->vinfo.yoffset=0;
-	fr_dev->screensize=eimg->height*eimg->width;
+	fb_dev->vinfo.bits_per_pixel=16;
+	fb_dev->finfo.line_length=eimg->width*2;
+	fb_dev->vinfo.xres=eimg->width;
+	fb_dev->vinfo.yres=eimg->height;
+	fb_dev->vinfo.xoffset=0;
+	fb_dev->vinfo.yoffset=0;
+	fb_dev->screensize=eimg->height*eimg->width;
 
 	/* reset pos_rotate */
-	fr_dev->pos_rotate=0;
-	fr_dev->pos_xres=fr_dev->vinfo.xres;
-	fr_dev->pos_yres=fr_dev->vinfo.yres;
+	fb_dev->pos_rotate=0;
+	fb_dev->pos_xres=fb_dev->vinfo.xres;
+	fb_dev->pos_yres=fb_dev->vinfo.yres;
 
 	/* clear buffer */
 	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
-		fr_dev->buffer[i]=NULL;
+		fb_dev->buffer[i]=NULL;
 	}
 
 #if 0
         printf(" \n--- Virtal FB Parameters ---\n");
-        printf(" bits_per_pixel: %d bits \n",		fr_dev->vinfo.bits_per_pixel);
-        printf(" line_length: %d bytes\n",		fr_dev->finfo.line_length);
-        printf(" xres: %d pixels, yres: %d pixels \n", 	fr_dev->vinfo.xres, fr_dev->vinfo.yres);
-        printf(" xoffset: %d,  yoffset: %d \n", 	fr_dev->vinfo.xoffset, fr_dev->vinfo.yoffset);
-        printf(" screensize: %ld bytes\n", 		fr_dev->screensize);
+        printf(" bits_per_pixel: %d bits \n",		fb_dev->vinfo.bits_per_pixel);
+        printf(" line_length: %d bytes\n",		fb_dev->finfo.line_length);
+        printf(" xres: %d pixels, yres: %d pixels \n", 	fb_dev->vinfo.xres, fb_dev->vinfo.yres);
+        printf(" xoffset: %d,  yoffset: %d \n", 	fb_dev->vinfo.xoffset, fb_dev->vinfo.yoffset);
+        printf(" screensize: %ld bytes\n", 		fb_dev->screensize);
         printf(" ----------------------------\n\n");
 #endif
 
@@ -217,6 +232,20 @@ void release_virt_fbdev(FBDEV *dev)
 	dev->virt_fb=NULL;
 }
 
+/*--------------------------------
+ Refresh FB mem with back memory
+--------------------------------*/
+void fb_refresh(FBDEV *dev)
+{
+	if(dev==NULL)
+		return;
+
+	if( dev->map_bk==NULL || dev->map_fb==NULL )
+		return;
+
+	memcpy(dev->map_fb, dev->map_bk, dev->screensize);
+
+}
 
 /*-------------------------------------------------------------
 Put fb->filo_on to 1, as turn on FB FILO.
@@ -259,7 +288,8 @@ inline void fb_filo_flush(FBDEV *dev)
                 /* write back to FB */
                 //printf("EGI FILO pop out: pos=%ld, color=%d\n",fpix.position,fpix.color);
 		#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
-                *((uint32_t *)(dev->map_fb+fpix.position)) = fpix.argb; //COLOR_16TO24BITS(fpix.color) + (fpix.alpha<<24);
+//                *((uint32_t *)(dev->map_fb+fpix.position)) = fpix.argb; //COLOR_16TO24BITS(fpix.color) + (fpix.alpha<<24);
+		*((uint32_t *)(dev->map_bk+fpix.position)) = fpix.argb;
 		#else		/*--- 2 bytes per pixel ---*/
                 *((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
 		#endif

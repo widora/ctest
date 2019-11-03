@@ -98,7 +98,7 @@ Reset mvobj speed to a random value.
 inline int avg_random_speed(void)
 {
 	#ifdef LETS_NOTE
-        return egi_random_max(3);
+        return egi_random_max(4)+1;
 	#else
         return egi_random_max(8)+2;
 	#endif

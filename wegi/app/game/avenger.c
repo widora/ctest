@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Midas Zhou
 midaszhou@yahoo.com
 ------------------------------------------------------------------*/
@@ -27,7 +26,6 @@ static int credit_GunHitPlane=2;
 
 static int win_score=100;   //20;
 static int lose_score=-100; //-3;
-
 
 static int score=0;
 
@@ -231,7 +229,7 @@ void *thread_game_avenger(EGI_PAGE *page)
 		/*  --- 1. Update PAGE setting --- */
 
 		/* 1.1 Update credit and time */
-		avenpage_update_creditTxt(score, game_level);
+//		avenpage_update_creditTxt(score, game_level);
 
 		/* 1.2 Increase/Decrese GAME Level/Stage/Episode ... */
 		if( score >= win_score || score <= lose_score ) {
@@ -248,11 +246,12 @@ void *thread_game_avenger(EGI_PAGE *page)
 				 //game_levelUp(false, game_level);
 				 game_readme();
 			}
+			fb_refresh(&gv_fb_dev);
 			sleep(3);
 
 			/* dump old image data in FB filo */
 //			fb_filo_dump(&gv_fb_dev);
-       	  fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+       	  		fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
 
 			/* A-1. Change scene background image */
 			printf("Update scene bk image...\n");
@@ -338,6 +337,9 @@ void *thread_game_avenger(EGI_PAGE *page)
 		for(i=0; i<8; i++)
 			refresh_mvobj(planes[i]);
 
+		/* 2.4 Update credit */
+		avenpage_update_creditTxt(score, game_level);
+
 
 #if 0		/*  --- 3. Demo. and Advertise --- */
 
@@ -347,10 +349,13 @@ void *thread_game_avenger(EGI_PAGE *page)
 		}
 #endif
 
+	  fb_refresh(&gv_fb_dev);
+
           /* <<<<< Turn off FILO  >>>>> */
        	  fb_filo_off(&gv_fb_dev);  /* Stop filo */
 	  #ifdef LETS_NOTE
-	  tm_delayms(55);
+	  //tm_delayms(20);
+	  usleep(30000);
 	  #else
 	  tm_delayms(100);
 	  #endif

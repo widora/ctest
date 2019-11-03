@@ -47,17 +47,18 @@ typedef struct fbdev{
 
         struct 		fb_var_screeninfo vinfo;
         struct 		fb_fix_screeninfo finfo;
-        long int 	screensize;
+
+        unsigned long 	screensize;
         unsigned char 	*map_fb;  	/* mmap to FB data */
+	unsigned char   *map_bk;	/* back mmap mem */
+
 	EGI_IMGBUF	*virt_fb;	/* virtual FB data as a EGI_IMGBUF
 					 * Ownership will NOT be taken from the caller, means FB will
 				   	 * never try to free it, whatever.
 					 */
 
 	bool		pixcolor_on;	/* default/init as off */
-
 	uint16_t 	pixcolor;	/* pixel color */
-
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
 
 	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!
@@ -77,10 +78,11 @@ typedef struct fbdev{
 	int		pos_yres;
 
 	/* pthread_mutex_t fbmap_lock; */
-	EGI_FILO *fb_filo;
-	int filo_on;			/* >0, activate FILO push */
 
-	uint16_t *buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
+	EGI_FILO 	*fb_filo;
+	int 		filo_on;	/* >0, activate FILO push */
+
+	uint16_t 	*buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
 
 }FBDEV;
 
@@ -102,6 +104,7 @@ int             init_fbdev(FBDEV *dev);
 void            release_fbdev(FBDEV *dev);
 int 		init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
 void		release_virt_fbdev(FBDEV *dev);
+void 		fb_refresh(FBDEV *dev);
 void     	fb_filo_on(FBDEV *dev);
 void     	fb_filo_off(FBDEV *dev);
 void            fb_filo_flush(FBDEV *dev);

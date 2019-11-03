@@ -273,10 +273,10 @@ Return:
 	<0	Fails
 	-1	get out of FB mem.(ifndef FB_DOTOUT_ROLLBACK)
 -------------------------------------------------------------------*/
-inline int draw_dot(FBDEV *dev,int x,int y)
+int draw_dot(FBDEV *fb_dev,int x,int y)
 {
-        FBDEV *fr_dev=dev;
 	EGI_IMGBUF *virt_fb;
+	unsigned char *map;
 	int fx;
 	int fy;
         long int location=0;
@@ -287,24 +287,24 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 	int sumalpha;
 
 	/* check input data */
-	if(dev==NULL)
+	if(fb_dev==NULL)
 		return -2;
 
 	/* set xres and yres */
-	virt_fb=fr_dev->virt_fb;
+	virt_fb=fb_dev->virt_fb;
 	if(virt_fb) {			/* for virtual FB */
 		xres=virt_fb->width;
 		yres=virt_fb->height;
 	}
 	else {				/* for FB */
-		xres=fr_dev->vinfo.xres;
-		yres=fr_dev->vinfo.yres;
+		xres=fb_dev->vinfo.xres;
+		yres=fb_dev->vinfo.yres;
 	}
 
 	/* check FB.pos_rotate
 	* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
         */
-	switch(fr_dev->pos_rotate) {
+	switch(fb_dev->pos_rotate) {
 		case 0:			/* FB defaul position */
 			fx=x;
 			fy=y;
@@ -358,7 +358,7 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 	location=fx+fy*virt_fb->width;
 
 	/* check if no space left for a 16bit pixel */
-	if( location < 0 || location > fr_dev->screensize - 1 ) /* screensize of imgbuf,
+	if( location < 0 || location > fb_dev->screensize - 1 ) /* screensize of imgbuf,
 							       * in pixels! */
 	{
 		printf("WARNING: point location out of EGI_IMGBUF mem.!\n");
@@ -367,10 +367,10 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 
 	/* blend pixel color
 	 * TODO:  Also apply background alpha value if virt_fb->alpha available ????
-	 *	  fb_color=egi_16bitColor_blend2( fb_color, fr_dev->pixalpha,
+	 *	  fb_color=egi_16bitColor_blend2( fb_color, fb_dev->pixalpha,
          *                     virt_fb->imgbuf[location], virt_fb->alpha[location]);
 	 */
-	if(fr_dev->pixalpha==255) {	/* if 100% front color */
+	if(fb_dev->pixalpha==255) {	/* if 100% front color */
 	        virt_fb->imgbuf[location]=fb_color;
 	}
 	/* otherwise, blend with original color, back alpha value ignored!!! */
@@ -378,20 +378,20 @@ inline int draw_dot(FBDEV *dev,int x,int y)
 		/* NOTE: back color alpha value all deemed as 255,  */
 		fb_color=COLOR_16BITS_BLEND(  fb_color,			     /* Front color */
 					      virt_fb->imgbuf[location],     /* Back color */
-					      fr_dev->pixalpha );	     /* Alpha value */
+					      fb_dev->pixalpha );	     /* Alpha value */
 	        virt_fb->imgbuf[location]=fb_color;
 	}
 
         /* if VIRT FB has alpha data */
 	if(virt_fb->alpha) {
 		/* sum up alpha value */
-	        sumalpha=virt_fb->alpha[location]+fr_dev->pixalpha;
+	        sumalpha=virt_fb->alpha[location]+fb_dev->pixalpha;
         	if( sumalpha > 255 ) sumalpha=255;
 	        virt_fb->alpha[location]=sumalpha;
 	}
 
 	/* reset alpha to 255 as default, at last!!! */
-	fr_dev->pixalpha=255;
+	fb_dev->pixalpha=255;
 
    }
 
@@ -401,56 +401,59 @@ inline int draw_dot(FBDEV *dev,int x,int y)
     #ifdef LETS_NOTE /* --------- FOR 32BITS COLOR (ARGB) FBDEV ------------ */
 
 	/*(in bytes:) data location of the point pixel */
-        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel>>3)+
-                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+        location=(fx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel>>3)+
+                     (fy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
-	if( location<0 || location > (fr_dev->screensize-sizeof(uint32_t)) ) /* screensize in bytes! */
+	if( location<0 || location > (fb_dev->screensize-sizeof(uint32_t)) ) /* screensize in bytes! */
 	{
 		printf("WARNING: point location out of fb mem.!\n");
 		return -1;
 	}
 
+	/* <<<<<<  TEST  >>>>>> */
+	map=fb_dev->map_bk; //map_fb;
+
 	/* push old data to FB FILO */
-	if(fr_dev->filo_on && fr_dev->pixalpha>0 )
+	if(fb_dev->filo_on && fb_dev->pixalpha>0 )
         {
                 fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
-		pARGB=fr_dev->map_fb+location;
+		pARGB=map+location;
 		fpix.argb=*(uint32_t *)pARGB;
 		/* FB alpha value no more use ? */
-                egi_filo_push(fr_dev->fb_filo, &fpix);
+                egi_filo_push(fb_dev->fb_filo, &fpix);
         }
 
 	/* assign or blend FB pixel data */
-	if(fr_dev->pixalpha==255) {	/* if 100% front color */
-		if(fr_dev->pixcolor_on) /* use fbdev pixcolor */
-			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)+(255<<24);
+	if(fb_dev->pixalpha==255) {	/* if 100% front color */
+		if(fb_dev->pixcolor_on) /* use fbdev pixcolor */
+			*((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_dev->pixcolor)+(255<<24);
 		else			/* use system pixcolor */
-			*((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)+(255<<24);
+			*((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_color)+(255<<24);
 	}
 	else {	/* otherwise, blend with original color */
-		if(fr_dev->pixcolor_on) { 	/* use fbdev pixcolor */
+		if(fb_dev->pixcolor_on) { 	/* use fbdev pixcolor */
 
 		     /* !!! LETS_NOTE FB only support 1 and 0 for alpha value of ARGB  */
-//	             *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fr_dev->pixcolor)   \
-//										+ (fr_dev->pixalpha<<24);
+//	             *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_dev->pixcolor)   \
+//										+ (fb_dev->pixalpha<<24);
 
-			fb_rgb=(*((uint32_t *)(fr_dev->map_fb+location)))&0xFFFFFF; /* Get back color */
+			fb_rgb=(*((uint32_t *)(map+location)))&0xFFFFFF; /* Get back color */
 			/* front, back, alpha */
-			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fr_dev->pixcolor), fb_rgb, fr_dev->pixalpha);
-			*((uint32_t *)(fr_dev->map_fb+location))=fb_rgb+(255<<24);
+			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fb_dev->pixcolor), fb_rgb, fb_dev->pixalpha);
+			*((uint32_t *)(map+location))=fb_rgb+(255<<24);
 
 		}
 		else {				/* use system pxicolor */
 
 		     /* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB  */
-//		     *((uint32_t *)(fr_dev->map_fb+location))=COLOR_16TO24BITS(fb_color)	\
-//										+ (fr_dev->pixalpha<<24);
+//		     *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_color)	\
+//										+ (fb_dev->pixalpha<<24);
 
-			fb_rgb=(*((uint32_t *)(fr_dev->map_fb+location)))&0xFFFFFF; /* Get back color */
+			fb_rgb=(*((uint32_t *)(map+location)))&0xFFFFFF; /* Get back color */
 			/* front, back, alpha */
-			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fb_color), fb_rgb, fr_dev->pixalpha);
-			*((uint32_t *)(fr_dev->map_fb+location))=fb_rgb+(255<<24);
+			fb_rgb=COLOR_24BITS_BLEND(COLOR_16TO24BITS(fb_color), fb_rgb, fb_dev->pixalpha);
+			*((uint32_t *)(map+location))=fb_rgb+(255<<24);
 		}
 	}
 
@@ -458,72 +461,56 @@ inline int draw_dot(FBDEV *dev,int x,int y)
     #else /* --------- FOR 16BITS COLOR FBDEV ------------ */
 
 	/*(in bytes:) data location of the point pixel */
-        location=(fx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-	                     (fy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
+        location=(fx+fb_dev->vinfo.xoffset)*(fb_dev->vinfo.bits_per_pixel/8)+
+	                     (fy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 	/* NOT necessary ???  check if no space left for a 16bit_pixel in FB mem */
-	if( location<0 || location > (fr_dev->screensize-sizeof(uint16_t)) ) /* screensize in bytes! */
+	if( location<0 || location > (fb_dev->screensize-sizeof(uint16_t)) ) /* screensize in bytes! */
 	{
 		printf("WARNING: point location out of fb mem.!\n");
 		return -1;
 	}
 
 	/* push old data to FB FILO */
-	if(fr_dev->filo_on && fr_dev->pixalpha>0 )
+	if(fb_dev->filo_on && fb_dev->pixalpha>0 )
         {
                 fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
-                fpix.color=*(uint16_t *)(fr_dev->map_fb+location);
-                egi_filo_push(fr_dev->fb_filo, &fpix);
+                fpix.color=*(uint16_t *)(fb_dev->map_fb+location);
+                egi_filo_push(fb_dev->fb_filo, &fpix);
         }
 
 	/* assign or blend FB pixel data */
-	if(fr_dev->pixalpha==255) {	/* if 100% front color */
-		if(fr_dev->pixcolor_on) /* use fbdev pixcolor */
-		        *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+	if(fb_dev->pixalpha==255) {	/* if 100% front color */
+		if(fb_dev->pixcolor_on) /* use fbdev pixcolor */
+		        *((uint16_t *)(fb_dev->map_fb+location))=fb_dev->pixcolor;
 
 		else			/* use system pixcolor */
-		        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+		        *((uint16_t *)(fb_dev->map_fb+location))=fb_color;
 	}
 	else {	/* otherwise, blend with original color */
-		if(fr_dev->pixcolor_on) { 	/* use fbdev pixcolor */
-			fb_color=COLOR_16BITS_BLEND(  fr_dev->pixcolor,			     /* Front color */
-						     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
-						      fr_dev->pixalpha );		     /* Alpha value */
-		        *((uint16_t *)(fr_dev->map_fb+location))=fr_dev->pixcolor;
+		if(fb_dev->pixcolor_on) { 	/* use fbdev pixcolor */
+			fb_color=COLOR_16BITS_BLEND(  fb_dev->pixcolor,			     /* Front color */
+						     *(uint16_t *)(fb_dev->map_fb+location), /* Back color */
+						      fb_dev->pixalpha );		     /* Alpha value */
+		        *((uint16_t *)(fb_dev->map_fb+location))=fb_dev->pixcolor;
 		}
 		else {				/* use system pxicolor */
 			fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
-						     *(uint16_t *)(fr_dev->map_fb+location), /* Back color */
-						      fr_dev->pixalpha );		     /* Alpha value */
-		        *((uint16_t *)(fr_dev->map_fb+location))=fb_color;
+						     *(uint16_t *)(fb_dev->map_fb+location), /* Back color */
+						      fb_dev->pixalpha );		     /* Alpha value */
+		        *((uint16_t *)(fb_dev->map_fb+location))=fb_color;
 		}
 	}
 
     #endif /* --------- END 16/32BITS BPP FBDEV SELECT ------------ */
 
 	/* reset alpha to 255 as default */
-	fr_dev->pixalpha=255;
+	fb_dev->pixalpha=255;
 
    }
 
     return 0;
 }
-
-
-#if 0   /*------ OBSOLETE, seems the same effect as above !! --------*/
-    void draw_dot(FBDEV *dev,int x,int y) //(x.y) 是坐标
-    {
-        FBDEV *fr_dev=dev;
-        int *xx=&x;
-        int *yy=&y;
-        long int location=0;
-
-        location=(*xx+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-                     (*yy+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
-
-        *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
-    }
-#endif
 
 
 
@@ -1147,6 +1134,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	int xres=fb_dev->vinfo.xres;
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
+	uint32_t argb;
 
 	/* check buf */
 	if(buf==NULL)
@@ -1230,7 +1218,11 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 			/* copy to buf */
+			#ifdef LETS_NOTE
+			#else
         		*buf = *((uint16_t *)(fb_dev->map_fb+location));
+			#endif
+
 			 buf++;
 		}
 	}
@@ -1275,7 +1267,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 			/* copy to buf */
+			#ifdef LETS_NOTE
+        		argb = *((uint32_t *)(fb_dev->map_bk+location));
+			*buf=COLOR_24TO16BITS(argb&0xFFFFFF);
+			#else
         		*buf = *((uint16_t *)(fb_dev->map_fb+location));
+			#endif
+
 			 buf++;
 		}
 	}
@@ -1311,6 +1309,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	int xres=fb_dev->vinfo.xres;
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
+	uint32_t argb;
 
 	/* check buf */
 	if(buf==NULL)
@@ -1392,7 +1391,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 			/* --- copy to fb ---*/
+			#ifdef LETS_NOTE
+			#else
         		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
+			#endif
 			buf++;
 		}
 	}
@@ -1437,7 +1439,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
         	        	     (tmpy+fb_dev->vinfo.yoffset)*fb_dev->finfo.line_length;
 
 			/* --- copy to fb ---*/
+			#ifdef LETS_NOTE
+			argb=COLOR_16TO24BITS(*buf)+(255<<24);
+			*((uint32_t *)(fb_dev->map_bk+location))=argb;
+			#else
         		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
+			#endif
+
 			buf++;
 		}
 	}

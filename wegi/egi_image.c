@@ -1772,7 +1772,12 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
         int yres=fb_dev->vinfo.yres;
         long int screen_pixels=xres*yres;
 
+	#ifdef LETS_NOTE
+        unsigned char *fbp =fb_dev->map_bk;
+	#else
         unsigned char *fbp =fb_dev->map_fb;
+	#endif
+
         uint16_t *imgbuf = egi_imgbuf->imgbuf;
         unsigned char *alpha=egi_imgbuf->alpha;
         long int locfb=0; /* location of FB mmap, in pxiel, xxxxxbyte */
@@ -1849,17 +1854,12 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 
 			     #ifdef LETS_NOTE   /* ------- 4 bytes per pixel ------ */
                                 else if(alpha[locimg]==255) {    /* use front color */
-			               // *(uint16_t *)(fbp+locfb*2)=*(uint16_t *)(imgbuf+locimg);
-	         		      *(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg)) \
+	         		       *(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg)) \
 												+(255<<24);
 				}
                                 else {                           /* blend */
-                                        //    *(uint16_t *)(fbp+locfb*2)= COLOR_16BITS_BLEND(
-					//		*(uint16_t *)(imgbuf+locimg),   /* front pixel */
-                                       //              *(uint16_t *)(fbp+(locfb<<1)),  /* background */
-                                        //            alpha[locimg]  );               /* alpha value */
-					*(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg))	\
-										  +(alpha[locimg]<<24);
+				       *(uint32_t *)(fbp+(locfb<<2))=COLOR_16TO24BITS(*(imgbuf+locimg))	\
+										     +(alpha[locimg]<<24);
 				}
 
 			     #else 		/* ------ 2 bytes per pixel ------- */
