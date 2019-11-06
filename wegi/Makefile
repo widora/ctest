@@ -34,6 +34,7 @@ CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -Wall -fPIC -O2
 CFLAGS += -D_GNU_SOURCE 	## for O_CLOEXEC flag ##
+CFLAGS += -DENABLE_BACK_BUFFER
 
 #### --- for debug, put before LDFLAGS!!!! ----
 #CFLAGS += -g -DEGI_DEBUG

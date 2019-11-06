@@ -33,13 +33,13 @@ int main(int argc, char **argv)
 	}
 */
         /* --- start egi tick --- */
-        tm_start_egitick();
-        /* --- prepare fb device --- */
-        fb_dev.fdfd=-1;
-        init_dev(&fb_dev);
+//        tm_start_egitick();
 
-#if 1
-	/* >>>>>>>>>>>>>>>>>>>>>  START TEST  >>>>>>>>>>>>>>>>*/
+        /* --- prepare fb device --- */
+        init_fbdev(&fb_dev);
+
+
+#if 0   /*  --------------  TEST:  egi_save_FBbmp()  ------------- */
         /* get time stamp */
         time_t t=time(NULL);
         struct tm *tm=localtime(&t);
@@ -50,26 +50,32 @@ int main(int argc, char **argv)
 		sprintf(path,"/tmp/FB%d-%02d-%02d_%02d:%02d:%02d.bmp",
         	                   tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec);
 	}
-
 	egi_save_FBbmp(&fb_dev, path);
 
 // show bmp
 //        show_bmp(argv[1],&fb_dev,0,0,0);/* 0-BALCK_ON, 1-BLACK_OFF, 0,0-x0y0 */
 //	return 0;
+#endif	/* -------- END TEST  ------- */
 
-	/* <<<<<<<<<<<<<<<<<<<<<  END TEST  <<<<<<<<<<<<<<<<<<*/
+
+#if 1   /*  --------------  TEST:  egi_save_FBbmp()  ------------- */
+	if( argc < 2 ) {
+		printf("Usage: %s file\n", argv[0]);
+		exit(-1);
+	}
+	else {
+		egi_roampic_inwin( argv[1], &fb_dev,		/* fpath, fb */
+			   	10, 100000, 0, 0, 240, 320 );  	/* step, ntrip, xw, yw, winw, winh */
+
+	}
 #endif
-
-
-
 
 
   	/* quit logger */
 //  	egi_quit_log();
 
         /* close fb dev */
-        munmap(fb_dev.map_fb,fb_dev.screensize);
-        close(fb_dev.fdfd);
+	release_fbdev(&fb_dev);
 
 	return 0;
 }

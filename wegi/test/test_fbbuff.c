@@ -55,41 +55,55 @@ int main(int argc, char** argv)
 	/* <<<<<  End EGI Init  >>>>> */
 
 
-#if 0 ///////////////////////////////////////////////////////
-EGI_IMGBUF *test_img=egi_imgbuf_create(50, 180, 0, WEGI_COLOR_RED);/* H,W, alpha ,color */
-printf("(-30)%%360=%d;  (-390)%%360=%d;  30%%(-360)=%d;  390%%(-360)=%d \n",
-					(-30)%360, (-390)%360, 30%(-360), 390%(-360) );
-for(i=0; i<361; i+=10)
-{
-	egi_imgbuf_rotate(test_img, i);
-}
-exit(0);
-#endif ///////////////////////////////////////////////////////
-
-
 EGI_IMGBUF* eimg=NULL;
-EGI_IMGBUF* rotimg=NULL;
-int x0,y0;
-
 char**	fpaths=NULL;	/* File paths */
 int	ftotal=0; 	/* File counts */
-int	num=0;		/* File index */
 
-int	s=50;		/* size */
-int 	delt=1;		/* incremental delta */
+unsigned long int off;
 
-const wchar_t *wstr1=L"   a mini. EGI";
+const wchar_t *wstr1=L"  大觉金仙没垢姿，\n	\
+  西方妙相祖菩提。\n	\
+  不生不灭三三行，\n	\
+  全气全神万万慈。\n	\
+  空寂自然随变化，\n	\
+  真如本性任为之。\n	\
+  与天同寿庄严体，\n	\
+  历劫明心大法师。\n	\
+  显密圆通真妙诀，\n	\
+  惜修生命无他说。\n	\
+  都来总是精气神，\n	\
+";
 
-const wchar_t *wstr2=L"奔跑在WIDORA上的\n	\
-             小企鹅";
+const wchar_t *wstr2=L"  谨固牢藏休漏泄。\n	\
+  休漏泄，体中藏，\n	\
+  汝受吾传道自昌。\n	\
+  口诀记来多有益，\n	\
+  屏除邪欲得清凉。\n	\
+  得清凉，光皎洁，\n	\
+  好向丹台赏明月。\n	\
+  月藏玉兔日藏乌，\n	\
+  自有龟蛇相盘结。\n	\
+  相盘结，性命坚，\n	\
+  却能火里种金莲。\n	\
+  攒簇五行颠倒用，\n	\
+  功完随作佛和仙。\n	\
+  口诀记来多有益，\n	\
+  屏除邪欲得清凉。\n	\
+  得清凉，光皎洁，\n	\
+  好向丹台赏明月。\n	\
+  月藏玉兔日藏乌，\n	\
+  自有龟蛇相盘结。\n	\
+  相盘结，性命坚，\n	\
+  却能火里种金莲。\n	\
+  攒簇五行颠倒用，\n	\
+  功完随作佛和仙。\
+";
 
+#if 0
         if(argc<2) {
                 printf("Usage: %s file\n",argv[0]);
                 exit(-1);
         }
-
-	/* Buffer FB data */
-//	fb_buffer_FBimg(&gv_fb_dev, 0);
 
         /* 1. Load pic to imgbuf */
 	eimg=egi_imgbuf_readfile(argv[1]);
@@ -97,78 +111,69 @@ const wchar_t *wstr2=L"奔跑在WIDORA上的\n	\
         	EGI_PLOG(LOGLV_ERROR, "%s: Fail to read and load file '%s'!", __func__, argv[1]);
 		return -1;
 	}
+#endif
 
 do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////////////
 
-	i+=10;
-
-	/* restore FB data */
-//	fb_restore_FBimg(&gv_fb_dev, 0, false);
-//	clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY3);
+	fb_shift_buffPage(&gv_fb_dev,0);
 	fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_GRAY3);
+	fb_shift_buffPage(&gv_fb_dev,1);
+	fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
-        /* 2. Create rotated imgbuf */
-	rotimg=egi_imgbuf_rotate(eimg, i);
-
-	/* 2. Scale the imgbuf (**pimg, width, height) */
-	if( s > 150 && delt >0 )
-		delt=-1;
-	else if(s < 50 && delt <0 )
-		delt=1;
-
-	s+=delt;
-	egi_imgbuf_resize_update( &rotimg, rotimg->width*s/200, rotimg->height*s/200);
-
-
-	/* 3. Display the image */
-	x0=(240-rotimg->width)/2;
-	y0=(320-rotimg->height)/2;
-
-	#if 0 /* TEST: egi_imgbuf_windisplay() */
-        egi_imgbuf_windisplay( rotimg, &gv_fb_dev, -1,		 		/* img, fb, subcolor */
-                               0, 0, x0, y0,					/* xp,yp  xw,yw */
-                               rotimg->width, rotimg->height);	 		/* winw, winh */
-
-	#else /* TEST: egi_imgbuf_windisplay2() */
-	egi_imgbuf_windisplay2( rotimg, &gv_fb_dev,  		/* imgbuf, fb_dev */
-                                0, 0, x0, y0,         		/* xp, yp, xw, yw */
-				rotimg->width, rotimg->height); /* winw, winh */
-	#endif
-
-
-        /* Comments */
+        /* words */
+	fb_shift_buffPage(&gv_fb_dev,0);
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
-                                          32, 32, wstr1,  		    /* fw,fh, pstr */
-                                          240, 6, 10,                    /* pixpl, lines, gap */
-                                          0, 200,                      	    /* x0,y0, */
+                                          24, 24, wstr1,  		    /* fw,fh, pstr */
+                                          240, 320/(24+6), 6,             /* pixpl, lines, gap */
+                                          0, 10,                      	    /* x0,y0, */
                                           WEGI_COLOR_BLACK, -1, -1 );   /* fontcolor, transcolor,opaque */
 
+	fb_shift_buffPage(&gv_fb_dev,1);
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
                                           24, 24, wstr2,  		    /* fw,fh, pstr */
-                                          240, 6,  10,                    /* pixpl, lines, gap */
-                                          0, 50,                        /* x0,y0, */
+                                          240, 320/(24+6), 6,             /* pixpl, lines, gap */
+                                          0, 10,                      	    /* x0,y0, */
                                           WEGI_COLOR_WHITE, -1, -1 );   /* fontcolor, transcolor,opaque */
 
 
-	/* 4. Free rotimgs */
-	egi_imgbuf_free(rotimg);
-	rotimg=NULL;
 
-	/* 5. Refresh FB by memcpying back buffer to FB */
+      while(1) {
+	for(i=0; i<320; i++) {
+		if( i>320 && i<320*2) {
+			off=i%320;
+		}
+		else if (i>320*2-1) {
+			i=0;
+		}
+		memcpy(gv_fb_dev.map_fb, gv_fb_dev.map_buff+240*2*i, gv_fb_dev.screensize);
+		usleep(5000);
+		i+=1;
+	}
+      }
+
+
+	/* Refresh FB by memcpying back buffer to FB */
+	fb_shift_buffPage(&gv_fb_dev,0);
 	fb_refresh(&gv_fb_dev);
-
-	/* 6. Clear screen and increase num */
+	sleep(2);
 	usleep(55000);
 	//tm_delayms(100);
-	//clear_screen(&gv_fb_dev, WEGI_COLOR_BLACK);
+
+	fb_shift_buffPage(&gv_fb_dev,1);
+	fb_refresh(&gv_fb_dev);
+	sleep(2);
+	usleep(55000);
+	//tm_delayms(100);
+
 
 
 } while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
-	/* Free eimg */
+
+#if 0	/* Free eimg */
 	egi_imgbuf_free(eimg);
 	eimg=NULL;
-
+#endif
 
 	#if 0
         /* <<<<<  EGI general release >>>>> */

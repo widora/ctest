@@ -3,7 +3,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-
 Referring to: http://blog.chinaunix.net/uid-22666248-id-285417.html
  本文的copyright归yuweixian4230@163.com 所有，使用GPL发布，可以自由拷贝，转载。
 但转载请保持文档的完整性，注明原作者及原链接，严禁用于任何商业用途。
@@ -35,7 +34,7 @@ Modified and appended by: Midas Zhou
 #define FBDEV_MAX_BUFFER 3
 
 typedef struct fbdev{
-        int 		fbfd; 		/* FB device file descriptor, open "dev/fb0" */
+        int 		fbfd; 		/* FB device file descriptor, open "dev/fbx" */
 
         bool 		virt;           /* 1. TRUE: virtural fbdev, it maps to an EGI_IMGBUF
 	                                 *   and fbfd will be ineffective.
@@ -48,9 +47,12 @@ typedef struct fbdev{
         struct 		fb_var_screeninfo vinfo;
         struct 		fb_fix_screeninfo finfo;
 
-        unsigned long 	screensize;
-        unsigned char 	*map_fb;  	/* mmap to FB data */
-	unsigned char   *map_bk;	/* back mmap mem */
+        unsigned long 	screensize;	/* in bytes */
+        unsigned char 	*map_fb;  	/* Pointer to kernel FB buffer, mmap to FB data */
+	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages. */
+	unsigned char   *map_bk;	/* Pointer to curret back buffer page, mmap mem */
+	unsigned int	npg;		/* index of back buffer page, Now npg=0 or 1, maybe 2  */
+
 
 	EGI_IMGBUF	*virt_fb;	/* virtual FB data as a EGI_IMGBUF
 					 * Ownership will NOT be taken from the caller, means FB will
@@ -70,10 +72,12 @@ typedef struct fbdev{
 					 *				 X  maps to FB.Y
 				         * 2: clockwise rotation 180 deg
 					 * 3: clockwise rotation 270 deg
+					 * Others: as default 0
 					 * Note: Default FB set, as pos_rotate=0, is faster than other sets.
 					 *	for it only needs value assignment, while other sets need
 					 *	coordinate transforming/mapping calculations.
 					 */
+
 	int		pos_xres;	/* Resultion for X and Y direction, as per pos_rotate */
 	int		pos_yres;
 
@@ -100,15 +104,17 @@ typedef struct fbpixel {
 extern FBDEV   gv_fb_dev;
 
 /* functions */
-int             init_fbdev(FBDEV *dev);
-void            release_fbdev(FBDEV *dev);
-int 		init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
-void		release_virt_fbdev(FBDEV *dev);
-void 		fb_refresh(FBDEV *dev);
-void     	fb_filo_on(FBDEV *dev);
-void     	fb_filo_off(FBDEV *dev);
-void            fb_filo_flush(FBDEV *dev);
-void            fb_filo_dump(FBDEV *dev);
-void		fb_position_rotate(FBDEV *dev, unsigned char pos);
+int     init_fbdev(FBDEV *dev);
+void    release_fbdev(FBDEV *dev);
+int 	init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
+void	release_virt_fbdev(FBDEV *dev);
+void 	fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg);
+void 	fb_clear_backBuff(FBDEV *dev, uint32_t color);
+void 	fb_refresh(FBDEV *dev);
+void    fb_filo_on(FBDEV *dev);
+void    fb_filo_off(FBDEV *dev);
+void    fb_filo_flush(FBDEV *dev);
+void    fb_filo_dump(FBDEV *dev);
+void	fb_position_rotate(FBDEV *dev, unsigned char pos);
 
 #endif

@@ -37,13 +37,6 @@ typedef uint32_t			 EGI_24BIT_COLOR;
  *  TODO: GAMMA CORRECTION
  */
 
-//#define COLOR_16BITS_BLEND(front, back, alpha)	\
-//		 COLOR_RGB_TO16BITS (							\
-//			  ( ((front&0xF800)>>8)*alpha + ((back&0xF800)>>8)*(255-alpha) )/255, 	\
-//			  ( ((front&0x7E0)>>3)*alpha + ((back&0x7E0)>>3)*(255-alpha) )/255,   	\
-//			  ( ((front&0x1F)<<3)*alpha + ((back&0x1F)<<3)*(255-alpha) )/255     	\
-//			)									\
-
 #define COLOR_16BITS_BLEND(front, back, alpha)	\
 		 COLOR_RGB_TO16BITS (							\
 			  ( (((front)&0xF800)>>8)*(alpha) + (((back)&0xF800)>>8)*(255-(alpha)) )/255, 	\
@@ -51,12 +44,6 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 			  ( (((front)&0x1F)<<3)*(alpha) + (((back)&0x1F)<<3)*(255-(alpha)) )/255     	\
 			)									\
 
-//#define COLOR_24BITS_BLEND(front, back, alpha)  \
-//			(			\
-//			    (( (front>>16)*alpha + (back>>16)*(255-alpha) >>8)<<16) +  \
-//			    (( (front&0xFF00>>8)*alpha + (back&0xFF00>>8)*(255-alpha) >>8)<<8) +  \
-//			    ( (front&0xFF)*alpha + (back&0xFF)*(255-alpha) >>8)  \
-//			)
 
 #define COLOR_24BITS_BLEND(front, back, alpha)  \
 			(			\

@@ -42,7 +42,9 @@ struct avg_mvobj_data {
 						 * Constrain to [0, 360]
 						 */
 	int		speed;   		/* Current speed, in pixles per refresh */
+	float		fspeed;
 	int		vang;			/* angular velocity, degree per refresh */
+	float		fvang;
 
 	/* Trail mode */
 	int (*trail_mode)(AVG_MVOBJ *);  	/* Method to refresh trail

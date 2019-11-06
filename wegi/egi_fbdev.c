@@ -18,6 +18,7 @@ Midas Zhou
 #include <sys/mman.h>
 #include <stdlib.h>
 
+#define FB_BACK_BUFFER_PAGES	2
 
 /* global variale, Frame buffer device */
 FBDEV   gv_fb_dev={ .fbfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
@@ -30,7 +31,6 @@ Return:
 ---------------------------------------*/
 int init_fbdev(FBDEV *fb_dev)
 {
-//        FBDEV *fb_dev=dev;
 	int i;
 
         if(fb_dev->fbfd > 0) {
@@ -46,7 +46,8 @@ int init_fbdev(FBDEV *fb_dev)
         printf("%s:Framebuffer device opened successfully.\n",__func__);
         ioctl(fb_dev->fbfd,FBIOGET_FSCREENINFO,&(fb_dev->finfo));
         ioctl(fb_dev->fbfd,FBIOGET_VSCREENINFO,&(fb_dev->vinfo));
-        fb_dev->screensize=fb_dev->vinfo.xres*fb_dev->vinfo.yres*fb_dev->vinfo.bits_per_pixel/8;
+
+        fb_dev->screensize=fb_dev->vinfo.xres*fb_dev->vinfo.yres*(fb_dev->vinfo.bits_per_pixel>>3); /* >>3 /8 */
 
         /* mmap FB */
         fb_dev->map_fb=(unsigned char *)mmap(NULL,fb_dev->screensize,PROT_READ|PROT_WRITE, MAP_SHARED,
@@ -58,16 +59,20 @@ int init_fbdev(FBDEV *fb_dev)
         }
 
 	/* ---- mmap back mem, map_bk ---- */
-	#ifdef LETS_NOTE
-	fb_dev->map_bk=(unsigned char *)mmap(NULL,fb_dev->screensize, PROT_READ|PROT_WRITE,
+	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
+	fb_dev->map_buff=(unsigned char *)mmap(NULL,fb_dev->screensize*FB_BACK_BUFFER_PAGES, PROT_READ|PROT_WRITE,
 									MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-	if(fb_dev->map_bk==MAP_FAILED) {
-                printf("Fail to mmap back mem map_bk for FB: %s\n", strerror(errno));
+	if(fb_dev->map_buff==MAP_FAILED) {
+                printf("Fail to mmap back mem map_buff for FB: %s\n", strerror(errno));
                 munmap(fb_dev->map_fb,fb_dev->screensize);
                 close(fb_dev->fbfd);
                 return -2;
 	}
 	#endif
+
+	/* init current back buffer page */
+	fb_dev->npg=0;
+	fb_dev->map_bk=fb_dev->map_buff;
 
 	/* reset virtual FB, as EGI_IMGBUF */
 	fb_dev->virt_fb=NULL;
@@ -88,6 +93,7 @@ int init_fbdev(FBDEV *fb_dev)
         if(fb_dev->fb_filo==NULL) {
                 printf("%s: Fail to malloc FB FILO!\n",__func__);
                 munmap(fb_dev->map_fb,fb_dev->screensize);
+                munmap(fb_dev->map_buff,fb_dev->screensize*FB_BACK_BUFFER_PAGES);
                 close(fb_dev->fbfd);
                 return -3;
         }
@@ -112,6 +118,7 @@ int init_fbdev(FBDEV *fb_dev)
         printf(" xres: %d pixels, yres: %d pixels \n", fb_dev->vinfo.xres, fb_dev->vinfo.yres);
         printf(" xoffset: %d,  yoffset: %d \n", fb_dev->vinfo.xoffset, fb_dev->vinfo.yoffset);
         printf(" screensize: %ld bytes\n", fb_dev->screensize);
+        printf(" Total buffer pages: %d\n", FB_BACK_BUFFER_PAGES);
         printf(" ----------------------------\n\n");
 
         return 0;
@@ -130,10 +137,12 @@ void release_fbdev(FBDEV *dev)
 	/* free FILO, reset fb_filo to NULL inside */
         egi_free_filo(dev->fb_filo);
 
-	/* unmap FB and back mem */
+	/* unmap FB */
         if( munmap(dev->map_fb,dev->screensize) != 0)
 		printf("Fail to unmap FB: %s\n", strerror(errno));
-        if( munmap(dev->map_bk,dev->screensize) !=0 )
+
+	/* unmap FB back memory */
+        if( munmap(dev->map_buff,dev->screensize*FB_BACK_BUFFER_PAGES) !=0 )
 		printf("Fail to unmap back mem for FB: %s\n", strerror(errno));
 
 	/* free buffer */
@@ -232,6 +241,54 @@ void release_virt_fbdev(FBDEV *dev)
 	dev->virt_fb=NULL;
 }
 
+/*-----------------------------------------------------------
+Shift fb_dev->map_bk to the indicated buffer page.
+
+@fb_dev:	struct FBDEV to operate.
+@numpg:		Number of buffer page put into play.
+
+-----------------------------------------------------------*/
+inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
+{
+	if(fb_dev==NULL || fb_dev->map_buff==NULL)
+		return;
+
+	numpg=numpg%FB_BACK_BUFFER_PAGES;
+	fb_dev->map_bk=fb_dev->map_buff+fb_dev->screensize*numpg;
+}
+
+/*-----------------------------------------------------------
+    Clear FB back buffer with given color
+
+@fb_dev:	struct FBDEV whose buffer to be cleared.
+@color:		Color used to fill the buffer, 16bit or 32bits.
+
+    !!! Note: to make sure that type INT is 32bits !!!
+------------------------------------------------------------*/
+void fb_clear_backBuff(FBDEV *fb_dev, uint32_t color)
+{
+        unsigned int pixels; /* Total pixels in the buffer */
+	int i;
+
+        if( fb_dev==NULL || fb_dev->map_bk==NULL)
+                return;
+
+        pixels=fb_dev->vinfo.xres*fb_dev->vinfo.yres;
+
+	/* For 16bits color */
+        if(fb_dev->vinfo.bits_per_pixel==2*8) {
+		for(i=0; i<pixels; i++)
+			*(uint16_t *)(fb_dev->map_bk+(i<<1))=color;
+	}
+	/* For 32bits ARGB color */
+        else if(fb_dev->vinfo.bits_per_pixel==4*8) {
+		for(i=0; i<pixels; i++)
+			*(uint32_t *)(fb_dev->map_bk+(i<<2))=color;
+	}
+        //else 	--- NOT SUPPORT --
+}
+
+
 /*--------------------------------
  Refresh FB mem with back memory
 --------------------------------*/
@@ -243,8 +300,11 @@ void fb_refresh(FBDEV *dev)
 	if( dev->map_bk==NULL || dev->map_fb==NULL )
 		return;
 
-	memcpy(dev->map_fb, dev->map_bk, dev->screensize);
-
+	if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
+                printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
+        //else  /* memcpy to FB, ignore VSYNC signal. */
+		memcpy(dev->map_fb, dev->map_bk, dev->screensize);
+	}
 }
 
 /*-------------------------------------------------------------
@@ -287,11 +347,16 @@ inline void fb_filo_flush(FBDEV *dev)
         {
                 /* write back to FB */
                 //printf("EGI FILO pop out: pos=%ld, color=%d\n",fpix.position,fpix.color);
+
 		#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
-//                *((uint32_t *)(dev->map_fb+fpix.position)) = fpix.argb; //COLOR_16TO24BITS(fpix.color) + (fpix.alpha<<24);
-		*((uint32_t *)(dev->map_bk+fpix.position)) = fpix.argb;
+		  *((uint32_t *)(dev->map_bk+fpix.position)) = fpix.argb;
+
 		#else		/*--- 2 bytes per pixel ---*/
-                *((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
+		   #ifdef ENABLE_BACK_BUFFER
+                   *((uint16_t *)(dev->map_bk+fpix.position)) = fpix.color;
+		   #else
+                   *((uint16_t *)(dev->map_fb+fpix.position)) = fpix.color;
+		   #endif
 		#endif
         }
 }

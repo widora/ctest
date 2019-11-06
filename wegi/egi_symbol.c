@@ -777,6 +777,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	uint32_t pargb; /* ARGB, !!! init for non FT type fonts, alpha is 255. */
 	uint32_t prgb;  /* RGB */
 	unsigned char palpha=0; /* pixel alpha value if applicable */
+	unsigned char *map=NULL; /* the pointer to map FB or back buffer */
 	uint16_t *data=sym_page->data; /* symbol pixel data in a mem page, for FT2 sympage, it's NULL! */
 	int offset;
 	long poff;
@@ -784,6 +785,14 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	int width;
 	EGI_IMGBUF *virt_fb;
 	int sumalpha;
+
+
+        /* <<<<<<  FB BUFFER SELECT  >>>>>> */
+        #if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
+        map=fb_dev->map_bk; /* write to back buffer */
+        #else
+        map=fb_dev->map_fb; /* write directly to FB map */;
+        #endif
 
 	//long int screensize=fb_dev->screensize;
 
@@ -930,15 +939,13 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 			if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
 				/* push original fb data to FB FILO, before write new color */
-				//if( (transpcolor==7 || transpcolor==-7) && fb_dev->filo_on )
 				if(fb_dev->filo_on) {		/* For real FB device */
 					#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
 					fpix.position=pos<<2; /* pixel to bytes, !!! FAINT !!! */
-					//fpix.argb=*(uint32_t *)(fb_dev->map_fb+(pos<<2));
-					fpix.argb=*(uint32_t *)(fb_dev->map_bk+(pos<<2));
+					fpix.argb=*(uint32_t *)(map+(pos<<2));
 					#else		  /*--- 2 bytes per pixel ---*/
 					fpix.position=pos<<1; /* pixel to bytes, !!! FAINT !!! */
-					fpix.color=*(uint16_t *)(fb_dev->map_fb+(pos<<1));
+					fpix.color=*(uint16_t *)(map+(pos<<1));
 					//printf("symbol push FILO: pos=%ld.\n",fpix.position);
 					#endif
 					egi_filo_push(fb_dev->fb_filo,&fpix);
@@ -1047,15 +1054,15 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 
 				/* write to FB */
 				/* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB  */
-				  // *(uint32_t *)(fb_dev->map_fb+pos)=pargb; /* in pixel, deref. to uint32_t */
+				  // *(uint32_t *)(map+pos)=pargb; /* in pixel, deref. to uint32_t */
 
 				/* Blend manually */
-				//prgb=(*(uint32_t *)(fb_dev->map_fb+pos))&0xFFFFFF; /* Get back color */
-				prgb=(*(uint32_t *)(fb_dev->map_bk+pos))&0xFFFFFF; /* Get back color */
+				//prgb=(*(uint32_t *)(map+pos))&0xFFFFFF; /* Get back color */
+				prgb=(*(uint32_t *)(map+pos))&0xFFFFFF; /* Get back color */
                         	prgb=COLOR_24BITS_BLEND(pargb&0xFFFFFF, prgb, pargb>>24); /* front,back,alpha */
 
-                               // *((uint32_t *)(fb_dev->map_fb+pos))=prgb+(255<<24); /* 1<<24 */
-                               *((uint32_t *)(fb_dev->map_bk+pos))=prgb+(255<<24); /* 1<<24 */
+                               // *((uint32_t *)(map+pos))=prgb+(255<<24); /* 1<<24 */
+                               *((uint32_t *)(map+pos))=prgb+(255<<24); /* 1<<24 */
 
 
 			   #else             /* ----- 2 bytes per pixel ----- */
@@ -1076,12 +1083,12 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 					if(opaque==255) { /* Speed UP!! */
 	                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
 						pcolor=egi_16bitColor_blend( pcolor,
-									    *(uint16_t *)(fb_dev->map_fb+pos),
+									    *(uint16_t *)(map+pos),
 									    palpha  /* opaque[0-255] */
 									 );
 					} else {
 						pcolor=egi_16bitColor_blend( pcolor,
-									    *(uint16_t *)(fb_dev->map_fb+pos),
+									    *(uint16_t *)(map+pos),
 									    palpha*opaque/255  /* opaque[0-255] */
 									 );
 					}
@@ -1090,15 +1097,14 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 				else if(opaque!=255) { /* opaque alread reset to [0 255] at beginning */
                     			//pcolor=COLOR_16BITS_BLEND( pcolor,
 					pcolor=egi_16bitColor_blend( pcolor,
-								     *(uint16_t *)(fb_dev->map_fb+pos),
+								     *(uint16_t *)(map+pos),
 								     opaque
 								  );
 				}
 				/* sym_page->alpha=NULL && opaque==255, use original pcolor */
 
-
 				/* write to FB */
-				*(uint16_t *)(fb_dev->map_fb+pos)=pcolor; /* in pixel, deref. to uint16_t */
+				*(uint16_t *)(map+pos)=pcolor; /* in pixel, deref. to uint16_t */
 
 			     #endif  /* END 32/16 bits FB SELECT  */
 

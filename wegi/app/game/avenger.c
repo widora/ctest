@@ -340,7 +340,6 @@ void *thread_game_avenger(EGI_PAGE *page)
 		/* 2.4 Update credit */
 		avenpage_update_creditTxt(score, game_level);
 
-
 #if 0		/*  --- 3. Demo. and Advertise --- */
 
 		if( (secTick&(32-1)) == 0 && (nget !=secTick>>5) ) {
@@ -355,13 +354,12 @@ void *thread_game_avenger(EGI_PAGE *page)
        	  fb_filo_off(&gv_fb_dev);  /* Stop filo */
 	  #ifdef LETS_NOTE
 	  //tm_delayms(20);
-	  usleep(30000);
+	  usleep(1000000/75);
 	  #else
 	  tm_delayms(100);
 	  #endif
 
 	}
-
 
 	/* ---  END: Destroy facility and free resources --- */
 	egi_imgbuf_free(icon_collection);

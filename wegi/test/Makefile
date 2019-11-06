@@ -16,6 +16,7 @@ CFLAGS += -I$(COMMON_USRDIR)/include/json-c
 #-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
 CFLAGS  += -D_GNU_SOURCE
+CFLAGS  += -DENABLE_BACK_BUFFER
 
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
@@ -28,6 +29,7 @@ LIBS    += -lfreetype  -lm -lz -lbz2
 
 APPS =  test_fb test_sym tmp_app show_pic  test_bigiot test_math test_fft test_sndfft test_tonefft
 APPS += test_txt test_img test_img2 test_img3 test_resizeimg test_zoomimg test_etouch  test_geom
+APPS += test_bjp test_fbbuff
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic

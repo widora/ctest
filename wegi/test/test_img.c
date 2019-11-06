@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 	struct timeval tm_end;
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 0
+#if 1
         printf("tm_start_egitick()...\n");
         tm_start_egitick();		   	/* start sys tick */
         printf("egi_init_log()...\n");
@@ -53,19 +53,16 @@ int main(int argc, char** argv)
 
 
 
-
-
-
 int rad=200;
 EGI_IMGBUF* pimg=NULL;
 EGI_IMGBUF* eimg=NULL;
 EGI_IMGBUF* softimg=NULL;
 EGI_IMGBUF* frameimg=NULL;
 
-show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
+//show_jpg("/tmp/home.jpg",&gv_fb_dev, false, 0, 0);
 
 
-#if 1 /* ------------- egi_imgbuf_alloc() and egi_imgbuf_loadjpg(), egi_imgbuf_loadpng() ----------*/
+#if 1 /* ------------- 0. TEST egi_imgbuf_alloc() and egi_imgbuf_loadjpg(), egi_imgbuf_loadpng() ----------*/
 pimg=egi_imgbuf_alloc();
 
 if( egi_imgbuf_loadjpg(argv[1],pimg)!=0 && egi_imgbuf_loadpng(argv[1],pimg)!=0 ) {
@@ -209,12 +206,6 @@ study cases:
 
 	egi_imgbuf_free(frameimg);
 #endif
-
-
-
-
-
-
 
 
 

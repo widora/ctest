@@ -236,30 +236,19 @@ bool  box_outbox(EGI_BOX* inbox, EGI_BOX* container)
 	!!!!call egi_colorxxxx_randmon() error
  Midas
 ---------------------------------------------*/
-void clear_screen(FBDEV *dev, uint16_t color)
+void clear_screen(FBDEV *fb_dev, uint16_t color)
 {
-	int i,j;
-	FBDEV *fr_dev=dev;
-	int xres=dev->vinfo.xres;
-	int yres=dev->vinfo.yres;
-	int bytes_per_pixel=fr_dev->vinfo.bits_per_pixel/8;
+//	int i,j;
+//	FBDEV *fb_dev=dev;
+//	int xres=fb_dev->vinfo.xres;
+//	int yres=fb_dev->vinfo.yres;
+	int bytes_per_pixel=fb_dev->vinfo.bits_per_pixel/8;
 	long int location=0;
 
-	for(location=0; location < (fr_dev->screensize/bytes_per_pixel); location++)
-	        *((uint16_t*)(fr_dev->map_fb+location*bytes_per_pixel))=color;
-
-/*   ---------------following is more accurate!?!?  ///
-	for(i=0;i<yres;i++)
-	{
-		for(j=0;j<xres;j++)
-		{
-		        location=(j+fr_dev->vinfo.xoffset)*(fr_dev->vinfo.bits_per_pixel/8)+
-                	     (i+fr_dev->vinfo.yoffset)*fr_dev->finfo.line_length;
-       			 *((unsigned short int *)(fr_dev->map_fb+location))=fb_color;
-		}
-	}
-*/
+	for(location=0; location < (fb_dev->screensize/bytes_per_pixel); location++)
+	        *((uint16_t*)(fb_dev->map_fb+location*bytes_per_pixel))=color;
 }
+
 
 /*------------------------------------------------------------------
 Assign color value to a pixel in framebuffer.
@@ -277,10 +266,10 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 {
 	EGI_IMGBUF *virt_fb;
 	unsigned char *map;
-	int fx;
-	int fy;
+	int fx=0;
+	int fy=0;
         long int location=0;
-	unsigned char* pARGB;
+	unsigned char* pARGB=NULL;
 	int xres;
 	int yres;
 	FBPIX fpix;
@@ -289,6 +278,15 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	/* check input data */
 	if(fb_dev==NULL)
 		return -2;
+
+
+	/* <<<<<<  FB BUFFER SELECT  >>>>>> */
+	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
+	map=fb_dev->map_bk; /* write to back buffer */
+	#else
+	map=fb_dev->map_fb; /* write directly to FB map */;
+	#endif
+
 
 	/* set xres and yres */
 	virt_fb=fb_dev->virt_fb;
@@ -351,6 +349,7 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	}
 #endif
 
+
    /* ---------------- ( for virtual FB :: for 16bit color only NOW!!! ) -------------- */
    if(virt_fb) {
 
@@ -411,9 +410,6 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 		return -1;
 	}
 
-	/* <<<<<<  TEST  >>>>>> */
-	map=fb_dev->map_bk; //map_fb;
-
 	/* push old data to FB FILO */
 	if(fb_dev->filo_on && fb_dev->pixalpha>0 )
         {
@@ -434,9 +430,10 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	else {	/* otherwise, blend with original color */
 		if(fb_dev->pixcolor_on) { 	/* use fbdev pixcolor */
 
-		     /* !!! LETS_NOTE FB only support 1 and 0 for alpha value of ARGB  */
-//	             *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_dev->pixcolor)   \
-//										+ (fb_dev->pixalpha<<24);
+		     /* !!! LETS_NOTE FB only support 1 and 0 for alpha value of ARGB
+	             *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_dev->pixcolor)   \
+										+ (fb_dev->pixalpha<<24);
+		      */
 
 			fb_rgb=(*((uint32_t *)(map+location)))&0xFFFFFF; /* Get back color */
 			/* front, back, alpha */
@@ -446,9 +443,10 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 		}
 		else {				/* use system pxicolor */
 
-		     /* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB  */
-//		     *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_color)	\
-//										+ (fb_dev->pixalpha<<24);
+		     /* !!! LETS_NOTE: FB only support 1 and 0 for alpha value of ARGB
+		     *((uint32_t *)(map+location))=COLOR_16TO24BITS(fb_color)	\
+										+ (fb_dev->pixalpha<<24);
+		      */
 
 			fb_rgb=(*((uint32_t *)(map+location)))&0xFFFFFF; /* Get back color */
 			/* front, back, alpha */
@@ -475,30 +473,30 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	if(fb_dev->filo_on && fb_dev->pixalpha>0 )
         {
                 fpix.position=location; /* pixel to bytes, !!! FAINT !!! */
-                fpix.color=*(uint16_t *)(fb_dev->map_fb+location);
+                fpix.color=*(uint16_t *)(map+location);
                 egi_filo_push(fb_dev->fb_filo, &fpix);
         }
 
 	/* assign or blend FB pixel data */
 	if(fb_dev->pixalpha==255) {	/* if 100% front color */
 		if(fb_dev->pixcolor_on) /* use fbdev pixcolor */
-		        *((uint16_t *)(fb_dev->map_fb+location))=fb_dev->pixcolor;
+		        *((uint16_t *)(map+location))=fb_dev->pixcolor;
 
 		else			/* use system pixcolor */
-		        *((uint16_t *)(fb_dev->map_fb+location))=fb_color;
+		        *((uint16_t *)(map+location))=fb_color;
 	}
 	else {	/* otherwise, blend with original color */
 		if(fb_dev->pixcolor_on) { 	/* use fbdev pixcolor */
 			fb_color=COLOR_16BITS_BLEND(  fb_dev->pixcolor,			     /* Front color */
-						     *(uint16_t *)(fb_dev->map_fb+location), /* Back color */
+						     *(uint16_t *)(map+location), /* Back color */
 						      fb_dev->pixalpha );		     /* Alpha value */
-		        *((uint16_t *)(fb_dev->map_fb+location))=fb_dev->pixcolor;
+		        *((uint16_t *)(map+location))=fb_dev->pixcolor;
 		}
 		else {				/* use system pxicolor */
 			fb_color=COLOR_16BITS_BLEND(  fb_color,				     /* Front color */
-						     *(uint16_t *)(fb_dev->map_fb+location), /* Back color */
+						     *(uint16_t *)(map+location), /* Back color */
 						      fb_dev->pixalpha );		     /* Alpha value */
-		        *((uint16_t *)(fb_dev->map_fb+location))=fb_color;
+		        *((uint16_t *)(map+location))=fb_color;
 		}
 	}
 
@@ -958,8 +956,9 @@ void draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 
 
 /*-----------------------------------------------------------------
-draw a a filled triangle.
-points: 3 points
+Draw a a filled triangle.
+
+@points:  A pointer to 3 EGI_POINTs / Or an array;
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -973,7 +972,9 @@ void draw_filled_triangle(FBDEV *dev, EGI_POINT *points)
 	int nm; /* mid point index */
 
 	float klr,klm,kmr;
-	int yu,yd,ymu;
+	int yu=0;
+	int yd=0;
+	int ymu=0;
 
 	for(i=1;i<3;i++) {
 		if(points[i].x < points[nl].x) nl=i;
@@ -1046,8 +1047,8 @@ Note:
 --------------------------------------------------------------------------*/
 void draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 {
-	int i,j,k;
-	int m,n;
+	int j,k;
+	int m;
 	int ro=r+(w>>1); /* outer radium */
 	int ri=r-(w>>1); /* inner radium */
 
@@ -1135,6 +1136,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
 	uint32_t argb;
+	unsigned char *map=NULL; /* the pointer to map FB or back buffer */
 
 	/* check buf */
 	if(buf==NULL)
@@ -1142,6 +1144,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		printf("fb_cpyto_buf(): buf is NULL!\n");
 		return -1;
 	}
+
+	/* <<<<<<  FB BUFFER SELECT  >>>>>> */
+	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
+	map=fb_dev->map_bk; /* write to back buffer */
+	#else
+	map=fb_dev->map_fb; /* write directly to FB map */;
+	#endif
 
 	/* check FB.pos_rotate
 	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
@@ -1163,8 +1172,11 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			x1=py1;  y1=(yres-1)-px1;
 			x2=py2;  y2=(yres-1)-px2;
 			break;
+		default:
+			x1=px1;	 y1=py1;
+			x2=px2;  y2=py2;
+			break;
 	}
-
 
 	/* sort point coordinates */
 	if(x1>x2){
@@ -1183,7 +1195,6 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		yu=y2;
 		yd=y1;
 	}
-
 
 
 #ifdef FB_DOTOUT_ROLLBACK /* -------------   ROLLBACK  ------------------*/
@@ -1220,7 +1231,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			/* copy to buf */
 			#ifdef LETS_NOTE
 			#else
-        		*buf = *((uint16_t *)(fb_dev->map_fb+location));
+        		*buf = *((uint16_t *)(map+location));
 			#endif
 
 			 buf++;
@@ -1268,10 +1279,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 			/* copy to buf */
 			#ifdef LETS_NOTE
-        		argb = *((uint32_t *)(fb_dev->map_bk+location));
+        		argb = *((uint32_t *)(map+location));
 			*buf=COLOR_24TO16BITS(argb&0xFFFFFF);
 			#else
-        		*buf = *((uint16_t *)(fb_dev->map_fb+location));
+        		*buf = *((uint16_t *)(map+location));
 			#endif
 
 			 buf++;
@@ -1310,6 +1321,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 	int yres=fb_dev->vinfo.yres;
 	int tmpx,tmpy;
 	uint32_t argb;
+	unsigned char *map=NULL; /* the pointer to map FB or back buffer */
 
 	/* check buf */
 	if(buf==NULL)
@@ -1317,6 +1329,13 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		printf("fb_cpyfrom_buf(): buf is NULL!\n");
 		return -1;
 	}
+
+	/* <<<<<<  FB BUFFER SELECT  >>>>>> */
+	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
+	map=fb_dev->map_bk; /* write to back buffer */
+	#else
+	map=fb_dev->map_fb; /* write directly to FB map */;
+	#endif
 
 	/* check FB.pos_rotate
 	*  IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
@@ -1337,6 +1356,10 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 		case 3:			/* Clockwise 270 deg */
 			x1=py1;  y1=(yres-1)-px1;
 			x2=py2;  y2=(yres-1)-px2;
+			break;
+		default:
+			x1=px1;	 y1=py1;
+			x2=px2;  y2=py2;
 			break;
 	}
 
@@ -1393,7 +1416,7 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			/* --- copy to fb ---*/
 			#ifdef LETS_NOTE
 			#else
-        		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
+        		*((uint16_t *)(map+location))=*buf;
 			#endif
 			buf++;
 		}
@@ -1441,9 +1464,11 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 			/* --- copy to fb ---*/
 			#ifdef LETS_NOTE
 			argb=COLOR_16TO24BITS(*buf)+(255<<24);
-			*((uint32_t *)(fb_dev->map_bk+location))=argb;
+			*((uint32_t *)(map+location))=argb;
 			#else
-        		*((uint16_t *)(fb_dev->map_fb+location))=*buf;
+
+        		*((uint16_t *)(map+location))=*buf;
+
 			#endif
 
 			buf++;

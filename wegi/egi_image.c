@@ -1418,7 +1418,9 @@ EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int angle)
 	EGI_IMGBUF *outimg=NULL;
 
         /* Normalize angle to be within [0-360] */
-        ang=angle%360;      /* !!! WARING !!!  The result is depended on the Compiler */
+        ang=angle%360;      /* !!! WARING !!!  The modulo result is depended on the Compiler
+			     * For C99: a%b=a-(a/b)*b	,whether a is positive or negative.
+			     */
         asign= ang >= 0 ? 1 : -1; /* angle sign */
         ang= ang>=0 ? ang : -ang ;
 
@@ -1772,7 +1774,7 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
         int yres=fb_dev->vinfo.yres;
         long int screen_pixels=xres*yres;
 
-	#ifdef LETS_NOTE
+	#ifdef ENABLE_BACK_BUFFER
         unsigned char *fbp =fb_dev->map_bk;
 	#else
         unsigned char *fbp =fb_dev->map_fb;

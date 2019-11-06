@@ -5,7 +5,6 @@ published by the Free Software Foundation.
 
 Midas Zhou
 -------------------------------------------------------------------*/
-
 #ifndef __EGI_IMAGE_H__
 #define __EGI_IMAGE_H__
 
@@ -30,6 +29,7 @@ enum imgframe_type {
 /* TODO NOTE!!!
 	1. some 'const' qualifiers may damage pthread_mutex !??!?
 	2. Necessary to use pthread mutex for EGI_IMGBUF???
+	3. Too many mutex operations will slow down system??!?
 */
 
 EGI_IMGBUF*	egi_imgbuf_alloc(void);
