@@ -67,7 +67,7 @@ static void *  thread_sound_launch(void *arg)
      egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_launch, 1024);
      usleep(10000);
 
-     pthread_exit(0);
+     pthread_exit((void *)0);
 }
 
 
@@ -81,7 +81,7 @@ static void *  thread_sound_explode(void *arg)
      egi_pcmbuf_playback("default", (const EGI_PCMBUF *)pcmbuf_explode, 1024);
      usleep(10000);
 
-     pthread_exit(0);
+     pthread_exit((void *)0);
 }
 
 

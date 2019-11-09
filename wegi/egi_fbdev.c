@@ -18,7 +18,6 @@ Midas Zhou
 #include <sys/mman.h>
 #include <stdlib.h>
 
-#define FB_BACK_BUFFER_PAGES	2
 
 /* global variale, Frame buffer device */
 FBDEV   gv_fb_dev={ .fbfd=-1, }; //__attribute__(( visibility ("hidden") )) ;
@@ -60,7 +59,7 @@ int init_fbdev(FBDEV *fb_dev)
 
 	/* ---- mmap back mem, map_bk ---- */
 	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
-	fb_dev->map_buff=(unsigned char *)mmap(NULL,fb_dev->screensize*FB_BACK_BUFFER_PAGES, PROT_READ|PROT_WRITE,
+	fb_dev->map_buff=(unsigned char *)mmap(NULL,fb_dev->screensize*FBDEV_MAX_BUFFER, PROT_READ|PROT_WRITE,
 									MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	if(fb_dev->map_buff==MAP_FAILED) {
                 printf("Fail to mmap back mem map_buff for FB: %s\n", strerror(errno));
@@ -93,7 +92,7 @@ int init_fbdev(FBDEV *fb_dev)
         if(fb_dev->fb_filo==NULL) {
                 printf("%s: Fail to malloc FB FILO!\n",__func__);
                 munmap(fb_dev->map_fb,fb_dev->screensize);
-                munmap(fb_dev->map_buff,fb_dev->screensize*FB_BACK_BUFFER_PAGES);
+                munmap(fb_dev->map_buff,fb_dev->screensize*FBDEV_MAX_BUFFER);
                 close(fb_dev->fbfd);
                 return -3;
         }
@@ -107,9 +106,9 @@ int init_fbdev(FBDEV *fb_dev)
 	}
 
 	/* clear buffer */
-	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
-		fb_dev->buffer[i]=NULL;
-	}
+//	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+//		fb_dev->buffer[i]=NULL;
+//	}
 
 //      printf("init_dev successfully. fb_dev->map_fb=%p\n",fb_dev->map_fb);
         printf(" \n------- FB Parameters -------\n");
@@ -118,7 +117,7 @@ int init_fbdev(FBDEV *fb_dev)
         printf(" xres: %d pixels, yres: %d pixels \n", fb_dev->vinfo.xres, fb_dev->vinfo.yres);
         printf(" xoffset: %d,  yoffset: %d \n", fb_dev->vinfo.xoffset, fb_dev->vinfo.yoffset);
         printf(" screensize: %ld bytes\n", fb_dev->screensize);
-        printf(" Total buffer pages: %d\n", FB_BACK_BUFFER_PAGES);
+        printf(" Total buffer pages: %d\n", FBDEV_MAX_BUFFER);
         printf(" ----------------------------\n\n");
 
         return 0;
@@ -142,18 +141,18 @@ void release_fbdev(FBDEV *dev)
 		printf("Fail to unmap FB: %s\n", strerror(errno));
 
 	/* unmap FB back memory */
-        if( munmap(dev->map_buff,dev->screensize*FB_BACK_BUFFER_PAGES) !=0 )
+        if( munmap(dev->map_buff,dev->screensize*FBDEV_MAX_BUFFER) !=0 )
 		printf("Fail to unmap back mem for FB: %s\n", strerror(errno));
 
 	/* free buffer */
-	for( i=0; i<FBDEV_MAX_BUFFER; i++ )
-	{
-		if( dev->buffer[i] != NULL )
-		{
-			free(dev->buffer[i]);
-			dev->buffer[i]=NULL;
-		}
-	}
+//	for( i=0; i<FBDEV_MAX_BUFFER; i++ )
+//	{
+//		if( dev->buffer[i] != NULL )
+//		{
+//			free(dev->buffer[i]);
+//			dev->buffer[i]=NULL;
+//		}
+//	}
 
         close(dev->fbfd);
         dev->fbfd=-1;
@@ -214,9 +213,9 @@ int init_virt_fbdev(FBDEV *fb_dev, EGI_IMGBUF *eimg)
 	fb_dev->pos_yres=fb_dev->vinfo.yres;
 
 	/* clear buffer */
-	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
-		fb_dev->buffer[i]=NULL;
-	}
+//	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+//		fb_dev->buffer[i]=NULL;
+//	}
 
 #if 0
         printf(" \n--- Virtal FB Parameters ---\n");
@@ -242,10 +241,12 @@ void release_virt_fbdev(FBDEV *dev)
 }
 
 /*-----------------------------------------------------------
-Shift fb_dev->map_bk to the indicated buffer page.
+Shift/switch fb_dev->map_bk to point to the indicated buffer
+page, as for the current working buffer page.
 
 @fb_dev:	struct FBDEV to operate.
-@numpg:		Number of buffer page put into play.
+@numpg:		The number/index of buffer page put into play.
+		[0  FBDEV_MAX_BUFFE-1]
 
 -----------------------------------------------------------*/
 inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
@@ -253,12 +254,12 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 	if(fb_dev==NULL || fb_dev->map_buff==NULL)
 		return;
 
-	numpg=numpg%FB_BACK_BUFFER_PAGES;
+	numpg=numpg%FBDEV_MAX_BUFFER;
 	fb_dev->map_bk=fb_dev->map_buff+fb_dev->screensize*numpg;
 }
 
 /*-----------------------------------------------------------
-    Clear FB back buffer with given color
+    Clear FB back buffer by filling with given color
 
 @fb_dev:	struct FBDEV whose buffer to be cleared.
 @color:		Color used to fill the buffer, 16bit or 32bits.
@@ -275,12 +276,12 @@ void fb_clear_backBuff(FBDEV *fb_dev, uint32_t color)
 
         pixels=fb_dev->vinfo.xres*fb_dev->vinfo.yres;
 
-	/* For 16bits color */
+	/* For 16bits RGB color pixel */
         if(fb_dev->vinfo.bits_per_pixel==2*8) {
 		for(i=0; i<pixels; i++)
 			*(uint16_t *)(fb_dev->map_bk+(i<<1))=color;
 	}
-	/* For 32bits ARGB color */
+	/* For 32bits ARGB color pixel */
         else if(fb_dev->vinfo.bits_per_pixel==4*8) {
 		for(i=0; i<pixels; i++)
 			*(uint32_t *)(fb_dev->map_bk+(i<<2))=color;
@@ -289,10 +290,11 @@ void fb_clear_backBuff(FBDEV *fb_dev, uint32_t color)
 }
 
 
-/*--------------------------------
- Refresh FB mem with back memory
---------------------------------*/
-void fb_refresh(FBDEV *dev)
+/*--------------------------------------
+ Refresh FB with current back buffer
+ pointed by fb_dev->map_bk.
+---------------------------------------*/
+void fb_page_refresh(FBDEV *dev)
 {
 	if(dev==NULL)
 		return;
@@ -300,12 +302,69 @@ void fb_refresh(FBDEV *dev)
 	if( dev->map_bk==NULL || dev->map_fb==NULL )
 		return;
 
+	/* Try to synchronize with FB kernel VSYNC */
 	if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
                 printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
         //else  /* memcpy to FB, ignore VSYNC signal. */
 		memcpy(dev->map_fb, dev->map_bk, dev->screensize);
 	}
+
 }
+
+
+/*--------------------------------------------------------------
+Refresh FB with back buffer starting from offset lines(offl),
+If offl is out of back buffer range[0 yres*FBDEV_MAX_BUFFER-1],
+it just ignores and returns.
+
+@offl:	Offset lines from the starting point of the whole FB
+	back buffers, whose virtual addresses are consecutive.
+	Lines may align with X or Y LCD screen direction,
+	depending on FB setup for Portrait or Landscape mode.
+
+Note: The caller shall ensure that offl is indexed within the back
+      buffer range, or the function will just ignore and return. In
+      such case, the caller shall takes its modulo value as loop back
+      to within the range.
+
+      It's better for the caller to take modulo calculation!!!
+
+
+----------------------------------------------------------------*/
+void fb_slide_refresh(FBDEV *dev, int offl)
+{
+
+	/* IGNORE: check input params */
+
+	unsigned int yres=dev->vinfo.yres;
+	unsigned int line_length=dev->finfo.line_length;
+
+        /* CASE 1: offl is within the resonable range, but NOT in the last buffer page. */
+        if ( offl > -1 && offl < yres*(FBDEV_MAX_BUFFER-1)+1 ) {
+                memcpy(dev->map_fb, dev->map_buff+line_length*offl, dev->screensize);
+        }
+
+        /* CASE 2: offl is out of back buffer range */
+        else if (offl<0 || offl > yres*FBDEV_MAX_BUFFER-1) {
+		return;
+        }
+
+        /* CASE 3: offl is indexed to within the last page of FB back buffer,
+	 *  then the mem for FB displaying is NOT consective, and shall be copied
+	 *  from 2 blocks in the back buffer.
+	 */
+        else  {  /* ( offl>yres*(FBDEV_MAX_BUFFER-1) && offl<yres*FBDEV_MAX_BUFFER) */
+
+        	/*  Copy from the last buffer page: Line [offl to yres*N-1] */
+                memcpy( dev->map_fb, dev->map_buff+line_length*offl,
+                                                  line_length*(yres*FBDEV_MAX_BUFFER-offl) );
+
+   		/*  Copy from buffer page 0:  Line [0 to offl-yres*(N-1) ]   */
+                memcpy( dev->map_fb+line_length*(yres*FBDEV_MAX_BUFFER-offl), dev->map_buff,
+                                                   line_length*(offl-yres*(FBDEV_MAX_BUFFER-1)) );
+        }
+}
+
 
 /*-------------------------------------------------------------
 Put fb->filo_on to 1, as turn on FB FILO.
@@ -379,14 +438,14 @@ void fb_filo_dump(FBDEV *dev)
 Rotate FB displaying position relative to LCD screen.
 
 Landscape displaying: pos=1 or 3
-Postrait displaying: pos=0 or 2
+Portrait displaying: pos=0 or 2
 
 ---------------------------------------------------*/
 void fb_position_rotate(FBDEV *dev, unsigned char pos)
 {
 
         if(dev==NULL || dev->fbfd<0 ) {
-		printf("%s: Input FBDEV is invalid!\n");
+		printf("%s: Input FBDEV is invalid!\n",__func__);
 		return;
 	}
 

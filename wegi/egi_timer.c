@@ -190,7 +190,7 @@ delay ms, at lease TM_TICK_INTERVAL/2000 ms
 
 if ms<0, return.
 -----------------------------------------*/
-void tm_delayms(long ms)
+void tm_delayms(unsigned long ms)
 {
 #if EGI_ENABLE_TICK
 	unsigned int nticks;

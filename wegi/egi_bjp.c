@@ -907,7 +907,7 @@ int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
 			/* display in the window */
                         egi_imgbuf_windisplay( imgbuf, fb_dev, -1, pn.x, pn.y, xw, yw, winw, winh ); /* use window */
 			#ifdef ENABLE_BACK_BUFFER
-			fb_refresh(fb_dev);
+			fb_page_refresh(fb_dev);
 			usleep(125000);
 			#else
                         tm_delayms(55);

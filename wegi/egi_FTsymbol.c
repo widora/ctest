@@ -656,7 +656,7 @@ FT_FAILS:
 
 
 /*-----------------------------------------------------------------------------------------------
-1. Render a CJK character presented in UNICODE with the specified face type, then write the 
+1. Render a CJK character presented in UNICODE with the specified face type, then write the
    bitmap to FB.
 2. The caller shall check and skip unprintable symbols, and parse ASCII control codes.
    This function only deal with symbol bitmap if it exists.
@@ -671,6 +671,7 @@ FT_FAILS:
 
 @fbdev:         FB device
 		or Virt FB!!
+		if NULL, just ignore to write to FB.
 @face:          A face object in FreeType2 library.
 @fh,fw:		Height and width of the wchar.
 @wcode:		UNICODE number for the character.

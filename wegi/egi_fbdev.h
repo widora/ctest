@@ -50,7 +50,12 @@ typedef struct fbdev{
         unsigned long 	screensize;	/* in bytes */
         unsigned char 	*map_fb;  	/* Pointer to kernel FB buffer, mmap to FB data */
 	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages. */
-	unsigned char   *map_bk;	/* Pointer to curret back buffer page, mmap mem */
+	unsigned char   *map_bk;	/* Pointer to curret back buffer page, mmap mem
+					 * When ENABLE_BACK_BUFFER is defined, all write/read operation to
+					 * the FB will be directed to the map_buff through map_bk,
+					 * The map_fb will be updated only when fb_refresh() is called, or
+					 * memcpy back buffer to it explicitly.
+					 */
 	unsigned int	npg;		/* index of back buffer page, Now npg=0 or 1, maybe 2  */
 
 
@@ -86,7 +91,7 @@ typedef struct fbdev{
 	EGI_FILO 	*fb_filo;
 	int 		filo_on;	/* >0, activate FILO push */
 
-	uint16_t 	*buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
+//	uint16_t 	*buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
 
 }FBDEV;
 
@@ -110,7 +115,8 @@ int 	init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
 void	release_virt_fbdev(FBDEV *dev);
 void 	fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg);
 void 	fb_clear_backBuff(FBDEV *dev, uint32_t color);
-void 	fb_refresh(FBDEV *dev);
+void 	fb_page_refresh(FBDEV *dev);
+void 	fb_slide_refresh(FBDEV *dev, int offl);
 void    fb_filo_on(FBDEV *dev);
 void    fb_filo_off(FBDEV *dev);
 void    fb_filo_flush(FBDEV *dev);

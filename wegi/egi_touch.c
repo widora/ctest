@@ -25,9 +25,11 @@ Midas
 #include "egi_touch.h"
 #include <stdbool.h>
 
+/* typedef struct egi_touch_data EGI_TOUCH_DATA in "egi.h" */
+
 static EGI_TOUCH_DATA live_touch_data;
-static bool cmd_end_loopread;	   /* command to end loopread if true */
-static bool tok_loopread_running;  /* token for loopread is running if true */
+static bool cmd_end_loopread;	        /* command to end loopread if true */
+static bool tok_loopread_running;       /* token for loopread is running if true */
 static pthread_t thread_loopread;
 
 /*-----------------------------------

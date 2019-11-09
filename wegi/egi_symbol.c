@@ -733,6 +733,7 @@ int symbol_string_pixlen(char *str, const EGI_SYMPAGE *font)
 2. Only alpha data is available in a FT2 symbol page, use WEGI_COLOR_BLACK as default front
    color.
 4. Note: put page check in symbol_string_writeFB()!!!
+5. Points out of fb_map page(one screen buffer) will be ruled out.
 
 @fbdev: 	FB device
 		or Virt FB
@@ -905,7 +906,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 		        }
 
 
-			/* ignore out ranged points */
+			/* LIMIT CHECK: ignore out ranged points */
 			if(mapx>(xres-1) || mapx<0 )
 				continue;
 			if(mapy>(yres-1) || mapy<0 )

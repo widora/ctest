@@ -25,14 +25,14 @@ midaszhou@yahoo.com
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
 #define EGI_PAGE_MAXTHREADS 5 /* MAX. number of threads in a page routine job */
 
-typedef struct egi_page EGI_PAGE;
-typedef struct egi_element_box EGI_EBOX;
-typedef struct egi_touch_data EGI_TOUCH_DATA;
-typedef struct egi_data_txt EGI_DATA_TXT;
-typedef struct egi_data_btn EGI_DATA_BTN;
-typedef struct egi_data_list EGI_DATA_LIST;
-typedef struct egi_data_slider EGI_DATA_SLIDER;
-typedef struct egi_data_pic EGI_DATA_PIC;
+typedef struct egi_page 	EGI_PAGE;
+typedef struct egi_element_box 	EGI_EBOX;
+typedef struct egi_touch_data 	EGI_TOUCH_DATA;
+typedef struct egi_data_txt 	EGI_DATA_TXT;
+typedef struct egi_data_btn 	EGI_DATA_BTN;
+typedef struct egi_data_list 	EGI_DATA_LIST;
+typedef struct egi_data_slider 	EGI_DATA_SLIDER;
+typedef struct egi_data_pic 	EGI_DATA_PIC;
 
 
 /* A group of pages that logically connected together that serves for an application.
