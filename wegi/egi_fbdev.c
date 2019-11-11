@@ -59,7 +59,7 @@ int init_fbdev(FBDEV *fb_dev)
 
 	/* ---- mmap back mem, map_bk ---- */
 	#if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
-	fb_dev->map_buff=(unsigned char *)mmap(NULL,fb_dev->screensize*FBDEV_MAX_BUFFER, PROT_READ|PROT_WRITE,
+	fb_dev->map_buff=(unsigned char *)mmap(NULL,fb_dev->screensize*FBDEV_BUFFER_PAGES, PROT_READ|PROT_WRITE,
 									MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	if(fb_dev->map_buff==MAP_FAILED) {
                 printf("Fail to mmap back mem map_buff for FB: %s\n", strerror(errno));
@@ -92,7 +92,7 @@ int init_fbdev(FBDEV *fb_dev)
         if(fb_dev->fb_filo==NULL) {
                 printf("%s: Fail to malloc FB FILO!\n",__func__);
                 munmap(fb_dev->map_fb,fb_dev->screensize);
-                munmap(fb_dev->map_buff,fb_dev->screensize*FBDEV_MAX_BUFFER);
+                munmap(fb_dev->map_buff,fb_dev->screensize*FBDEV_BUFFER_PAGES);
                 close(fb_dev->fbfd);
                 return -3;
         }
@@ -106,7 +106,7 @@ int init_fbdev(FBDEV *fb_dev)
 	}
 
 	/* clear buffer */
-//	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+//	for(i=0; i<FBDEV_BUFFER_PAGES; i++) {
 //		fb_dev->buffer[i]=NULL;
 //	}
 
@@ -117,7 +117,7 @@ int init_fbdev(FBDEV *fb_dev)
         printf(" xres: %d pixels, yres: %d pixels \n", fb_dev->vinfo.xres, fb_dev->vinfo.yres);
         printf(" xoffset: %d,  yoffset: %d \n", fb_dev->vinfo.xoffset, fb_dev->vinfo.yoffset);
         printf(" screensize: %ld bytes\n", fb_dev->screensize);
-        printf(" Total buffer pages: %d\n", FBDEV_MAX_BUFFER);
+        printf(" Total buffer pages: %d\n", FBDEV_BUFFER_PAGES);
         printf(" ----------------------------\n\n");
 
         return 0;
@@ -141,11 +141,11 @@ void release_fbdev(FBDEV *dev)
 		printf("Fail to unmap FB: %s\n", strerror(errno));
 
 	/* unmap FB back memory */
-        if( munmap(dev->map_buff,dev->screensize*FBDEV_MAX_BUFFER) !=0 )
+        if( munmap(dev->map_buff,dev->screensize*FBDEV_BUFFER_PAGES) !=0 )
 		printf("Fail to unmap back mem for FB: %s\n", strerror(errno));
 
 	/* free buffer */
-//	for( i=0; i<FBDEV_MAX_BUFFER; i++ )
+//	for( i=0; i<FBDEV_BUFFER_PAGES; i++ )
 //	{
 //		if( dev->buffer[i] != NULL )
 //		{
@@ -213,7 +213,7 @@ int init_virt_fbdev(FBDEV *fb_dev, EGI_IMGBUF *eimg)
 	fb_dev->pos_yres=fb_dev->vinfo.yres;
 
 	/* clear buffer */
-//	for(i=0; i<FBDEV_MAX_BUFFER; i++) {
+//	for(i=0; i<FBDEV_BUFFER_PAGES; i++) {
 //		fb_dev->buffer[i]=NULL;
 //	}
 
@@ -254,7 +254,7 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 	if(fb_dev==NULL || fb_dev->map_buff==NULL)
 		return;
 
-	numpg=numpg%FBDEV_MAX_BUFFER;
+	numpg=numpg%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
 	fb_dev->map_bk=fb_dev->map_buff+fb_dev->screensize*numpg;
 }
 
@@ -314,7 +314,7 @@ void fb_page_refresh(FBDEV *dev)
 
 /*--------------------------------------------------------------
 Refresh FB with back buffer starting from offset lines(offl),
-If offl is out of back buffer range[0 yres*FBDEV_MAX_BUFFER-1],
+If offl is out of back buffer range[0 yres*FBDEV_BUFFER_PAGES-1],
 it just ignores and returns.
 
 @offl:	Offset lines from the starting point of the whole FB
@@ -340,12 +340,12 @@ void fb_slide_refresh(FBDEV *dev, int offl)
 	unsigned int line_length=dev->finfo.line_length;
 
         /* CASE 1: offl is within the resonable range, but NOT in the last buffer page. */
-        if ( offl > -1 && offl < yres*(FBDEV_MAX_BUFFER-1)+1 ) {
+        if ( offl > -1 && offl < yres*(FBDEV_BUFFER_PAGES-1)+1 ) {
                 memcpy(dev->map_fb, dev->map_buff+line_length*offl, dev->screensize);
         }
 
         /* CASE 2: offl is out of back buffer range */
-        else if (offl<0 || offl > yres*FBDEV_MAX_BUFFER-1) {
+        else if (offl<0 || offl > yres*FBDEV_BUFFER_PAGES-1) {
 		return;
         }
 
@@ -353,15 +353,15 @@ void fb_slide_refresh(FBDEV *dev, int offl)
 	 *  then the mem for FB displaying is NOT consective, and shall be copied
 	 *  from 2 blocks in the back buffer.
 	 */
-        else  {  /* ( offl>yres*(FBDEV_MAX_BUFFER-1) && offl<yres*FBDEV_MAX_BUFFER) */
+        else  {  /* ( offl>yres*(FBDEV_BUFFER_PAGES-1) && offl<yres*FBDEV_BUFFER_PAGES) */
 
         	/*  Copy from the last buffer page: Line [offl to yres*N-1] */
                 memcpy( dev->map_fb, dev->map_buff+line_length*offl,
-                                                  line_length*(yres*FBDEV_MAX_BUFFER-offl) );
+                                                  line_length*(yres*FBDEV_BUFFER_PAGES-offl) );
 
    		/*  Copy from buffer page 0:  Line [0 to offl-yres*(N-1) ]   */
-                memcpy( dev->map_fb+line_length*(yres*FBDEV_MAX_BUFFER-offl), dev->map_buff,
-                                                   line_length*(offl-yres*(FBDEV_MAX_BUFFER-1)) );
+                memcpy( dev->map_fb+line_length*(yres*FBDEV_BUFFER_PAGES-offl), dev->map_buff,
+                                                   line_length*(offl-yres*(FBDEV_BUFFER_PAGES-1)) );
         }
 }
 

@@ -202,7 +202,7 @@ Return:
 	0	OK
 	<0	fails
 -----------------------------------------------------------------*/
-int egi_filo_read(EGI_FILO *filo, int pn, void* data)
+int egi_filo_read(const EGI_FILO *filo, unsigned int pn, void* data)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
@@ -224,7 +224,6 @@ int egi_filo_read(EGI_FILO *filo, int pn, void* data)
 	if(data != NULL)
 		memcpy(data, (void *)(filo->buff)[pn], filo->item_size);
 
-
 	return 0;
 }
 
@@ -236,7 +235,7 @@ filo:	FILO struct
 Return:
 	number of data in the buff.
 ----------------------------------------*/
-int egi_filo_itemtotal(EGI_FILO *filo)
+int egi_filo_itemtotal(const EGI_FILO *filo)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
@@ -245,4 +244,34 @@ int egi_filo_itemtotal(EGI_FILO *filo)
         }
 
 	return filo->pt;
+}
+
+/*------------------------------------------------
+Get 1D array from an EGI_FILO by deflating filo->buff.
+
+Return:
+	NULL	fails
+	Others	OK
+-------------------------------------------------*/
+void* egi_filo_get_flatData(const EGI_FILO *filo)
+{
+	int i;
+	unsigned char *data=NULL;
+
+	/* verifyi input data */
+	if( filo==NULL || filo->buff==NULL ) {
+                EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
+                return 0;
+        }
+
+	data=calloc(filo->buff_size, filo->item_size);
+	if(data==NULL) {
+		EGI_PLOG(LOGLV_ERROR,"%s:Fail to calloc data!", __func__);
+		return NULL;
+	}
+
+	for(i=0; i < filo->pt; i++)
+		memcpy(data+i*filo->item_size, filo->buff[i], filo->item_size);
+
+	return (void *)data;
 }

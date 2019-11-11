@@ -20,10 +20,17 @@ struct FTsymbol_library {
 
 	char ftname[256];
 
-	FT_Library     library;
+	/***	www.freetype.org/freetype2/docs
+	 * " In multi-threaded applications it is easiest to use one FT_Library
+	 *   object per thread, In case this is too cumbersome, a single FT_Library object
+	 *   across threads is possible also, as long as a mutex lock is used around FT_New_Face
+	 *   and FT_Done_Face. "
+	 */
+	FT_Library     library;		/* NOTE: typedef struct FT_LibraryRec_  *FT_Library */
+
 
 	/* Regular type */
-        FT_Face         regular;
+        FT_Face         regular;	/* NOTE: typedef struct FT_FaceRec_*  FT_Face */
 	char 		*fpath_regular;
 
 	/* Light type */
@@ -44,6 +51,7 @@ extern EGI_FONTS   egi_sysfonts; /* system font set */
 extern EGI_FONTS   egi_appfonts; /* system font set */
 
 int 	FTsymbol_load_library( EGI_FONTS *symlib );
+FT_Face FTsymbol_create_newFace( EGI_FONTS *symlib, const char *ftpath);
 void 	FTsymbol_release_library( EGI_FONTS *symlib );
 int	FTsymbol_load_allpages(void);
 void 	FTsymbol_release_allpages(void);

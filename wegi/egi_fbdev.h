@@ -31,7 +31,7 @@ Modified and appended by: Midas Zhou
 #define EGI_FBDEV_NAME "/dev/fb0"
 #endif
 
-#define FBDEV_MAX_BUFFER 3
+#define FBDEV_BUFFER_PAGES 3	/* Max FB buffer pages */
 
 typedef struct fbdev{
         int 		fbfd; 		/* FB device file descriptor, open "dev/fbx" */
@@ -91,7 +91,7 @@ typedef struct fbdev{
 	EGI_FILO 	*fb_filo;
 	int 		filo_on;	/* >0, activate FILO push */
 
-//	uint16_t 	*buffer[FBDEV_MAX_BUFFER];  /* FB image data buffer */
+//	uint16_t 	*buffer[FBDEV_BUFFER_PAGES];  /* FB image data buffer */
 
 }FBDEV;
 

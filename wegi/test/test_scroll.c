@@ -57,7 +57,10 @@ EGI_IMGBUF* eimg=NULL;
 int 		fd;
 int 		fsize;
 struct stat 	sb;
+
 unsigned int	txt_pgnum;
+unsigned int    prep_txt_pgnum;  /* The number of TXT page which is to be prepared for displaying */
+unsigned int	prep_buff_pgnum; /* The number FB buff page which is to be prepared for displaying */
 
 int nret=0;
 int mark;
@@ -222,6 +225,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 
 	i=0; 	  /* Line index of all FB buffer pages */
 	mark=0;
+	txt_pgnum=0;
 	while(1)
       	{
 		/*  Get touch data  */
@@ -253,8 +257,9 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 		}
 
                 /* Update line index of FB back buffer */
+		IsScrollUp = touch_data.dy>0 ? false : true;
                 i=mark-touch_data.dy;
-                printf("i=%d\n",i);
+                printf("i=%d  %s\n", i, IsScrollUp==true?"Up":"Down");
 
                 /* Normalize 'i' to: [0  yres*FBDEV_BUFFER_PAGES) */
                 if(i < 0 ) {
@@ -262,12 +267,22 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
                         i=(i%(int)(yres*FBDEV_BUFFER_PAGES))+yres*FBDEV_BUFFER_PAGES;
                         printf("renew i=%d\n", i);
                         mark=i+touch_data.dy;
+
+			prep_buff_pgnum=1; /* need to be prepared */
+
                 }
                 else if (i > yres*FBDEV_BUFFER_PAGES-1) {
                         i=0;    /* loop back to page 0 */
                         mark=touch_data.dy;
-                        //continue;
+			prep_buff_pgnum=1; /* need to be prepared */
                 }
+
+
+
+		/* Check scroll diretion and prepare next buffer page */
+		prep_txt_pgnum
+		prep_buff_pgnum
+
 
                 /*  Refresh FB with offset line, now 'i' limits to [0  yres*FBDEV_BUFFER_PAGES) */
                 fb_slide_refresh(&gv_fb_dev, i);

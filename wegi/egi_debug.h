@@ -30,11 +30,12 @@ Midas Zhou
 #define DBG_BJP		(1<<12)
 #define DBG_FFPLAY	(1<<13)
 #define DBG_IOT		(1<<14)
-#define DBG_FIFO	(1<<15)
-#define DBG_ERING	(1<<16)
-#define DBG_PCM		(1<<17)
-#define DBG_IMAGE	(1<<18)
-#define DBG_TEST	(1<<19)
+#define DBG_FILO	(1<<15)
+#define DBG_FIFO	(1<<16)
+#define DBG_ERING	(1<<17)
+#define DBG_PCM		(1<<18)
+#define DBG_IMAGE	(1<<19)
+#define DBG_TEST	(1<<20)
 
 #define ENABLE_EGI_DEBUG
 

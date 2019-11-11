@@ -18,7 +18,7 @@ CFLAGS  += -Wall -O2
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 LDFLAGS += -L/home/midas-zhou/ffmpeg-2.8.15/finish/lib
 
-LIBS	= -lepages -lesound #-legi
+LIBS	= -lepages -lesound -lsndfile #-legi
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c

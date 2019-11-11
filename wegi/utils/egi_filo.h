@@ -23,8 +23,9 @@ Midas Zhou
  */
 typedef struct
 {
-        int             item_size;      /* size of each item data, in byte.*/
-        int             buff_size;      /* total item number that the buff is capable of holding */
+        unsigned int    item_size;      /* size of each item data, in byte.*/
+        unsigned int    buff_size;      /* total item number that the buff is capable of holding,
+					 * actual item number is less than that. */
         unsigned char   **buff;         /* data buffer [buff_size][item_size] */
 
 	unsigned int	pt;		/* current data position,
@@ -41,10 +42,11 @@ typedef struct
 
 
 EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc);
-void egi_free_filo(EGI_FILO *efilo );
-int egi_filo_push(EGI_FILO *filo, const void* data);
-int egi_filo_pop(EGI_FILO *filo, void* data);
-int egi_filo_read(EGI_FILO *filo, int pn, void* data);
-int egi_filo_itemtotal(EGI_FILO *filo);
+void 	egi_free_filo(EGI_FILO *efilo );
+int 	egi_filo_push(EGI_FILO *filo, const void* data);
+int 	egi_filo_pop(EGI_FILO *filo, void* data);
+int 	egi_filo_read(const EGI_FILO *filo, unsigned int pn, void* data);
+int 	egi_filo_itemtotal(const EGI_FILO *filo);
+void* 	egi_filo_get_flatData(const EGI_FILO *filo);
 
 #endif

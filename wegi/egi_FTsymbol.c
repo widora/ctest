@@ -266,6 +266,50 @@ FT_FAIL:
 }
 
 
+/*------------------------------------------------------------------
+Create a new FT_Face in the FT_library of given EGI_FONTS.
+
+@symlib:  An EGI_FONTS with a FT_Library to hold the FT Face.
+@ftpath:  Font file path for the new FT Face.
+
+Return:
+	FT_Face		OK
+	NULL		Fails
+--------------------------------------------------------------------*/
+FT_Face FTsymbol_create_newFace( EGI_FONTS *symlib, const char *ftpath)
+{
+	FT_Error	error;
+	FT_Face		face;
+
+	/* Initialize library if NULL */
+	if(symlib->library==NULL) {
+		printf("%s: Input EGI_FONTS has an empty FT_library! try to initialize it...\n",__func__);
+	        error = FT_Init_FreeType( &symlib->library );
+        	if(error) {
+                     EGI_PLOG(LOGLV_ERROR, "%s: An error occured during FreeType library [%s] initialization.",
+									__func__, symlib->ftname);
+                	return NULL;
+		}
+        }
+
+	/* Create a new face according to the input file path */
+        error = FT_New_Face( symlib->library, ftpath, 0, &face);
+        if(error==FT_Err_Unknown_File_Format) {
+                EGI_PLOG(LOGLV_WARN,"%s: font file '%s' opens, but its font format is unsupported!",
+							__func__, ftpath);
+		return NULL;
+        }
+        else if ( error ) {
+                EGI_PLOG(LOGLV_WARN,"%s: Fail to open or read font file '%s'.", __func__, ftpath);
+		return NULL;
+        }
+        EGI_PLOG(LOGLV_CRITICAL,"%s: Succeed to open and read font file '%s'.", __func__, ftpath);
+
+	return face;
+}
+
+
+
 /*--------------------------------------------------
 	Rlease FT library.
 ---------------------------------------------------*/
@@ -963,7 +1007,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 		/* --- check whether lines are used up --- */
 		if( ln > lines-1) {
-			printf("%s: Lines not enough! finish only %d chars.\n", __func__, count);
+//			printf("%s: Lines not enough! finish only %d chars.\n", __func__, count);
 			return p-pstr;
 		}
 

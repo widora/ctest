@@ -235,7 +235,7 @@ static bool disable_video=true;
  *   if True:	play the beginning of a file for FFMUZ_CLIP_PLAYTIME seconds, then skip.
  *   if False:	disable clip test.
  */
-static bool enable_clip_test=true;
+static bool enable_clip_test=false; //true;
 
 /* Resample ON/OFF
  * True: Resample to 44.1k

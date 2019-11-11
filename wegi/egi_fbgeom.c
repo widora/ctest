@@ -1497,7 +1497,7 @@ Midas Zhou
 ----------------------------------------------*/
 int fb_buffer_FBimg(FBDEV *fb_dev, int nb)
 {
-	if(fb_dev==NULL || nb<0 || nb > FBDEV_MAX_BUFFER-1 )
+	if(fb_dev==NULL || nb<0 || nb > FBDEV_BUFFER_PAGES-1 )
 		return -1;
 
 	int xres=fb_dev->vinfo.xres;
@@ -1537,7 +1537,7 @@ Midas Zhou
 ------------------------------------------------------*/
 int fb_restore_FBimg(FBDEV *fb_dev, int nb, bool clean)
 {
-	if(fb_dev==NULL || nb<0 || nb > FBDEV_MAX_BUFFER-1 )
+	if(fb_dev==NULL || nb<0 || nb > FBDEV_BUFFER_PAGES-1 )
 		return -1;
 
 	int xres=fb_dev->vinfo.xres;
