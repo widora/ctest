@@ -11,6 +11,7 @@ in rx_buf[1]. rx_buf[0] is deemed inncorrect!
 
 LIMITS:!!!
 Max. total length of all TxBuf and RxBuf in each SPI ioctl transfer = 36(bytes)
+
 (max. SPI transfer) 1-byte command + 3-bytes address + 32-bytes data = 36 bytes
 
 Midas Zhou
@@ -20,7 +21,7 @@ Midas Zhou
 /* set main parameters */
 const char *spi_fdev = "/dev/spidev32766.2";
 static uint8_t spi_mode = 3;//3;
-static uint8_t spi_bits = 8; /* ８ｂiｔｓ读写，MSB first。*/
+static uint8_t spi_bits = 8;// Not applicable!!!， MSB first
 static uint32_t spi_speed = 2*1000*1000;/* min.1M 设置传输速度, 2M for touch XPT2064  */
 static uint16_t spi_delay = 0;
 static int g_SPI_Fd = -1; //SPI device file descriptor
@@ -286,6 +287,7 @@ int SPI_Close(void)
   Look Back test
 
   !!!!!  Not applicable  !!!!!!
+
   Dulplex transfer is not fully supported for widora now!
 ---------------------------------------------------------*/
 int SPI_LookBackTest(void)

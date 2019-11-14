@@ -384,6 +384,7 @@ Note:
 4. !!! symfont_page->symwidth MUST be freed by calling free() separately,for symwidth is statically
    allocated in most case, and symbol_release_page() will NOT free it.
 
+TODO: Apply character functions in <ctype.h> to rule out chars, with consideration of locale setting?
 
 @symfont_page:   pointer to a font symbol_page.
 @font_path:	 font file path.
@@ -713,6 +714,7 @@ FT_FAILS:
    a good idea to display CJK and wester charatcters separately by calling differenct functions.
    i.e. symbol_writeFB() for alphabets and FTsymbol_unicode_writeFB() for CJKs.
 
+
 @fbdev:         FB device
 		or Virt FB!!
 		if NULL, just ignore to write to FB.
@@ -824,8 +826,9 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 /*-----------------------------------------------------------------------------------------
 Write a string of wchar_t(unicodes) to FB.
 
-TODO: Alphabetic words are treated letter by letter, and they may be separated at the end of
-      a line, so it looks not good.
+TODO: 1. Alphabetic words are treated letter by letter, and they may be separated at the end of
+         a line, so it looks not good.
+
 
 
 @fbdev:         FB device,
@@ -938,8 +941,10 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 /*-----------------------------------------------------------------------------------------
 Write a string of charaters with UFT-8 encoding to FB.
 
-TODO: Alphabetic words are treated letter by letter, and they may be separated at the end of
-      a line, so it looks not good.
+TODO: 1. Alphabetic words are treated letter by letter, and they may be separated at the end of
+         a line, so it looks not good.
+
+      2. Apply character functions in <ctype.h> to rule out chars, with consideration of locale setting?
 
 @fbdev:         FB device
 @face:          A face object in FreeType2 library.
