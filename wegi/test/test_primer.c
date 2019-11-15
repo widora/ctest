@@ -37,8 +37,6 @@ int main(void)
 
 	}
 
-
-
 	return 0;
 }
 
@@ -49,15 +47,12 @@ void print_tmdiff(struct timeval t_start, struct timeval t_end)
         int ds=t_end.tv_sec-t_start.tv_sec;
         int dus=t_end.tv_usec-t_start.tv_usec;
 
-	if(dus<0) {
+	if(dus<0 && ds>0) {
 		ds--;
 		dus += 1000000;
 	}
 
 	printf("Time cost: %ds %dms\n", ds, dus/1000);
 
-//        int td=ds*1000000+dus;
-
-//        return ( td>0 ? td : -td );
 }
 

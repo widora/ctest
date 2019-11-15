@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------
+/* -------------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -11,7 +11,7 @@ published by the Free Software Foundation.
 
 Midas Zhou
 midaszhou@yahoo.com
-------------------------------------------------------------------*/
+---------------------------------------------------------------------------*/
 #include <stdio.h>
 #include "egi_common.h"
 #include "egi_pcm.h"
@@ -40,8 +40,6 @@ static int lngap=4;				 /* gap between lines, in pixel */
 static int pixpl;      //=xres-margin;		 /* Pixels per line of txt block */
 static int lines;     //=(yres-10*2)/(fh+lngap); /* lines in the txt block */
 static int pixlen;
-
-
 
 
 
@@ -231,6 +229,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 	fb_shift_buffPage(&gv_fb_dev,0);
 	fb_page_refresh(&gv_fb_dev);
 
+
 	/* ---- Scrolling up/down  PAGEs by touch sliding ---- */
 	for( i=0, mark=0, devy=0,	/* i as line index of all FB buffer pages */
 		 cur_txt_pgnum=0, cur_buff_pgnum=0 ; ; )
@@ -278,28 +277,32 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
                 //printf("i=%d  %s\n", i, IsScrollUp==true ? "Up":"Down");
 
                 /* Normalize 'i' to: [0  yres*FBDEV_BUFFER_PAGES) */
-
-		/*** Branching accroding to updated line index i
-		 *
-		 */
+		/*** Branching accroding to updated line index i */
 
 		/* IF_1.  From HEAD to TAIL (traverse from the first buffer page to the last buffer page) */
+		/* 1. This occurs only when scrolls down
+		 * 2. Map and modulo i to [0  yres*FBDEV_BUFFER_PAGES)
+		 * 3. As i<0, screen uppermost 0 line changes, new page appears, so we need to update
+		 *    pgnums and buffpage!
+	 	 */
                 if(i < 0 ) {
 			/* Stop scrolling down from 0, as gets to the beginning of the txt page */
 			if(cur_txt_pgnum==0) {
-				printf("Get to beginning!\n");
+				printf("Get to the HEAD!\n");
 				i=0;
-//				continue;
+				// continue;  Just go down to call fb_slide_refresh(&gv_fb_dev, i)
 			}
 			/* If Scroll down from 1 to 0, cur_txt_pgnum is still 1 now!  */
-			else if( !IsScrollUp && cur_txt_pgnum==1 ) {
+			//else if( !IsScrollUp && cur_txt_pgnum==1 ) {
+			else if( cur_txt_pgnum==1 ) {
 				printf("ScrollDown to 0\n");
-				cur_txt_pgnum--; /* !!! */
+				cur_txt_pgnum--;
 				cur_buff_pgnum--;
 				i=0;
 			}
-
-			/* Map and modulo i to [0  yres*FBDEV_BUFFER_PAGES)  */
+		 	/* As i<0, screen uppermost 0 line changes, new page appears!
+			 * So we MUST update pgnums and buffpage here!, Not in IF_3.1
+			 */
 			else {
 				printf("HEAD to TAIL  i=%d\n", i);
 				/* Loop to the last buffer page */
@@ -307,80 +310,63 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				iold=i;
 	                        i=(i%(int)(yres*FBDEV_BUFFER_PAGES))+yres*FBDEV_BUFFER_PAGES;
                         	printf("renew i=%d\n", i);
-
-				//cur_txt_pgnum -= 1;
-
 				mark += i - iold;
 
-                	 //       mark=i+touch_data.dy;
+				printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
+				cur_txt_pgnum--;
 
-#if 0 //////////////////////////////////////////////////////////////////////////////////////////
-      /* to be updated in IF_3. else IsScrollDown  */
-				/*** Update page counter
-				 * Suppose that one slide_touch dose NOT span one screen page
-				 * Here IsScrollUp==false , Is_Scroll_Down
-				 */
-				cur_txt_pgnum -= 1;
+				cur_buff_pgnum--;
+				if(cur_buff_pgnum < 0)
+					cur_buff_pgnum=FBDEV_BUFFER_PAGES-1;
 
-				/* Get to the first txt page */
-				if(cur_txt_pgnum<0) {
-					cur_txt_pgnum=0;
-					i=cur_buff_pgnum*yres;
-				}
-				else
-				{
-					cur_buff_pgnum = 2; /* Loop back to last page of back buffer */
+				/* (Scroll down) Update next buff page
+				 * cur_txt_pgnum already decremented.
+				 * Only if current txt page is NOT the FIRST page */
+				if( cur_txt_pgnum > 0 )  {
+					prep_buff_pgnum=cur_buff_pgnum-1;
+					if(prep_buff_pgnum < 0)
+						prep_buff_pgnum=FBDEV_BUFFER_PAGES-1;
 
-					prep_buff_pgnum=2-1;
-					if(prep_buff_pgnum<0) prep_buff_pgnum=FBDEV_BUFFER_PAGES-1;
-
-					/* Update next buff page, (nbufpg, char *pstr, int ntxtpg) */
-					writeTxt_to_buffPage(prep_buff_pgnum,
-						   fp+get_txtpg_offset(cur_txt_pgnum-1),cur_txt_pgnum-1);
-
-				}
-#endif /////////////////////////////////////////////////////////////////////////////////////////////////
+				   /* Update next buff page */
+				   writeTxt_to_buffPage( prep_buff_pgnum,
+					fp+get_txtpg_offset(cur_txt_pgnum-1), cur_txt_pgnum-1 );
+		    	        }
 
 			}
-                }
+                } /* END IF_1 */
 
-		/* IF_2.  From TAIL to HEAD  (Traverse from the last buffer page to the first buffer page) */
+		/* IF_2.  From TAIL to HEAD  (Traverse from the last buffer page to the first buffer page)
+		 *	  This occurs only when scrolls up !  */
                 else if (i > yres*FBDEV_BUFFER_PAGES-1) {
+		    /* 1. For scrolling up, we only update the uppermost line index i,
+		     * 2. Let IF_3.2 to check the bottom line [i+yres-1] to see if new page appears,
+		     */
 			printf("TAIL to HEAD\n");
 			/* Loop back to the first buffer page 0 */
 			iold=i;
                         i=0;
 			mark += i-iold;
-                        //mark=i+touch_data.dy;
 
-#if 0 ///////////////////////////////////////////////////////////////////////////////////////////
-      /* to be updated in IF_3. if(IsScrollUP)  */
-			/*** Update page counter
-			 * Suppose that one slide_touch dose NOT span one screen page
-			 * Here IsScrollUp==true,  IS_Scroll_Up
-			 */
-			cur_txt_pgnum += 1;
-			cur_buff_pgnum=0;  /* Loop back to head of buffer */
-			prep_buff_pgnum=0+1; /* need to be prepared */
+			/* --- For scrolling up, let IF_3.2 to check the bottom line if new page appears --- */
+			//cur_txt_pgnum++;
+			//cur_buff_pgnum++;
+			// ... ...
 
-			/* Update next buff page, (nbufpg, char *pstr, int ntxtpg) */
-			writeTxt_to_buffPage(prep_buff_pgnum, fp+get_txtpg_offset(cur_txt_pgnum+1),
-										cur_txt_pgnum+1);
-#endif /////////////////////////////////////////////////////////////////////////////////////////////////
-                }
+                } /* END IF_2 */
 
-		/* IF_3.  Does NOT cross buffer HEAD/TAIL boundary */
+		/* IF_3.  Does NOT cross FB buffer HEAD/TAIL boundary
+		 * 	  Check scroll diretion and prepare next buffer page
+		 */
 		else {
-
-			/* Check scroll diretion and prepare next buffer page */
+			/* IF_3.1 */
 			if( IsScrollUp ) {
 				/*** Only if scroll up to another page ( get page boundary line )
 				 * Note: i is already added with -touch_data.dy
-				 *    --- Check the bottom yres-1 line! --- */
+				 *  --- Check the screen bottom yres-1 line, see if new page appears ---   */
 				if ( (mark-touch_data.dy+yres-1)/yres > (mark+yres-1)/yres )
 				{ 	/* ! touch_data.dy is negative - */
 				    if( (mark-devy+yres-1)/yres == (mark+yres-1)/yres    /* First cross */
-					  &&  ( cur_txt_pgnum < total_txt_pages-1 )   )  /* txt page num from 0 */
+					  &&  ( cur_txt_pgnum < total_txt_pages-1 ) ) /* txt page num from 0 */
 				    {
 					   printf(" --- %d up to %d --- \n", cur_txt_pgnum, cur_txt_pgnum+1);
 						cur_txt_pgnum += 1;
@@ -409,14 +395,15 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				     }
 				}
 			}
+			/* IF_3.2 */
 			else  { /* ( IsScrollDown ) */
 				/*** Only if scroll down to another page ( get page boundary line )
 				 * Note: i is already added with -touch_data.dy
-				 *   --- Check the uppermost 0 line! --- */
-				if( (mark-touch_data.dy)/yres < mark/yres )
+				 *   --- Check the screen uppermost 0 line, see if new page appears! --- */
+				if( (mark-touch_data.dy)/yres < mark/yres )	/* Check crossed */
 				{
-			  	    printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
-				    if( (mark-devy)/yres == mark/yres    	  /* First cross */
+			  	    //printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
+				    if( (mark-devy)/yres == mark/yres    	  /* Check first cross */
 					  	&&  ( cur_txt_pgnum > 0 )   )     /* txt page num from 0 */
                                     {    /* ! touch_data.dy is positive - */
 
@@ -448,7 +435,8 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 			     } /* END  scroll down to another page  */
 
 			} /* END ( IsScrollDown ) */
-		}
+
+		} /* END IF_3 */
 
 		/* Record dy at last */
                 devy=touch_data.dy;
@@ -456,9 +444,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
                 /*  Refresh FB with offset line, now 'i' limits to [0  yres*FBDEV_BUFFER_PAGES) */
                 fb_slide_refresh(&gv_fb_dev, i);
 		tm_delayms(5);
-
       	} /* for() touch parse END */
-
 
 } while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
