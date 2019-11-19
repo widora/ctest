@@ -40,7 +40,7 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 
 	/* set curl option */
 	curl_easy_setopt(curl, CURLOPT_URL, request);		 	 /* set request URL */
-	curl_easy_setopt(curl, CURLOPT_VERBOSE,1);			 /* print more detail */
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);			 /* 1 print more detail */
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);			 /* set timeout */
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, get_callback);     /* set write_callback */
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, reply_buff); 		 /* set data dest for write_callback */

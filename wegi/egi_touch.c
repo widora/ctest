@@ -111,6 +111,7 @@ bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 
 	/* pass data, directly assign */
 	*data=live_touch_data;
+
 	/* reset update flag */
 	live_touch_data.updated=false;
 
@@ -118,6 +119,7 @@ bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 
 	return true;
 }
+
 
 /*------------------------------------------
 Check the touch data, but do NOT read out.
@@ -130,7 +132,6 @@ EGI_TOUCH_DATA egi_touch_peekdata(void)
 
 	return live_touch_data;
 }
-
 
 
 /*-------------------------------------------
@@ -172,18 +173,18 @@ enum egi_touch_status egi_touch_peekstatus(void)
 
 
 
-/*-------------------------------------------------------------------
+/* ------------------     A Thread Function    ----------------------
 loop in reading touch data and updating live_touch_data
 
 NOTE:
 	1. tm_timer(): start tick timer before run this function.
 --------------------------------------------------------------------*/
-void egi_touch_loopread(void)
+void *egi_touch_loopread(void)
 {
 	int ret;
 	uint16_t sx,sy; /* last x,y */
 	struct egi_point_coord sxy;
-	int last_x,last_y; /* last recorded x,y */
+	int last_x=0,last_y=0; /* last recorded x,y */
 
         /* for time struct */
         struct timeval t_start,t_end; /* record two pressing_down time */
@@ -286,11 +287,13 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.coord=sxy;
 				live_touch_data.updated=true;
 				live_touch_data.status=pressed_hold;
+
 				/* sliding deviation */
 				live_touch_data.dx += (sx-last_x);
 				last_x=sx;
 				live_touch_data.dy += (sy-last_y);
 				last_y=sy;
+
 				EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
 								live_touch_data.dx,live_touch_data.dy );
 

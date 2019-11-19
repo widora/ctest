@@ -695,9 +695,7 @@ struct egi_page
 	pthread_mutex_t runner_mutex;
 	pthread_cond_t  runner_cond;
 	/* TBD: Whether?/When?/Where? to destroy above mutex and cond variables!?!?! */
-
 };
-
 
 
 /* for common ebox */
@@ -713,17 +711,17 @@ enum 		egi_ebox_status egi_get_ebox_status(const EGI_EBOX *ebox);
 
 EGI_EBOX*	egi_ebox_new(enum egi_ebox_type type);//, void *egi_data);
 
-int egi_ebox_activate(EGI_EBOX *ebox);
-void egi_ebox_needrefresh(EGI_EBOX *ebox);
-void egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
-int egi_ebox_refresh(EGI_EBOX *ebox);
-int egi_ebox_forcerefresh(EGI_EBOX *ebox);
-int egi_ebox_decorate(EGI_EBOX *ebox);
-int egi_ebox_sleep(EGI_EBOX *ebox);
-int egi_ebox_free(EGI_EBOX *ebox);
+int 	egi_ebox_activate(EGI_EBOX *ebox);
+void 	egi_ebox_needrefresh(EGI_EBOX *ebox);
+void 	egi_ebox_set_touchbox(EGI_EBOX *ebox, EGI_BOX box);
+int 	egi_ebox_refresh(EGI_EBOX *ebox);
+int 	egi_ebox_forcerefresh(EGI_EBOX *ebox);
+int 	egi_ebox_decorate(EGI_EBOX *ebox);
+int 	egi_ebox_sleep(EGI_EBOX *ebox);
+int 	egi_ebox_free(EGI_EBOX *ebox);
 
 /* for egi page */
-int egi_page_disappear(EGI_EBOX *ebox);
+int 	egi_page_disappear(EGI_EBOX *ebox);
 
 
 /* for button ebox */

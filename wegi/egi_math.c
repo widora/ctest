@@ -508,7 +508,7 @@ int mat_egiFFFT( uint16_t np, const EGI_FCOMPLEX *wang,
         static EGI_FCOMPLEX *ffodd=NULL;    /* for FFT STAGE 1,3,5.. , store intermediate result */
         static EGI_FCOMPLEX *ffeven=NULL;   /* for FFT STAGE 0,2,4.. , store intermediate result */
         static int *ffnin=NULL;             /* normal order mapped index */
-	int fftmp;
+	//int fftmp;
 
         /* check np  */
 	if ( np==0 ) {
@@ -900,7 +900,7 @@ void mat_pointrotate_SQMap(int n, double angle, struct egi_point_coord centxy,
 	memset(SQMat_XRYR,0,n*n*sizeof(struct egi_point_coord));
 
 	/* check if n can be resolved in form of 2*m+1 */
-	if( n&0x1 == 0 )
+	if( (n&0x1) == 0 )
 	{
 		printf("!!! WARNING !!! mat_pointrotate_SQMap(): the number of pixels on	\
 							the square side is NOT in form of n=2*m+1.\n");
@@ -962,7 +962,7 @@ void mat_pointrotate_fpSQMap(int n, int angle, EGI_POINT centxy, EGI_POINT *SQMa
 	memset(SQMat_XRYR,0,n*n*sizeof(EGI_POINT));
 
 	/* Check if n can be resolved in form of 2*m+1 */
-	if( n&0x1 == 0 )
+	if( (n&0x1) == 0 )
 	{
 		printf("!!! WARNING !!! mat_pointrotate_fpSQMap(): the number of pixels on	\
 							the square side is NOT in form of n=2*m+1.\n");

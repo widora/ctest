@@ -23,7 +23,7 @@ EGI_TOUCH_DATA 	egi_touch_peekdata(void);
 int 		egi_touch_peekdx(void);
 void 		egi_touch_peekdxdy(int *dx, int *dy);
 enum 		egi_touch_status egi_touch_peekstatus(void);
-void 		egi_touch_loopread(void);
+void* 		egi_touch_loopread(void);
 
 
 #endif

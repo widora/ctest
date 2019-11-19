@@ -477,8 +477,8 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 					/* pass VALUE to pavlue */
 					else {
 					   strcpy(pvalue, pt);
-					   printf("%s: Found  Key:[%s],  Value:[%s] \n",
-										__func__, key,pvalue);
+					   //printf("%s: Found  Key:[%s],  Value:[%s] \n",
+					   //					__func__, key,pvalue);
 					   ret=0; /* OK, get it! */
 					   break;
 					}

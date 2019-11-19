@@ -9,6 +9,26 @@ published by the Free Software Foundation.
 2. FB back buffer is enabled.
 
 
+		-----  FAST SLIDING MOVEMENT PROBLEs -----
+pressing i=333
+releasing
+pressing i=458
+releasing
+pressing i=566
+i=643 -- 5 up to 6 ---
+get_txtpg_offset: offset[2924] for txt page[7]
+i=649 -- 6 up to 7 ---
+get_txtpg_offset: offset[3392] for txt page[8]
+i=649 -- 7 up to 8 ---
+get_txtpg_offset: offset[3860] for txt page[9]
+i=672 -- 8 up to 9 ---
+get_txtpg_offset: offset[4328] for txt page[10]
+i=688 -- 9 up to 10 --
+get_txtpg_offset: offset[4513] for txt page[11]
+releasing
+
+
+
 Midas Zhou
 midaszhou@yahoo.com
 ---------------------------------------------------------------------------*/
@@ -18,17 +38,19 @@ midaszhou@yahoo.com
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"
 
-
 static char *fp;			/* mmap to txt */
-static  unsigned int total_txt_pages;	/* total pages of txt file */
+static unsigned int total_txt_pages;	/* total pages of txt file */
 
 EGI_FILO  *filo_pgOffset;
 static unsigned long round_count;
-static bool IsScrollUp=true; /* Scroll_Up: to increase page number, Scroll_Dow: to decrease page number */
+static bool IsScrollUp=true; 		/* Scroll_Up: to increase page number,
+					 * Scroll_Dow: to decrease page number */
+static bool preup=true;			/* Previous scroll up */
+
 
 /* --- Functions --- */
-static void * create_pgOffset_table(void *arg);
-void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg);
+static void *create_pgOffset_table(void *arg);
+static void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg);
 unsigned int get_txtpg_offset(int npg);
 
 
@@ -41,6 +63,9 @@ static int pixpl;      //=xres-margin;		 /* Pixels per line of txt block */
 static int lines;     //=(yres-10*2)/(fh+lngap); /* lines in the txt block */
 static int pixlen;
 
+/* --- Easter Egge --- */
+EGI_IMGBUF* eimg=NULL;
+static int egg_pgnum=-1;
 
 
 ///////////////////	MAIN    ///////////////////////
@@ -52,7 +77,6 @@ int main(int argc, char** argv)
 	struct timeval tm_start;
 	struct timeval tm_end;
 
-EGI_IMGBUF* eimg=NULL;
 
 int 		fd;
 int 		fsize;
@@ -77,8 +101,8 @@ unsigned long int 	off=0; 		/* in bytes, offset */
 unsigned long int 	xres, yres;	/* X,Y pixles of the FB/Screen */
 unsigned long int 	line_length; 	/* in bytes */
 static EGI_TOUCH_DATA	touch_data;
-int                     devy;           /* previous touch_data.dy value */
-int			iold;		/* previous index of back buffer */
+int                     predy;//devy;   /* previous touch_data.dy value */
+int			preold;		/* previous index of back buffer */
 
 int total=0;
 
@@ -194,20 +218,21 @@ pthread_t	thread_create_table;
 
 
 
+#if 1 /* --- write imgbuf to back buffers --- */
+	char *fpath="/mmc/zombie1.png";
+	eimg=egi_imgbuf_readfile(fpath);
+	if(eimg==NULL) {
+        	EGI_PLOG(LOGLV_ERROR, "%s: Fail to read and load file '%s'!", __func__, fpath);
+		return -1;
+	}
+//	memcpy(gv_fb_dev.map_bk, eimg->imgbuf, FBDEV_BUFFER_PAGES*yres*line_length);
+//	egi_imgbuf_free(eimg); eimg=NULL;
+#endif
+
+
 do {    ////////////////////////////    LOOP TEST   /////////////////////////////////
 
 	off=0;
-
-#if 0 /* --- write imgbuf to back buffers --- */
-	eimg=egi_imgbuf_readfile("/mmc/list.png");
-	if(eimg==NULL) {
-        	EGI_PLOG(LOGLV_ERROR, "%s: Fail to read and load file '%s'!", __func__, "/mmc/list.png");
-		return -1;
-	}
-	memcpy(gv_fb_dev.map_bk, eimg->imgbuf, FBDEV_BUFFER_PAGES*yres*line_length);
-	egi_imgbuf_free(eimg); eimg=NULL;
-#endif
-
 
 	/* Write TXT to FB back buffers to fill all buffer pages */
 	for(i=0; i<FBDEV_BUFFER_PAGES; i++)
@@ -231,7 +256,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 
 
 	/* ---- Scrolling up/down  PAGEs by touch sliding ---- */
-	for( i=0, mark=0, devy=0,	/* i as line index of all FB buffer pages */
+	for( i=0, mark=0, predy=0,	/* i as line index of all FB buffer pages */
 		 cur_txt_pgnum=0, cur_buff_pgnum=0 ; ; )
       	{
 		/*  Get touch data  */
@@ -247,8 +272,8 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				break;
 			case pressing:
 	                        printf("pressing i=%d\n",i);
-                        	mark=i;	/* Rest mark and devy */
-				devy=0;
+                        	mark=i;	/* Rest mark and predy */
+				predy=0;
                         	continue;
 				break;
 			case releasing:
@@ -264,15 +289,20 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 		}
 
                 /* Check instantanous sliding direction */
-                if( touch_data.dy - devy > 0 ) { 	/* Sliding DOWN, in Screen +Y direction */
+                if( touch_data.dy - predy > 0 ) { 	/* Scroll DOWN, sliding in Screen +Y direction */
                         IsScrollUp = false;
+			printf("Down\n");
                 }
-                else {                          	/* Sliding UP, in Screen -Y direction */
+                else if ( touch_data.dy - predy < 0 ) {  /* Scroll UP, sliding in Screen -Y direction */
                         IsScrollUp = true;
+			printf("UP\n");
                 }
-               //devy=touch_data.dy;  /* To update at last, we need old value before. */
+		else					/* Idel */
+			IsScrollUp = preup;
 
-                /* Update i (line index of FB back buffers) */
+               //predy=touch_data.dy;  /* To update at last, we need old value before. */
+
+                /* Update i (line index of all FB back buffers) */
                 i=mark-touch_data.dy;  /* DY>0 Scroll DOWN;  DY<0 Scroll UP */
                 //printf("i=%d  %s\n", i, IsScrollUp==true ? "Up":"Down");
 
@@ -295,7 +325,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 			/* If Scroll down from 1 to 0, cur_txt_pgnum is still 1 now!  */
 			//else if( !IsScrollUp && cur_txt_pgnum==1 ) {
 			else if( cur_txt_pgnum==1 ) {
-				printf("ScrollDown to 0\n");
+				printf("    i<0: 1 down to 0\n");
 				cur_txt_pgnum--;
 				cur_buff_pgnum--;
 				i=0;
@@ -304,13 +334,13 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 			 * So we MUST update pgnums and buffpage here!, Not in IF_3.1
 			 */
 			else {
-				printf("HEAD to TAIL  i=%d\n", i);
+				printf("HEAD to TAIL i=%d\n", i);
 				/* Loop to the last buffer page */
         	                //printf("i%%(yres*FBDEV_MAX_BUFF)=%d\n", i%(int)(yres*FBDEV_BUFFER_PAGES));
-				iold=i;
+				preold=i;
 	                        i=(i%(int)(yres*FBDEV_BUFFER_PAGES))+yres*FBDEV_BUFFER_PAGES;
                         	printf("renew i=%d\n", i);
-				mark += i - iold;
+				mark += i - preold;
 
 				printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
 				cur_txt_pgnum--;
@@ -331,7 +361,6 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				   writeTxt_to_buffPage( prep_buff_pgnum,
 					fp+get_txtpg_offset(cur_txt_pgnum-1), cur_txt_pgnum-1 );
 		    	        }
-
 			}
                 } /* END IF_1 */
 
@@ -341,11 +370,11 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 		    /* 1. For scrolling up, we only update the uppermost line index i,
 		     * 2. Let IF_3.2 to check the bottom line [i+yres-1] to see if new page appears,
 		     */
-			printf("TAIL to HEAD\n");
+			printf("TAIL to HEAD i=%d\n",i);
 			/* Loop back to the first buffer page 0 */
-			iold=i;
+			preold=i;
                         i=0;
-			mark += i-iold;
+			mark += i-preold;
 
 			/* --- For scrolling up, let IF_3.2 to check the bottom line if new page appears --- */
 			//cur_txt_pgnum++;
@@ -361,17 +390,31 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 			/* IF_3.1 */
 			if( IsScrollUp ) {
 				/*** Only if scroll up to another page ( get page boundary line )
+				 *   	 OR: scrolling direction changes !!!!
 				 * Note: i is already added with -touch_data.dy
-				 *  --- Check the screen bottom yres-1 line, see if new page appears ---   */
-				if ( (mark-touch_data.dy+yres-1)/yres > (mark+yres-1)/yres )
-				{ 	/* ! touch_data.dy is negative - */
-				    if( (mark-devy+yres-1)/yres == (mark+yres-1)/yres    /* First cross */
-					  &&  ( cur_txt_pgnum < total_txt_pages-1 ) ) /* txt page num from 0 */
-				    {
-					   printf(" --- %d up to %d --- \n", cur_txt_pgnum, cur_txt_pgnum+1);
-						cur_txt_pgnum += 1;
+				 *   	  i=mark-touch_data.dy
+				 *  --- Check the screen bottom yres-1 line, see if new page appears --- */
+	  	printf(" -- UP (i+yres-1)/yres=%d  (mark+yres-1)/yres=%d  (mark-predy+yres-1)/yres=%d --\n",
+						(i+yres-1)/yres, (mark+yres-1)/yres, (mark-predy+yres-1)/yres);
 
-						cur_buff_pgnum +=1;
+				/*** WRONG!!!, It may move back and forth, so check last time predy instead !!!!
+				//if ( (i+yres-1)/yres > (mark+yres-1)/yres )
+				//{ 	/* ! touch_data.dy is negative, check if last time i is NOT cross - */
+
+				if( ( (mark-predy+yres-1)/yres != (i+yres-1)/yres || preup==false )
+				     &&  ( cur_txt_pgnum < total_txt_pages-1 ) ) /* txt page num from 0 */
+				{
+				      printf("        i=%d -- %d up to ", i, cur_txt_pgnum );
+						cur_txt_pgnum++;
+						cur_buff_pgnum++;
+					 	/* If change both */
+						if( ( (mark-predy+yres-1)/yres != (i+yres-1)/yres )
+											&& preup==false ){
+							cur_txt_pgnum++;
+							cur_buff_pgnum++;
+					 	}
+					printf(" %d -- \n", cur_txt_pgnum);
+
 						if(cur_buff_pgnum > FBDEV_BUFFER_PAGES-1)
 							cur_buff_pgnum=0;
 
@@ -386,31 +429,46 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 						    writeTxt_to_buffPage( prep_buff_pgnum,
 						        fp+get_txtpg_offset(cur_txt_pgnum+1), cur_txt_pgnum+1);
 						}
-				     }
-				     /* If get to the end of txt page, stop and hold on */
-				     else if ( cur_txt_pgnum == total_txt_pages-1 ) {
+						else if ( i > cur_buff_pgnum*yres )
+                                                     i=cur_buff_pgnum*yres;
+				  }
+				  /* If get to the end of txt page, stop and hold on */
+				  else if ( cur_txt_pgnum == total_txt_pages-1 ) {
 					  printf(" --- %d end .\n", cur_txt_pgnum);
 					  if( i > cur_buff_pgnum*yres )
 						  i=cur_buff_pgnum*yres;
-				     }
-				}
+				  }
+				//}
 			}
 			/* IF_3.2 */
 			else  { /* ( IsScrollDown ) */
 				/*** Only if scroll down to another page ( get page boundary line )
+				 *   	 OR: scrolling direction changes !!!!
 				 * Note: i is already added with -touch_data.dy
+				 *	 as i=mark-touch_data.dy
 				 *   --- Check the screen uppermost 0 line, see if new page appears! --- */
-				if( (mark-touch_data.dy)/yres < mark/yres )	/* Check crossed */
-				{
-			  	    //printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
-				    if( (mark-devy)/yres == mark/yres    	  /* Check first cross */
-					  	&&  ( cur_txt_pgnum > 0 )   )     /* txt page num from 0 */
+			  	printf(" -- DOWN i/yres=%d mark/yres=%d  (mark-predy)/yres=%d --\n",
+								i/yres, mark/yres, (mark-predy)/yres);
+
+				/*** WRONG!!!, It may move back and forth, so check last time predy instead !!!!
+				//xxxx if( i/yres < mark/yres ) /* Check crossed */
+
+				    /* Confirm last time i is NOT cross */
+				if( ( (mark-predy)/yres != i/yres || preup==true )
+				  	             &&  ( cur_txt_pgnum > 0 )  )   /* txt page num from 0 */
                                     {    /* ! touch_data.dy is positive - */
 
-						printf(" --- %d down to %d ---\n", cur_txt_pgnum, cur_txt_pgnum-1 );
-						cur_txt_pgnum -= 1;
+					printf("        i=%d -- %d down to ",i, cur_txt_pgnum);
+						cur_txt_pgnum--;
+						cur_buff_pgnum--;
+					  	/* If both change */
+						if( ( (mark-predy)/yres != i/yres )
+									&& preup==true ) {
+							cur_txt_pgnum--;
+							cur_buff_pgnum--;
+						}
+					 printf(" %d -- \n", cur_txt_pgnum);
 
-						cur_buff_pgnum -=1;
 						if(cur_buff_pgnum < 0)
 							cur_buff_pgnum=FBDEV_BUFFER_PAGES-1;
 
@@ -432,48 +490,47 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 					  printf(" --- %d HEAD .\n", cur_txt_pgnum);
 					  i=cur_buff_pgnum*yres;
 				     }
-			     } /* END  scroll down to another page  */
 
-			} /* END ( IsScrollDown ) */
+			      //xxxx } /* END  scroll down to another page  */
+
+			 } /* END IF_3.2 ( IsScrollDown ) */
 
 		} /* END IF_3 */
 
 		/* Record dy at last */
-                devy=touch_data.dy;
+                predy=touch_data.dy;
+		preup=IsScrollUp;
 
                 /*  Refresh FB with offset line, now 'i' limits to [0  yres*FBDEV_BUFFER_PAGES) */
                 fb_slide_refresh(&gv_fb_dev, i);
 		tm_delayms(5);
       	} /* for() touch parse END */
 
+
 } while(1); ///////////////////////////   END LOOP TEST   ///////////////////////////////
 
 
-
-#if 0	/* Free eimg */
 	egi_imgbuf_free(eimg);
 	eimg=NULL;
-#endif
 
 	egi_free_filo(filo_pgOffset);
 
-	#if 0
         /* <<<<<  EGI general release >>>>> */
         printf("FTsymbol_release_allfonts()...\n");
         FTsymbol_release_allfonts();
         printf("symbol_release_allpages()...\n");
         symbol_release_allpages();
 	printf("release_fbdev()...\n");
-        fb_filo_flush(&gv_fb_dev);
+        fb_filo_flush(&gv_fb_dev); /* Flush FB filo if necessary */
         release_fbdev(&gv_fb_dev);
-	printf9"egi_end_touchread()...\n");
+	printf("egi_end_touchread()...\n");
 	egi_end_touchread();
         printf("egi_quit_log()...\n");
         egi_quit_log();
         printf("<-------  END  ------>\n");
-	#endif
 
 return 0;
+
 }
 
 
@@ -512,7 +569,7 @@ static void * create_pgOffset_table(void *arg)
     */
    for( off=0,
         	egi_filo_push(filo_pgOffset, &off),             /* Init off and push first page 0 */
-        				total_txt_pages=1; ; )	/* Init total txt pages */
+        				total_txt_pages=0; ; )	/* Init total txt pages */
    {
 	/* To the NULL fbdev, Use the same params for displaying fbdev. */
 	nret=FTsymbol_uft8strings_writeFB(NULL, fonts.regular,      	 /* FBdev, fontface */
@@ -525,10 +582,16 @@ static void * create_pgOffset_table(void *arg)
 
 	off += nret;
 	egi_filo_push(filo_pgOffset, &off);
+
 	total_txt_pages++;
 
 	printf("Filo item number: %d off: %ld\n", egi_filo_itemtotal(filo_pgOffset)-1, off);
    }
+	printf("Total txt pages: %d \n", total_txt_pages);
+	printf("Filo item number: %d pointer to the bottom!", egi_filo_itemtotal(filo_pgOffset)-1);
+
+	/* create easter egg page number */
+	egg_pgnum=egi_random_max(total_txt_pages)-1;
 
 	/* Release the temp. fonts */
 	FTsymbol_release_library(&fonts);
@@ -552,6 +615,7 @@ void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg)
 	char strPgNum[16];
 	unsigned int xres=gv_fb_dev.vinfo.xres;
 	unsigned int yres=gv_fb_dev.vinfo.yres;
+	unsigned int line_length=gv_fb_dev.finfo.line_length;
 
 	/* Shift to current working FB back buffer  */
         fb_shift_buffPage(&gv_fb_dev,nbufpg);
@@ -579,17 +643,29 @@ void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg)
                                      (xres-pixlen)/2, yres-20,    	/* x0,y0, */
                                      WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor,opaque */
 
+	/* Put an Easter Egg */
+	if( egg_pgnum>=0 && ntxtpg==egg_pgnum ) {
+		//memcpy(gv_fb_dev.map_bk, eimg->imgbuf, eimg->height*line_length);
+		egi_imgbuf_windisplay2( eimg, &gv_fb_dev,  		/* *imgbuf, *fbdev */
+					0,0, 0,20,			/* xp,yp,  xw,yw  */
+					eimg->width, eimg->height ); 	/* winw, winh */
+	}
+
 }
 
 
-/*--------------------------------------------
-Get offset value of the input txt page number
+/*----------------------------------------------------------
+Get offset value correspoinding to the input txt page number
 Use the offset value to seek the txt block.
 
 @npg:	txt page numer
 
----------------------------------------------*/
-unsigned int get_txtpg_offset( int npg)
+Note: If
+
+Return:
+	offset value
+----------------------------------------------------------*/
+unsigned int get_txtpg_offset(int npg)
 {
 	unsigned int offset=0;
 
