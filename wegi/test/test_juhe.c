@@ -12,6 +12,7 @@ Midas Zhou
 #include <stdio.h>
 #include <curl/curl.h>
 #include <string.h>
+#include <libgen.h>
 #include <json-c/json.h>
 #include <json-c/json_object.h>
 #include "egi_common.h"
@@ -23,47 +24,22 @@ static char strkey[256];
 static char buff[32*1024]; /* for curl return */
 
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp);
+static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream);
 char* juhe_get_objitem(const char *strinput, int index, const char *strkey);
 void  print_json_object(const json_object *json);
 
+
+static char* news_type[10]=
+{
+"top", "shehui", "guonei","guoji", "yule", "tiyu", "junshi", "keji", "caijing", "shishang"
+};
 
 /* 	---------- juhe.cn  News Types -----------
 
 	top(头条，默认),shehui(社会),guonei(国内),guoji(国际),yule(娱乐),tiyu(体育)
         junshi(军事),keji(科技),caijing(财经),shishang(时尚)
-*/
-
-int main(int argc, char **argv)
-{
-	int i;
-	char *pstr=NULL;
-        static char strRequest[256+64];
-
-	if(argc<2)
-	{
-		printf("Usage: %s top\n", argv[0]);
-		exit(-1);
-	}
 
 
-        /* read key from EGI config file */
-        egi_get_config_value("JUHE_NEWS", "key", strkey);
-        strcat(strRequest,"https://v.juhe.cn/toutiao/index?type=");
-	strcat(strRequest, argv[1]);
-        strcat(strRequest,"&key=");
-        strcat(strRequest,strkey);
-        //printf("strRequest:%s\n", strRequest);
-
-        /* Get request */
-        memset(buff,0,sizeof(buff));
-        if(https_curl_request(strRequest, buff, NULL, curlget_callback)!=0) {
-                printf("Fail to call https_curl_request()!\n");
-                return -1;
-        }
-        //printf("curl reply:\n %s\n",buff);
-
-
-/*
 	------------------  www.juhe.cn FREE NEWS : DATA FORMAT ------------------
 {
 	"reason":"成功的返回",
@@ -94,30 +70,162 @@ int main(int argc, char **argv)
 */
 
 
-	printf("\n\n ----------  News API powered by www.juhe.cn  --------- \n\n");
+
+int main(int argc, char **argv)
+{
+	int i;
+	int k;
+	char *pstr=NULL;
+        static char strRequest[256+64];
+	char *file_url;
+
+	char *thumb_path="/tmp/thumb.jpg";
+	EGI_IMGBUF *imgbuf;
+
+	if(argc<2)
+	{
+		printf("Usage: %s top\n", argv[0]);
+		exit(-1);
+	}
+
+
+
+        /* <<<<< 	 EGI general init 	 >>>>>> */
+#if 0
+        printf("tm_start_egitick()...\n");
+        tm_start_egitick();                     /* start sys tick */
+        printf("egi_init_log()...\n");
+        if(egi_init_log("/mmc/log_test") != 0) {        /* start logger */
+                printf("Fail to init logger,quit.\n");
+                return -1;
+        }
+#endif
+        printf("symbol_load_allpages()...\n");
+        if(symbol_load_allpages() !=0 ) {       /* load sys fonts */
+                printf("Fail to load sym pages,quit.\n");
+                return -2;
+        }
+        if(FTsymbol_load_appfonts() !=0 ) {     /* load FT fonts LIBS */
+                printf("Fail to load FT appfonts, quit.\n");
+                return -2;
+        }
+        printf("init_fbdev()...\n");
+        if( init_fbdev(&gv_fb_dev) )            /* init sys FB */
+                return -1;
+#if 0
+        printf("start touchread thread...\n");
+        egi_start_touchread();                  /* start touch read thread */
+#endif
+        /* <<<<< 	 End EGI Init 	 >>>>> */
+
+
+        /* read key from EGI config file */
+        egi_get_config_value("JUHE_NEWS", "key", strkey);
+
+/////////////////////////	  LOOP TEST      ////////////////////////////
+for(k=0; ;k==9?k=0:(k++) ) {
+
+	/* prepare request string */
+        strcat(strRequest,"https://v.juhe.cn/toutiao/index?type=");
+	strcat(strRequest, news_type[k]); //argv[1]);
+        strcat(strRequest,"&key=");
+        strcat(strRequest,strkey);
+        //printf("strRequest:%s\n", strRequest);
+
+        /* Get request */
+        memset(buff,0,sizeof(buff));
+        if(https_curl_request(strRequest, buff, NULL, curlget_callback)!=0) {
+                printf("Fail to call https_curl_request()!\n");
+                return -1;
+        }
+        //printf("curl reply:\n %s\n",buff);
+
+
+	printf("\n\n -------  News[%s] API powered by www.juhe.cn  ------ \n\n", news_type[k]);
+
 	for(i=0; i<100; i++) {
-		pstr=juhe_get_objitem(buff, i, "title");
-		if(pstr==NULL)
-			break;
-		printf("news[%02d]: %s\n", i, pstr);
-		free(pstr); pstr=NULL;
+		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
 		pstr=juhe_get_objitem(buff, i, "url");
 		printf("	  url:%s\n",pstr);
 		free(pstr); pstr=NULL;
 
+		/* Download thumb pic  and display */
+		pstr=juhe_get_objitem(buff,i,"thumbnail_pic_s");
+		if(pstr != NULL) {
+			printf("Start https easy download: %s\n", pstr);
+			https_easy_download(pstr, thumb_path, NULL, download_callback);
+
+	        	/* readin file */
+	        	imgbuf=egi_imgbuf_readfile(thumb_path);
+        		if(imgbuf==NULL) {
+		                printf("Fail to read image file '%s'.\n", thumb_path);
+				free(pstr); pstr=NULL;
+                		continue;
+		        }
+
+		        /* display */
+		        printf("display imgbuf...\n");
+		        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,         /* img, FB, subcolor */
+                		                0, 0,                            /* int xp, int yp */
+                               			0, 0, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
+                              		      );
+
+			/* Free it */
+		        egi_imgbuf_free(imgbuf);
+			//tm_delayms(3000);
+		}
+
+		/* Get news title and display */
+		pstr=juhe_get_objitem(buff, i, "title");
+		if(pstr==NULL)
+			break;
+
+        	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
+                                     16, 16, "Powered by www.juhe.cn",      /* fw,fh, pstr */
+                                     240-10, 1, 5,                       /* pixpl, lines, gap */
+                                     5, 5,          /* x0,y0, */
+                                     WEGI_COLOR_RED, -1, -1 );  /* fontcolor, transcolor,opaque */
+
+
+        	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
+                                     18, 18, (const unsigned char *)pstr,      /* fw,fh, pstr */
+                                     240-10, 3, 5,                       /* pixpl, lines, gap */
+                                     5, 320-75,          /* x0,y0, */
+                                     WEGI_COLOR_GRAYB, -1, -1 );  /* fontcolor, transcolor,opaque */
+
+		printf("%s news[%02d]: %s\n", news_type[k], i, pstr);
+		free(pstr); pstr=NULL;
+
+		/* refresh FB page */
+		fb_page_refresh(&gv_fb_dev);
+		sleep(2);
 	}
 
+} //////////////////////////      END LOOP  TEST      ///////////////////////////
+
+
+	return 0;
 }
 
 
-/*---------------------------------------------
-A callback function to deal with replied data.
-----------------------------------------------*/
+/*-----------------------------------------------
+ A callback function to deal with replied data.
+------------------------------------------------*/
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp)
 {
         strcat(userp, ptr);
         return size*nmemb;
+}
+
+
+/*-----------------------------------------------
+ A callback function for write data to file.
+------------------------------------------------*/
+static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+       size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
+       return written;
 }
 
 
@@ -140,7 +248,7 @@ Return:
 ----------------------------------------------------------------------------------------------*/
 char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
 {
-        char *pt;
+        char *pt=NULL;
 
         json_object *json_input=NULL;
         json_object *json_result=NULL;
@@ -150,26 +258,25 @@ char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
 
         /* parse returned string */
         json_input=json_tokener_parse(strinput);
-        if(json_input==NULL) return NULL;
+        if(json_input==NULL) goto GET_FAIL; //return NULL;
 
         /* strip to get array data[]  */
         json_object_object_get_ex(json_input,"result",&json_result);
-        if(json_result==NULL)return NULL;
+        if(json_result==NULL)goto GET_FAIL; //return NULL;
 
 	json_object_object_get_ex(json_result,"data",&json_array);
-        if(json_array==NULL)return NULL;
+        if(json_array==NULL)goto GET_FAIL; //return NULL;
 
-//	json_object_object_get_ex(json_result,"data",&json_array);
-//        if(json_data==NULL)return NULL;
-
-
+	/* TODO: limit index */
 	json_data=json_object_array_get_idx(json_array,index);  /* Title array itmes */
+	if(json_data==NULL)goto GET_FAIL; //return NULL;
+
 //	print_json_object(json_data);
 
         /* if strkey, get key obj */
         if(strkey!=NULL) {
                 json_object_object_get_ex(json_data, strkey, &json_get);
-                if(json_get==NULL)  return NULL;
+                if(json_get==NULL)goto GET_FAIL; // return NULL;
         } else {
                 json_get=json_data;
         }
@@ -177,6 +284,8 @@ char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
         /* Get pointer to the item string */
         pt=strdup((char *)json_object_get_string(json_get));
 
+
+GET_FAIL:
         /* free input object */
         json_object_put(json_input);
 
@@ -192,10 +301,11 @@ void  print_json_object(const json_object *json)
 
 	char *pstr=NULL;
 
-	pstr=strdup((char *)json_object_get_string(json));
+	pstr=strdup((char *)json_object_get_string((json_object *)json));
 	if(pstr==NULL)
 		return;
 
 	printf("%s\n",pstr);
 	free(pstr);
 }
+

@@ -16,16 +16,26 @@ Midas Zhou
 
 /* a callback function for CURL to handle returned data */
 typedef size_t (* curlget_callback_t)(void *ptr, size_t size, size_t nmemb, void *userp);
-/*
-static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp)
-{
-	strcat(userp,ptr);
-	return size*nmemb;
-}
+
+/*** Examples:
+	static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp)
+	{
+		strcat(userp,ptr);
+		return size*nmemb;
+	}
+
+	static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+	{
+	       size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
+	       return written;
+	}
 */
 
 int https_curl_request(const char *request, char *reply_buff, void *data,
 							curlget_callback_t get_callback);
 
+
+int https_easy_download(const char *file_url, const char *file_save,   void *data,
+                                                        curlget_callback_t write_callback );
 
 #endif
