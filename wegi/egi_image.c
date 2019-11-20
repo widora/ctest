@@ -1498,6 +1498,60 @@ EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int angle)
 	return outimg;
 }
 
+/*-------------------------------------------------------------------------
+Rotate the input eimg, then substitue original imgbuf with the rotated one.
+By calling egi_imgbuf_rotate()
+
+Note:
+1. Only imgbuf and alpha data rotated, other memebers such as subimgs are
+   are ignored hence.
+
+@eimg:		PP. to an EGI_IMGBUF for operation;
+@angle: 	Rotating angle in degree, positive as clockwise.
+
+Return:
+	0	OK
+	<0	Fails
+-------------------------------------------------------------------------*/
+int egi_imgbuf_rotate_update(EGI_IMGBUF **eimg, int angle)
+{
+	EGI_IMGBUF *tmpimg=NULL;
+
+	if(eimg==NULL || *eimg==NULL)
+		return -1;
+
+	/* If same position */
+	if(angle%360==0)
+		return 0;
+
+	/* Get rotated imgbuf */
+	tmpimg=egi_imgbuf_rotate(*eimg, angle);
+	if(tmpimg==NULL)
+		return -2;
+
+	/* Free original imgbuf and replaced by tmpimg */
+	egi_imgbuf_free(*eimg);
+	*eimg=tmpimg;
+
+#if 0
+	/* Substitue original imgbuf and alpha */
+	eimg->height=tmpimg->height;
+	eimg->width=tmpimg->width;
+
+	free(eimg->imgbuf);
+	eimg->imgbuf=tmpimg->imgbuf;
+	tmpimg->imgbuf=NULL;
+
+	free(eimg->alpha);
+	eimg->alpha=tmpimg->alpha;
+	tmpimg->alpha=NULL;
+
+	/* Free tmp. imgbuf */
+	egi_imgbuf_free(tmpimg);
+#endif
+
+	return 0;
+}
 
 /*--------------------------------------------------------------------------------------
 For 16bits color only!!!!

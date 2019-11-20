@@ -21,6 +21,7 @@ Note: You must have installed ca-certificates before call curl https, or
 @reply_buff:	returned reply string buffer, the Caller must ensure enough space.
 @data:		TODO: if any more data needed
 
+		!!! CURL will disable egi tick timer? !!!
 Return:
 	0	ok
 	<0	fails
@@ -78,6 +79,8 @@ Note: You must have installed ca-certificates before call curl https, or
 @file_save:		file path for saving received file.
 @data:			TODO: if any more data needed
 @write_callback:	Callback for writing received data
+
+		!!! CURL will disable egi tick timer? !!!
 
 Return:
 	0	ok

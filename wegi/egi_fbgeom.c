@@ -300,8 +300,8 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	}
 
 	/* check FB.pos_rotate
-	* IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
-        */
+	 * IF 90 Deg rotated: Y maps to (xres-1)-FB.X,  X maps to FB.Y
+         */
 	switch(fb_dev->pos_rotate) {
 		case 0:			/* FB defaul position */
 			fx=x;

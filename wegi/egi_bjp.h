@@ -92,7 +92,7 @@ int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf);
 /* roaming picture in a window */
 int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
-/* find all jpg files in a path */
+/* find all jpg files in a path --- OBSOLEGTE --- */
 int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, int maxflen);
 
 /* save FB data to a 24bit color BMP file */

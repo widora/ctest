@@ -312,6 +312,49 @@ void fb_page_refresh(FBDEV *dev)
 }
 
 
+
+/*-------------------------------------------
+ Refresh FB with current back buffer
+ pointed by fb_dev->map_bk.
+
+ @speed:	in pixels per refresh.
+		Not so now...
+
+ Method: Fly in...
+--------------------------------------------*/
+void fb_page_refresh_flyin(FBDEV *dev, int speed)
+{
+	int i;
+	int n;
+	unsigned int line_length=dev->finfo.line_length;
+
+	if(dev==NULL)
+		return;
+
+	if( dev->map_bk==NULL || dev->map_fb==NULL )
+		return;
+
+	/* numbers of fly steps */
+	n=dev->vinfo.yres/speed;
+
+	for(i=1; i<=n; i++)
+	{
+		/* Try to synchronize with FB kernel VSYNC */
+		if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
+                	//printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
+
+	        // } else  { /* memcpy to FB, ignore VSYNC signal. */
+			memcpy( dev->map_fb + (dev->screensize-i*speed*line_length),
+				dev->map_bk,
+				i*speed*line_length );
+		}
+
+		//tm_delayms(25);
+		usleep(10000);
+	}
+}
+
+
 /*--------------------------------------------------------------
 Refresh FB with back buffer starting from offset lines(offl),
 If offl is out of back buffer range[0 yres*FBDEV_BUFFER_PAGES-1],
