@@ -98,4 +98,7 @@ int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, 
 /* save FB data to a 24bit color BMP file */
 int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath);
 
+/* save FB data to a PNG file */
+int egi_save_FBpng(FBDEV *fb_dev, const char *fpath);
+
 #endif

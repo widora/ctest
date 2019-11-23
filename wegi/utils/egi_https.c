@@ -131,7 +131,6 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 #ifdef SKIP_HOSTNAME_VERIFICATION
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 #endif
-	/* Provide CA Certs from http://curl.haxx.se/docs/caextract.html */
 	//curl_easy_setopt(curl, CURLOPT_CAINFO, "ca-bundle.crt");
 
 	/* Set data destination for write_callback */

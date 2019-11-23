@@ -5,7 +5,11 @@ published by the Free Software Foundation.
 
 An example for www.juhe.com https news interface.
 
-Usage:	./test_juhe top
+Note:
+	1. News
+
+
+Usage:	./test_juhe
 
 Midas Zhou
 -------------------------------------------------------------------*/
@@ -21,19 +25,21 @@ Midas Zhou
 #include "egi_cstring.h"
 #include "egi_FTsymbol.h"
 
-static char strkey[256];
-static char buff[32*1024]; /* for curl returned data */
+static char strkey[256];	/* for name of json_obj key */
+static char buff[32*1024]; 	/* for curl returned data */
 
+/* Callback functions for libcurl API */
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp);
 static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream);
 
+/* Functions */
 char* juhe_get_objitem(const char *strinput, int index, const char *strkey);
 void  print_json_object(const json_object *json);
 
 
 static char* news_type[]=
 {
-  "yule","shishang", "guonei", "guoji", "caijing", "keji","tiyu", "junshi", "tiyue","shehui",
+   "guoji", "caijing", "keji", "guonei", "yule","top"
 };
 
 /* 	---------- juhe.cn  News Types -----------
@@ -79,10 +85,10 @@ int main(int argc, char **argv)
 	int k;
 	char *pstr=NULL;
         static char strRequest[256+64];
-	char *file_url;
 
 	char *thumb_path="/tmp/thumb.jpg"; /* temp. thumb pic file */
 	char pngNews_path[32];		   /* png news files */
+	char attrMark[128];		   /* JUHE Mark */
 	EGI_IMGBUF *imgbuf=NULL;
 	EGI_IMGBUF *pad=NULL;
 
@@ -95,8 +101,10 @@ int main(int argc, char **argv)
 #endif
 
         /* <<<<< 	 EGI general init 	 >>>>>> */
+#if 0
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
+#endif
 
 #if 0
         printf("egi_init_log()...\n");
@@ -135,46 +143,61 @@ int main(int argc, char **argv)
         egi_get_config_value("JUHE_NEWS", "key", strkey);
 
 
-/////////////////////////	  LOOP TEST      ////////////////////////////
-for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
+while(1) { /////////////////////////	  LOOP TEST      ////////////////////////////
 
-	/* prepare request string */
-        memset(strRequest,0,sizeof(strRequest));
-        strcat(strRequest,"https://v.juhe.cn/toutiao/index?type=");
-	strcat(strRequest, news_type[k]); //argv[1]);
-        strcat(strRequest,"&key=");
-        strcat(strRequest,strkey);
+ for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
+	/* Clear returned data buffer */
+       	memset(buff,0,sizeof(buff));
 
-	printf("\n\n ------- [%s] News API powered by www.juhe.cn  ------ \n\n", news_type[k]);
-        //printf("Request:%s\n", strRequest);
+	/* Check whether type_0.png exists, to deduce that this type of news already downloaded */
+	memset(pngNews_path,0,sizeof(pngNews_path));
+	snprintf(pngNews_path, sizeof(pngNews_path),"/tmp/%s_0.png",news_type[k]);
 
-        /* Get request */
-        memset(buff,0,sizeof(buff));
-        if(https_curl_request(strRequest, buff, NULL, curlget_callback)!=0) {
-                printf("Fail to call https_curl_request()!\n");
-                return -1;
-        }
-        //printf("curl reply:\n %s\n",buff);
+	/* If file does NOT exist, then start Https GET request. */
+	if( access(pngNews_path, F_OK) !=0 )
+	{
+		/* prepare GET request string */
+        	memset(strRequest,0,sizeof(strRequest));
+	        strcat(strRequest,"https://v.juhe.cn/toutiao/index?type=");
+		strcat(strRequest, news_type[k]); //argv[1]);
+	        strcat(strRequest,"&key=");
+        	strcat(strRequest,strkey);
+
+		printf("\n\n ------- [%s] News API powered by www.juhe.cn  ------ \n\n", news_type[k]);
+        	//printf("Request:%s\n", strRequest);
+
+	        /* Https GET request */
+	        if(https_curl_request(strRequest, buff, NULL, curlget_callback)!=0) {
+        	        printf("Fail to call https_curl_request()!\n");
+                	//return -1;  Go on....
+	        }
+        	printf("	Http GET reply:\n %s\n",buff);
+	} else {
+		printf("\n\n ------- News type [%s] already downloaded  ----- \n\n", news_type[k]);
+	}
 
 
-   	/* Get top 10 items for each type of news */
-	for(i=0; i<10; i++) {
+   	/* Get top N items for each type of news */
+	for(i=0; i<20; i++) {
 		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
-		printf("	  url:%s\n", juhe_get_objitem(buff, i, "url"));
+		pstr=juhe_get_objitem(buff, i, "url");
+		printf("	  url:%s\n", pstr);
+		free(pstr); pstr=NULL;
 
 		/* Set PNG news picture name string */
 		memset(pngNews_path,0,sizeof(pngNews_path));
 		snprintf(pngNews_path, sizeof(pngNews_path),"/tmp/%s_%d.png",news_type[k],i);
 
-		/* If file exists, display and continue */
+		/* If file exists, display and continue for(i) */
 		if( access(pngNews_path, F_OK)==0 ) {
-			printf("File exists!\n");
+			printf(" ---  News image file exists!  --- \n");
 
 	             /* readin file */
 	             imgbuf=egi_imgbuf_readfile(pngNews_path);
         	     if(imgbuf != NULL)
 		     {
+			printf("display readin file %s\n", pngNews_path);
 			/* reset to pos_rotate 0 for display */
 			fb_position_rotate(&gv_fb_dev, 0);
 			/* display saved news image */
@@ -186,68 +209,95 @@ for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
 			fb_position_rotate(&gv_fb_dev, 3);
 
 			/* Refresh FB */
-			fb_page_refresh_flyin(&gv_fb_dev, 20);
+			fb_page_refresh_flyin(&gv_fb_dev, 16);
+			printf("tm_delayms...\n");
+			//tm_delayms(6000);
 			sleep(3);
 
 			/* free */
 			egi_imgbuf_free(imgbuf);
 			imgbuf=NULL;
 
-			continue;  /* Go back to continue for() .... */
+			continue;  /* Go back to continue for(i) .... */
+
 		     } /* END if( imgbuf != NULL ) */
+
 		} /* END if file exists */
 
-		/* Download thumb pic  and display */
+		/* --- Get thumbnail pic URL and download it --- */
+		/* Get thumbnail URL */
 		pstr=juhe_get_objitem(buff,i,"thumbnail_pic_s");
-		if(pstr != NULL) {
-			printf("Start https easy download: %s\n", pstr);
-			https_easy_download(pstr, thumb_path, NULL, download_callback);
-			free(pstr); pstr=NULL;
-
-	        	/* readin file */
-	        	imgbuf=egi_imgbuf_readfile(thumb_path);
-        		if(imgbuf==NULL) {
-		                printf("Fail to read image file '%s'.\n", thumb_path);
-                		continue;
-		        }
-
-			#if 0 /* Not necessary for Landscape mode */
-			/* rotate the imgbuf */
-			egi_imgbuf_rotate_update(&imgbuf, 90);
-			/* resize */
-			egi_imgbuf_resize_update(&imgbuf, 240,320);
-			#endif
-
-		        /* display image */
-		        printf("display imgbuf...\n");
-		        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,         /* img, FB, subcolor */
-                		                0, 0,                            /* int xp, int yp */
-                               			0, 0, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
-                              		      );
-
-			/* display pad */
-		        egi_imgbuf_windisplay(  pad, &gv_fb_dev, -1,         /* img, FB, subcolor */
-                		                0, 0,                            /* int xp, int yp */
-                               			0, 240-45, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
-                              		      );
-
-
-			/* Free it */
-		        egi_imgbuf_free(imgbuf);imgbuf=NULL;
-			//tm_delayms(3000);
+		if(pstr == NULL) {
+		    #if 1
+		    printf("News type [%s] item[%d]: thumbnail URL not found, try next item...\n",
+											news_type[k], i );
+		    continue;	/* continue for(i) */
+		    #else
+		    printf("News type [%s] item[%d]: thumbnail URL not found, skip to next news type...\n",
+											news_type[k], i );
+		    break;	/* Jump out of for(i) */
+		    #endif
 		}
 
-		/* Get news title and display */
+		/* Download thumbnail pic */
+		printf("Start https easy download URL: %s\n", pstr);
+		https_easy_download(pstr, thumb_path, NULL, download_callback);
+		free(pstr); pstr=NULL;
+
+        	/* read in the thumbnail pic file */
+        	imgbuf=egi_imgbuf_readfile(thumb_path);
+       		if(imgbuf==NULL) {
+	                printf("Fail to read image file '%s'.\n", thumb_path);
+               		continue; /* Continue for(i) */
+	        }
+
+		#if 0 /* Not necessary for Landscape mode */
+		/* rotate the imgbuf */
+		egi_imgbuf_rotate_update(&imgbuf, 90);
+		/* resize */
+		egi_imgbuf_resize_update(&imgbuf, 240,320);
+		#endif
+
+	        /* display the thumbnail  */
+	        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,         /* img, FB, subcolor */
+               		                0, 0,                            /* int xp, int yp */
+                       			0, 0, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
+                       		      );
+
+		/* display pad for words writing */
+	        egi_imgbuf_windisplay(  pad, &gv_fb_dev, -1,         /* img, FB, subcolor */
+               		                0, 0,                            /* int xp, int yp */
+                       			0, 240-45, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
+                       		      );
+
+		/* Free the imgbuf */
+	        egi_imgbuf_free(imgbuf);imgbuf=NULL;
+			//tm_delayms(3000);
+
+
+		/* --- Get news title and display it --- */
 		pstr=juhe_get_objitem(buff, i, "title");
-		if(pstr==NULL)
-			break;
+		if(pstr==NULL) {
+			#if 1
+			printf("News type [%s] item[%d]: Title not found, try next item...\n",
+											news_type[k], i );
+			continue;	/* continue for(i) */
+			#else
+			printf("News type [%s] item[%d]: Title not found, skip to next news type...\n",
+											news_type[k], i );
+			break;  	/* Jump out of for(i) */
+			#endif
+		}
 
-        	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
-                                     16, 16, "Powered by www.juhe.cn",      /* fw,fh, pstr */
-                                     240-10, 1, 5,                       /* pixpl, lines, gap */
+		/* Prepare attribute mark string */
+		memset(attrMark, 0, sizeof(attrMark));
+		sprintf(attrMark, "%s_%d:  ",news_type[k], i);
+		strcat(attrMark,"Powered by www.juhe.cn");
+        	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,     /* FBdev, fontface */
+                                     16, 16, attrMark,      		/* fw,fh, pstr */
+                                     320-10, 1, 5,                       /* pixpl, lines, gap */
                                      5, 0,          /* x0,y0, */
-                                     WEGI_COLOR_RED, -1, -1 );  /* fontcolor, transcolor,opaque */
-
+                                     WEGI_COLOR_GRAY, -1, -1 );  /* fontcolor, transcolor,opaque */
 
         	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
                                      15, 15, (const unsigned char *)pstr,      /* fw,fh, pstr */
@@ -255,29 +305,26 @@ for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
                                      5, 240-45+5,      //5,320-75,          /* x0,y0, */
                                      WEGI_COLOR_WHITE, -1, -1 );  /* fontcolor, transcolor,opaque */
 
-		printf(" ----------- k=%d, i=%d ---------- \n", k, i);
-		printf("%s news[%02d]: %s\n", news_type[k], i, pstr);
+		printf(" ----------- %s News, Item %d ---------- \n", news_type[k], i);
+		printf(" Title: %s\n", pstr);
 		free(pstr); pstr=NULL;
 
-
-		/* refresh FB page */
+		/* Refresh FB page */
 		printf("FB page refresh ...\n");
 		//fb_page_refresh(&gv_fb_dev);
-		fb_page_refresh_flyin(&gv_fb_dev, 20);
+		fb_page_refresh_flyin(&gv_fb_dev, 16);
 		//tm_delayms(3000);
 
-		/* save to png */
-		imgbuf=egi_imgbuf_create(gv_fb_dev.pos_xres, gv_fb_dev.pos_yres, 255,0); /* pos_rotate 3 */
-		imgbuf->imgbuf=gv_fb_dev.map_bk;
-		egi_imgbuf_savepng(pngNews_path, imgbuf);
-		imgbuf->imgbuf=NULL; /*  !!! FB imgbuf NOT transfered */
-		egi_imgbuf_free(imgbuf); imgbuf=NULL;
+		/* save FB data to a PNG file */
+		egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
-		//sleep(2);
-		printf("Press a key to continue. \n");
-		getchar();
+		/* Hold on for a while */
+		sleep(5);
+		//printf("Press a key to continue. \n");
+		//getchar();
 
-	} /* END for() */
+	} /* END for(i) */
+ } /* END for(k) */
 
 } //////////////////////////      END LOOP  TEST      ///////////////////////////
 
@@ -296,8 +343,10 @@ for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
         release_fbdev(&gv_fb_dev);
         printf("egi_end_touchread()...\n");
         egi_end_touchread();
+#if 0
         printf("egi_quit_log()...\n");
         egi_quit_log();
+#endif
         printf("<-------  END  ------>\n");
 
 	return 0;
@@ -326,7 +375,7 @@ static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stre
 
 
 /*--------------------------------------------------------------------------------------------
-Parse juhe.cn free news string and return string pointer to the vale of specified strkey of
+Parse juhe.cn news json string and return string pointer to the vale of specified strkey of
 data[index], or to data[index] if strkey is NULL.
 
 Note:
@@ -356,17 +405,16 @@ char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
         if(json_input==NULL) goto GET_FAIL; //return NULL;
 
         /* strip to get array data[]  */
-        json_object_object_get_ex(json_input,"result",&json_result);
+        json_object_object_get_ex(json_input,"result",&json_result); /* Ref count NOT change */
         if(json_result==NULL)goto GET_FAIL; //return NULL;
 
 	json_object_object_get_ex(json_result,"data",&json_array);
         if(json_array==NULL)goto GET_FAIL; //return NULL;
 
-	/* TODO: limit index */
+	/* Get an item by index from the array , TODO: limit index */
 	json_data=json_object_array_get_idx(json_array,index);  /* Title array itmes */
 	if(json_data==NULL)goto GET_FAIL; //return NULL;
-
-	print_json_object(json_data);
+	//print_json_object(json_data);
 
         /* if strkey, get key obj */
         if(strkey!=NULL) {
@@ -381,8 +429,8 @@ char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
 
 
 GET_FAIL:
-        /* free input object */
         json_object_put(json_input);
+	json_object_put(json_data);
 
         return pt;
 }

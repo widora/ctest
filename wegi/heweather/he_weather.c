@@ -165,6 +165,7 @@ char* heweather_get_objitem(const char *strinput, const char *strsect, const cha
 	/* free input object */
 	json_object_put(json_input);
 
+
 	return pt;
 }
 

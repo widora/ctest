@@ -973,10 +973,10 @@ int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, 
 
 /*---------------------------------------------------
 Save FB data to a BMP file.
-
 TODO: RowSize=4*[ BPP*Width/32], otherwise padded with 0.
 
-fpath:	Input path to the file.
+@fb_dev:	Pointer to an FBDEV
+@fpath:		Input path to the file.
 
 Return:
 	0	OK
@@ -993,6 +993,10 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 	PIXEL bgr;
 	BITMAPFILEHEADER file_header; /* 14 bytes */
 	BITMAPINFOHEADER info_header; /* 40 bytes */
+
+	/* check input data */
+	if(fb_dev==NULL || fb_dev->map_fb==NULL || fpath==NULL)
+		return -1;
 
    printf("file header size:%d,	info header size:%d\n",sizeof(BITMAPFILEHEADER),sizeof(BITMAPINFOHEADER));
 
@@ -1078,4 +1082,39 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 
 	fclose(fil);
 	return 0;
+}
+
+
+
+/*---------------------------------------------------
+Save FB data to a PNG file.
+
+@fb_dev:	Pointer to an FBDEV
+@fpath:		Input path to the file.
+
+Return:
+	0	OK
+	<0	Fail
+---------------------------------------------------*/
+int egi_save_FBpng(FBDEV *fb_dev, const char *fpath)
+{
+	int ret=0;
+	EGI_IMGBUF* imgbuf=NULL;
+
+	if(fb_dev==NULL || fb_dev->map_fb==NULL || fpath==NULL)
+		return -1;
+
+	/* create an EGI_IMG with same size as FB */
+        imgbuf=egi_imgbuf_create(fb_dev->vinfo.yres, fb_dev->vinfo.xres, 255, 0);
+
+	/* save imgbuf to PNG file */
+	free(imgbuf->imgbuf);
+        imgbuf->imgbuf=(EGI_16BIT_COLOR *)fb_dev->map_fb; /* !!! WARNING: temporary refrence !!! */
+        if(egi_imgbuf_savepng(fpath, imgbuf) != 0 )
+		ret=-2;
+
+	imgbuf->imgbuf=NULL;	/* !!! Dereference, return ownership to fb_dev */
+	egi_imgbuf_free(imgbuf);
+
+	return ret;
 }
