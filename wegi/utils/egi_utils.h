@@ -17,12 +17,13 @@ Midas Zhou
 #define EGI_FEXTNAME_MAX 10 /* !!! exclude '.', length of extension name */
 #define EGI_FEXTBUFF_MAX 16 /* Max items of separated extension names  */
 
-int egi_util_mkdir(char *dir, mode_t mode);
-int egi_copy_file(char const *fsrc_path, char const *fdest_path);
+void 	egi_free_char(char **p);
+int 	egi_util_mkdir(char *dir, mode_t mode);
+int 	egi_copy_file(char const *fsrc_path, char const *fdest_path);
 unsigned char** egi_malloc_buff2D(int items, int item_size) __attribute__((__malloc__));
-int egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int item_size);
-void egi_free_buff2D(unsigned char **buff, int items);
-char** egi_alloc_search_files(const char* path, const char* fext,  int *pcount );
+int 	egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int item_size);
+void 	egi_free_buff2D(unsigned char **buff, int items);
+char** 	egi_alloc_search_files(const char* path, const char* fext,  int *pcount );
 /* Note: call egi_free_buff2D() to free it */
 
 #endif

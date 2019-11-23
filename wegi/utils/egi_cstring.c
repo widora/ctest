@@ -110,6 +110,7 @@ char * cstr_split_nstr(char *str, char *split, unsigned n)
 /*--------------------------------------------------
 Trim all spaces at end of a string, return a pointer
 to the first non_space char.
+
 Return:
 	pointer	to a char	OK, spaces trimed.
         NULL			Input buf invalid
@@ -505,4 +506,101 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 #endif
 	fclose(fil);
 	return ret;
+}
+
+
+
+/*---------------------------------------------------------------------------------------
+Get pointer to the beginning a HTML element content, which is defined between start tag
+and end tag. It returns only the first matched case!
+
+Note:
+1. Input tag MUST be closed type, it appeares as <X> ..... </X> in HTML string.
+   Void elements, such as <hr />, <br /> are not applicable for the function!
+   If input html string contains only single <X> OR </X> tag, a NULL pointer will
+   be returned.
+2. The parameter *content has independent memory space if it is passed to the caller,
+   so the caller is responsible to free it later.
+3. The returned char pointer is a reference pointer to a position in original HTML string,
+   so it needs NOT to be freed.
+
+4. Limits:
+   4.1 Length of tag.
+
+@str_html:	Pointer to a html string.
+@tag:		Tag name
+		Example: "p" as paragraph tag
+			 "h1","h2".. as heading tag
+@len:		Pointer to pass length of the element content, in bytes.
+		if NULL, ignore.
+@content:	Pointer to pass element content.
+		if NULL, ignore.
+		!!! --- Note: the content has independent memory space, and
+		so do not forget to free it. --- !!!
+
+Return:
+	Pointer to taged content in str_html:		Ok
+	NULL:						Fails
+--------------------------------------------------------------------------------------*/
+char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content, int *length)
+{
+	char stag[16]; 	/* start tag */
+	char etag[16]; 	/* end tag   */
+	char *pst=NULL;	/* Pointer to the beginning of start tags in str_html
+			 * then adjusted to the beginning of content later.
+			 */
+	char *pet=NULL; /* Pointer to the beginning of end tag in str_html */
+	int  len=0;	/* length of content, in bytes */
+	char *pctent=NULL; /* allocated mem to hold copied content */
+
+	/* check input data */
+	if( strlen(tag) > 16-4 )
+		return NULL;
+	if(str_html==NULL || tag==NULL )
+		return NULL;
+
+	/* init. start/end tag */
+	memset(stag,0, sizeof(stag));
+	strcat(stag,"<");
+	strcat(stag,tag);
+	//printf("stag: %s\n", stag);
+
+	memset(etag,0, sizeof(etag));
+	strcat(etag,"</");
+	strcat(etag,tag);
+	strcat(etag,">");
+	//printf("etag: %s\n", etag);
+
+	/* locate start and end tag in html string */
+	pst=strstr(str_html,stag);
+	if(pst != NULL)			/* get end of start tag */
+		pst=strstr(pst,">");
+
+	pet=strstr(pst,etag);
+
+	/* Only if tag content is valid/available:  Copy and pass parameters */
+	if( pst!=NULL && pet!=NULL ) {
+		/* get length of content */
+		pst += strlen(">");	/* skip '>', move to the beginning of the content */
+		len=pet-pst;
+
+		/* 1. Calloc pctent and copy content */
+		if( content != NULL) {
+			pctent=calloc(1, len+1);
+			if(pctent==NULL)
+				printf("%s: Fail to calloc pctent...\n",__func__);
+			else
+				/* Now pst is pointer to the beginning of the content */
+				strncpy(pctent,pst,len);
+		}
+	}
+
+	/* pass to the caller anyway */
+	if( content != NULL )
+		*content=pctent;
+	if( length !=NULL )
+		*length=len;
+
+	/* Now pst is pointer to the beginning of the content */
+	return pst;
 }

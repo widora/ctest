@@ -21,6 +21,21 @@ Midas Zhou
 
 #include <sys/stat.h>
 #include <libgen.h>
+
+
+/*---------------------------------
+Free a char pointer and reset
+it to NULL
+----------------------------------*/
+inline void egi_free_char(char **p)
+{
+	if( p!=NULL && *p!=NULL ) {
+		free(*p);
+		*p=NULL;
+	}
+}
+
+
 /*------------------------------------------
 This is from: https://stackoverflow.com/questions/2336242/recursive-mkdir-system-call-on-unix
 

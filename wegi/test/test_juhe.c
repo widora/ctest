@@ -5,9 +5,6 @@ published by the Free Software Foundation.
 
 An example for www.juhe.com https news interface.
 
-Note:
-	1. News
-
 
 Usage:	./test_juhe
 
@@ -33,52 +30,24 @@ static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp
 static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream);
 
 /* Functions */
-char* juhe_get_objitem(const char *strinput, int index, const char *strkey);
+int juhe_get_totalItemNum(const char *strinput);
+char* juhe_get_newsItem(const char *strinput, int index, const char *strkey);
 void  print_json_object(const json_object *json);
 
+/*   ---------- juhe.cn  News Types -----------
 
+  top(头条，默认),shehui(社会),guonei(国内),guoji(国际),yule(娱乐),tiyu(体育)
+  junshi(军事),keji(科技),caijing(财经),shishang(时尚)
+*/
 static char* news_type[]=
 {
-   "guoji", "caijing", "keji", "guonei", "yule","top"
+   "guoji", "shishang", "keji", "guonei", "yule","top"
 };
 
-/* 	---------- juhe.cn  News Types -----------
 
-	top(头条，默认),shehui(社会),guonei(国内),guoji(国际),yule(娱乐),tiyu(体育)
-        junshi(军事),keji(科技),caijing(财经),shishang(时尚)
-
-
-	------------------  www.juhe.cn FREE NEWS : DATA FORMAT ------------------
-{
-	"reason":"成功的返回",
-	"result":{
-		"stat":"1",
-		"data":[
-			{
-				"uniquekey":"af9debdd0055d05cdccd18a59e4067a8",
-				"title":"花钱买空气！印度空气质量告急 民众可花50元吸氧15分钟",
-				"date":"2019-11-19 15:07",
-				"category":"国际",
-				"author_name":"海外网",
-				"url":"http:\/\/mini.eastday.com\/mobile\/191119150735829.html",
-				"thumbnail_pic_s":"http:\/\/06imgmini.eastday.com\/mobile\/20191119\/20191119150735_3fc1f9aadc1a836124f07bea01ee06ee_1_mwpm_03200403.jpg"
-			},
-			{
-				"uniquekey":"9128a366ebb58c36aa60865a840b45e5",
-				"title":"日韩19日再度举行双边贸易磋商 日媒：恐难成共识",
-				"date":"2019-11-19 15:05",
-				"category":"国际",
-				"author_name":"中国青年网",
-				"url":"http:\/\/mini.eastday.com\/mobile\/191119150546120.html",
-				"thumbnail_pic_s":"http:\/\/09imgmini.eastday.com\/mobile\/20191119\/20191119150546_b19351988160f8d7ffce98ad8628e179_1_mwpm_03200403.jpg"
-			},
-
-			{
-			... ...
-*/
-
-
-
+/*----------------------------
+	    MAIN
+-----------------------------*/
 int main(int argc, char **argv)
 {
 	int i;
@@ -88,6 +57,7 @@ int main(int argc, char **argv)
 
 	char *thumb_path="/tmp/thumb.jpg"; /* temp. thumb pic file */
 	char pngNews_path[32];		   /* png news files */
+	int  totalItems;		   /* total news items in one returned session */
 	char attrMark[128];		   /* JUHE Mark */
 	EGI_IMGBUF *imgbuf=NULL;
 	EGI_IMGBUF *pad=NULL;
@@ -137,7 +107,7 @@ int main(int argc, char **argv)
 	fb_position_rotate(&gv_fb_dev, 3);
 
         /* Create a pad (int height, int width, unsigned char alpha, EGI_16BIT_COLOR color) */
-        pad=egi_imgbuf_create(50, 320, 150, WEGI_COLOR_GRAY3);
+        pad=egi_imgbuf_create(50, 320, 175, WEGI_COLOR_GYBLUE);
 
         /* read key from EGI config file */
         egi_get_config_value("JUHE_NEWS", "key", strkey);
@@ -148,6 +118,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
  for(k=0; k< sizeof(news_type)/sizeof(char *); k++ ) {
 	/* Clear returned data buffer */
        	memset(buff,0,sizeof(buff));
+	totalItems=0;
 
 	/* Check whether type_0.png exists, to deduce that this type of news already downloaded */
 	memset(pngNews_path,0,sizeof(pngNews_path));
@@ -172,16 +143,21 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                 	//return -1;  Go on....
 	        }
         	printf("	Http GET reply:\n %s\n",buff);
+
+		totalItems=juhe_get_totalItemNum(buff);
+		printf("\n  -----  Return total %d news items ----- \n\n", totalItems);
+
 	} else {
 		printf("\n\n ------- News type [%s] already downloaded  ----- \n\n", news_type[k]);
 	}
 
-
    	/* Get top N items for each type of news */
-	for(i=0; i<20; i++) {
+	if(totalItems==0)	/* if 0, then use download image */
+		totalItems=30;
+	for(i=0; i<totalItems; i++) {
 		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
-		pstr=juhe_get_objitem(buff, i, "url");
+		pstr=juhe_get_newsItem(buff, i, "url");
 		printf("	  url:%s\n", pstr);
 		free(pstr); pstr=NULL;
 
@@ -209,7 +185,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 			fb_position_rotate(&gv_fb_dev, 3);
 
 			/* Refresh FB */
-			fb_page_refresh_flyin(&gv_fb_dev, 16);
+			fb_page_refresh_flyin(&gv_fb_dev, 10);
 			printf("tm_delayms...\n");
 			//tm_delayms(6000);
 			sleep(3);
@@ -226,7 +202,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		/* --- Get thumbnail pic URL and download it --- */
 		/* Get thumbnail URL */
-		pstr=juhe_get_objitem(buff,i,"thumbnail_pic_s");
+		pstr=juhe_get_newsItem(buff,i,"thumbnail_pic_s");
 		if(pstr == NULL) {
 		    #if 1
 		    printf("News type [%s] item[%d]: thumbnail URL not found, try next item...\n",
@@ -269,6 +245,11 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                		                0, 0,                            /* int xp, int yp */
                        			0, 240-45, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
                        		      );
+		/* draw a red line at top of pad */
+		#if 0
+		fbset_color(WEGI_COLOR_ORANGE);
+		draw_wline_nc(&gv_fb_dev, 0, 240-45, 320-1, 240-45, 1);
+		#endif
 
 		/* Free the imgbuf */
 	        egi_imgbuf_free(imgbuf);imgbuf=NULL;
@@ -276,7 +257,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 
 		/* --- Get news title and display it --- */
-		pstr=juhe_get_objitem(buff, i, "title");
+		pstr=juhe_get_newsItem(buff, i, "title");
 		if(pstr==NULL) {
 			#if 1
 			printf("News type [%s] item[%d]: Title not found, try next item...\n",
@@ -312,7 +293,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* Refresh FB page */
 		printf("FB page refresh ...\n");
 		//fb_page_refresh(&gv_fb_dev);
-		fb_page_refresh_flyin(&gv_fb_dev, 16);
+		fb_page_refresh_flyin(&gv_fb_dev, 10);
 		//tm_delayms(3000);
 
 		/* save FB data to a PNG file */
@@ -372,54 +353,110 @@ static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stre
        return written;
 }
 
+/*--------------------------------------------------------------------------
+Parse JUHE.cn returned data and get length of 'data' array, as total number
+of news items in the strinput.
+
+@strinput       input juhe.cn free news return  string
+
+Return:
+        Total number of news items in the strinput.
+--------------------------------------------------------------------------*/
+int juhe_get_totalItemNum(const char *strinput)
+{
+	int total=0;
+        json_object *json_input=NULL;
+        json_object *json_result=NULL;
+        json_object *json_array=NULL;
+
+        /* parse returned string */
+        json_input=json_tokener_parse(strinput);
+        if(json_input==NULL) goto GET_FAIL;
+
+        /* strip to get array data[]  */
+        json_object_object_get_ex(json_input,"result",&json_result); /* Ref count NOT change */
+        if(json_result==NULL)goto GET_FAIL;
+
+	json_object_object_get_ex(json_result,"data",&json_array);
+        if(json_array==NULL)goto GET_FAIL;
+
+	total=json_object_array_length(json_array);
+
+GET_FAIL:
+	/* Free json obj */
+        json_object_put(json_input);
+
+	return total;
+}
 
 
 /*--------------------------------------------------------------------------------------------
 Parse juhe.cn news json string and return string pointer to the vale of specified strkey of
 data[index], or to data[index] if strkey is NULL.
 
+ 		-----  JUHE.cn returned data format -----
+{
+        "reason":"成功的返回",
+        "result":{
+                "stat":"1",
+                "data":[
+                        {
+                                "uniquekey":"af9debdd0055d05cdccd18a59e4067a8",
+                                "title":"花钱买空气！印度空气质量告急 民众可花50元吸氧15分钟",
+                                "date":"2019-11-19 15:07",
+                                "category":"国际",
+                                "author_name":"海外网",
+                                "url":"http:\/\/mini.eastday.com\/mobile\/191119150735829.html",
+                                "thumbnail_pic_s":"http:\/\/06imgmini.eastday.com\/mobile\/20191119\/2019111915$
+                        },
+			... ...  data array ...
+		...
+	...
+}
+
 Note:
         !!! Don't forget to free the returned string pointer !!!
 
-@strinput       input juhe.cn free news return  string
+@strinput       input juhe.cn free news return string
 @index		index of news array data[]
 @strkey         key name of the news items in data[index]. Example: "uniquekey","title","url"...
+		See above juhe data format.
                 Note: if strkey==NULL, then return string pointer to data[index].
 
 Return:
         0       ok
         <0      fails
 ----------------------------------------------------------------------------------------------*/
-char* juhe_get_objitem(const char *strinput, int index, const char *strkey)
+char* juhe_get_newsItem(const char *strinput, int index, const char *strkey)
 {
         char *pt=NULL;
 
         json_object *json_input=NULL;
         json_object *json_result=NULL;
-        json_object *json_array=NULL; /* Array of titles */
+        json_object *json_array=NULL; /* Array of news items */
         json_object *json_data=NULL;
         json_object *json_get=NULL;
 
         /* parse returned string */
         json_input=json_tokener_parse(strinput);
-        if(json_input==NULL) goto GET_FAIL; //return NULL;
+        if(json_input==NULL) goto GET_FAIL;
 
         /* strip to get array data[]  */
         json_object_object_get_ex(json_input,"result",&json_result); /* Ref count NOT change */
-        if(json_result==NULL)goto GET_FAIL; //return NULL;
+        if(json_result==NULL)goto GET_FAIL;
 
 	json_object_object_get_ex(json_result,"data",&json_array);
-        if(json_array==NULL)goto GET_FAIL; //return NULL;
+        if(json_array==NULL)goto GET_FAIL;
 
 	/* Get an item by index from the array , TODO: limit index */
 	json_data=json_object_array_get_idx(json_array,index);  /* Title array itmes */
-	if(json_data==NULL)goto GET_FAIL; //return NULL;
+	if(json_data==NULL)goto GET_FAIL;
 	//print_json_object(json_data);
 
         /* if strkey, get key obj */
         if(strkey!=NULL) {
                 json_object_object_get_ex(json_data, strkey, &json_get);
-                if(json_get==NULL)goto GET_FAIL; // return NULL;
+                if(json_get==NULL)goto GET_FAIL;
         } else {
                 json_get=json_data;
         }
@@ -434,6 +471,8 @@ GET_FAIL:
 
         return pt;
 }
+
+
 
 
 /*--------------------------------------
