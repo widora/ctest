@@ -21,6 +21,7 @@ Midas Zhou
 #include "egi_https.h"
 #include "egi_cstring.h"
 #include "egi_FTsymbol.h"
+#include "egi_utils.h"
 
 static char strkey[256];	/* for name of json_obj key */
 static char buff[32*1024]; 	/* for curl returned data */
@@ -30,15 +31,18 @@ static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp
 static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream);
 
 /* Functions */
-int juhe_get_totalItemNum(const char *strinput);
-char* juhe_get_newsItem(const char *strinput, int index, const char *strkey);
-void  print_json_object(const json_object *json);
+int 	juhe_get_totalItemNum(const char *strinput);
+char* 	juhe_get_newsURL(const char *strinput, int index, const char *strkey);
+void 	juhe_get_newsContent(const char* url);
+void  	print_json_object(const json_object *json);
 
 /*   ---------- juhe.cn  News Types -----------
 
   top(头条，默认),shehui(社会),guonei(国内),guoji(国际),yule(娱乐),tiyu(体育)
   junshi(军事),keji(科技),caijing(财经),shishang(时尚)
+
 */
+
 static char* news_type[]=
 {
    "guoji", "shishang", "keji", "guonei", "yule","top"
@@ -53,6 +57,7 @@ int main(int argc, char **argv)
 	int i;
 	int k;
 	char *pstr=NULL;
+	char *purl=NULL;
         static char strRequest[256+64];
 
 	char *thumb_path="/tmp/thumb.jpg"; /* temp. thumb pic file */
@@ -61,6 +66,8 @@ int main(int argc, char **argv)
 	char attrMark[128];		   /* JUHE Mark */
 	EGI_IMGBUF *imgbuf=NULL;
 	EGI_IMGBUF *pad=NULL;
+
+
 
 #if 0
 	if(argc<2)
@@ -112,6 +119,9 @@ int main(int argc, char **argv)
         /* read key from EGI config file */
         egi_get_config_value("JUHE_NEWS", "key", strkey);
 
+//	juhe_get_newsContent("/tmp/yule_1.html");
+//	exit(0);
+
 
 while(1) { /////////////////////////	  LOOP TEST      ////////////////////////////
 
@@ -152,14 +162,14 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 	}
 
    	/* Get top N items for each type of news */
-	if(totalItems==0)	/* if 0, then use download image */
+	if(totalItems==0)	/* if 0, then try to use saved images */
 		totalItems=30;
+
 	for(i=0; i<totalItems; i++) {
 		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
-		pstr=juhe_get_newsItem(buff, i, "url");
-		printf("	  url:%s\n", pstr);
-		free(pstr); pstr=NULL;
+		purl=juhe_get_newsURL(buff, i, "url");
+		printf("	  url:%s\n", purl);
 
 		/* Set PNG news picture name string */
 		memset(pngNews_path,0,sizeof(pngNews_path));
@@ -202,7 +212,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		/* --- Get thumbnail pic URL and download it --- */
 		/* Get thumbnail URL */
-		pstr=juhe_get_newsItem(buff,i,"thumbnail_pic_s");
+		pstr=juhe_get_newsURL(buff,i,"thumbnail_pic_s");
 		if(pstr == NULL) {
 		    #if 1
 		    printf("News type [%s] item[%d]: thumbnail URL not found, try next item...\n",
@@ -257,7 +267,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 
 		/* --- Get news title and display it --- */
-		pstr=juhe_get_newsItem(buff, i, "title");
+		pstr=juhe_get_newsURL(buff, i, "title");
 		if(pstr==NULL) {
 			#if 1
 			printf("News type [%s] item[%d]: Title not found, try next item...\n",
@@ -288,21 +298,26 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		printf(" ----------- %s News, Item %d ---------- \n", news_type[k], i);
 		printf(" Title: %s\n", pstr);
-		free(pstr); pstr=NULL;
+		egi_free_char(&pstr);
+		//free(pstr); pstr=NULL;
 
 		/* Refresh FB page */
 		printf("FB page refresh ...\n");
 		//fb_page_refresh(&gv_fb_dev);
 		fb_page_refresh_flyin(&gv_fb_dev, 10);
 		//tm_delayms(3000);
-
 		/* save FB data to a PNG file */
 		egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
 		/* Hold on for a while */
-		sleep(5);
+		sleep(2);
 		//printf("Press a key to continue. \n");
 		//getchar();
+
+		/* Get news content and display it */
+		juhe_get_newsContent(purl);
+		egi_free_char(&purl);
+		//free(purl); purl
 
 	} /* END for(i) */
  } /* END for(k) */
@@ -371,14 +386,22 @@ int juhe_get_totalItemNum(const char *strinput)
 
         /* parse returned string */
         json_input=json_tokener_parse(strinput);
-        if(json_input==NULL) goto GET_FAIL;
+        if(json_input==NULL) {
+		printf("%s: json_input is NULL!\n",__func__);
+		goto GET_FAIL;
+	}
 
-        /* strip to get array data[]  */
         json_object_object_get_ex(json_input,"result",&json_result); /* Ref count NOT change */
-        if(json_result==NULL)goto GET_FAIL;
+        if(json_result==NULL) {
+		printf("%s: json_result is NULL!\n",__func__);
+		goto GET_FAIL;
+	}
 
 	json_object_object_get_ex(json_result,"data",&json_array);
-        if(json_array==NULL)goto GET_FAIL;
+        if(json_array==NULL) {
+		printf("%s: json_array is NULL!\n",__func__);
+		goto GET_FAIL;
+	}
 
 	total=json_object_array_length(json_array);
 
@@ -427,7 +450,7 @@ Return:
         0       ok
         <0      fails
 ----------------------------------------------------------------------------------------------*/
-char* juhe_get_newsItem(const char *strinput, int index, const char *strkey)
+char* juhe_get_newsURL(const char *strinput, int index, const char *strkey)
 {
         char *pt=NULL;
 
@@ -491,3 +514,126 @@ void  print_json_object(const json_object *json)
 //	free(pstr);
 }
 
+
+
+/*----------------------------------------------------------
+Get html text from URL or a local html file, and extract
+paragraphs content.
+
+Limit:
+1. Only try one HTTP request session and max. buffer is 32k.
+
+@url:	  URL address of html
+	  If it contains "//", it deems as a web address and
+	  will call https_curl_request() to get content.
+	  Else, it is a local html file.
+
+-----------------------------------------------------------*/
+void juhe_get_newsContent(const char* url)
+{
+	int i;
+	int fd;
+	int fsize=0;
+	struct stat  sb;
+	bool Is_FilePath=false;
+	char buff[32*1024]; /* For returned html text */
+        char *content=NULL;
+        int len;
+        char *pstr=NULL;
+	EGI_FILO* filo=NULL; /* to buffer content pointers */
+
+	if(url==NULL)
+		return;
+
+	/* init filo */
+	filo=egi_malloc_filo(8, sizeof(char *), FILO_AUTO_DOUBLE);
+	if(filo==NULL)
+		return;
+
+	/* Check if it's web address or file path */
+   	if( strstr(url,"//") == NULL )
+		Is_FilePath=true;
+	else
+		Is_FilePath=false;
+
+	/* For Web address */
+	if( Is_FilePath==false )
+	{
+        	/* clear buff */
+	        memset(buff,0,sizeof(buff));
+        	/* Https GET request */
+	        if(https_curl_request(url, buff, NULL, curlget_callback)!=0) {
+        	         printf("Fail to call https_curl_request()!\n");
+			 goto FUNC_END;
+		}
+
+		/* assign buff to pstr */
+        	pstr=buff;
+
+	}
+	/* For file path */
+	else
+	{
+	       /* open local file and mmap */
+        	fd=open(url,O_RDONLY);
+	        if(fd<0) {
+			printf("%s: Fail to open file '%s'\n", __func__, url);
+                	goto FUNC_END;
+	        }
+        	/* obtain file stat */
+	        if( fstat(fd,&sb)<0 ) {
+			printf("%s: Fail to get fstat of file '%s'\n", __func__, url);
+                	goto FUNC_END;
+	        }
+        	fsize=sb.st_size;
+	        pstr=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+        	if(pstr==MAP_FAILED) {
+			printf("%s: Fail to mmap file '%s'\n", __func__, url);
+	                goto FUNC_END;
+        	}
+	}
+
+        /* Parse HTML */
+        do {
+                /* parse returned data as html */
+                pstr=cstr_parse_html_tag(pstr, "p", &content, &len);
+                if(content!=NULL) {
+                        //printf("%s\n",content);
+			egi_filo_push(filo,&content);
+		}
+                //egi_free_char(&content);
+                //printf("Get %d bytes content: %s\n", len, content);
+        } while( pstr!=NULL );
+
+	/* read filo and get pointer to paragraph content */
+	for(i=0; egi_filo_read(filo, i, &content)==0; i++ )
+	{
+		printf(" ----- paragraph %d -----\n", i);
+		printf("%s\n",content);
+		/* Write to FB */
+		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_LTYELLOW, 0, 0, 320-1, 240-45-1);
+        	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,       /* FBdev, fontface */
+                                     18, 18, (const unsigned char *)content,      /* fw,fh, pstr */
+                                     320-10, (240-45)/(18+6), 6,      	    /* pixpl, lines, gap */
+                                     5, 4,      //5,320-75,          /* x0,y0, */
+                                     WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor,opaque */
+		fb_page_refresh(&gv_fb_dev);
+
+		sleep(2);
+	}
+
+
+FUNC_END:
+	/* free all content pointers in FILO  */
+	while( egi_filo_pop(filo, &content)==0 )
+		free(content);
+
+	/* close file and mumap */
+	if(Is_FilePath) {
+		close(fd);
+		munmap(pstr,fsize);
+	}
+
+	/* free filo */
+	egi_free_filo(filo);
+}

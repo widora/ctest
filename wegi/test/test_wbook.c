@@ -285,6 +285,9 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 	egi_imgbuf_free(eimg);
 	eimg=NULL;
 #endif
+	/* close file and munmap */
+	munmap(fp);
+	close(fd);
 
 	egi_free_filo(filo_pgOffset);
 

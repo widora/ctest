@@ -511,7 +511,7 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 
 
 /*---------------------------------------------------------------------------------------
-Get pointer to the beginning a HTML element content, which is defined between start tag
+Get pointer to the beginning of HTML element content, which is defined between start tag
 and end tag. It returns only the first matched case!
 
 Note:
@@ -520,23 +520,27 @@ Note:
    If input html string contains only single <X> OR </X> tag, a NULL pointer will
    be returned.
 2. The parameter *content has independent memory space if it is passed to the caller,
-   so the caller is responsible to free it later.
+   so it's the caller's responsibility to free it after use!
 3. The returned char pointer is a reference pointer to a position in original HTML string,
    so it needs NOT to be freed.
-
 4. Limits:
    4.1 Length of tag.
+
+ TODO:  parse attributes between '<' and '>', such as 'id','Title','Class', and 'Style' ...
+
 
 @str_html:	Pointer to a html string.
 @tag:		Tag name
 		Example: "p" as paragraph tag
 			 "h1","h2".. as heading tag
 @len:		Pointer to pass length of the element content, in bytes.
-		if NULL, ignore.
+		if input is NULL, ignore.
+		if fails, pass NULL to the caller then.
 @content:	Pointer to pass element content.
-		if NULL, ignore.
+		if input is NULL, ignore.
+		if fails, pass NULL to the caller then.
 		!!! --- Note: the content has independent memory space, and
-		so do not forget to free it. --- !!!
+		so do NOT forget to free it. --- !!!
 
 Return:
 	Pointer to taged content in str_html:		Ok
@@ -578,8 +582,10 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 
 	pet=strstr(pst,etag);
 
-	/* Only if tag content is valid/available:  Copy and pass parameters */
+	/* Only if tag content is valid/available */
 	if( pst!=NULL && pet!=NULL ) {
+		/* TODO:  parse attributes between '<' and '>' */
+
 		/* get length of content */
 		pst += strlen(">");	/* skip '>', move to the beginning of the content */
 		len=pet-pst;

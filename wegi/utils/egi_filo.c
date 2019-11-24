@@ -202,7 +202,7 @@ Return:
 	0	OK
 	<0	fails
 -----------------------------------------------------------------*/
-int egi_filo_read(const EGI_FILO *filo, unsigned int pn, void* data)
+int egi_filo_read(const EGI_FILO *filo,  int pn, void* data)
 {
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
@@ -246,13 +246,13 @@ int egi_filo_itemtotal(const EGI_FILO *filo)
 	return filo->pt;
 }
 
-/*------------------------------------------------
+/*---------------------------------------------------
 Get 1D array from an EGI_FILO by deflating filo->buff.
 
 Return:
 	NULL	fails
 	Others	OK
--------------------------------------------------*/
+----------------------------------------------------*/
 void* egi_filo_get_flatData(const EGI_FILO *filo)
 {
 	int i;

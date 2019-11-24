@@ -45,7 +45,7 @@ EGI_FILO * egi_malloc_filo(int buff_size, int item_size, int realloc);
 void 	egi_free_filo(EGI_FILO *efilo );
 int 	egi_filo_push(EGI_FILO *filo, const void* data);
 int 	egi_filo_pop(EGI_FILO *filo, void* data);
-int 	egi_filo_read(const EGI_FILO *filo, unsigned int pn, void* data);
+int 	egi_filo_read(const EGI_FILO *filo, int pn, void* data);
 int 	egi_filo_itemtotal(const EGI_FILO *filo);
 void* 	egi_filo_get_flatData(const EGI_FILO *filo);
 
