@@ -286,7 +286,8 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 	eimg=NULL;
 #endif
 	/* close file and munmap */
-	munmap(fp);
+	if(fp!=MAP_FAILED)
+		munmap(fp,fsize);
 	close(fd);
 
 	egi_free_filo(filo_pgOffset);

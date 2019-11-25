@@ -9,7 +9,7 @@ Midas Zhou
 #include <string.h>
 #include <curl/curl.h>
 #include "egi_https.h"
-
+#include "egi_log.h"
 
 /*------------------------------------------------------------------------------
 			HTTPS request by libcurl
@@ -32,8 +32,10 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 	int ret=0;
   	CURL *curl;
   	CURLcode res;
+	double doubleinfo=0;
 
 	/* init curl */
+	printf("%s: start curl_global_init()...\n",__func__);
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 	if(curl==NULL) {
@@ -43,7 +45,7 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 
 	/* set curl option */
 	curl_easy_setopt(curl, CURLOPT_URL, request);		 	 /* set request URL */
-	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);			 /* 1 print more detail */
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);			 /* 1 print more detail */
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);			 /* set timeout */
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, get_callback);     /* set write_callback */
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, reply_buff); 		 /* set data dest for write_callback */
@@ -55,10 +57,22 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 #endif
 
 	/* Perform the request, res will get the return code */
-	res = curl_easy_perform(curl);
-	if(res != CURLE_OK) {
+	printf("%s: start curl_easy_perform()...\n",__func__);
+	if(CURLE_OK != curl_easy_perform(curl) ) {
 		printf("%s: curl_easy_perform() failed: %s\n", __func__, curl_easy_strerror(res));
 		ret=-2;
+	}
+
+	/* Get session info. */
+	if( CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &doubleinfo) ) {
+		printf("%s: CURLINFO_CONTENT_LENGTH_DOWNLOAD = %.0f \n", __func__, doubleinfo);
+		if( (int)doubleinfo > CURL_RETDATA_BUFF_SIZE )
+		EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length is great than CURL_RETDATA_BUFF_SIZE!",
+												   __func__);
+	}
+	else {
+		printf("%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!\n", __func__);
+		ret=-3;
 	}
 
 	/* always cleanup */

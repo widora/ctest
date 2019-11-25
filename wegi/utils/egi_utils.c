@@ -166,7 +166,7 @@ NOTE:
   2. Be carefull to use when new_items < old_itmes, if realloc fails, then dimension of buff
      may NOT be able to reverted to the old_items.!!!!
 
-buff:		buffer to be reallocated
+buff:		2D buffer to be reallocated
 old_items:	original item number as of buff[old_items][item_size]
 new_items:	new item number as of buff[new_items][item_size]
 item_size:	item size in byte.
@@ -182,11 +182,11 @@ int egi_realloc_buff2D(unsigned char ***buff, int old_items, int new_items, int 
 
 	/* check input data */
 	if( buff==NULL || *buff==NULL) {
-		printf("egi_realloc_buff2(): input buff is NULL.\n");
+		printf("%s: input buff is NULL.\n",__func__);
 		return -1;
 	}
 	if( old_items <= 0 || new_items <= 0 || item_size <= 0 ) {
-		printf("egi_realloc_buff2(): itmes or item_size is invalid.\n");
+		printf("%s: itmes or item_size is invalid.\n",__func__);
 		return -2;
 	}
 	/* free redundant buff[] before realloc buff */

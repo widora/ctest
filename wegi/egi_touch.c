@@ -15,7 +15,7 @@ TODO:
    try adjusting tm_delayms()...
 
 
-Midas
+Midas Zhou
 -----------------------------------------------------------------------*/
 #include "egi.h"
 #include "spi.h"
@@ -32,8 +32,17 @@ static bool cmd_end_loopread;	        /* command to end loopread if true */
 static bool tok_loopread_running;       /* token for loopread is running if true */
 static pthread_t thread_loopread;
 
+
+static pthread_cond_t	cond_touched;	 /* To indicate that touch_status other than release_hold is detected */
+static pthread_mutex_t	mutex_lockCond; /* mutex lock for pthread cond */
+static int		cond_flag;	 /* predicate for pthread cond */
+
+
 /*-----------------------------------
 Start touch_loopread thread.
+
+TODO: Make it a pthread_once_t function.
+
 Return:
 	0	Ok
 	<0	Fails
@@ -45,6 +54,15 @@ int egi_start_touchread(void)
                 printf("%s: Fail to open spi device '%s' for touch screen reading!\n", __func__, spi_fdev);
 		return -1;
 	}
+
+
+	/* initiliaze pthread mutex cond */
+	if( pthread_mutex_init(&mutex_lockCond,NULL) != 0 ) {
+                printf("%s: Fail to initialize mutex_lockCond!\n", __func__);
+		return -1;
+	}
+	/* reset cond flag */
+	cond_flag=0;
 
 	/* start touch_read thread */
         if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
@@ -78,7 +96,16 @@ int egi_end_touchread(void)
 	cmd_end_loopread=true;
 
 	/* Wait to join touch_loopread thread */
-	ret=pthread_join(thread_loopread, NULL);
+	if( pthread_join(thread_loopread, NULL) !=0 ) {
+		printf("%s:Fail to join thread_loopread.\n", __func__);
+		ret-=1;
+	}
+
+	/* destroy mutex */
+        if( pthread_mutex_destroy(&mutex_lockCond) !=0 ) {
+		printf("%s:Fail to destroy mutex_lockCond.\n", __func__);
+		ret-=2;
+	}
 
 	/* close SPI dev */
 	SPI_Close();

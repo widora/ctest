@@ -43,7 +43,7 @@ static unsigned int total_txt_pages;	/* total pages of txt file */
 
 EGI_FILO  *filo_pgOffset;
 static unsigned long round_count;
-static bool IsScrollUp=true; 		/* Scroll_Up: to increase page number,
+static bool Is_ScrollUp=true; 		/* Scroll_Up: to increase page number,
 					 * Scroll_Dow: to decrease page number */
 static bool preup=true;			/* Previous scroll up */
 
@@ -290,21 +290,21 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 
                 /* Check instantanous sliding direction */
                 if( touch_data.dy - predy > 0 ) { 	/* Scroll DOWN, sliding in Screen +Y direction */
-                        IsScrollUp = false;
+                        Is_ScrollUp = false;
 			printf("Down\n");
                 }
                 else if ( touch_data.dy - predy < 0 ) {  /* Scroll UP, sliding in Screen -Y direction */
-                        IsScrollUp = true;
+                        Is_ScrollUp = true;
 			printf("UP\n");
                 }
 		else					/* Idel */
-			IsScrollUp = preup;
+			Is_ScrollUp = preup;
 
                //predy=touch_data.dy;  /* To update at last, we need old value before. */
 
                 /* Update i (line index of all FB back buffers) */
                 i=mark-touch_data.dy;  /* DY>0 Scroll DOWN;  DY<0 Scroll UP */
-                //printf("i=%d  %s\n", i, IsScrollUp==true ? "Up":"Down");
+                //printf("i=%d  %s\n", i, Is_ScrollUp==true ? "Up":"Down");
 
                 /* Normalize 'i' to: [0  yres*FBDEV_BUFFER_PAGES) */
 		/*** Branching accroding to updated line index i */
@@ -323,7 +323,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				// continue;  Just go down to call fb_slide_refresh(&gv_fb_dev, i)
 			}
 			/* If Scroll down from 1 to 0, cur_txt_pgnum is still 1 now!  */
-			//else if( !IsScrollUp && cur_txt_pgnum==1 ) {
+			//else if( !Is_ScrollUp && cur_txt_pgnum==1 ) {
 			else if( cur_txt_pgnum==1 ) {
 				printf("    i<0: 1 down to 0\n");
 				cur_txt_pgnum--;
@@ -388,18 +388,19 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 		 */
 		else {
 			/* IF_3.1 */
-			if( IsScrollUp ) {
+			if( Is_ScrollUp ) {
 				/*** Only if scroll up to another page ( get page boundary line )
 				 *   	 OR: scrolling direction changes !!!!
 				 * Note: i is already added with -touch_data.dy
 				 *   	  i=mark-touch_data.dy
 				 *  --- Check the screen bottom yres-1 line, see if new page appears --- */
-	  	printf(" -- UP (i+yres-1)/yres=%d  (mark+yres-1)/yres=%d  (mark-predy+yres-1)/yres=%d --\n",
+	  	printf(" -- UP (i+yres-1)/yres=%lu  (mark+yres-1)/yres=%lu  (mark-predy+yres-1)/yres=%lu --\n",
 						(i+yres-1)/yres, (mark+yres-1)/yres, (mark-predy+yres-1)/yres);
 
-				/*** WRONG!!!, It may move back and forth, so check last time predy instead !!!!
+				/* WRONG!!!, It may move back and forth, so check last time predy instead !!!! */
 				//if ( (i+yres-1)/yres > (mark+yres-1)/yres )
-				//{ 	/* ! touch_data.dy is negative, check if last time i is NOT cross - */
+				//{
+				    /* ! touch_data.dy is negative, check if last time i is NOT cross - */
 
 				if( ( (mark-predy+yres-1)/yres != (i+yres-1)/yres || preup==false )
 				     &&  ( cur_txt_pgnum < total_txt_pages-1 ) ) /* txt page num from 0 */
@@ -447,10 +448,10 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 				 * Note: i is already added with -touch_data.dy
 				 *	 as i=mark-touch_data.dy
 				 *   --- Check the screen uppermost 0 line, see if new page appears! --- */
-			  	printf(" -- DOWN i/yres=%d mark/yres=%d  (mark-predy)/yres=%d --\n",
+			  	printf(" -- DOWN i/yres=%lu mark/yres=%lu  (mark-predy)/yres=%lu --\n",
 								i/yres, mark/yres, (mark-predy)/yres);
 
-				/*** WRONG!!!, It may move back and forth, so check last time predy instead !!!!
+				/* WRONG!!!, It may move back and forth, so check last time predy instead !! */
 				//xxxx if( i/yres < mark/yres ) /* Check crossed */
 
 				    /* Confirm last time i is NOT cross */
@@ -499,7 +500,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 
 		/* Record dy at last */
                 predy=touch_data.dy;
-		preup=IsScrollUp;
+		preup=Is_ScrollUp;
 
                 /*  Refresh FB with offset line, now 'i' limits to [0  yres*FBDEV_BUFFER_PAGES) */
                 fb_slide_refresh(&gv_fb_dev, i);

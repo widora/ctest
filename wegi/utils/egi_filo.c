@@ -118,6 +118,8 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
 	if(filo->pt==filo->buff_size) {
 		/* if enable auto double reaclloc, double buff size*/
 		if((filo->auto_realloc)&0b01) {
+			printf("%s: realloc buff size from %d to %d\n",
+							__func__, filo->buff_size, (filo->buff_size)<<1);
 		 	if( egi_realloc_buff2D( &filo->buff, filo->buff_size,
 					    		(filo->buff_size)<<1, filo->item_size ) !=0 )
 			{
@@ -134,6 +136,7 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
 		}
 	}
 	/* push data into buff */
+	printf("%s: memcpy\n",__func__);
 	memcpy( (void *)(filo->buff)[filo->pt], data, filo->item_size );
 
 	filo->pt++;
@@ -205,7 +208,7 @@ Return:
 int egi_filo_read(const EGI_FILO *filo,  int pn, void* data)
 {
 	/* verifyi input data */
-	if( filo==NULL || filo->buff==NULL ) {
+	if( filo==NULL || filo->buff==NULL || data==NULL ) {
                 EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return -1;
         }
@@ -216,7 +219,7 @@ int egi_filo_read(const EGI_FILO *filo,  int pn, void* data)
 		return 1;
 	}
 	if( pn < 0 || pn > filo->pt-1 ) {
-//		EGI_PLOG(LOGLV_ERROR,"%s: input pn is invalid.",__func__);
+		EGI_PLOG(LOGLV_WARN,"%s: input pn is invalid.",__func__);
 		return -2;
 	}
 

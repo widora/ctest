@@ -23,8 +23,11 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"
 
-static char strkey[256];	/* for name of json_obj key */
-static char buff[32*1024]; 	/* for curl returned data */
+//#define CURL_RETDATA_BUFF_SIZE	32*1024
+
+static char strkey[256];		/* for name of json_obj key */
+static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data */
+static bool Is_Saved_Html;		/* If read from saved html, versus Is_Live_Html */
 
 /* Callback functions for libcurl API */
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp);
@@ -32,9 +35,11 @@ static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stre
 
 /* Functions */
 int 	juhe_get_totalItemNum(const char *strinput);
-char* 	juhe_get_newsURL(const char *strinput, int index, const char *strkey);
+char* 	juhe_get_elemURL(const char *strinput, int index, const char *strkey);
 void 	juhe_get_newsContent(const char* url);
 void  	print_json_object(const json_object *json);
+int 	juhe_save_charBuff(const char *fpath, const char *buff);
+int 	juhe_fill_charBuff(const char *fpath, char *buff, size_t size);
 
 /*   ---------- juhe.cn  News Types -----------
 
@@ -45,7 +50,7 @@ void  	print_json_object(const json_object *json);
 
 static char* news_type[]=
 {
-   "guoji", "shishang", "keji", "guonei", "yule","top"
+   "top","keji","guoji", "shishang", "guonei", "yule"
 };
 
 
@@ -57,16 +62,16 @@ int main(int argc, char **argv)
 	int i;
 	int k;
 	char *pstr=NULL;
-	char *purl=NULL;
+	char *purl=NULL;		   /* Item news URL */
         static char strRequest[256+64];
 
-	char *thumb_path="/tmp/thumb.jpg"; /* temp. thumb pic file */
-	char pngNews_path[32];		   /* png news files */
+	char *thumb_path="/tmp/thumb.jpg"; /* temprary thumbnail pic file */
+	char pngNews_path[32];		   /* png file name for saving */
+	char html_path[32];		   /* html file name for saving */
 	int  totalItems;		   /* total news items in one returned session */
-	char attrMark[128];		   /* JUHE Mark */
+	char attrMark[128];		   /* JUHE Mark string, to be shown on top of screen  */
 	EGI_IMGBUF *imgbuf=NULL;
 	EGI_IMGBUF *pad=NULL;
-
 
 
 #if 0
@@ -78,7 +83,7 @@ int main(int argc, char **argv)
 #endif
 
         /* <<<<< 	 EGI general init 	 >>>>>> */
-#if 0
+#if 1
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
 #endif
@@ -103,7 +108,7 @@ int main(int argc, char **argv)
         printf("init_fbdev()...\n");
         if( init_fbdev(&gv_fb_dev) )            /* init sys FB */
                 return -1;
-#if 0
+#if 1
         printf("start touchread thread...\n");
         egi_start_touchread();                  /* start touch read thread */
 #endif
@@ -119,7 +124,7 @@ int main(int argc, char **argv)
         /* read key from EGI config file */
         egi_get_config_value("JUHE_NEWS", "key", strkey);
 
-//	juhe_get_newsContent("/tmp/yule_1.html");
+//	juhe_get_newsContent("http://mini.eastday.com/mobile/191125161256109.html");
 //	exit(0);
 
 
@@ -134,8 +139,13 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 	memset(pngNews_path,0,sizeof(pngNews_path));
 	snprintf(pngNews_path, sizeof(pngNews_path),"/tmp/%s_0.png",news_type[k]);
 
+	/* Prepare html_path for saving news_type[k] */
+	memset(html_path,0,sizeof(html_path));
+	snprintf(html_path, sizeof(html_path),"/tmp/juhe_%s.html",news_type[k]);
+
 	/* If file does NOT exist, then start Https GET request. */
-	if( access(pngNews_path, F_OK) !=0 )
+//	if( access(pngNews_path, F_OK) !=0 )
+	if( access(html_path, F_OK) !=0 )
 	{
 		/* prepare GET request string */
         	memset(strRequest,0,sizeof(strRequest));
@@ -148,33 +158,51 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
         	//printf("Request:%s\n", strRequest);
 
 	        /* Https GET request */
+		printf("line %d: https_curl_request...\n", __LINE__);
 	        if(https_curl_request(strRequest, buff, NULL, curlget_callback)!=0) {
         	        printf("Fail to call https_curl_request()!\n");
                 	//return -1;  Go on....
 	        }
-        	printf("	Http GET reply:\n %s\n",buff);
+        	printf("	--- Http GET Reply ---\n %s\n",buff);
 
 		totalItems=juhe_get_totalItemNum(buff);
-		printf("\n  -----  Return total %d news items ----- \n\n", totalItems);
+		printf("\n  -----  Http GET return total %d news items ----- \n\n", totalItems);
+		if(totalItems==0)
+			continue; /* continue for(k) */
+
+		/* save buff to a html file */
+		juhe_save_charBuff(html_path, buff);
+
+		/* Set flag */
+		Is_Saved_Html=false;
 
 	} else {
-		printf("\n\n ------- News type [%s] already downloaded  ----- \n\n", news_type[k]);
+		printf("\n\n ------- News type [%s] already downloaded  -----\n ", news_type[k]);
+
+		/* Load saved html to buff */
+		printf("Reload html file %s to buff ...\n", news_type[k]);
+	 	juhe_fill_charBuff(html_path, buff, sizeof(buff));
+		totalItems=juhe_get_totalItemNum(buff);
+		printf(" -----  Html file reload total %d news items ----- \n\n", totalItems);
+
+		/* Set flag */
+		Is_Saved_Html=true;
 	}
 
    	/* Get top N items for each type of news */
 	if(totalItems==0)	/* if 0, then try to use saved images */
 		totalItems=30;
 
+	/* Get news picture and content item by item */
 	for(i=0; i<totalItems; i++) {
 		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
-		purl=juhe_get_newsURL(buff, i, "url");
-		printf("	  url:%s\n", purl);
 
 		/* Set PNG news picture name string */
 		memset(pngNews_path,0,sizeof(pngNews_path));
 		snprintf(pngNews_path, sizeof(pngNews_path),"/tmp/%s_%d.png",news_type[k],i);
 
+#if 0  ///////////////////////////////////////////////////////////////////////
 		/* If file exists, display and continue for(i) */
 		if( access(pngNews_path, F_OK)==0 ) {
 			printf(" ---  News image file exists!  --- \n");
@@ -196,9 +224,11 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 			/* Refresh FB */
 			fb_page_refresh_flyin(&gv_fb_dev, 10);
-			printf("tm_delayms...\n");
-			//tm_delayms(6000);
-			sleep(3);
+
+			printf("line %d: tm_delayms...\n", __LINE__);
+			tm_start_egitick();
+			tm_delayms(4000);
+			//sleep(3);
 
 			/* free */
 			egi_imgbuf_free(imgbuf);
@@ -209,10 +239,13 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		     } /* END if( imgbuf != NULL ) */
 
 		} /* END if file exists */
+#endif //////////////////////////////////////////////////////////////////////////////
+
+		/* File NOT exists, go on processing ... */
 
 		/* --- Get thumbnail pic URL and download it --- */
 		/* Get thumbnail URL */
-		pstr=juhe_get_newsURL(buff,i,"thumbnail_pic_s");
+		pstr=juhe_get_elemURL(buff,i,"thumbnail_pic_s");
 		if(pstr == NULL) {
 		    #if 1
 		    printf("News type [%s] item[%d]: thumbnail URL not found, try next item...\n",
@@ -226,9 +259,9 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		}
 
 		/* Download thumbnail pic */
-		printf("Start https easy download URL: %s\n", pstr);
+		printf("   --- Start https easy download thumbnail pic --- \n URL: %s\n", pstr);
 		https_easy_download(pstr, thumb_path, NULL, download_callback);
-		free(pstr); pstr=NULL;
+		egi_free_char(&pstr);
 
         	/* read in the thumbnail pic file */
         	imgbuf=egi_imgbuf_readfile(thumb_path);
@@ -263,11 +296,9 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		/* Free the imgbuf */
 	        egi_imgbuf_free(imgbuf);imgbuf=NULL;
-			//tm_delayms(3000);
-
 
 		/* --- Get news title and display it --- */
-		pstr=juhe_get_newsURL(buff, i, "title");
+		pstr=juhe_get_elemURL(buff, i, "title");
 		if(pstr==NULL) {
 			#if 1
 			printf("News type [%s] item[%d]: Title not found, try next item...\n",
@@ -296,28 +327,35 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                                      5, 240-45+5,      //5,320-75,          /* x0,y0, */
                                      WEGI_COLOR_WHITE, -1, -1 );  /* fontcolor, transcolor,opaque */
 
-		printf(" ----------- %s News, Item %d ---------- \n", news_type[k], i);
-		printf(" Title: %s\n", pstr);
+
+		printf(" ------From %s:  %s News, Item %d ----- \n",
+				 	(Is_Saved_Html==true)?"saved html":"live html", news_type[k], i);
+		printf(" Title:	 %s\n", pstr);
 		egi_free_char(&pstr);
-		//free(pstr); pstr=NULL;
 
 		/* Refresh FB page */
 		printf("FB page refresh ...\n");
 		//fb_page_refresh(&gv_fb_dev);
 		fb_page_refresh_flyin(&gv_fb_dev, 10);
 		//tm_delayms(3000);
+
 		/* save FB data to a PNG file */
-		egi_save_FBpng(&gv_fb_dev, pngNews_path);
+		//egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
 		/* Hold on for a while */
-		sleep(2);
+		printf("line %d: tm_delayms...\n", __LINE__);
+		tm_start_egitick();
+		tm_delayms(2000);
+		//sleep(2);
 		//printf("Press a key to continue. \n");
 		//getchar();
 
-		/* Get news content and display it */
+		/* Get content of current news item and display it */
+		purl=juhe_get_elemURL(buff, i, "url");
+		printf("New item[%d] URL: %s\n", i, purl);
+		printf("juhe_get_newsContent...\n");
 		juhe_get_newsContent(purl);
 		egi_free_char(&purl);
-		//free(purl); purl
 
 	} /* END for(i) */
  } /* END for(k) */
@@ -354,8 +392,13 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 ------------------------------------------------*/
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp)
 {
+	size_t session_size=size*nmemb;
+
+	printf("%s: session_size=%zd\n",__func__, session_size);
+
         strcat(userp, ptr);
-        return size*nmemb;
+
+        return session_size;
 }
 
 
@@ -450,7 +493,7 @@ Return:
         0       ok
         <0      fails
 ----------------------------------------------------------------------------------------------*/
-char* juhe_get_newsURL(const char *strinput, int index, const char *strkey)
+char* juhe_get_elemURL(const char *strinput, int index, const char *strkey)
 {
         char *pt=NULL;
 
@@ -535,8 +578,8 @@ void juhe_get_newsContent(const char* url)
 	int fd;
 	int fsize=0;
 	struct stat  sb;
-	bool Is_FilePath=false;
-	char buff[32*1024]; /* For returned html text */
+	bool URL_Is_FilePath=false;
+	char buff[CURL_RETDATA_BUFF_SIZE]; /* For returned html text */
         char *content=NULL;
         int len;
         char *pstr=NULL;
@@ -546,22 +589,24 @@ void juhe_get_newsContent(const char* url)
 		return;
 
 	/* init filo */
+	printf("%s: init FILO...\n",__func__);
 	filo=egi_malloc_filo(8, sizeof(char *), FILO_AUTO_DOUBLE);
 	if(filo==NULL)
 		return;
 
 	/* Check if it's web address or file path */
    	if( strstr(url,"//") == NULL )
-		Is_FilePath=true;
+		URL_Is_FilePath=true;
 	else
-		Is_FilePath=false;
+		URL_Is_FilePath=false;
 
 	/* For Web address */
-	if( Is_FilePath==false )
+	if( URL_Is_FilePath==false )
 	{
         	/* clear buff */
 	        memset(buff,0,sizeof(buff));
         	/* Https GET request */
+		printf("%s: https_curl_request...\n",__func__);
 	        if(https_curl_request(url, buff, NULL, curlget_callback)!=0) {
         	         printf("Fail to call https_curl_request()!\n");
 			 goto FUNC_END;
@@ -569,7 +614,6 @@ void juhe_get_newsContent(const char* url)
 
 		/* assign buff to pstr */
         	pstr=buff;
-
 	}
 	/* For file path */
 	else
@@ -595,21 +639,27 @@ void juhe_get_newsContent(const char* url)
 
         /* Parse HTML */
         do {
-                /* parse returned data as html */
+                /* parse returned data as html, to extract paragraph content */
+		printf("%s: parse html tag paragrah...\n",__func__);
                 pstr=cstr_parse_html_tag(pstr, "p", &content, &len);
                 if(content!=NULL) {
-                        //printf("%s\n",content);
-			egi_filo_push(filo,&content);
+                        //printf("%s: %s\n",__func__, content);
+			printf("%s: push content pointer to FILO ...\n",__func__);
+			if( egi_filo_push(filo, &content) !=0 ) /* Push to FILO */
+				printf("%s: fail to push content to FILO: %s ...\n",__func__, content);
+
 		}
-                //egi_free_char(&content);
                 //printf("Get %d bytes content: %s\n", len, content);
         } while( pstr!=NULL );
+	printf("%s: finish parsing HTML...\n",__func__);
 
-	/* read filo and get pointer to paragraph content */
+	/* Read filo and get pointer to paragraph content */
 	for(i=0; egi_filo_read(filo, i, &content)==0; i++ )
 	{
-		printf(" ----- paragraph %d -----\n", i);
-		printf("%s\n",content);
+		printf("%s: ----From %s: writeFB paragraph %d -----\n",
+				 	__func__, (Is_Saved_Html==true)?"saved html":"live html", i);
+		//printf("%s\n",content);
+
 		/* Write to FB */
 		draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_LTYELLOW, 0, 0, 320-1, 240-45-1);
         	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,       /* FBdev, fontface */
@@ -619,7 +669,10 @@ void juhe_get_newsContent(const char* url)
                                      WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor,opaque */
 		fb_page_refresh(&gv_fb_dev);
 
-		sleep(2);
+		printf("line %d: tm_delayms...\n", __LINE__);
+		//sleep(2);
+		tm_start_egitick();
+		tm_delayms(2000);
 	}
 
 
@@ -629,11 +682,91 @@ FUNC_END:
 		free(content);
 
 	/* close file and mumap */
-	if(Is_FilePath) {
+	if(URL_Is_FilePath) {
 		close(fd);
-		munmap(pstr,fsize);
+		if(pstr!=MAP_FAILED)
+			munmap(pstr,fsize);
 	}
 
-	/* free filo */
+	/* free FILO */
 	egi_free_filo(filo);
+}
+
+
+
+/*--------------------------------------------------------
+Save text/string buffer to a file.
+
+@fpath:   File path for saving.
+@buff:	  A buffer holding text/string.
+
+Return:
+	>0	Ok, bytes written to the file.
+	<0	Fails
+---------------------------------------------------------*/
+int juhe_save_charBuff(const char *fpath, const char *buff)
+{
+	FILE *fil;
+	int ret=0;
+
+	if(buff==NULL || fpath==NULL)
+		return -1;
+
+        /* open file for write */
+        fil=fopen(fpath,"wbe");
+        if(fil==NULL) {
+                printf("%s: Fail to open %s for write.\n",__func__, fpath);
+                return -1;
+        }
+
+	/* write to file */
+	ret=fwrite(buff, strlen(buff), 1, fil);
+
+	return ret;
+}
+
+
+/*-------------------------------------------------------------
+Read and put a text file content to a buffer.
+
+@fpath:	   	A file holding text/string.
+@buff:   	A buffer to hold text.
+@size:		Size of the buffer, in bytes.
+		Or size of data expected to be read in.
+
+Return:
+	Size of data in bytes filled into the buffer.
+---------------------------------------------------------------*/
+int juhe_fill_charBuff(const char *fpath, char *buff, size_t size)
+{
+	FILE *fil;
+	size_t ret=0;
+
+	if(buff==NULL || fpath==NULL )
+		return -1;
+
+        /* open file for write */
+        fil=fopen(fpath,"rbe");
+        if(fil==NULL) {
+                printf("%s: Fail to open %s for write.\n",__func__, fpath);
+                return -1;
+        }
+
+	/* read in to buff */
+
+ 	ret=fread(buff, size, 1, fil);
+
+	/* Note: fread() does not distinguish between end-of-file and error, and callers must
+	   use feof(3) and ferror(3) to determine which occurred.
+	*/
+	if( feof(fil) )
+		printf("%s: End of file reached!\n",__func__);
+	else {
+		if( ferror(fil) )
+			printf("%s: Fail to read %s \n", __func__, fpath);
+		else
+			printf("%s: Read in file incompletely!, try to increase buffer size.\n", __func__);
+	}
+
+	return ret;
 }
