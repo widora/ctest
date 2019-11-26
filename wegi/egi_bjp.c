@@ -54,7 +54,7 @@ Modified by Midas Zhou
 	=NULL fail
 	>0 decompressed image buffer pointer
 --------------------------------------------------------------*/
-unsigned char * open_jpgImg(char * filename, int *w, int *h, int *components )
+unsigned char * open_jpgImg(const char * filename, int *w, int *h, int *components )
 {
 	unsigned char header[2];
 	struct jpeg_decompress_struct cinfo;
@@ -163,7 +163,7 @@ Return:
 	    0	OK
 	   <0   fails
 --------------------------------------------------------------------*/
-int show_bmp(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
+int show_bmp(const char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
 	BITMAPFILEHEADER FileHead;
 	BITMAPINFOHEADER InfoHead;
@@ -313,7 +313,7 @@ Return:
 	    0	OK
 	    <0  fails
 -------------------------------------------------------------------------*/
-int show_jpg(char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
+int show_jpg(const char* fpath, FBDEV *fb_dev, int blackoff, int x0, int y0)
 {
 	int xres=fb_dev->vinfo.xres;
 	int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
@@ -402,7 +402,7 @@ Return
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------*/
-int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
+int egi_imgbuf_loadjpg(const char* fpath,  EGI_IMGBUF *egi_imgbuf)
 {
 	//int xres=fb_dev->vinfo.xres;
 	//int bits_per_pixel=fb_dev->vinfo.bits_per_pixel;
@@ -415,8 +415,8 @@ int egi_imgbuf_loadjpg(char* fpath,  EGI_IMGBUF *egi_imgbuf)
 	int bytpp=2; /* bytes per pixel, 16bits color only */
 	int i,j;
 
-	if( egi_imgbuf==NULL ) {
-		printf("%s: Input egi_imgbuf is NULL!\n",__func__);
+	if( egi_imgbuf==NULL || fpath==NULL ) {
+		printf("%s: Input egi_imgbuf or fpath is NULL!\n",__func__);
 		return -1;
 	}
 
@@ -511,10 +511,10 @@ Return
 		0	OK
 		<0	fails
 ------------------------------------------------------------------------------------*/
-int egi_imgbuf_loadpng(char* fpath,  EGI_IMGBUF *egi_imgbuf)
+int egi_imgbuf_loadpng(const char* fpath,  EGI_IMGBUF *egi_imgbuf)
 {
-	if(egi_imgbuf==NULL) {
-		printf("%s: Input egi_imgbuf is NULL!\n",__func__);
+	if( egi_imgbuf==NULL || fpath==NULL ) {
+		printf("%s: Input egi_imgbuf or fpath is NULL!\n",__func__);
 		return -1;
 	}
 
@@ -701,7 +701,7 @@ Return:
 	0	OK
 	<0	Fails
 ---------------------------------------------------------------*/
-int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf)
+int egi_imgbuf_savepng(const char* fpath,  const EGI_IMGBUF *egi_imgbuf)
 {
 	FILE *fp;
 	int i,j;
@@ -847,7 +847,7 @@ ntrip:		number of trips for roaming.
 (xw,yw):	displaying window origin, relate to the LCD coord system.
 winw,winh:		width and height of the displaying window.
 ---------------------------------------------------------------------------------*/
-int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
+int egi_roampic_inwin(const char *path, FBDEV *fb_dev, int step, int ntrip,
 						int xw, int yw, int winw, int winh)
 {
 	int i,k;

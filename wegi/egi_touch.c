@@ -23,19 +23,93 @@ Midas Zhou
 #include "egi_timer.h"
 #include "xpt2046.h"
 #include "egi_touch.h"
+#include <errno.h>
 #include <stdbool.h>
 
 /* typedef struct egi_touch_data EGI_TOUCH_DATA in "egi.h" */
 
 static EGI_TOUCH_DATA live_touch_data;
-static bool cmd_end_loopread;	        /* command to end loopread if true */
+static bool tok_loopread_nowait;	/* If ture, touch_loopread will run nonstop,
+					 * otherwise it will wait until live_touch_data.updated becomes false,
+					 * after last data is read out.
+					 */
 static bool tok_loopread_running;       /* token for loopread is running if true */
+static bool cmd_end_loopread;	        /* command to end loopread if true */
 static pthread_t thread_loopread;
 
 
-static pthread_cond_t	cond_touched;	 /* To indicate that touch_status other than release_hold is detected */
-static pthread_mutex_t	mutex_lockCond; /* mutex lock for pthread cond */
-static int		cond_flag;	 /* predicate for pthread cond */
+static pthread_cond_t	cond_touch;	 /* To indicate that touch_status 'pressing' or 'pressed_hold' is detected */
+static pthread_mutex_t	mutex_lockCond;  /* mutex lock for pthread cond */
+static int		flag_cond;	 /* predicate for pthread cond, set in egi_touch_loopread() */
+
+
+/*-------------------------------------------------
+Wait for a touch event, or return when time is out.
+time is out.
+
+Retrun:
+	0	Ok
+	<0	Fails / Errors
+	>0	Time out.
+------------------------------------------------*/
+int egi_touch_timeWait(unsigned int s)
+{
+	int ret=0;
+	int wait_ret=0;
+	struct timeval now;
+	struct timespec outtime;
+
+	/* Assert thread loop_read is running */
+	if(!tok_loopread_running)
+		return -1;
+
+	/* Must make loopread unstop */
+	tok_loopread_nowait=true;
+
+	/* wait flag_cond AND cond signal */
+	if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
+		printf("%s: Enter cond_timewait zone ...\n",__func__);
+		/* reset flag_cond */
+		flag_cond=0;
+		/* wait flag and timeout:  flag_cond and cond_signal to be received simutaneously */
+		while(flag_cond==0) {
+			/* ??? If invoked by incorrect signal, then outtime will reset ?!!! */
+			gettimeofday(&now, NULL);
+			outtime.tv_sec = now.tv_sec + s;
+			outtime.tv_nsec = now.tv_usec*1000;
+			/* timedwait, ret=0 if cond_touch is received.*/
+			wait_ret=pthread_cond_timedwait(&cond_touch, &mutex_lockCond, &outtime);
+			if(wait_ret==ETIMEDOUT)
+				break;
+		}
+		pthread_mutex_unlock(&mutex_lockCond);
+
+		/* check return value*/
+		if(wait_ret==0) {		/* OK, signal received. */
+			ret=0;
+			//printf("%s: Cond signal received!\n",__func__);
+		}
+		else if(wait_ret==ETIMEDOUT) {	/* Time Out */
+			ret=1;
+			//printf("%s: Time out!\n",__func__);
+		}
+		else {
+			ret=2;			/* Error */
+			printf("%s: Error!\n",__func__);
+		}
+
+	}
+	else {
+                printf("%s: Fail to lock mutex_lockCond!\n",__func__);
+		return -2;
+	}
+
+	/* Reset loopread to wait mode */
+	tok_loopread_nowait=false;
+
+	return ret;
+}
+
 
 
 /*-----------------------------------
@@ -55,20 +129,23 @@ int egi_start_touchread(void)
 		return -1;
 	}
 
-
 	/* initiliaze pthread mutex cond */
 	if( pthread_mutex_init(&mutex_lockCond,NULL) != 0 ) {
                 printf("%s: Fail to initialize mutex_lockCond!\n", __func__);
-		return -1;
+		return -2;
+	}
+	if( pthread_cond_init(&cond_touch, NULL) !=0 ) {
+                printf("%s: Fail to initialize cond_touch!\n", __func__);
+		return -3;
 	}
 	/* reset cond flag */
-	cond_flag=0;
+	flag_cond=0;
 
 	/* start touch_read thread */
         if( pthread_create(&thread_loopread, NULL, (void *)egi_touch_loopread, NULL) !=0 )
         {
                 printf("%s: Fail to create touch_read thread!\n", __func__);
-		return -2;
+		return -4;
         }
 
 	/* reset token */
@@ -101,10 +178,16 @@ int egi_end_touchread(void)
 		ret-=1;
 	}
 
-	/* destroy mutex */
+	/* destroy mutex cond */
+        if( pthread_cond_destroy(&cond_touch) !=0 ) {
+		printf("%s:Fail to destroy cond_touch.\n", __func__);
+		ret-=2;
+	}
+
+	/* destroy mutex lock */
         if( pthread_mutex_destroy(&mutex_lockCond) !=0 ) {
 		printf("%s:Fail to destroy mutex_lockCond.\n", __func__);
-		ret-=2;
+		ret-=4;
 	}
 
 	/* close SPI dev */
@@ -126,18 +209,20 @@ bool egi_touchread_is_running(void)
 pass touch data to the caller
 
 return:
-	true	pass updated data
+	true	get updated data
 	false	ingore obsolet data
 ------------------------------------------*/
 bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 {
 	if(!live_touch_data.updated) {
-		data->updated=false;
+		if(data != NULL)
+			data->updated=false;
 		return false;
 	}
 
 	/* pass data, directly assign */
-	*data=live_touch_data;
+	if(data!=NULL)
+		*data=live_touch_data;
 
 	/* reset update flag */
 	live_touch_data.updated=false;
@@ -250,8 +335,8 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 	        /* 1. necessary wait,just for XPT to prepare data */
         	tm_delayms(2);
 
-		/* wait .... until read out */
-		if(live_touch_data.updated==true)
+		/* wait .... until read out,  AND NOT nowait mode */
+		if( live_touch_data.updated==true && !tok_loopread_nowait )
 			continue;
 
 		/* 2. read XPT to get avg tft-LCD coordinate */
@@ -287,6 +372,8 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.dy=0;
 				last_y=sy;
 
+				/* reset flag_cond */
+				flag_cond=0;
                         }
                         else /* last_status also released_hold */
 			{
@@ -321,6 +408,20 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.dy += (sy-last_y);
 				last_y=sy;
 
+                                /* set flag_cond AND send cond signal simultaneously */
+                                if(flag_cond==0)
+                                {
+                                   printf("%s: 'Pressed_hold' set flag_cond to 1...\n",__func__);
+                                   if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
+                                        flag_cond=1;
+                                        pthread_cond_signal(&cond_touch);
+                                        pthread_mutex_unlock(&mutex_lockCond);
+                                   }
+                                   else {
+                                        printf("%s: Fail to lock mutex_lockCond!\n",__func__);
+                                   }
+                                }
+
 				EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
 								live_touch_data.dx,live_touch_data.dy );
 
@@ -337,6 +438,20 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				last_x=sx;
 				last_y=sy;
                       		EGI_PDEBUG(DBG_TOUCH,"... pen pressing ...\n");
+
+				/* set flag_cond AND send cond signal simultaneously */
+				if(flag_cond==0)
+				{
+				   printf("%s: 'Pressing' set flag_cond to 1...\n",__func__);
+				   if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
+					flag_cond=1;
+					pthread_cond_signal(&cond_touch);
+					pthread_mutex_unlock(&mutex_lockCond);
+				   }
+				   else {
+			                printf("%s: Fail to lock mutex_lockCond!\n",__func__);
+				   }
+				}
 
                                 /* check if it's a double-click   */
                                 t_start=t_end;

@@ -57,7 +57,7 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 #endif
 
 	/* Perform the request, res will get the return code */
-	printf("%s: start curl_easy_perform()...\n",__func__);
+	EGI_PLOG(LOGLV_INFO, "%s: start curl_easy_perform()...",__func__);
 	if(CURLE_OK != curl_easy_perform(curl) ) {
 		printf("%s: curl_easy_perform() failed: %s\n", __func__, curl_easy_strerror(res));
 		ret=-2;
@@ -108,6 +108,10 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
   	CURLcode res;
 	FILE *fp;	/* FILE to save received data */
 
+	/* check input */
+	if(file_url==NULL || file_save==NULL)
+		return -1;
+
 	/* Open file for saving file */
 	fp=fopen(file_save,"wb");
 	if(fp==NULL) {
@@ -151,9 +155,10 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
 	/* Perform the request, res will get the return code */
+	EGI_PLOG(LOGLV_INFO, "%s: start curl_easy_perform()...",__func__);
 	res = curl_easy_perform(curl);
 	if(res != CURLE_OK) {
-		printf("%s: curl_easy_perform() failed: %s\n", __func__, curl_easy_strerror(res));
+		EGI_PLOG(LOGLV_ERROR,"%s: curl_easy_perform() failed: %s", __func__, curl_easy_strerror(res));
 		ret=-3;
 		goto CURL_FAIL;
 	}

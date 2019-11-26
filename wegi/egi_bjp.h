@@ -78,19 +78,19 @@ typedef struct
 #define SHOW_BLACK_NOTRANSP	0
 
 /* functions */
-unsigned char *open_jpgImg(char *filename, int *w, int *h, int *components);
+unsigned char *open_jpgImg(const char *filename, int *w, int *h, int *components);
 void close_jpgImg(unsigned char *imgbuf);
 
-int show_bmp(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
-int show_jpg(char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
+int show_bmp(const char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
+int show_jpg(const char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 
-int egi_imgbuf_loadjpg(char* fpath, EGI_IMGBUF *egi_imgbuf);
-int egi_imgbuf_loadpng(char* fpath, EGI_IMGBUF *egi_imgbuf);
+int egi_imgbuf_loadjpg(const char* fpath, EGI_IMGBUF *egi_imgbuf);
+int egi_imgbuf_loadpng(const char* fpath, EGI_IMGBUF *egi_imgbuf);
 
-int egi_imgbuf_savepng(char* fpath,  const EGI_IMGBUF *egi_imgbuf);
+int egi_imgbuf_savepng(const char* fpath,  const EGI_IMGBUF *egi_imgbuf);
 
 /* roaming picture in a window */
-int egi_roampic_inwin(char *path, FBDEV *fb_dev, int step, int ntrip,
+int egi_roampic_inwin(const char *path, FBDEV *fb_dev, int step, int ntrip,
                                 			int xw, int yw, int winw, int winh);
 /* find all jpg files in a path --- OBSOLEGTE --- */
 int egi_find_jpgfiles(const char* path, int *count, char **fpaths, int maxfnum, int maxflen);

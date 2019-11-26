@@ -88,9 +88,9 @@ int main(int argc, char **argv)
         tm_start_egitick();                     /* start sys tick */
 #endif
 
-#if 0
+#if 1
         printf("egi_init_log()...\n");
-        if(egi_init_log("/mmc/log_test") != 0) {        /* start logger */
+        if(egi_init_log("/mmc/juhe.log") != 0) {        /* start logger */
                 printf("Fail to init logger,quit.\n");
                 return -1;
         }
@@ -127,6 +127,9 @@ int main(int argc, char **argv)
 //	juhe_get_newsContent("http://mini.eastday.com/mobile/191125161256109.html");
 //	exit(0);
 
+//	char *picURL="http://03imgmini.eastday.com/mobile/20191126/20191126155447_532a561cb24ea6199e7809a77ea8c655_2_mwpm_03200403.jpg";
+//      https_easy_download(picURL, "/tmp/easy_pic.jpg", NULL, download_callback);
+//	exit(0);
 
 while(1) { /////////////////////////	  LOOP TEST      ////////////////////////////
 
@@ -259,11 +262,12 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		}
 
 		/* Download thumbnail pic */
-		printf("   --- Start https easy download thumbnail pic --- \n URL: %s\n", pstr);
+		EGI_PLOG(LOGLV_INFO,"   --- Start https easy download thumbnail pic --- \n URL: %s", pstr);
 		https_easy_download(pstr, thumb_path, NULL, download_callback);
 		egi_free_char(&pstr);
 
         	/* read in the thumbnail pic file */
+		EGI_PLOG(LOGLV_INFO,"%s: Read thumb_path into imgbuf...",__func__);
         	imgbuf=egi_imgbuf_readfile(thumb_path);
        		if(imgbuf==NULL) {
 	                printf("Fail to read image file '%s'.\n", thumb_path);
@@ -316,7 +320,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		sprintf(attrMark, "%s_%d:  ",news_type[k], i);
 		strcat(attrMark,"Powered by www.juhe.cn");
         	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.regular,     /* FBdev, fontface */
-                                     16, 16, attrMark,      		/* fw,fh, pstr */
+                                     16, 16, (const unsigned char *)attrMark, 	   /* fw,fh, pstr */
                                      320-10, 1, 5,                       /* pixpl, lines, gap */
                                      5, 0,          /* x0,y0, */
                                      WEGI_COLOR_GRAY, -1, -1 );  /* fontcolor, transcolor,opaque */
@@ -407,8 +411,12 @@ static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp
 ------------------------------------------------*/
 static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream)
 {
-       size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
-       return written;
+       size_t written;
+
+	written = fwrite(ptr, size, nmemb, (FILE *)stream);
+	printf("%s: written size=%zd\n",__func__, written);
+
+        return written;
 }
 
 /*--------------------------------------------------------------------------
@@ -640,7 +648,7 @@ void juhe_get_newsContent(const char* url)
         /* Parse HTML */
         do {
                 /* parse returned data as html, to extract paragraph content */
-		printf("%s: parse html tag paragrah...\n",__func__);
+		printf("%s: parse html tag <paragrah>...\n",__func__);
                 pstr=cstr_parse_html_tag(pstr, "p", &content, &len);
                 if(content!=NULL) {
                         //printf("%s: %s\n",__func__, content);
