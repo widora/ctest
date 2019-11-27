@@ -65,10 +65,10 @@ int	egi_imgbuf_blend_imgbuf(EGI_IMGBUF *eimg, int xb, int yb, const EGI_IMGBUF *
 EGI_IMGBUF* egi_imgbuf_rotate(EGI_IMGBUF *eimg, int ang);
 int 	egi_imgbuf_rotate_update(EGI_IMGBUF **eimg, int angle);
 
-int	egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+int	egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                 	                        int xp, int yp, int xw, int yw, int winw, int winh);
 /* no subcolor, no FB filo */
-int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+int egi_imgbuf_windisplay2( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                                         int xp, int yp, int xw, int yw, int winw, int winh);
 
 /* display sub_image in an EGI_IMAGBUF */

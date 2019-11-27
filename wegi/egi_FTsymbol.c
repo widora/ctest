@@ -785,7 +785,7 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 
 	/* check bitmap data, we need bbox_W here */
 	if(ftsympg.alpha==NULL) {
-//		printf("%s: Alpha data is NULL for unicode=%d\n", __func__, wcode);
+//		printf("%s: Alpha data is NULL for unicode=0x%x\n", __func__, wcode);
 //		draw_rect(fb_dev, x0, y0, x0+bbox_W, y0+fh );
 
 		/* ------ SPACE CONTROL ------
@@ -817,8 +817,10 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 	delY= -slot->bitmap_top + fh;
 
 	/* write to FB,  symcode =0, whatever  */
-	if(fb_dev != NULL)
+	if(fb_dev != NULL) {
+		//printf("%s: symbol_writeFB...\n",__func__);
 		symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
+	}
 }
 
 
@@ -1021,8 +1023,11 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 #if 0 /* ----TEST: print ASCII code */
 		if(size==1) {
-			printf("ASCII code: %d \n",*wcstr);
+			printf("%s: ASCII code: %d \n",__func__,*wcstr);
 		}
+		//if( !iswprint(*wcstr) )  ---Need to setlocale(), not supported yet!
+		//	printf("Not printalbe wchar code: 0x%x \n",*wcstr);
+
 #endif /*-----TEST END----*/
 
 		/* shift offset to next wchar */
@@ -1054,6 +1059,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 		/* write unicode bitmap to FB, and get xleft renewed. */
 		px=x0+pixpl-xleft;
+		//printf("%s:unicode_writeFB...\n", __func__);
 		FTsymbol_unicode_writeFB(fb_dev, face, fw, fh, wcstr[0], &xleft,
 							 px, py, fontcolor, transpcolor, opaque );
 

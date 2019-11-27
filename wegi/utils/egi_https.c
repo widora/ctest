@@ -35,11 +35,11 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 	double doubleinfo=0;
 
 	/* init curl */
-	printf("%s: start curl_global_init()...\n",__func__);
+	EGI_PLOG(LOGLV_INFO, "%s: start curl_global_init and easy init...",__func__);
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 	if(curl==NULL) {
-		printf("%s: Fail to init curl!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to init curl!",__func__);
 		return -1;
 	}
 
@@ -71,7 +71,7 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 												   __func__);
 	}
 	else {
-		printf("%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!\n", __func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!", __func__);
 		ret=-3;
 	}
 
@@ -115,15 +115,16 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	/* Open file for saving file */
 	fp=fopen(file_save,"wb");
 	if(fp==NULL) {
-		printf("%s: open file %s: %s", __func__, file_save, strerror(errno));
+		EGI_PLOG(LOGLV_ERROR,"%s: open file %s: %s", __func__, file_save, strerror(errno));
 		return -1;
 	}
 
 	/* init curl */
+	EGI_PLOG(LOGLV_INFO, "%s: start curl_global_init and easy init...",__func__);
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 	if(curl==NULL) {
-		printf("%s: Fail to init curl!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to init curl!",__func__);
 		ret=-2;
 		goto CURL_FAIL;
 	}
@@ -139,6 +140,9 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	/*  set timeout */
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
+
+	/* For name lookup timed out error: use ipv4 as default */
+	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 
 	/* set write_callback to write/save received data  */
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);

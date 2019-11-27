@@ -1,4 +1,4 @@
-/*-----------------------------------------------------------------
+/* -----------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -7,7 +7,7 @@ published by the Free Software Foundation.
 Char and String Functions
 
 Midas Zhou
-----------------------------------------------------------------*/
+------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -525,15 +525,22 @@ Note:
    so it needs NOT to be freed.
 4. Limits:
    4.1 Length of tag.
+   4.2 Nested conditions such as  <x>...<y>...</y>...</x> are NOT considered!
 
- TODO:  parse attributes between '<' and '>', such as 'id','Title','Class', and 'Style' ...
+ TODO:  1. parse attributes between '<' and '>', such as 'id','Title','Class', and 'Style' ...
+        2. there are nested setions such as  <x>...<y>...</y>...</x>:
+		<figure class="section img">
+			<a class="img-wrap" style="padding-bottom: 51.90%;" data-href="https://02imgmini.eastday.com/mobile/20191127/20191127132714_845bbcb4a1eed74b6f2f678497454157_1.jpeg" data-size="499x259">
+				<img width="100%" alt="" src="https://....zz.jpeg" data-weight="499" data-width="499" data-height="259">
+			</a>
+		</figure>
 
 
 @str_html:	Pointer to a html string.
 @tag:		Tag name
 		Example: "p" as paragraph tag
 			 "h1","h2".. as heading tag
-@len:		Pointer to pass length of the element content, in bytes.
+@length:	Pointer to pass length of the element content, in bytes.
 		if input is NULL, ignore.
 		if fails, pass NULL to the caller then.
 @content:	Pointer to pass element content.
@@ -553,20 +560,33 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 	char *pst=NULL;	/* Pointer to the beginning of start tags in str_html
 			 * then adjusted to the beginning of content later.
 			 */
-	char *pet=NULL; /* Pointer to the beginning of end tag in str_html */
-	int  len=0;	/* length of content, in bytes */
+	char *pet=NULL;  	/* Pointer to the beginning of end tag in str_html */
+	char *str_indent="    ";		/* indentation string */
+	int  len_indent=strlen(str_indent);
+	int  len_content=0;	/* length of content, in bytes. NOT include len_indent */
 	char *pctent=NULL; /* allocated mem to hold copied content */
 
+	/* Reset content and length to NULL First!!! */
+	if(content != NULL)
+		*content=NULL;
+	if(length != NULL)
+		*length=0;
+
 	/* check input data */
-	if( strlen(tag) > 16-4 )
+	if( strlen(tag) > 16-4 ) {
 		return NULL;
-	if(str_html==NULL || tag==NULL )
+	}
+	if(str_html==NULL || tag==NULL ) {
 		return NULL;
+	}
 
 	/* init. start/end tag */
 	memset(stag,0, sizeof(stag));
 	strcat(stag,"<");
 	strcat(stag,tag);
+	/* Note: attributes may exists between '<x' and '>',
+	   Example: <p class="section txt">
+	 */
 	//printf("stag: %s\n", stag);
 
 	memset(etag,0, sizeof(etag));
@@ -575,12 +595,14 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 	strcat(etag,">");
 	//printf("etag: %s\n", etag);
 
-	/* locate start and end tag in html string */
-	pst=strstr(str_html,stag);
-	if(pst != NULL)			/* get end of start tag */
-		pst=strstr(pst,">");
-
-	pet=strstr(pst,etag);
+	/* locate start and end tag in html string, nested elements NOT considered! */
+	pst=strstr(str_html, stag);	/* Get start positon of start_tag */
+	if(pst != NULL)	 {
+		/* TODO: Parse attributes/elements between <x> and </x> */
+		pst=strstr(pst,">");		/* Get end position of start_tag */
+		if(pst != NULL)
+			pet=strstr(pst,etag);   /* Get start position of end_tag */
+	}
 
 	/* Only if tag content is valid/available */
 	if( pst!=NULL && pet!=NULL ) {
@@ -588,16 +610,22 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 
 		/* get length of content */
 		pst += strlen(">");	/* skip '>', move to the beginning of the content */
-		len=pet-pst;
+		len_content=pet-pst;
 
 		/* 1. Calloc pctent and copy content */
 		if( content != NULL) {
-			pctent=calloc(1, len+1);
+			pctent=calloc(1, len_content+len_indent+1);
 			if(pctent==NULL)
 				printf("%s: Fail to calloc pctent...\n",__func__);
-			else
+			else {
 				/* Now pst is pointer to the beginning of the content */
-				strncpy(pctent,pst,len);
+				#if 1 /* Put indentation */
+				strncpy(pctent,str_indent, len_indent);
+				strncpy(pctent+len_indent, pst, len_content);
+				#else /* No indentation */
+				strncpy(pctent, pst, len_content);
+				#endif
+			}
 		}
 	}
 
@@ -605,8 +633,8 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 	if( content != NULL )
 		*content=pctent;
 	if( length !=NULL )
-		*length=len;
+		*length=len_content;
 
 	/* Now pst is pointer to the beginning of the content */
-	return pst;
+	return ( (pst!=NULL && pet!=NULL) ? pst:NULL);
 }

@@ -158,11 +158,13 @@ Return:
 --------------------------------------------*/
 int egi_filo_pop(EGI_FILO *filo, void* data)
 {
+
 	/* verifyi input data */
 	if( filo==NULL || filo->buff==NULL ) {
                 EGI_PLOG(LOGLV_ERROR, "%s: input filo is invalid.",__func__);
                 return -1;
         }
+
 	/* check buff point */
 	if( filo->pt==0 ) {
 //		EGI_PLOG(LOGLV_ERROR, "%s: egi_filo_pop(): FILO buff is empty, no more data to pop out.",

@@ -1579,7 +1579,7 @@ Return:
 		0	OK
 		<0	fails
 ------------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay( const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
+int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
 {
         /* check data */
@@ -1798,7 +1798,7 @@ Return:
 		0	OK
 		<0	fails
 ------------------------------------------------------------------------------------------*/
-int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
+int egi_imgbuf_windisplay2(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 			   		int xp, int yp, int xw, int yw, int winw, int winh)
 {
         /* check data */
@@ -1808,11 +1808,13 @@ int egi_imgbuf_windisplay2(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
                 return -1;
         }
 
+
 	/* get mutex lock */
 	if( pthread_mutex_lock(&egi_imgbuf->img_mutex)!=0 ){
 		printf("%s: Fail to lock image mutex!\n",__func__);
 		return -2;
 	}
+
 
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;

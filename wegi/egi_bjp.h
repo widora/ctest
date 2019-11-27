@@ -87,7 +87,7 @@ int show_jpg(const char* fpath,FBDEV *fb_dev, int blackoff, int x0, int y0);
 int egi_imgbuf_loadjpg(const char* fpath, EGI_IMGBUF *egi_imgbuf);
 int egi_imgbuf_loadpng(const char* fpath, EGI_IMGBUF *egi_imgbuf);
 
-int egi_imgbuf_savepng(const char* fpath,  const EGI_IMGBUF *egi_imgbuf);
+int egi_imgbuf_savepng(const char* fpath, EGI_IMGBUF *egi_imgbuf);
 
 /* roaming picture in a window */
 int egi_roampic_inwin(const char *path, FBDEV *fb_dev, int step, int ntrip,

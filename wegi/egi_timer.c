@@ -17,7 +17,7 @@ Midas Zhou
 #include "dict.h"
 
 
-#define EGI_ENABLE_TICK 1
+#define EGI_ENABLE_TICK 0
 
 struct itimerval tm_val, tm_oval;
 
@@ -171,8 +171,10 @@ static void tm_tick_sigroutine(int signo)
 -------------------------------*/
 void tm_start_egitick(void)
 {
+#if EGI_ENABLE_TICK
         tm_tick_settimer(TM_TICK_INTERVAL);
         signal(SIGALRM, tm_tick_sigroutine);
+#endif
 }
 
 

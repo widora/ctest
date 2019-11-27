@@ -286,7 +286,7 @@ do {    ////////////////////////////    LOOP TEST   ////////////////////////////
 	eimg=NULL;
 #endif
 	/* close file and munmap */
-	if(fp!=MAP_FAILED)
+	if(fp!=MAP_FAILED && fp!=NULL )
 		munmap(fp,fsize);
 	close(fd);
 

@@ -67,7 +67,7 @@ int egi_touch_timeWait(unsigned int s)
 	tok_loopread_nowait=true;
 
 	/* wait flag_cond AND cond signal */
-	if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
+	if( pthread_mutex_lock(&mutex_lockCond)==0 ) {
 		printf("%s: Enter cond_timewait zone ...\n",__func__);
 		/* reset flag_cond */
 		flag_cond=0;
@@ -94,13 +94,14 @@ int egi_touch_timeWait(unsigned int s)
 			//printf("%s: Time out!\n",__func__);
 		}
 		else {
-			ret=2;			/* Error */
+			ret=-2;			/* Error */
 			printf("%s: Error!\n",__func__);
 		}
 
 	}
 	else {
                 printf("%s: Fail to lock mutex_lockCond!\n",__func__);
+		tok_loopread_nowait=false; /* set wait mode */
 		return -2;
 	}
 
@@ -372,8 +373,6 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.dy=0;
 				last_y=sy;
 
-				/* reset flag_cond */
-				flag_cond=0;
                         }
                         else /* last_status also released_hold */
 			{
