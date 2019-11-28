@@ -793,10 +793,12 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 	 	 * but it has bitmap.width and advanced defined.
 	 	 */
 		/* If a HALF/FULL Width SPACE */
-		//if( wcode == 32 || wcode == 12288 ) {
-		/* Maybe other unicode, it is supposed to have defined bitmap.width and advanceX */
+		if( wcode == 32 || wcode == 12288 ) {
+			*xleft -= fw;
+		}
+		else {/* Maybe other unicode, it is supposed to have defined bitmap.width and advanceX */
 			*xleft -= bbox_W;
-		//}
+		}
 			return;
 	}
 

@@ -142,6 +142,26 @@ int main( int  argc,   char**  argv )
   EGI_IMGBUF *penguin_img=NULL;
 
 
+
+#if 1	/////////////// 	char_unicode_to_uft8( ) 	/////////////
+	char char_uft8[4+1];
+	whart_t *wp=wbook;
+
+	while(*wp) {
+		memset(char_uft8,0,sizeof(char_uft8));
+
+		if(char_unicode_to_utf8(wp, char_uft8)>0)
+			printf("%s",char_uft8);
+		else
+			exit(1);
+
+		wp++;
+	}
+	printf("\n");
+	exit(0);
+
+#endif
+
         /* EGI general init */
         tm_start_egitick();
 

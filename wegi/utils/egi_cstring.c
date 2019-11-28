@@ -13,6 +13,7 @@ Midas Zhou
 #include <fcntl.h>
 #include <errno.h>
 #include <wchar.h>
+#include <stdint.h>
 #include "egi_cstring.h"
 #include "egi_log.h"
 
@@ -243,51 +244,52 @@ int cstr_strcount_uft8(const unsigned char *pstr)
 /*----------------------------------------------------------------------
 Convert a character from UFT-8 to UNICODE.
 
-@src:	A pointer to characters with UFT-8 encoding.
-@dest:	A pointer to mem space to hold converted characters with UNICODE.
+@src:	A pointer to character with UFT-8 encoding.
+@dest:	A pointer to mem space to hold converted characters in UNICODE.
 	The caller shall allocate enough space for dest.
 	!!!!TODO: Dest is now supposed to be in little-endian ordering. !!!!
-@n:	Number of characters expected to be converted.
 
 1. UTF-8 maps to UNICODE according to following relations:
 				(No endianess problem for UTF-8 conding)
 
-	   --- UNICODE ---	      --- UTF-8 CODING ---
-	U+  0000 - U+  007F:	0XXXXXXX
-	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
-	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
-	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+      --- UTF-8 CODING ---	   	  --- UNICODE ---
+ 0XXXXXXX				U+  0000 - U+  007F
+ 110XXXXX 10XXXXXX			U+  0080 - U+  07FF
+ 1110XXXX 10XXXXXX 10XXXXXX		U+  0800 - U+  FFFF
+ 11110XXX 10XXXXXX 10XXXXXX 10XXXXXX	U+ 10000 - U+ 1FFFF
 
 
 2. If illegal coding is found...
 
 Return:
 	>0 	OK, bytes of src consumed and converted into unicode.
-	<0	Fails
+	=0	Fails, or unrecognizable uft-8 .
 -----------------------------------------------------------------------*/
 inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
 {
-	unsigned char *cp; /* tmp to dest */
+//	unsigned char *cp; /* tmp to dest */
 	unsigned char *sp; /* tmp to src  */
 
-	int size;	/* in bytes, size of the character with UFT-8 encoding*/
+	int size=0;	/* in bytes, size of the character with UFT-8 encoding*/
 
 	if(src==NULL || dest==NULL )
-		return -1;
+		return 0;
 
-	cp=(unsigned char *)dest;
+//	cp=(unsigned char *)dest;
 	sp=(unsigned char *)src;
 
 	size=cstr_charlen_uft8(src);
 
-	if(size<0) {
-		return size;	/* ERROR */
+#if 0 /////////////////////////////////////////////////////
+	if(size=<0) {
+		return 0;	/* ERROR */
 	}
 
 	/* U+ 0000 - U+ 007F:	0XXXXXXX */
 	else if(size==1) {
-		*dest=0;
-		*cp=*src;	/* The LSB of wchar_t */
+	//	*dest=0;*/
+	//	*cp=*src;	/* The LSB of wchar_t */
+		*dest=*src;
 	}
 
 	/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
@@ -306,11 +308,150 @@ inline int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest)
 		*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
 	}
 
+	else {
+		printf("%s: Unrecognizable uft-8 character! \n",__func__);
+	}
+#endif /////////////////////////////////////////////////////////////////////////////////////////
+
+	switch(size)
+	{
+		/* U+ 0000 - U+ 007F:	0XXXXXXX */
+		case	1:
+			*dest=*src;
+			break;
+
+		/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
+		case	2:
+			*dest= (*(sp+1)&0x3F) + ((*sp&0x1F)<<6);
+			break;
+
+		/* U+ 0800 - U+ FFFF:	1110XXXX 10XXXXXX 10XXXXXX */
+		case	3:
+			*dest= (*(sp+2)&0x3F) + ((*(sp+1)&0x3F)<<6) + ((*sp&0xF)<<12);
+			break;
+
+		/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
+		case	4:
+			*dest= (*(sp+3)&0x3F) + ((*(sp+2)&0x3F)<<6) +((*(sp+2)&0x3F)<<12) + ((*sp&0x7)<<18);
+			break;
+
+		default: /* if size<=0 or size>5 */
+			printf("%s: Unrecognizable uft-8 character! \n",__func__);
+			break;
+	}
+
+	return size;
+}
+
+
+/*-------------------------------------------------------------------------
+Convert a character from UFT-8 to UNICODE.
+
+@src:	A pointer to character in UNICODE.
+@dest:	A pointer to mem space to hold converted character in UFT-8 encoding.
+	The caller shall allocate enough space for dest.
+	!!!!TODO: Now little-endian ordering is supposed. !!!!
+
+1. UNICODE maps to UFT-8 according to following relations:
+				(No endianess problem for UTF-8 conding)
+
+	   --- UNICODE ---	      --- UTF-8 CODING ---
+	U+  0000 - U+  007F:	0XXXXXXX
+	U+  0080 - U+  07FF:	110XXXXX 10XXXXXX
+	U+  0800 - U+  FFFF:	1110XXXX 10XXXXXX 10XXXXXX
+	U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX
+
+2. If illegal coding is found...
+
+Return:
+	>0 	OK, bytes of dest in UFT-8 encoding.
+	=0	Fail, or unrecognizable unicode
+--------------------------------------------------------------------------*/
+inline int char_unicode_to_uft8(const wchar_t *src, char *dest)
+{
+	uint32_t usrc=*src;
+//	uint32_t udest;
+
+	int size=0;	/* in bytes, size of the returned dest in UFT-8 encoding*/
+
+	if(src==NULL || dest==NULL )
+		return 0;
+
+	if( usrc > (uint32_t)0x1FFFF ) {
+		printf("%s: Unrecognizable unicode as 0x%x > 0x1FFFF! \n",__func__, usrc );
+		return 0;
+	}
+	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
+	else if(  usrc >  0xFFFF ) {
+ 	     //udest = (uint32_t)0xF0808080+(usrc&0x3F)+((usrc&0xFC0)<<2)+((usrc&0x3F000)<<4)+((usrc&0x1C0000)<<6);
+	     dest[0]=0xF0+(usrc>>18);
+	     dest[1]=0x80+((usrc>>12)&0x3F);
+	     dest[2]=0x80+((usrc>>6)&0x3F);
+	     dest[3]=0x80+(usrc&0x3F);
+	     size=4;
+	}
+	/* U+ 0800 - U+ FFFF:	1110XXXX 10XXXXXX 10XXXXXX */
+	else if( usrc > 0x7FF) {
+ 	  	//udest = 0xE08080+(usrc&0x3F)+((usrc&0xFC0)<<2)+((usrc&0xF000)<<4);
+	    	dest[0]=0xE0+(usrc>>12);
+	    	dest[1]=0x80+((usrc>>6)&0x3F);
+	    	dest[2]=0x80+(usrc&0x3F);
+
+		size=3;
+	}
+	/* U+ 0080 - U+ 07FF:	110XXXXX 10XXXXXX */
+	else if( usrc > 0x7F ) {
+		//udest = 0xC080+(usrc&0x3F)+((usrc&0x7C0)<<2);
+	    	dest[0]=0xC0+(usrc>>6);
+	    	dest[1]=0x80+(usrc&0x3F);
+
+		size=2;
+	}
+	/* U+ 0000 - U+ 007F:	0XXXXXXX */
+	else {
+		//udest = usrc;
+		dest[0]=usrc&0x7F;
+		size=1;
+	}
+
+
 	return size;
 }
 
 
 
+/*---------------------------------------------------------------------
+Convert a string in UNICODE to UFT-8 by calling char_unicode_to_uft8()
+
+@src:	Input string in UNICODE
+@dest:  Output string in UFT-8.
+	The caller shall allocate enough space for dest.
+
+Return:
+	>0 	OK, converted bytes of dest in UFT-8 encoding.
+	=0	Fail, or unrecognizable unicode
+---------------------------------------------------------------------*/
+int cstr_unicode_to_uft8(const wchar_t *src, char *dest)
+{
+	wchar_t *ps=(wchar_t *)src;
+
+	int ret=0;
+	int size=0;	/* in bytes, size of the returned dest in UFT-8 encoding*/
+
+	if(src==NULL || dest==NULL )
+		return 0;
+
+	while( *ps !=L'\0' ) {  /* wchar t end token */
+		ret = char_unicode_to_uft8(ps, dest+size);
+		if(ret<=0)
+			return size;
+
+		size += ret;
+		ps++;
+	}
+
+	return size;
+}
 
 
 /*----------------------------------------------------------------------------------
@@ -514,7 +655,9 @@ int egi_get_config_value(char *sect, char *key, char* pvalue)
 Get pointer to the beginning of HTML element content, which is defined between start tag
 and end tag. It returns only the first matched case!
 
+
 Note:
+0. For UFT-8 encoding only!
 1. Input tag MUST be closed type, it appeares as <X> ..... </X> in HTML string.
    Void elements, such as <hr />, <br /> are not applicable for the function!
    If input html string contains only single <X> OR </X> tag, a NULL pointer will
@@ -523,7 +666,9 @@ Note:
    so it's the caller's responsibility to free it after use!
 3. The returned char pointer is a reference pointer to a position in original HTML string,
    so it needs NOT to be freed.
-4. Limits:
+4. Default indentation of two SPACEs is inserted.
+
+5. Limits:
    4.1 Length of tag.
    4.2 Nested conditions such as  <x>...<y>...</y>...</x> are NOT considered!
 
@@ -536,7 +681,7 @@ Note:
 		</figure>
 
 
-@str_html:	Pointer to a html string.
+@str_html:	Pointer to a html string with UFT-8 encoding.
 @tag:		Tag name
 		Example: "p" as paragraph tag
 			 "h1","h2".. as heading tag
@@ -561,10 +706,16 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 			 * then adjusted to the beginning of content later.
 			 */
 	char *pet=NULL;  	/* Pointer to the beginning of end tag in str_html */
-	char *str_indent="    ";		/* indentation string */
-	int  len_indent=strlen(str_indent);
+	const wchar_t *wstr_indent=L"  ";	/* sizelimit!! UNICODE, indentation string */
+	char str_indent[64];			/* UFT-8, indentation string */
+	int  len_indent; 	//strlen(str_indent);
 	int  len_content=0;	/* length of content, in bytes. NOT include len_indent */
 	char *pctent=NULL; /* allocated mem to hold copied content */
+
+	/* Set indentation string in UFT-8 */
+	memset(str_indent,0, sizeof(str_indent));
+	cstr_unicode_to_uft8(wstr_indent, str_indent);
+	len_indent=strlen(str_indent);
 
 	/* Reset content and length to NULL First!!! */
 	if(content != NULL)

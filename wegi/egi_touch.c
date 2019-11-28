@@ -77,7 +77,7 @@ int egi_touch_timeWait(unsigned int s)
 			gettimeofday(&now, NULL);
 			outtime.tv_sec = now.tv_sec + s;
 			outtime.tv_nsec = now.tv_usec*1000;
-			/* timedwait, ret=0 if cond_touch is received.*/
+			/* timedwait, wait_ret==0 if cond_touch is received.*/
 			wait_ret=pthread_cond_timedwait(&cond_touch, &mutex_lockCond, &outtime);
 			if(wait_ret==ETIMEDOUT)
 				break;
@@ -384,7 +384,7 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.updated=true;
 				live_touch_data.status=released_hold;
 			}
-                        tm_delayms(100);/* hold on for a while to relive CPU load, or the screen will be ...heheheheheh... */
+                        tm_delayms(50);//100/* hold on for a while to relive CPU load, or the screen will be ...heheheheheh... */
                 }
 
 		/* 5. get touch coordinates and trigger actions for the hit button if any */
@@ -407,7 +407,7 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				live_touch_data.dy += (sy-last_y);
 				last_y=sy;
 
-                                /* set flag_cond AND send cond signal simultaneously */
+                                #if 0 /* set flag_cond AND send cond signal simultaneously */
                                 if(flag_cond==0)
                                 {
                                    printf("%s: 'Pressed_hold' set flag_cond to 1...\n",__func__);
@@ -420,6 +420,7 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
                                         printf("%s: Fail to lock mutex_lockCond!\n",__func__);
                                    }
                                 }
+				#endif
 
 				EGI_PDEBUG(DBG_TOUCH,"egi_touch_loopread(): ...... dx=%d, dy=%d ......\n",
 								live_touch_data.dx,live_touch_data.dy );

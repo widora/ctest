@@ -21,6 +21,8 @@ char * cstr_trim_space(char *buf);
 int cstr_charlen_uft8(const unsigned char *cp);
 int cstr_strcount_uft8(const unsigned char *pstr);
 int char_uft8_to_unicode(const unsigned char *src, wchar_t *dest);
+int char_unicode_to_uft8(const wchar_t *src, char *dest);
+int cstr_unicode_to_uft8(const wchar_t *src, char *dest);
 int egi_get_config_value(char *sect, char *key, char* value);
 
 char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content, int *length);

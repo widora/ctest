@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------
+/*----------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -14,7 +14,7 @@ Note:
 Usage:	./test_juhe
 
 Midas Zhou
--------------------------------------------------------------------*/
+-----------------------------------------------------------------------*/
 #include <stdio.h>
 #include <curl/curl.h>
 #include <string.h>
@@ -28,7 +28,8 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"
 
-//#define CURL_RETDATA_BUFF_SIZE	32*1024
+#define THUMBNAIL_DISPLAY_SECONDS	5
+#define CONTENT_DISPLAY_SECONDS		5
 
 static char strkey[256];			/* for name of json_obj key */
 static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html expected */
@@ -41,7 +42,7 @@ static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stre
 /* Functions */
 int 	juhe_get_totalItemNum(const char *strinput);
 char* 	juhe_get_elemURL(const char *strinput, int index, const char *strkey);
-void 	juhe_get_newsContent(const char* url);
+int 	juhe_get_newsContent(const char* url);
 void  	print_json_object(const json_object *json);
 int 	juhe_save_charBuff(const char *fpath, const char *buff);
 int 	juhe_fill_charBuff(const char *fpath, char *buff, int size);
@@ -86,7 +87,7 @@ int main(int argc, char **argv)
 #endif
 
         /* <<<<< 	 EGI general init 	 >>>>>> */
-#if 0
+#if 1
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
 #endif
@@ -148,8 +149,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 	memset(html_path,0,sizeof(html_path));
 	snprintf(html_path, sizeof(html_path),"/tmp/juhe_%s.html",news_type[k]);
 
-	/* IF:  file does NOT exist, then start Https GET request. */
-//	if( access(pngNews_path, F_OK) !=0 )
+	/* IF:  history html file does NOT exist, then start Https GET request. */
 	if( access(html_path, F_OK) !=0 )
 	{
 		/* prepare GET request string */
@@ -225,47 +225,6 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		memset(pngNews_path,0,sizeof(pngNews_path));
 		snprintf(pngNews_path, sizeof(pngNews_path),"/tmp/%s_%d.png",news_type[k],i);
 
-#if 0  ///////////////////////////////////////////////////////////////////////
-		/* If file exists, display and continue for(i) */
-		if( access(pngNews_path, F_OK)==0 ) {
-			printf(" ---  News image file exists!  --- \n");
-
-	             /* readin file */
-	             imgbuf=egi_imgbuf_readfile(pngNews_path);
-        	     if(imgbuf != NULL)
-		     {
-			printf("display readin file %s\n", pngNews_path);
-			/* reset to pos_rotate 0 for display */
-			fb_position_rotate(&gv_fb_dev, 0);
-			/* display saved news image */
-		        egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,         /* img, FB, subcolor */
-                		                0, 0,                            /* int xp, int yp */
-                               			0, 0, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
-                              		      );
-			/* Set back to 3 */
-			fb_position_rotate(&gv_fb_dev, 3);
-
-			/* Refresh FB */
-			fb_page_refresh_flyin(&gv_fb_dev, 10);
-
-			printf("line %d: tm_delayms...\n", __LINE__);
-			tm_start_egitick();
-			tm_delayms(4000);
-			//sleep(3);
-
-			/* free */
-			egi_imgbuf_free(imgbuf);
-			imgbuf=NULL;
-
-			continue;  /* Go back to continue for(i) .... */
-
-		     } /* END if( imgbuf != NULL ) */
-
-		} /* END if file exists */
-#endif //////////////////////////////////////////////////////////////////////////////
-
-		/* File NOT exists, go on processing ... */
-
 		/* --- Get thumbnail pic URL and download it --- */
 		/* Get thumbnail URL */
 		pstr=juhe_get_elemURL(buff,i,"thumbnail_pic_s");
@@ -281,7 +240,9 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		    #endif
 		}
 
-		/* Download thumbnail pic */
+		/* Download thumbnail pic
+		 * !!!WARNING!!!: https_easy_download may fail, if thumb_path is NOT correct.
+		 */
 		EGI_PLOG(LOGLV_INFO,"   --- Start https easy download thumbnail pic --- \n URL: %s", pstr);
 		if( https_easy_download(pstr, thumb_path, NULL, download_callback) !=0 ) {
 	                EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy_download '%s'.\n", __func__,pstr);
@@ -316,6 +277,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                		                0, 0,                            /* int xp, int yp */
                        			0, 240-45, imgbuf->width, imgbuf->height   /* xw, yw, winw,  winh */
                        		      );
+
 		/* draw a red line at top of pad */
 		#if 0
 		fbset_color(WEGI_COLOR_ORANGE);
@@ -366,25 +328,16 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		printf("FB page refresh ...\n");
 		//fb_page_refresh(&gv_fb_dev);
 		fb_page_refresh_flyin(&gv_fb_dev, 10);
-		//tm_delayms(3000);
 
 		/* save FB data to a PNG file */
 		//egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
-		/* Hold on for a while */
-//		printf("line %d: tm_delayms...\n", __LINE__);
-//		tm_start_egitick();
-//		tm_delayms(2000);
-		//sleep(2);
-		//printf("Press a key to continue. \n");
-		//getchar();
-
-		/* Get content of current news item [i]
-		 * If the reader touch the screen within 3s, then display the item content,
-		 * otherwise skip to next item.
+		/* Hold on and wait to get content of current news item [i] and display.
+		 * If the reader touch the screen within xs, then display the item content,
+		 * otherwise skip to next item when time is out.
 		 */
-		tm_start_egitick();
-		if( egi_touch_timeWait(3)==0 ) {
+		//tm_start_egitick();
+		if( egi_touch_timeWait(THUMBNAIL_DISPLAY_SECONDS)==0 ) {
 			purl=juhe_get_elemURL(buff, i, "url");
 			printf("New item[%d] URL: %s\n", i, purl);
 			EGI_PLOG(LOGLV_INFO,"%s: Start juhe_get_newsContent()...",__func__);
@@ -609,30 +562,34 @@ Limit:
 	  will call https_curl_request() to get content.
 	  Else, it is a local html file.
 
+Return:
+	0	Ok
+	<0	Fails
 -----------------------------------------------------------*/
-void juhe_get_newsContent(const char* url)
+int juhe_get_newsContent(const char* url)
 {
+	int ret=0;
 	int i;
-	int fd=-1;
-	int fsize=0;
+	int fd=-1;			   /* file descreptor for the input file */
+	int fsize=0;			   /* size of the input file */
 	struct stat  sb;
-	bool URL_Is_FilePath=false;
-	char buff[CURL_RETDATA_BUFF_SIZE]; /* For returned html text */
-        char *content=NULL;
+	bool URL_Is_FilePath=false;	   /* If the URL is a file path */
+	char buff[CURL_RETDATA_BUFF_SIZE]; /* For CURL returned html text */
+        char *content=NULL;		   /* Pointer to content of a piece of news */
         int len;
-        char *pstr=NULL;
-	char *pmap=NULL;
-	EGI_FILO* filo=NULL; /* to buffer content pointers */
+        char *pstr=NULL;		   /* Pointer to file OR buff */
+	char *pmap=NULL;		   /* mmap of a file */
+	EGI_FILO* filo=NULL; 		   /* to buffer content pointers */
 	int nwritten=0;
 
 	if(url==NULL)
-		return;
+		return -1;
 
 	/* init filo */
 	printf("%s: init FILO...\n",__func__);
 	filo=egi_malloc_filo(8, sizeof(char *), FILO_AUTO_DOUBLE);
 	if(filo==NULL)
-		return;
+		return -1;
 
 	/* Check if it's a web address or a file path */
    	if( strstr(url,"//") == NULL )
@@ -640,7 +597,7 @@ void juhe_get_newsContent(const char* url)
 	else
 		URL_Is_FilePath=false;
 
-	/* Input URL is a Web address */
+	/* IF :: Input URL is a Web address */
 	if( URL_Is_FilePath==false )
 	{
         	/* clear buff */
@@ -649,52 +606,57 @@ void juhe_get_newsContent(const char* url)
 		printf("%s: https_curl_request...\n",__func__);
 	        if(https_curl_request(url, buff, NULL, curlget_callback)!=0) {
         	         printf("Fail to call https_curl_request()!\n");
+			 ret=-1;
 			 goto FUNC_END;
 		}
 
 		/* assign buff to pstr */
         	pstr=buff;
 	}
-	/* Input URL is a file path */
+	/* ELSE :: Input URL is a file path */
 	else
 	{
 	       /* open local file and mmap */
         	fd=open(url,O_RDONLY);
 	        if(fd<0) {
 			printf("%s: Fail to open file '%s'\n", __func__, url);
+			ret=-2;
                 	goto FUNC_END;
 	        }
         	/* obtain file stat */
 	        if( fstat(fd,&sb)<0 ) {
 			printf("%s: Fail to get fstat of file '%s'\n", __func__, url);
+			ret=-3;
                 	goto FUNC_END;
 	        }
         	fsize=sb.st_size;
 	        pmap=mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
         	if(pmap==MAP_FAILED) {
 			printf("%s: Fail to mmap file '%s'\n", __func__, url);
+			ret=-4;
 	                goto FUNC_END;
         	}
+		/* assign pmap to pstr */
 		pstr=pmap;
 	}
 
         /* Parse HTML */
         do {
-                /* parse returned data as html text, to extract paragraph content */
+                /* parse returned data as html text, extract paragraph content and push its pointer to FILO */
 		printf("%s: parse html tag <paragrah>...\n",__func__);
-                pstr=cstr_parse_html_tag(pstr, "p", &content, &len);
+                pstr=cstr_parse_html_tag(pstr, "p", &content, &len); /* Contest is allocated if succeeds! */
                 if(content!=NULL) {
                         //printf("%s: %s\n",__func__, content);
 			printf("%s: push content pointer to FILO ...\n",__func__);
-			if( egi_filo_push(filo, &content) !=0 ) /* Push to FILO */
+			if( egi_filo_push(filo, &content) !=0 ) /* Push a pointer to FILO */
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to push content to FILO: %s.",__func__, content);
-			content=NULL;
+			content=NULL; /* Ownership transformed */
 		}
                 //printf("Get %d bytes content: %s\n", len, content);
         } while( pstr!=NULL );
 	printf("%s: finish parsing HTML...\n",__func__);
 
-	/* Read filo and get pointer to paragraph content */
+	/* Read FILO and get pointer to paragraph content, then display it. */
 	for(i=0; egi_filo_read(filo, i, &content)==0; i++ )
 	{
 		printf("%s: ----From %s: writeFB paragraph %d -----\n",
@@ -708,10 +670,9 @@ void juhe_get_newsContent(const char* url)
 		pstr=content;
 		len=strlen(content);
 
-		/* Write content to FB, it may need several displaying pages */
+		/* Write paragraph content to FB, it may need several displaying pages */
 		do {
 			/* Clear displaying zone */
-			printf("draw_filled_rect2...\n");
 			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
 			/* write to FB back buff */
 			printf("FTsymbol_uft8strings_writenFB...\n");
@@ -727,27 +688,26 @@ void juhe_get_newsContent(const char* url)
 			fb_page_refresh(&gv_fb_dev);
 
 			printf("line %d: tm_delayms...\n", __LINE__);
-			//sleep(2);
-			//tm_start_egitick();
-			//tm_delayms(2000);
 
-			/* If touch screen in 2s, then end the function */
-			tm_start_egitick();
-			if( egi_touch_timeWait(2)==0 )
+			/* If touch screen in Xs, then end the function */
+			//tm_start_egitick();
+			if( egi_touch_timeWait(CONTENT_DISPLAY_SECONDS)==0 ) {
+				ret=-5;
 				goto FUNC_END;
+			}
 
 		} while( nwritten>0 && (len -= nwritten)>0 );
 	}
 
 
 FUNC_END:
-	/* free all content pointers in FILO  */
+	/* Free all content pointers in FILO  */
 	printf("%s:filo pop pointers to content...\n",__func__);
 	content=NULL; /* set content as NULL first! */
 	while( egi_filo_pop(filo, &content)==0 )
 		free(content);
 
-	/* close file and mumap */
+	/* Close file and mumap */
 	printf("%s: release file mmap ...\n",__func__);
 	if(URL_Is_FilePath) {
 		if(fd>0)
@@ -756,8 +716,10 @@ FUNC_END:
 			munmap(pmap,fsize);
 	}
 
-	/* free FILO */
+	/* Free FILO */
 	egi_free_filo(filo);
+
+	return ret;
 }
 
 
@@ -790,6 +752,7 @@ int juhe_save_charBuff(const char *fpath, const char *buff)
 	/* write to file */
 	ret=fwrite(buff, strlen(buff), 1, fil);
 
+	fclose(fil);
 	return ret;
 }
 
@@ -829,7 +792,7 @@ int juhe_fill_charBuff(const char *fpath, char *buff, int size)
 	*/
 	if( feof(fil) ) {
 		//"If an error occurs, or the end of the file is reached, the return value is a short item count (or zero)."
-		ret=ftell(fil);
+		ret=ftell(fil); /* return whole length of file */
 		printf("%s: End of file reached! read %ld bytes.\n",__func__, ftell(fil));
 	}
 	else {
@@ -841,5 +804,6 @@ int juhe_fill_charBuff(const char *fpath, char *buff, int size)
 		ret =-3;
 	}
 
+	fclose(fil);
 	return ret;
 }
