@@ -577,7 +577,8 @@ static void * create_pgOffset_table(void *arg)
       	                          fw, fh, (const unsigned char *)fp+off, /* fw,fh, pstr */
                         	          pixpl, lines, lngap,     	 /* pixpl, lines, gap */
                                           x0, y0,                        /* x0,y0, */
-                                     	  WEGI_COLOR_BLACK, -1, -1 );    /* fontcolor, transcolor,opaque */
+                                     	  WEGI_COLOR_BLACK, -1, -1,	 /* fontcolor, transcolor,opaque */
+					  NULL, NULL, NULL, NULL);
 	if(nret <= 0)
 		break;
 
@@ -627,7 +628,9 @@ void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg)
                	                          fw, fh, (const unsigned char *)pstr,  /* fw,fh, pstr */
                        	                  pixpl, lines, lngap,     		/* pixpl, lines, gap */
                                	          x0, y0,                             	/* x0,y0, */
-                                  	  WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor,opaque */
+                                  	  WEGI_COLOR_BLACK, -1, -1,   /* fontcolor, transcolor,opaque */
+					  NULL, NULL, NULL, NULL);
+
 	if(ret<0)
 		return;
 
@@ -642,7 +645,9 @@ void writeTxt_to_buffPage(int nbufpg, char *pstr, int ntxtpg)
                                  16, 16, (const unsigned char *)strPgNum,      /* fw,fh, pstr */
                                      pixpl, 1, 0,     			/* pixpl, lines, gap */
                                      (xres-pixlen)/2, yres-20,    	/* x0,y0, */
-                                     WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor,opaque */
+                                     WEGI_COLOR_BLACK, -1, -1,  /* fontcolor, transcolor,opaque */
+				     NULL, NULL, NULL, NULL );
+
 
 	/* Put an Easter Egg */
 	if( egg_pgnum>=0 && ntxtpg==egg_pgnum ) {

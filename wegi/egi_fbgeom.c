@@ -61,7 +61,7 @@ inline void fbset_color2(FBDEV *dev, uint16_t color)
 
  Midas Zhou
 ---------------------------------------------*/
-bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
+bool pxy_inbox(int px,int py, int x1, int y1,int x2, int y2)
 {
        int xl,xh,yl,yh;
 
@@ -93,9 +93,9 @@ bool point_inbox(int px,int py, int x1, int y1,int x2, int y2)
 
  Midas Zhou
 ------------------------------------------------*/
-inline bool point_inbox2(const EGI_POINT *pxy, const EGI_BOX* box)
+inline bool point_inbox(const EGI_POINT *pxy, const EGI_BOX* box)
 {
-	return point_inbox( pxy->x, pxy->y,
+	return pxy_inbox( pxy->x, pxy->y,
 			    box->startxy.x, box->startxy.y,
 			    box->endxy.x, box->endxy.y
 			   );

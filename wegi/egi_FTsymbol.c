@@ -793,7 +793,7 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 	 	 * but it has bitmap.width and advanced defined.
 	 	 */
 		/* If a HALF/FULL Width SPACE */
-		if( wcode == 32 || wcode == 12288 ) {
+		if( wcode == 12288 ) {  //   wcode==12288 LOCALE SPACE; wcode==32 ASCII SPACE
 			*xleft -= fw;
 		}
 		else {/* Maybe other unicode, it is supposed to have defined bitmap.width and advanceX */
@@ -892,8 +892,8 @@ int  FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 	xleft=pixpl;
 	ln=0;
 
-	while( *p ) {
-
+	//while( *p ) {
+	while( *p != L'\0' ) {  /* wchar t end token */
 		/* --- check whether lines are used up --- */
 		if( ln > lines-1) {
 			return p-pwchar;
@@ -978,7 +978,13 @@ use following COLOR:
                 0       100% back ground color/transparent
                 255     100% front color
 
+@cnt:		Total printable characters written.
+@lnleft:	Lines left unwritten.
 
+@penx:		The last pen position X
+@peny:		The last pen position Y.
+		Note: Whatever pstr is finished or not
+		      penx,peny will be reset to starting position of next line!!!
 return:
                 >=0     bytes write to FB
                 <0      fails
@@ -986,7 +992,8 @@ return:
 int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const unsigned char *pstr,
 			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
                                int x0, int y0,
-			       int fontcolor, int transpcolor, int opaque )
+			       int fontcolor, int transpcolor, int opaque,
+			       int *cnt, int *lnleft, int* penx, int* peny )
 {
 	int size;
 	int count;		/* number of character written to FB*/
@@ -1005,19 +1012,20 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 	if( pixpl==0 || lines==0 || pstr==NULL )
 		return -1;
 
-
 	px=x0;
 	py=y0;
 	xleft=pixpl;
 	count=0;
-	ln=0;
+	ln=0;		/* Line index from 0 */
 
 	while( *p ) {
 
 		/* --- check whether lines are used up --- */
-		if( ln > lines-1) {
+		if( ln >= lines) {  /* ln index from 0 */
 //			printf("%s: Lines not enough! finish only %d chars.\n", __func__, count);
-			return p-pstr;
+			//return p-pstr;
+			/* here ln is the written line number,not index number */
+			goto FUNC_END;
 		}
 
 		/* convert one character to unicode, return size of utf-8 code */
@@ -1037,7 +1045,7 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 			p+=size;
 			count++;
 		}
-		else {	/* if fail, step 1 byte forward to locate next recognizable unicode wchar */
+		else {	/* If fails, try to step 1 byte forward to locate next recognizable unicode wchar */
 			p++;
 			continue;
 		}
@@ -1079,9 +1087,50 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 
 	} /* end while() */
 
+	/* if finishing writing whole strings, ln++ to get written lines, as ln index from 0 */
+	ln++;
+
+	/* if finishing writing whole strings, reset px,py to next line. */
+	if( *wcstr != '\n' ) { /* To avoid 2 line returns */
+		//px=x0;
+		xleft=pixpl;
+		py+=fh+gap;
+	}
+
+FUNC_END:
 	//printf("%s: %d characters written to FB.\n", __func__, count);
+	if(cnt!=NULL)
+		*cnt=count;
+	if(lnleft != NULL)
+		*lnleft=lines-ln; /* here ln is written lines, not index number */
+	if(penx != NULL) {
+		*penx=x0; //+pixpl-xleft;
+		*peny=py;
+	}
+
 	return p-pstr;
 }
+
+
+#if  0 ///////////////////////////////////////////////////////////////////////////////////////
+/*-----------------------------------------------------------------------------------------------
+Write uft-8 string to a TEXT BOX, which holds a (FB) back buffer.
+
+return:
+                >=0     bytes write to FB
+                <0      fails
+----------------------------------------------------------------------------------------------------*/
+int  FTsymbol_uft8strings_writeFB_PAD(FBDEV *fb_dev, EGI_PAD pad,  FT_Face face,
+			       int fw, int fh, const unsigned char *pstr,
+			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
+                               int x0, int y0,
+			       int fontcolor, int transpcolor, int opaque )
+{
+
+
+}
+#endif /////////////////////////////////////////////////////////////////////////////////
+
 
 /*-------------------------------------------------------------------------------------
 Get total length of characters in pixels.

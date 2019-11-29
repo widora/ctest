@@ -365,7 +365,7 @@ Convert a character from UFT-8 to UNICODE.
 
 Return:
 	>0 	OK, bytes of dest in UFT-8 encoding.
-	=0	Fail, or unrecognizable unicode
+	<=0	Fail, or unrecognizable unicode
 --------------------------------------------------------------------------*/
 inline int char_unicode_to_uft8(const wchar_t *src, char *dest)
 {
@@ -379,7 +379,7 @@ inline int char_unicode_to_uft8(const wchar_t *src, char *dest)
 
 	if( usrc > (uint32_t)0x1FFFF ) {
 		printf("%s: Unrecognizable unicode as 0x%x > 0x1FFFF! \n",__func__, usrc );
-		return 0;
+		return -1;
 	}
 	/* U+ 10000 - U+ 1FFFF:	11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
 	else if(  usrc >  0xFFFF ) {
@@ -429,7 +429,7 @@ Convert a string in UNICODE to UFT-8 by calling char_unicode_to_uft8()
 
 Return:
 	>0 	OK, converted bytes of dest in UFT-8 encoding.
-	=0	Fail, or unrecognizable unicode
+	<=0	Fail, or unrecognizable unicode
 ---------------------------------------------------------------------*/
 int cstr_unicode_to_uft8(const wchar_t *src, char *dest)
 {
@@ -706,8 +706,9 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 			 * then adjusted to the beginning of content later.
 			 */
 	char *pet=NULL;  	/* Pointer to the beginning of end tag in str_html */
-	const wchar_t *wstr_indent=L"  ";	/* sizelimit!! UNICODE, indentation string */
-	char str_indent[64];			/* UFT-8, indentation string */
+	char str_indent[32];			/* UFT-8, indentation string */
+	/* For LOCALE SPACE INDENTATION */
+	const wchar_t wstr_indent[]={12288,12288, L'\0'}; /* sizelimit 32!! UNICODE, indentation string */
 	int  len_indent; 	//strlen(str_indent);
 	int  len_content=0;	/* length of content, in bytes. NOT include len_indent */
 	char *pctent=NULL; /* allocated mem to hold copied content */

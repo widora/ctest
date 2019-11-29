@@ -71,7 +71,8 @@ int  	FTsymbol_unicstrings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh,
 int  	FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, const unsigned char *pstr,
 			       unsigned int pixpl,  unsigned int lines,  unsigned int gap,
                                int x0, int y0,
-			       int fontcolor, int transpcolor, int opaque );
+			       int fontcolor, int transpcolor, int opaque,
+ 			       int *cnt, int *lnleft, int* penx, int* peny );
 
 int  	FTsymbol_uft8strings_pixlen( FT_Face face, int fw, int fh, const unsigned char *pstr);
 

@@ -25,6 +25,9 @@ midaszhou@yahoo.com
 #define EGI_TAG_LENGTH 30 /* ebox tag string length */
 #define EGI_PAGE_MAXTHREADS 5 /* MAX. number of threads in a page routine job */
 
+typedef struct egi_point_coord  EGI_POINT;
+typedef struct egi_box_coords 	EGI_BOX;
+
 typedef struct egi_page 	EGI_PAGE;
 typedef struct egi_element_box 	EGI_EBOX;
 typedef struct egi_touch_data 	EGI_TOUCH_DATA;
@@ -46,25 +49,12 @@ struct egi_pggroup {
 
 };
 
-//typedef struct egi_imgbuf EGI_IMGBUF;
-
-/*
-typedef struct
-{
-        int height;
-        int width;
-        uint16_t *imgbuf;
-} EGI_IMGBUF;
-*/
-
-typedef struct egi_point_coord EGI_POINT;
 struct egi_point_coord
 {
          int x;
          int y;
 };
 
-typedef struct egi_box_coords EGI_BOX;
 struct egi_box_coords
 {
         struct egi_point_coord startxy;

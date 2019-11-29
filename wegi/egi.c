@@ -218,9 +218,9 @@ bool egi_point_inbox(int px,int py, EGI_EBOX *ebox)
 1. find the ebox index according to given x,y
 2. a sleeping ebox will be ignored.
 
-x,y: point at request
+x,y:   point at request
 ebox:  ebox pointer
-num: total number of eboxes referred by *ebox.
+num:   total number of eboxes referred by *ebox.
 
 return:
 	>=0   Ok, as ebox pointer index

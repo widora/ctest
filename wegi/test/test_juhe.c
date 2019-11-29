@@ -35,6 +35,10 @@ static char strkey[256];			/* for name of json_obj key */
 static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html expected */
 static bool Is_Saved_Html;			/* If read from saved html, versus Is_Live_Html */
 
+/* ZONE divisions, NOTE: in LCD coord.  */
+static EGI_BOX text_box={ {0, 0}, {240-45-1, 320-1} };
+static EGI_BOX title_box={ {240-45, 0}, {240-1, 320-1} };
+
 /* Callback functions for libcurl API */
 static size_t curlget_callback(void *ptr, size_t size, size_t nmemb, void *userp);
 static size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream);
@@ -76,6 +80,8 @@ int main(int argc, char **argv)
 	char attrMark[128];		   /* JUHE Mark string, to be shown on top of screen  */
 	EGI_IMGBUF *imgbuf=NULL;
 	EGI_IMGBUF *pad=NULL;
+
+	EGI_POINT  pxy;			  /* touched point */
 
 
 #if 0
@@ -310,14 +316,15 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                                      16, 16, (const unsigned char *)attrMark, 	   /* fw,fh, pstr */
                                      320-10, 1, 5,                       /* pixpl, lines, gap */
                                      5, 0,          /* x0,y0, */
-                                     WEGI_COLOR_GRAY, -1, -1 );  /* fontcolor, transcolor,opaque */
+                                     WEGI_COLOR_GRAY, -1, -1,  /* fontcolor, transcolor,opaque */
+				     NULL, NULL, NULL, NULL);
 
         	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
                                      15, 15, (const unsigned char *)pstr,      /* fw,fh, pstr */
                                      320-10, 3, 5,   //240-10,3,5          /* pixpl, lines, gap */
                                      5, 240-45+5,      //5,320-75,          /* x0,y0, */
-                                     WEGI_COLOR_WHITE, -1, -1 );  /* fontcolor, transcolor,opaque */
-
+                                     WEGI_COLOR_WHITE, -1, -1,  /* fontcolor, transcolor,opaque */
+				     NULL, NULL, NULL, NULL);
 
 		printf(" ------From %s:  %s News, Item %d ----- \n",
 				 	(Is_Saved_Html==true)?"saved html":"live html", news_type[k], i);
@@ -337,11 +344,15 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		 * otherwise skip to next item when time is out.
 		 */
 		//tm_start_egitick();
-		if( egi_touch_timeWait(THUMBNAIL_DISPLAY_SECONDS)==0 ) {
-			purl=juhe_get_elemURL(buff, i, "url");
-			printf("New item[%d] URL: %s\n", i, purl);
-			EGI_PLOG(LOGLV_INFO,"%s: Start juhe_get_newsContent()...",__func__);
-			juhe_get_newsContent(purl);
+		if( egi_touch_timeWait(THUMBNAIL_DISPLAY_SECONDS, &pxy)==0 ) {
+			printf("Touch pxy(%d,%d)\n", pxy.x, pxy.y);
+			/* If touch title_box */
+			if( point_inbox(&pxy, &title_box) ) {
+				purl=juhe_get_elemURL(buff, i, "url");
+				printf("New item[%d] URL: %s\n", i, purl);
+				EGI_PLOG(LOGLV_INFO,"%s: Start juhe_get_newsContent()...",__func__);
+				juhe_get_newsContent(purl);
+			}
 			egi_free_char(&purl);
 		}
 
@@ -520,15 +531,12 @@ char* juhe_get_elemURL(const char *strinput, int index, const char *strkey)
         /* Get pointer to the item string */
         pt=strdup((char *)json_object_get_string(json_get));
 
-
 GET_FAIL:
         json_object_put(json_input);
 	json_object_put(json_data);
 
         return pt;
 }
-
-
 
 
 /*--------------------------------------
@@ -580,7 +588,25 @@ int juhe_get_newsContent(const char* url)
         char *pstr=NULL;		   /* Pointer to file OR buff */
 	char *pmap=NULL;		   /* mmap of a file */
 	EGI_FILO* filo=NULL; 		   /* to buffer content pointers */
+	int nitems;			   /* items in filo */
 	int nwritten=0;
+
+	EGI_POINT	tpxy;		    /* touched point coord. */
+
+	/* For UFT-8 writeFB func. */
+	int fw=18, fh=18;  	/* font width and height */
+	int lngap=6;		/* line gap */
+	int pixpl=320-10;  	/* pixels per line */
+	int wlines=(240-45)/(fh+lngap);	/* total lines for writing */
+	int cnt=0;		/*  character count */
+	int lnleft;	/* lines unwritten */
+	int penx0=5, peny0=4;	/* Starting pen positio */
+	int penx, peny;		/* Curretn pen position */
+
+	/* init */
+	penx=penx0;
+	peny=peny0;
+	lnleft=wlines;
 
 	if(url==NULL)
 		return -1;
@@ -656,7 +682,12 @@ int juhe_get_newsContent(const char* url)
         } while( pstr!=NULL );
 	printf("%s: finish parsing HTML...\n",__func__);
 
+
+	/* Clear displaying zone */
+	draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
+
 	/* Read FILO and get pointer to paragraph content, then display it. */
+	nitems=egi_filo_itemtotal(filo);
 	for(i=0; egi_filo_read(filo, i, &content)==0; i++ )
 	{
 		printf("%s: ----From %s: writeFB paragraph %d -----\n",
@@ -664,7 +695,7 @@ int juhe_get_newsContent(const char* url)
 		if(content==NULL)
 			printf("%s:---------- content is NULL ---------\n",__func__);
 
-		printf("content[%d]: %s\n", i, content);
+		printf("content[%d/%d]: %s\n", i, nitems-1, content);
 
 		/* Pointer to content and length */
 		pstr=content;
@@ -672,28 +703,43 @@ int juhe_get_newsContent(const char* url)
 
 		/* Write paragraph content to FB, it may need several displaying pages */
 		do {
-			/* Clear displaying zone */
-			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
 			/* write to FB back buff */
 			printf("FTsymbol_uft8strings_writenFB...\n");
         		nwritten=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,       /* FBdev, fontface */
-                        	             18, 18, (const unsigned char *)pstr,      /* fw,fh, pstr */
-                                	     320-10, (240-45)/(18+6), 6,      	    /* pixpl, lines, gap */
-	                                     5, 4,      //5,320-75,          	    /* x0,y0, */
-        	                             WEGI_COLOR_BLACK, -1, -1 );  /* fontcolor, transcolor, opaque */
-			pstr+=nwritten;
+                        	             fw, fh, (const unsigned char *)pstr,   /* fw,fh, pstr */
+                                	     pixpl, lnleft, lngap,     	    	    /* pixpl, lines, gap */
+	                                     penx, peny,      //5,320-75,     	    /* x0,y0, */
+        	                             WEGI_COLOR_BLACK, -1, -1,  /* fontcolor, transcolor, opaque */
+					     &cnt, &lnleft, &penx, &peny);   /* &cnt, &lnleft, &penx, &peny */
 
-			/* refresh FB */
-			printf("%s: nwritten=%d, refresh fb...\n",__func__, nwritten);
-			fb_page_refresh(&gv_fb_dev);
+			printf("UFT8 strings writeFB: cnt=%d, lnleft=%d, penx=%d, peny=%d\n",
+										cnt,lnleft,penx,peny);
+			if(nwritten>0)
+				pstr+=nwritten; /* move pointer forward */
 
-			printf("line %d: tm_delayms...\n", __LINE__);
+			/* If text box if filled up OR all FILO is empty, refresh it */
+			if( lnleft==0 ||  i==nitems-1 ) {  //&& len-nwritten<=0 ) {
+				/* refresh FB */
+				printf("%s:  written=%d, refresh fb...\n", __func__, nwritten);
+				fb_page_refresh(&gv_fb_dev);
 
-			/* If touch screen in Xs, then end the function */
-			//tm_start_egitick();
-			if( egi_touch_timeWait(CONTENT_DISPLAY_SECONDS)==0 ) {
-				ret=-5;
-				goto FUNC_END;
+				/* refresh text box */
+				printf("\n	---->>>  Refresh Text BOX  <<<----- \n");
+				lnleft=wlines;
+				penx=penx0; peny=peny0;
+
+				/* If touch screen within Xs, then end the function */
+				//tm_start_egitick();
+				if( egi_touch_timeWait(CONTENT_DISPLAY_SECONDS, &tpxy)==0 ) {
+					printf("Touch tpxy(%d,%d)\n", tpxy.x, tpxy.y);
+					/* If hit title box, then go back to news title dispaying */
+					if( point_inbox(&tpxy, &title_box) )
+						goto FUNC_END;
+					/* else, continue news content displaying */
+				}
+
+				/* Clear displaying zone, only */
+				draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
 			}
 
 		} while( nwritten>0 && (len -= nwritten)>0 );

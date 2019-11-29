@@ -29,30 +29,34 @@ Midas Zhou
 /* typedef struct egi_touch_data EGI_TOUCH_DATA in "egi.h" */
 
 static EGI_TOUCH_DATA live_touch_data;
-static bool tok_loopread_nowait;	/* If ture, touch_loopread will run nonstop,
-					 * otherwise it will wait until live_touch_data.updated becomes false,
-					 * after last data is read out.
-					 */
+
 static bool tok_loopread_running;       /* token for loopread is running if true */
 static bool cmd_end_loopread;	        /* command to end loopread if true */
 static pthread_t thread_loopread;
 
 
-static pthread_cond_t	cond_touch;	 /* To indicate that touch_status 'pressing' or 'pressed_hold' is detected */
+/* timeWait for a touch: mutex protected data */
+static EGI_POINT wpxy;			 /* touching point coord.*/
+static pthread_cond_t	cond_touch;	 /* To indicate that touch_status 'pressing' orxxx 'pressed_hold' is detected */
 static pthread_mutex_t	mutex_lockCond;  /* mutex lock for pthread cond */
 static int		flag_cond;	 /* predicate for pthread cond, set in egi_touch_loopread() */
-
-
-/*-------------------------------------------------
+static bool tok_loopread_nowait;	/* If ture, touch_loopread will run nonstop,
+					 * otherwise it will wait until live_touch_data.updated becomes false,
+					 * after last data is read out.
+					 */
+/*--------------------------------------------------
 Wait for a touch event, or return when time is out.
 time is out.
 
+@s:	  Timeout value, in secondes.
+@pxy:	  A pointer to pass touched coordinates
+	  If NULL, ignored.
 Retrun:
 	0	Ok
 	<0	Fails / Errors
 	>0	Time out.
-------------------------------------------------*/
-int egi_touch_timeWait(unsigned int s)
+----------------------------------------------------*/
+int egi_touch_timeWait(unsigned int s, EGI_POINT *pxy)
 {
 	int ret=0;
 	int wait_ret=0;
@@ -63,14 +67,17 @@ int egi_touch_timeWait(unsigned int s)
 	if(!tok_loopread_running)
 		return -1;
 
-	/* Must make loopread unstop */
-	tok_loopread_nowait=true;
 
 	/* wait flag_cond AND cond signal */
 	if( pthread_mutex_lock(&mutex_lockCond)==0 ) {
 		printf("%s: Enter cond_timewait zone ...\n",__func__);
+/*  --- >>>  Critical Zone  */
+		/* Must make loopread unstop */
+		tok_loopread_nowait=true;
+
 		/* reset flag_cond */
 		flag_cond=0;
+
 		/* wait flag and timeout:  flag_cond and cond_signal to be received simutaneously */
 		while(flag_cond==0) {
 			/* ??? If invoked by incorrect signal, then outtime will reset ?!!! */
@@ -82,12 +89,20 @@ int egi_touch_timeWait(unsigned int s)
 			if(wait_ret==ETIMEDOUT)
 				break;
 		}
+
+		/* Reset loopread to wait mode */
+		tok_loopread_nowait=false;
+
 		pthread_mutex_unlock(&mutex_lockCond);
+/*  --- <<<   Critical Zone  */
 
 		/* check return value*/
 		if(wait_ret==0) {		/* OK, signal received. */
 			ret=0;
 			//printf("%s: Cond signal received!\n",__func__);
+			/* pass touched pointer coord */
+			if( pxy != NULL )
+				*pxy=wpxy;
 		}
 		else if(wait_ret==ETIMEDOUT) {	/* Time Out */
 			ret=1;
@@ -105,8 +120,6 @@ int egi_touch_timeWait(unsigned int s)
 		return -2;
 	}
 
-	/* Reset loopread to wait mode */
-	tok_loopread_nowait=false;
 
 	return ret;
 }
@@ -413,7 +426,8 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
                                    printf("%s: 'Pressed_hold' set flag_cond to 1...\n",__func__);
                                    if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
                                         flag_cond=1;
-                                        pthread_cond_signal(&cond_touch);
+					wpxy=sxy;	/* assign touching point */
+	                                pthread_cond_signal(&cond_touch);
                                         pthread_mutex_unlock(&mutex_lockCond);
                                    }
                                    else {
@@ -445,6 +459,7 @@ enum egi_touch_status 	 !!! --- TO see lateset in egi.h --- !!!
 				   printf("%s: 'Pressing' set flag_cond to 1...\n",__func__);
 				   if( pthread_mutex_lock(&mutex_lockCond) ==0 ) {
 					flag_cond=1;
+					wpxy=sxy;	/* assign touching point */
 					pthread_cond_signal(&cond_touch);
 					pthread_mutex_unlock(&mutex_lockCond);
 				   }
