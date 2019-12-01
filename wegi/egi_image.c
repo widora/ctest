@@ -1961,7 +1961,7 @@ Return:
 		0	OK
 		<0	fails
 -------------------------------------------------------------------------------------*/
-int egi_subimg_writeFB(const EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex,
+int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex,
 							int subcolor, int x0,	int y0)
 {
 	int ret;

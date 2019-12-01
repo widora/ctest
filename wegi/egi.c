@@ -264,7 +264,7 @@ return:
 ------------------------------------------------------------------------------*/
 EGI_EBOX *egi_hit_pagebox(int px, int py, EGI_PAGE *page, enum egi_ebox_type type)
 {
-	int x,y;
+	int x=0,y=0;
 	struct list_head *tnode;
 	int xres= gv_fb_dev.vinfo.xres;
 	int yres= gv_fb_dev.vinfo.yres;

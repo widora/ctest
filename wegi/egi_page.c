@@ -1388,7 +1388,6 @@ int egi_homepage_routine(EGI_PAGE *page)
 		        if( last_status==pressing ) {  //|| flip_status==pressing )  {
 				/* peek next touch dx, but do not read out */
 				tm_delayms(50);
-				//tdx=egi_touch_peekdx();
 				egi_touch_peekdxdy(&tdx,&tdy);
 				/* check peek tdx, and also peek if 'releasing' after 'pressed_hold' */
 				/* Note:

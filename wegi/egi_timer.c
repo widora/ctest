@@ -11,6 +11,7 @@ Midas Zhou
 #include <stdio.h>
 #include <unistd.h> /* usleep */
 #include <stdbool.h>
+#include <errno.h>
 #include "egi_timer.h"
 #include "egi_symbol.h"
 #include "egi_fbgeom.h"
@@ -105,7 +106,7 @@ void tm_sigroutine(int signo)
 #if 0	// put heavy action here is not a good idea ??????  !!!!!!
         /* get time and display */
         tm_get_strtime(tm_strbuf);
-        wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38); 
+        wirteFB_str20x15(&gv_fb_dev, 0, (30<<11|45<<5|10), tm_strbuf, 60, 320-38);
         tm_get_strday(tm_strbuf);
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
         //symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
@@ -291,23 +292,27 @@ int tm_signed_diffms(struct timeval tm_start, struct timeval tm_end)
         return time_cost;
 }
 
-/*---------------------------------------------------------
-	Use select to sleep
+/*------------------------------------------------------------
+Use select to sleep
+
+@s:	seconds
+@ms:	millisecond, 0 - 999
 
 NOTE:
 	1. In thread, it's OK. NO effect with egi timer????
 	2. In Main(), it'll fail, conflict with egi timer???
-
-----------------------------------------------------------*/
+--------------------------------------------------------------*/
 //static unsigned char gv_tm_fd[128]={0};
-int egi_sleep(unsigned char fd, unsigned int s, unsigned int ms)
+void egi_sleep(unsigned char fd, unsigned int s, unsigned int ms)
 {
+	int err;
 	struct timeval tmval;
 
 	tmval.tv_sec=s;
 	tmval.tv_usec=1000*ms;
 
-	select(fd,NULL,NULL,NULL,&tmval); /* wait until timeout */
-
-	return 0;
+	do{
+		err=select(fd,NULL,NULL,NULL,&tmval); /* wait until timeout */
+		if(err<0)printf("%s: err<0\n",__func__);
+	}while( err < 0 && errno==EINTR ); 	      /* Ingore any signal */
 }

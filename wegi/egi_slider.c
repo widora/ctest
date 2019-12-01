@@ -678,7 +678,7 @@ int egi_slider_refresh(EGI_EBOX *ebox)
 				break;
 
 			default:
-				printf("%s: Slider shape not defined! \n");
+				printf("%s: Slider shape not defined! \n",__func__);
 				break;
 		}
         }

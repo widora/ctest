@@ -569,7 +569,7 @@ Retrun:
 int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt)
 {
 	int i;
-	int inum;
+//	int inum=0;
 	EGI_DATA_LIST *data_list;
 
 
@@ -588,7 +588,7 @@ int egi_listbox_updateitem(EGI_EBOX *ebox, int n, int prmcolor, const char **txt
 	}
 
         data_list=(EGI_DATA_LIST *)ebox->egi_data;
-        inum=data_list->inum;
+//       inum=data_list->inum;
 
         /* 3. check data_list and data_list->txt_boxes */
 	if(data_list == NULL )

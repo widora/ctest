@@ -123,7 +123,7 @@ unsigned char * open_jpgImg(const char * filename, int *w, int *h, int *componen
                 pt += cinfo.output_width * cinfo.output_components;
         }
 
-	printf("start jpeg_finish_decompress()...\n");
+	//printf("start jpeg_finish_decompress()...\n");
         jpeg_finish_decompress(&cinfo);
         jpeg_destroy_decompress(&cinfo);
 
@@ -426,11 +426,11 @@ int egi_imgbuf_loadjpg(const char* fpath,  EGI_IMGBUF *egi_imgbuf)
 		printf("egi_imgbuf_loadjpg(): open_jpgImg() fails!\n");
 		return -1;
 	}
-	printf("%s: Open a jpg file with size W%dxH%d \n", __func__, width, height);
+	// printf("%s: Open a jpg file with size W%dxH%d \n", __func__, width, height);
 
         /* get mutex lock */
 #if 1
-	printf("%s: try mutex lock...\n",__func__);
+	// printf("%s: try mutex lock...\n",__func__);
         if(pthread_mutex_lock(&egi_imgbuf->img_mutex) != 0)
         {
                 printf("%s:fail to get mutex lock.\n",__func__);

@@ -10,6 +10,7 @@ Midas_Zhou
 #include <unistd.h>
 #include <errno.h>
 #include <malloc.h>
+#include <sys/wait.h>
 #include "egi_common.h"
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"

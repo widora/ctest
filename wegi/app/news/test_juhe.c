@@ -27,6 +27,7 @@ Midas Zhou
 #include "egi_cstring.h"
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"
+#include "page_minipanel.h"
 
 #define THUMBNAIL_DISPLAY_SECONDS	5
 #define CONTENT_DISPLAY_SECONDS		5
@@ -356,6 +357,15 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 				printf(" <<<<<  timewati release fails!	>>>> \n");
 			}
 			printf("		--- dx=%d,dy=%d --- \n", touch_data.dx, touch_data.dy);
+
+                        /* If sliding to pull down mini panel */
+                        if (touch_data.dx>5 ) {
+                                create_miniPanel();
+                                fb_page_refresh(&gv_fb_dev);
+				tm_delayms(3000);
+                                //getchar();
+                                free_miniPanel();
+                        }
 
 			/* If touch title_box */
 			if( point_inbox(&touch_data.coord, &title_box) ) {
