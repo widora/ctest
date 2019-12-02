@@ -34,12 +34,12 @@ LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 LIBS	=  -lepages
 LIBS    += -lesound
-LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
+LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound -lsndfile
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
 
-APPS = test_juhe
+APP_NAME = app_juhe
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic
@@ -52,12 +52,12 @@ EGILIB=dynamic
 
 #all:	$(APPS)
 
-test_juhe:  $(OBJS)
+$(APP_NAME):  $(OBJS)
 ifeq ($(EGILIB),static)
-	$(CC) $(OBJS) -o test_juhe  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+	$(CC) $(OBJS) -o $(APP_NAME)  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
 else
-	$(CC) -o test_juhe $(OBJS) $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
+	$(CC) -o $(APP_NAME) $(OBJS) $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -lesound
 endif
 
 #### ----- 目标文件自动生成规则 -----
@@ -80,5 +80,5 @@ $(warning "----- %.dep: %.c -----")
 
 #### ----- 清除目标 -----
 clean:
-	rm -rf $(OBJS) $(APPS) $(DEP_FILES)
+	rm -rf $(OBJS) $(APP_NAME) $(DEP_FILES)
 

@@ -505,9 +505,10 @@ static int deco_calendar(EGI_EBOX *ebox)
 	        y0=ebox->y0;
 		FTsymbol_uft8strings_writeFB( &gv_fb_dev, egi_sysfonts.regular, 	 /* FBdev, fontface */
                                                 fw, fh, stru8_month[caldata.km], /* fw,fh, pstr */
-                                                60, 1, 0,                      /* pixpl, lines, gap */
+                                                60, 1, 0,                        /* pixpl, lines, gap */
                                                 x0, y0,                          /* x0,y0, */
-                                                WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
+                                                WEGI_COLOR_BLACK, -1, -1,        /* fontcolor, transcolor,opaque */
+						NULL, NULL, NULL, NULL );
 		/* Week */
 		fw=15; fh=15;
 	 	pixlen=FTsymbol_uft8strings_pixlen( egi_sysfonts.regular, fw, fh, stru8_weekday[caldata.kw]);
@@ -517,7 +518,8 @@ static int deco_calendar(EGI_EBOX *ebox)
                                                 fw, fh, stru8_weekday[caldata.kw], /* fw,fh, pstr */
                                                 60, 1, 0,                      /* pixpl, lines, gap */
                                                 x0, y0,                          /* x0,y0, */
-                                                WEGI_COLOR_BLACK, -1, -1 );     /* fontcolor, transcolor,opaque */
+                                                WEGI_COLOR_BLACK, -1, -1,      /* fontcolor, transcolor,opaque */
+						NULL, NULL, NULL, NULL );
 	}
 	/* ----- Use ASCII sympg ----- */
 	else {

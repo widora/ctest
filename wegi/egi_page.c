@@ -849,6 +849,7 @@ EGI_EBOX *egi_page_pickbtn(EGI_PAGE *page,enum egi_ebox_type type,  unsigned int
 	list_for_each(tnode, &page->list_head)
 	{
 		ebox=list_entry(tnode, EGI_EBOX, node);
+		/* Note:  EBOX.id for all EBOX!!   EBOX.egi_data.id for some EBOXs */
 		if( ebox->type==type && ((EGI_DATA_BTN *)(ebox->egi_data))->id == id )
 		{
 		   EGI_PDEBUG(DBG_PAGE,"%s: find an ebox '%s' with data_btn->id=%d in page '%s'. \n",
@@ -916,6 +917,61 @@ EGI_EBOX *egi_page_pickebox(EGI_PAGE *page,enum egi_ebox_type type,  unsigned in
 }
 
 
+
+
+/*----------------------------------------
+Start EGI page.runners.
+
+return:
+	0 	OK
+	<0	fails
+----------------------------------------*/
+int egi_page_start_runners(EGI_PAGE *page)
+{
+	int i;
+
+	if(page==NULL)
+		return -1;
+
+	/* 1. load page runner threads */
+	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag);
+	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
+	{
+		if( page->runner[i] !=0 )
+		{
+			/* launch Runners in order */
+			EGI_PDEBUG(DBG_PAGE,"Start creating runner: pthreadID[%d]=%u ...\n",
+							__func__,i,(unsigned int)page->threadID[i] );
+			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
+			{
+				page->thread_running[i]=true;
+				printf("%s: Create runner pthreadID[%d]=%u successfully. \n", __func__,
+								i, (unsigned int)page->threadID[i] );
+			}
+			else {
+			      EGI_PLOG(LOGLV_ERROR,"%s: Fail to create pthread for runner[%d] of page[%s].", __func__,
+					i, page->ebox->tag );
+			      /* carry on anyway..... */
+			}
+		}
+	}
+
+	/* 2. Initiate thread mutex locks, NOTE: also for egi_page_routine() */
+	EGI_PDEBUG(DBG_PAGE,"Start to initiate thread mutex lock for page runners.\n");
+	if(pthread_mutex_init(&page->runner_mutex,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_mutex_init()!", __func__ );
+		return -2;
+	}
+	if(pthread_cond_init(&page->runner_cond,NULL) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!", __func__ );
+		return -3;
+	}
+
+
+	return 0;
+}
+
+
 /*-------------------------------------------
 Default page routine job ,No sliding handling
 
@@ -958,6 +1014,13 @@ int egi_page_routine(EGI_PAGE *page)
 
 	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
+	/* 3. Start page runners */
+	if( egi_page_start_runners(page) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch page runners!",__func__ );
+		return -2;
+	}
+
+#if 0  //////////////////    Replaced by egi_page_start_runners()    ///////////////////
 	/* 3. load page runner threads */
 	EGI_PDEBUG(DBG_PAGE,"start to load PAGE [%s]'s runner...\n",page->ebox->tag);
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
@@ -990,6 +1053,7 @@ int egi_page_routine(EGI_PAGE *page)
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!", __func__ );
 		return -1;
 	}
+#endif ////////////////////////////////////////////////////////////////////////////////////
 
  	/* ----------------    Touch Event Handling   ----------------  */
 	EGI_PDEBUG(DBG_PAGE,"Now trap into touch event handling loop...\n");
@@ -1270,6 +1334,13 @@ int egi_homepage_routine(EGI_PAGE *page)
 
 	EGI_PDEBUG(DBG_PAGE,"--------------- get into [PAGE %s]'s loop routine -------------\n",page->ebox->tag);
 
+	/* 3. Start page runners */
+	if( egi_page_start_runners(page) !=0 ) {
+		EGI_PLOG(LOGLV_ERROR, "%s: Fail to launch page runners!",__func__ );
+		return -2;
+	}
+
+#if 0  //////////////////    Replaced by egi_page_start_runners()    ///////////////////
 	/* 3. load page runner threads */
 	EGI_PDEBUG(DBG_PAGE,"start to load [PAGE %s]'s runner...\n",page->ebox->tag);
 	for(i=0;i<EGI_PAGE_MAXTHREADS;i++)
@@ -1302,7 +1373,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		EGI_PLOG(LOGLV_ERROR, "%s: Fail to call pthread_cond_init()!", __func__ );
 		return -1;
 	}
-
+#endif /////////////////////////////////////////////////////////////////////////////////////////
 
  	 /* ----------------    Touch Event Handling   ----------------  */
 	EGI_PDEBUG(DBG_PAGE,"Now trap into touch event handling loop...\n");

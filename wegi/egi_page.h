@@ -21,6 +21,7 @@ int egi_page_addlist(EGI_PAGE *page, EGI_EBOX *ebox);
 int egi_page_travlist(EGI_PAGE *page);
 int egi_page_activate(EGI_PAGE *page);
 int egi_page_refresh(EGI_PAGE *page);
+int egi_page_start_runners(EGI_PAGE *page);
 int egi_page_routine(EGI_PAGE *page);
 int egi_homepage_routine(EGI_PAGE *page);
 int egi_page_flag_needrefresh(EGI_PAGE *page);

@@ -445,7 +445,6 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
         /* --- 6.1 Draw shape --- */
         if(ebox->prmcolor >= 0 && data_btn->icon == NULL )
         {
-
                 /* set color */
            	fbset_color(ebox->prmcolor);
 		switch(data_btn->shape)

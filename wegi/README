@@ -116,14 +116,15 @@ egi_pageslide.c		PAGE sliding bar test (obselete)
 
 egi_appstock.c		a real time stock data display app.
 he_weather.c		API for www.heweather.com 
-
+juhe_news.c		API for www.juhe.cn
 
 			( --- 3.5 APP Suites --- )
 
-app_ffplay.c + egi_pageffplay.c		
-app_ebook.c + page_ebook.c
-app_ffmusic.c + page_ffmusic.c 
-app_avenger.c + page_avenger.c + ...
+app_ffmusic		A music playe
+app_ffmotion		A video player
+app_ebook		An ebook
+app_avenger		A game
+app_news		A simple netnews viewer powered by www.juhe.cn
 
 
 

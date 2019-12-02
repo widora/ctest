@@ -38,7 +38,7 @@ int main(void)
 	printf("Finish EGI init.\n");
 
  	 while(1) {
-		if( egi_touch_timeWait(5)==0 ) {
+		if( egi_touch_timeWait_press(5)==0 ) {
 			printf(" Touch down!\n");
 		}
 		else {

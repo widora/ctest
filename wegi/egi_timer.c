@@ -18,7 +18,7 @@ Midas Zhou
 #include "dict.h"
 
 
-#define EGI_ENABLE_TICK 0
+#define EGI_ENABLE_TICK 1
 
 struct itimerval tm_val, tm_oval;
 

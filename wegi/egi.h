@@ -713,13 +713,4 @@ int 	egi_ebox_free(EGI_EBOX *ebox);
 /* for egi page */
 int 	egi_page_disappear(EGI_EBOX *ebox);
 
-
-/* for button ebox */
-//int egi_btnbox_activate(EGI_EBOX *ebox);
-//int egi_btnbox_refresh(EGI_EBOX *ebox);
-//void egi_free_data_btn(EGI_DATA_BTN *data_btn);
-//int egi_btnbox_setsubcolor(EGI_EBOX *ebox, EGI_16BIT_COLOR subcolor);
-/* copy ebox */
-//EGI_EBOX * egi_copy_btn_ebox(EGI_EBOX *ebox);
-
 #endif

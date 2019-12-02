@@ -29,6 +29,7 @@ Midas Zhou
 #include <unistd.h>
 #include <signal.h>
 #include "egi_common.h"
+#include "egi_pcm.h"
 //#include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
 #include "page_minipanel.h"
@@ -72,13 +73,14 @@ static EGI_EBOX     	*volume_slider;
 int create_miniPanel(void);
 int free_miniPanel(void);
 
-static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int react_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int react_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
-static int page_decorate(EGI_EBOX *ebox);
-static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
+static int 	react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int 	react_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int 	react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int 	react_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int 	react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static void* 	check_volume_runner(EGI_PAGE *page);
+static int 	page_decorate(EGI_EBOX *ebox);
+static int 	sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
 /*-----------------------------------------
@@ -139,7 +141,7 @@ EGI_PAGE *create_panelPage(void)
 	/* add tags, set icon_code and reaction function here */
 	egi_ebox_settag(panel_btns[0], "Prev");
 	data_btns[0]->icon_code=(btn_symcolor<<16)+ICON_CODE_PREV; /* SUB_COLOR+CODE */
-	panel_btns[0]->reaction=react_play;
+	panel_btns[0]->reaction=react_prev;
 
 	egi_ebox_settag(panel_btns[1], "Play&Pause");
 	data_btns[1]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* default status is playing*/
@@ -165,7 +167,7 @@ EGI_PAGE *create_panelPage(void)
 
         data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
-                                        1, btnType_square,      /* data id, enum egi_btn_type shape */
+                                        SLIDER_ID_VOLUME, btnType_square, /* data id, enum egi_btn_type shape */
                                         NULL,           	/* struct symbol_page *icon */
                                         0,              	/* int icon_code, */
                                         &sympg_testfont,	/* struct symbol_page *font */
@@ -191,13 +193,13 @@ EGI_PAGE *create_panelPage(void)
 					 */
                            );
 	/* set EBOX id for volume_slider */
-	volume_slider->id=SLIDER_ID_VOLUME;
+//	volume_slider->id=SLIDER_ID_VOLUME;
         /* set reaction function */
         volume_slider->reaction=NULL;
 
 	/* --------- 3. create panel page ------- */
 	/* 3.1 create panel page */
-	EGI_PAGE *page_panel=egi_page_new("page_panel");
+	EGI_PAGE *page_panel=egi_page_new("page_miniPanel");
 	while(page_panel==NULL)
 	{
 		printf("egi_create_ffplaypage(): fail to call egi_page_new(), try again ...\n");
@@ -212,7 +214,7 @@ EGI_PAGE *create_panelPage(void)
 //	page_panel->ebox->method.decorate=page_decorate; /* draw lower buttons canvas */
 
         /* 3.2 put pthread runner */
-//        page_panel->runner[0]= thread_runner;
+        page_panel->runner[0]= check_volume_runner;
 
         /* 3.3 set default routine job */
 //	page_panel->routine=egi_homepage_routine;  /* for sliding operation */
@@ -229,23 +231,18 @@ EGI_PAGE *create_panelPage(void)
 }
 
 
-/*-----------------  RUNNER 1 --------------------------
-
--------------------------------------------------------*/
-static void thread_runner(EGI_PAGE *page)
-{
-
-}
-
 /*---------------------------------------------------------------
 			 react PREV
 ----------------------------------------------------------------*/
-static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
+static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	system("echo pt_step -1 >/home/slave");
+
+#if 0
 	/* ffmusic.c is forced to play the next song,
          * so change 'play&pause' button icon from PLAY to PAUSE
 	 */
@@ -257,6 +254,7 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
 	//FFmuz_Ctx->ffcmd=cmd_prev;
+#endif
 
 	/* only react to status 'pressing' */
 	return btnret_OK;
@@ -267,11 +265,30 @@ static int react_play(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ----------------------------------------------------------------*/
 static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	EGI_DATA_BTN *data_btn;
+
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	/* ffmusic.c is forced to play the next song,
+	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+
+	/* Dark effect */
+	data_btn->opaque=-200;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
+	system("echo pt_step 1 >/home/slave");
+	tm_delayms(50);
+
+	/* reset luma */
+	data_btn->opaque=255;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
+
+#if 0
+	/*  forcee to play the next song,
          * so change 'play&pause' button icon from PLAY to PAUSE
 	 */
 	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code&0xffff)==ICON_CODE_PLAY )
@@ -282,6 +299,7 @@ static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
 	//FFmuz_Ctx->ffcmd=cmd_next;
+#endif
 
 	return btnret_OK;
 }
@@ -482,16 +500,90 @@ int miniPanel_routine(void)
 	//enum egi_retval ret;
 	int ret;
 
+	if(page_miniPanel==NULL)
+		return -1;
+
+	/* Start runners */
+	if( egi_page_start_runners(page_miniPanel)!=0 ) {
+		printf("%s: Fail to launch page runners!\n",__func__);
+		return -2;
+	}
+
+
 	/* catch a hit */
-        while ( egi_touch_timeWait_press(-1, &touch_data)==0 )
+        while ( egi_touch_timeWait_press(3, &touch_data)==0 )
         {
 	    ebox=egi_hit_pagebox(touch_data.coord.x, touch_data.coord.y, page_miniPanel, type_btn|type_slider);
-		if(ebox != NULL) {
+	    if(ebox != NULL) {
 			ret= ebox->reaction(ebox, &touch_data);
-			if(btnret_REQUEST_EXIT_PAGE)
+			tm_delayms(1000);
+			// if(ret==btnret_REQUEST_EXIT_PAGE)
 				return 0;
-		}
+	    } else {
+		printf("%s: A touch misses all buttons!\n",__func__);
+	    }
 	}
+	printf("%s: End while()..\n",__func__);
 
 	return 0;
 }
+
+
+
+/*--------------------    RUNNER 1   ----------------------
+	Check volume and refresh slider.
+
+  WARNING: This function will be delayed by react_slider(),
+  so keep slider postion just for a little while before
+  you release it.
+----------------------------------------------------------*/
+static void* check_volume_runner(EGI_PAGE *page)
+{
+     EGI_EBOX *slider=NULL;
+     EGI_DATA_BTN *data_btn=NULL;
+     EGI_DATA_SLIDER *data_slider=NULL;
+     int pvol;
+     int sval=0;
+     int buf;
+
+     /* Check and get slider data */
+     if( (slider=egi_page_pickbtn(page, type_slider, SLIDER_ID_VOLUME)) ==NULL
+	 || (data_btn=(EGI_DATA_BTN *)(slider->egi_data))		==NULL
+	 || (data_slider=(EGI_DATA_SLIDER *)(data_btn->prvdata))	==NULL )
+     {
+		printf("%s: Slider data error!\n",__func__);
+	 	return (void *)-1;
+     }
+
+     /* Loop checking volume */
+     while(1) {
+
+	   /* check page status for exit */
+	   //Not necessary anymore? use pthread_cancel() fro PAGE */
+	   if(page->ebox->status==status_page_exiting)
+	   	return (void *)0;
+
+	   /* get palyback volume */
+	   egi_getset_pcm_volume(&pvol,NULL);
+	   buf=pvol*data_slider->sl/100;
+
+	   if(buf==sval)continue;
+
+	   printf("\e[38;5;201;48;5;0m %s: ---pvol %d--- \e[0m\n", __func__, pvol);
+	   sval=buf;
+
+	   /* slider value is drivered by ebox->x0 for H slider, so set x0, not val */
+	   slider->x0=data_slider->sxy.x+sval-(slider->width>>1);
+
+	   /* refresh it */
+	   egi_ebox_forcerefresh(slider);
+//         egi_ebox_needrefresh(slider); /* No need for quick response */
+//	   egi_page_refresh(page_miniPanel);
+	   fb_page_refresh(&gv_fb_dev);
+
+	   tm_delayms(300);
+     }
+
+  	return (void *)0;
+}
+

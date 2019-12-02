@@ -22,7 +22,7 @@ LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
 
 LIBS	=  -lepages
 LIBS    += -lesound
-LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound
+LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound -lsndfile
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
@@ -33,7 +33,6 @@ APPS += test_bjp test_fbbuff
 
 #--- use static or dynamic libs -----
 EGILIB=dynamic
-
 
 #### --- use dynamic and static libs in compilatoin!!! ---
 # 1. Exclude dynamic -legi first.

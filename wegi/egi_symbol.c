@@ -753,10 +753,15 @@ use following COLOR:
 @x0,y0: 		start position coordinate in screen, left top point of a symbol.
 @sym_code: 	symbol code number
 
-@opaque:	set aplha value (0-255) for all pixels.
-		<0	No effect, or use symbol alpha value.
-		0 	100% back ground color/transparent
-		255	100% front color
+@opaque:	Set aplha value (0-255) for all pixels, if sym_page also has alpha value
+		then the final alpha value would be: sym_alpha*opaque/255;
+		Normally set it as 255.
+
+		<0	Lumiance decrement value;  No effect, or use symbol alpha value.
+			alpha =0
+		0 	100% back ground color/transparent, alpha=0
+		255	100% front color, alpha=255
+		>255	alpha=255
 
 -----------------------------------------------------------------------------------------*/
 void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
@@ -786,7 +791,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	int width;
 	EGI_IMGBUF *virt_fb;
 	int sumalpha;
-
+	signed char lumdev=0;	/* luminance decrement value */
 
         /* <<<<<<  FB BUFFER SELECT  >>>>>> */
         #if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
@@ -831,8 +836,14 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	}
 
 	/* check and reset opaque to [0 255] */
-	if( opaque < 0 || opaque > 255)
+	if( opaque < 0 ) {
+		lumdev=opaque;	/* As luminance decrement value */
 		opaque=255;
+	}
+	else if( opaque > 255) {
+		opaque=255;
+	}
+
 
 	/* init palpha for non FT symobls */
 	if(sym_page->alpha == NULL) {
@@ -932,12 +943,17 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 
 			/* ------- assign color data one by one,faster then memcpy  --------
 			   Wrtie to FB only if:
+			   0.  Lumadev<0 (opaque<0), then transparent pixel to be darkened!
 			   1.  alpha value exists, then use alpha to blend image instead of transpcolor.
 			   2.  OR(no transp. color applied)
 			   3.  OR (write only untransparent pixel)
 			   otherwise,if pcolor==transpcolor, DO NOT write to FB
 			*/
-			if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
+			if( pcolor == transpcolor && lumdev < 0 ) {
+				pcolor=egi_colorLuma_adjust(*(uint16_t *)(map+pos), lumdev);
+				*(uint16_t *)(map+pos) = pcolor;
+			}
+			else if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
 				/* push original fb data to FB FILO, before write new color */
 				if(fb_dev->filo_on) {		/* For real FB device */
@@ -1079,7 +1095,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
                 			return;
         			}
 
-				/* if apply alpha: front pixel, background pixel,alpha value */
+				/* if apply alpha: front pixel, background pixel, alpha value */
 				if(sym_page->alpha) {
 					if(opaque==255) { /* Speed UP!! */
 	                    			//pcolor=COLOR_16BITS_BLEND( pcolor,
@@ -1103,6 +1119,10 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 								  );
 				}
 				/* sym_page->alpha=NULL && opaque==255, use original pcolor */
+
+				/* Apply luminance decrement */
+				if(lumdev<0)
+					pcolor=egi_colorLuma_adjust(pcolor,lumdev);
 
 				/* write to FB */
 				*(uint16_t *)(map+pos)=pcolor; /* in pixel, deref. to uint16_t */
