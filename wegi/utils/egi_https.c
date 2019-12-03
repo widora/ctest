@@ -142,7 +142,7 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
 
 	/* For name lookup timed out error: use ipv4 as default */
-	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+	//  curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 
 	/* set write_callback to write/save received data  */
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);

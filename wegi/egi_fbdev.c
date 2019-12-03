@@ -6,6 +6,7 @@ published by the Free Software Foundation.
 Midas Zhou
 -------------------------------------------------------------------*/
 #include "egi.h"
+#include "egi_timer.h"
 #include "egi_fbdev.h"
 #include "egi_fbgeom.h"
 #include "egi_filo.h"
@@ -30,7 +31,7 @@ Return:
 ---------------------------------------*/
 int init_fbdev(FBDEV *fb_dev)
 {
-	int i;
+//	int i;
 
         if(fb_dev->fbfd > 0) {
            printf("Input FBDEV already open!\n");
@@ -128,7 +129,7 @@ Release FB and free map
 --------------------------*/
 void release_fbdev(FBDEV *dev)
 {
-	int i;
+//	int i;
 
         if(!dev || !dev->map_fb)
                 return;
@@ -159,7 +160,6 @@ void release_fbdev(FBDEV *dev)
 }
 
 
-
 /*--------------------------------------------------
 Initiate a virtual FB device with an EGI_IMGBUF
 
@@ -169,7 +169,7 @@ Return:
 ---------------------------------------------------*/
 int init_virt_fbdev(FBDEV *fb_dev, EGI_IMGBUF *eimg)
 {
-	int i;
+//	int i;
 
 	/* check input data */
 	if(eimg==NULL || eimg->width<=0 || eimg->height<=0 ) {
@@ -259,7 +259,7 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 }
 
 /*-----------------------------------------------------------
-    Clear FB back buffer by filling with given color
+    Clear all FB back buffs by filling with given color
 
 @fb_dev:	struct FBDEV whose buffer to be cleared.
 @color:		Color used to fill the buffer, 16bit or 32bits.
@@ -290,10 +290,10 @@ void fb_clear_backBuff(FBDEV *fb_dev, uint32_t color)
 }
 
 
-/*--------------------------------------
- Refresh FB with current back buffer
+/*-----------------------------------------
+ Refresh FB with current working back buff
  pointed by fb_dev->map_bk.
----------------------------------------*/
+------------------------------------------*/
 void fb_page_refresh(FBDEV *dev)
 {
 	if(dev==NULL)
@@ -312,6 +312,54 @@ void fb_page_refresh(FBDEV *dev)
 }
 
 
+/*-----------------------------------------------------
+ Backup current page data in dev->map_fb
+ to dev->map_buff[index], which normally is
+ NOT current working back buff!
+
+@dev:	 current FB device.
+@buffNum:  index of dev->map_buff[].
+
+Retrun:
+	0	OK
+	<0 	Fails
+------------------------------------------------------*/
+int fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum)
+{
+	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL
+		      || buffNum > FBDEV_BUFFER_PAGES-1 )
+		return -1;
+
+        memcpy( dev->map_buff+(buffNum*dev->screensize), dev->map_fb, dev->screensize);
+
+	return 0;
+}
+
+
+/*-----------------------------------------------------
+ Backup current page data in dev->map_fb
+ to dev->map_buff[index], which normally is
+ NOT current working back buff!
+
+@dev:	 current FB device.
+@buffNum:  index of dev->map_buff[].
+
+Retrun:
+	0	OK
+	<0 	Fails
+------------------------------------------------------*/
+int fb_page_restoreFromBuff(FBDEV *dev, unsigned int buffNum)
+{
+	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL
+		      || buffNum > FBDEV_BUFFER_PAGES-1 )
+		return -1;
+
+        memcpy( dev->map_fb, dev->map_buff+(buffNum*dev->screensize), dev->screensize);
+
+	return 0;
+}
+
+
 
 /*-------------------------------------------
  Refresh FB with current back buffer
@@ -322,17 +370,17 @@ void fb_page_refresh(FBDEV *dev)
 
  Method: Fly in...
 --------------------------------------------*/
-void fb_page_refresh_flyin(FBDEV *dev, int speed)
+int fb_page_refresh_flyin(FBDEV *dev, int speed)
 {
 	int i;
 	int n;
 	unsigned int line_length=dev->finfo.line_length;
 
 	if(dev==NULL)
-		return;
+		return -1;
 
 	if( dev->map_bk==NULL || dev->map_fb==NULL )
-		return;
+		return -2;
 
 	/* numbers of fly steps */
 	n=dev->vinfo.yres/speed;
@@ -349,9 +397,11 @@ void fb_page_refresh_flyin(FBDEV *dev, int speed)
 				i*speed*line_length );
 		}
 
-		//tm_delayms(25);
+		//tm_delayms(10);
 		usleep(10000);
 	}
+
+	return 0;
 }
 
 
@@ -374,7 +424,7 @@ Note: The caller shall ensure that offl is indexed within the back
 
 
 ----------------------------------------------------------------*/
-void fb_slide_refresh(FBDEV *dev, int offl)
+int fb_slide_refresh(FBDEV *dev, int offl)
 {
 
 	/* IGNORE: check input params */
@@ -389,7 +439,7 @@ void fb_slide_refresh(FBDEV *dev, int offl)
 
         /* CASE 2: offl is out of back buffer range */
         else if (offl<0 || offl > yres*FBDEV_BUFFER_PAGES-1) {
-		return;
+		return -1;
         }
 
         /* CASE 3: offl is indexed to within the last page of FB back buffer,
@@ -406,6 +456,8 @@ void fb_slide_refresh(FBDEV *dev, int offl)
                 memcpy( dev->map_fb+line_length*(yres*FBDEV_BUFFER_PAGES-offl), dev->map_buff,
                                                    line_length*(offl-yres*(FBDEV_BUFFER_PAGES-1)) );
         }
+
+	return 0;
 }
 
 

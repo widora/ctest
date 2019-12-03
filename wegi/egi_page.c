@@ -941,7 +941,7 @@ int egi_page_start_runners(EGI_PAGE *page)
 		{
 			/* launch Runners in order */
 			EGI_PDEBUG(DBG_PAGE,"Start creating runner: pthreadID[%d]=%u ...\n",
-							__func__,i,(unsigned int)page->threadID[i] );
+							i ,(unsigned int)page->threadID[i] );
 			if( pthread_create( &page->threadID[i],NULL,(void *)page->runner[i],(void *)page)==0)
 			{
 				page->thread_running[i]=true;
@@ -981,7 +981,7 @@ return:
 -------------------------------------------*/
 int egi_page_routine(EGI_PAGE *page)
 {
-	int i;
+//	int i;
 	int ret;
 	uint16_t sx,sy;
 	enum egi_touch_status last_status=released_hold;
@@ -1291,7 +1291,7 @@ return:
 ---------------------------------------------------------------------------------*/
 int egi_homepage_routine(EGI_PAGE *page)
 {
-	int i;
+//	int i;
 	int ret;
 	uint16_t sx,sy;
 
@@ -1301,11 +1301,11 @@ int egi_homepage_routine(EGI_PAGE *page)
 	enum egi_touch_status flip_status=releasing;
 	enum egi_touch_status last_status=released_hold; /* means the lasted status! */
 
-	enum egi_touch_status check_status;
+//	enum egi_touch_status check_status;
 	EGI_TOUCH_DATA touch_data;
 	int tdx,tdy;
 	bool slide_touch=false;
-	bool edge_restored=false;	/* Indicating that a missing edge change statu is restored */
+//	bool edge_restored=false;	/* Indicating that a missing edge change statu is restored */
 
 	/* delay a while, to avoid touch-jittering ???? necessary ??????? */
 	tm_delayms(200);
@@ -1417,7 +1417,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		 *  Or say 'edge restoring' for some edge_trigged actions.
 		 */
 
-		edge_restored=false;  /* reset indicator */
+//		edge_restored=false;  /* reset indicator */
 		if( flip_status != pressing && last_status==pressed_hold ) {
 		    /* restore 'pressing' status then
 		     * NOTE
@@ -1428,7 +1428,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    last_status=pressing;
 		    touch_data.status=pressing;
 		    flip_status=pressing; /* update the nearset flip status */
-		    edge_restored=true;
+//		    edge_restored=true;
 		}
 		else if(flip_status != releasing && last_status==released_hold) {
 		    /* restore 'releasing' status then*/
@@ -1436,7 +1436,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 		    last_status=releasing;
 		    touch_data.status=releasing;
 		    flip_status=releasing;
-		    edge_restored=true;
+//		    edge_restored=true;
 		}
 
 		/* 2. sliding handler and button hit reaction  */
@@ -1497,7 +1497,7 @@ int egi_homepage_routine(EGI_PAGE *page)
 					slide_touch=true;
 
 					/* revive 'pressing' status for slide_handler */
-					last_status==pressing;
+					last_status=pressing; //last_status==pressing 
 			    		touch_data.status=pressing;
 				}
 			}

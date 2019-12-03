@@ -791,7 +791,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	int width;
 	EGI_IMGBUF *virt_fb;
 	int sumalpha;
-	signed char lumdev=0;	/* luminance decrement value */
+	int lumdev=0;	/* luminance decrement value */
 
         /* <<<<<<  FB BUFFER SELECT  >>>>>> */
         #if defined(ENABLE_BACK_BUFFER) || defined(LETS_NOTE)
@@ -949,10 +949,14 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 			   3.  OR (write only untransparent pixel)
 			   otherwise,if pcolor==transpcolor, DO NOT write to FB
 			*/
-			if( pcolor == transpcolor && lumdev < 0 ) {
+			/* To darken transparent pixel of symbol img page!  */
+			if( pcolor == transpcolor && lumdev < 0 && sym_page->alpha==NULL ) {
+				pos<<=1; /*pixel to byte,  pos=pos*2 */
+				/* adjust background pixel luma */
 				pcolor=egi_colorLuma_adjust(*(uint16_t *)(map+pos), lumdev);
 				*(uint16_t *)(map+pos) = pcolor;
 			}
+
 			else if( sym_page->alpha || transpcolor<0 || pcolor!=transpcolor ) /* transpcolor applied befor COLOR FLIP! */
 			{
 				/* push original fb data to FB FILO, before write new color */
@@ -980,6 +984,7 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 					pcolor=(uint16_t)fontcolor;
 
 		 	   /* ------------------------ ( for Virtual FB ) ---------------------- */
+			   /* Note: Luma decrement NOT applied! */
 			   if( virt_fb )
 			   {
 				if( pos < 0 || pos > fb_dev->screensize - 1 ) /* screensize of imgbuf,
@@ -1077,6 +1082,10 @@ void symbol_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 				//prgb=(*(uint32_t *)(map+pos))&0xFFFFFF; /* Get back color */
 				prgb=(*(uint32_t *)(map+pos))&0xFFFFFF; /* Get back color */
                         	prgb=COLOR_24BITS_BLEND(pargb&0xFFFFFF, prgb, pargb>>24); /* front,back,alpha */
+
+				/* Apply luminance decrement */
+				//if(lumdev<0)
+				//	pcolor=egi_colorLuma_adjust(xxxx,lumdev);
 
                                // *((uint32_t *)(map+pos))=prgb+(255<<24); /* 1<<24 */
                                *((uint32_t *)(map+pos))=prgb+(255<<24); /* 1<<24 */

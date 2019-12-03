@@ -357,7 +357,7 @@ EGI_FILO* juhe_get_newsFilo(const char* url)
                         	             fw, fh, (const unsigned char *)pstr,   /* fw,fh, pstr */
                                 	     pixpl, lnleft, lngap,     	    	    /* pixpl, lines, gap */
 	                                     penx, peny,      //5,320-75,     	    /* x0,y0, */
-        	                             WEGI_COLOR_BLACK, -1, -1,  /* fontcolor, transcolor, opaque */
+        	                             WEGI_COLOR_BLACK, -1, 255,  /* fontcolor, transcolor, opaque */
 					     &cnt, &lnleft, &penx, &peny);   /* &cnt, &lnleft, &penx, &peny */
 
 			printf("UFT8 strings writeFB: cnt=%d, lnleft=%d, penx=%d, peny=%d\n",

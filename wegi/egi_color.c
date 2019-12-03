@@ -102,7 +102,7 @@ inline EGI_16BIT_COLOR egi_16bitColor_blend(int front, int back, int alpha)
 	alpha=(unsigned char)(fa*256-0.5);
 
 #elif 1 /* WARNING!!!! Must keep 0 alplha value unchanged, or BLACK bk color will appear !!!
-        /* a simple way to improve sharpness */
+           a simple way to improve sharpness */
 	alpha = alpha*3/2;
         if(alpha>255)
                 alpha=255;
@@ -293,7 +293,6 @@ Note:
    to obtain a totally BLACK RGB(000) color in conversion, as of a check
    point, say.
 
-
 	--- RGB to YUV ---
 Y=0.30R+0.59G+0.11B=(307R+604G+113G)>>10   [0-255]
 U=0.493(B-Y)+128=( (505(B-Y))>>10 )+128    [0-255]
@@ -327,26 +326,29 @@ EGI_16BIT_COLOR egi_colorLuma_adjust(EGI_16BIT_COLOR color, int k)
 	/* adjust Y, k>0 or k<0 */
 	Y += k; /* (k<<12); */
 	if(Y<0) {
+		Y=0;
 //		printf("------ Y=%d <0 -------\n",Y);
 		/* !! Let Y<0,  otherwise R,G,or B MAY never get back to 0 when you need a totally BLACK */
 		// Y=0; /* DO NOT set to 0 when you need totally BLACK RBG */
 	}
+	else if(Y>255)
+		Y=255;
 
 	/* convert YUV back to RBG */
 	R=(Y*4096 + 5765*V -737935)>>12;
 	//printf("R'=0x%03x\n",R);
 	if(R<0)R=0;
-	if(R>255)R=255;
+	else if(R>255)R=255;
 
 	G=((4096*Y-1415*U-2936*V)>>12)+136;
 	//printf("G'=0x%03x\n",G);
 	if(G<0)G=0;
-	if(G>255)G=255;
+	else if(G>255)G=255;
 
 	B=(Y*4096+7287*U-932708)>>12;
 	//printf("B'=0x%03x\n",B);
 	if(B<0)B=0;
-	if(B>255)B=255;
+	else if(B>255)B=255;
 	//printf(" Input color: 0x%02x, aft YUV adjust: R':0x%03x -- G':0x%03x -- B':0x%03x \n",color,R,G,B);
 
 	return (EGI_16BIT_COLOR)COLOR_RGB_TO16BITS(R,G,B);

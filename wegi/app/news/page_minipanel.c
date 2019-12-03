@@ -34,6 +34,9 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "page_minipanel.h"
 
+/* If no touching on the screen within defined time, the minipanel routine job will end. */
+#define MINIPANEL_WAIT_SECONDS 3  /* in seconds */
+
 /* icon code for button symbols */
 #define ICON_CODE_PREV 		0
 #define ICON_CODE_PAUSE 	1
@@ -78,9 +81,9 @@ static int 	react_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int 	react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int 	react_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int 	react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
+static int 	react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static void* 	check_volume_runner(EGI_PAGE *page);
 static int 	page_decorate(EGI_EBOX *ebox);
-static int 	sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data);
 
 
 /*-----------------------------------------
@@ -195,7 +198,7 @@ EGI_PAGE *create_panelPage(void)
 	/* set EBOX id for volume_slider */
 //	volume_slider->id=SLIDER_ID_VOLUME;
         /* set reaction function */
-        volume_slider->reaction=NULL;
+        volume_slider->reaction=react_slider;
 
 	/* --------- 3. create panel page ------- */
 	/* 3.1 create panel page */
@@ -208,7 +211,7 @@ EGI_PAGE *create_panelPage(void)
 	}
 //	page_panel->ebox->prmcolor=WEGI_COLOR_BLACK;
 	/* NOTE: PAGE refresh call egi_imgbuf_windisplay2(), which has NO pos_rotation maping!! */
-	page_panel->ebox->frame_img=egi_imgbuf_create( 320, 100, 250, WEGI_COLOR_WHITE); /* (H, W, alpha,color) */
+	page_panel->ebox->frame_img=egi_imgbuf_create( 320, 100, 175, WEGI_COLOR_WHITE); /* (H, W, alpha,color) */
 
 	/* decoration */
 //	page_panel->ebox->method.decorate=page_decorate; /* draw lower buttons canvas */
@@ -236,11 +239,32 @@ EGI_PAGE *create_panelPage(void)
 ----------------------------------------------------------------*/
 static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	EGI_DATA_BTN *data_btn;
+
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
+	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+	if(data_btn==NULL) return btnret_ERR;
+
+	/* Darken effect */
+	data_btn->opaque=-60;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
+	tm_delayms(200);
+
+	/* reset luma */
+	data_btn->opaque=255;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
 	system("echo pt_step -1 >/home/slave");
+
+	/* Restore backed page */
+//	fb_page_restoreFromBuff(&gv_fb_dev,1);
+//	tm_delayms(300);
 
 #if 0
 	/* ffmusic.c is forced to play the next song,
@@ -258,6 +282,7 @@ static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* only react to status 'pressing' */
 	return btnret_OK;
+ 	//return btnret_REQUEST_EXIT_PAGE;
 }
 
 /*----------------------------------------------------------------
@@ -272,19 +297,22 @@ static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
                 return btnret_IDLE;
 
 	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+	if(data_btn==NULL) return btnret_ERR;
 
-	/* Dark effect */
-	data_btn->opaque=-200;
+	/* Darken effect */
+	data_btn->opaque=-60;
 	egi_ebox_forcerefresh(ebox);
 	fb_page_refresh(&gv_fb_dev);
 
-	system("echo pt_step 1 >/home/slave");
-	tm_delayms(50);
+	tm_delayms(200);
 
 	/* reset luma */
 	data_btn->opaque=255;
 	egi_ebox_forcerefresh(ebox);
 	fb_page_refresh(&gv_fb_dev);
+
+	system("echo pt_step 1 >/home/slave");
+
 
 
 #if 0
@@ -302,6 +330,7 @@ static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 #endif
 
 	return btnret_OK;
+ 	//return btnret_REQUEST_EXIT_PAGE;
 }
 
 
@@ -395,7 +424,10 @@ static int react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-#if 1
+
+	return btnret_REQUEST_EXIT_PAGE;
+
+#if 0
 	/*TEST: send HUP signal to iteself */
 	if(raise(SIGUSR1) !=0 ) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to send SIGUSR1 to itself.",__func__);
@@ -435,15 +467,53 @@ static int page_decorate(EGI_EBOX *ebox)
 }
 
 
-/*-----------------------------------------------------------------
-                   Sliding Operation handler
-Slide up/down to adjust ALSA volume.
-------------------------------------------------------------------*/
-static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
+/*-------------------------------------------------------------------
+			VOLUME SLIDER
+---------------------------------------------------------------------*/
+static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	return 0;	
+	static int mark;
+	EGI_DATA_SLIDER *data_slider;
+	int minx,maxx;
+	int vol;
 
+        /* bypass unwanted touch status */
+//        if( touch_data->status != pressing )
+//                return btnret_IDLE;
+
+	/* set mark */
+	mark=ebox->x0;	/* Note touch pad coord. */
+
+	data_slider=egi_slider_getdata(ebox);
+	minx=data_slider->sxy.x-(ebox->width>>1);
+	maxx=minx+data_slider->sl-1;
+
+	/* read out 'pressing' */
+	while(egi_touch_getdata(touch_data)==false);
+
+	/* Sliding for volume */
+	for(; touch_data->status==pressed_hold; egi_touch_getdata(touch_data) )
+	{
+		/* update slider x0y0, it's coupled with touchbox position */
+		//printf("touch_data->dy = %d\n",touch_data->dy);
+		ebox->x0 = mark+(-touch_data->dy);
+		if(ebox->x0 < minx) ebox->x0=minx;
+		else if(ebox->x0 > maxx) ebox->x0=maxx;
+
+		/* refresh slider to renew data_slider->val */
+                ebox->need_refresh=true;
+                ebox->refresh(ebox);
+		/* FB to be refreshed by check_volume_runner() */
+
+		/* adjust volume */
+		vol=100*data_slider->val/(data_slider->sl-1);
+		egi_getset_pcm_volume(NULL,&vol);
+		tm_delayms(30);
+	}
+
+	return btnret_IDLE; /* OK, page need not refresh */
 }
+
 
 
 /*-----------------------------
@@ -469,6 +539,9 @@ int create_miniPanel(void)
 	if(page_miniPanel==NULL)
 		return -1;
 
+	/* backup current FB page to bk buff[1] */
+	fb_page_saveToBuff(&gv_fb_dev, 1);
+
 	/* activate */
 	egi_page_activate(page_miniPanel);
 
@@ -493,6 +566,9 @@ int free_miniPanel(void)
 }
 
 
+/*------------------------------------
+		Routine
+------------------------------------*/
 int miniPanel_routine(void)
 {
 	EGI_TOUCH_DATA touch_data;
@@ -509,25 +585,27 @@ int miniPanel_routine(void)
 		return -2;
 	}
 
-
 	/* catch a hit */
-        while ( egi_touch_timeWait_press(3, &touch_data)==0 )
+        while ( egi_touch_timeWait_press(MINIPANEL_WAIT_SECONDS, &touch_data)==0 )
         {
 	    ebox=egi_hit_pagebox(touch_data.coord.x, touch_data.coord.y, page_miniPanel, type_btn|type_slider);
 	    if(ebox != NULL) {
 			ret= ebox->reaction(ebox, &touch_data);
-			tm_delayms(1000);
-			// if(ret==btnret_REQUEST_EXIT_PAGE)
-				return 0;
+			if(ret==btnret_REQUEST_EXIT_PAGE)
+				break;
 	    } else {
 		printf("%s: A touch misses all buttons!\n",__func__);
 	    }
 	}
 	printf("%s: End while()..\n",__func__);
 
+	/* backup current FB page to bk buff[1] in create_miniPanel() */
+	/* Restore backed page */
+	fb_page_restoreFromBuff(&gv_fb_dev,1);
+	tm_delayms(300);
+
 	return 0;
 }
-
 
 
 /*--------------------    RUNNER 1   ----------------------
@@ -555,13 +633,14 @@ static void* check_volume_runner(EGI_PAGE *page)
 	 	return (void *)-1;
      }
 
-     /* Loop checking volume */
+     /* Loop checking volume, and refresh FB page */
      while(1) {
 
 	   /* check page status for exit */
-	   //Not necessary anymore? use pthread_cancel() fro PAGE */
+	   /*Not necessary anymore.
 	   if(page->ebox->status==status_page_exiting)
 	   	return (void *)0;
+	   */
 
 	   /* get palyback volume */
 	   egi_getset_pcm_volume(&pvol,NULL);
@@ -569,7 +648,7 @@ static void* check_volume_runner(EGI_PAGE *page)
 
 	   if(buf==sval)continue;
 
-	   printf("\e[38;5;201;48;5;0m %s: ---pvol %d--- \e[0m\n", __func__, pvol);
+//	   printf("\e[38;5;201;48;5;0m %s: ---pvol %d--- \e[0m\n", __func__, pvol);
 	   sval=buf;
 
 	   /* slider value is drivered by ebox->x0 for H slider, so set x0, not val */
@@ -577,8 +656,6 @@ static void* check_volume_runner(EGI_PAGE *page)
 
 	   /* refresh it */
 	   egi_ebox_forcerefresh(slider);
-//         egi_ebox_needrefresh(slider); /* No need for quick response */
-//	   egi_page_refresh(page_miniPanel);
 	   fb_page_refresh(&gv_fb_dev);
 
 	   tm_delayms(300);
@@ -586,4 +663,6 @@ static void* check_volume_runner(EGI_PAGE *page)
 
   	return (void *)0;
 }
+
+
 

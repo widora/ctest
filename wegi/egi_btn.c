@@ -67,7 +67,7 @@ EGI_DATA_BTN *egi_btndata_new(int id, enum egi_btn_type shape,
 	data_btn->icon=icon;
 	data_btn->icon_code=icon_code;
 	data_btn->font=font;
-	data_btn->opaque=-1; /*, <0, No alpha effect */
+	data_btn->opaque=255; //-1; 255 100% forecolor /*, <0, No alpha effect */
 	data_btn->touch_effect=egi_btn_touch_effect;
 	//data_btn->font_color=0; /* black as default */
 

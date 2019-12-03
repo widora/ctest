@@ -126,7 +126,6 @@ int egi_touch_timeWait_press(unsigned int s, EGI_TOUCH_DATA *touch_data) //EGI_P
 	}
 	else {
                 printf("%s: Fail to lock mutex_lockCond!\n",__func__);
-		tok_loopread_nowait=false; /* set wait mode */
 		return -2;
 	}
 
@@ -210,7 +209,6 @@ int egi_touch_timeWait_release(unsigned int s, EGI_TOUCH_DATA *touch_data)
 	}
 	else {
                 printf("%s: Fail to lock mutex_lockCond!\n",__func__);
-		tok_loopread_nowait=false; /* set wait mode */
 		return -2;
 	}
 

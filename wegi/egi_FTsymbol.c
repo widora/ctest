@@ -821,7 +821,7 @@ void FTsymbol_unicode_writeFB(FBDEV *fb_dev, FT_Face face, int fw, int fh, wchar
 	/* write to FB,  symcode =0, whatever  */
 	if(fb_dev != NULL) {
 		//printf("%s: symbol_writeFB...\n",__func__);
-		symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, -1);
+		symbol_writeFB(fb_dev, &ftsympg, fontcolor, transpcolor, x0+delX, y0+delY, 0, opaque);
 	}
 }
 

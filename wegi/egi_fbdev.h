@@ -117,8 +117,10 @@ void 	fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg);
 void 	fb_clear_backBuff(FBDEV *dev, uint32_t color);
 void 	fb_page_refresh(FBDEV *dev);
 //void	fb_render()
-void 	fb_page_refresh_flyin(FBDEV *dev, int speed);
-void 	fb_slide_refresh(FBDEV *dev, int offl);
+int 	fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum);
+int 	fb_page_restoreFromBuff(FBDEV *dev, unsigned int buffNum);
+int 	fb_page_refresh_flyin(FBDEV *dev, int speed);
+int 	fb_slide_refresh(FBDEV *dev, int offl);
 void    fb_filo_on(FBDEV *dev);
 void    fb_filo_off(FBDEV *dev);
 void    fb_filo_flush(FBDEV *dev);

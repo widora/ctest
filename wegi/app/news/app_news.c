@@ -55,7 +55,7 @@ static void free_newsFilo(EGI_FILO** filo);
 --------------------------------------------------------------------*/
 static char* news_type[]=
 {
-   "keji", "top","guoji", //"shishang", "guonei", "yule"
+   "top","keji", "guoji" //"shishang", "guonei", "yule"
 };
 
 
@@ -176,7 +176,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		totalItems=juhe_get_totalItemNum(buff);
 
-		printf("\n  -----  Http GET return total %d news items ----- \n\n", totalItems);
+		EGI_PLOG(LOGLV_INFO,"%s: Http GET return total %d news items", news_type[k], totalItems);
 		if(totalItems <= 0) {
 			continue; /* continue for(k) */
 		}
@@ -249,7 +249,8 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		 */
 		EGI_PLOG(LOGLV_INFO,"   --- Start https easy download thumbnail pic --- \n URL: %s", pstr);
 		if( https_easy_download(pstr, thumb_path, NULL, download_callback) !=0 ) {
-	                EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy_download '%s'.\n", __func__,pstr);
+	                EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy_download %s[%d] '%s'.\n",
+									 __func__, news_type[k], i, pstr);
 			egi_free_char(&pstr);
                		continue; /* Continue for(i) */
 		}
@@ -314,14 +315,14 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                                      16, 16, (const unsigned char *)attrMark, 	   /* fw,fh, pstr */
                                      320-10, 1, 5,                       /* pixpl, lines, gap */
                                      5, 0,          /* x0,y0, */
-                                     WEGI_COLOR_GRAY, -1, -1,  /* fontcolor, transcolor,opaque */
+                                     WEGI_COLOR_GRAY, -1, 255,  /* fontcolor, transcolor,opaque */
 				     NULL, NULL, NULL, NULL);
 
         	FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,     /* FBdev, fontface */
                                      15, 15, (const unsigned char *)pstr,      /* fw,fh, pstr */
                                      320-10, 3, 5,   //240-10,3,5          /* pixpl, lines, gap */
                                      5, 240-45+5,      //5,320-75,          /* x0,y0, */
-                                     WEGI_COLOR_WHITE, -1, -1,  /* fontcolor, transcolor,opaque */
+                                     WEGI_COLOR_WHITE, -1, 255,  /* fontcolor, transcolor,opaque */
 				     NULL, NULL, NULL, NULL);
 
 		printf(" ------From %s:  %s News, Item %d ----- \n",
@@ -479,7 +480,7 @@ static void display_newsFilo(EGI_FILO *filo)
                         	             fw, fh, (const unsigned char *)pstr,   /* fw,fh, pstr */
                                 	     pixpl, lnleft, lngap,     	    	    /* pixpl, lines, gap */
 	                                     penx, peny,      //5,320-75,     	    /* x0,y0, */
-        	                             WEGI_COLOR_BLACK, -1, -1,  /* fontcolor, transcolor, opaque */
+        	                             WEGI_COLOR_BLACK, -1, 255,  /* fontcolor, transcolor, opaque */
 					     &cnt, &lnleft, &penx, &peny);   /* &cnt, &lnleft, &penx, &peny */
 
 			printf("UFT8 strings writeFB: cnt=%d, lnleft=%d, penx=%d, peny=%d\n",

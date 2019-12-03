@@ -507,7 +507,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	if(psetvol != NULL) {
 		/* limit input to [0-100] */
 		//printf("%s: min=%ld, max=%ld vrange=%ld\n",__func__, min,max, vrange);
-		printf("%s: dBmin=%ld, dBmax=%ld dBvrange=%ld\n",__func__, dBmin,dBmax, dBvrange);
+//		printf("%s: dBmin=%ld, dBmax=%ld dBvrange=%ld\n",__func__, dBmin,dBmax, dBvrange);
 		if(*psetvol > 100)
 			*psetvol=100;
 		if(*psetvol < 0 )
@@ -525,7 +525,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		if(pvol<1)pvol=1; /* to avoid 0 */
 		//vol=pow(10, vol*log10(vrange)/100.0);
 		vol=pvol*vrange/100;  /* percent. vol to actual volume value  */
-		printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
+//		printf("%s: Percent. vol=%d%%, dB related vol=%ld\n", __func__, *psetvol, vol);
 
 		/* normalize vol, Not necessay now?  */
 		if(vol > max) vol=max;
@@ -550,7 +550,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 				dBvol=0.5*log10(pvol)*dBvrange+dBmin;
 			}
 		}
-		printf("%s: set %s dBvol=%ld\n", __func__, linear_dBvol?"linear":"nonlinear" ,dBvol);
+//		printf("%s: set %s dBvol=%ld\n", __func__, linear_dBvol?"linear":"nonlinear" ,dBvol);
 		/* dB_all(elem, vol, dir)  vol: dB*100 dir>0 round up, otherwise down */
 	        snd_mixer_selem_set_playback_dB_all(elem, dBvol, 1);
 	#endif
