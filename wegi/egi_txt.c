@@ -18,6 +18,7 @@ Midas Zhou
 #include "egi_debug.h"
 //#include "egi_timer.h"
 #include "egi_symbol.h"
+#include "egi_FTsymbol.h"
 #include "egi_bjp.h"
 #include "egi_filo.h"
 
@@ -147,7 +148,7 @@ EGI_DATA_TXT *egi_utxtdata_new( int offx, int offy,      /* offset from ebox lef
 				uint16_t color
 )
 {
-	int i,j;
+//	int i,j;
 
 	/* malloc a egi_data_txt struct */
 	EGI_PDEBUG(DBG_TXT,"malloc data_txt ...\n");
@@ -474,7 +475,7 @@ int egi_txtbox_activate(EGI_EBOX *ebox)
          	                        1, &rad );                	   /* 1, radius, int pn, int *param */
 
 		if(ebox->frame_img==NULL) {
-			printf("%s: Fail to create frame_shape!\n");
+			printf("%s: Fail to create frame_shape!\n",__func__);
 			/* Go on though.... */
 		}
 	}
@@ -753,7 +754,8 @@ int egi_txtbox_refresh(EGI_EBOX *ebox)
 			  		      data_txt->utxt,
 		                              data_txt->pixpl, data_txt->nl,  data_txt->gap,
                 		              x0+offx, y0+offy,
-                               		      data_txt->color, -1, -1	);
+                               		      data_txt->color, -1, 255,
+					      NULL, NULL, NULL, NULL);
 	}
 
 

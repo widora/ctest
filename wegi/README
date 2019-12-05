@@ -85,7 +85,7 @@ egi_math.c	a common math function module
 egi_fifo.c	a common fifo module for EGI
 egi_filo.c	a common filo module for EGI
 egi_iotclient.c		A BIGIOT client application.
-egi_ring.c	a ERING mechanism for process communication between UI and APPs.
+egi_ring.c	a ERING mechanism ( for process communication between UI and APPs --- TDB )
 egi_txt.c	type_txt ebox functions
 egi_btn.c	type_btn ebox	
 egi_slider.c	type_slier ebox, for sliding bar.

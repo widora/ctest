@@ -49,8 +49,8 @@ typedef struct fbdev{
 
         unsigned long 	screensize;	/* in bytes */
         unsigned char 	*map_fb;  	/* Pointer to kernel FB buffer, mmap to FB data */
-	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages. */
-	unsigned char   *map_bk;	/* Pointer to curret back buffer page, mmap mem
+	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages, maybe more. */
+	unsigned char   *map_bk;	/* Pointer to curret working back buffer page, mmap mem
 					 * When ENABLE_BACK_BUFFER is defined, all write/read operation to
 					 * the FB will be directed to the map_buff through map_bk,
 					 * The map_fb will be updated only when fb_refresh() is called, or
@@ -59,14 +59,19 @@ typedef struct fbdev{
 	unsigned int	npg;		/* index of back buffer page, Now npg=0 or 1, maybe 2  */
 
 
-	EGI_IMGBUF	*virt_fb;	/* virtual FB data as a EGI_IMGBUF
-					 * Ownership will NOT be taken from the caller, means FB will
-				   	 * never try to free it, whatever.
+	EGI_IMGBUF	*virt_fb;	/* virtual FB data as an EGI_IMGBUF
+					 * Ownership of the imgbuf will NOT be taken from the caller, that
+					 * means FB will never try to free it, whatever.
 					 */
 
 	bool		pixcolor_on;	/* default/init as off */
 	uint16_t 	pixcolor;	/* pixel color */
 	unsigned char	pixalpha;	/* pixel alpha value in use, 0: 100% bkcolor, 255: 100% frontcolor */
+	bool		pixalpha_hold;  /* Normally, pixalpha will be reset to 255 after each draw_dot() operation
+					 * True: pixalpha will NOT be reset after draw_dot(), it keeps effective
+					 *	 to all draw_dot()/writeFB() operations afterward.
+					 * False: As defaulst set.
+					 */
 
 	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!
 	  *  Call fb_position_rotate() to change following items.

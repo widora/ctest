@@ -8,10 +8,9 @@ Midas Zhou
 #ifndef __PAGE_MINIPANEL_H__
 #define __PAGE_MINIPANEL_H__
 
-
 //EGI_PAGE  *create_panelPage(void);
 int 	  create_miniPanel(void);
-int 	  free_miniPanel(void);
 int 	  miniPanel_routine(void);
+int 	  free_miniPanel(void);
 
 #endif

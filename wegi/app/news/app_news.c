@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------------
+/*--------------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -14,7 +14,7 @@ Note:
 Usage:	./test_juhe
 
 Midas Zhou
------------------------------------------------------------------------*/
+--------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <curl/curl.h>
 #include <string.h>
@@ -29,20 +29,21 @@ Midas Zhou
 #include "egi_utils.h"
 #include "page_minipanel.h"
 #include "juhe_news.h"
+#include "app_news.h"
 
 static char strkey[256];			/* for name of json_obj key */
 static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html expected */
 
 #define THUMBNAIL_DISPLAY_SECONDS       5
 #define CONTENT_DISPLAY_SECONDS         5
-#define TOUCH_SLIDE_THRESHOLD           15
+#define TOUCH_SLIDE_THRESHOLD           25
 
 static bool Is_Saved_Html;                      /* If read from saved html, versus Is_Live_Html */
 
 /* ZONE divisions, ! NOTE: In LCD touch pad coord.  */
-static EGI_BOX text_box={ {0, 0}, {240-45-1, 320-1} };	  /* Text display zone  */
-static EGI_BOX title_box={ {240-45, 0}, {240-1, 320-1} }; /* Title display zone */
-static EGI_BOX minipanel_box={ {0,0}, {100, 320-1} }; /* Mini panel zone */
+EGI_BOX text_box={ {0, 0}, {240-45-1, 320-1} };	  	/* Text display zone  */
+EGI_BOX title_box={ {240-45, 0}, {240-1, 320-1} }; 	/* Title display zone */
+EGI_BOX minipanel_box={ {0,0}, {100, 320-1} }; 		/* Mini panel zone */
 
 /* Function */
 static void display_newsFilo(EGI_FILO *filo);
@@ -55,8 +56,34 @@ static void free_newsFilo(EGI_FILO** filo);
 --------------------------------------------------------------------*/
 static char* news_type[]=
 {
-   "top","keji", "guoji" //"shishang", "guonei", "yule"
+   "caijing", "top", "keji", "guoji", "yule"
 };
+
+
+/*----------------------------------------------------
+Draw a filled circle as a  water mark.
+
+@rad:		radius of the mark
+@alpha:		Alpha value for color blend
+@touch_pxy:	Point coordinate
+------------------------------------------------------*/
+void press_mark(int rad, int alpha, EGI_POINT touch_pxy, EGI_16BIT_COLOR color)
+{
+	/* Turn on FB filo and set map pointer */
+        fb_filo_on(&gv_fb_dev);
+	gv_fb_dev.map_bk=gv_fb_dev.map_fb;
+
+	draw_blend_filled_circle( &gv_fb_dev,
+				  320-touch_pxy.y, touch_pxy.x,
+				  rad, color, alpha); /* r,color,alpha  */
+
+	tm_delayms(100);
+	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+
+	/* Turn off FB filo and reset map pointer */
+	gv_fb_dev.map_bk=gv_fb_dev.map_buff;
+	fb_filo_off(&gv_fb_dev);
+}
 
 
 /*----------------------------
@@ -66,6 +93,7 @@ int main(int argc, char **argv)
 {
 	int i;
 	int k;
+	int err;
 	char *pstr=NULL;
 	char *purl=NULL;		   /* Item news URL */
         static char strRequest[256+64];
@@ -79,6 +107,7 @@ int main(int argc, char **argv)
 	EGI_IMGBUF *pad=NULL;
 
 	EGI_TOUCH_DATA touch_data;	  /*  touch_data */
+	EGI_TOUCH_DATA press_touch;	  /*  touch_data */
 
 	EGI_FILO *news_filo=NULL;
 
@@ -159,7 +188,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* prepare GET request string */
         	memset(strRequest,0,sizeof(strRequest));
 	        strcat(strRequest,"https://v.juhe.cn/toutiao/index?type=");
-		strcat(strRequest, news_type[k]); //argv[1]);
+		strcat(strRequest, news_type[k]);
 	        strcat(strRequest,"&key=");
         	strcat(strRequest,strkey);
 
@@ -168,8 +197,10 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 	        /* Https GET request */
 		printf("line %d: https_curl_request...\n", __LINE__);
-	        if( https_curl_request(strRequest, buff, NULL, curlget_callback)!=0 ) {
+	        if( (err=https_curl_request(strRequest, buff, NULL, curlget_callback)) != 0 ) {
         	        EGI_PLOG(LOGLV_ERROR,"%s: Fail to call https_curl_request()!",__func__);
+			if(err==-3) /* content length < 0 */
+			  EGI_PLOG(LOGLV_ERROR,"%s: Content length<0 for: %s",__func__, strRequest);
                 	//return -1;  Go on....
 	        }
         	printf("	--- Http GET Reply ---\n %s\n",buff);
@@ -343,33 +374,13 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		 * otherwise skip to next title show when time is out.
 		 */
 		tm_start_egitick();
-		if( egi_touch_timeWait_press(THUMBNAIL_DISPLAY_SECONDS, &touch_data)==0 ) {
-			printf(" >>>>>  Press touching pxy(%d,%d)\n", touch_data.coord.x, touch_data.coord.y);
-			/* check touch sliding operation immediately */
-			//tm_delayms(50);
-			//egi_touch_getdata(NULL); /* let loopread for a while */
-			if( egi_touch_timeWait_release(3,&touch_data)==0 ) {
-				printf(" <<<<< Release touch pxy(%d,%d)\n",
-							     touch_data.coord.x, touch_data.coord.y);
-			} else {
-				printf(" <<<<<  timewati release fails!	>>>> \n");
-			}
-			printf("		--- dx=%d,dy=%d --- \n", touch_data.dx, touch_data.dy);
+		if( egi_touch_timeWait_press(THUMBNAIL_DISPLAY_SECONDS, &press_touch)==0 ) {
+			printf(" >>>>>  Press touching pxy(%d,%d)\n",
+						press_touch.coord.x, press_touch.coord.y);
 
-                        /* If sliding to pull down mini panel */
-                        if (  touch_data.dx > TOUCH_SLIDE_THRESHOLD
-			      && point_inbox(&touch_data.coord, &minipanel_box) )
-			{
-                                create_miniPanel();
-                                fb_page_refresh(&gv_fb_dev);
-				miniPanel_routine();
-				//tm_delayms(3000);
-                                //getchar();
-                                free_miniPanel();
-                        }
-
-			/* If touch title_box */
-			if( point_inbox(&touch_data.coord, &title_box) ) {
+			/* 1. If press touch title_box */
+			if( point_inbox(&press_touch.coord, &title_box) ) {
+				press_mark(40,135,press_touch.coord,WEGI_COLOR_ORANGE);
 				purl=juhe_get_elemURL(buff, i, "url");
 				printf("New item[%d] URL: %s\n", i, purl);
 				EGI_PLOG(LOGLV_INFO,"%s: Start juhe_get_newsContent()...",__func__);
@@ -378,8 +389,31 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 				free_newsFilo(&news_filo);
 			}
 
+                        /* 2. If press touch minipanel_box area -- AND -- sliding to pull down mini panel */
+			else if( point_inbox(&press_touch.coord, &minipanel_box) )
+			{
+				press_mark(40,135,press_touch.coord,WEGI_COLOR_ORANGE);
+				if( egi_touch_timeWait_release(3,&touch_data)==0
+				    		&& touch_data.dx > TOUCH_SLIDE_THRESHOLD )
+				{
+					printf("--- dx=%d, dy=%d --- \n", touch_data.dx, touch_data.dy);
+	                                create_miniPanel();
+        	                        fb_page_refresh(&gv_fb_dev);
+					miniPanel_routine();
+                        	        free_miniPanel();
+				}
+				printf("%s: <<<<<  timewait release fails!	>>>> \n",__func__);
+
+                        }
+
+			/* 3. Else if touch thumbnail pic area */
+			else
+				press_mark(40,180,press_touch.coord,WEGI_COLOR_RED);
+
 			/*free duped char */
 			egi_free_char(&purl);
+
+			/* ---> GO TO NEXT NEWS ITEM[i] */
 		}
 
 	} /* END for(i) */
@@ -502,13 +536,14 @@ static void display_newsFilo(EGI_FILO *filo)
 				/* If touch screen within Xs, then end the function */
 				tm_start_egitick();
 				if( egi_touch_timeWait_press(CONTENT_DISPLAY_SECONDS, &touch_data)==0 ) {
+					press_mark(40, 135, touch_data.coord,WEGI_COLOR_ORANGE);
 					printf("Touch tpxy(%d,%d)\n", touch_data.coord.x, touch_data.coord.y);
-
 					/* If hit title box, then return */
 					if( point_inbox(&touch_data.coord, &title_box) )
 						return;
 
 					/* else, continue news content displaying */
+
 				}
 
 				/* Clear displaying zone, only */

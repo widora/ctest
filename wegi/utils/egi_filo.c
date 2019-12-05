@@ -136,7 +136,7 @@ int egi_filo_push(EGI_FILO *filo, const void* data)
 		}
 	}
 	/* push data into buff */
-	printf("%s: memcpy\n",__func__);
+	//printf("%s: memcpy\n",__func__);
 	memcpy( (void *)(filo->buff)[filo->pt], data, filo->item_size );
 
 	filo->pt++;

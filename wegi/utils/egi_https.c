@@ -67,13 +67,29 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 	if( CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &doubleinfo) ) {
 		printf("%s: CURLINFO_CONTENT_LENGTH_DOWNLOAD = %.0f \n", __func__, doubleinfo);
 		if( (int)doubleinfo > CURL_RETDATA_BUFF_SIZE )
-		EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length is great than CURL_RETDATA_BUFF_SIZE!",
+		{
+		  EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length > CURL_RETDATA_BUFF_SIZE!",
 												   __func__);
+		}
+		/* Content length MAY BE invalid!!! */
+		else if( (int)doubleinfo < 0 ) {
+		  	EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length < 0!",  __func__);
+			ret=-3;
+		}
 	}
 	else {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!", __func__);
-		ret=-3;
+		ret=-4;
 	}
+
+/*
+[2019-12-04 15:57:35] [LOGLV_INFO] https_curl_request: start curl_global_init and easy init...
+[2019-12-04 15:57:36] [LOGLV_INFO] https_curl_request: start curl_easy_perform()...
+https_curl_request: curl_easy_perform() failed: No error
+https_curl_request: CURLINFO_CONTENT_LENGTH_DOWNLOAD = -1
+Fail to call https_curl_request()!
+*/
+
 
 	/* always cleanup */
 	curl_easy_cleanup(curl);

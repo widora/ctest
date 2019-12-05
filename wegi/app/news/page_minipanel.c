@@ -13,13 +13,12 @@ page creation jobs:
 3. egi_XXX_routine() function if not use default egi_page_routine().
 4. button reaction functins
 
+                  --------  PAGE  DIVISION  --------
+		       ---  LANDSCAPE MODE  ---
 
-                        (((  --------  PAGE DIVISION  --------  )))
-[Y266-Y319]
-{0,266}, {240-1, 320-1}         --- Buttons
+[Y0-Y99]
+{{0,0}, {320-1, 99-1}}		--- Mini. Control Panel
 
-
-TODO:
 
 
 Midas Zhou
@@ -32,6 +31,7 @@ Midas Zhou
 #include "egi_pcm.h"
 //#include "sound/egi_pcm.h"
 #include "egi_FTsymbol.h"
+#include "app_news.h"
 #include "page_minipanel.h"
 
 /* If no touching on the screen within defined time, the minipanel routine job will end. */
@@ -56,12 +56,11 @@ Midas Zhou
 #define BTN_ID_EXIT		3	/* SLEEP */
 #define BTN_ID_PLAYMODE		4	/* PLAYMODE or EXIT  */
 
+
 #define SLIDER_ID_VOLUME        100
 
 static EGI_PAGE* page_miniPanel;
 
-
-static EGI_BOX slide_zone={ {0,0}, {239,260} };
 static uint16_t btn_symcolor;
 
 /* buttons */
@@ -73,8 +72,8 @@ static EGI_EBOX 	*panel_btns[5];
 static EGI_DATA_BTN 	*data_slider;
 static EGI_EBOX     	*volume_slider;
 
-int create_miniPanel(void);
-int free_miniPanel(void);
+//int create_miniPanel(void);
+//int free_miniPanel(void);
 
 static int 	react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int 	react_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
@@ -115,13 +114,13 @@ EGI_PAGE *create_panelPage(void)
 		}
 
 		/* Do not show tag on the button */
-//default	data_btns[i]->showtag=false;
+		//data_btns[i]->showtag=false; /* default FALSE */
 
 		/* create new btn eboxes */
 		panel_btns[i]=egi_btnbox_new(   NULL, 		/* put tag later */
 						data_btns[i], 	/* EGI_DATA_BTN *egi_data */
 				        	1, 		/* bool movable */
-					        (320-240)/2+48*i, 5, 	/* int x0, int y0 */
+					  (320-280)/2+56*i, 5, 	/* (320-240)/2+48*i int x0, int y0 */
 						48, 48, 	/* int width, int height */
 				       		-1, 		/* int frame,<0 no frame */
 		       				WEGI_COLOR_GRAY /*int prmcolor, for geom button only. */
@@ -164,9 +163,9 @@ EGI_PAGE *create_panelPage(void)
 
 
         /* --------- 2. create a horizontal sliding bar --------- */
-        int sb_len=200; 	/* slot length */
+        int sb_len=280; 	/* slot length */
         int sb_pv=0; 		/* initial  percent value */
-	EGI_POINT sbx0y0={ (320-240)/2, 50+25 }; /* starting point */
+	EGI_POINT sbx0y0={ (320-sb_len)/2, 50+25 }; /* starting point */
 
         data_slider=egi_sliderdata_new(   /* slider data is a EGI_DATA_BTN + privdata(egi_data_slider) */
                                         /* ---for btnbox-- */
@@ -179,7 +178,7 @@ EGI_PAGE *create_panelPage(void)
                                         sbx0y0,			/* slider starting EGI_POINT pxy */
                                         5,sb_len,           	/* slot width, slot length */
                                         sb_pv*sb_len/100,      	/* init val, usually to be 0 */
-                                        WEGI_COLOR_GRAY,  	/* EGI_16BIT_COLOR val_color */
+                                        WEGI_COLOR_GYBLUE,  	/* EGI_16BIT_COLOR val_color */
                                         WEGI_COLOR_GRAY5,   	/* EGI_16BIT_COLOR void_color */
                                         WEGI_COLOR_WHITE   	/* EGI_16BIT_COLOR slider_color */
                             );
@@ -195,8 +194,6 @@ EGI_PAGE *create_panelPage(void)
                                          * 2. prmcolor geom applys only if prmcolor>=0 and egi_data->icon!=NULL
 					 */
                            );
-	/* set EBOX id for volume_slider */
-//	volume_slider->id=SLIDER_ID_VOLUME;
         /* set reaction function */
         volume_slider->reaction=react_slider;
 
@@ -210,8 +207,8 @@ EGI_PAGE *create_panelPage(void)
 		tm_delayms(10);
 	}
 //	page_panel->ebox->prmcolor=WEGI_COLOR_BLACK;
-	/* NOTE: PAGE refresh call egi_imgbuf_windisplay2(), which has NO pos_rotation maping!! */
-	page_panel->ebox->frame_img=egi_imgbuf_create( 320, 100, 175, WEGI_COLOR_WHITE); /* (H, W, alpha,color) */
+	/* NOTE: PAGE refresh call egi_imgbuf_windisplay2(), which has NO pos_rotation mapping!! */
+	page_panel->ebox->frame_img=egi_imgbuf_create( 320, 100, 235, WEGI_COLOR_GRAYC); /* (H, W, alpha,color) */
 
 	/* decoration */
 //	page_panel->ebox->method.decorate=page_decorate; /* draw lower buttons canvas */
@@ -219,8 +216,8 @@ EGI_PAGE *create_panelPage(void)
         /* 3.2 put pthread runner */
         page_panel->runner[0]= check_volume_runner;
 
-        /* 3.3 set default routine job */
-//	page_panel->routine=egi_homepage_routine;  /* for sliding operation */
+        /* 3.3 set default routine job, Note: To call it explicitly later!  */
+//	page_panel->routine=miniPanel_routine; //egi_homepage_routine;  /* for sliding operation */
 
         /* 3.4 set wallpaper */
         //page_panel->fpath="/home/musicback.jpg";
@@ -239,14 +236,14 @@ EGI_PAGE *create_panelPage(void)
 ----------------------------------------------------------------*/
 static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	EGI_DATA_BTN *data_btn;
-
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
-	if(data_btn==NULL) return btnret_ERR;
+
+	EGI_DATA_BTN *data_btn=data_btns[BTN_ID_PREV];
+	if(data_btn==NULL)
+		return btnret_ERR;
 
 	/* Darken effect */
 	data_btn->opaque=-60;
@@ -260,6 +257,15 @@ static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	egi_ebox_forcerefresh(ebox);
 	fb_page_refresh(&gv_fb_dev);
 
+	/* Force to be playmode, as mplayer will auto. change from PAUSE to PLAY, icon shift to PAUSE */
+	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code & 0xFFFF) != ICON_CODE_PAUSE )
+	{
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;  /* toggle icon */
+		egi_ebox_forcerefresh(panel_btns[BTN_ID_PLAYPAUSE]);
+		fb_page_refresh(&gv_fb_dev);
+	}
+
+	/* command for mplayer */
 	system("echo pt_step -1 >/home/slave");
 
 	/* Restore backed page */
@@ -290,14 +296,14 @@ static int react_prev(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 ----------------------------------------------------------------*/
 static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
-	EGI_DATA_BTN *data_btn;
-
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
 
-	data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
-	if(data_btn==NULL) return btnret_ERR;
+	EGI_DATA_BTN *data_btn=data_btns[BTN_ID_NEXT];
+	//data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+	if(data_btn==NULL)
+		return btnret_ERR;
 
 	/* Darken effect */
 	data_btn->opaque=-60;
@@ -311,9 +317,16 @@ static int react_next(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	egi_ebox_forcerefresh(ebox);
 	fb_page_refresh(&gv_fb_dev);
 
+	/* Force to be playmode, as mplayer will auto. change from PAUSE to PLAY, icon shift to PAUSE */
+	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code & 0xFFFF) != ICON_CODE_PAUSE )
+	{
+		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE;  /* toggle icon */
+		egi_ebox_forcerefresh(panel_btns[BTN_ID_PLAYPAUSE]);
+		fb_page_refresh(&gv_fb_dev);
+	}
+
+	/* command for mplayer */
 	system("echo pt_step 1 >/home/slave");
-
-
 
 #if 0
 	/*  forcee to play the next song,
@@ -345,20 +358,17 @@ static int react_playpause(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 
 	/* toggle the icon between play and pause */
 	if( (data_btns[BTN_ID_PLAYPAUSE]->icon_code & 0x0ffff ) == ICON_CODE_PLAY ) {
-
-		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
-		//FFmuz_Ctx->ffcmd=cmd_play;
 		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PAUSE; /* toggle icon */
 	}
 	else {
-
-		/* set FFmuz_Ctx->ffcmd, FFplay will reset it. */
-		//FFmuz_Ctx->ffcmd=cmd_pause;
 		data_btns[BTN_ID_PLAYPAUSE]->icon_code=(btn_symcolor<<16)+ICON_CODE_PLAY;  /* toggle icon */
 	}
 
-	/* set refresh flag for this ebox */
-	egi_ebox_needrefresh(ebox);
+	/* refresh it */
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
+	system("echo pause >/home/slave");
 
 	return btnret_OK;
 }
@@ -420,9 +430,26 @@ static int react_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 -----------------------------------------------------------------*/
 static int react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 {
+	EGI_DATA_BTN *data_btn=(EGI_DATA_BTN *)(ebox->egi_data);
+	if(data_btn==NULL)
+		return btnret_ERR;
+
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
+
+
+	/* Darken effect */
+	data_btn->opaque=-60;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
+
+	tm_delayms(200);
+
+	/* reset luma */
+	data_btn->opaque=255;
+	egi_ebox_forcerefresh(ebox);
+	fb_page_refresh(&gv_fb_dev);
 
 
 	return btnret_REQUEST_EXIT_PAGE;
@@ -478,8 +505,8 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 	int vol;
 
         /* bypass unwanted touch status */
-//        if( touch_data->status != pressing )
-//                return btnret_IDLE;
+        if( touch_data->status != pressing )
+                return btnret_IDLE;
 
 	/* set mark */
 	mark=ebox->x0;	/* Note touch pad coord. */
@@ -515,7 +542,6 @@ static int react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
 }
 
 
-
 /*-----------------------------
 Release and free all resources
 -----------------------------*/
@@ -528,6 +554,7 @@ void egi_free_panelPage(void)
 
 
 }
+
 
 /*-------------------------------------
 Create miniPanel page and acitivate it.
@@ -589,13 +616,17 @@ int miniPanel_routine(void)
         while ( egi_touch_timeWait_press(MINIPANEL_WAIT_SECONDS, &touch_data)==0 )
         {
 	    ebox=egi_hit_pagebox(touch_data.coord.x, touch_data.coord.y, page_miniPanel, type_btn|type_slider);
+	    /* If hit an ebox of minipanel */
 	    if(ebox != NULL) {
 			ret= ebox->reaction(ebox, &touch_data);
 			if(ret==btnret_REQUEST_EXIT_PAGE)
 				break;
-	    } else {
-		printf("%s: A touch misses all buttons!\n",__func__);
 	    }
+	    /* If hit outside minipanel, break */
+	    else if(point_inbox(&touch_data.coord, &minipanel_box)==false)
+			break;
+	    else
+		printf("%s: A touch misses all buttons!\n",__func__);
 	}
 	printf("%s: End while()..\n",__func__);
 
@@ -635,23 +666,16 @@ static void* check_volume_runner(EGI_PAGE *page)
 
      /* Loop checking volume, and refresh FB page */
      while(1) {
-
-	   /* check page status for exit */
-	   /*Not necessary anymore.
-	   if(page->ebox->status==status_page_exiting)
-	   	return (void *)0;
-	   */
-
 	   /* get palyback volume */
 	   egi_getset_pcm_volume(&pvol,NULL);
 	   buf=pvol*data_slider->sl/100;
 
-	   if(buf==sval)continue;
+	   if(buf==sval) continue;
 
 //	   printf("\e[38;5;201;48;5;0m %s: ---pvol %d--- \e[0m\n", __func__, pvol);
 	   sval=buf;
 
-	   /* slider value is drivered by ebox->x0 for H slider, so set x0, not val */
+	   /* slider value is drivered from ebox->x0 for H slider, so set x0, not val */
 	   slider->x0=data_slider->sxy.x+sval-(slider->width>>1);
 
 	   /* refresh it */

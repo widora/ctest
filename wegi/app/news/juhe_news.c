@@ -234,27 +234,6 @@ EGI_FILO* juhe_get_newsFilo(const char* url)
 	char *pmap=NULL;		   /* mmap of a file */
 	EGI_FILO* filo=NULL; 		   /* to buffer content pointers */
 
-#if 0 /////////////////////////////////////////////////////////////////
-	int nitems;			   /* items in filo */
-	int nwritten=0;
-
-	EGI_TOUCH_DATA	touch_data;	   /* touch data. */
-
-	/* For UFT-8 writeFB func. */
-	int fw=18, fh=18;  	/* font width and height */
-	int lngap=6;		/* line gap */
-	int pixpl=320-10;  	/* pixels per line */
-	int wlines=(240-45)/(fh+lngap);	/* total lines for writing */
-	int cnt=0;		/*  character count */
-	int lnleft;	/* lines unwritten */
-	int penx0=5, peny0=4;	/* Starting pen positio */
-	int penx, peny;		/* Curretn pen position */
-
-	/* init */
-	penx=penx0;
-	peny=peny0;
-	lnleft=wlines;
-#endif ///////////////////////////////////////////////////////////////////
 
 	if(url==NULL)
 		return NULL;
@@ -330,69 +309,6 @@ EGI_FILO* juhe_get_newsFilo(const char* url)
         } while( pstr!=NULL );
 	printf("%s: finish parsing HTML...\n",__func__);
 
-#if 0 //////////////////////////////////////////////////////////
-	/* Clear displaying zone */
-	draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
-
-	/* Read FILO and get pointer to paragraph content, then display it. */
-	nitems=egi_filo_itemtotal(filo);
-	for(i=0; egi_filo_read(filo, i, &content)==0; i++ )
-	{
-		printf("%s: ----From %s: writeFB paragraph %d -----\n",
-				 	   __func__, (Is_Saved_Html==true)?"saved html":"live html", i);
-		if(content==NULL)
-			printf("%s:---------- content is NULL ---------\n",__func__);
-
-		printf("content[%d/%d]: %s\n", i, nitems-1, content);
-
-		/* Pointer to content and length */
-		pstr=content;
-		len=strlen(content);
-
-		/* Write paragraph content to FB, it may need several displaying pages */
-		do {
-			/* write to FB back buff */
-			printf("FTsymbol_uft8strings_writenFB...\n");
-        		nwritten=FTsymbol_uft8strings_writeFB(&gv_fb_dev, egi_appfonts.bold,       /* FBdev, fontface */
-                        	             fw, fh, (const unsigned char *)pstr,   /* fw,fh, pstr */
-                                	     pixpl, lnleft, lngap,     	    	    /* pixpl, lines, gap */
-	                                     penx, peny,      //5,320-75,     	    /* x0,y0, */
-        	                             WEGI_COLOR_BLACK, -1, 255,  /* fontcolor, transcolor, opaque */
-					     &cnt, &lnleft, &penx, &peny);   /* &cnt, &lnleft, &penx, &peny */
-
-			printf("UFT8 strings writeFB: cnt=%d, lnleft=%d, penx=%d, peny=%d\n",
-										cnt,lnleft,penx,peny);
-			if(nwritten>0)
-				pstr+=nwritten; /* move pointer forward */
-
-			/* If text box if filled up OR all FILO is empty, refresh it */
-			if( lnleft==0 ||  i==nitems-1 ) {  //&& len-nwritten<=0 ) {
-				/* refresh FB */
-				printf("%s:  written=%d, refresh fb...\n", __func__, nwritten);
-				fb_page_refresh(&gv_fb_dev);
-
-				/* refresh text box */
-				printf("\n	---->>>  Refresh Text BOX  <<<----- \n");
-				lnleft=wlines;
-				penx=penx0; peny=peny0;
-
-				/* If touch screen within Xs, then end the function */
-				tm_start_egitick();
-				if( egi_touch_timeWait_press(CONTENT_DISPLAY_SECONDS, &touch_data)==0 ) {
-					printf("Touch tpxy(%d,%d)\n", touch_data.coord.x, touch_data.coord.y);
-					/* If hit title box, then go back to news title dispaying */
-					if( point_inbox(&touch_data.coord, &title_box) )
-						goto FUNC_END;
-					/* else, continue news content displaying */
-				}
-
-				/* Clear displaying zone, only */
-				draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAYC, 0, 0, 320-1, 240-45-1);
-			}
-		} while( nwritten>0 && (len -= nwritten)>0 );
-
-	} /* End read filo and display content */
-#endif //////////////////////////////////////////////////////////////////
 
 FUNC_END:
 	/* Close file and mumap */
@@ -507,3 +423,52 @@ int juhe_fill_charBuff(const char *fpath, char *buff, int size)
 	fclose(fil);
 	return ret;
 }
+
+/* ---------------------------	 ERROR CALL 	-------------------------
+New item[13] URL: http://mini.eastday.com/mobile/191204113356706.html
+[2019-12-04 15:57:35] [LOGLV_INFO] main: Start juhe_get_newsContent()...
+juhe_get_newsFilo: init FILO...
+juhe_get_newsFilo: https_curl_request...
+[2019-12-04 15:57:35] [LOGLV_INFO] https_curl_request: start curl_global_init and easy init...
+[2019-12-04 15:57:36] [LOGLV_INFO] https_curl_request: start curl_easy_perform()...
+https_curl_request: curl_easy_perform() failed: No error  <-------- Ok HERE ----------
+https_curl_request: CURLINFO_CONTENT_LENGTH_DOWNLOAD = -1  !!! --- BUT --- !!!!
+Fail to call https_curl_request()!
+
+
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans-CN">
+<head>
+    <meta charset="utf-8" />
+    <title>新闻头条_东方资讯客户端</title>
+    <!--target-densitydpi=medium-dpi,-->
+    <meta id="viewport" name="viewport" content=" width=640, height=device-height, initial-scale=0.5, user-scalable=yes" />
+    <link href="/assets/images/favicon.ico" type="image/x-icon" rel="icon" />
+
+    <link type="text/css" rel="stylesheet" href="/assets/error_404/css/error_404.css?20190225" />
+    <script type="text/javascript" src="/assets/js/jquery.merge.min.js"></script>
+    <script type="text/javascript" src="/assets/js/resources/minicookie.js"></script>
+    <script type="text/javascript">
+        var newstype = '404';
+    </script>
+    <script type="text/javascript" src="/assets/error_404/js/global_404.js?2019005071"></script>
+</head>
+
+<body>
+    <div id="J_404" style="display: none">
+        <div class='header'>
+            <div class="logo-wrapper">
+                <div class="logo">
+                    <a class="logo-img" href="/" target="_blank"></a>
+                </div>
+            </div>
+            <div class="error-tip">
+                <p class="error_info1">404&nbsp;&nbsp;很抱歉！您访问页面被外星人劫持了</p>
+                <p class="error_info2">可能原因：你要查看的网址可能被删，名称已被更改，或者暂时不可用</p>
+            </div>
+        </div>
+        <div class="news-list-wrapper">
+            <div class="word-wrapper">
+
+
+---------------------------------------------------------------------------- */
