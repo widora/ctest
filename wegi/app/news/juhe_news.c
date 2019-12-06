@@ -141,7 +141,7 @@ Return:
         0       ok
         <0      fails
 ----------------------------------------------------------------------------------------------*/
-char* juhe_get_elemURL(const char *strinput, int index, const char *strkey)
+char* juhe_dupGet_elemValue(const char *strinput, int index, const char *strkey)
 {
         char *pt=NULL;
 
@@ -296,11 +296,11 @@ EGI_FILO* juhe_get_newsFilo(const char* url)
         /* Parse HTML and push to FILO */
         do {
                 /* parse returned data as html text, extract paragraph content and push its pointer to FILO */
-		printf("%s: parse html tag <paragrah>...\n",__func__);
+//		printf("%s: parse html tag <paragrah>...\n",__func__);
                 pstr=cstr_parse_html_tag(pstr, "p", &content, &len); /* Contest is allocated if succeeds! */
                 if(content!=NULL) {
                         //printf("%s: %s\n",__func__, content);
-			printf("%s: push content pointer to FILO ...\n",__func__);
+//			printf("%s: push content pointer to FILO ...\n",__func__);
 			if( egi_filo_push(filo, &content) !=0 ) /* Push a pointer to FILO */
 				EGI_PLOG(LOGLV_ERROR,"%s: fail to push content to FILO: %s.",__func__, content);
 			content=NULL; /* Ownership transformed */
@@ -424,7 +424,18 @@ int juhe_fill_charBuff(const char *fpath, char *buff, int size)
 	return ret;
 }
 
+
 /* ---------------------------	 ERROR CALL 	-------------------------
+
+1. --- Fail to extract title for "新的LSAM MT机型为增材制造提供新的选择"
+
+...,{"uniquekey":"9999816945df6cbff47dcd9d4404dfbd","title":"金牛座有缘无分的恋人是谁？","date":"2019-12-06 10:20","category":"头条","author_name":"星座互侃","url":"http:\/\/mini.eastday.com\/mobile\/191206102033097.html","thumbnail_pic_s":"http:\/\/02imgmini.eastday.com\/mobile\/20191206\/20191206102033_a1680a0a1441d1dda466c8df92512b1b_1_mwpm_03200403.jpg"},{"uniquekey":"6c570b0293cef7db2c5bd139e8f401fa","title":"新的LSAM MT机型为增材制造提供新的选择","date":"2019-12-06 10:17","category":"头条","author_name":"ZAKER网","url":"http:\/\/mini.eastday.com\/mobile\/191206101708250.html","thumbnai
+l_pic_s":"http:\/\/09imgmini.eastday.com\/mobile\/20191206\/20191206101708_9aea787b5f4b6980ef48056072a1f61e_3_mwpm_03200403.jpg","thumbnail_pic_s02":"http:\/\/09imgmini.eastday.com\/mobile\/20191206\/20191206101708_9aea787b5f4b6980ef48056072a1f61e_2_mwpm_03200403.jpg","thumbnail_pic_s03":"http:\/\/09imgmini.eastday.com\/mobile\/20191206\/20191206101708_9aea787b5f4b6980ef48056072a1f61e_4_mwpm_03200403.jpg"},{"uniquekey":"ea5de56c39c2a0acfaca84e5fed12c1c","title":"赣县中学西校区组织开展劳动实践活动","date":"2019-12-06 10:10","category":"头条","author_name":"客家新闻网","url":"http:\/\/mini.eastday.com\/mobile\/191206101008804.html","thumbnail_pic_s":"http:\/\/00imgmini.eastday.com\/mobile\/20191206\/20191206101008_2664a915115a22fc4acc88e917e373ac_1_mwpm_03200403.jpg"},....
+
+
+
+2. ---
+
 New item[13] URL: http://mini.eastday.com/mobile/191204113356706.html
 [2019-12-04 15:57:35] [LOGLV_INFO] main: Start juhe_get_newsContent()...
 juhe_get_newsFilo: init FILO...
@@ -472,3 +483,4 @@ Fail to call https_curl_request()!
 
 
 ---------------------------------------------------------------------------- */
+

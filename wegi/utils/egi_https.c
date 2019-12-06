@@ -11,6 +11,8 @@ Midas Zhou
 #include "egi_https.h"
 #include "egi_log.h"
 
+#define EGI_CURL_TIMEOUT	5   /* in seconds */
+
 /*------------------------------------------------------------------------------
 			HTTPS request by libcurl
 
@@ -29,6 +31,7 @@ Return:
 int https_curl_request(const char *request, char *reply_buff, void *data,
 								curlget_callback_t get_callback)
 {
+	int i;
 	int ret=0;
   	CURL *curl;
   	CURLcode res;
@@ -46,7 +49,7 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 	/* set curl option */
 	curl_easy_setopt(curl, CURLOPT_URL, request);		 	 /* set request URL */
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L); //1L		 /* 1 print more detail */
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);			 /* set timeout */
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, EGI_CURL_TIMEOUT);	 /* set timeout */
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, get_callback);     /* set write_callback */
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, reply_buff); 		 /* set data dest for write_callback */
 #ifdef SKIP_PEER_VERIFICATION
@@ -56,31 +59,45 @@ int https_curl_request(const char *request, char *reply_buff, void *data,
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 #endif
 
+/* Try Max. 3 sessions */
+for(i=0; i<3; i++)
+{
+	EGI_PLOG(LOGLV_CRITICAL, "%s: Try [%d]th curl_easy_perform()... ", __func__, i);
 	/* Perform the request, res will get the return code */
-	EGI_PLOG(LOGLV_INFO, "%s: start curl_easy_perform()...",__func__);
 	if(CURLE_OK != curl_easy_perform(curl) ) {
 		printf("%s: curl_easy_perform() failed: %s\n", __func__, curl_easy_strerror(res));
 		ret=-2;
+		continue; /* retry ... */
 	}
 
-	/* Get session info. */
+
+	/* 				--- Check session info. ---
+	 ***  Note: curl_easy_perform() may result in CURLE_OK, but curl_easy_getinfo() may still fail!
+	 */
 	if( CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &doubleinfo) ) {
 		printf("%s: CURLINFO_CONTENT_LENGTH_DOWNLOAD = %.0f \n", __func__, doubleinfo);
 		if( (int)doubleinfo > CURL_RETDATA_BUFF_SIZE )
 		{
 		  EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length > CURL_RETDATA_BUFF_SIZE!",
 												   __func__);
+			ret=-3;
+			break;	/* BUFF overflow! */
 		}
 		/* Content length MAY BE invalid!!! */
 		else if( (int)doubleinfo < 0 ) {
 		  	EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length < 0!",  __func__);
-			ret=-3;
+			ret=-4;
+			continue; /* retry ... */
 		}
+		else
+		  	break; 	/* ----- OK! End Session ----- */
 	}
-	else {
+	else { 	/* Getinfo fails */
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!", __func__);
-		ret=-4;
+		ret=-5;
+		continue; /* retry ... */
 	}
+}
 
 /*
 [2019-12-04 15:57:35] [LOGLV_INFO] https_curl_request: start curl_global_init and easy init...
@@ -90,13 +107,13 @@ https_curl_request: CURLINFO_CONTENT_LENGTH_DOWNLOAD = -1
 Fail to call https_curl_request()!
 */
 
-
 	/* always cleanup */
 	curl_easy_cleanup(curl);
   	curl_global_cleanup();
 
 	return ret;
 }
+
 
 
 /*----------------------------------------------------------------------------
@@ -119,9 +136,11 @@ Return:
 int https_easy_download(const char *file_url, const char *file_save,   void *data,
 							      curlget_callback_t write_callback )
 {
+	int i;
 	int ret=0;
   	CURL *curl;
   	CURLcode res;
+	double doubleinfo=0;
 	FILE *fp;	/* FILE to save received data */
 
 	/* check input */
@@ -155,7 +174,7 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	/*  1L --enable redirection */
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	/*  set timeout */
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, EGI_CURL_TIMEOUT);
 
 	/* For name lookup timed out error: use ipv4 as default */
 	//  curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
@@ -174,14 +193,48 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 	/* Set data destination for write_callback */
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
+  /* Try Max. 3 sessions */
+  for(i=0; i<3; i++)
+  {
+	EGI_PLOG(LOGLV_CRITICAL, "%s: Try [%d]th curl_easy_perform()... ", __func__, i);
 	/* Perform the request, res will get the return code */
-	EGI_PLOG(LOGLV_INFO, "%s: start curl_easy_perform()...",__func__);
 	res = curl_easy_perform(curl);
 	if(res != CURLE_OK) {
 		EGI_PLOG(LOGLV_ERROR,"%s: curl_easy_perform() failed: %s", __func__, curl_easy_strerror(res));
 		ret=-3;
-		goto CURL_FAIL;
+		continue;  /* retry ... */
+		//goto CURL_FAIL;
 	}
+
+	/* 				--- Check session info. ---
+	 ***  Note: curl_easy_perform() may result in CURLE_OK, but curl_easy_getinfo() may still fail!
+	 */
+	if( CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &doubleinfo) ) {
+		printf("%s: CURLINFO_CONTENT_LENGTH_DOWNLOAD = %.0f \n", __func__, doubleinfo);
+		if( (int)doubleinfo > CURL_RETDATA_BUFF_SIZE )
+		{
+		  EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length > CURL_RETDATA_BUFF_SIZE!",
+												   __func__);
+			ret=-4;
+			break;	/* BUFF overflow! */
+		}
+		/* Content length MAY BE invalid!!! */
+		else if( (int)doubleinfo < 0 ) {
+		  	EGI_PLOG(LOGLV_ERROR,"%s: Curl download content length < 0!",  __func__);
+			ret=-5;
+			continue; /* retry ... */
+		}
+		else
+		  	break; 	/* ----- OK! End Session ----- */
+	}
+	else {	/* Getinfo fails */
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy getinfo CURLINFO_CONTENT_LENGTH_DOWNLOAD!", __func__);
+		ret=-6;
+		continue; /* retry ... */
+	}
+
+  }
+
 
 CURL_FAIL:
 	/* Close file */

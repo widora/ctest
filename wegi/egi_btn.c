@@ -148,6 +148,8 @@ Return:
 int egi_btnbox_activate(EGI_EBOX *ebox)
 {
 	int icon_code;
+	int symheight;
+	int symwidth;
 
 	/* check data */
         if( ebox == NULL)
@@ -193,16 +195,22 @@ int egi_btnbox_activate(EGI_EBOX *ebox)
 	if(data_btn->icon != NULL)
 	{
 		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR+CODE */
-
-		//int bkcolor=data_btn->icon->bkcolor;
-		int symheight=data_btn->icon->symheight;
-		int symwidth=data_btn->icon->symwidth[icon_code];
-		/* use bigger size for ebox height and width !!! */
-		if(symheight > ebox->height || symwidth > ebox->width )
-		{
-			ebox->height=symheight;
-			ebox->width=symwidth;
-	 	}
+		/* check icon_code */
+		if(icon_code<0 || icon_code > data_btn->icon->maxnum) {
+                	printf("%s: icon code is invalid! reset icon to NULL \n", __func__);
+			data_btn->icon=NULL;
+		}
+		else {
+			//int bkcolor=data_btn->icon->bkcolor;
+			symheight=data_btn->icon->symheight;
+			symwidth=data_btn->icon->symwidth[icon_code];
+			/* use bigger size for ebox height and width !!! */
+			if(symheight > ebox->height || symwidth > ebox->width )
+			{
+				ebox->height=symheight;
+				ebox->width=symwidth;
+	 		}
+		}
 	}
 
 	/* else if no icon, use prime shape and size */
@@ -370,17 +378,24 @@ int egi_btnbox_refresh(EGI_EBOX *ebox)
 	if(data_btn->icon != NULL)
 	{
 		icon_code=( (data_btn->icon_code)<<16 )>>16; /* as SYM_SUB_COLOR + CODE */
-		sym_subcolor = (data_btn->icon_code)>>16;
+		/* check icon_code */
+		if(icon_code<0 || icon_code > data_btn->icon->maxnum) {
+                	printf("%s: icon code is invalid! reset icon to NULL \n", __func__);
+			data_btn->icon=NULL;
+		}
+		else {
+			sym_subcolor = (data_btn->icon_code)>>16;
 
-		bkcolor=data_btn->icon->bkcolor;
-		symheight=data_btn->icon->symheight;
-		symwidth=data_btn->icon->symwidth[icon_code];
-		/* use bigger size for ebox height and width !!! */
-		if(symheight > ebox->height || symwidth > ebox->width )
-		{
-			ebox->height=symheight;
-			ebox->width=symwidth;
-	 	}
+			bkcolor=data_btn->icon->bkcolor;
+			symheight=data_btn->icon->symheight;
+			symwidth=data_btn->icon->symwidth[icon_code];
+			/* use bigger size for ebox height and width !!! */
+			if(symheight > ebox->height || symwidth > ebox->width )
+			{
+				ebox->height=symheight;
+				ebox->width=symwidth;
+		 	}
+		}
 	}
 	/* else if no icon, use prime shape */
 

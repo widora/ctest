@@ -193,8 +193,8 @@ struct egi_element_box
 	bool movable;
 
 	/* ebox tag
-	 * NOTE: If you want to show tag on a btn ebox,make sure that all words should be within the box,
-	 * because outside letters will NOT be refreshed by the ebox.
+	 * NOTE: If you want to show tag on a btn ebox,make sure that all words be within the box,
+	 * any letters outside the box will NOT be refreshed by ebox!
 	 */
 	char tag[EGI_TAG_LENGTH+1];/* 1byte for /0,  a simple description of the ebox for later debug */
 	EGI_16BIT_COLOR	tag_color;
@@ -317,7 +317,7 @@ struct egi_element_box
 
 	/* --- hide:
 	   1. Remove the ebox image from the screen and restore the bkimg.
-	   2. and set status as status_hidden. A hidden EBOX only refresh data, NOT image!
+	   2. and set status as status_hidden. A hidden EBOX only refresh/update its data, NOT image!
 	   3. If an immovale ebox sleeps, it should not disappear ??!!!
 	   4. A hidden ebox will not react to touching.
 	*/
@@ -329,8 +329,8 @@ struct egi_element_box
 
 	/* reaction to touch_data
 	 * Several types of touch status can trigger page routine to call a button(ebox) reaction,
-	 * so always check touch_data at the begin of the reaction function codes, see if it's the expected
-	 * touch_status for the button(ebox).
+	 * so always check touch_data at the begin of the reaction function codes, to see if it's the
+	 * expected touch_status for the button(ebox).
 	 */
 	int (*reaction)(EGI_EBOX *, EGI_TOUCH_DATA * );
 

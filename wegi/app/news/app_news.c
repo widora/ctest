@@ -35,19 +35,46 @@ static char strkey[256];			/* for name of json_obj key */
 static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html expected */
 
 #define THUMBNAIL_DISPLAY_SECONDS       5
-#define CONTENT_DISPLAY_SECONDS         5
+#define CONTENT_DISPLAY_SECONDS         10
 #define TOUCH_SLIDE_THRESHOLD           25
 
 static bool Is_Saved_Html;                      /* If read from saved html, versus Is_Live_Html */
 
-/* ZONE divisions, ! NOTE: In LCD touch pad coord.  */
+/* ZONE divisions, !!!--- In LCD touch pad coord. ---!!!
+	     A 320x240 LCD in Landscape Mode
+
+<------------------------ 320 -------------------------->|  <---------
+ |			   |					    |
+ |			   |				slide box   60
+100	  Left Box     Mini Panel     Right Box			    |
+ |			   |			<---------------------
+ |			   |
+<----------- 160 --------->|<----------- 160 ----------->|
+ |			   |
+ |			   |
+ 95	  Left Box	   |           Right Box
+ |			   |
+ |			   |
+---------------------------------------------------------|
+ |
+ 45			Title Box
+ |
+---------------------------------------------------------|
+*/
+
 EGI_BOX text_box={ {0, 0}, {240-45-1, 320-1} };	  	/* Text display zone  */
+EGI_BOX right_box={ {0, 0}, {195, 160} };		/* Text display zone  */
+EGI_BOX left_box={ {0, 160}, {195, 320-1} };	  	/* Text display zone  */
 EGI_BOX title_box={ {240-45, 0}, {240-1, 320-1} }; 	/* Title display zone */
-EGI_BOX minipanel_box={ {0,0}, {100, 320-1} }; 		/* Mini panel zone */
+EGI_BOX minipanel_box={ {0, 0}, {100, 320-1} }; 	/* Mini panel zone */
+EGI_BOX	slide_box={ {0, 0}, {60, 320-1} };		/* Sliding touch zone, for mini_panel activating */
 
 /* Function */
 static void display_newsFilo(EGI_FILO *filo);
 static void free_newsFilo(EGI_FILO** filo);
+
+void press_mark(EGI_POINT touch_pxy, int rad, uint8_t alpha, EGI_16BIT_COLOR color);
+void ripple_mark(EGI_POINT touch_pxy, uint8_t alpha, EGI_16BIT_COLOR color);
 
 
 /*------------------    www.juhe.cn  News Types     -----------------
@@ -56,34 +83,14 @@ static void free_newsFilo(EGI_FILO** filo);
 --------------------------------------------------------------------*/
 static char* news_type[]=
 {
-   "caijing", "top", "keji", "guoji", "yule"
+   "top", "caijing", "keji", "guoji", "yule"
 };
 
 
-/*----------------------------------------------------
-Draw a filled circle as a  water mark.
 
-@rad:		radius of the mark
-@alpha:		Alpha value for color blend
-@touch_pxy:	Point coordinate
-------------------------------------------------------*/
-void press_mark(int rad, int alpha, EGI_POINT touch_pxy, EGI_16BIT_COLOR color)
-{
-	/* Turn on FB filo and set map pointer */
-        fb_filo_on(&gv_fb_dev);
-	gv_fb_dev.map_bk=gv_fb_dev.map_fb;
 
-	draw_blend_filled_circle( &gv_fb_dev,
-				  320-touch_pxy.y, touch_pxy.x,
-				  rad, color, alpha); /* r,color,alpha  */
 
-	tm_delayms(100);
-	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
 
-	/* Turn off FB filo and reset map pointer */
-	gv_fb_dev.map_bk=gv_fb_dev.map_buff;
-	fb_filo_off(&gv_fb_dev);
-}
 
 
 /*----------------------------
@@ -251,7 +258,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 //		EGI_PLOG(LOGLV_WARN,"%s: TotalItems is 0!",__func__);
 //	}
 
-	/* Get news picture and content item by item */
+	/* Get news thumbnai picture and content item by item */
 	for(i=0; i<totalItems; i++) {
 		/* clear FB back buff for rewrite */
 		fb_clear_backBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
@@ -262,7 +269,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		/* --- Get thumbnail pic URL and download it --- */
 		/* Get thumbnail URL */
-		pstr=juhe_get_elemURL(buff,i,"thumbnail_pic_s");
+		pstr=juhe_dupGet_elemValue(buff,i,"thumbnail_pic_s");
 		if(pstr == NULL) {
 		    #if 1
 		    printf("News type [%s] item[%d]: thumbnail URL not found, try next item...\n",
@@ -278,12 +285,18 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* Download thumbnail pic
 		 * !!!WARNING!!!: https_easy_download may fail, if thumb_path is NOT correct.
 		 */
-		EGI_PLOG(LOGLV_INFO,"   --- Start https easy download thumbnail pic --- \n URL: %s", pstr);
+		EGI_PLOG(LOGLV_INFO,"%s:  --- Start https easy download thumbnail pic --- \n URL: %s",
+											__func__, pstr);
 		if( https_easy_download(pstr, thumb_path, NULL, download_callback) !=0 ) {
 	                EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy_download %s[%d] '%s'.\n",
 									 __func__, news_type[k], i, pstr);
 			egi_free_char(&pstr);
                		continue; /* Continue for(i) */
+
+			/* Note: If fails, it will slip to next item, and for next item, it will
+			 *       always stuck if you press/touch to move back.
+			 */
+
 		}
 		egi_free_char(&pstr);
 
@@ -324,12 +337,16 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 	        egi_imgbuf_free(imgbuf);imgbuf=NULL;
 
 		/* --- Get news title and display it --- */
-		pstr=juhe_get_elemURL(buff, i, "title");
+		pstr=juhe_dupGet_elemValue(buff, i, "title");
 		if(pstr==NULL) {
 			#if 1
 			printf("News type [%s] item[%d]: Title not found, try next item...\n",
 											news_type[k], i );
 			continue;	/* continue for(i) */
+			/* Note: If NOT found, it will slip to next item, and for next item, it will
+			 *       always stuck if you press/touch to move back.
+			 */
+
 			#else
 			printf("News type [%s] item[%d]: Title not found, skip to next news type...\n",
 											news_type[k], i );
@@ -369,55 +386,74 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* save FB data to a PNG file */
 		//egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
-		/* Hold on and wait .....
-		 * If the reader touch the screen within xs, then display the item content,
-		 * otherwise skip to next title show when time is out.
+		/*** 		Hold on and wait .....
+		 *  If the reader touch the screen within xs, then display the item content,
+		 *  otherwise skip to next title show when time is out.
 		 */
 		tm_start_egitick();
 		if( egi_touch_timeWait_press(THUMBNAIL_DISPLAY_SECONDS, &press_touch)==0 ) {
 			printf(" >>>>>  Press touching pxy(%d,%d)\n",
 						press_touch.coord.x, press_touch.coord.y);
 
-			/* 1. If press touch title_box */
+			/* 1. If press/touch title_box */
 			if( point_inbox(&press_touch.coord, &title_box) ) {
-				press_mark(40,135,press_touch.coord,WEGI_COLOR_ORANGE);
-				purl=juhe_get_elemURL(buff, i, "url");
+				press_mark(press_touch.coord,40,135,WEGI_COLOR_ORANGE);
+				purl=juhe_dupGet_elemValue(buff, i, "url");
 				printf("New item[%d] URL: %s\n", i, purl);
 				EGI_PLOG(LOGLV_INFO,"%s: Start juhe_get_newsContent()...",__func__);
+
+				/* Get news content and display it in text zone */
 				news_filo=juhe_get_newsFilo(purl);
 				display_newsFilo(news_filo);
 				free_newsFilo(&news_filo);
+
+				/*free duped char */
+				egi_free_char(&purl);
+				continue;
 			}
 
-                        /* 2. If press touch minipanel_box area -- AND -- sliding to pull down mini panel */
-			else if( point_inbox(&press_touch.coord, &minipanel_box) )
+                        /* 2. If press/touch slide_box area -- AND -- sliding to pull down mini panel */
+			else if( point_inbox(&press_touch.coord, &slide_box) )  //minipanel_box) )
 			{
-				press_mark(40,135,press_touch.coord,WEGI_COLOR_ORANGE);
+				press_mark(press_touch.coord,40,135,WEGI_COLOR_ORANGE);
 				if( egi_touch_timeWait_release(3,&touch_data)==0
 				    		&& touch_data.dx > TOUCH_SLIDE_THRESHOLD )
 				{
 					printf("--- dx=%d, dy=%d --- \n", touch_data.dx, touch_data.dy);
+					/* trap into mini panel routine */
 	                                create_miniPanel();
         	                        fb_page_refresh(&gv_fb_dev);
 					miniPanel_routine();
                         	        free_miniPanel();
+
+					/*free duped char */
+					//egi_free_char(&purl);
+
+					continue;
 				}
 				printf("%s: <<<<<  timewait release fails!	>>>> \n",__func__);
-
                         }
 
-			/* 3. Else if touch thumbnail pic area */
-			else
-				press_mark(40,180,press_touch.coord,WEGI_COLOR_RED);
+			/* 1. If press/touch left_box. Move back 1 item... */
+			if( point_inbox(&press_touch.coord, &left_box) )  /* Move back */
+			{
+				press_mark(press_touch.coord, 40, 180, WEGI_COLOR_RED);
+				if(i > 0)   	/* move back 1 item */
+					i-=2;
+				else if(i==0)
+					i=-1;
+			}
+			/* 2. Else if press/touch right_box,  Move forward... */
+			else // ( point_inbox(&press_touch.coord, &right_box) )  /* Move forward */
+				press_mark(press_touch.coord, 40, 180, WEGI_COLOR_RED);
 
 			/*free duped char */
-			egi_free_char(&purl);
-
+			// egi_free_char(&purl);
 			/* ---> GO TO NEXT NEWS ITEM[i] */
-		}
-
+		} /* END touch timeWait */
 	} /* END for(i) */
  } /* END for(k) */
+
 
 } //////////////////////////      END LOOP  TEST      ///////////////////////////
 
@@ -536,7 +572,8 @@ static void display_newsFilo(EGI_FILO *filo)
 				/* If touch screen within Xs, then end the function */
 				tm_start_egitick();
 				if( egi_touch_timeWait_press(CONTENT_DISPLAY_SECONDS, &touch_data)==0 ) {
-					press_mark(40, 135, touch_data.coord,WEGI_COLOR_ORANGE);
+					//press_mark(touch_data.coord, 40, 135, WEGI_COLOR_ORANGE);
+					ripple_mark(touch_data.coord, 135, WEGI_COLOR_ORANGE);
 					printf("Touch tpxy(%d,%d)\n", touch_data.coord.x, touch_data.coord.y);
 					/* If hit title box, then return */
 					if( point_inbox(&touch_data.coord, &title_box) )
@@ -576,4 +613,63 @@ static void free_newsFilo(EGI_FILO** filo)
 	egi_free_filo(*filo);
 
 	*filo=NULL;
+}
+
+
+/*----------------------------------------------------
+Draw a filled circle as a  water mark.
+
+@rad:		radius of the mark
+@alpha:		Alpha value for color blend
+@touch_pxy:	Point coordinate
+------------------------------------------------------*/
+void press_mark(EGI_POINT touch_pxy, int rad, uint8_t alpha, EGI_16BIT_COLOR color)
+{
+	/* Turn on FB filo and set map pointer */
+        fb_filo_on(&gv_fb_dev);
+	gv_fb_dev.map_bk=gv_fb_dev.map_fb;
+
+	draw_blend_filled_circle( &gv_fb_dev,
+				  320-touch_pxy.y, touch_pxy.x,
+				  rad, color, alpha); /* r,color,alpha  */
+
+	tm_delayms(100);
+	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+
+	/* Turn off FB filo and reset map pointer */
+	gv_fb_dev.map_bk=gv_fb_dev.map_buff;
+	fb_filo_off(&gv_fb_dev);
+}
+
+
+
+/* ----------------------------------------------------------------------
+Draw a water ripple mark.
+
+@alpha:		Alpha value for color blend
+@touch_pxy:	Point coordinate
+---------------------------------------------------------------------- */
+void ripple_mark(EGI_POINT touch_pxy, uint8_t alpha, EGI_16BIT_COLOR color)
+{
+	int i;
+	int rad[]={ 10, 20, 30, 40, 50, 60, 70 };
+	int wid[]={ 7, 7, 5, 5, 3, 3, 1 };
+
+   for(i=0; i<sizeof(rad)/sizeof(rad[0]); i++)
+   {
+	/* Turn on FB filo and set map pointer */
+        fb_filo_on(&gv_fb_dev);
+	gv_fb_dev.map_bk=gv_fb_dev.map_fb;
+
+   	draw_blend_filled_annulus(&gv_fb_dev,
+			    320-touch_pxy.y, touch_pxy.x,
+			    rad[i], wid[i], color, alpha );	/* radius, width, color, alpha */
+	tm_delayms(65);
+	fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+
+	/* Turn off FB filo and reset map pointer */
+	gv_fb_dev.map_bk=gv_fb_dev.map_buff;
+	fb_filo_off(&gv_fb_dev);
+   }
+
 }

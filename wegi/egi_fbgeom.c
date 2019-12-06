@@ -1063,6 +1063,7 @@ draw a filled annulus.
 Note:
 	1. When w=1, the result annulus is a circle with some
 	   unconnected dots.!!!
+Midas
 --------------------------------------------------------------------------*/
 void draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 {
@@ -1093,15 +1094,51 @@ void draw_filled_annulus(FBDEV *dev, int x0, int y0, int r, unsigned int w)
 //			k-=1;
 //		}
 
-		/* draw 4th quadrant */
+
+  		/* draw 4th quadrant */
 		draw_line(dev,x0+k,y0+j,x0+m,y0+j);
 		/* draw 3rd quadrant */
-		draw_line(dev,x0-k,y0+j,x0-m,y0+j);
+	   	draw_line(dev,x0-k,y0+j,x0-m,y0+j);
 		/* draw 2nd quadrant */
 		draw_line(dev,x0-k,y0-j,x0-m,y0-j);
 		/* draw 1st quadrant */
 		draw_line(dev,x0+k,y0-j,x0+m,y0-j);
 	}
+}
+
+
+/*-----------------------------------------------------------------------
+draw a filled annulus blended with backcolor of FB.
+
+@dev: 		FB device
+@(x0,y0):	circle center
+@r:		radius in mid of w.
+@w:		width of annulus.
+@color:		Color of the filled circle
+@alpha:		Alpha value of the filled circle
+
+Note:
+	1. When w=1, the result annulus is a circle with some
+	   unconnected dots.!!!
+Midas
+--------------------------------------------------------------------------*/
+void draw_blend_filled_annulus( FBDEV *dev, int x0, int y0, int r, unsigned int w,
+			 	EGI_16BIT_COLOR color, uint8_t alpha )
+{
+	if(dev==NULL)
+		return;
+
+	/* turn on FBDEV pixcolor and pixalpha_hold */
+	dev->pixcolor_on=true;
+	dev->pixcolor=color;
+	dev->pixalpha=alpha;
+	dev->pixalpha_hold=true;
+
+	draw_filled_annulus( dev, x0, y0, r, w);
+
+	/* turn off FBDEV pixcolor and pixalpha_hold */
+	dev->pixcolor_on=false;
+	dev->pixalpha_hold=false;
 }
 
 
@@ -1129,8 +1166,9 @@ void draw_filled_circle(FBDEV *dev, int x, int y, int r)
 
 
 /*----------------------------------------------------------
-  draw a filled circle blended with backcolor of the FB
-  Midas Zhou
+draw a filled circle blended with backcolor of the FB
+Midas Zhou
+
 @dev: 		FB device
 @color:		Color of the filled circle
 @alpha:		Alpha value of the filled circle

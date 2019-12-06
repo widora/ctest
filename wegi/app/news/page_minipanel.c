@@ -83,6 +83,7 @@ static int 	react_exit(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static int 	react_slider(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data);
 static void* 	check_volume_runner(EGI_PAGE *page);
 static int 	page_decorate(EGI_EBOX *ebox);
+static int 	btn_decorate(EGI_EBOX *ebox);
 
 
 /*-----------------------------------------
@@ -103,7 +104,7 @@ EGI_PAGE *create_panelPage(void)
 		data_btns[i]=egi_btndata_new(	i, 			/* int id */
 						btnType_square, 	/* enum egi_btn_type shape */
 						&sympg_sbuttons, 	/* struct symbol_page *icon. If NULL, use geometry. */
-						0, 			/* int icon_code, assign later.. */
+						-1, 			/* int icon_code, assign later.. */
 						&sympg_testfont 	/* for ebox->tag font */
 					);
 		/* if fail, try again ... */
@@ -123,7 +124,7 @@ EGI_PAGE *create_panelPage(void)
 					  (320-280)/2+56*i, 5, 	/* (320-240)/2+48*i int x0, int y0 */
 						48, 48, 	/* int width, int height */
 				       		-1, 		/* int frame,<0 no frame */
-		       				WEGI_COLOR_GRAY /*int prmcolor, for geom button only. */
+		       				-1 /*int prmcolor, for geom button only. */
 					   );
 		/* if fail, try again ... */
 		if(panel_btns[i]==NULL) {
@@ -158,9 +159,13 @@ EGI_PAGE *create_panelPage(void)
 	panel_btns[3]->reaction=react_exit;
 
 	egi_ebox_settag(panel_btns[4], "Playmode");
-	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
-	panel_btns[4]->reaction=react_playmode;
 
+	data_btns[4]->icon=NULL;
+	data_btns[4]->icon_code=-1;
+//	data_btns[4]->icon_code=(btn_symcolor<<16)+ICON_CODE_LOOPALL;
+	panel_btns[4]->reaction=react_playmode;
+	panel_btns[4]->decorate=btn_decorate;
+	panel_btns[4]->frame=-1;//0; /* simple frame */
 
         /* --------- 2. create a horizontal sliding bar --------- */
         int sb_len=280; 	/* slot length */
@@ -384,6 +389,7 @@ static int react_playmode(EGI_EBOX * ebox, EGI_TOUCH_DATA * touch_data)
         /* bypass unwanted touch status */
         if(touch_data->status != pressing)
                 return btnret_IDLE;
+
 
 
 #if 0 /*---------  AS PLAYMODE LOOP SELECTION BUTTON  ---------*/
@@ -689,4 +695,29 @@ static void* check_volume_runner(EGI_PAGE *page)
 }
 
 
+/*-----------------------------------------
+	A button decorate function
+Write UFT-8 characters on the button
+-----------------------------------------*/
+static int btn_decorate(EGI_EBOX *ebox)
+{
+	const wchar_t *tag=L"禁";
+	int fw,fh;
+	int pixpl;
+	int x0,y0;
 
+	if(ebox==NULL)
+		return -1;
+
+	fw=25; fh=25;
+	pixpl=ebox->width;
+	x0=ebox->x0 + (ebox->width-fw)/2;
+	y0=ebox->y0 + (ebox->height-fh)/2 -round(fw/10.0);
+
+        FTsymbol_unicstrings_writeFB( &gv_fb_dev, egi_appfonts.bold,   	/* FBdev, fontface */
+                                      fw, fh, tag,    			/* fw,fh, pstr */
+                                      pixpl, 1, 0,           		/* pixpl, lines, gap */
+                                      x0, y0,                   	/* x0,y0, */
+                                      WEGI_COLOR_BLACK, -1, -1);   /* fontcolor, stranscolor, opaque */
+	return 0;
+}
