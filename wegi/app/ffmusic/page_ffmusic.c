@@ -553,7 +553,7 @@ static int sliding_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	static char strp[64];
 
 	/* bypass outrange sliding */
-	if( !point_inbox2( &touch_data->coord, &slide_zone) )
+	if( !point_inbox( &touch_data->coord, &slide_zone) )
               return btnret_IDLE;
 
 	/* ---- TEST ---- */
@@ -643,7 +643,7 @@ static int circling_volume(EGI_PAGE* page, EGI_TOUCH_DATA * touch_data)
 	int	adv;			/* adjusting value */
 
 	/* bypass outrange sliding */
-	if( !point_inbox2( &touch_data->coord, &slide_zone) )
+	if( !point_inbox( &touch_data->coord, &slide_zone) )
               return btnret_IDLE;
 
 	/* ---- TEST ---- */
@@ -778,7 +778,7 @@ Update title txt.
         Title
 
 -----------------------------------------------------*/
-void muzpage_update_title(const unsigned char *title)
+void __attribute__((weak)) muzpage_update_title(const unsigned char *title)
 {
         static unsigned char strtmp[512];
 
@@ -803,7 +803,7 @@ function only if they have been changed.
 @tm_duratoin:   duration time in second.
 @tm_elapsed:    elapsed time in second.
 ---------------------------------------------------------------*/
-void muzpage_update_timingBar(int tm_elapsed, int tm_duration )
+void __attribute__((weak)) muzpage_update_timingBar(int tm_elapsed, int tm_duration )
 {
         int psval;
         char strtm[64];

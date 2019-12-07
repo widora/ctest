@@ -294,6 +294,13 @@ void * thread_ffplay_music(EGI_PAGE *page)
 		return (void *)-1;
 	}
 
+	/* parse mode */
+	if(FFmuz_Ctx->ffmode==mode_play_once) {
+		enable_seekloop=false;
+		enable_filesloop=false;
+	}
+
+
 	printf("--------- media playing start at: %ldms ---------\n", FFmuz_Ctx->start_tmsecs);
 
 	int ftotal=FFmuz_Ctx->ftotal; /* number of multimedia files input from shell */
@@ -1210,6 +1217,10 @@ if(enable_clip_test)
 			    else if(FFmuz_Ctx->ffmode==mode_loop_all) {
 				enable_seekloop=false;
 				enable_shuffle=false;
+			    }
+			    else if(FFmuz_Ctx->ffmode==mode_play_once) {
+				enable_seekloop=false;
+				enable_filesloop=false;
 			    }
 			    /* reset */
 	 		    FFmuz_Ctx->ffcmd=cmd_none;

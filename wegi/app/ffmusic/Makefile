@@ -2,13 +2,16 @@ export STAGING_DIR=/home/midas-zhou/openwrt_widora/staging_dir
 COMMON_USRDIR=/home/midas-zhou/openwrt_widora/staging_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/usr
 SRC_PATH=/home/midas-zhou/Ctest/wegi
 
+CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
+
 #### ----- 产生文件列表 ------
 SRC_FILES = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRC_FILES))
 DEP_FILES = $(patsubst %.c,%.dep,$(SRC_FILES))
 
-
-CC= $(STAGING_DIR)/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin/mipsel-openwrt-linux-gcc
+##--- exclude some objs !!!BEWARE, :NO SPACE ----
+OBJS := $(OBJS:test_ffmuz.o=)
+OBJS := $(OBJS:app_ffmusic.o=)
 
 CFLAGS  = -I$(COMMON_USRDIR)/include  -I$(SRC_PATH) -I$(SRC_PATH)/utils/ -I$(SRC_PATH)/page/  -I$(SRC_PATH)/ffmpeg/
 CFLAGS  += -I/home/midas-zhou/ffmpeg-2.8.15/finish/include
@@ -45,6 +48,18 @@ ifeq ($(EGILIB),static)
 else
 	$(CC) $(OBJS) -o app_ffmusic  $(CFLAGS) $(LDFLAGS) $(LIBS) -legi   #Sequence!
 endif
+
+
+
+test_ffmuz: test_ffmuz.c $(OBJS) test_ffmuz.o
+ifeq ($(EGILIB),static)
+	$(CC) $(OBJS) test_ffmuz.o -o test_ffmuz $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic
+else
+	$(CC) $(OBJS) test_ffmuz.o -o test_ffmuz $(CFLAGS) $(LDFLAGS) $(LIBS) -legi
+endif
+
+
 
 #page_ffmusic.o:	page_ffmusic.c  page_ffmusic.h
 #	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -legi -c page_ffmusic.c

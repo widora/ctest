@@ -56,11 +56,14 @@ enum ffmuz_cmd {
  */
 enum ffmuz_mode
 {
-        mode_loop_all=0,   /* loop all files in the list */
-        mode_repeat_one,   /* repeat current file */
-        mode_shuffle,      /* pick next file randomly */
-	mode_noaudio,	   /* disable audio */
-	mode_audio
+        mode_loop_all		=0,   	/* Default loop all files in the list */
+	mode_play_once		=2,	/* play once */
+        mode_repeat_one		=4,   	/* repeat current file */
+        mode_shuffle		=8,     /* pick next file randomly */
+	mode_audio_on		=16,	/* default audio on */
+	mode_audio_off		=32,	/* disable audio */
+	mode_video_on		=64,	/* default video on */
+	mode_video_off		=128   /* disable video */
 };
 /* feedback stauts after ffmuz_cmd and ffmuz_mode execution */
 enum ffmuz_status
