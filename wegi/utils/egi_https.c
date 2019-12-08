@@ -164,7 +164,7 @@ int https_easy_download(const char *file_url, const char *file_save,   void *dat
 		goto CURL_FAIL;
 	}
 
-	/***   --- Set options for CURL  ---  ***/
+	/***   ---  Set options for CURL  ---   ***/
 	/* set download file URL */
 	curl_easy_setopt(curl, CURLOPT_URL, file_url);
 	/*  1L --print more detail,  0L --disbale */

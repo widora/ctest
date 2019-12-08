@@ -18,6 +18,44 @@ Midas Zhou
 #include "egi_log.h"
 
 
+/*---------------------------------------------------------
+Clear all specified char and squeeze the string.
+
+@buff:  String buffer.
+@size:  Total size of the buff.
+ 	!!! DO NOT use strlen(buff) to get the size, if the
+	spot is '\0'.
+@spot:  The specified character to be picked out.
+
+Return:
+        Length of the squeezed string.
+---------------------------------------------------------*/
+int cstr_squeeze_string(char *buff, int size, char spot)
+{
+        int i;
+        int olen; /* Length of original buff, including spots in middle of the buff,
+		   * but spots at the end of buff will NOT be counted in.
+		   */
+        int nlen; /* Length of new buff */
+
+        for(i=0,nlen=0,olen=0; i<size; i++)
+        {
+                if( buff[i] != spot )
+                        buff[nlen++]=buff[i];
+
+                /* Original buff length, including middle spots.    In case the spot char is '\0'... */
+                if( buff[i] != spot)// && spot != '\0' )
+                        olen=i+1;
+        }
+
+        /* clear original remaining chars, which already have been shifted forward. */
+        memset(buff+nlen,0,olen-nlen);
+
+        return olen-nlen; /* Buff is squeezed now. */
+}
+
+
+
 /*------------------------------------------------------------------
 Duplicate a file path string, then replace the extension name
 with the given one.

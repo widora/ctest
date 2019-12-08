@@ -24,5 +24,4 @@ void  		print_json_object(const json_object *json);
 int 		juhe_save_charBuff(const char *fpath, const char *buff);
 int 		juhe_fill_charBuff(const char *fpath, char *buff, int size);
 
-
 #endif

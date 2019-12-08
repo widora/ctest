@@ -87,12 +87,6 @@ static char* news_type[]=
 };
 
 
-
-
-
-
-
-
 /*----------------------------
 	    MAIN
 -----------------------------*/
@@ -101,6 +95,7 @@ int main(int argc, char **argv)
 	int i;
 	int k;
 	int err;
+	int len;
 	char *pstr=NULL;
 	char *purl=NULL;		   /* Item news URL */
         static char strRequest[256+64];
@@ -115,16 +110,57 @@ int main(int argc, char **argv)
 
 	EGI_TOUCH_DATA touch_data;	  /*  touch_data */
 	EGI_TOUCH_DATA press_touch;	  /*  touch_data */
-
 	EGI_FILO *news_filo=NULL;
 
 #if 0
-	if(argc<2)
-	{
-		printf("Usage: %s top\n", argv[0]);
-		exit(-1);
-	}
+	juhe_fill_charBuff("/tmp/juhe_top.html", buff, CURL_RETDATA_BUFF_SIZE);
+ 	len=cstr_squeeze_string(buff, sizeof(buff), '\n');
+	printf("pick out %d spots\n", len);
+	juhe_save_charBuff("/tmp/juhe_top2.html",buff);
+	exit(0);
 #endif
+
+
+#if 0 //////////////////
+	char strbuff[64]="1234567890098765432155333322211";
+	char spot;
+
+
+	if( argc >1 )
+		spot=argv[1][0];
+	else
+		spot='\0';
+
+	printf("spot=%d\n",spot);
+	printf("Original strbuff: %s\n",strbuff);
+
+	strbuff[5]=spot;
+	strbuff[8]=spot;
+	strbuff[10]=spot;
+	strbuff[11]=spot;
+	strbuff[18]=spot;
+	strbuff[28]=spot;
+	strbuff[9]=spot;
+	strbuff[13]=spot;
+	strbuff[15]=spot;
+
+	printf("sizeof strbuff=%zd\n", sizeof(strbuff));
+	printf("Spotted strbuff: ");
+	for(i=0; i<sizeof(strbuff); i++) {
+		if(strbuff[i]==spot)
+			printf("*");
+		else
+			printf("%c",strbuff[i]);
+	}
+	printf("\n");
+
+ 	len=cstr_squeeze_string(strbuff, sizeof(strbuff), spot);
+
+	printf("Squeezed strbuff: %s\n",strbuff);
+	printf("Pick out %d chars\n", len);
+
+	exit(0);
+#endif //////////////////
 
         /* <<<<< 	 EGI general init 	 >>>>>> */
 #if 1
@@ -211,6 +247,11 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                 	//return -1;  Go on....
 	        }
         	printf("	--- Http GET Reply ---\n %s\n",buff);
+
+		/* Squeeze buff */
+ 		len=cstr_squeeze_string(buff, sizeof(buff), '\n');
+		if(len>0)
+			EGI_PLOG(LOGLV_CRITICAL,"%s: len=cstr_squeeze_string()=%d \n",__func__,len);
 
 		totalItems=juhe_get_totalItemNum(buff);
 

@@ -52,7 +52,7 @@ EGILIB=dynamic
 
 #all:	$(APPS)
 
-$(APP_NAME):  $(OBJS)
+$(APP_NAME):  $(OBJS) $(DEP_FILES)
 ifeq ($(EGILIB),static)
 	$(CC) $(OBJS) -o $(APP_NAME)  $(CFLAGS) $(LDFLAGS) -Wl,-Bdynamic $(LIBS) \
 -Wl,-Bstatic -legi -lesound -Wl,-Bdynamic
