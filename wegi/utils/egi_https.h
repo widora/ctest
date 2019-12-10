@@ -14,7 +14,7 @@ Midas Zhou
 #define __SKIP_PEER_VERIFICATION
 #define __SKIP_HOSTNAME_VERIFICATION
 
-#define CURL_RETDATA_BUFF_SIZE  (64*1024)  /* CURL RETURNED DATA BUFFER SIZE */
+#define CURL_RETDATA_BUFF_SIZE  (128*1024)  /* CURL RETURNED DATA BUFFER SIZE */
 
 /* a callback function for CURL to handle returned data */
 typedef size_t (* curlget_callback_t)(void *ptr, size_t size, size_t nmemb, void *userp);

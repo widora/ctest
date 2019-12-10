@@ -5,13 +5,6 @@ published by the Free Software Foundation.
 
 An example for www.juhe.com https news interface.
 
-Note:
-1. HTTPS requests to get JUHE news list, then display item news one by one.
-2. History visti will be save as html text files.
-3. Touch on news picture area to view the contents.
-   Touch on news titles area to return to news picures.
-
-Usage:	./test_juhe
 
 Midas Zhou
 -----------------------------------------------------------------------*/
@@ -22,6 +15,7 @@ Midas Zhou
 #include <json-c/json.h>
 #include <json-c/json_object.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "egi_common.h"
 #include "egi_https.h"
 #include "egi_cstring.h"
@@ -57,6 +51,50 @@ size_t download_callback(void *ptr, size_t size, size_t nmemb, void *stream)
 	//printf("%s: written size=%zd\n",__func__, written);
 
         return written;
+}
+
+
+/*--------------------------------------------------------------------------
+Parse JUHE.cn returned data and get error_code.
+
+@strinput       input juhe.cn free news return  string
+
+Return:
+	<0	Fails
+	>=0	JUHE error_code in returned JUHE json string
+--------------------------------------------------------------------------*/
+int juhe_get_errorCode(const char *strinput)
+{
+	int error=0;
+
+        json_object *json_input=NULL;
+	json_object *json_error=NULL;
+
+        /* Parse returned string */
+        json_input=json_tokener_parse(strinput);
+        if(json_input==NULL)
+		return -1;
+
+	/* Get error_code json obj */
+	json_object_object_get_ex(json_input,"error_code",&json_error);
+	if(json_error==NULL) {
+		error=-2;
+		goto GET_FAIL;
+	}
+
+	/* Get error_code */
+	error=json_object_get_int(json_error);
+	if( errno==EINVAL ) {
+		EGI_PLOG(LOGLV_WARN,"%s: errno is set to be EINVAL!",__func__);
+		//error=-3;
+		//got GET_FAIL;
+	}
+
+GET_FAIL:
+	/* free json */
+	json_object_put(json_input);
+
+	return error;
 }
 
 /*--------------------------------------------------------------------------
@@ -126,6 +164,8 @@ data[index], or to data[index] if strkey is NULL.
 			... ...  data array ...
 		...
 	...
+	jpg"}]},
+	"error_code":0
 }
 
 Note:

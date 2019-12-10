@@ -5,9 +5,10 @@ published by the Free Software Foundation.
 
 An example for www.juhe.com https news interface.
 
+
 Note:
 1. HTTPS requests to get JUHE news list, then display item news one by one.
-2. History visti will be save as html text files.
+2. History will be saved as html text files.
 3. Touch on news picture area to view the contents.
    Touch on news titles area to return to news picures.
 
@@ -36,11 +37,11 @@ static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html 
 
 #define THUMBNAIL_DISPLAY_SECONDS       5
 #define CONTENT_DISPLAY_SECONDS         10
-#define TOUCH_SLIDE_THRESHOLD           25
+#define TOUCH_SLIDE_THRESHOLD           25	/* threshold of dx or dy value */
 
 static bool Is_Saved_Html;                      /* If read from saved html, versus Is_Live_Html */
 
-/* ZONE divisions, !!!--- In LCD touch pad coord. ---!!!
+/* ZONE divisions
 	     A 320x240 LCD in Landscape Mode
 
 <------------------------ 320 -------------------------->|  <---------
@@ -61,7 +62,7 @@ static bool Is_Saved_Html;                      /* If read from saved html, vers
  |
 ---------------------------------------------------------|
 */
-
+/*   !!!---   In LCD touch pad coord.   ---!!!    */
 EGI_BOX text_box={ {0, 0}, {240-45-1, 320-1} };	  	/* Text display zone  */
 EGI_BOX right_box={ {0, 0}, {195, 160} };		/* Text display zone  */
 EGI_BOX left_box={ {0, 160}, {195, 320-1} };	  	/* Text display zone  */
@@ -103,6 +104,7 @@ int main(int argc, char **argv)
 	char *thumb_path="/tmp/thumb.jpg"; /* temprary thumbnail pic file */
 	char pngNews_path[32];		   /* png file name for saving */
 	char html_path[32];		   /* html file name for saving */
+	int  error_code;		   /* error_code in returned JUHE json string */
 	int  totalItems;		   /* total news items returned in one curl GET session */
 	char attrMark[128];		   /* JUHE Mark string, to be shown on top of screen  */
 	EGI_IMGBUF *imgbuf=NULL;
@@ -113,10 +115,11 @@ int main(int argc, char **argv)
 	EGI_FILO *news_filo=NULL;
 
 #if 0
-	juhe_fill_charBuff("/tmp/juhe_top.html", buff, CURL_RETDATA_BUFF_SIZE);
- 	len=cstr_squeeze_string(buff, sizeof(buff), '\n');
+	juhe_fill_charBuff("/tmp/juhe_keji.html", buff, CURL_RETDATA_BUFF_SIZE);
+	len=cstr_clear_unprintChars(buff, sizeof(buff));
+// 	len=cstr_squeeze_string(buff, sizeof(buff), '\n');
 	printf("pick out %d spots\n", len);
-	juhe_save_charBuff("/tmp/juhe_top2.html",buff);
+	juhe_save_charBuff("/tmp/juhe_keji.html",buff);
 	exit(0);
 #endif
 
@@ -239,7 +242,6 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
         	//printf("Request:%s\n", strRequest);
 
 	        /* Https GET request */
-		printf("line %d: https_curl_request...\n", __LINE__);
 	        if( (err=https_curl_request(strRequest, buff, NULL, curlget_callback)) != 0 ) {
         	        EGI_PLOG(LOGLV_ERROR,"%s: Fail to call https_curl_request()!",__func__);
 			if(err==-3) /* content length < 0 */
@@ -251,12 +253,28 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* Squeeze buff */
  		len=cstr_squeeze_string(buff, sizeof(buff), '\n');
 		if(len>0)
-			EGI_PLOG(LOGLV_CRITICAL,"%s: len=cstr_squeeze_string()=%d \n",__func__,len);
+			EGI_PLOG(LOGLV_CRITICAL,"%s: squeeze out %d '\\n's in buff. \n",__func__,len);
+ 		len=cstr_squeeze_string(buff, sizeof(buff), '\r');
+		if(len>0)
+			EGI_PLOG(LOGLV_CRITICAL,"%s: squeeze out %d '\\r's in buff.",__func__,len);
 
+		//len=cstr_clear_controlChars(buff,sizeof(buff)); /* This will damage UFT8 coding! */
+
+		/* Checked return json string */
+		error_code=juhe_get_errorCode(buff);
+		if(error_code!=0) {
+              	EGI_PLOG(LOGLV_ERROR,"%s: JUHE returned json string with error_code=%d for '%s'.",
+									 __func__, error_code, news_type[k]);
+			continue;
+		}
+
+		/* Get total number of news items */
 		totalItems=juhe_get_totalItemNum(buff);
-
-		EGI_PLOG(LOGLV_INFO,"%s: Http GET return total %d news items", news_type[k], totalItems);
+		EGI_PLOG(LOGLV_INFO,"%s: Http GET return total %d news items for '%s'",
+								         __func__, totalItems, news_type[k]);
 		if(totalItems <= 0) {
+		        EGI_PLOG(LOGLV_ERROR,"%s: Http GET return total %d news items for '%s'",
+							                 __func__, totalItems, news_type[k]);
 			continue; /* continue for(k) */
 		}
 
@@ -326,7 +344,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* Download thumbnail pic
 		 * !!!WARNING!!!: https_easy_download may fail, if thumb_path is NOT correct.
 		 */
-		EGI_PLOG(LOGLV_INFO,"%s:  --- Start https easy download thumbnail pic --- \n URL: %s",
+		EGI_PLOG(LOGLV_INFO,"%s:  --- Start https easy download thumbnail pic --- URL: %s",
 											__func__, pstr);
 		if( https_easy_download(pstr, thumb_path, NULL, download_callback) !=0 ) {
 	                EGI_PLOG(LOGLV_ERROR,"%s: Fail to easy_download %s[%d] '%s'.\n",
@@ -693,8 +711,8 @@ Draw a water ripple mark.
 void ripple_mark(EGI_POINT touch_pxy, uint8_t alpha, EGI_16BIT_COLOR color)
 {
 	int i;
-	int rad[]={ 10, 20, 30, 40, 50, 60, 70 };
-	int wid[]={ 7, 7, 5, 5, 3, 3, 1 };
+	int rad[]={ 20, 30, 40, 50, 60, 70, 80 };
+	int wid[]={ 9, 7, 7, 5, 5, 3, 3 };
 
    for(i=0; i<sizeof(rad)/sizeof(rad[0]); i++)
    {

@@ -20,8 +20,8 @@ some explanation:
 
 Midas Zhou
 --------------------------------------------------------------------------------------------------------------*/
-#ifndef __FF_PCM_H__
-#define __FF_PCM_H__
+#ifndef __EGI_PCM_H__
+#define __EGI_PCM_H__
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
@@ -93,6 +93,7 @@ EGI_PCMBUF* 	egi_pcmbuf_create(  unsigned long size, unsigned int nchanl, unsign
 void 	        egi_pcmbuf_free(EGI_PCMBUF **pcmbuf);
 EGI_PCMBUF*     egi_pcmbuf_readfile(char *path);
 int  		egi_pcmbuf_playback(const char* dev_name, const EGI_PCMBUF *pcmbuf, unsigned int nf);
+
 
 
 #endif

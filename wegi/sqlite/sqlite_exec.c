@@ -5,15 +5,43 @@
 ---------------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sqlite3.h>
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName)
 {
 	int i;
-    	for(i=0; i<argc; i++){
-      		printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    	}
-    	printf("\n");
+	static bool token=false;
+
+//    	for(i=0; i<argc; i++){
+//      		printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+//    	}
+//    	printf("\n");
+
+	/* print column name */
+	if(token==false) {
+	    	for(i=0; i<argc; i++)
+      			printf("-----------");
+    		printf("\n");
+
+	    	for(i=0; i<argc; i++) {
+      			printf("%-12s", azColName[i]);
+	    	}
+    		printf("\n");
+
+	    	for(i=0; i<argc; i++)
+      			printf("-----------");
+    		printf("\n");
+
+		token=true;
+	}
+
+	/* print argv  */
+	for(i=0; i<argc; i++) {
+		printf("%-12s", argv[i] ? argv[i] : "NULL");
+	}
+ 	printf("\n");
+
     	return 0;
 }
 

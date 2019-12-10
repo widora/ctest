@@ -14,11 +14,12 @@ Midas Zhou
 #include <errno.h>
 #include <wchar.h>
 #include <stdint.h>
+#include <ctype.h>
 #include "egi_cstring.h"
 #include "egi_log.h"
 
 
-/*---------------------------------------------------------
+/*-----------------------------------------------------------
 Clear all specified char and squeeze the string.
 
 @buff:  String buffer.
@@ -28,8 +29,8 @@ Clear all specified char and squeeze the string.
 @spot:  The specified character to be picked out.
 
 Return:
-        Length of the squeezed string.
----------------------------------------------------------*/
+        Total number of spot chars that have been cleared out.
+------------------------------------------------------------*/
 int cstr_squeeze_string(char *buff, int size, char spot)
 {
         int i;
@@ -38,14 +39,80 @@ int cstr_squeeze_string(char *buff, int size, char spot)
 		   */
         int nlen; /* Length of new buff */
 
-        for(i=0,nlen=0,olen=0; i<size; i++)
-        {
-                if( buff[i] != spot )
+        for(i=0,nlen=0,olen=0; i<size; i++) {
+                if( buff[i] != spot ) {
                         buff[nlen++]=buff[i];
-
+			olen=i+1;
+		}
                 /* Original buff length, including middle spots.    In case the spot char is '\0'... */
-                if( buff[i] != spot)// && spot != '\0' )
-                        olen=i+1;
+//                if( buff[i] != spot)// && spot != '\0' )
+//                        olen=i+1;
+        }
+
+        /* clear original remaining chars, which already have been shifted forward. */
+        memset(buff+nlen,0,olen-nlen);
+
+        return olen-nlen; /* Buff is squeezed now. */
+}
+
+
+/*-----------------------------------------------------------
+Clear all unprintable chars in a string.
+
+@buff:  String buffer.
+@size:  Total size of the buff.
+ 	!!! DO NOT use strlen(buff) to get the size, if the
+	spot is '\0'.
+
+Return:
+        Total number of spot chars that have been cleared out.
+------------------------------------------------------------*/
+int cstr_clear_unprintChars(char *buff, int size)
+{
+        int i;
+        int olen; /* Length of original buff, including spots in middle of the buff,
+		   * but spots at the end of buff will NOT be counted in.
+		   */
+        int nlen; /* Length of new buff */
+
+        for(i=0,nlen=0,olen=0; i<size; i++) {
+                if( isprint(buff[i]) ) {
+                        buff[nlen++]=buff[i];
+			olen=i+1;
+		}
+        }
+
+        /* clear original remaining chars, which already have been shifted forward. */
+        memset(buff+nlen,0,olen-nlen);
+
+        return olen-nlen; /* Buff is squeezed now. */
+}
+
+
+/*-----------------------------------------------------------
+Clear all control chars in a string.
+
+@buff:  String buffer.
+@size:  Total size of the buff.
+ 	!!! DO NOT use strlen(buff) to get the size, if the
+	spot is '\0'.
+
+Return:
+        Total number of spot chars that have been cleared out.
+------------------------------------------------------------*/
+int cstr_clear_controlChars(char *buff, int size)
+{
+        int i;
+        int olen; /* Length of original buff, including spots in middle of the buff,
+		   * but spots at the end of buff will NOT be counted in.
+		   */
+        int nlen; /* Length of new buff */
+
+        for(i=0,nlen=0,olen=0; i<size; i++) {
+                if( iscntrl(buff[i]) ) {
+                        buff[nlen++]=buff[i];
+			olen=i+1;
+		}
         }
 
         /* clear original remaining chars, which already have been shifted forward. */
