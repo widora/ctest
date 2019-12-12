@@ -1634,9 +1634,12 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 	yres=fb_dev->vinfo.yres;
   }
 
-  /* pixel total number */
-  screen_pixels=xres*yres;
+   /* pixel total number */
+   screen_pixels=xres*yres;
 
+  /* reset winh and winw */
+  if( winh > yres) winh=yres;
+  if( winw > xres) winw=xres;
 
   /* if no alpha channle*/
   if( egi_imgbuf->alpha==NULL )
