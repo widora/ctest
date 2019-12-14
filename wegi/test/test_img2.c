@@ -130,6 +130,9 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
                                0, 0, 0, 0,
                                tmpimg->width, tmpimg->height);
 
+        /* 4.1 Refresh FB by memcpying back buffer to FB */
+        fb_page_refresh(&gv_fb_dev);
+
 	/* 5. Free tmpimg */
 	egi_imgbuf_free(tmpimg);
 	tmpimg=NULL;

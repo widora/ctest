@@ -49,8 +49,13 @@ typedef struct fbdev{
 
         unsigned long 	screensize;	/* in bytes */
         unsigned char 	*map_fb;  	/* Pointer to kernel FB buffer, mmap to FB data */
-	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages, maybe more. */
+	unsigned char 	*map_buff;	/* Pointer to user FB buffers, 1-3 pages, maybe more.
+					 * Default:
+					 *    1st buff page as working buffer.
+					 *    2nd buff page as background buffer.
+					 */
 	unsigned char   *map_bk;	/* Pointer to curret working back buffer page, mmap mem
+					 * Default/init FB: map_bk=map_buff
 					 * When ENABLE_BACK_BUFFER is defined, all write/read operation to
 					 * the FB will be directed to the map_buff through map_bk,
 					 * The map_fb will be updated only when fb_refresh() is called, or

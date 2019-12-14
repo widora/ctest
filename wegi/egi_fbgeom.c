@@ -247,6 +247,21 @@ void clear_screen(FBDEV *fb_dev, uint16_t color)
 
 	for(location=0; location < (fb_dev->screensize/bytes_per_pixel); location++)
 	        *((uint16_t*)(fb_dev->map_fb+location*bytes_per_pixel))=color;
+
+}
+
+
+/*---------------------------------------------
+ clear fb_dev->map_bk with given color
+ Midas
+---------------------------------------------*/
+void fbclear_bkBuff(FBDEV *fb_dev, uint16_t color)
+{
+	int bytes_per_pixel=fb_dev->vinfo.bits_per_pixel/8;
+	long int location=0;
+
+	for(location=0; location < (fb_dev->screensize/bytes_per_pixel); location++)
+	        *((uint16_t*)(fb_dev->map_bk+location*bytes_per_pixel))=color;
 }
 
 

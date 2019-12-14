@@ -51,6 +51,7 @@ int main(int argc, char** argv)
         printf("init_fbdev()...\n");
         if( init_fbdev(&gv_fb_dev) )		/* init sys FB */
                 return -1;
+//        gv_fb_dev.map_bk=gv_fb_dev.map_fb;
 
 	/* <<<<<  End EGI Init  >>>>> */
 
@@ -155,7 +156,7 @@ do {    ////////////////////////////   1.  LOOP TEST   /////////////////////////
 	rotimg=NULL;
 
 	/* 5. Refresh FB by memcpying back buffer to FB */
-	fb_refresh(&gv_fb_dev);
+	fb_page_refresh(&gv_fb_dev);
 
 	/* 6. Clear screen and increase num */
 	usleep(55000);

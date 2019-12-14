@@ -31,6 +31,14 @@ TODO:
 		#define NO_TRANSPARENT_COLOR    -1
 	} GraphicsControlBlock;
 
+ 2. Parameters relating to transparent settings:
+    2.0  Set ImgAlpha_ON to TURE to turn on transparency settings!
+    2.1  Defined in gif control block, trans_color=gcb.TransparentColor.
+    2.2  User can define GifFile->SBackGroundColor as transparent color too,
+         by setting Bkg_Transp TURE.
+    2.3  User may define user_trans_color also as transparent color.
+    2.4  When Disposal_Mode(gcb.DisposalMode) is 2, screen will be restored
+	 to original bkg image, implemented by FB FILO or FB buff page copy.
 
 Midas Zhou
 ---------------------------------------------------------------------------*/
@@ -55,11 +63,32 @@ void PrintGifError(int ErrorCode);
 void display_gif( int Width, int Height, int offx, int offy,
 		  ColorMapObject *ColorMap, GifRowType *ScreenBuffer);
 
-static EGI_IMGBUF *imgbuf=NULL; /* an IMGBUF to hold gif image canvas */
-static bool Is_ImgColorMap=false;  /* If color map is image color map, NOT global screen color map, */
-static int trans_color=-1;  /* Palette index for transparency, -1 if none, or NO_TRANSPARENT_COLOR */
-static int SWidth, SHeight; /* screen(gif canvas) width and height */
-static int offx, offy;	    /* gif block image width and height */
+static EGI_IMGBUF *Simgbuf=NULL; /* an IMGBUF to hold gif image canvas, screen imgbuf */
+
+static bool ImgAlpha_ON=true;    /* User define:
+				  * True: apply imgbuf alpha
+				  * Note: !!! Turn off ONLY when the GIF file has no transparent color at all.
+				  * than will speed up IMGBUF displaying.
+				  */
+static bool Is_ImgColorMap=false;  /* If color map is image color map, NOT global screen color map
+				    * Defined in gif file.
+				    */
+static int  Disposal_Mode=0;	   /* Defined in gif file:
+					0. No disposal specified
+				 	1. Leave image in place
+					2. Set area to background color(image)
+					3. Restore to previous content
+				    */
+static int  trans_color=-1;       /* Palette index for transparency, -1 if none, or NO_TRANSPARENT_COLOR
+				   * Defined in gif file.
+				   */
+static int  user_trans_color=-1;   /* -1, User defined palette index for the transparency */
+static int  bkg_color=0;	  /* Back ground color index, defined in gif file. */
+static bool Bkg_Transp=false;     /* If true, make backgroud transparent. User define. */
+static int  SWidth, SHeight;      /* screen(gif canvas) width and height, defined in gif file */
+static int  offx, offy;	          /* gif block image width and height, defined in gif file */
+
+
 
 
 int main(int argc, char ** argv)
@@ -67,14 +96,13 @@ int main(int argc, char ** argv)
 
     int NumFiles=1;
     char *FileName=argv[1];
-    bool OneFileFlag=true;
-    char *OutFileName=argv[2];
 
     int	i, j, Size;
-    int Width=0, Height=0;
-    int Row=0, Col=0;
-    int  ExtCode, Count;
-    int DelayMs;	/* delay time in ms */
+    int Width=0, Height=0;  /* image block size */
+    int Row=0, Col=0;	    /* init. as image block offset relative to screen/canvvas */
+    int ExtCode, Count;
+    int DelayMs;	    /* delay time in ms */
+    int DelayFact;	    /* adjust delay time according to block image size */
 
     GifRecordType RecordType;
     GifByteType *Extension;
@@ -85,10 +113,8 @@ int main(int argc, char ** argv)
 	InterlacedJumps[] = { 8, 8, 4, 2 };    /* be read - offsets and jumps... */
     int ImageNum = 0;
     ColorMapObject *ColorMap;
-    int Error;
-
     GraphicsControlBlock gcb;
-    int DisposalMode;
+    int Error;
 
     /* --- Init FB DEV --- */
     printf("init_fbdev()...\n");
@@ -96,6 +122,18 @@ int main(int argc, char ** argv)
                 return -1;
     /* Set screen view type as LANDSCAPE mode */
     fb_position_rotate(&gv_fb_dev, 3);
+
+    //fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_BLUE);
+    /* init FB back ground buffer page */
+    memcpy(gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.map_fb, gv_fb_dev.screensize);
+//    memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.screensize);
+
+
+
+while(1) {	/////////////////////    LOOP TEST    ///////////////////////
+
+    /*  init FB: Copy background buffer page to working buffer page */
+    memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
     /* Open gif file */
     if (NumFiles == 1) {
@@ -117,8 +155,11 @@ int main(int argc, char ** argv)
 	exit(EXIT_FAILURE);
     }
 
+    /* Get GIF version*/
+    printf("Gif Verion: %s\n", DGifGetGifVersion(GifFile));
 
     /* Get color map */
+#if 1
     if(GifFile->Image.ColorMap) {
 	Is_ImgColorMap=true;
 	ColorMap=GifFile->Image.ColorMap;
@@ -129,12 +170,18 @@ int main(int argc, char ** argv)
 		ColorMap=GifFile->SColorMap;
 	printf("Global Colorcount=%d\n", GifFile->SColorMap->ColorCount);
     }
-
+    printf("ColorMap.BitsPerPixel=%d\n", ColorMap->BitsPerPixel);
     /* check that the background color isn't garbage (SF bug #87) */
     if (GifFile->SBackGroundColor < 0 || GifFile->SBackGroundColor >= ColorMap->ColorCount) {
         fprintf(stderr, "Background color out of range for colormap\n");
         exit(EXIT_FAILURE);
     }
+#endif
+
+    /* Get back ground color */
+    bkg_color=GifFile->SBackGroundColor;
+    printf("Background color index=%d\n", bkg_color);
+    printf("SColorResolution = %d\n", (int)GifFile->SColorResolution);
 
     /* get SWidth and SHeight */
     SWidth=GifFile->SWidth;
@@ -163,8 +210,11 @@ int main(int argc, char ** argv)
 	memcpy(ScreenBuffer[i], ScreenBuffer[0], Size);
     }
 
+    ImageNum = 0;
     /* Scan the content of the GIF file and load the image(s) in: */
     do {
+
+
 	if (DGifGetRecordType(GifFile, &RecordType) == GIF_ERROR) {
 	    PrintGifError(GifFile->Error);
 	    exit(EXIT_FAILURE);
@@ -195,6 +245,7 @@ int main(int argc, char ** argv)
 
 		/* Get color (index) data */
 		if (GifFile->Image.Interlace) {
+		    printf(" Interlaced image data ...\n");
 		    /* Need to perform 4 passes on the images: */
 		    for (Count = i = 0; i < 4; i++)
 			for (j = Row + InterlacedOffset[i]; j < Row + Height;
@@ -210,6 +261,7 @@ int main(int argc, char ** argv)
 			}
 		}
 		else {
+		    printf(" Noninterlaced image data ...\n");
 		    for (i = 0; i < Height; i++) {
 			GifQprintf("\b\b\b\b%-4d", i);
 			if (DGifGetLine(GifFile, &ScreenBuffer[Row++][Col],
@@ -220,6 +272,19 @@ int main(int argc, char ** argv)
 		    }
 		}
 		printf("\n");
+
+	       /* Get color map, colormap may be updated/changed here! */
+	       if(GifFile->Image.ColorMap) {
+			Is_ImgColorMap=true;
+			ColorMap=GifFile->Image.ColorMap;
+			printf("Image Colorcount=%d\n", GifFile->Image.ColorMap->ColorCount);
+    	       }
+	       else {
+			Is_ImgColorMap=false;
+			ColorMap=GifFile->SColorMap;
+			printf("Global Colorcount=%d\n", GifFile->SColorMap->ColorCount);
+	       }
+	       printf("ColorMap.BitsPerPixel=%d\n", ColorMap->BitsPerPixel);
 
 		/* display */
    		display_gif(Width, Height, offx, offy, ColorMap, ScreenBuffer);
@@ -246,21 +311,37 @@ int main(int argc, char ** argv)
                             PrintGifError(GifFile->Error);
                             exit(EXIT_FAILURE);
                       }
-		      #if 0 /* ----- for test ---- */
-		      printf("\tDisposalMode: %d\n", gcb.DisposalMode);
+		      /* ----- for test ---- */
+		      #if 1
                       printf("\tTransparency on: %s\n",
                       			gcb.TransparentColor != -1 ? "yes" : "no");
-                      printf("\tDelayTime: %d\n", gcb.DelayTime);
                       printf("\tTransparent Index: %d\n", gcb.TransparentColor);
+                      printf("\tDelayTime: %d\n", gcb.DelayTime);
+		      printf("\tDisposalMode: %d\n", gcb.DisposalMode);
 		      #endif
 
+		      /* Get disposal mode */
+		      Disposal_Mode=gcb.DisposalMode;
       		      /* Get trans_color */
 		      trans_color=gcb.TransparentColor;
 
+		      /* >200x200 no delay, 0 full delay */
+		      if(Width*Height > 40000)
+			DelayFact=0;
+		      else
+		      	DelayFact= (200*200-Width*Height);
+
 		      /* Get delay time in ms, and delay */
-		      DelayMs=gcb.DelayTime*10;
-		      //sleep(DelayMs/1000);
-		      //usleep((DelayMs%1000)*1000);
+		      #if 1
+		        DelayMs=gcb.DelayTime*10*DelayFact/40000;
+		        sleep(DelayMs/1000);
+		        usleep((DelayMs%1000)*1000);
+		      #else
+			usleep(50000);
+		      #endif
+
+		      /* start delay counting... */
+
 		 }
 
 		/* Read out next extension and discard, TODO: Not useful information????  */
@@ -273,13 +354,13 @@ int main(int argc, char ** argv)
 			//printf("Extension is NULL\n");
                         break;
 		    }
-		    printf(" --------- \n");
+		    printf(" --- No use? ----- \n");
 		    if (Extension[0] & 0x01) {
         		   trans_color = Extension[3];
                     	   printf("---Transparent Index: %d\n", trans_color);
 		    }
-		    DisposalMode = (Extension[0] >> 2) & 0x07;
-		    printf("---DisposalMode: %d\n", DisposalMode);
+		    Disposal_Mode = (Extension[0] >> 2) & 0x07;
+		    printf("---Disposal Mode: %d\n", Disposal_Mode);
                 }
 		break;
 
@@ -291,33 +372,32 @@ int main(int argc, char ** argv)
 	}
     } while (RecordType != TERMINATE_RECORD_TYPE);
 
-#if 0  /* --- Move to just after opening the gif file --- */
-    /* Lets dump it - set the global variables required and do it: */
-    ColorMap = (GifFile->Image.ColorMap
-		? GifFile->Image.ColorMap
-		: GifFile->SColorMap);
-    if (ColorMap == NULL) {
-        fprintf(stderr, "Gif Image does not have a colormap\n");
-        exit(EXIT_FAILURE);
-    }
 
-    /* check that the background color isn't garbage (SF bug #87) */
-    if (GifFile->SBackGroundColor < 0 || GifFile->SBackGroundColor >= ColorMap->ColorCount) {
-        fprintf(stderr, "Background color out of range for colormap\n");
-        exit(EXIT_FAILURE);
-    }
-#endif
+    /* Free scree buffers */
+    for (i = 0; i < SHeight; i++)
+	free(ScreenBuffer[i]);
+    free(ScreenBuffer);
 
-    (void)free(ScreenBuffer);
-
+    /* Close file */
     if (DGifCloseFile(GifFile, &Error) == GIF_ERROR) {
 	PrintGifError(Error);
 	exit(EXIT_FAILURE);
     }
 
+
+}	/////////////////////    END : LOOP TEST    ///////////////////////
+
+
+    /* free Simgbuf */
+    egi_imgbuf_free(Simgbuf);
+    Simgbuf=NULL;
+
+    /* release FB dev */
+    fb_filo_flush(&gv_fb_dev);
+    release_fbdev(&gv_fb_dev);
+
   return 0;
 }
-
 
 
 
@@ -352,81 +432,115 @@ void PrintGifError(int ErrorCode)
 }
 
 
+/*------------------------------------------------------------------
+Writing current gif image block data to the Simgbuf and then display
+the Simgbuf.
 
+@Width, Height:  Width and Heigh for the current gif image size.
+@offx, offy:	 offset of current image block relative to full gif
+	         image screen/canvas.
+@ColorMap:	 Color map for current image block.
+@ScreenBuffer:   Gif image screen/canvas buffer for color indices.
+
+-------------------------------------------------------------------*/
 void display_gif( int Width, int Height, int offx, int offy,
 		  ColorMapObject *ColorMap, GifRowType *ScreenBuffer)
 {
     int i,j;
+    int pos=0;
+    GifRowType GifRow;
+    GifColorType *ColorMapEntry;
 
-    /* fill to imgbuf */
-    if(imgbuf==NULL) {
-	    imgbuf=egi_imgbuf_create(SHeight, SWidth, 255, 0); //height, width, alpha, color
-	    if(imgbuf==NULL)
+    /* fill to Simgbuf */
+    if(Simgbuf==NULL) {
+	    Simgbuf=egi_imgbuf_create(SHeight, SWidth, 0, 0);//255, 0); //height, width, alpha, color
+	    if(Simgbuf==NULL)
 		return;
 
-	    free(imgbuf->alpha);
-	    imgbuf->alpha=NULL;
+	    /* NOTE: if applay Simgbuf->alpha, then all initial pixels are invisible */
+	    if(!ImgAlpha_ON) {
+		    free(Simgbuf->alpha);
+		    Simgbuf->alpha=NULL;
+	   }
     }
 
    /* Limit Screen width x heigh */
    if(Width==SWidth)offx=0;
    if(Height==SHeight)offy=0;
-
    //printf("%s: input Height=%d, Width=%d offx=%d offy=%d\n", __func__, Height, Width, offx, offy);
 
+   printf(" ScreenBuffer[2][2]=%d \n", ScreenBuffer[2][2]);
 
-    ////////// ----- NOTE: suppose (0,0) origin ---- ///////
-    GifRowType GifRow;
-    GifColorType *ColorMapEntry;
-
-    int pos=0;
-
-//    for(i=0; i<Height; i++)
-      for(i=offy; i<offy+Height; i++)
-      {
+    for(i=offy; i<offy+Height; i++)
+    {
  	 if(Is_ImgColorMap) {
-	    GifRow = ScreenBuffer[i-offy];
+	    GifRow = ScreenBuffer[i]; //[i-offy];
 	 } else {
 	    GifRow = ScreenBuffer[i];
 	 }
-	 for(j=offx; j<offx+Width; j++ ) {
 
+	 /* update block of Simgbuf */
+	 for(j=offx; j<offx+Width; j++ ) {
 	      pos=i*SWidth+j;
 
-	      /* skip transparent color */
-	      if( trans_color ==-1 || trans_color != GifRow[j] )
-              {
-		if(Is_ImgColorMap)
-		         ColorMapEntry = &ColorMap->Colors[GifRow[j-offx]];
-		else // Is screen color map
-		         ColorMapEntry = &ColorMap->Colors[GifRow[j]];
-                 *(imgbuf->imgbuf+pos)=COLOR_RGB_TO16BITS(  ColorMapEntry->Red,
-							    ColorMapEntry->Green,
-							    ColorMapEntry->Blue   );
-	      }
-//	     else
-//		printf(" ======   trans_color=%d GirRow[j]=%d  ====== \n", trans_color,GifRow[j]);
+//	     if( GifRow[j] > ColorMap->ColorCount || GifRow[j]<0 )
+//		printf("GifRow[%d]=%d invalid! \n", j,GifRow[j]);
 
+	      /* Nontransparent color: set color and set alpha to 255 */
+	      if( trans_color < 0 || trans_color != GifRow[j]  )
+              {
+		  if(Is_ImgColorMap) /* TODO:  not tested! */
+		         ColorMapEntry = &ColorMap->Colors[GifRow[j]]; // [GifRow[j-offx]];
+		  else 		   /* Is global color map. */
+		         ColorMapEntry = &ColorMap->Colors[GifRow[j]];
+
+                  Simgbuf->imgbuf[pos]=COLOR_RGB_TO16BITS(  ColorMapEntry->Red,
+							    ColorMapEntry->Green,
+							    ColorMapEntry->Blue);
+		  /* Only if imgbuf alpha is ON */
+		  if(ImgAlpha_ON)
+		  	Simgbuf->alpha[pos]=255;
+	      }
+	      /* Just after above!, If IMGBUF alpha applys, Transprent color: set alpha to 0 */
+	      if(ImgAlpha_ON) {
+		  /* Make background color transparent */
+	          if( Bkg_Transp && ( GifRow[j] == bkg_color) ) {  /* bkg_color meaningful ONLY when global color table exists */
+		      Simgbuf->alpha[pos]=0;
+	          }
+	          if( GifRow[j] == trans_color || GifRow[j] == user_trans_color) {   /* ???? if trans_color == bkg_color */
+		      Simgbuf->alpha[pos]=0;
+	          }
+	      }
+	      /*  ELSE : Keep old color and alpha value in Simgbuf->imgbuf */
+	      //else printf(" ======   trans_color=%d GirRow[j]=%d  ====== \n", trans_color,GifRow[j]);
           }
     }
 
-   /* reset trans color */
-   trans_color=-1;
+    //newimg=egi_imgbuf_resize(&Simgbuf, 240, 240);  // EGI_IMGBUF **pimg, width, height
 
-   //egi_imgbuf_resize_update(&imgbuf, 240, 240);  // EGI_IMGBUF **pimg, width, height
+    if( Disposal_Mode==2 ) /* Set area to background color/image */
+    {
+   	  /* Display imgbuf, with FB FILO ON */
+	  fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
+	  fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
+    }
 
-    egi_imgbuf_windisplay( imgbuf, &gv_fb_dev, -1,            /* img, fb, subcolor */
-                           0, 0,				/* xp, yp  */
+    egi_imgbuf_windisplay( Simgbuf, &gv_fb_dev, -1,            /* img, fb, subcolor */
+			   SWidth>320 ? (SWidth-320)/2:0,       /* xp */
+			   SHeight>240 ? (SHeight-240)/2:0,       /* yp */
 			   SWidth>320 ? 0:(320-SWidth)/2,	/* xw */
 			   SHeight>240 ? 0:(240-SHeight)/2,	/* yw */
-			   //(320-SWidth)/2, (240-SHeight)/2,    /* xw, yw */
-			   //Width, Height ); 			/* winw, winh */
-                           imgbuf->width, imgbuf->height);    /* winw, winh */
+                           Simgbuf->width, Simgbuf->height    /* winw, winh */
+			);
 
+    if( Disposal_Mode==2 )  /* Set area to background color/image */
+      	fb_filo_off(&gv_fb_dev); /* start collecting old FB pixel data */
+
+    /* refresh FB page */
     fb_page_refresh(&gv_fb_dev);
 
-//    egi_imgbuf_free(imgbuf);
-//    imgbuf=NULL;
-
+    /* reset trans color index */
+//    trans_color=-1;
 }
+
 

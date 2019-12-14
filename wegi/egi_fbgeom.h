@@ -45,6 +45,8 @@ void 	fb_filo_off(FBDEV *dev);
 void 	fbset_color(uint16_t color);
 void	fbset_color2(FBDEV *dev, uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);
+void 	fbclear_bkBuff(FBDEV *dev, uint16_t color);
+
 
 //bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 bool 	pxy_inbox(int px,int py,int x1,int y1,int x2,int y2);

@@ -208,6 +208,9 @@ Create an EGI_IMGBUF, set color and alpha value.
 @color:		>0 basic color of the imgbuf.
 		(else, default 0)
 
+Return:
+	A pointer to EGI_IMGBUF		OK
+			   FULL		Fails
 -------------------------------------------------------*/
 EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 				unsigned char alpha, EGI_16BIT_COLOR color )
@@ -218,7 +221,7 @@ EGI_IMGBUF *egi_imgbuf_create( int height, int width,
 	if(imgbuf==NULL)
 		return NULL;
 
-	/* init the struct */
+	/* init the struct, initial color and alpha all to be 0! */
 	if ( egi_imgbuf_init(imgbuf, height, width) !=0 )
 		return NULL;
 
@@ -1661,8 +1664,11 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
 //replaced by draw_dot()        *(uint16_t *)(fbp+locfb)=0; /* black for outside */
+
+				#if 0 /* 0- DO NOT draw outside pixels, for it will affect FB FILO */
                                 fbset_color2(fb_dev,0);     /* black for outside */
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+				#endif
                         }
                         else {
                                 /* image data location */
@@ -1702,8 +1708,10 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
                         /* check if exceeds IMAGE(not screen) boundary */
                         if( ( xp+j > imgw-1 || xp+j <0 ) || ( yp+i > imgh-1 || yp+i <0 ) )
                         {
+				#if 0 /* 0- DO NOT draw outside pixels, for it will affect FB FILO */
                                 fbset_color2(fb_dev,0); /* black for outside */
                                 draw_dot(fb_dev,j+xw,i+yw); /* call draw_dot */
+				#endif
                         }
                         else {
                                 /* image data location, 2 bytes per pixel */
