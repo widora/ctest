@@ -32,7 +32,7 @@ TODO:
 	} GraphicsControlBlock;
 
  2. Parameters relating to transparent settings:
-    2.0  Set ImgAlpha_ON to TURE to turn on transparency settings!
+    2.0  Set ImgAlpha_ON TURE to turn ontransparency settings!
     2.1  Defined in gif control block, trans_color=gcb.TransparentColor.
     2.2  User can define GifFile->SBackGroundColor as transparent color too,
          by setting Bkg_Transp TURE.
@@ -52,6 +52,7 @@ Midas Zhou
 
 #include "gif_lib.h"
 #include "egi_common.h"
+#include "egi_FTsymbol.h"
 
 #define PROGRAM_NAME    "gif2rgb"
 #define GIF_MESSAGE(Msg) fprintf(stderr, "\n%s: %s\n", "gif2rgb", Msg)
@@ -62,15 +63,16 @@ void GifQprintf(char *Format, ...);
 void PrintGifError(int ErrorCode);
 void display_gif( int Width, int Height, int offx, int offy,
 		  ColorMapObject *ColorMap, GifRowType *ScreenBuffer);
+void display_slogan(void);
 
-static EGI_IMGBUF *Simgbuf=NULL; /* an IMGBUF to hold gif image canvas, screen imgbuf */
+static EGI_IMGBUF *Simgbuf=NULL; /* an IMGBUF to hold gif image canvas/screen imgbuf */
 
 static bool ImgAlpha_ON=true;    /* User define:
 				  * True: apply imgbuf alpha
 				  * Note: !!! Turn off ONLY when the GIF file has no transparent color at all.
-				  * than will speed up IMGBUF displaying.
+				  * than it will speed up IMGBUF displaying.
 				  */
-static bool Is_ImgColorMap=false;  /* If color map is image color map, NOT global screen color map
+static bool Is_ImgColorMap=false;  /* TRUE If color map is image color map, NOT global screen color map
 				    * Defined in gif file.
 				    */
 static int  Disposal_Mode=0;	   /* Defined in gif file:
@@ -83,17 +85,19 @@ static int  trans_color=-1;       /* Palette index for transparency, -1 if none,
 				   * Defined in gif file.
 				   */
 static int  user_trans_color=-1;   /* -1, User defined palette index for the transparency */
-static int  bkg_color=0;	  /* Back ground color index, defined in gif file. */
 static bool Bkg_Transp=false;     /* If true, make backgroud transparent. User define. */
+
+static int  bkg_color=0;	  /* Back ground color index, defined in gif file. */
+
 static int  SWidth, SHeight;      /* screen(gif canvas) width and height, defined in gif file */
 static int  offx, offy;	          /* gif block image width and height, defined in gif file */
 
 
-
-
+/*------------------------------
+	   MAIN()
+------------------------------*/
 int main(int argc, char ** argv)
 {
-
     int NumFiles=1;
     char *FileName=argv[1];
 
@@ -114,6 +118,7 @@ int main(int argc, char ** argv)
     int ImageNum = 0;
     ColorMapObject *ColorMap;
     GraphicsControlBlock gcb;
+
     int Error;
 
     /* --- Init FB DEV --- */
@@ -128,6 +133,16 @@ int main(int argc, char ** argv)
     memcpy(gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.map_fb, gv_fb_dev.screensize);
 //    memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
+     /* --- Load fonts --- */
+    printf("symbol_load_allpages()...\n");
+    if(symbol_load_allpages() !=0 ) {       /* load sys fonts */
+             printf("Fail to load sym pages,quit.\n");
+             return -2;
+     }
+    if(FTsymbol_load_appfonts() !=0 ) {     /* load FT fonts LIBS */
+             printf("Fail to load FT appfonts, quit.\n");
+            return -2;
+    }
 
 
 while(1) {	/////////////////////    LOOP TEST    ///////////////////////
@@ -188,6 +203,8 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
     SHeight=GifFile->SHeight;
     printf("\n--- SWxSH=%dx%d ---\n", SWidth, SHeight);
 
+    printf("ImageCount=%d\n", GifFile->ImageCount);
+
     /***   ---   Allocate screen as vector of column and rows   ---
      * Note this screen is device independent - it's the screen defined by the
      * GIF file parameters.
@@ -214,7 +231,6 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
     /* Scan the content of the GIF file and load the image(s) in: */
     do {
 
-
 	if (DGifGetRecordType(GifFile, &RecordType) == GIF_ERROR) {
 	    PrintGifError(GifFile->Error);
 	    exit(EXIT_FAILURE);
@@ -235,7 +251,8 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 		Height = GifFile->Image.Height;
 
 		/* check block image size and position */
-		GifQprintf("\n%s: Image %d at (%d, %d) [%dx%d]:     ",
+    		printf("\nImageCount=%d\n", GifFile->ImageCount);
+		GifQprintf("%s: Image %d at (%d, %d) [%dx%d]:     ",
 		    PROGRAM_NAME, ++ImageNum, Col, Row, Width, Height);
 		if (GifFile->Image.Left + GifFile->Image.Width > GifFile->SWidth ||
 		   GifFile->Image.Top + GifFile->Image.Height > GifFile->SHeight) {
@@ -370,6 +387,7 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 	    default:		    /* Should be trapped by DGifGetRecordType. */
 		break;
 	}
+
     } while (RecordType != TERMINATE_RECORD_TYPE);
 
 
@@ -451,6 +469,10 @@ void display_gif( int Width, int Height, int offx, int offy,
     GifRowType GifRow;
     GifColorType *ColorMapEntry;
 
+    int xres=gv_fb_dev.pos_xres;
+    int yres=gv_fb_dev.pos_yres;
+    printf("xres=%d, yres=%d\n", xres, yres);
+
     /* fill to Simgbuf */
     if(Simgbuf==NULL) {
 	    Simgbuf=egi_imgbuf_create(SHeight, SWidth, 0, 0);//255, 0); //height, width, alpha, color
@@ -520,18 +542,21 @@ void display_gif( int Width, int Height, int offx, int offy,
 
     if( Disposal_Mode==2 ) /* Set area to background color/image */
     {
-   	  /* Display imgbuf, with FB FILO ON */
+   	  /* Display imgbuf, with FB FILO ON, OR fill background with FB bkg buffer */
 	  fb_filo_flush(&gv_fb_dev); /* flush and restore old FB pixel data */
 	  fb_filo_on(&gv_fb_dev); /* start collecting old FB pixel data */
     }
 
     egi_imgbuf_windisplay( Simgbuf, &gv_fb_dev, -1,            /* img, fb, subcolor */
-			   SWidth>320 ? (SWidth-320)/2:0,       /* xp */
-			   SHeight>240 ? (SHeight-240)/2:0,       /* yp */
-			   SWidth>320 ? 0:(320-SWidth)/2,	/* xw */
-			   SHeight>240 ? 0:(240-SHeight)/2,	/* yw */
+			   SWidth>xres ? (SWidth-xres)/2:0,       /* xp */
+			   SHeight>yres ? (SHeight-yres)/2:0,       /* yp */
+			   SWidth>xres ? 0:(xres-SWidth)/2,	/* xw */
+			   SHeight>yres ? 0:(yres-SHeight)/2,	/* yw */
                            Simgbuf->width, Simgbuf->height    /* winw, winh */
 			);
+
+    display_slogan();
+
 
     if( Disposal_Mode==2 )  /* Set area to background color/image */
       	fb_filo_off(&gv_fb_dev); /* start collecting old FB pixel data */
@@ -544,3 +569,22 @@ void display_gif( int Width, int Height, int offx, int offy,
 }
 
 
+void display_slogan(void)
+{
+	const wchar_t *wstr1=L"  EGI: miniUI Powered by Openwrt";
+	const wchar_t *wstr2=L"                 小巧而丽致\n\
+    奔跑在WIDORA_NEO上";
+
+
+        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
+                                          17, 17, wstr1,                    /* fw,fh, pstr */
+                                          320, 6, 6,                    /* pixpl, lines, gap */
+                                          0, 240-30,                           /* x0,y0, */
+                                          COLOR_RGB_TO16BITS(0,151,169), -1, 255 );   /* fontcolor, transcolor,opaque */
+
+        FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
+                                          24, 24, wstr2,                    /* fw,fh, pstr */
+                                          320, 6,  3,                    /* pixpl, lines, gap */
+                                          0, 150,                        /* x0,y0, */
+                                          COLOR_RGB_TO16BITS(224,60,49), -1, 255 );   /* fontcolor, transcolor,opaque */
+}

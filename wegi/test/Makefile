@@ -12,7 +12,7 @@ CFLAGS  = -I$(SRC_PATH) -I$(SRC_PATH)/utils  -I$(SRC_PATH)/iot -I$(SRC_PATH)/sou
 CFLAGS += -I$(COMMON_USRDIR)/include
 CFLAGS += -I$(COMMON_USRDIR)/include/freetype2
 CFLAGS += -I$(COMMON_USRDIR)/include/json-c
-CFLAGS += -I/home/midas-zhou/giflib-5.2.1/finish/include
+##CFLAGS += -I/home/midas-zhou/giflib-5.2.1/finish/include
 
 #-I$(SRC_PATH)/page
 CFLAGS  += -Wall -O2
@@ -20,7 +20,7 @@ CFLAGS  += -D_GNU_SOURCE
 CFLAGS  += -DENABLE_BACK_BUFFER
 
 LDFLAGS += -L$(SRC_PATH)/lib -L$(COMMON_USRDIR)/lib
-LDFLAGS += -L/home/midas-zhou/giflib-5.2.1/finish/lib
+##LDFLAGS += -L/home/midas-zhou/giflib-5.2.1/finish/lib
 
 LIBS	=  -lepages
 LIBS    += -lesound
