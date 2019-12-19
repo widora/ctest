@@ -194,8 +194,8 @@ if ms<0, return.
 -----------------------------------------*/
 void tm_delayms(unsigned long ms)
 {
-#if EGI_ENABLE_TICK
 	unsigned int nticks;
+#if EGI_ENABLE_TICK
 
 	if(ms < TM_TICK_INTERVAL/1000)
 		nticks=TM_TICK_INTERVAL/1000;

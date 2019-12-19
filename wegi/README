@@ -75,6 +75,7 @@ egi_color.c	color definition and conversion functions
 egi_symbol.c	fonts/icons/symbols...definition and functions
 egi_FTsymbol.c  FreeType2 fonts handling functions
 egi_bjp.c	funcs for processing bmp,jpg and png files
+egi_gif.c	funcs for GIF, derived from  GIFLIB ( Gershon Elber <gershon[AT]cs.technion.sc.il> ).
 egi_image.c	EGI_IMGBUF functions
 egi_timer.c	timer and delay 
 egi_debug.c	for debug
