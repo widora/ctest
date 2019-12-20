@@ -390,9 +390,9 @@ void display_image( int Width, int Height, int offx, int offy,
 	      /* Nontransparent color: set color and set alpha to 255 */
 	      if( trans_color < 0 || trans_color != buffer[pos]  )
               {
-		  if(Is_ImgColorMap) /* TODO:  not tested! */
-		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
-		  else 		   /* Is global color map. */
+//		  if(Is_ImgColorMap) /* TODO:  not tested! */
+//		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
+//		  else 		   /* Is global color map. */
 		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
 
                   Simgbuf->imgbuf[spos]=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
