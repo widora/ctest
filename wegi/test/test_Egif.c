@@ -41,40 +41,56 @@ int main(int argc, char **argv)
     	int xres;
     	int yres;
 	EGI_GIF *egif=NULL;
-	bool DirectFB_ON=true;
+	bool DirectFB_ON=false; /* For transparency_off GIF,to speed up,tear line possible. */
+	bool ImgAlpha_ON=true;
 
-	/* Set screen view type as LANDSCAPE mode */
+	/* Set FB mode as LANDSCAPE  */
         fb_position_rotate(&gv_fb_dev, 3);
     	xres=gv_fb_dev.pos_xres;
     	yres=gv_fb_dev.pos_yres;
 
-
+        /* set FB mode */
     	if(DirectFB_ON) {
+
             gv_fb_dev.map_bk=gv_fb_dev.map_fb; /* Direct map_bk to map_fb */
+
     	} else {
-            //fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_BLUE);
             /* init FB back ground buffer page */
             memcpy(gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.map_fb, gv_fb_dev.screensize);
+
+	    /*  init FB working buffer page */
+            //fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_BLUE);
+            memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_fb, gv_fb_dev.screensize);
     	}
 
-	egif= egi_gif_readfile( argv[1], false); /* fpath, bool ImgAlpha_ON */
-        printf("Finishing read GIF.\n");
-        while(1) {
-	    if( !DirectFB_ON ) {
-        	/*  init FB: Copy background buffer page to working buffer page */
-	        memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.screensize);
-    	    }
-
-            egi_gif_displayFrame( &gv_fb_dev, egif, 	/* *fbdev, EGI_GIF *egif */
-				  true, true,  		/* bool loop_gif, bool DirectFB_ON */
-		/* to put center of IMGBUF to the center of LCD */
-					(xres-egif->SWidth)/2,  /* int x0 */
-					(yres-egif->SHeight)/2  /* int x0 */
-				  //0,0  		    	/* int x0, int y0 */
-				 );
+	/* read in GIF data to EGI_GIF */
+	egif= egi_gif_readfile( argv[1], ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
+	if(egif==NULL) {
+		printf("Fail to read in gif file!\n");
+		exit(-1);
 	}
-    	egi_gif_free(&egif);
+        printf("Finishing read GIF.\n");
 
+	/* Loop displaying */
+       while(1) {
+
+	    /* Display one frame/block each time, then refresh FB page.  */
+            egi_gif_displayFrame( &gv_fb_dev, egif, 		/* *fbdev, EGI_GIF *egif */
+				  100, DirectFB_ON,		/*  nloop, bool DirectFB_ON */
+	 			 /* to put center of IMGBUF to the center of LCD */
+				egif->SWidth>xres ? (egif->SWidth-xres)/2:0,  	/* int xp */
+				egif->SHeight>yres ? (egif->SHeight-yres)/2:0, 	/* int yp */
+				egif->SWidth>xres ? 0:(xres-egif->SWidth)/2,	/* int xw */
+				egif->SHeight>yres ? 0:(yres-egif->SHeight)/2,	/* int xw */
+				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
+				egif->SHeight>yres ? yres:egif->SHeight		/* winh */
+			);
+
+	   printf(" --- LOOP ---\n");
+
+	}
+
+    	egi_gif_free(&egif);
 
         /* <<<<<-----------------  EGI general release  ----------------->>>>> */
         printf("FTsymbol_release_allfonts()...\n");
@@ -87,9 +103,10 @@ int main(int argc, char **argv)
         printf("egi_end_touchread()...\n");
         egi_end_touchread();
         printf("egi_quit_log()...\n");
+#if 0
         egi_quit_log();
         printf("<-------  END  ------>\n");
-
+#endif
 
 	return 0;
 }

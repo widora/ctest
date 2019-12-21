@@ -519,7 +519,8 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 		else			/* use system pixcolor */
 		        *((uint16_t *)(map+location))=fb_color;
 	}
-	else {	/* otherwise, blend with original color */
+	else if (fb_dev->pixalpha !=0 ) /* otherwise, blend with original color */
+	{
 		if(fb_dev->pixcolor_on) { 	/* use fbdev pixcolor */
 			fb_color=COLOR_16BITS_BLEND(  fb_dev->pixcolor,			     /* Front color */
 						     *(uint16_t *)(map+location), /* Back color */

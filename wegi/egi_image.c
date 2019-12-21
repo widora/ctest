@@ -1568,15 +1568,19 @@ Note:
    start point of the window. If the looking window covers area ouside of the picture,then
    those area will be filled with BLACK.
 
-egi_imgbuf:     an EGI_IMGBUF struct which hold bits_color image data of a picture.
-fb_dev:		FB device
-subcolor:	substituting color, only applicable when >0.
-(xp,yp):        Displaying image block origin(left top) point coordinate, relative to
+6. ??? Carefully defining (xp,yp),(xw,yw) and (winw,winh)to narrow down displaying area MAY
+       improve running speed considerably when you deal with a big picture ???
+
+@egi_imgbuf:    an EGI_IMGBUF struct which hold bits_color image data of a picture.
+@fb_dev:	FB device
+@subcolor:	substituting color, only applicable when >0.
+@(xp,yp):       Displaying image block origin(left top) point coordinate, relative to
                 the coord system of the image(also origin at left top).
-(xw,yw):        displaying window origin, relate to the LCD coord system.
-winw,winh:      width and height(row/column for fb) of the displaying window.
+@(xw,yw):       displaying window origin, relate to the LCD coord system.
+@(winw,winh):   width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
                 waste time calling draw_dot() for pixels outsie FB zone. --- OK
+
 
 Return:
 		0	OK
@@ -1604,7 +1608,6 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 
         int imgw=egi_imgbuf->width;     /* image Width and Height */
         int imgh=egi_imgbuf->height;
-
 
         if( imgw<=0 || imgh<=0 )
         {

@@ -30,7 +30,7 @@ typedef struct egi_gif {
 
     GifByteType 	AspectByte;      /* Used to compute pixel aspect ratio */
     ColorMapObject 	*SColorMap;      /* Global colormap, NULL if nonexistent. */
-    int 		ImageCount;      /* Number of current image (both APIs)
+    int			ImageCount;      /* Number of current image (both APIs)
 					  * Index ready for display!!
 					  */
     int			ImageTotal;	 /* Total number of images */
@@ -56,6 +56,7 @@ static void egi_gif_rasterWriteFB( FBDEV *dev, EGI_IMGBUF *Simgbuf, int Disposal
 
 EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON);
 void	egi_gif_free(EGI_GIF **egif);
-void	egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, bool loop_gif, bool DirectFB_ON, int x0, int y0 );
+void	egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
+							int xp, int yp, int xw, int xy, int winw, int winh );
 
 #endif

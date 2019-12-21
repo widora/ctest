@@ -27,7 +27,7 @@ LIBS    += -lesound
 LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound -lsndfile
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
-LIBS    += -lfreetype  -lm -lz -lbz2
+LIBS    += -lfreetype -lz -lm -lbz2
 LIBS	+= -lsqlite3
 LIBS 	+= -lgif
 
