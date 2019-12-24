@@ -199,6 +199,9 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 	return 0;
 }
 
+
+
+
 /* ------------------------------------------------------
 Create an EGI_IMGBUF, set color and alpha value.
 
@@ -2021,6 +2024,40 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex,
 	return ret;
 }
 
+/*-----------------------------------------------------------------
+		        Reset Color and Alpha value
+@color:		16bit color value. if <0 ingored.
+@alpah:		8bit alpha value.  if <0 ingored.
+
+Return:
+	0	OK
+	<0	Fails
+-------------------------------------------------------------------*/
+int egi_imgbuf_resetColorAlpha(EGI_IMGBUF *egi_imgbuf, int color, int alpha )
+{
+	int i;
+
+	if( egi_imgbuf==NULL || egi_imgbuf->alpha==NULL )
+		return -1;
+
+
+	if(alpha>0 && color>0) {
+		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++) {
+			egi_imgbuf->alpha[i]=alpha;
+			egi_imgbuf->imgbuf[i]=color;
+		}
+	}
+	else if(alpha>0) {
+		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++)
+			egi_imgbuf->alpha[i]=alpha;
+	}
+	else if( color>0 ) {
+		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++)
+			egi_imgbuf->imgbuf[i]=color;
+	}
+
+	return 0;
+}
 
 /*-----------------------------------------------------------------------------------
 Clear a subimag in an EGI_IMGBUF, reset all color and alpha data.

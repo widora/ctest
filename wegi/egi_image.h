@@ -74,7 +74,11 @@ int egi_imgbuf_windisplay2( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev,
 /* display sub_image in an EGI_IMAGBUF */
 int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subnum,
                                                         int subcolor, int x0,   int y0);
-/* reset color and alpha for all pixels */
+
+/* For whole imgbuf: rest color and alpha */
+int egi_imgbuf_resetColorAlpha(EGI_IMGBUF *egi_imgbuf, int color, int alpha );
+
+/* For subimgbuf: reset color and alpha for all pixels */
 int egi_imgbuf_reset(EGI_IMGBUF *egi_imgbuf, int subnum, int color, int alpha);
 
 /* blend an EGI_IMGBUF with a FT_Bitmap */

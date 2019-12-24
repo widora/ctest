@@ -36,6 +36,7 @@ int main(int argc, char **argv)
         printf("start touchread thread...\n");
         egi_start_touchread();                  /* start touch read thread */
 #endif
+
         /* <<<<------------------  End EGI Init  ----------------->>>> */
 
     	int xres;
@@ -43,6 +44,8 @@ int main(int argc, char **argv)
 	EGI_GIF *egif=NULL;
 	bool DirectFB_ON=false; /* For transparency_off GIF,to speed up,tear line possible. */
 	bool ImgAlpha_ON=true;
+	int xp,yp;
+	int xw,yw;
 
 	/* Set FB mode as LANDSCAPE  */
         fb_position_rotate(&gv_fb_dev, 3);
@@ -51,7 +54,6 @@ int main(int argc, char **argv)
 
         /* set FB mode */
     	if(DirectFB_ON) {
-
             gv_fb_dev.map_bk=gv_fb_dev.map_fb; /* Direct map_bk to map_fb */
 
     	} else {
@@ -71,26 +73,31 @@ int main(int argc, char **argv)
 	}
         printf("Finishing read GIF.\n");
 
+	/* Cal xp,yp xw,yw */
+	xp=egif->SWidth>xres ? (egif->SWidth-xres)/2:0;
+	yp=egif->SHeight>yres ? (egif->SHeight-yres)/2:0;
+	xw=egif->SWidth>xres ? 0:(xres-egif->SWidth)/2;
+	yw=egif->SHeight>yres ? 0:(yres-egif->SHeight)/2;
+
 	/* Loop displaying */
-       while(1) {
+        while(1) {
 
 	    /* Display one frame/block each time, then refresh FB page.  */
             egi_gif_displayFrame( &gv_fb_dev, egif, 		/* *fbdev, EGI_GIF *egif */
 				  100, DirectFB_ON,		/*  nloop, bool DirectFB_ON */
 	 			 /* to put center of IMGBUF to the center of LCD */
-				egif->SWidth>xres ? (egif->SWidth-xres)/2:0,  	/* int xp */
-				egif->SHeight>yres ? (egif->SHeight-yres)/2:0, 	/* int yp */
-				egif->SWidth>xres ? 0:(xres-egif->SWidth)/2,	/* int xw */
-				egif->SHeight>yres ? 0:(yres-egif->SHeight)/2,	/* int xw */
+				  xp,yp,xw,yw,			/* xp,yp, xw, yw */
 				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
 				egif->SHeight>yres ? yres:egif->SHeight		/* winh */
 			);
 
-	   printf(" --- LOOP ---\n");
+	    /* draw outline frame */
+//	    draw_rect(&gv_fb_dev, xp, yp, xp+egif->SWidth-1, yp+egif->SHeight-1);
+//	    fb_page_refresh(&gv_fb_dev);
 
 	}
-
     	egi_gif_free(&egif);
+
 
         /* <<<<<-----------------  EGI general release  ----------------->>>>> */
         printf("FTsymbol_release_allfonts()...\n");
@@ -103,6 +110,7 @@ int main(int argc, char **argv)
         printf("egi_end_touchread()...\n");
         egi_end_touchread();
         printf("egi_quit_log()...\n");
+
 #if 0
         egi_quit_log();
         printf("<-------  END  ------>\n");

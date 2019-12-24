@@ -22,6 +22,7 @@ typedef struct fbdev FBDEV;
  */
 typedef struct egi_gif {
     bool    	VerGIF89;		     /* Version: GIF89 OR GIF87 */
+    bool	ImgTransp_ON;		     /* Try image transparency */
 
     GifWord 	SWidth;         	     /* Size of virtual canvas */
     GifWord 	SHeight;
@@ -51,7 +52,7 @@ static void egi_gif_rasterWriteFB( FBDEV *dev, EGI_IMGBUF *Simgbuf, int Disposal
                                    int BWidth, int BHeight, int offx, int offy,
                                    ColorMapObject *ColorMap, GifByteType *buffer,
                                    int trans_color, int user_trans_color, int bkg_color,
-                                   bool DirectFB_ON, bool Bkg_Transp )
+                                   bool DirectFB_ON, bool ImgTransp_ON, bool BkgTransp_ON )
 */
 
 EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON);
