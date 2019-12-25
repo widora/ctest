@@ -47,6 +47,9 @@ int main(int argc, char **argv)
 	int xp,yp;
 	int xw,yw;
 
+        /* refresh working buffer */
+        //clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY);
+
 	/* Set FB mode as LANDSCAPE  */
         fb_position_rotate(&gv_fb_dev, 3);
     	xres=gv_fb_dev.pos_xres;
@@ -66,7 +69,7 @@ int main(int argc, char **argv)
     	}
 
 	/* read in GIF data to EGI_GIF */
-	egif= egi_gif_readfile( argv[1], ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
+	egif= egi_gif_slurpFile( argv[1], ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
 	if(egif==NULL) {
 		printf("Fail to read in gif file!\n");
 		exit(-1);
@@ -79,14 +82,15 @@ int main(int argc, char **argv)
 	xw=egif->SWidth>xres ? 0:(xres-egif->SWidth)/2;
 	yw=egif->SHeight>yres ? 0:(yres-egif->SHeight)/2;
 
+
 	/* Loop displaying */
         while(1) {
 
 	    /* Display one frame/block each time, then refresh FB page.  */
-            egi_gif_displayFrame( &gv_fb_dev, egif, 		/* *fbdev, EGI_GIF *egif */
-				  100, DirectFB_ON,		/*  nloop, bool DirectFB_ON */
+            egi_gif_displayFrame( &gv_fb_dev, egif, 100,	/* *fbdev, EGI_GIF *egif, nloop */
+				  DirectFB_ON, 2, 126,		/* DirectFB_ON, User_DispMode, User_TransColor */
 	 			 /* to put center of IMGBUF to the center of LCD */
-				  xp,yp,xw,yw,			/* xp,yp, xw, yw */
+				 xp,yp-30,xw,yw,			/* xp,yp, xw, yw */
 				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
 				egif->SHeight>yres ? yres:egif->SHeight		/* winh */
 			);

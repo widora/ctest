@@ -219,6 +219,7 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 
     for (i = 0; i < GifFile->SWidth; i++)  /* Set its color to BackGround. */
 	ScreenBuffer[0][i] = GifFile->SBackGroundColor;
+
     for (i = 1; i < GifFile->SHeight; i++) {
 	/* Allocate the other rows, and set their color to background too: */
 	if ((ScreenBuffer[i] = (GifRowType) malloc(Size)) == NULL)
@@ -588,3 +589,5 @@ void display_slogan(void)
                                           0, 150,                        /* x0,y0, */
                                           COLOR_RGB_TO16BITS(224,60,49), -1, 255 );   /* fontcolor, transcolor,opaque */
 }
+
+

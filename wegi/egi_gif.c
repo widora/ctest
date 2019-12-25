@@ -3,14 +3,14 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-This module is a wrapper a GIFLIB routines and functions.
+This module is a wrapper of GIFLIB routines and functions.
 
 The GIFLIB distribution is Copyright (c) 1997  Eric S. Raymond
                 SPDX-License-Identifier: MIT
 
 
 Midas-Zhou
--------------------------------------------------------------------*/
+------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +19,28 @@ Midas-Zhou
 
 static void PrintGifError(int ErrorCode);
 static void egi_gif_FreeSavedImages(SavedImage **psimg, int ImageCount);
+
+/*****************************************************************************
+ Same as fprintf to stderr but with optional print.
+******************************************************************************/
+static void GifQprintf(char *Format, ...)
+{
+bool GifNoisyPrint = true;
+
+    va_list ArgPtr;
+
+    va_start(ArgPtr, Format);
+
+    if (GifNoisyPrint) {
+        char Line[128];
+        (void)vsnprintf(Line, sizeof(Line), Format, ArgPtr);
+        (void)fputs(Line, stderr);
+    }
+
+    va_end(ArgPtr);
+}
+
+
 static void PrintGifError(int ErrorCode)
 {
     const char *Err = GifErrorString(ErrorCode);
@@ -30,8 +52,365 @@ static void PrintGifError(int ErrorCode)
 }
 
 
+/*---------------------------------------------------------------------------------------
+Read a GIF file and get ImageCount
+
+Note:
+1. This function is for big size GIF file, it reads in and display frame by frame.
+   For small size GIF file, just call egi_gif_slurpFile() instead.
+
+@fpath: File path
+
+@Silent_Mode:	 TRUE: Do NOT display and delay, just read frame by frame and pass
+		       image count.
+		 FALE: Do display and delay.
+
+@ImgAlpha_ON:    (User define)
+		 Usually to be set as TRUE.
+		 Suggest to turn OFF only when no transparency setting in the GIF file,
+		 to show SBackGroundColor.
+@ImageCount:	 To pass total number of images in the GIF.
+		 If NULL, ignore.
+
+Return:
+	0	OK
+	<0	Fails
+        >0	Final DGifCloseFile() fails
+-----------------------------------------------------------------------------------------*/
+int  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgAlpha_ON, int *ImageCount)
+{
+    int Error=0;
+    int	i, j, Size;
+    int Width=0, Height=0;  /* image block size */
+    int Row=0, Col=0;	    /* init. as image block offset relative to screen/canvvas */
+    int ExtCode, Count;
+    int DelayMs;	    /* delay time in ms */
+    int DelayFact;	    /* adjust delay time according to block image size */
+
+    GifFileType *GifFile=NULL;
+    GifRecordType RecordType;
+    GifByteType *Extension=NULL;
+    GifRowType *ScreenBuffer=NULL;  /* typedef unsigned char *GifRowType */
+    int
+	InterlacedOffset[] = { 0, 4, 2, 1 }, /* The way Interlaced image should. */
+	InterlacedJumps[] = { 8, 8, 4, 2 };    /* be read - offsets and jumps... */
+    int ImageNum = 0;
+    ColorMapObject *ColorMap=NULL;
+    GraphicsControlBlock gcb;
+
+    int  SWidth=0, SHeight=0;   /* screen(gif canvas) width and height, defined in gif file */
+    int  offx=0, offy=0;	/* gif block image width and height, defined in gif file */
+
+
+    bool Is_ImgColorMap=false;   /* TRUE If color map is image color map, NOT global screen color map
+				    Defined in gif file. */
+    int  Disposal_Mode=0;	   /* Defined in gif file:
+					0. No disposal specified
+				 	1. Leave image in place
+					2. Set area to background color(image)
+					3. Restore to previous content
+				    */
+    int  trans_color=-1;        /* Palette index for transparency, -1 if none, or NO_TRANSPARENT_COLOR
+				 * Defined in gif file. */
+    int  user_trans_color=-1;   /* -1, User defined palette index for the transparency */
+    bool Bkg_Transp=false;      /* If true, make backgroud transparent. User define. */
+    int  bkg_color=0;	  	/* Back ground color index, defined in gif file. */
+
+
+    /* Open gif file */
+    if((GifFile = DGifOpenFileName(fpath, &Error)) == NULL) {
+	    PrintGifError(Error);
+	    return -1;
+    }
+    if(GifFile->SHeight == 0 || GifFile->SWidth == 0) {
+	sprintf("%s: Image width or height is 0\n",__func__);
+	Error=-2;
+	goto END_FUNC;
+    }
+
+    /* Get GIF version*/
+    printf("GIF Verion: %s\n", DGifGetGifVersion(GifFile));
+
+    /* Get global color map */
+#if 1
+    if(GifFile->Image.ColorMap) {
+	Is_ImgColorMap=true;
+	ColorMap=GifFile->Image.ColorMap;
+		printf("GIF Image Colorcount=%d\n", GifFile->Image.ColorMap->ColorCount);
+    }
+    else {
+	Is_ImgColorMap=false;
+	ColorMap=GifFile->SColorMap;
+	printf("GIF Global Colorcount=%d\n", GifFile->SColorMap->ColorCount);
+    }
+    printf("GIF ColorMap.BitsPerPixel=%d\n", ColorMap->BitsPerPixel);
+
+    /* check that the background color isn't garbage (SF bug #87) */
+    if (GifFile->SBackGroundColor < 0 || GifFile->SBackGroundColor >= ColorMap->ColorCount) {
+        sprintf("%s: Background color out of range for colorMap.\n",__func__);
+	Error=-3;
+	goto END_FUNC;
+    }
+#endif
+
+    /* Get back ground color */
+    bkg_color=GifFile->SBackGroundColor;
+
+    /* get SWidth and SHeight */
+    SWidth=GifFile->SWidth;
+    SHeight=GifFile->SHeight;
+
+    printf("GIF Background color index=%d\n", bkg_color);
+    printf("GIF SColorResolution = %d\n", (int)GifFile->SColorResolution);
+    printf("GIF SWidthxSHeight=%dx%d ---\n", SWidth, SHeight);
+    //printf("GIF ImageCount=%d\n", GifFile->ImageCount); /* 0 */
+
+    /***   ---   Allocate screen as vector of column and rows   ---
+     * Note this screen is device independent - it's the screen defined by the
+     * GIF file parameters.
+     */
+    if ((ScreenBuffer = (GifRowType *)malloc(GifFile->SHeight * sizeof(GifRowType))) == NULL)
+    {
+	printf("%s: Failed to allocate memory required, aborted.",__func__);
+	return -4;
+    }
+
+    Size = GifFile->SWidth * sizeof(GifPixelType); /* Size in bytes one row.*/
+    if ((ScreenBuffer[0] = (GifRowType) malloc(Size)) == NULL) { /* First row. */
+	printf("%s: Failed to allocate memory required, aborted.",__func__);
+	Error=-5;
+	goto END_FUNC;
+    }
+
+    for (i = 0; i < GifFile->SWidth; i++)  /* Set its color to BackGround. */
+	ScreenBuffer[0][i] = GifFile->SBackGroundColor;
+    for (i = 1; i < GifFile->SHeight; i++) {
+	/* Allocate the other rows, and set their color to background too: */
+	if ((ScreenBuffer[i] = (GifRowType) malloc(Size)) == NULL) {
+	      	printf("%s: Failed to allocate memory required, aborted.",__func__);
+		Error=-6;
+		goto END_FUNC;
+	}
+	memcpy(ScreenBuffer[i], ScreenBuffer[0], Size);
+    }
+
+    ImageNum = 0;
+    if(ImageCount != NULL)
+	*ImageCount=0;
+    /* Scan the content of the GIF file and load the image(s) in: */
+    do {
+
+	if (DGifGetRecordType(GifFile, &RecordType) == GIF_ERROR) {
+	    PrintGifError(GifFile->Error);
+	    Error=-6;
+	    goto END_FUNC;
+	}
+
+	/*---------- GIFLIB DEFINED RECORD TYPE ---------
+	    UNDEFINED_RECORD_TYPE,
+	    SCREEN_DESC_RECORD_TYPE,
+	    IMAGE_DESC_RECORD_TYPE,    Begin with ','
+	    EXTENSION_RECORD_TYPE,     Begin with '!'
+	    TERMINATE_RECORD_TYPE      Begin with ';'
+ 	------------------------------------------------*/
+	switch (RecordType) {
+	    case IMAGE_DESC_RECORD_TYPE:
+		if (DGifGetImageDesc(GifFile) == GIF_ERROR) {
+		    PrintGifError(GifFile->Error);
+		    Error=-7;
+		    goto END_FUNC;
+		}
+		Row = GifFile->Image.Top; /* Image Position relative to Screen. */
+		Col = GifFile->Image.Left;
+
+		/* Get offx, offy, Original Row AND Col will increment later!!!  */
+		offx = Col;
+		offy = Row;
+		Width = GifFile->Image.Width;
+		Height = GifFile->Image.Height;
+
+		/* check block image size and position */
+    		printf("\nGIF ImageCount=%d\n", GifFile->ImageCount);
+
+		GifQprintf("GIF Image %d at (%d, %d) [%dx%d]:     ",
+		    	     			++ImageNum, Col, Row, Width, Height);
+
+		if (GifFile->Image.Left + GifFile->Image.Width > GifFile->SWidth ||
+		   GifFile->Image.Top + GifFile->Image.Height > GifFile->SHeight) {
+		    printf("%s: Image %d is not confined to screen dimension, aborted.\n",__func__, ImageNum);
+		    Error=-8;
+		    goto END_FUNC;
+		}
+
+		/* Get color (index) data */
+		if (GifFile->Image.Interlace) {
+//		    printf(" Interlaced image data ...\n");
+		    /* Need to perform 4 passes on the images: */
+		    for (Count = i = 0; i < 4; i++)
+			for (j = Row + InterlacedOffset[i]; j < Row + Height;
+						 j += InterlacedJumps[i]  )
+			{
+			    GifQprintf("\b\b\b\b%-4d", Count++);
+			    if ( DGifGetLine(GifFile, &ScreenBuffer[j][Col],
+				 Width) == GIF_ERROR )
+			    {
+				 PrintGifError(GifFile->Error);
+				 Error=-9;
+				 goto END_FUNC;
+			    }
+			}
+		}
+		else {
+//		    printf(" Noninterlaced image data ...\n");
+		    for (i = 0; i < Height; i++) {
+			GifQprintf("\b\b\b\b%-4d", i);
+			if (DGifGetLine(GifFile, &ScreenBuffer[Row++][Col],
+				Width) == GIF_ERROR) {
+			    PrintGifError(GifFile->Error);
+			    Error=-10;
+			    goto END_FUNC;
+			}
+		    }
+		}
+		printf("\n");
+
+	       /* Get color map, colormap may be updated/changed here! */
+	       if(GifFile->Image.ColorMap) {
+			Is_ImgColorMap=true;
+			ColorMap=GifFile->Image.ColorMap;
+//			printf("GIF Image ColorCount=%d\n", GifFile->Image.ColorMap->ColorCount);
+    	       }
+	       else {
+			Is_ImgColorMap=false;
+			ColorMap=GifFile->SColorMap;
+//			printf("GIF Global Colorcount=%d\n", GifFile->SColorMap->ColorCount);
+	       }
+//	       printf("GIF ColorMap.BitsPerPixel=%d\n", ColorMap->BitsPerPixel);
+
+		/* --- Display --- */
+		if(!Silent_Mode) {
+	 //  		display_gif(Width, Height, offx, offy, ColorMap, ScreenBuffer);
+			/* hold on ... see displaying delay in case EXTENSION_RECORD_TYPE */
+			//usleep(55000);
+		}
+
+		break;
+
+	    case EXTENSION_RECORD_TYPE:
+		/*  extension blocks in file: */
+		if (DGifGetExtension(GifFile, &ExtCode, &Extension) == GIF_ERROR) {
+		    PrintGifError(GifFile->Error);
+		    Error=-11;
+		    goto END_FUNC;
+		}
+
+		/*--------------------------------------------------------------
+		 *             ( FUNC CODE defined in GIFLIB )
+		 *   CONTINUE_EXT_FUNC_CODE    	0x00  continuation subblock
+		 *   COMMENT_EXT_FUNC_CODE     	0xfe  comment
+		 *   GRAPHICS_EXT_FUNC_CODE    	0xf9  graphics control (GIF89)
+		 *   PLAINTEXT_EXT_FUNC_CODE   	0x01  plaintext
+		 *   APPLICATION_EXT_FUNC_CODE 	0xff  application block (GIF89)
+		 --------------------------------------------------------------*/
+
+		/*   --- parse extension code ---  */
+                if (ExtCode == GRAPHICS_EXT_FUNC_CODE) {
+                     if (Extension == NULL) {
+                            printf("Invalid extension block\n");
+                            GifFile->Error = D_GIF_ERR_IMAGE_DEFECT;
+                            PrintGifError(GifFile->Error);
+			    Error=-12;
+			    goto END_FUNC;
+                     }
+                     if (DGifExtensionToGCB(Extension[0], Extension+1, &gcb) == GIF_ERROR) {
+                            PrintGifError(GifFile->Error);
+			    Error=-13;
+			    goto END_FUNC;
+                      }
+		      /* ----- for test ---- */
+		      #if 0
+                      printf("Transparency on: %s\n",
+                      			gcb.TransparentColor != -1 ? "yes" : "no");
+                      printf("Transparent Index: %d\n", gcb.TransparentColor);
+                      printf("DelayTime: %d\n", gcb.DelayTime);
+		      printf("DisposalMode: %d\n", gcb.DisposalMode);
+		      #endif
+
+		      /* Get disposal mode */
+		      Disposal_Mode=gcb.DisposalMode;
+      		      /* Get trans_color */
+		      trans_color=gcb.TransparentColor;
+
+		      /* >200x200 no delay, 0 full delay */
+		      if(Width*Height > 40000)
+			DelayFact=0;
+		      else
+		      	DelayFact= (200*200-Width*Height);
+
+		      /* Get delay time in ms, and delay */
+		      if(!Silent_Mode)
+		      {
+		      	  #if 1
+		          DelayMs=gcb.DelayTime*10*DelayFact/40000;
+		          sleep(DelayMs/1000);
+		          usleep((DelayMs%1000)*1000);
+		          #else
+			  usleep(50000);
+		          #endif
+		      }
+
+		 } /* if END:  GRAPHICS_EXT_FUNC_CODE */
+
+		/* Read out next extension and discard, TODO: parse it.. */
+		while (Extension!=NULL) {
+                    if (DGifGetExtensionNext(GifFile, &Extension) == GIF_ERROR) {
+                        PrintGifError(GifFile->Error);
+			Error=-14;
+			goto END_FUNC;
+                    }
+                    if (Extension == NULL) {
+			//printf("Extension is NULL\n");
+                        break;
+		    }
+                }
+
+		break;
+
+	    case TERMINATE_RECORD_TYPE:
+		break;
+
+	    /* TODO: other record type */
+	    default:		    /* Should be trapped by DGifGetRecordType. */
+		break;
+	}
+
+	/* Pass ImageCount */
+	if(ImageCount != NULL)
+		*ImageCount=ImageNum;
+
+    } while (RecordType != TERMINATE_RECORD_TYPE);
+
+
+END_FUNC:
+    /* Free scree buffers */
+    if(ScreenBuffer != NULL) {
+	for (i = 0; i < SHeight; i++)
+		free(ScreenBuffer[i]);
+    	free(ScreenBuffer);
+    }
+
+    /* Close file */
+    if (DGifCloseFile(GifFile, &Error) == GIF_ERROR) {
+	PrintGifError(Error);
+	return Error;
+    }
+
+    return Error;
+}
+
+
 /*------------------------------------------------------------------------------
-Read a GIF file and load data to EGI_GIF
+Slurp a GIF file and load all data to EGI_GIF.
 
 @fpath: File path
 
@@ -61,14 +440,44 @@ Return:
 	A pointer to EGI_GIF	OK
 	NULL			Fail
 --------------------------------------------------------------------------------*/
-EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON)
+EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
 {
     EGI_GIF* egif=NULL;
     GifFileType *GifFile;
+    GifRecordType RecordType;
     int Error;
+    int check_size;
+    GifByteType *ExtData;
+    int ExtFunction;
+    int ImageTotal=0;
 
     GifColorType *ColorMapEntry;
     EGI_16BIT_COLOR img_bkcolor;
+
+    /* Try to get total number of images, for size check */
+    if( egi_gif_readFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgAlpha_ON, *ImageCount */
+    {
+	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
+	return NULL;
+    }
+
+    /* Open gif file */
+    if ((GifFile = DGifOpenFileName(fpath, &Error)) == NULL) {
+	    PrintGifError(Error);
+	    return NULL;
+    }
+
+    /* Big Size WARNING! */
+    printf("%s: GIF SHeight*SWidth*ImageCount=%d*%d*%d \n",__func__,
+						GifFile->SHeight,GifFile->SWidth,ImageTotal );
+    check_size=GifFile->SHeight*GifFile->SWidth*ImageTotal;
+    if( check_size > 1024*1024*10 )
+    {
+	printf("%s: GIF check_size > 1024*1024*10, stop slurping! \n", __func__ );
+    	if (DGifCloseFile(GifFile, &Error) == GIF_ERROR)
+        	PrintGifError(Error);
+	return NULL;
+    }
 
     /* calloc EGI_GIF */
     egif=calloc(1, sizeof(EGI_GIF));
@@ -76,15 +485,6 @@ EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON)
 	    printf("%s: Fail to calloc EGI_GIF.\n", __func__);
 	    return NULL;
     }
-
-    /* Open gif file */
-    if ((GifFile = DGifOpenFileName(fpath, &Error)) == NULL) {
-	    PrintGifError(Error);
-	    free(egif);
-	    return NULL;
-    }
-
-    /* TODO: Big size warning */
 
 
     /* Slurp reads an entire GIF into core, hanging all its state info off
@@ -184,6 +584,7 @@ EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON)
     }
 
     return egif;
+
 }
 
 
@@ -291,7 +692,7 @@ NOTE:
 @trans_color:    Transparent color index ( Defined in GIF extension control blocks )
 		 <0, disable. or NO_TRANSPARENT_COLOR(=-1)
 
-@user_trans_color:   (User define)  --- FOR TEST ONLY ---
+@User_TransColor:   (User define)  --- FOR TEST ONLY ---
                  Palette index for the transparency
 		 <0, disable.
                  When ENABLE, you shall use FB FILO or FB buff page copy! or moving trails
@@ -327,7 +728,7 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int
 				   int xp, int yp, int xw, int yw, int winw, int winh,
 				   int BWidth, int BHeight, int offx, int offy,
 		  		   ColorMapObject *ColorMap, GifByteType *buffer,
-				   int trans_color, int user_trans_color, int bkg_color,
+				   int trans_color, int User_TransColor, int bkg_color,
 				   bool DirectFB_ON, bool ImgTransp_ON, bool BkgTransp_ON )
 {
     /* check params */
@@ -418,7 +819,7 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int
 	          if( BkgTransp_ON && ( buffer[pos] == bkg_color) ) {  /* bkg_color meaningful ONLY when global color table exists */
 		      Simgbuf->alpha[spos]=0;
 	          }
-	          if( buffer[pos] == trans_color || buffer[pos] == user_trans_color) {   /* ???? if trans_color == bkg_color */
+	          if( buffer[pos] == trans_color || buffer[pos] == User_TransColor) {   /* ???? if trans_color == bkg_color */
 		      Simgbuf->alpha[spos]=0;
 	          }
 	      }
@@ -466,17 +867,27 @@ Note: If dev is NOT NULL, it will affect whole FB data whith memcpy and page fre
                  <0 : loop displaying forever
 		 0  : display one frame only, and then ImageCount++.
 		 >0 : nloop times
-//@bool_loop:  	 If true, loop back to first frame if finish one round, by reset egif->ImageCount
-		 to 0.
-@x0,y0:	  	 The position of GIF canvas relative to FB/LCD coordinate system.
+
 @DirectFB_ON:    (User define) -- FOR TEST ONLY --
                  If TRUE: write data to FB directly, without FB buffer.
 		 See NOTE of egi_gif_rasterWriteFB() for more details
 
-----------------------------------------------------------------------------------------------------*/
-void egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-				   		 int xp, int yp, int xw, int yw, int winw, int winh )
+@User_DisposalMode: Disposal mode imposed by user, it will prevail GIF file disposal mode.
+		 <0, ingore.
 
+@User_TransColor:   (User define)  --- FOR TEST ONLY ---
+                 Palette index for the transparency
+
+@xp,yp:         The origin of GIF canvas relative to FB/LCD coordinate system.
+@xw,yw:         Displaying window origin, relate to the LCD coord system.
+@winw,winh:     width and height(row/column for fb) of the displaying window.
+                !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
+                waste time calling draw_dot() for pixels outsie FB zone. --- OK
+
+----------------------------------------------------------------------------------------------------*/
+void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
+					   	int User_DisposalMode, int User_TransColor,
+	   			   		int xp, int yp, int xw, int yw, int winw, int winh )
 {
     int j,k;
     int BWidth=0, BHeight=0;  	/* image block size */
@@ -620,12 +1031,16 @@ void egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_
 
 #if 1   ///////////////////  METHOD_1:    CALL egi_gif_rasterWriteFB()    ////////////////
 
+     /* impose User_DisposalMode */
+     if(User_DisposalMode >=0 )
+		Disposal_Mode=User_DisposalMode;
+
      /* Write gif frame/block to FB, ALWAYS after a control block! */
       egi_gif_rasterWriteFB( fbdev, egif->Simgbuf, Disposal_Mode,   /* Simgbuf, Disposal_Mode */
 			     xp,yp,xw,yw,winw,winh,		    /* xp,yp,xw,yw,winw,winh */
 			     BWidth, BHeight, offx, offy,           /* BWidth, BHeight, offx, offy */
 		  	     ColorMap, ImageData->RasterBits,  	    /*  ColorMap, buffer, */
-		     trans_color, -1, egif->SBackGroundColor,   /* trans_color, user_trans_color, bkg_color */
+		     trans_color, User_TransColor, egif->SBackGroundColor,   /* trans_color, user_trans_color, bkg_color */
 			     DirectFB_ON, ImgTransp_ON, false ); /* DirectFB_ON, ImgTransp_ON, BkgTransp_ON */
 
 	egi_sleep(0,0,DelayMs);
@@ -634,7 +1049,7 @@ void egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_
 
     int i;
     int bkg_color=-1;
-    int user_trans_color=-1;
+    int user_trans_color=-1;  ////// User_TransColor ////////
     bool BkgTransp_ON=false;
     bool Is_ImgColorMap;
     int pos=0;
@@ -644,6 +1059,9 @@ void egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_
     GifColorType *ColorMapEntry;
     EGI_IMGBUF *Simgbuf= egif->Simgbuf;
 
+     /* impose User_DisposalMode */
+     if(User_DisposalMode >=0 )
+		Disposal_Mode=User_DisposalMode;
 
    /* Limit Screen width x heigh, necessary? */
    if(BWidth==SWidth)offx=0;
@@ -738,7 +1156,7 @@ void egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_
 	k++;
     }
 
- }  while( k < nloop );  /*  ---- Do nloop  times! ---- */
+ }  while( k < nloop );  /*  ---- Do nloop times! ---- */
 
 
 }

@@ -3,15 +3,16 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-  The GIFLIB distribution is Copyright (c) 1997  Eric S. Raymond
-                    SPDX-License-Identifier: MIT
+This module is a wrapper of GIFLIB routines and functions.
+
+The GIFLIB distribution is Copyright (c) 1997  Eric S. Raymond
+                  SPDX-License-Identifier: MIT
 
 
 Midas-Zhou
 ------------------------------------------------------------------*/
 #ifndef __EGI_GIF_H__
 #define __EGI_GIF_H__
-
 #include "gif_lib.h"
 #include "egi_imgbuf.h"
 //#include "egi_fbdev.h"
@@ -46,6 +47,7 @@ typedef struct egi_gif {
 } EGI_GIF;
 
 /*** 	----- static functions -----
+static void GifQprintf(char *Format, ...);
 static void PrintGifError(int ErrorCode);
 static void  	egi_gif_FreeSavedImages(SavedImage **psimg, int ImageCount);
 static void egi_gif_rasterWriteFB( FBDEV *dev, EGI_IMGBUF *Simgbuf, int Disposal_Mode, int x0, int y0,
@@ -55,9 +57,12 @@ static void egi_gif_rasterWriteFB( FBDEV *dev, EGI_IMGBUF *Simgbuf, int Disposal
                                    bool DirectFB_ON, bool ImgTransp_ON, bool BkgTransp_ON )
 */
 
-EGI_GIF*  egi_gif_readfile(const char *fpath, bool ImgAlpha_ON);
-void	egi_gif_free(EGI_GIF **egif);
-void	egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-							int xp, int yp, int xw, int xy, int winw, int winh );
+int  	  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgAlpha_ON, int *ImageCount);
+EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON);
+void	  egi_gif_free(EGI_GIF **egif);
+void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
+                                                 int User_DisposalMode, int User_TransColor,
+                                                 int xp, int yp, int xw, int yw, int winw, int winh );
+
 
 #endif

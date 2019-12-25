@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 
            	/* draw outline frame */
 		#if 1
-		fbset_color2(&gv_fb_dev, WEGI_COLOR_RED);
+		fbset_color2(&gv_fb_dev, WEGI_COLOR_YELLOW);
 		draw_wrect(&gv_fb_dev, gif_param[i].x0, gif_param[i].y0,
                            gif_param[i].x0+gif_param[i].egif->SWidth-1,
                            gif_param[i].y0+gif_param[i].egif->SHeight-1,3);
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 	    }
 
 	    /* write slogan */
-	    k-=5;
+	    k-=3;
 	    if(k<-500)k=320;
             FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
                                           24, 24, wslogan,                    	/* fw,fh, pstr */
@@ -183,8 +183,8 @@ static void *thread_GifImgbuf_update(void *arg)
 	EGI_GIF *egif;
 	GIF_PARAM *param=(GIF_PARAM *)arg;
 
-	/* read in GIF data to EGI_GIF */
-	egif= egi_gif_readfile( param->fname, param->ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
+	/* Slurp GIF data to EGI_GIF */
+	egif= egi_gif_slurpFile( param->fname, param->ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
 	if(egif==NULL) {
 		printf("%s: Fail to read in gif file '%s'! \n",__func__, param->fname);
 		return (void *)-1;
