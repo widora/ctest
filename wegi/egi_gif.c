@@ -17,6 +17,9 @@ Midas-Zhou
 #include "egi_gif.h"
 #include "egi_common.h"
 
+#define GIF_MAX_CHECKSIZE	32  /* in Mbytes, 1024*1024*GIF_MAX_CHECKSIZE bytes,
+				     * For checking GIF data size */
+
 static void PrintGifError(int ErrorCode);
 static void egi_gif_FreeSavedImages(SavedImage **psimg, int ImageCount);
 
@@ -53,23 +56,27 @@ static void PrintGifError(int ErrorCode)
 
 
 /*---------------------------------------------------------------------------------------
-Read a GIF file and get ImageCount
+Read a GIF file and display images one by one, Meanwhile, the corresponding ImageCount
+is passed to the caller. If Silent_Mode is TRUE, then only ImageCount is passed out,
+Finally, ImageCount gets to the total number of images in the GIF file.
 
 Note:
 1. This function is for big size GIF file, it reads in and display frame by frame.
    For small size GIF file, just call egi_gif_slurpFile() instead.
+2. The passed ImageCount starts from 1, and ends with the total number of images.
 
 @fpath: File path
-
 @Silent_Mode:	 TRUE: Do NOT display and delay, just read frame by frame and pass
-		       image count.
+		       image count to the caller.
 		 FALE: Do display and delay.
 
-@ImgAlpha_ON:    (User define)
+@ImgTransp_ON:    (User define)
+
 		 Usually to be set as TRUE.
 		 Suggest to turn OFF only when no transparency setting in the GIF file,
 		 to show SBackGroundColor.
-@ImageCount:	 To pass total number of images in the GIF.
+
+@ImageCount:	 Counting number of images that have been displayed/parsed.
 		 If NULL, ignore.
 
 Return:
@@ -77,7 +84,7 @@ Return:
 	<0	Fails
         >0	Final DGifCloseFile() fails
 -----------------------------------------------------------------------------------------*/
-int  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgAlpha_ON, int *ImageCount)
+int  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount)
 {
     int Error=0;
     int	i, j, Size;
@@ -410,37 +417,39 @@ END_FUNC:
 
 
 /*------------------------------------------------------------------------------
-Slurp a GIF file and load all data to EGI_GIF.
+Slurp a GIF file and load all image data to an EGI_GIF struct.
 
 @fpath: File path
 
-@ImgAlpha_ON:    (User define)
-		 Usually to be set as TRUE.
-		 Suggest to turn OFF only when no transparency setting in the GIF file,
-		 to show SBackGroundColor.
+@ImgTransp_ON:    (User define)
+		 Usually set as TRUE, even for a nontransparent GIF.
 
-		 NOTE: Transparency_on dosen't means the GIF image itself is transparent!
+		 To make the GIF gcb.TransparentColor transparent to its
+		 background image by resetting its alpha value of EGI_GIF.Simgbuf to 0!
+
+		 NOTE: GIF Transparency_on dosen't mean the GIF image itself is transparent!
 		   it refers to gcb.TransparentColor for pixles in each sequence block images!
-		   gcb.TransparentColor refers to previous block image ONLY, NOT to the
-		   backgroup of the whole GIF image!
-		   A transparent GIF is applied only if it is so designed, and its SBackGroundColor
-		   is usually also transparent, so the background of the GIF image is visible there.
+		   the purpose of gcb.TransparentColor is to keep previous pixel color/alpha unchaged,
+		   and it's NOT necessary to make backgroup of the whole GIF image!
+		   Only if you turn on ImgTransp_ON and all or some of its images' Disposal_Mode is 2!
 
- 		 TRUE:  Apply imgbuf alpha.
-			Then alphas of transparent pixels in each sequence block images
+		   A transparent GIF is applied only if it is so designed, and its SBackGroundColor
+		   is usually also transparent(BUT not necessary!), so the background of the GIF
+		   image is visible there.
+
+ 		 TRUE:  Alpha value of transparent pixels in each sequence block images
 			will be set to 0, and draw_dot() will NOT be called for them,
 			so it will speed up displaying!
+			Only when all or some of its images' Disposal_Mode is 2!
 
 		 FALSE: SBackGroundColor will take effect.
-                        Turn OFF only when the GIF file has no transparent color
-                        index at all, draw_dot() will be called to draw every
-		        dot in each block image.
+                        draw_dot() will be called to draw every dot in each block image.
 
 Return:
 	A pointer to EGI_GIF	OK
 	NULL			Fail
 --------------------------------------------------------------------------------*/
-EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
+EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
 {
     EGI_GIF* egif=NULL;
     GifFileType *GifFile;
@@ -455,7 +464,7 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
     EGI_16BIT_COLOR img_bkcolor;
 
     /* Try to get total number of images, for size check */
-    if( egi_gif_readFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgAlpha_ON, *ImageCount */
+    if( egi_gif_readFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
     {
 	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
 	return NULL;
@@ -471,9 +480,9 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
     printf("%s: GIF SHeight*SWidth*ImageCount=%d*%d*%d \n",__func__,
 						GifFile->SHeight,GifFile->SWidth,ImageTotal );
     check_size=GifFile->SHeight*GifFile->SWidth*ImageTotal;
-    if( check_size > 1024*1024*10 )
+    if( check_size > 1024*1024*GIF_MAX_CHECKSIZE )
     {
-	printf("%s: GIF check_size > 1024*1024*10, stop slurping! \n", __func__ );
+	printf("%s: GIF check_size > 1024*1024*%d, stop slurping! \n", __func__, GIF_MAX_CHECKSIZE );
     	if (DGifCloseFile(GifFile, &Error) == GIF_ERROR)
         	PrintGifError(Error);
 	return NULL;
@@ -508,13 +517,13 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
     }
 
     /* Get GIF version*/
-    if( strcmp( EGifGetGifVersion(GifFile),"98" ) >= 0 )
+    if( strcmp( "98",EGifGetGifVersion(GifFile) ) >= 0 )
 	egif->VerGIF89=true;  /* GIF89 */
     else
 	egif->VerGIF89=false; /* GIF87 */
 
     /* xxx */
-    egif->ImgTransp_ON=ImgAlpha_ON;
+    egif->ImgTransp_ON=ImgTransp_ON;
 
     /* Assign EGI_GIF members. Ownership to be transfered later...*/
     egif->SWidth =       GifFile->SWidth;
@@ -548,7 +557,6 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
                                     ColorMapEntry->Blue );
 
     /* create imgbuf, with bkg alpha == 0!!!*/
-//    egif->Simgbuf=egi_imgbuf_create(egif->SHeight, egif->SWidth, 0, img_bkcolor); //height, width, alpha, color
     egif->Simgbuf=egi_imgbuf_create(egif->SHeight, egif->SWidth,
 					egif->ImgTransp_ON==true ? 0:255, img_bkcolor); //height, width, alpha, color
     if(egif->Simgbuf==NULL) {
@@ -562,12 +570,6 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
         return NULL;
     }
 
-    /* NOTE: if applay Simgbuf->alpha, then all initial pixels are invisible with initial alpha are 0s */
-//    if(!ImgAlpha_ON) {
-//    	free(egif->Simgbuf->alpha);
-//	egif->Simgbuf->alpha=NULL;
-//    }
-
     /* Decouple gif file handle, with respect to DGifCloseFile().
      * Ownership transfered from GifFile to EGI_GIF!
      */
@@ -577,7 +579,7 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON)
      * it will be freed by DGifCloseFile().
      */
 
-    /* Now we can close GIF file, and leave decoupled data to EGI_GIF. */
+    /* Now we can close GIF file, and let EGI_GIF to hold the data. */
     if (DGifCloseFile(GifFile, &Error) == GIF_ERROR) {
         PrintGifError(Error);
 	// ...carry on ....
@@ -668,7 +670,7 @@ NOTE:
 
 @fbdev:		FBDEV.
 		If NULL, update Simgbuf, but do NOT write to FB.
-@Simgbuf:	An EGI_IMGBUF to hold all pixel data of a GIF screen/canvas.
+@Simgbuf:	An EGI_IMGBUF as for GIF screen/canvas.
 		Size SWidth x SHeight.
 		Hooked to an EGI_GIF struct.
 
@@ -676,9 +678,9 @@ NOTE:
                                      0. No disposal specified
                                      1. Leave image in place
                                      2. Set area to background color/(OR background image)
-                                     3. Restore to previous content
+                                     3. Restore to previous content (Rarely applied)
 
-@xp,yp:		The origin of GIF canvas relative to FB/LCD coordinate system.
+@xp,yp:		The origin of displaying image block relative to Simgbuf(virtual GIF canvas).
 @xw,yw:         Displaying window origin, relate to the LCD coord system.
 @winw,winh:     width and height(row/column for fb) of the displaying window.
                 !!! Note: You'd better set winw,winh not exceeds acutual LCD size, or it will
@@ -686,23 +688,26 @@ NOTE:
 
 @BWidth, BHeight:  Width and Heigh for current GIF frame/block image size.  <= SWidth,SHeigh.
 @offx, offy:	 offset of current image block relative to GIF virtual canvas left top point.
-@ColorMap:	 Color map for current image block.
+@ColorMap:	 Color map for current image block. (Global or Local)
 @buffer:         Gif block image rasterbits, as palette index.
 
 @trans_color:    Transparent color index ( Defined in GIF extension control blocks )
 		 <0, disable. or NO_TRANSPARENT_COLOR(=-1)
 
 @User_TransColor:   (User define)  --- FOR TEST ONLY ---
-                 Palette index for the transparency
+		 Effective only ImgTransp_ON is true!
+                 Palette index for transparency, defined by the user.
 		 <0, disable.
                  When ENABLE, you shall use FB FILO or FB buff page copy! or moving trails
                  will overlapped! BUT, BUT!!! If image Disposal_Mode != 2,then the image
                  will mess up!!!
-                 To check image[0] for wanted user_trans_color index!, for following image[]
+                 To check imageframe[0] for wanted user_trans_color index!, for following imageframe[]
                  usually contains trans_color only !!!
 
 @bkg_color:	 Back ground color index, ( Defined in GIF file header )
-		 <0, disable.
+		 <0, disable. (For comparision)
+		 This byte is only meaningful if the global color table flag is 1, and if there is no
+		 global color table, this byte should be 0.
 
 @DirectFB_ON:    (User define)  	-- FOR TEST ONLY --
 		 Normally to be FALSE, or for nontransparent(transparency off) GIF.
@@ -711,25 +716,25 @@ NOTE:
                        --- NOTE ---
                  1. DirectFB_ON mode MUST NOT use FB_FILO !!! for GIF is a kind of
                     overlapping image operation, FB_FILO is just agains it!
-                 2  !!! Not for transparent GIF !!!
+                 2  !!! Turning ON will make a transparent GIF nontransparent! !!!
                  3. Turn ON for samll size (maybe)and nontransparent GIF images
                     to speed up writing!!
                  4. For big size image, it may result in tear lines and flash(by FILO OP)
                     on the screen.
                  5. For images with transparent area, it MAY flash with bkgcolor!(by FILO OP)
 
-@BkgTransp_ON:     (User define) Usually it's FALSE!  trans_color will cause the same effect.
+xxxxx @BkgTransp_ON:     (User define) Usually it's FALSE!  trans_color will cause the same effect?
                  If TRUE: make backgroud color transparent.
                  WARN!: The GIF should has separated background color from image content,
                         otherwise the same color index in image will be transparent also!
 
 -------------------------------------------------------------------------------------------*/
-inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int Disposal_Mode,
+inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf,int Disposal_Mode,
 				   int xp, int yp, int xw, int yw, int winw, int winh,
 				   int BWidth, int BHeight, int offx, int offy,
 		  		   ColorMapObject *ColorMap, GifByteType *buffer,
 				   int trans_color, int User_TransColor, int bkg_color,
-				   bool DirectFB_ON, bool ImgTransp_ON, bool BkgTransp_ON )
+				   bool ImgTransp_ON ) 			// bool BkgTransp_ON )
 {
     /* check params */
     if( Simgbuf==NULL || ColorMap==NULL || buffer==NULL )
@@ -741,53 +746,18 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int
     GifColorType *ColorMapEntry;
     int SWidth=Simgbuf->width;		/* Screen/canvas size */
     int SHeight=Simgbuf->height;
-    EGI_16BIT_COLOR bkcolor;		/* 16bit color, NOT index */
+    EGI_16BIT_COLOR bkcolor;		/* 16bit color, NOT color index */
 
    /* Limit Screen width x heigh, necessary? */
    if(BWidth==SWidth)offx=0;
    if(BHeight==SHeight)offy=0;
    //printf("%s: input Height=%d, Width=%d offx=%d offy=%d\n", __func__, Height, Width, offx, offy);
 
-#if 1
-    /*** 	--- Disposal_Mode ---
-     * 		0. No disposal specified
-     *		1. Leave image in place
-     */
-    if( Disposal_Mode==2 && !DirectFB_ON ) /* 2. Set area to background color/image */
-    {
-	/* TODO: to be testetd, how about Disposal_Mode changes ??? */
-	/* NOTE!!! DirectFB_ON mode MUST NOT use FB_FILO! */
-
-        #if 0 /* FAILS!!! When Disposal_mode changes to other than 2, this will fail then! */
-   	/* Display imgbuf, with FB FILO ON, OR fill background with FB bkg buffer */
-	fb_filo_flush(fbdev); /* flush and restore old FB pixel data */
-	fb_filo_on(fbdev); /* start collecting old FB pixel data */
-
-	#else /* OK */
-	/* clear all alphas */
-	ColorMapEntry = &ColorMap->Colors[bkg_color];
-	bkcolor=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
-                                    ColorMapEntry->Green,
-               	                    ColorMapEntry->Blue );
-
-	if(ImgTransp_ON)	/* Make canvan transparent! */
-		egi_imgbuf_resetColorAlpha(Simgbuf, -1, 0);
-	else {			/* Fill with SBackGroundColor */
-		egi_imgbuf_resetColorAlpha(Simgbuf, bkcolor, 255);
-	}
-
-//      memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
-	#endif
+    /* get mutex lock -------------- >>>>>  */
+    if(pthread_mutex_lock(&Simgbuf->img_mutex) !=0){
+                printf("%s: Fail to lock imgbuf mutex!\n",__func__);
+                return;
     }
-
-    /* TODO: Disposal_Mode 3. Restore to previous image
-     * "The mode Restore to Previous is intended to be used in small sections of the graphic
-     *	 ... this mode should be used sparingly" --- < Graphics Interchange Format Version 89a >
-     */
-    else if( Disposal_Mode==3)
-	printf("%s: !!! Skip Disposal_Mode 3 !!!\n",__func__);
-
-#endif
 
     /* update Simgbuf */
     for(i=0; i<BHeight; i++)
@@ -799,42 +769,40 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int
 	      /* Nontransparent color: set color and set alpha to 255 */
 	      if( trans_color < 0 || trans_color != buffer[pos]  )
               {
-//		  if(Is_ImgColorMap) /* TODO:  not tested! */
-///		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
-//		  else 		   /* Is global color map. */
-		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
-
+	          ColorMapEntry = &ColorMap->Colors[buffer[pos]];
                   Simgbuf->imgbuf[spos]=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
 							    ColorMapEntry->Green,
 							    ColorMapEntry->Blue);
-		  /* Only if imgbuf alpha is ON */
-//		  if(Simgbuf->alpha)
-		  	Simgbuf->alpha[spos]=255;
+		  /* set alpha  */
+	  	  Simgbuf->alpha[spos]=255;
 	      }
 
-	      /* Just after above!, If IMGBUF alpha applys, Transprent color: set alpha to 0 */
-	      //if(Simgbuf->alpha) {
-	      if(ImgTransp_ON) {
-		  /* Make background color transparent */
-	          if( BkgTransp_ON && ( buffer[pos] == bkg_color) ) {  /* bkg_color meaningful ONLY when global color table exists */
-		      Simgbuf->alpha[spos]=0;
-	          }
+        /* Just after above...!
+	 * Instead of leaving previous color/alpha unchanged, ImgTransp_ON will reset alpha of trans_color
+         * to 0 while Disposal_Mode==2, so it will be transparent to the back ground image!
+         * BUT for Disposal_Mode==1, it only keep previous color/alpha unchanged.
+	      */
+	      if(ImgTransp_ON && Disposal_Mode==2) {
 	          if( buffer[pos] == trans_color || buffer[pos] == User_TransColor) {   /* ???? if trans_color == bkg_color */
 		      Simgbuf->alpha[spos]=0;
 	          }
 	      }
+	      /* Make background color transparent xxxx -- NOT APPLICABLE ! */
+	      /* bkg_color meaningful ONLY when global color table exists */
+	      //if( BkgTransp_ON && ( buffer[pos] == bkg_color) ) {
+	      //	      Simgbuf->alpha[spos]=0;
+	      // }
 	      /*  ELSE : Keep old color and alpha value in Simgbuf->imgbuf */
           }
     }
 
+    /*  <<<--------- put mutex lock */
+    pthread_mutex_unlock(&Simgbuf->img_mutex);
+
     /* --- Return if FBDEV is NULL --- */
-    if(fbdev == NULL)
+    if(fbdev == NULL) {
 	return;
-
-
-    /* Set area to background color/image */
-    if( Disposal_Mode==2 && !DirectFB_ON )
-     	memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
+    }
 
     /* display the whole Gif screen/canvas */
     egi_imgbuf_windisplay( Simgbuf, fbdev, -1,              /* img, fb, subcolor */
@@ -843,40 +811,40 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int
                      	   winw, winh   /* winw, winh */
 			);
 
-    if( Disposal_Mode==2 && !DirectFB_ON )  /* Set area to background color/image */
-	 fb_filo_off(fbdev); /* start collecting old FB pixel data */
-
-    /* refresh FB page */
-    if(!DirectFB_ON)
-    	fb_page_refresh(fbdev);
-
 }
 
 
 /*---------------------------------------------------------------------------------------------------
 Display current frame of GIF, then increase count of EGI_GIF, If dev==NULL, then update eigf->Simgbuf
-only!
-
-Note: If dev is NOT NULL, it will affect whole FB data whith memcpy and page fresh operation!
+and return!
+Note: If dev is NOT NULL, it will affect whole FB data with memcpy and page fresh operation!
 
 
 @dev:	     	 FB Device.
 		 If NULL, update egif->Simgbuf, but will DO NOT write to FB.
 @egif:	     	 The subjective EGI_GIF.
-@nloop:		 loop time for each function call:
-                 <0 : loop displaying forever
+@nloop:		 loop times for each function call:
+                 <0 : loop displaying GIF frames forever
 		 0  : display one frame only, and then ImageCount++.
 		 >0 : nloop times
 
-@DirectFB_ON:    (User define) -- FOR TEST ONLY --
+@DirectFB_ON:    (User define) !!!-- FOR TEST ONLY --
                  If TRUE: write data to FB directly, without FB buffer.
 		 See NOTE of egi_gif_rasterWriteFB() for more details
 
-@User_DisposalMode: Disposal mode imposed by user, it will prevail GIF file disposal mode.
-		 <0, ingore.
+@User_DisposalMode:	(User define) !!!-- FOR TEST ONLY --
+		 Disposal mode imposed by user, it will prevail GIF file disposal mode.
+		 =0,1,2,3.
+		 <0, ignore.
 
-@User_TransColor:   (User define)  --- FOR TEST ONLY ---
+@User_TransColor:   (User define) !!! --- FOR TEST ONLY ---
+		 Effective only egif->ImgTransp_ON is true!
                  Palette index for the transparency
+		 <0, ignore.
+
+@User_BkgColor:   (User define)  !!! --- FOR TEST ONLY ---
+		 GIF canvans backgroup color
+		 <0, ignore.
 
 @xp,yp:         The origin of GIF canvas relative to FB/LCD coordinate system.
 @xw,yw:         Displaying window origin, relate to the LCD coord system.
@@ -886,10 +854,10 @@ Note: If dev is NOT NULL, it will affect whole FB data whith memcpy and page fre
 
 ----------------------------------------------------------------------------------------------------*/
 void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-					   	int User_DisposalMode, int User_TransColor,
+					   	int User_DisposalMode, int User_TransColor, int User_BkgColor,
 	   			   		int xp, int yp, int xw, int yw, int winw, int winh )
 {
-    int j,k;
+    int i,j,k;
     int BWidth=0, BHeight=0;  	/* image block size */
     int offx, offy;		/* image block offset relative to gif canvas */
     int DelayMs=0;            	/* delay time in ms */
@@ -899,45 +867,82 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     ColorMapObject *ColorMap;   /*  Color map */
     GraphicsControlBlock gcb;   /* extension control block */
 
+    bool Is_LocalColorMap;	/* Local colormap or global colormap */
     int  Disposal_Mode=0;       /*** Defined in GIF extension control block:
+				   Actions after displaying:
                                    0. No disposal specified
                                    1. Leave image in place
                                    2. Set area to background color(image)
                                    3. Restore to previous content
 				*/
+//  GifByteType *buffer; 	/* For METHOD_2 CODE BLOCK */
+    GifColorType *ColorMapEntry;
 
-    int trans_color=NO_TRANSPARENT_COLOR;
-    GifByteType *buffer; /* For METHOD_2 CODE BLOCK */
-    bool ImgTransp_ON=egif->ImgTransp_ON;
+    int bkg_color=-1;		/* color index */
+    EGI_16BIT_COLOR bkcolor=0;	/* 16bit color, NOT color index. default is BLACK
+				 * Applicable only if global colorMap exists!
+				 */
+    int trans_color=NO_TRANSPARENT_COLOR;  /* color index */
+    int spos;
 
     /* sanity check */
     if( egif==NULL || egif->SavedImages==NULL ) {
 	printf("%s: input EGI_GIF(data) is NULL.\n", __func__);
 	return;
     }
+
+    /* check ImageCount */
     if( egif->ImageCount > egif->ImageTotal-1)
 		egif->ImageCount=0;
+
+     /* Impose User_BkgColor, !!! If Local colorMap applied, then this is NOT applicable !!!  */
+     if( User_BkgColor >=0 )
+		bkg_color=User_BkgColor;
+     else
+		bkg_color=egif->SBackGroundColor;
+
+     /* Get bkcolor only if global colorMap exists, or use default bkcolor=0 */
+     if(egif->SColorMap) {
+	   	ColorMapEntry = &egif->SColorMap->Colors[bkg_color];   /* bkg_color: index */
+     	   	bkcolor=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
+              		                    ColorMapEntry->Green,
+      	        		            ColorMapEntry->Blue );
+     }
 
  /* Do nloop times, or just one frame if nloop==0 */
  k=0;
  do {
+
      /* Get saved image data sequence */
      ImageData=&egif->SavedImages[egif->ImageCount];
-     buffer=ImageData->RasterBits;
+//   buffer=ImageData->RasterBits;  /* For METHOD_2 CODE BLOCK */
 
      /* Get image colorMap */
      if(ImageData->ImageDesc.ColorMap) {
-//      Is_ImgColorMap=true;
+	Is_LocalColorMap=true;
         ColorMap=ImageData->ImageDesc.ColorMap;
 	printf("  --->  Local colormap: Colorcount=%d   <--\n", ColorMap->ColorCount);
      }
      else {  /* Apply global colormap */
-//	Is_ImgColorMap=false;
+	Is_LocalColorMap=false;
 	ColorMap=egif->SColorMap;
      }
 
+     /* Reset Simgbuf and working FB buffer, for the first block image */
+     if( egif->ImageCount==0 && fbdev != NULL ) {
+	  ColorMapEntry = &ColorMap->Colors[bkg_color];
+	  bkcolor=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
+                                      ColorMapEntry->Green,
+               	                      ColorMapEntry->Blue );
+
+	  egi_imgbuf_resetColorAlpha(egif->Simgbuf, bkcolor, egif->ImgTransp_ON ? 0:255 );
+
+     	  memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
+     }
+
+
      #if 1	/* For TEST */
-     printf("\n Get ImageData %d/%d ... \n", 	egif->ImageCount, egif->ImageTotal-1);
+     printf("\n Get ImageData %d of [0-%d] ... \n", 	egif->ImageCount, egif->ImageTotal-1);
      printf("ExtensionBlockCount=%d\n", 	ImageData->ExtensionBlockCount);
      printf("ColorMap.SortFlag:	%s\n", 		ColorMap->SortFlag?"YES":"NO");
      printf("ColorMap.BitsPerPixel:	%d\n", 	ColorMap->BitsPerPixel);
@@ -948,6 +953,11 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
      offy=ImageData->ImageDesc.Top;
      BWidth=ImageData->ImageDesc.Width;
      BHeight=ImageData->ImageDesc.Height;
+     egif->offx=offx;
+     egif->offy=offy;
+     egif->BWidth=BWidth;
+     egif->BHeight=BHeight;
+
      printf("Block: offset(%d,%d) size(%dx%d) \n", offx, offy, BWidth, BHeight);
 
      /* Get extension block */
@@ -976,6 +986,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 	    */
 
 		case GRAPHICS_EXT_FUNC_CODE:
+			printf(" --- GRAPHICS_EXT_FUNC_CODE ---\n");
 	       		if (DGifExtensionToGCB(ExtBlock->ByteCount, ExtBlock->Bytes, &gcb) == GIF_ERROR)
 			{
         	                printf("%s: DGifExtensionToGCB() Fails!\n",__func__);
@@ -992,13 +1003,15 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
         	        /* Get disposal mode */
                 	Disposal_Mode=gcb.DisposalMode;
+
 	                /* Get trans_color */
         	      	trans_color=gcb.TransparentColor;
 
+
 	               	/* Get delay time in ms, and delay */
         	        DelayMs=gcb.DelayTime*10;
-//			egi_sleep(0,0,DelayMs);
-			//tm_delayms(DelayMs);
+			if(DelayMs==0)		/* For some GIF it's 0! */
+				DelayMs=50;
 
 			break;
 		case CONTINUE_EXT_FUNC_CODE:
@@ -1019,7 +1032,6 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
 	    } /* END of switch(), EXT_FUNC_CODE */
 
-
 	} /* END for(j):  read and parse extension block*/
 
      }
@@ -1028,28 +1040,78 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 		ExtBlock=NULL;
      }
 
-
-#if 1   ///////////////////  METHOD_1:    CALL egi_gif_rasterWriteFB()    ////////////////
-
      /* impose User_DisposalMode */
      if(User_DisposalMode >=0 )
 		Disposal_Mode=User_DisposalMode;
 
-     /* Write gif frame/block to FB, ALWAYS after a control block! */
-      egi_gif_rasterWriteFB( fbdev, egif->Simgbuf, Disposal_Mode,   /* Simgbuf, Disposal_Mode */
+     /* ---- Write GIF block image to FB  ---- */
+      egi_gif_rasterWriteFB( fbdev, egif->Simgbuf,Disposal_Mode,     /* FBDEV, Simgbuf, Disposal_Mode */
 			     xp,yp,xw,yw,winw,winh,		    /* xp,yp,xw,yw,winw,winh */
 			     BWidth, BHeight, offx, offy,           /* BWidth, BHeight, offx, offy */
 		  	     ColorMap, ImageData->RasterBits,  	    /*  ColorMap, buffer, */
-		     trans_color, User_TransColor, egif->SBackGroundColor,   /* trans_color, user_trans_color, bkg_color */
-			     DirectFB_ON, ImgTransp_ON, false ); /* DirectFB_ON, ImgTransp_ON, BkgTransp_ON */
+                      trans_color, User_TransColor, bkg_color,      /* trans_color, user_trans_color, bkg_color */
+			     egif->ImgTransp_ON ); 	/* DirectFB_ON, Img_Transp_ON, BkgTransp_ON */
 
-	egi_sleep(0,0,DelayMs);
+    /* Refresh FB page if NOT DirectFB_ON */
+    if(!DirectFB_ON && fbdev != NULL )
+    	fb_page_refresh(fbdev);
 
-#else  /////////////////  METHOD_2:  Code Block, A litter faster?    /////////////////////
+    /* Delay */
+    if(fbdev != NULL)
+        egi_sleep(0,0,DelayMs);
 
+    /* ----- Parse Disposal_Mode: Actions after GIF displaying  ----- */
+    switch(Disposal_Mode)
+    {
+     	case 0: /* Disposal_Mode 0: No disposal specified */
+		break;
+	case 1: /* Disposal_Mode 1: Leave image in place */
+		break;
+     	case 2: /* Disposal_Mode 2: Set block area to background color/image */
+    		if( !DirectFB_ON )
+     		{
+	    	    /* update Simgbuf Block*, make current block area transparent! */
+	    	    for(i=0; i<BHeight; i++) {
+        	 	 /* update block of Simgbuf */
+		         for(j=0; j<BWidth; j++ ) {
+	        	        spos=(offy+i)*(egif->SWidth)+(offx+j);
+		      	 	if(egif->ImgTransp_ON )	/* Make curretn block area transparent! */
+		      	   		egif->Simgbuf->alpha[spos]=0;
+
+		      	 	else {   /* bkcolor is NOT applicable for local colorMap*/
+			  		egif->Simgbuf->imgbuf[spos]=bkcolor; /* bkcolor: WEGI_16BIT_COLOR */
+			      	   	egif->Simgbuf->alpha[spos]=255;
+		     	 	}
+			}
+	    	    }
+	        }
+    	        /* Set area to FB background color/image */
+		if(fbdev != NULL)
+	        	memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
+
+		break;
+
+       /* TODO: Disposal_Mode 3: Restore to previous image
+        * "The mode Restore to Previous is intended to be used in small sections of the graphic
+        *	 ... this mode should be used sparingly" --- < Graphics Interchange Format Version 89a >
+        */
+	case 3:
+		printf("%s: !!! Skip Disposal_Mode 3 !!!\n",__func__);
+		break;
+
+	default:
+		break;
+
+    } /* --- End switch() Disposal_Mode --- */
+
+
+#if 0 //////////////  vars for block codes method  /////////////////
     int i;
-    int bkg_color=-1;
-    int user_trans_color=-1;  ////// User_TransColor ////////
+    //    int bkg_color=-1;
+    /*  bkg_color: This byte is only meaningful if the global color table flag is 1, and if there is no
+       global color table, this byte should be 0. Assign it to -1 just for comparision! */
+    EGI_16BIT_COLOR bkcolor;		/* 16bit color, NOT color index */
+    int user_trans_color=-1;  		////// User_TransColor ////////
     bool BkgTransp_ON=false;
     bool Is_ImgColorMap;
     int pos=0;
@@ -1058,94 +1120,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     int SHeight=egif->SHeight;
     GifColorType *ColorMapEntry;
     EGI_IMGBUF *Simgbuf= egif->Simgbuf;
-
-     /* impose User_DisposalMode */
-     if(User_DisposalMode >=0 )
-		Disposal_Mode=User_DisposalMode;
-
-   /* Limit Screen width x heigh, necessary? */
-   if(BWidth==SWidth)offx=0;
-   if(BHeight==SHeight)offy=0;
-   //printf("%s: input Height=%d, Width=%d offx=%d offy=%d\n", __func__, Height, Width, offx, offy);
-
-    /* update Simgbuf */
-    for(i=0; i<BHeight; i++)
-    {
-	 /* update block of Simgbuf */
-	 for(j=0; j<BWidth; j++ ) {
-	      pos=i*BWidth+j;
-              spos=(offy+i)*SWidth+(offx+j);
-	      /* Nontransparent color: set color and set alpha to 255 */
-	      if( trans_color < 0 || trans_color != buffer[pos]  )
-              {
-//		  if(Is_ImgColorMap) /* TODO:  not tested! */
-///		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
-//		  else 		   /* Is global color map. */
-		         ColorMapEntry = &ColorMap->Colors[buffer[pos]];
-
-                  Simgbuf->imgbuf[spos]=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
-							    ColorMapEntry->Green,
-							    ColorMapEntry->Blue );
-		  /* Only if imgbuf alpha is ON */
-		 // if(Simgbuf->alpha)
-		  	Simgbuf->alpha[spos]=255;
-	      }
-
-
-	      /* Just after above!, If IMGBUF alpha applys, Transprent color: set alpha to 0 */
-	      // if(Simgbuf->alpha) {
-	      if(ImgTransp_ON) {
-		  /* Make background color transparent */
-	          if( BkgTransp_ON && (buffer[pos] == bkg_color) ) {  /* bkg_color meaningful ONLY when global color table exists */
-			//if(Disposal_Mode==2)
-		      		Simgbuf->alpha[spos]=0;
-	          }
-	          if( buffer[pos] == trans_color || buffer[pos] == user_trans_color) {   /* ???? if trans_color == bkg_color */
-			//if(Disposal_Mode==2)
-		      		Simgbuf->alpha[spos]=0;
-	          }
-	      }
-	      /*  ELSE : Keep old color and alpha value in Simgbuf->imgbuf */
-          }
-    }
-
-    /* return if FBDEV is NULL */
-    if(fbdev == NULL)
-	return;
-
-    //newimg=egi_imgbuf_resize(&Simgbuf, 240, 240);  // EGI_IMGBUF **pimg, width, height
-    if( Disposal_Mode==2 && !DirectFB_ON ) /* Set area to background color/image */
-    {
-	  /* TODO: to be testetd, how about Disposal_Mode changes ??? */
-	  /* NOTE!!! DirectFB_ON mode MUST NOT use FB_FILO! */
-
-          #if 0 /* FAILS!!! When Disposal_mode changes to other than 2, this will fail then! */
-   	  /* Display imgbuf, with FB FILO ON, OR fill background with FB bkg buffer */
-	  fb_filo_flush(fbdev); /* flush and restore old FB pixel data */
-	  fb_filo_on(fbdev); /* start collecting old FB pixel data */
-	  #else
-          memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
-	  #endif
-    }
-    /* TODO: Mode 3. */
-
-    /* display the whole Gif screen/canvas */
-    egi_imgbuf_windisplay( Simgbuf, fbdev, -1,             /* img, fb, subcolor */
-			   xp, yp,				/* xp, yp */
-			   xw, yw,				/* xw, yw */
-                     	   winw, winh   /* winw, winh */
-			);
-
-    if( Disposal_Mode==2 && !DirectFB_ON )  /* Set area to background color/image */
-	 fb_filo_off(fbdev); /* start collecting old FB pixel data */
-
-    /* refresh FB page */
-    if(!DirectFB_ON)
-    	fb_page_refresh(fbdev);
-
-#endif  /////////////////////   END METHOD SELECT    /////////////////////////
-
-     /* ? reset trans_color ? */
+#endif //////////////////////////////////////////////////////////////
 
      /* ImageCount incremental */
      egif->ImageCount++;
@@ -1156,7 +1131,6 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 	k++;
     }
 
- }  while( k < nloop );  /*  ---- Do nloop times! ---- */
-
+ }  while( k < nloop || nloop < 0 );  /* Do nloop times! OR loop forever if nloop<0 */
 
 }

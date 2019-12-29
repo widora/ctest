@@ -22,11 +22,15 @@ typedef struct fbdev FBDEV;
  * For big GIF file, be careful to use EGI_GIF, it needs large mem space!
  */
 typedef struct egi_gif {
-    bool    	VerGIF89;		     /* Version: GIF89 OR GIF87 */
-    bool	ImgTransp_ON;		     /* Try image transparency */
+    bool    	VerGIF89;		 /* Version: GIF89 OR GIF87 */
+    bool	ImgTransp_ON;		 /* Try image transparency */
 
-    GifWord 	SWidth;         	     /* Size of virtual canvas */
+    GifWord 	SWidth;         	 /* Size of virtual canvas */
     GifWord 	SHeight;
+    GifWord	BWidth;			 /* Size of current block image */
+    GifWord	BHeight;
+    GifWord	offx;			 /* Current block offset relative to canvas origin */
+    GifWord	offy;
     GifWord 	SColorResolution;        /* How many colors can we generate? */
     GifWord 	SBackGroundColor;        /* Background color for virtual canvas */
 
@@ -50,18 +54,21 @@ typedef struct egi_gif {
 static void GifQprintf(char *Format, ...);
 static void PrintGifError(int ErrorCode);
 static void  	egi_gif_FreeSavedImages(SavedImage **psimg, int ImageCount);
-static void egi_gif_rasterWriteFB( FBDEV *dev, EGI_IMGBUF *Simgbuf, int Disposal_Mode, int x0, int y0,
+
+inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf, int Disposal_Mode,
+                                   int xp, int yp, int xw, int yw, int winw, int winh,
                                    int BWidth, int BHeight, int offx, int offy,
                                    ColorMapObject *ColorMap, GifByteType *buffer,
-                                   int trans_color, int user_trans_color, int bkg_color,
-                                   bool DirectFB_ON, bool ImgTransp_ON, bool BkgTransp_ON )
+                                   int trans_color, int User_TransColor, int bkg_color,
+                                   bool ImgTransp_ON, bool BkgTransp_ON )
+
 */
 
-int  	  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgAlpha_ON, int *ImageCount);
-EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgAlpha_ON);
+int  	  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount);
+EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON);
 void	  egi_gif_free(EGI_GIF **egif);
 void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-                                                 int User_DisposalMode, int User_TransColor,
+                                                 int User_DisposalMode, int User_TransColor,int User_BkgColor,
                                                  int xp, int yp, int xw, int yw, int winw, int winh );
 
 

@@ -236,6 +236,7 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 	    PrintGifError(GifFile->Error);
 	    exit(EXIT_FAILURE);
 	}
+
 	switch (RecordType) {
 	    case IMAGE_DESC_RECORD_TYPE:
 		if (DGifGetImageDesc(GifFile) == GIF_ERROR) {
@@ -254,9 +255,10 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 		/* check block image size and position */
     		printf("\nImageCount=%d\n", GifFile->ImageCount);
 		GifQprintf("%s: Image %d at (%d, %d) [%dx%d]:     ",
-		    PROGRAM_NAME, ++ImageNum, Col, Row, Width, Height);
+				    PROGRAM_NAME, ++ImageNum, Col, Row, Width, Height );
+
 		if (GifFile->Image.Left + GifFile->Image.Width > GifFile->SWidth ||
-		   GifFile->Image.Top + GifFile->Image.Height > GifFile->SHeight) {
+			   GifFile->Image.Top + GifFile->Image.Height > GifFile->SHeight) {
 		    fprintf(stderr, "Image %d is not confined to screen dimension, aborted.\n",ImageNum);
 		    exit(EXIT_FAILURE);
 		}
@@ -331,11 +333,11 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
                       }
 		      /* ----- for test ---- */
 		      #if 1
-                      printf("\tTransparency on: %s\n",
+                      printf("Transparency on: %s\n",
                       			gcb.TransparentColor != -1 ? "yes" : "no");
-                      printf("\tTransparent Index: %d\n", gcb.TransparentColor);
-                      printf("\tDelayTime: %d\n", gcb.DelayTime);
-		      printf("\tDisposalMode: %d\n", gcb.DisposalMode);
+                      printf("Transparent Index: %d\n", gcb.TransparentColor);
+                      printf("DelayTime: %d\n", gcb.DelayTime);
+		      printf("DisposalMode: %d\n", gcb.DisposalMode);
 		      #endif
 
 		      /* Get disposal mode */
@@ -390,7 +392,6 @@ while(1) {	/////////////////////    LOOP TEST    ///////////////////////
 	}
 
     } while (RecordType != TERMINATE_RECORD_TYPE);
-
 
     /* Free scree buffers */
     for (i = 0; i < SHeight; i++)
@@ -556,7 +557,7 @@ void display_gif( int Width, int Height, int offx, int offy,
                            Simgbuf->width, Simgbuf->height    /* winw, winh */
 			);
 
-    display_slogan();
+//    display_slogan();
 
 
     if( Disposal_Mode==2 )  /* Set area to background color/image */
@@ -565,8 +566,9 @@ void display_gif( int Width, int Height, int offx, int offy,
     /* refresh FB page */
     fb_page_refresh(&gv_fb_dev);
 
-    /* reset trans color index */
-//    trans_color=-1;
+    /* reset trans color index, NOT necessary!*/
+//  trans_color=-1;
+
 }
 
 

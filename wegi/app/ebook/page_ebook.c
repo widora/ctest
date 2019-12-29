@@ -128,7 +128,7 @@ static int page_refresh_ebook(EGI_PAGE *page)
                 perror("---open file---");
                 return -1;
         }
-        /* 1.2 obtain file stat */
+        /* 1.2 obtain file stat, OR fseek(fd, 0L, SEEK_END); fsize=ftell(fp); */
         if( fstat(fd,&sb)<0 ) {
 		EGI_PLOG(LOGLV_ERROR,"%s: Fail to call fstat() for file size.", __func__);
                 perror("---fstat---");

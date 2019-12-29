@@ -1,3 +1,15 @@
+/*------------------------------------------------------------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+Example:
+Call egi_gif_slurpFile() to load a GIF file to an EGI_GIF struct and
+then call egi_gif_displayFrame() to display it.
+
+Midas Zhou
+------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include "egi_common.h"
 #include "egi_FTsymbol.h"
@@ -42,10 +54,25 @@ int main(int argc, char **argv)
     	int xres;
     	int yres;
 	EGI_GIF *egif=NULL;
+	bool ImgTransp_ON=false;
 	bool DirectFB_ON=false; /* For transparency_off GIF,to speed up,tear line possible. */
-	bool ImgAlpha_ON=true;
 	int xp,yp;
 	int xw,yw;
+
+
+	/* help */
+	if(argc < 2) {
+		printf("Usage:  %s  fpath [ImgTransp_ON]  [[DirectFB_ON]] \n", argv[0] );
+		printf("	default: ImgTransp_ON=0(false)   DirectFB_ON=0(false)\n");
+		exit(-1);
+	}
+
+	/* get input ImgTransp_ON */
+	if( argc > 2 )
+		atoi(argv[2])==0 ? (ImgTransp_ON=false) : (ImgTransp_ON=true);
+	if( argc > 3 )
+		atoi(argv[3])==0 ? (DirectFB_ON=false) : (DirectFB_ON=true);
+
 
         /* refresh working buffer */
         //clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY);
@@ -69,7 +96,7 @@ int main(int argc, char **argv)
     	}
 
 	/* read in GIF data to EGI_GIF */
-	egif= egi_gif_slurpFile( argv[1], ImgAlpha_ON); /* fpath, bool ImgAlpha_ON */
+	egif= egi_gif_slurpFile( argv[1], ImgTransp_ON); /* fpath, bool ImgTransp_ON */
 	if(egif==NULL) {
 		printf("Fail to read in gif file!\n");
 		exit(-1);
@@ -87,18 +114,14 @@ int main(int argc, char **argv)
         while(1) {
 
 	    /* Display one frame/block each time, then refresh FB page.  */
-            egi_gif_displayFrame( &gv_fb_dev, egif, 100,	/* *fbdev, EGI_GIF *egif, nloop */
-				  DirectFB_ON, 2, 126,		/* DirectFB_ON, User_DispMode, User_TransColor */
+            egi_gif_displayFrame( &gv_fb_dev, egif, 0,	/* *fbdev, EGI_GIF *egif, nloop */
+				 /* DirectFB_ON, User_DispMode, User_TransColor, User_BkgColor */
+				  DirectFB_ON, -1, -1, -1,
 	 			 /* to put center of IMGBUF to the center of LCD */
-				 xp,yp-30,xw,yw,			/* xp,yp, xw, yw */
+				 xp,yp,xw,yw,			/* xp,yp, xw, yw */
 				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
 				egif->SHeight>yres ? yres:egif->SHeight		/* winh */
 			);
-
-	    /* draw outline frame */
-//	    draw_rect(&gv_fb_dev, xp, yp, xp+egif->SWidth-1, yp+egif->SHeight-1);
-//	    fb_page_refresh(&gv_fb_dev);
-
 	}
     	egi_gif_free(&egif);
 

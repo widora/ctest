@@ -2026,8 +2026,8 @@ int egi_subimg_writeFB(EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subindex,
 
 /*-----------------------------------------------------------------
 		        Reset Color and Alpha value
-@color:		16bit color value. if <0 ingored.
-@alpah:		8bit alpha value.  if <0 ingored.
+@color:		16bit color value. if <0 ingore.
+@alpah:		8bit alpha value.  if <0 ingore.
 
 Return:
 	0	OK
@@ -2041,17 +2041,17 @@ int egi_imgbuf_resetColorAlpha(EGI_IMGBUF *egi_imgbuf, int color, int alpha )
 		return -1;
 
 
-	if(alpha>0 && color>0) {
+	if(alpha>=0 && color>=0) {
 		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++) {
 			egi_imgbuf->alpha[i]=alpha;
 			egi_imgbuf->imgbuf[i]=color;
 		}
 	}
-	else if(alpha>0) {
+	else if(alpha>=0) {
 		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++)
 			egi_imgbuf->alpha[i]=alpha;
 	}
-	else if( color>0 ) {
+	else if( color>=0 ) {
 		for(i=0; i< egi_imgbuf->height*egi_imgbuf->width; i++)
 			egi_imgbuf->imgbuf[i]=color;
 	}
