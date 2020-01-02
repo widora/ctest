@@ -14,6 +14,7 @@ Midas-Zhou
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "egi_gif.h"
 #include "egi_common.h"
 
@@ -896,10 +897,13 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 		egif->ImageCount=0;
 
      /* Impose User_BkgColor, !!! If Local colorMap applied, then this is NOT applicable !!!  */
-     if( User_BkgColor >=0 )
+     if( User_BkgColor >=0 ) {
 		bkg_color=User_BkgColor;
+		printf("User_BkgColor=%d\n",User_BkgColor);
+     }
      else
 		bkg_color=egif->SBackGroundColor;
+
 
      /* Get bkcolor only if global colorMap exists, or use default bkcolor=0 */
      if(egif->SColorMap) {
@@ -1041,8 +1045,13 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
      }
 
      /* impose User_DisposalMode */
-     if(User_DisposalMode >=0 )
+     if(User_DisposalMode >=0 ) {
 		Disposal_Mode=User_DisposalMode;
+         	printf("User_DisposalMode: %d\n", User_DisposalMode);
+     }
+
+     if(User_TransColor >=0 )
+		printf("User_TransColor=%d\n",User_TransColor);
 
      /* ---- Write GIF block image to FB  ---- */
       egi_gif_rasterWriteFB( fbdev, egif->Simgbuf,Disposal_Mode,     /* FBDEV, Simgbuf, Disposal_Mode */
@@ -1057,7 +1066,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     	fb_page_refresh(fbdev);
 
     /* Delay */
-    if(fbdev != NULL)
+//    if(fbdev != NULL)
         egi_sleep(0,0,DelayMs);
 
     /* ----- Parse Disposal_Mode: Actions after GIF displaying  ----- */
@@ -1070,6 +1079,12 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
      	case 2: /* Disposal_Mode 2: Set block area to background color/image */
     		if( !DirectFB_ON )
      		{
+		    /* get mutex lock for IMGBUF ------------- >>>>>  */
+		    if(pthread_mutex_lock(&egif->Simgbuf->img_mutex) !=0){
+                	 printf("%s: Fail to lock imgbuf mutex!\n",__func__);
+                    	 return;
+    		    }
+
 	    	    /* update Simgbuf Block*, make current block area transparent! */
 	    	    for(i=0; i<BHeight; i++) {
         	 	 /* update block of Simgbuf */
@@ -1084,6 +1099,9 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 		     	 	}
 			}
 	    	    }
+
+	    	    /*  <<<--------- put mutex lock */
+		    pthread_mutex_unlock(&egif->Simgbuf->img_mutex);
 	        }
     	        /* Set area to FB background color/image */
 		if(fbdev != NULL)
@@ -1122,6 +1140,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     EGI_IMGBUF *Simgbuf= egif->Simgbuf;
 #endif //////////////////////////////////////////////////////////////
 
+
      /* ImageCount incremental */
      egif->ImageCount++;
 
@@ -1133,4 +1152,126 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
  }  while( k < nloop || nloop < 0 );  /* Do nloop times! OR loop forever if nloop<0 */
 
+}
+
+
+
+/*-------------------------------------------------------------------------
+A thread function to display an EGI_GIF by calling egi_gif_displayFrame().
+
+@argv:	A pointer to an EGI_GIF_CONTEXT.
+
+Parameters: Refert to egi_gif_displayFrame( )
+-------------------------------------------------------------------------*/
+static void *egi_gif_threadDisplay(void *argv)
+{
+	EGI_GIF_CONTEXT *gif_ctxt=(EGI_GIF_CONTEXT *)argv;
+	if(gif_ctxt==NULL)
+		return (void *)-1;
+
+	/* Display GIF */
+				/* FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON */
+	egi_gif_displayFrame( gif_ctxt->fbdev, gif_ctxt->egif,	gif_ctxt->nloop, gif_ctxt->DirectFB_ON,
+				/* int User_DisposalMode, int User_TransColor, int User_BkgColor */
+			   gif_ctxt->User_DisposalMode, gif_ctxt->User_TransColor, gif_ctxt->User_BkgColor,
+	   			/* int xp, int yp, int xw, int yw, int winw, int winh */
+		gif_ctxt->xp, gif_ctxt->yp, gif_ctxt->xw, gif_ctxt->yw, gif_ctxt->winw, gif_ctxt->winh );
+
+
+	return (void *)0;
+}
+
+
+/*-------------------------------------------------------------------------------------
+Run a thread of egi_gif_threadDisplay() to display an EGI_GIF.
+
+Parameters: Refert to egi_gif_displayFrame( )
+
+Return:
+	0	OK
+	<0	Fails
+--------------------------------------------------------------------------------------*/
+int egi_gif_runDisplayThread( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
+		   	int User_DisposalMode, int User_TransColor, int User_BkgColor,
+		   	int xp, int yp, int xw, int yw, int winw, int winh )
+{
+	EGI_GIF_CONTEXT gif_ctxt;
+
+	if(egif==NULL) {
+		printf("%s: Input egif is NULL!\n",__func__);
+		return -1;
+	}
+
+	if(egif->thread_running==true) {
+		printf("%s: EGI_GIF is being displayed by a thread!\n",__func__);
+		return -2;
+	}
+
+	gif_ctxt.fbdev=fbdev;
+	gif_ctxt.egif=egif;
+	gif_ctxt.nloop=nloop;
+	gif_ctxt.DirectFB_ON=DirectFB_ON;
+	gif_ctxt.User_DisposalMode=User_DisposalMode;
+	gif_ctxt.User_TransColor=User_TransColor;
+	gif_ctxt.User_BkgColor=User_BkgColor;
+	gif_ctxt.xp=xp;
+	gif_ctxt.yp=yp;
+	gif_ctxt.xw=xw;
+	gif_ctxt.yw=yw;
+	gif_ctxt.winw=winw;
+	gif_ctxt.winh=winh;
+
+
+ 	if( pthread_create(&egif->thread_display, NULL, egi_gif_threadDisplay, (void *)&gif_ctxt) != 0 )
+        {
+              	printf("%s: Fail to create a thread of egi_gif_threadDisplay()!\n",__func__);
+		return -3;
+        }
+
+	egif->thread_running=true;
+
+	return 0;
+}
+
+
+/*-------------------------------------------
+To stop/kill an EGI_GIF.thread_display.
+
+@egif:	An EGI_GIF with a running thread_display.
+
+Return:
+	0	OK
+	<0	Fails
+-------------------------------------------*/
+int egi_gif_stopDisplayThread(EGI_GIF *egif)
+{
+	int ret;
+
+	if(egif==NULL)
+		return -1;
+
+	/* check thread status */
+	ret=pthread_kill(egif->thread_display, 0);
+	if(ret==ESRCH) {
+		printf("%s: egif->thread_display is not running!\n",__func__);
+		return -2;
+	}
+	else if(ret==EINVAL) {
+		printf("%s: Signal to check egif->thread_display is invalid!\n",__func__);
+		return -3;
+	}
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	if( pthread_cancel(egif->thread_display) < 0 ) {
+		printf("%s: Fail to call pthread_cancle()!\n",__func__);
+		return -4;
+	}
+
+	if( pthread_join(egif->thread_display,NULL) < 0 ) {
+		printf("%s: Fail to call pthread_join()!\n", __func__);
+		return -5;
+	}
+
+	return 0;
 }

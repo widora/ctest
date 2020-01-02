@@ -54,8 +54,13 @@ int main(int argc, char **argv)
     	int xres;
     	int yres;
 	EGI_GIF *egif=NULL;
-	bool ImgTransp_ON=false;
+
+	bool ImgTransp_ON=false; /* Suggest: TURE */
 	bool DirectFB_ON=false; /* For transparency_off GIF,to speed up,tear line possible. */
+	int User_DispMode=-1;   /* <0, disable */
+	int User_TransColor=-1; /* <0, disable, if>=0, auto set User_DispMode to 2. */
+	int User_BkgColor=-1;   /* <0, disable */
+
 	int xp,yp;
 	int xw,yw;
 
@@ -115,8 +120,10 @@ int main(int argc, char **argv)
 
 	    /* Display one frame/block each time, then refresh FB page.  */
             egi_gif_displayFrame( &gv_fb_dev, egif, 0,	/* *fbdev, EGI_GIF *egif, nloop */
-				 /* DirectFB_ON, User_DispMode, User_TransColor, User_BkgColor */
-				  DirectFB_ON, -1, -1, -1,
+				 /* DirectFB_ON, User_DispMode, User_TransColor, User_BkgColor
+				  * If User_TransColor>=0, set User_DispMode to 2 as for transparency.
+				  */
+		  DirectFB_ON, User_TransColor>=0?2:User_DispMode, User_TransColor, User_BkgColor,
 	 			 /* to put center of IMGBUF to the center of LCD */
 				 xp,yp,xw,yw,			/* xp,yp, xw, yw */
 				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */

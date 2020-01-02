@@ -28,9 +28,11 @@ Midas Zhou
 #include "egi_cstring.h"
 #include "egi_FTsymbol.h"
 #include "egi_utils.h"
+#include "egi_gif.h"
 #include "page_minipanel.h"
 #include "juhe_news.h"
 #include "app_news.h"
+
 
 static char strkey[256];			/* for name of json_obj key */
 static char buff[CURL_RETDATA_BUFF_SIZE]; 	/* for curl returned data, text/html expected */
@@ -84,7 +86,7 @@ void ripple_mark(EGI_POINT touch_pxy, uint8_t alpha, EGI_16BIT_COLOR color);
 --------------------------------------------------------------------*/
 static char* news_type[]=
 {
-   "top", "caijing", "keji", "guoji", "yule"
+   "guoji" //"top", "caijing", "keji", "guoji", "yule"
 };
 
 
@@ -164,6 +166,7 @@ int main(int argc, char **argv)
 
 	exit(0);
 #endif //////////////////
+
 
         /* <<<<< 	 EGI general init 	 >>>>>> */
 #if 1
@@ -367,6 +370,8 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
                		continue; /* Continue for(i) */
 	        }
 
+
+
 		#if 0 /* Not necessary for Landscape mode */
 		/* rotate the imgbuf */
 		egi_imgbuf_rotate_update(&imgbuf, 90);
@@ -444,6 +449,53 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 
 		/* save FB data to a PNG file */
 		//egi_save_FBpng(&gv_fb_dev, pngNews_path);
+
+
+if(i==5) { //////////////////////////// INSERT GIF  //////////////////////
+
+        int xres=gv_fb_dev.pos_xres;
+        int yres=gv_fb_dev.pos_yres;
+
+        /* init FB back ground buffer page */
+        memcpy(gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.map_fb, gv_fb_dev.screensize);
+
+        /*  init FB working buffer page */
+        memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_fb, gv_fb_dev.screensize);
+
+        /* read in GIF data to EGI_GIF */
+        EGI_GIF *egif= egi_gif_slurpFile( "/mmc/happyny.gif", true); /* fpath, bool ImgTransp_ON */
+        if(egif==NULL) {
+                printf("Fail to read in gif file!\n");
+                exit(-1);
+        }
+        printf("Finishing read GIF.\n");
+
+        /* Cal xp,yp xw,yw */
+        int xp=egif->SWidth>xres ? (egif->SWidth-xres)/2:0;
+        int yp=egif->SHeight>yres ? (egif->SHeight-yres)/2:0;
+        int xw=egif->SWidth>xres ? 0:(xres-egif->SWidth)/2;
+        int yw=egif->SHeight>yres ? 0:(yres-egif->SHeight)/2;
+
+
+        /* Loop displaying */
+//        while(1) {
+
+            /* Display one frame/block each time, then refresh FB page.  */
+            egi_gif_displayFrame( &gv_fb_dev, egif, -1,  /* *fbdev, EGI_GIF *egif, nloop */
+                                 /* DirectFB_ON, User_DispMode, User_TransColor, User_BkgColor
+                                  * If User_TransColor>=0, set User_DispMode to 2 as for transparency.
+                                  */
+				 false,-1,-1,-1,
+                                 /* to put center of IMGBUF to the center of LCD */
+                                 xp,yp,xw,yw,                   /* xp,yp, xw, yw */
+                                egif->SWidth>xres ? xres:egif->SWidth,          /* winw */
+                                egif->SHeight>yres ? yres:egif->SHeight         /* winh */
+                        );
+//        }
+        egi_gif_free(&egif);
+
+}  ////////////////////////////////////////////////////////////
+
 
 		/*** 		Hold on and wait .....
 		 *  If the reader touch the screen within xs, then display the item content,

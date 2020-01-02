@@ -38,6 +38,7 @@ LIBS	+= -lpng -lz -lm -pthread -ljpeg -lasound -lsndfile
 LIBS	+= -lcurl -lssl -lcrypto -pthread
 LIBS	+= -lubox -lubus -lblobmsg_json -ljson_script -ljson-c
 LIBS    += -lfreetype  -lm -lz -lbz2
+LIBS    += -lgif
 
 APP_NAME = app_juhe
 
