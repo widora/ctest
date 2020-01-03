@@ -56,7 +56,7 @@ typedef struct egi_gif {
 
 
 /*------------------------------------------
-Context for GIF thread.
+Context for GIF displaying thread.
 Parameters: Refert to egi_gif_displayFrame( )
 -------------------------------------------*/
 typedef struct egi_gif_context
@@ -100,8 +100,8 @@ void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool Direct
                                              int User_DisposalMode, int User_TransColor,int User_BkgColor,
                                              int xp, int yp, int xw, int yw, int winw, int winh );
 
-int 	  egi_gif_runDisplayThread( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-                        	    int User_DisposalMode, int User_TransColor, int User_BkgColor,
-                        	    int xp, int yp, int xw, int yw, int winw, int winh );
+int 	  egi_gif_runDisplayThread(EGI_GIF_CONTEXT *gif_ctxt);
+
+int 	  egi_gif_stopDisplayThread(EGI_GIF *egif);
 
 #endif

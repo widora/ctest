@@ -15,14 +15,24 @@ Midas-Zhou
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 #include "egi_gif.h"
 #include "egi_common.h"
 
 #define GIF_MAX_CHECKSIZE	32  /* in Mbytes, 1024*1024*GIF_MAX_CHECKSIZE bytes,
 				     * For checking GIF data size */
 
+/* static functions */
 static void PrintGifError(int ErrorCode);
 static void egi_gif_FreeSavedImages(SavedImage **psimg, int ImageCount);
+static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf,int Disposal_Mode,
+				   int xp, int yp, int xw, int yw, int winw, int winh,
+				   int BWidth, int BHeight, int offx, int offy,
+		  		   ColorMapObject *ColorMap, GifByteType *buffer,
+				   int trans_color, int User_TransColor, int bkg_color,
+				   bool ImgTransp_ON );
+static void *egi_gif_threadDisplay(void *argv);
+
 
 /*****************************************************************************
  Same as fprintf to stderr but with optional print.
@@ -454,11 +464,11 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
 {
     EGI_GIF* egif=NULL;
     GifFileType *GifFile;
-    GifRecordType RecordType;
+//    GifRecordType RecordType;
     int Error;
     int check_size;
-    GifByteType *ExtData;
-    int ExtFunction;
+//    GifByteType *ExtData;
+//    int ExtFunction;
     int ImageTotal=0;
 
     GifColorType *ColorMapEntry;
@@ -747,14 +757,16 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf,int 
     GifColorType *ColorMapEntry;
     int SWidth=Simgbuf->width;		/* Screen/canvas size */
     int SHeight=Simgbuf->height;
-    EGI_16BIT_COLOR bkcolor;		/* 16bit color, NOT color index */
+//    EGI_16BIT_COLOR bkcolor;		/* 16bit color, NOT color index */
 
    /* Limit Screen width x heigh, necessary? */
    if(BWidth==SWidth)offx=0;
    if(BHeight==SHeight)offy=0;
    //printf("%s: input Height=%d, Width=%d offx=%d offy=%d\n", __func__, Height, Width, offx, offy);
 
+
     /* get mutex lock -------------- >>>>>  */
+    //printf("%s: pthread_mutex_lock ...\n",__func__);
     if(pthread_mutex_lock(&Simgbuf->img_mutex) !=0){
                 printf("%s: Fail to lock imgbuf mutex!\n",__func__);
                 return;
@@ -798,6 +810,7 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_IMGBUF *Simgbuf,int 
     }
 
     /*  <<<--------- put mutex lock */
+    //printf("%s: pthread_mutex_unlock ...\n",__func__);
     pthread_mutex_unlock(&Simgbuf->img_mutex);
 
     /* --- Return if FBDEV is NULL --- */
@@ -868,7 +881,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     ColorMapObject *ColorMap;   /*  Color map */
     GraphicsControlBlock gcb;   /* extension control block */
 
-    bool Is_LocalColorMap;	/* Local colormap or global colormap */
+//    bool Is_LocalColorMap;	/* Local colormap or global colormap */
     int  Disposal_Mode=0;       /*** Defined in GIF extension control block:
 				   Actions after displaying:
                                    0. No disposal specified
@@ -893,7 +906,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     }
 
     /* check ImageCount */
-    if( egif->ImageCount > egif->ImageTotal-1)
+    if( egif->ImageCount > egif->ImageTotal-1 || egif->ImageCount < 0 )
 		egif->ImageCount=0;
 
      /* Impose User_BkgColor, !!! If Local colorMap applied, then this is NOT applicable !!!  */
@@ -923,12 +936,12 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
      /* Get image colorMap */
      if(ImageData->ImageDesc.ColorMap) {
-	Is_LocalColorMap=true;
+//	Is_LocalColorMap=true;
         ColorMap=ImageData->ImageDesc.ColorMap;
 	printf("  --->  Local colormap: Colorcount=%d   <--\n", ColorMap->ColorCount);
      }
      else {  /* Apply global colormap */
-	Is_LocalColorMap=false;
+//	Is_LocalColorMap=false;
 	ColorMap=egif->SColorMap;
      }
 
@@ -1067,7 +1080,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
     /* Delay */
 //    if(fbdev != NULL)
-        egi_sleep(0,0,DelayMs);
+    egi_sleep(0,0,DelayMs);
 
     /* ----- Parse Disposal_Mode: Actions after GIF displaying  ----- */
     switch(Disposal_Mode)
@@ -1080,6 +1093,7 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
     		if( !DirectFB_ON )
      		{
 		    /* get mutex lock for IMGBUF ------------- >>>>>  */
+		    //printf("%s: pthread_mutex_lock ...\n",__func__);
 		    if(pthread_mutex_lock(&egif->Simgbuf->img_mutex) !=0){
                 	 printf("%s: Fail to lock imgbuf mutex!\n",__func__);
                     	 return;
@@ -1101,11 +1115,13 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 	    	    }
 
 	    	    /*  <<<--------- put mutex lock */
+		    //printf("%s: pthread_mutex_unlock ...\n",__func__);
 		    pthread_mutex_unlock(&egif->Simgbuf->img_mutex);
 	        }
     	        /* Set area to FB background color/image */
-		if(fbdev != NULL)
+		if(fbdev != NULL) {
 	        	memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
+		}
 
 		break;
 
@@ -1152,6 +1168,8 @@ void egi_gif_displayFrame( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB
 
  }  while( k < nloop || nloop < 0 );  /* Do nloop times! OR loop forever if nloop<0 */
 
+//  printf("%s: k=%d, nloop=%d --- END ---\n",__func__, k, nloop);
+
 }
 
 
@@ -1163,9 +1181,10 @@ A thread function to display an EGI_GIF by calling egi_gif_displayFrame().
 
 Parameters: Refert to egi_gif_displayFrame( )
 -------------------------------------------------------------------------*/
-static void *egi_gif_threadDisplay(void *argv)
+static void *egi_gif_threadDisplay(void *arg)
 {
-	EGI_GIF_CONTEXT *gif_ctxt=(EGI_GIF_CONTEXT *)argv;
+	EGI_GIF_CONTEXT *gif_ctxt=(EGI_GIF_CONTEXT *)arg;
+
 	if(gif_ctxt==NULL)
 		return (void *)-1;
 
@@ -1191,44 +1210,32 @@ Return:
 	0	OK
 	<0	Fails
 --------------------------------------------------------------------------------------*/
-int egi_gif_runDisplayThread( FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-		   	int User_DisposalMode, int User_TransColor, int User_BkgColor,
-		   	int xp, int yp, int xw, int yw, int winw, int winh )
+int egi_gif_runDisplayThread(EGI_GIF_CONTEXT *gif_ctxt)
 {
-	EGI_GIF_CONTEXT gif_ctxt;
 
-	if(egif==NULL) {
-		printf("%s: Input egif is NULL!\n",__func__);
-		return -1;
+    	/* sanity check */
+	if( gif_ctxt==NULL) {
+		printf("%s: input gif_ctxt is NULL.\n", __func__);
 	}
 
-	if(egif->thread_running==true) {
-		printf("%s: EGI_GIF is being displayed by a thread!\n",__func__);
+    	if( gif_ctxt->egif==NULL ) {
+		printf("%s: input gif_ctxt->egif is NULL.\n", __func__);
 		return -2;
+  	}
+
+	/* ??? */
+	if(gif_ctxt->egif->thread_running==true) {
+		printf("%s: EGI_GIF is being displayed by a thread!\n",__func__);
+		return -3;
 	}
 
-	gif_ctxt.fbdev=fbdev;
-	gif_ctxt.egif=egif;
-	gif_ctxt.nloop=nloop;
-	gif_ctxt.DirectFB_ON=DirectFB_ON;
-	gif_ctxt.User_DisposalMode=User_DisposalMode;
-	gif_ctxt.User_TransColor=User_TransColor;
-	gif_ctxt.User_BkgColor=User_BkgColor;
-	gif_ctxt.xp=xp;
-	gif_ctxt.yp=yp;
-	gif_ctxt.xw=xw;
-	gif_ctxt.yw=yw;
-	gif_ctxt.winw=winw;
-	gif_ctxt.winh=winh;
-
-
- 	if( pthread_create(&egif->thread_display, NULL, egi_gif_threadDisplay, (void *)&gif_ctxt) != 0 )
+ 	if( pthread_create(&gif_ctxt->egif->thread_display, NULL, egi_gif_threadDisplay, (void *)gif_ctxt) != 0 )
         {
               	printf("%s: Fail to create a thread of egi_gif_threadDisplay()!\n",__func__);
-		return -3;
+		return -4;
         }
 
-	egif->thread_running=true;
+	gif_ctxt->egif->thread_running=true;
 
 	return 0;
 }
@@ -1261,6 +1268,7 @@ int egi_gif_stopDisplayThread(EGI_GIF *egif)
 		return -3;
 	}
 
+	/* stop and join the thread */
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	if( pthread_cancel(egif->thread_display) < 0 ) {

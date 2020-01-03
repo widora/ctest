@@ -17,6 +17,13 @@ Midas Zhou
 
 int main(int argc, char **argv)
 {
+	/* help */
+	if(argc < 2) {
+		printf("Usage:  %s  fpath [ImgTransp_ON]  [[DirectFB_ON]] \n", argv[0] );
+		printf("	default: ImgTransp_ON=0(false)   DirectFB_ON=0(false)\n");
+		exit(-1);
+	}
+
         /* <<<<<  EGI general init  >>>>>> */
 #if 0
         printf("tm_start_egitick()...\n");
@@ -65,13 +72,6 @@ int main(int argc, char **argv)
 	int xw,yw;
 
 
-	/* help */
-	if(argc < 2) {
-		printf("Usage:  %s  fpath [ImgTransp_ON]  [[DirectFB_ON]] \n", argv[0] );
-		printf("	default: ImgTransp_ON=0(false)   DirectFB_ON=0(false)\n");
-		exit(-1);
-	}
-
 	/* get input ImgTransp_ON */
 	if( argc > 2 )
 		atoi(argv[2])==0 ? (ImgTransp_ON=false) : (ImgTransp_ON=true);
@@ -106,13 +106,51 @@ int main(int argc, char **argv)
 		printf("Fail to read in gif file!\n");
 		exit(-1);
 	}
-        printf("Finishing read GIF.\n");
+        printf("Finishing read GIF file into EGI_GIF.\n");
 
 	/* Cal xp,yp xw,yw */
 	xp=egif->SWidth>xres ? (egif->SWidth-xres)/2:0;
 	yp=egif->SHeight>yres ? (egif->SHeight-yres)/2:0;
 	xw=egif->SWidth>xres ? 0:(xres-egif->SWidth)/2;
 	yw=egif->SHeight>yres ? 0:(yres-egif->SHeight)/2;
+
+
+#if 1  /////////////////////////// TEST: egi_gif_runDisplayThread( )  ////////////////////////
+
+	EGI_GIF_CONTEXT gif_ctxt;
+
+        /* lump context data */
+        gif_ctxt.fbdev=&gv_fb_dev;
+        gif_ctxt.egif=egif;
+        gif_ctxt.nloop=-1;
+        gif_ctxt.DirectFB_ON=DirectFB_ON;
+        gif_ctxt.User_DisposalMode=User_DispMode;
+        gif_ctxt.User_TransColor=User_TransColor;
+        gif_ctxt.User_BkgColor=User_BkgColor;
+        gif_ctxt.xp=xp;
+        gif_ctxt.yp=yp;
+        gif_ctxt.xw=xw;
+        gif_ctxt.yw=yw;
+        gif_ctxt.winw=egif->SWidth>xres ? xres:egif->SWidth;
+        gif_ctxt.winh=egif->SHeight>yres ? yres:egif->SHeight;
+
+	/* start display thread */
+	egi_gif_runDisplayThread(&gif_ctxt);
+//       egi_gif_runDisplayThread( &gv_fb_dev, egif, 	/* FBDEV *, EGI_GIF * */
+//				 100, DirectFB_ON,  	/* int nloop, bool DirectFB_ON */
+//                                -1, -1, -1,         	/* User_DisposalMode, User_TransColor, User_BkgColor */
+//   				 xp, yp, xw, yw,    	/* xp, yp, xw, yw */
+//				 egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
+//				 egif->SHeight>yres ? yres:egif->SHeight	/* winh */
+//			    );
+
+	/* Cancel thread after a while */
+	while(1)
+		sleep(10);
+	egi_gif_stopDisplayThread(egif);
+
+	exit(1);
+#endif /////////////////////////////////////////////////////////////////////////////////////////
 
 
 	/* Loop displaying */
