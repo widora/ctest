@@ -18,25 +18,32 @@ Midas-Zhou
 //#include "egi_fbdev.h"
 typedef struct fbdev FBDEV;
 
-/*** 		--- NOTE ---
- * For big GIF file, be careful to use EGI_GIF, it needs large mem space!
+/*** 				--- NOTE ---
+ * 1. For big GIF file, be careful to use EGI_GIF, it needs large mem space!
+ * 2. No mutex lock applied for EGI_GIF, however EGI_IMGBUF HAS mutex lock imbedded.
  */
 typedef struct egi_gif {
     bool    	VerGIF89;		 /* Version: GIF89 OR GIF87 */
     bool	ImgTransp_ON;		 /* Try image transparency */
 
-    GifWord 	SWidth;         	 /* Size of virtual canvas */
-    GifWord 	SHeight;
-    GifWord	BWidth;			 /* Size of current block image */
-    GifWord	BHeight;
-    GifWord	offx;			 /* Current block offset relative to canvas origin */
-    GifWord	offy;
-    GifWord 	SColorResolution;        /* How many colors can we generate? */
-    GifWord 	SBackGroundColor;        /* Background color for virtual canvas */
+/* typedef int GifWord */
+
+    int 	SWidth;         	 /* Size of virtual canvas */
+    int 	SHeight;
+
+    int		RWidth;			/* Size for RSimgbuf, Unapplicable if both <=0, */
+    int		RHeight;		/* At lease either RWidth or RHeigth to be >0 */
+
+    int 	BWidth;			 /* Size of current block image */
+    int 	BHeight;
+    int		offx;			 /* Current block offset relative to canvas origin */
+    int		offy;
+    int 	SColorResolution;        /* How many colors can we generate? */
+    int 	SBackGroundColor;        /* Background color for virtual canvas */
 
     GifByteType 	AspectByte;      /* Used to compute pixel aspect ratio */
     ColorMapObject 	*SColorMap;      /* Global colormap, NULL if nonexistent. */
-    int			ImageCount;      /* Number of current image (both APIs)
+    int			ImageCount;      /* Index of current image (both APIs), starts from 0
 					  * Index ready for display!!
 					  */
     int			ImageTotal;	 /* Total number of images */
@@ -47,17 +54,21 @@ typedef struct egi_gif {
 
     EGI_IMGBUF		*Simgbuf;	      /* to hold GIF screen/canvas */
 
-//    int Error;                       	 /* Last error condition reported */
+    /* To be applied when at lease either RWidth or RHeigth to be >0 */
+    EGI_IMGBUF		*RSimgbuf;	      /* resized to RWidthxRHeight */
 
-    pthread_t		thread_display;	 /* displaying thread ID */
-    bool		thread_running;	 /* True if thread is running */
+    /*  Following for one producer and one consumer scenario only! */
+    pthread_t		thread_display;	 	/* displaying thread ID */
+    bool		thread_running;	 	/* True if thread is running */
+    bool		request_quit_display; 	/* True if request to quit egi_gif_displayFrame() */
 
 } EGI_GIF;
 
 
 /*------------------------------------------
 Context for GIF displaying thread.
-Parameters: Refert to egi_gif_displayFrame( )
+Parameter definition:
+	   Refert to egi_gif_displayFrame( )
 -------------------------------------------*/
 typedef struct egi_gif_context
 {
@@ -65,9 +76,9 @@ typedef struct egi_gif_context
         EGI_GIF *egif;
         int     nloop;
         bool    DirectFB_ON;
-        int     User_DisposalMode;
-        int     User_TransColor;
-        int     User_BkgColor;
+        int     User_DisposalMode;	/* <0 disable */
+        int     User_TransColor;	/* <0 disable */
+        int     User_BkgColor;		/* <0 disable */
         int     xp;
         int     yp;
         int     xw;
@@ -96,9 +107,12 @@ static void *egi_gif_threadDisplay(void *argv);
 int  	  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount);
 EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON);
 void	  egi_gif_free(EGI_GIF **egif);
-void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
-                                             int User_DisposalMode, int User_TransColor,int User_BkgColor,
-                                             int xp, int yp, int xw, int yw, int winw, int winh );
+
+//void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,
+//                                             int User_DisposalMode, int User_TransColor,int User_BkgColor,
+//                                             int xp, int yp, int xw, int yw, int winw, int winh );
+
+void 	  egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt );
 
 int 	  egi_gif_runDisplayThread(EGI_GIF_CONTEXT *gif_ctxt);
 

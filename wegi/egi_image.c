@@ -1002,8 +1002,8 @@ TODO: Before scale down an image, merge and shrink it to a certain size first!!!
 
 NOTE:
 1. Linear interpolation is carried out with fix point calculation.
-
-2. !!! --- LIMIT --- !!!
+2. If either width or height is <1, then adjust width/height proportional to oldwidth/oldheight.
+3. !!! --- LIMIT --- !!!
    Fix point data type: 			int
    Pixel 16bit color:				16bit
    Fix point multiplier(or divisor): 		f15 ( *(1U<<15) )
@@ -1016,15 +1016,19 @@ NOTE:
 
 @ineimg:	Input EGI_IMGBUF holding the original image data.
 @width:		Width for new image.
+		If width<=0 AND height>0: adjust width/height proportional to oldwidth/oldheight.
 		If width<2, auto. adjust it to 2.
+
 @height:	Height for new image.
+		If heigth<=0 AND width>0: adjust width/height proportional to oldwidth/oldheight.
 		If height<2, auto. adjust it to 2.
 Return:
 	A pointer to EGI_IMGBUF with new image 		OK
 	NULL						Fails
 ------------------------------------------------------------------------*/
 EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
-				unsigned int width, unsigned int height )
+				//unsigned int width, unsigned int height )
+				int width, int height )
 {
 	int i,j;
 	int ln,rn;		/* left/right(or up/down) index of pixel in a row of ineimg */
@@ -1032,7 +1036,6 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	unsigned int color_rowsize, alpha_rowsize;
 	EGI_IMGBUF *outeimg=NULL;
 //	EGI_IMGBUF *tmpeimg=NULL;
-
 
 	/* for intermediate processing */
 	EGI_16BIT_COLOR **icolors=NULL;
@@ -1052,6 +1055,14 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 	bool alpha_on=false;
 	if(ineimg->alpha!=NULL)
 			alpha_on=true;
+
+	/* If W or H is <=0: Adjust width/height proportional to oldwidth/oldheight */
+	if(width<1 && height<1)
+		return NULL;
+	else if(width<1)
+		width=height*oldwidth/oldheight;
+	else if(height<1)
+		height=width*oldheight/oldwidth;
 
 	/* adjust width and height to 2, ==1 will cause Devide_By_Zero exception. */
 	if(width<2) width=2;

@@ -4,8 +4,9 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 Example:
-Call egi_gif_slurpFile() to load a GIF file to an EGI_GIF struct and
-then call egi_gif_displayFrame() to display it.
+1. Call egi_gif_slurpFile() to load a GIF file to an EGI_GIF struct
+2. Call egi_gif_displayFrame() to display the EGI_GIF.
+3. Call egi_gif_runDisplayThread() to display EGI_GIF by a thread.
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -25,17 +26,16 @@ int main(int argc, char **argv)
 	}
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 0
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
-#endif
-#if 0
+
         printf("egi_init_log()...\n");
-        if(egi_init_log("/mmc/log_test") != 0) {        /* start logger */
+        if(egi_init_log("/mmc/log_gif") != 0) {        /* start logger */
                 printf("Fail to init logger,quit.\n");
                 return -1;
-        }
+	}
 
+#if 0
         printf("symbol_load_allpages()...\n");
         if(symbol_load_allpages() !=0 ) {       /* load sys fonts */
                 printf("Fail to load sym pages,quit.\n");
@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 
         /* <<<<------------------  End EGI Init  ----------------->>>> */
 
+	int i;
     	int xres;
     	int yres;
 	EGI_GIF *egif=NULL;
@@ -71,19 +72,17 @@ int main(int argc, char **argv)
 	int xp,yp;
 	int xw,yw;
 
-
 	/* get input ImgTransp_ON */
 	if( argc > 2 )
 		atoi(argv[2])==0 ? (ImgTransp_ON=false) : (ImgTransp_ON=true);
 	if( argc > 3 )
 		atoi(argv[3])==0 ? (DirectFB_ON=false) : (DirectFB_ON=true);
 
-
         /* refresh working buffer */
         //clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY);
 
 	/* Set FB mode as LANDSCAPE  */
-        fb_position_rotate(&gv_fb_dev, 3);
+        fb_position_rotate(&gv_fb_dev, 3); //0);
     	xres=gv_fb_dev.pos_xres;
     	yres=gv_fb_dev.pos_yres;
 
@@ -100,7 +99,7 @@ int main(int argc, char **argv)
             memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_fb, gv_fb_dev.screensize);
     	}
 
-	/* read in GIF data to EGI_GIF */
+	/* read GIF data into an EGI_GIF */
 	egif= egi_gif_slurpFile( argv[1], ImgTransp_ON); /* fpath, bool ImgTransp_ON */
 	if(egif==NULL) {
 		printf("Fail to read in gif file!\n");
@@ -108,14 +107,12 @@ int main(int argc, char **argv)
 	}
         printf("Finishing read GIF file into EGI_GIF.\n");
 
-	/* Cal xp,yp xw,yw */
+	/* Cal xp,yp xw,yw, to position it to the center of LCD  */
 	xp=egif->SWidth>xres ? (egif->SWidth-xres)/2:0;
 	yp=egif->SHeight>yres ? (egif->SHeight-yres)/2:0;
 	xw=egif->SWidth>xres ? 0:(xres-egif->SWidth)/2;
 	yw=egif->SHeight>yres ? 0:(yres-egif->SHeight)/2;
 
-
-#if 1  /////////////////////////// TEST: egi_gif_runDisplayThread( )  ////////////////////////
 
 	EGI_GIF_CONTEXT gif_ctxt;
 
@@ -134,39 +131,41 @@ int main(int argc, char **argv)
         gif_ctxt.winw=egif->SWidth>xres ? xres:egif->SWidth;
         gif_ctxt.winh=egif->SHeight>yres ? yres:egif->SHeight;
 
+
+#if 0  /////////////////////////// TEST: egi_gif_runDisplayThread( )  ////////////////////////
+
+while(1) {
+
+	printf("\n\n\n\n----- New Round DisplayThread -----\n\n\n\n");
+
 	/* start display thread */
-	egi_gif_runDisplayThread(&gif_ctxt);
-//       egi_gif_runDisplayThread( &gv_fb_dev, egif, 	/* FBDEV *, EGI_GIF * */
-//				 100, DirectFB_ON,  	/* int nloop, bool DirectFB_ON */
-//                                -1, -1, -1,         	/* User_DisposalMode, User_TransColor, User_BkgColor */
-//   				 xp, yp, xw, yw,    	/* xp, yp, xw, yw */
-//				 egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
-//				 egif->SHeight>yres ? yres:egif->SHeight	/* winh */
-//			    );
+	if( egi_gif_runDisplayThread(&gif_ctxt) !=0 )
+		continue;
 
 	/* Cancel thread after a while */
-	while(1)
-		sleep(10);
-	egi_gif_stopDisplayThread(egif);
+	//sleep(3);
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Start tm_delayms(3*1000) ... ",__func__);
+	tm_delayms(3*1000);
+	EGI_PLOG(LOGLV_CRITICAL,"%s: Finish tm_delayms(3*1000).", __func__);
 
+	 printf("%s: Call egi_gif_stopDisplayThread...\n",__func__);
+         if(egi_gif_stopDisplayThread(egif)!=0)
+		EGI_PLOG(LOGLV_CRITICAL,"%s: Fail to call egi_gif_stopDisplayThread().",__func__);
+
+ }
 	exit(1);
 #endif /////////////////////////////////////////////////////////////////////////////////////////
 
+        gif_ctxt.nloop=0; /* set one frame by one frame */
 
 	/* Loop displaying */
         while(1) {
 
 	    /* Display one frame/block each time, then refresh FB page.  */
-            egi_gif_displayFrame( &gv_fb_dev, egif, 0,	/* *fbdev, EGI_GIF *egif, nloop */
-				 /* DirectFB_ON, User_DispMode, User_TransColor, User_BkgColor
-				  * If User_TransColor>=0, set User_DispMode to 2 as for transparency.
-				  */
-		  DirectFB_ON, User_TransColor>=0?2:User_DispMode, User_TransColor, User_BkgColor,
-	 			 /* to put center of IMGBUF to the center of LCD */
-				 xp,yp,xw,yw,			/* xp,yp, xw, yw */
-				egif->SWidth>xres ? xres:egif->SWidth,		/* winw */
-				egif->SHeight>yres ? yres:egif->SHeight		/* winh */
-			);
+	    egi_gif_displayFrame( &gif_ctxt );
+
+        	gif_ctxt.xw -=2;
+
 	}
     	egi_gif_free(&egif);
 

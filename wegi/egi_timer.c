@@ -3,6 +3,11 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+NOTE:
+1. A pthread_join() failure may block followed sleep functons such
+   as egi_sleep() and tm_delay() permanently!???
+2. Tick alarm signal may conflic with other app thread!
+
 Midas Zhou
 -----------------------------------------------------------------*/
 #include <signal.h>
@@ -18,7 +23,7 @@ Midas Zhou
 #include "dict.h"
 
 
-#define EGI_ENABLE_TICK 0	/* Tick alarm signal may conflic with other app thread! */
+#define EGI_ENABLE_TICK 1	/* Tick alarm signal may conflic with other app thread! */
 
 struct itimerval tm_val, tm_oval;
 
@@ -207,7 +212,6 @@ void tm_delayms(unsigned long ms)
 	while(tm_tick_count-tm_now < nticks)
 	{
 		usleep(1000);
-
 	}
 
 #else
