@@ -37,6 +37,7 @@ static void *egi_gif_threadDisplay(void *argv);
 /*****************************************************************************
  Same as fprintf to stderr but with optional print.
 ******************************************************************************/
+#if 0
 static void GifQprintf(char *Format, ...)
 {
 bool GifNoisyPrint = true;
@@ -53,7 +54,7 @@ bool GifNoisyPrint = true;
 
     va_end(ArgPtr);
 }
-
+#endif
 
 static void PrintGifError(int ErrorCode)
 {
@@ -66,7 +67,7 @@ static void PrintGifError(int ErrorCode)
 }
 
 
-/*---------------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------------------
 Read a GIF file and display images one by one, Meanwhile, the corresponding ImageCount
 is passed to the caller. If Silent_Mode is TRUE, then only ImageCount is passed out,
 Finally, ImageCount gets to the total number of images in the GIF file.
@@ -94,8 +95,8 @@ Return:
 	0	OK
 	<0	Fails
         >0	Final DGifCloseFile() fails
------------------------------------------------------------------------------------------*/
-int  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount)
+-------------------------------------------------------------------------------------------*/
+int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount)
 {
     int Error=0;
     int	i, j, Size;
@@ -429,6 +430,211 @@ END_FUNC:
     return Error;
 }
 
+/*----------------------------------------------------------------
+Read a gif file and slurp all image data to a EGI_GIF_DATA struct.
+
+@fpath:		Path of an egi file.
+
+Return:
+	An EGI_GIF_DATA poiner	OK
+	NULL				Fails
+---------------------------------------------------------------*/
+EGI_GIF_DATA*  egi_gifdata_readFile(const char *fpath)
+{
+    EGI_GIF_DATA* gif_data=NULL;
+    GifFileType *GifFile;
+    int Error;
+    int check_size;
+    int ImageTotal=0;
+
+    /* Try to get total number of images, for size check */
+    if( egi_gif_playFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
+    {
+	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
+	return NULL;
+    }
+
+    /* Open gif file */
+    if ((GifFile = DGifOpenFileName(fpath, &Error)) == NULL) {
+	    PrintGifError(Error);
+	    return NULL;
+    }
+
+    /* Big Size WARNING! */
+    printf("%s: GIF SHeight*SWidth*ImageCount=%d*%d*%d \n",__func__,
+						GifFile->SHeight,GifFile->SWidth,ImageTotal );
+    check_size=GifFile->SHeight*GifFile->SWidth*ImageTotal;
+    if( check_size > 1024*1024*GIF_MAX_CHECKSIZE )
+    {
+	printf("%s: GIF check_size > 1024*1024*%d, stop slurping! \n", __func__, GIF_MAX_CHECKSIZE );
+    	if (DGifCloseFile(GifFile, &Error) == GIF_ERROR)
+        	PrintGifError(Error);
+	return NULL;
+    }
+
+    /* calloc EGI_GIF_DATA */
+    gif_data=calloc(1, sizeof(EGI_GIF_DATA));
+    if(gif_data==NULL) {
+	    printf("%s: Fail to calloc EGI_GIF_DATA.\n", __func__);
+	    return NULL;
+    }
+
+    /* Slurp reads an entire GIF into core, hanging all its state info off
+     *  the GifFileType pointer, it may take a short of time...
+     */
+    printf("%s: Slurping GIF file and put images to memory...\n", __func__);
+    if (DGifSlurp(GifFile) == GIF_ERROR) {
+	PrintGifError(GifFile->Error);
+    	if (DGifCloseFile(GifFile, &Error) == GIF_ERROR)
+        	PrintGifError(Error);
+	free(gif_data);
+	return NULL;
+    }
+
+    /* check sanity */
+    if( GifFile->ImageCount < 1 ) {
+    	if (DGifCloseFile(GifFile, &Error) == GIF_ERROR)
+        	PrintGifError(Error);
+        free(gif_data);
+	return NULL;
+    }
+
+    /* Get GIF version*/
+    if( strcmp( "98",EGifGetGifVersion(GifFile) ) >= 0 )
+	gif_data->VerGIF89=true;  /* GIF89 */
+    else
+	gif_data->VerGIF89=false; /* GIF87 */
+
+    /* Assign EGI_GIF_DATA members. Ownership to be transfered later...*/
+    gif_data->SWidth =       GifFile->SWidth;
+    gif_data->SHeight =      GifFile->SHeight;
+    gif_data->SColorResolution =     GifFile->SColorResolution;
+    gif_data->SBackGroundColor =     GifFile->SBackGroundColor;
+    gif_data->AspectByte =   GifFile->AspectByte;
+    gif_data->SColorMap  =   GifFile->SColorMap;
+    gif_data->ImageTotal =  GifFile->ImageCount; 	/* after slurp, GifFile->ImageCount is total number */
+    gif_data->SavedImages=   GifFile->SavedImages;
+
+
+    #if 1
+    printf("%s --- GIF Params---\n",__func__);
+    printf("		Version: %s", gif_data->VerGIF89 ? "GIF89":"GIF87");
+    printf("		SWidth x SHeight: 	%dx%d\n", gif_data->SWidth, gif_data->SHeight);
+    printf("		SColorMap:		%s\n", gif_data->SColorMap==NULL ? "No":"Yes" );
+    printf("   		SColorResolution: 	%d\n", gif_data->SColorResolution);
+    printf("   		SBackGroundColor: 	%d\n", gif_data->SBackGroundColor);
+    printf("   		AspectByte:		%d\n", gif_data->AspectByte);
+    printf("   		ImageTotal:       	%d\n", gif_data->ImageTotal);
+    #endif
+
+    /* Decouple gif file handle, with respect to DGifCloseFile().
+     * Ownership transfered from GifFile to EGI_GIF!
+     */
+    GifFile->SColorMap      =NULL;
+    GifFile->SavedImages    =NULL;
+    /* Note: Ownership of GifFile->ExtensionBlocks and GifFile->Image NOT transfered!
+     * it will be freed by DGifCloseFile().
+     */
+
+    /* Now we can close GIF file, and let EGI_GIF to hold the data. */
+    if (DGifCloseFile(GifFile, &Error) == GIF_ERROR) {
+        PrintGifError(Error);
+	// ...carry on ....
+    }
+
+
+    return gif_data;
+}
+
+
+/* --------------------------------------------------------------------------------------------------
+Create an EGI_GIF struct with refrence to gif_data.
+
+NOTE: SColorMap and SavedImages in the EGI_GIF are reference pointers
+and will NOT be freed in egi_gif_free(), instead they will be released
+by egi_gifdata_free().
+
+@gif_data:        An EGI_GIF_DATA holding uncompressed GIF data.
+
+@ImgTransp_ON:    (User define)
+		 Usually set as TRUE, even for a nontransparent GIF.
+
+		 To make the GIF gcb.TransparentColor transparent to its
+		 background image by resetting its alpha value of EGI_GIF.Simgbuf to 0!
+
+		 NOTE: GIF Transparency_on dosen't mean the GIF image itself is transparent!
+		   it refers to gcb.TransparentColor for pixles in each sequence block images!
+		   the purpose of gcb.TransparentColor is to keep previous pixel color/alpha unchaged,
+		   and it's NOT necessary to make backgroup of the whole GIF image!
+		   Only if you turn on ImgTransp_ON and all or some of its images' Disposal_Mode is 2!
+
+		   A transparent GIF is applied only if it is so designed, and its SBackGroundColor
+		   is usually also transparent(BUT not necessary!), so the background of the GIF
+		   image is visible there.
+
+ 		 TRUE:  Alpha value of transparent pixels in each sequence block images
+			will be set to 0, and draw_dot() will NOT be called for them,
+			so it will speed up displaying!
+			Only when all or some of its images' Disposal_Mode is 2!
+
+		 FALSE: SBackGroundColor will take effect.
+                        draw_dot() will be called to draw every dot in each block image.
+
+
+Return:
+        An EGI_GIF poiner  	OK
+        NULL                    Fails
+---------------------------------------------------------------------------------------------------*/
+EGI_GIF*  egi_gif_create(const EGI_GIF_DATA *gif_data, bool ImgTransp_ON)
+{
+    EGI_GIF* egif=NULL;
+    GifColorType *ColorMapEntry;
+    EGI_16BIT_COLOR img_bkcolor;
+
+    if(gif_data==NULL || gif_data->SavedImages==NULL ) {
+	printf("%s: Input gif_data is NULL or its data invalid!\n",__func__);
+	return NULL;
+    }
+
+    /* calloc EGI_GIF */
+    egif=calloc(1, sizeof(EGI_GIF));
+    if(egif==NULL) {
+	    printf("%s: Fail to calloc EGI_GIF.\n", __func__);
+	    return NULL;
+    }
+
+    /* Assign EGI_GIF members. Ownership to be transfered later...*/
+    egif->ImgTransp_ON=	ImgTransp_ON;
+    egif->VerGIF89=	gif_data->VerGIF89;
+    egif->SWidth =       gif_data->SWidth;
+    egif->SHeight =      gif_data->SHeight;
+    egif->SColorResolution =     gif_data->SColorResolution;
+    egif->SBackGroundColor =     gif_data->SBackGroundColor;
+    egif->AspectByte =   gif_data->AspectByte;
+    egif->SColorMap  =   gif_data->SColorMap;		/* refrence, to be freed by egi_gifdata_free() */
+    egif->ImageCount =   0;
+    egif->ImageTotal =   gif_data->ImageTotal;
+    egif->SavedImages=   gif_data->SavedImages;		/* refrence, to be freed by egi_gifdata_free() */
+    egif->Is_DataOwner=  false;		       		/* SColorMap and SavedImages to freed by egi_gifdata_free(), NOT egi_gif_free() */
+
+    /* get GIF's back ground color */
+    ColorMapEntry = &(egif->SColorMap->Colors[egif->SBackGroundColor]);
+    img_bkcolor=COLOR_RGB_TO16BITS( ColorMapEntry->Red,
+                                    ColorMapEntry->Green,
+                                    ColorMapEntry->Blue );
+
+    /* create egif->Simgbuf */
+    egif->Simgbuf=egi_imgbuf_create(egif->SHeight, egif->SWidth,
+					egif->ImgTransp_ON==true ? 0:255, img_bkcolor); //height, width, alpha, color
+    if(egif->Simgbuf==NULL) {
+	printf("%s: Fail to create egif->Simgbuf!\n", __func__);
+        free(egif);
+        return NULL;
+    }
+
+   return egif;
+}
+
 
 /*------------------------------------------------------------------------------
 Slurp a GIF file and load all image data to an EGI_GIF struct.
@@ -478,7 +684,7 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
     EGI_16BIT_COLOR img_bkcolor;
 
     /* Try to get total number of images, for size check */
-    if( egi_gif_readFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
+    if( egi_gif_playFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
     {
 	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
 	return NULL;
@@ -549,7 +755,8 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
     egif->ImageCount =   0;
     egif->ImageTotal =  GifFile->ImageCount; 	/* after slurp, GifFile->ImageCount is total number */
     egif->SavedImages=   GifFile->SavedImages;
-    egif->ExtensionBlockCount = GifFile->ExtensionBlockCount;
+ //   egif->ExtensionBlockCount = GifFile->ExtensionBlockCount;
+    egif->Is_DataOwner=  true;		       /* SColorMap and SavedImages to freed by egi_gif_free(), NOT egi_gifdata_free() */
 
     #if 1
     printf("%s --- GIF Params---\n",__func__);
@@ -604,12 +811,12 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
 }
 
 
-/*-----------------------------------------------------------
+/*----------------------------------------------------------------------
 Free array of struct SavedImage.
 
 @sp:	Poiter to first SavedImage of the array.
 @ImageCount: Total umber of  SavedImages
------------------------------------------------------------*/
+----------------------------------------------------------------------*/
 static void  egi_gif_FreeSavedImages(SavedImage **psimg, int ImageTotal)
 {
     int i;
@@ -640,6 +847,29 @@ static void  egi_gif_FreeSavedImages(SavedImage **psimg, int ImageTotal)
 }
 
 
+/*--------------------------------------------
+ Free an EGI_GIF_DATA struct.
+--------------------------------------------*/
+void egi_gifdata_free(EGI_GIF_DATA **gif_data)
+{
+   if(gif_data==NULL || *gif_data==NULL)
+	return;
+
+    /* Free EGI_GIF_DATA, Note: Same procedure as per DGifCloseFile()  */
+    /* free color map */
+    if ((*gif_data)->SColorMap)
+        GifFreeMapObject((*gif_data)->SColorMap);
+        //(*gif_data)->SColorMap = NULL;
+
+    /* free saved image data */
+    egi_gif_FreeSavedImages(&(*gif_data)->SavedImages, (*gif_data)->ImageTotal);
+
+   /* free itself */
+   free(*gif_data);
+   *gif_data=NULL;
+}
+
+
 /*-----------------------------
 Free An EGI_GIF struct.
 ------------------------------*/
@@ -648,12 +878,14 @@ void egi_gif_free(EGI_GIF **egif)
    if(egif==NULL || *egif==NULL)
 	return;
 
-    /* Free EGI_GIF, Note: Same procedure as per DGifCloseFile()  */
-    if ((*egif)->SColorMap) {
-        GifFreeMapObject((*egif)->SColorMap);
-        (*egif)->SColorMap = NULL;
+    /* Free SColorMap and SavedImages,  Note: Same procedure as per DGifCloseFile()  */
+    if( (*egif)->Is_DataOwner ) {  /* Only if egif owns the data */
+    	if ((*egif)->SColorMap) {
+	        GifFreeMapObject((*egif)->SColorMap);
+        	(*egif)->SColorMap = NULL;
+	}
+	egi_gif_FreeSavedImages(&(*egif)->SavedImages, (*egif)->ImageTotal);
     }
-    egi_gif_FreeSavedImages(&(*egif)->SavedImages, (*egif)->ImageTotal);
 
     /* free imgbuf */
     if ((*egif)->Simgbuf != NULL ) {
@@ -783,7 +1015,7 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_GIF *egif,int Dispos
     /* get mutex lock -------------- >>>>>  */
     //printf("%s: pthread_mutex_lock ...\n",__func__);
     if(pthread_mutex_lock(&Simgbuf->img_mutex) !=0){
-                printf("%s: Fail to lock imgbuf mutex!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to lock Simgbuf->img_mutex!",__func__);
                 return;
     }
 
@@ -824,14 +1056,12 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_GIF *egif,int Dispos
           }
     }
 
+    /* --- FOR TEST : add boundary box for the imgbuf, NO mutexlock in this func. */
+    //egi_imgbuf_addBoundaryBox(Simgbuf, WEGI_COLOR_BLACK, 2);
+
     /*  <<<--------- put mutex lock */
     //printf("%s: pthread_mutex_unlock ...\n",__func__);
     pthread_mutex_unlock(&Simgbuf->img_mutex);
-
-
-    /* Resize imgbuf */
-//    if(
-//EGI_IMGBUF  *egi_imgbuf_resize(const EGI_IMGBUF *ineimg, int width, int height);
 
 
     /* --- Return if FBDEV is NULL --- */
@@ -970,7 +1200,7 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
      if(ImageData->ImageDesc.ColorMap) {
 //	Is_LocalColorMap=true;
         ColorMap=ImageData->ImageDesc.ColorMap;
-	printf("  --->  Local colormap: Colorcount=%d   <--\n", ColorMap->ColorCount);
+//	printf("  --->  Local colormap: Colorcount=%d   <--\n", ColorMap->ColorCount);
      }
      else {  /* Apply global colormap */
 //	Is_LocalColorMap=false;
@@ -989,14 +1219,6 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
      	  memcpy(fbdev->map_bk, fbdev->map_buff+fbdev->screensize, fbdev->screensize);
      }
 
-
-     #if 1	/* For TEST */
-     printf("\n Get ImageData %d of [0-%d] ... \n", 	egif->ImageCount, egif->ImageTotal-1);
-     printf("ExtensionBlockCount=%d\n", 	ImageData->ExtensionBlockCount);
-     printf("ColorMap.SortFlag:	%s\n", 		ColorMap->SortFlag?"YES":"NO");
-     printf("ColorMap.BitsPerPixel:	%d\n", 	ColorMap->BitsPerPixel);
-     #endif
-
      /* get Block image offset and size */
      offx=ImageData->ImageDesc.Left;
      offy=ImageData->ImageDesc.Top;
@@ -1007,7 +1229,14 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
      egif->BWidth=BWidth;
      egif->BHeight=BHeight;
 
+     #if 0	/* For TEST */
+     printf("\n Get ImageData %d of [0-%d] ... \n", 	egif->ImageCount, egif->ImageTotal-1);
+     printf("ExtensionBlockCount=%d\n", 	ImageData->ExtensionBlockCount);
+     printf("ColorMap.SortFlag:	%s\n", 		ColorMap->SortFlag?"YES":"NO");
+     printf("ColorMap.BitsPerPixel:	%d\n", 	ColorMap->BitsPerPixel);
      printf("Block: offset(%d,%d) size(%dx%d) \n", offx, offy, BWidth, BHeight);
+     #endif
+
 
      /* Get extension block */
      if( ImageData->ExtensionBlockCount > 0 )
@@ -1035,14 +1264,14 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 	    */
 
 		case GRAPHICS_EXT_FUNC_CODE:
-			printf(" --- GRAPHICS_EXT_FUNC_CODE ---\n");
+			//printf(" --- GRAPHICS_EXT_FUNC_CODE ---\n");
 	       		if (DGifExtensionToGCB(ExtBlock->ByteCount, ExtBlock->Bytes, &gcb) == GIF_ERROR)
 			{
         	                printf("%s: DGifExtensionToGCB() Fails!\n",__func__);
 	        	   	continue;
 			 }
         	        /* ----- for test ---- */
-	                #if 1
+	                #if 0
         	        printf("Transparency on: %s\n",
            				gcb.TransparentColor != -1 ? "yes" : "no");
 	                printf("Transparent Index: %d\n", gcb.TransparentColor);
@@ -1056,7 +1285,6 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 	                /* Get trans_color */
         	      	trans_color=gcb.TransparentColor;
 
-
 	               	/* Get delay time in ms, and delay */
         	        DelayMs=gcb.DelayTime*10;
 			if(DelayMs==0)		/* For some GIF it's 0! */
@@ -1064,16 +1292,16 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 
 			break;
 		case CONTINUE_EXT_FUNC_CODE:
-			printf(" --- CONTINUE_EXT_FUNC_CODE ---\n");
+			//printf(" --- CONTINUE_EXT_FUNC_CODE ---\n");
 			break;
 		case COMMENT_EXT_FUNC_CODE:
-			printf(" --- COMMENT_EXT_FUNC_CODE ---\n");
+			//printf(" --- COMMENT_EXT_FUNC_CODE ---\n");
 			break;
 		case PLAINTEXT_EXT_FUNC_CODE:
-			printf(" --- PLAINTEXT_EXT_FUNC_CODE ---\n");
+			//printf(" --- PLAINTEXT_EXT_FUNC_CODE ---\n");
 			break;
 		case APPLICATION_EXT_FUNC_CODE:
-			printf(" --- APPLICATION_EXT_FUNC_CODE ---\n");
+			//printf(" --- APPLICATION_EXT_FUNC_CODE ---\n");
 			break;
 
 		default:
@@ -1092,11 +1320,11 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
      /* impose User_DisposalMode */
      if(gif_ctxt->User_DisposalMode >=0 ) {
 		Disposal_Mode=gif_ctxt->User_DisposalMode;
-         	printf("User_DisposalMode: %d\n", Disposal_Mode);
+         	//printf("User_DisposalMode: %d\n", Disposal_Mode);
      }
 
      if(gif_ctxt->User_TransColor >=0 ) {
-		printf("User_TransColor=%d\n",gif_ctxt->User_TransColor);
+		//printf("User_TransColor=%d\n",gif_ctxt->User_TransColor);
      }
 
      /* ---- Write GIF block image to FB  ---- */
@@ -1114,7 +1342,7 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 
     /* Delay */
 //  if(fbdev != NULL)
-    printf("%s: egi_sleep...\n",__func__);
+    //printf("%s: egi_sleep...\n",__func__);
     tm_delayms(DelayMs);
 
     /* ----- Parse Disposal_Mode: Actions after GIF displaying  ----- */
@@ -1130,7 +1358,8 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 		    /* get mutex lock for IMGBUF ------------- >>>>>  */
 		    //printf("%s: pthread_mutex_lock ...\n",__func__);
 		    if(pthread_mutex_lock(&egif->Simgbuf->img_mutex) !=0){
-                	 printf("%s: Fail to lock imgbuf mutex!\n",__func__);
+                	 //printf("%s: Fail to lock imgbuf mutex!\n",__func__);
+			 EGI_PLOG(LOGLV_ERROR,"%s: Fail to lock Simgbuf->img_mutex!",__func__);
                     	 return;
     		    }
 
@@ -1182,7 +1411,7 @@ void egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt )
 	k++;
     }
 
-    printf("%s: --- k=%d, gif_ctxt->nloop=%d ---\n",__func__, k, gif_ctxt->nloop);
+    //printf("%s: --- k=%d, gif_ctxt->nloop=%d ---\n",__func__, k, gif_ctxt->nloop);
 
     /* check request for quitting displaying */
     if(egif->request_quit_display)
@@ -1351,7 +1580,7 @@ int egi_gif_stopDisplayThread(EGI_GIF *egif)
 		return -3;
 	}
 	else if( ret!=0 ) {
-		EGI_PLOG(LOGLV_ERROR,"%s: Error checking egif->thread_display!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Error checking egif->thread_display!",__func__);
 		return -4;
 	}
   #endif
@@ -1365,7 +1594,7 @@ int egi_gif_stopDisplayThread(EGI_GIF *egif)
 	printf("%s: pthread_cancel...\n",__func__);
 	ret=pthread_cancel(egif->thread_display);
 	if(ret==ESRCH) {
-		EGI_PLOG(LOGLV_ERROR,"%s: No thread with the ID thread could be found.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: No thread with the ID thread could be found.",__func__);
 		return -4;
 	}
 	else if(ret !=0) {

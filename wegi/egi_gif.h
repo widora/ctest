@@ -15,8 +15,29 @@ Midas-Zhou
 #define __EGI_GIF_H__
 #include "gif_lib.h"
 #include "egi_imgbuf.h"
-//#include "egi_fbdev.h"
-typedef struct fbdev FBDEV;
+
+typedef struct fbdev FBDEV;  /* Just a declaration, referring to definition in egi_fbdev.h */
+
+/*** GIF saved images with uncompressed data   */
+typedef struct  {
+    bool    	VerGIF89;		 /* Version: GIF89 OR GIF87 */
+    int 	SWidth;         	 /* Size of virtual canvas */
+    int 	SHeight;
+
+    int 	SColorResolution;        /* How many colors can we generate? */
+    int 	SBackGroundColor;        /* Background color for virtual canvas */
+
+    GifByteType 	AspectByte;      /* Used to compute pixel aspect ratio */
+    ColorMapObject 	*SColorMap;      /* Global colormap, NULL if nonexistent. */
+    int			ImageTotal;	 /* Total number of images */
+
+//  GifImageDesc 	Image;           /* Current image (low-level API) */
+    SavedImage 		*SavedImages;         /* Image sequence (high-level API) */
+//    int 		ExtensionBlockCount;  /* Count extensions past last image */
+//    ExtensionBlock 	*ExtensionBlocks;     /* Extensions past last image */
+
+} EGI_GIF_DATA;
+
 
 /*** 				--- NOTE ---
  * 1. For big GIF file, be careful to use EGI_GIF, it needs large mem space!
@@ -26,31 +47,46 @@ typedef struct egi_gif {
     bool    	VerGIF89;		 /* Version: GIF89 OR GIF87 */
     bool	ImgTransp_ON;		 /* Try image transparency */
 
-/* typedef int GifWord */
-
+  /* typedef int GifWord */
     int 	SWidth;         	 /* Size of virtual canvas */
     int 	SHeight;
 
     int		RWidth;			/* Size for RSimgbuf, Unapplicable if both <=0, */
     int		RHeight;		/* At lease either RWidth or RHeigth to be >0 */
 
-    int 	BWidth;			 /* Size of current block image */
+    int 	BWidth;			/* Size of current block image */
     int 	BHeight;
-    int		offx;			 /* Current block offset relative to canvas origin */
+    int		offx;			/* Current block offset relative to canvas origin */
     int		offy;
-    int 	SColorResolution;        /* How many colors can we generate? */
-    int 	SBackGroundColor;        /* Background color for virtual canvas */
+    int 	SColorResolution;       /* How many colors can we generate? */
+    int 	SBackGroundColor;       /* Background color for virtual canvas */
 
-    GifByteType 	AspectByte;      /* Used to compute pixel aspect ratio */
-    ColorMapObject 	*SColorMap;      /* Global colormap, NULL if nonexistent. */
-    int			ImageCount;      /* Index of current image (both APIs), starts from 0
-					  * Index ready for display!!
-					  */
-    int			ImageTotal;	 /* Total number of images */
-    GifImageDesc 	Image;           /* Current image (low-level API) */
-    SavedImage 		*SavedImages;         /* Image sequence (high-level API) */
-    int 		ExtensionBlockCount;  /* Count extensions past last image */
-    ExtensionBlock 	*ExtensionBlocks;     /* Extensions past last image */
+    GifByteType 	AspectByte;     /* Used to compute pixel aspect ratio */
+
+    bool	Is_DataOwner;		/* Ture:   SColorMap and SavedImages to be freed by egi_gif_free()
+					 * 	   When the EGI_GIF is created by egi_gif_slurpFile(), it will auto. set to be true.
+					 * False:  To be freed by egi_gifdata_free()
+					 *	   Usually the EGI_GIF is created by egi_gif_create() with a given EGI_GIF_DATA.
+					 */
+
+   ColorMapObject 	*SColorMap;     /* Global colormap, NULL if nonexistent.
+					 * if(!Is_DataOwner): A refrence poiner to  EGI_GIF_DATA.SColorMap, to be freed by egi_gifdata_free()
+					 */
+
+   SavedImage	*SavedImages;   /*** Image sequence (high-level API)
+					 * !!! A refrence poiner to  EGI_GIF_DATA.SavedImages, to be freed by egi_gifdata_free()
+					 */
+
+
+    int			ImageCount;     /* Index of current image (both APIs), starts from 0
+					 * Index ready for display!!
+					 */
+    int			ImageTotal;	/* Total number of images */
+    GifImageDesc 	Image;          /* Current image (low-level API) */
+
+
+//    int 		ExtensionBlockCount;  /* Count extensions past last image */
+//    ExtensionBlock 	*ExtensionBlocks;     /* Extensions past last image */
 
     EGI_IMGBUF		*Simgbuf;	      /* to hold GIF screen/canvas */
 
@@ -104,8 +140,11 @@ static void *egi_gif_threadDisplay(void *argv);
 
 */
 
-int  	  egi_gif_readFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount);
+int  	  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount);
+EGI_GIF_DATA*  egi_gifdata_readFile(const char *fpath);
+EGI_GIF*  egi_gif_create(const EGI_GIF_DATA *gif_data, bool ImgTransp_ON);
 EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON);
+void 	  egi_gifdata_free(EGI_GIF_DATA **gif_data);
 void	  egi_gif_free(EGI_GIF **egif);
 
 //void 	  egi_gif_displayFrame(FBDEV *fbdev, EGI_GIF *egif, int nloop, bool DirectFB_ON,

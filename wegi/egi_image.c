@@ -10,12 +10,13 @@ EGI_IMGBUF functions
 Midas Zhou
 -------------------------------------------------------------------*/
 #include <pthread.h>
+#include <math.h>
 #include "egi_image.h"
 #include "egi_bjp.h"
 #include "egi_utils.h"
 #include "egi_log.h"
 #include "egi_math.h"
-#include <math.h>
+#include "egi_log.h"
 
 typedef struct fbdev FBDEV; /* Just a declaration, referring to definition in egi_fbdev.h */
 
@@ -199,6 +200,60 @@ int egi_imgbuf_init(EGI_IMGBUF *egi_imgbuf, int height, int width)
 	return 0;
 }
 
+
+/*--------------------------------------------------------------------------------
+Modify color/alpha data of an EGI_IMGBUF to set an bounding rectangle(limit box)
+with given color and width.
+
+@ineimg:	pointer to an EGI_IMGBUF.
+@color:		Color value for boundary lines.
+@lw:		width of boundary lines, in pixels.
+
+Return:
+	0	OK
+	<0	Fails
+--------------------------------------------------------------------------------*/
+int egi_imgbuf_addBoundaryBox(EGI_IMGBUF *ineimg, EGI_16BIT_COLOR color, int lw)
+{
+	int i,j;
+
+	if(ineimg==NULL || ineimg->imgbuf==NULL)
+		return -1;
+
+	/* limit wl */
+	if(lw <= 0 )
+		lw=1;
+	if(lw > ineimg->width/2 )
+		lw=ineimg->width/2;
+	if(lw > ineimg->height/2 )
+		lw=ineimg->height/2;
+
+	/* set upper boundary */
+	for(i=0; i < lw*(ineimg->width); i++) {
+		ineimg->imgbuf[i]=color;
+		if(ineimg->alpha)
+			ineimg->alpha[i]=255;
+	}
+	/* set bottom boundary */
+	for( i=(ineimg->height-lw)*(ineimg->width); i < (ineimg->height)*(ineimg->width); i++ ) {
+		ineimg->imgbuf[i]=color;
+		if(ineimg->alpha)
+                        ineimg->alpha[i]=255;
+	}
+	/* set left and right boundary */
+	for(i=0; i < ineimg->height; i++) {
+		for(j=0; j<lw; j++) {
+			ineimg->imgbuf[i*(ineimg->width)+j]=color;  		/* left */
+			ineimg->imgbuf[(i+1)*(ineimg->width)-1-j]=color;  	/* right */
+			if(ineimg->alpha) {
+				ineimg->alpha[i*(ineimg->width)+j]=255; 	/* left */
+				ineimg->alpha[(i+1)*(ineimg->width)-1-j]=255; 	/* right */
+			}
+		}
+	}
+
+	return 0;
+}
 
 
 
@@ -1616,7 +1671,8 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 	/* get mutex lock */
 //	printf("%s: Start lock image mutext...\n",__func__);
 	if(pthread_mutex_lock(&egi_imgbuf->img_mutex) !=0){
-		printf("%s: Fail to lock image mutex!\n",__func__);
+		//printf("%s: Fail to lock image mutex!\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: Fail to lock image mutex!", __func__);
 		return -1;
 	}
 
@@ -1625,8 +1681,9 @@ int egi_imgbuf_windisplay( EGI_IMGBUF *egi_imgbuf, FBDEV *fb_dev, int subcolor,
 
         if( imgw<=0 || imgh<=0 )
         {
-                printf("%s: egi_imgbuf->width or height is <=0. fail to display.\n",__func__);
 		pthread_mutex_unlock(&egi_imgbuf->img_mutex);
+                printf("%s: egi_imgbuf->width or height is <=0. fail to display.\n",__func__);
+		EGI_PLOG(LOGLV_ERROR,"%s: imgbuf width or height is <=0!", __func__);
                 return -2;
         }
 //	printf("%s: height=%d, width=%d \n",__func__, imgh,imgw);

@@ -304,8 +304,10 @@ void fb_page_refresh(FBDEV *dev)
 
 	/* Try to synchronize with FB kernel VSYNC */
 	if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
+#ifdef LETS_NOTE
                 printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
-        //else  /* memcpy to FB, ignore VSYNC signal. */
+        } else { /* memcpy to FB, ignore VSYNC signal. */
+#endif
 		memcpy(dev->map_fb, dev->map_bk, dev->screensize);
 	}
 
