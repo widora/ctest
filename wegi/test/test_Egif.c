@@ -3,6 +3,14 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
+Test gif file:
+1. muyu.gif
+2. fu.gif
+3. runner.gif
+4. jis.gif		!!! with mixed dispose mode !!!
+5. cloud.gif
+
+
 Example:
 1. Call egi_gif_slurpFile() to load a GIF file to an EGI_GIF struct
 2. Call egi_gif_displayFrame() to display the EGI_GIF.
@@ -156,15 +164,22 @@ while(1) {
 	exit(1);
 #endif /////////////////////////////////////////////////////////////////////////////////////////
 
-        gif_ctxt.nloop=0; /* set one frame by one frame */
+        gif_ctxt.nloop=0; /* 0: set one frame by one frame , <0: forever */
 
 	/* Loop displaying */
         while(1) {
 
 	    /* Display one frame/block each time, then refresh FB page.  */
-	    egi_gif_displayFrame( &gif_ctxt );
+	    egi_gif_displayGifCtxt( &gif_ctxt );
 
-        	gif_ctxt.xw -=2;
+        	//gif_ctxt.xw -=1;  /* apply when .nloop = 0 */
+		printf("Step %d\n", gif_ctxt.egif->ImageCount);
+		if( gif_ctxt.egif->ImageCount > 3 && gif_ctxt.egif->ImageCount < 8 )
+		gif_ctxt.xw -=3; /* apply when .nloop = 0 */
+		else
+		gif_ctxt.xw -=1;
+		//getchar();
+
 
 	}
     	egi_gif_free(&egif);

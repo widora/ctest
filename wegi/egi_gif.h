@@ -58,24 +58,35 @@ typedef struct egi_gif {
     int 	BHeight;
     int		offx;			/* Current block offset relative to canvas origin */
     int		offy;
+
+    /* 	--- For recording last status, 	update only when Disposal_Mode==2 */
+    int 	last_BWidth;		/* record last size of current block image */
+    int 	last_BHeight;
+    int		last_offx;		/* record last block offset relative to canvas origin */
+    int		last_offy;
+    int		last_Disposal_Mode;	/* ! update for each frame */
+
     int 	SColorResolution;       /* How many colors can we generate? */
-    int 	SBackGroundColor;       /* Background color for virtual canvas */
+    int 	SBackGroundColor;       /* Background color for virtual canvas, color index */
+    EGI_16BIT_COLOR	bkcolor;	/* 16bit color according to SBackGroundColor and SColorMap */
 
-    GifByteType 	AspectByte;     /* Used to compute pixel aspect ratio */
+    GifByteType     AspectByte;     	/* Used to compute pixel aspect ratio */
 
-    bool	Is_DataOwner;		/* Ture:   SColorMap and SavedImages to be freed by egi_gif_free()
+
+    bool	  Is_DataOwner;		/* Ture:   SColorMap and SavedImages to be freed by egi_gif_free()
 					 * 	   When the EGI_GIF is created by egi_gif_slurpFile(), it will auto. set to be true.
 					 * False:  To be freed by egi_gifdata_free()
 					 *	   Usually the EGI_GIF is created by egi_gif_create() with a given EGI_GIF_DATA.
 					 */
 
-   ColorMapObject 	*SColorMap;     /* Global colormap, NULL if nonexistent.
+   ColorMapObject   *SColorMap;     	/* Global colormap, NULL if nonexistent.
 					 * if(!Is_DataOwner): A refrence poiner to  EGI_GIF_DATA.SColorMap, to be freed by egi_gifdata_free()
 					 */
 
-   SavedImage	*SavedImages;   /*** Image sequence (high-level API)
-					 * !!! A refrence poiner to  EGI_GIF_DATA.SavedImages, to be freed by egi_gifdata_free()
+   SavedImage	  *SavedImages;   	/*** Image sequence (high-level API)
+					 * if(!Is_DataOwner): A refrence poiner to  EGI_GIF_DATA.SavedImages, to be freed by egi_gifdata_free()
 					 */
+
 
 
     int			ImageCount;     /* Index of current image (both APIs), starts from 0
@@ -151,7 +162,7 @@ void	  egi_gif_free(EGI_GIF **egif);
 //                                             int User_DisposalMode, int User_TransColor,int User_BkgColor,
 //                                             int xp, int yp, int xw, int yw, int winw, int winh );
 
-void 	  egi_gif_displayFrame( EGI_GIF_CONTEXT *gif_ctxt );
+void 	  egi_gif_displayGifCtxt( EGI_GIF_CONTEXT *gif_ctxt );
 
 int 	  egi_gif_runDisplayThread(EGI_GIF_CONTEXT *gif_ctxt);
 

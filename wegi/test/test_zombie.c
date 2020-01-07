@@ -17,7 +17,7 @@ Midas Zhou
 
 #define FLOWER_MAX	6
 #define SHOOTER_MAX	2
-#define ZOMBIE_MAX	6
+#define ZOMBIE_MAX	12
 
 static void display_gifCharacter( EGI_GIF_CONTEXT *gif_ctxt);
 
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 	for(i=1; i<ZOMBIE_MAX; i++) {
 		ctxt_zombie[i]=ctxt_zombie[0];
 	        ctxt_zombie[i].egif=gif_zombie[i];
-       	 	ctxt_zombie[i].xw=200+30+egi_random_max(100)*(i%(ZOMBIE_MAX/2));
+       	 	ctxt_zombie[i].xw=200+30+egi_random_max(80)*(i%(ZOMBIE_MAX/2));
         	ctxt_zombie[i].yw=0+80*(i/(ZOMBIE_MAX/2));
 		ctxt_zombie[i].egif->ImageCount=egi_random_max(ctxt_zombie[i].egif->ImageTotal);
 	}
@@ -224,14 +224,13 @@ int main(int argc, char **argv)
 	/* --- Start thread: frame refresh thread for zombies --- */
 	for(i=0; i<ZOMBIE_MAX; i++) {
 		if( egi_gif_runDisplayThread(&ctxt_zombie[i]) !=0 ) {
-			printf("Fail to run thread for ctxt_flower[%d]!\n",i);
+			printf("Fail to run thread for ctxt_zombie[%d]!\n",i);
 			exit(1);
 		} else {
-			printf("Finish loading thread for ctxt_flower[%d]!\n",i);
+			printf("Finish loading thread for ctxt_zombie[%d]!\n",i);
 		}
 		tm_delayms(150); /* for some random factors */
 	}
-
 
 	/* --- Start thread: frame refresh thread for plants --- */
 	for(i=0; i<FLOWER_MAX; i++) {	  					/* ----- Sun flowers ----- */
@@ -239,16 +238,16 @@ int main(int argc, char **argv)
 			printf("Fail to run thread for ctxt_flower[%d]!\n",i);
 			exit(1);
 		} else {
-			printf("Finish loading thread for ctxt_flower[%d]!\n",i);
+			printf("Finish loading thread for ctxt_flower[%d]\n",i);
 		}
 		//tm_delayms(150); /* for some random factors */
 	}
 	for(i=0; i<SHOOTER_MAX; i++) {						/* ----- peashooters ----- */
 		if( egi_gif_runDisplayThread(&ctxt_peashooter[i]) !=0 ) {
-			printf("Fail to run thread for ctxt_peashooter[%d]!\n",i);
+			printf("Fail to run thread for ctxt_peashooter[%d]\n",i);
 			exit(1);
 		} else {
-			printf("Finish loading thread for ctxt_peashooter[%d]!\n",i);
+			printf("Finish loading thread for ctxt_peashooter[%d]\n",i);
 		}
 		//tm_delayms(150); /* for some random factors */
 	}
