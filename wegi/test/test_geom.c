@@ -15,15 +15,22 @@ Midas Zhou
 #include <string.h>
 #include <errno.h>
 #include <math.h>
-#include "egi_timer.h"
-#include "egi_iwinfo.h"
-#include "egi_cstring.h"
-#include "egi_fbgeom.h"
-#include "egi_symbol.h"
-#include "egi_color.h"
-#include "egi_log.h"
-#include "egi.h"
-#include "egi_math.h"
+#include "egi_common.h"
+#include "egi_FTsymbol.h"
+
+
+const wchar_t *wslogan=L"EGI:  孵化在OpenWrt_Widora上                 一款小小小开源UI";
+void display_slogan(void)
+{
+//	return;
+
+            FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
+                                          18, 18, wslogan,                      /* fw,fh, pstr */
+                                          320-10, 2, 6,                            /* pixpl, lines, gap */
+                                          10, 100+40+5,                                /* x0,y0, */
+                              WEGI_COLOR_BLACK, -1, 255 );   /* fontcolor, transcolor, opaque */
+}
+
 
 int main(int argc, char ** argv)
 {
@@ -38,21 +45,42 @@ int main(int argc, char ** argv)
 //  }
 #endif
 
-        /* --- start egi tick --- */
-//        tm_start_egitick();
 
-	/* --- init logger --- */
-  	if(egi_init_log("/tmp/log_geom") != 0)
-	{
-		printf("Fail to init logger,quit.\n");
-		return -1;
-	}
+        printf("tm_start_egitick()...\n");
+        tm_start_egitick();                     /* start sys tick */
 
-        /* --- prepare fb device --- */
-        init_fbdev(&gv_fb_dev);
+#if 0
+        printf("egi_init_log()...\n");
+        if(egi_init_log("/mmc/log_geom") != 0) {        /* start logger */
+                printf("Fail to init logger,quit.\n");
+                return -1;
+        }
+#endif 
 
-	/* --- load all symbol pages --- */
-	symbol_load_allpages();
+#if 1
+        printf("symbol_load_allpages()...\n");
+        if(symbol_load_allpages() !=0 ) {       /* load sys fonts */
+                printf("Fail to load sym pages,quit.\n");
+                return -2;
+        }
+        if(FTsymbol_load_appfonts() !=0 ) {     /* load FT fonts LIBS */
+                printf("Fail to load FT appfonts, quit.\n");
+                return -2;
+        }
+
+#endif
+        printf("init_fbdev()...\n");
+        if( init_fbdev(&gv_fb_dev) )            /* init sys FB */
+                return -1;
+
+#if 0
+        printf("start touchread thread...\n");
+        egi_start_touchread();                  /* start touch read thread */
+#endif
+
+        /* <<<<------------------  End EGI Init  ----------------->>>> */
+
+
 
 
 
@@ -75,7 +103,7 @@ int main(int argc, char ** argv)
 
 
 
-#if 1  /* <<<<<<<<<<<<<<  2. test draw_dot()  <<<<<<<<<<<<<<<*/
+#if 0  /* <<<<<<<<<<<<<<  2. test draw_dot()  <<<<<<<<<<<<<<<*/
 	int i,j;
 	fbset_color(WEGI_COLOR_RED);
 	printf("draw block...\n");
@@ -90,7 +118,8 @@ int main(int argc, char ** argv)
 #endif
 
 
-#if 1  /* <<<<<<<<<<<<<<  3. test draw triangle  <<<<<<<<<<<<<<<*/
+
+#if 0  /* <<<<<<<<<<<<<<  3. test draw triangle  <<<<<<<<<<<<<<<*/
 
 	EGI_BOX box={ {0,0},{600,800}}; //239,319}};
 	EGI_BOX tri_box;
@@ -152,7 +181,119 @@ while(1) {
 #endif
 
 
-#if 0  /* <<<<<<<<<<<<<<  5. test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
+#if 1  /* <<<<<<<<<<<<<<  5. test draw  arc  <<<<<<<<<<<<<<<*/
+	int i;
+	int x0=160;
+	int y0=120+5;
+	double ka;
+	double da=(MATH_PI*2.0-0.5*2)/15.0;
+	int n=(MATH_PI*2.0-0.5*2)/da;
+
+	/* set FB mode as NONbuffer*/
+	//gv_fb_dev.map_bk=gv_fb_dev.map_fb;
+
+        /* Set FB mode as LANDSCAPE  */
+        fb_position_rotate(&gv_fb_dev, 3);
+
+   	clear_screen(&gv_fb_dev, COLOR_RGB_TO16BITS(190,190,190));
+
+
+while(1) {
+
+ fb_clear_backBuff(&gv_fb_dev, COLOR_RGB_TO16BITS(190,190,190)); //WEGI_COLOR_GRAY3);
+ //fbset_color(egi_color_random(color_deep));
+ fbset_color(WEGI_COLOR_DARKRED);
+
+// display_slogan();
+//for( i=0; i<n; i++)
+ for(ka=0.5; ka<MATH_PI*2.0-0.5; ka += da )
+ {
+	fbset_color(WEGI_COLOR_WHITE);
+	draw_arc(&gv_fb_dev, x0, y0, 92, -ka-da, -ka, 5); //0.5-MATH_PI*2.0, -0.5, 5); //MATH_PI-0.5, 0, 3);
+	fbset_color(WEGI_COLOR_RED);
+	draw_arc(&gv_fb_dev, x0, y0, 75, -ka-da, -ka, 10); //0.5-MATH_PI*2.0, -0.5, 10); //MATH_PI-0.5, 0, 3);
+	fbset_color(WEGI_COLOR_GREEN);
+	draw_arc(&gv_fb_dev, x0, y0, 50, -ka-da, -ka, 20); //0.5-MATH_PI*2.0, -0.5, 10); //MATH_PI-0.5, 0, 3);
+	fbset_color(WEGI_COLOR_BLUE);
+ 	draw_arc(&gv_fb_dev, x0, y0, 15, -ka-da, -ka, 30); //0.5-MATH_PI*2.0, -0.5, 30); //MATH_PI-0.5, 0, 3);
+
+ 	display_slogan();
+  	fb_page_refresh(&gv_fb_dev);
+	tm_delayms(25);
+ }
+
+ /* wedge */
+// for(ka=-MATH_PI/20*4; ka< 6/5*MATH_PI; ka += MATH_PI/60 ) {
+ for(i=-2; i<12; i++) {
+ 	fbset_color(WEGI_COLOR_PINK); //egi_color_random(color_deep));
+	draw_filled_pieSlice(&gv_fb_dev, x0, y0, 140, MATH_PI/10*i, MATH_PI/10*(i+1));  //MATH_PI*2.0-ka);//  0.5-da );
+ 	display_slogan();
+  	fb_page_refresh(&gv_fb_dev);
+	tm_delayms(25);
+}
+
+ display_slogan();
+ fb_page_refresh(&gv_fb_dev);
+
+ tm_delayms(3000);
+
+}
+
+////////////////////////////////////////////////////////////////
+
+while(1) {
+
+ for(ka=0.5; ka<MATH_PI*2.0-0.5; ka += da )
+ {
+#if 0
+	/* outer fan */
+	fbset_color(WEGI_COLOR_WHITE);
+   	for(i=90; i<95; i+=1 )  /* i: rmin -> rmax */
+   	{
+       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
+		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
+   	}
+	/* outer fan2 */
+	fbset_color(WEGI_COLOR_RED);
+   	for(i=70; i<80; i+=1 )  /* i: rmin -> rmax */
+   	{
+       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
+		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
+   	}
+	/* middle fan */
+	fbset_color(WEGI_COLOR_GREEN);
+   	for(i=40; i<60; i+=1 )  /* i: rmin -> rmax */
+   	{
+       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
+		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
+   	}
+	/* inner fan */
+	fbset_color(WEGI_COLOR_BLUE);
+   	for(i=0; i<30; i+=1 )  /* i: rmin -> rmax */
+   	{
+		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
+   	}
+#endif
+	display_slogan();
+  	fb_page_refresh(&gv_fb_dev);
+	tm_delayms(55);
+ }
+  	tm_delayms(55);
+
+ /* wedge */
+ fbset_color(WEGI_COLOR_PINK); //egi_color_random(color_deep));
+ draw_filled_pieSlice(&gv_fb_dev, x0+15, y0, 110, -0.5,  MATH_PI*2.0-ka);//  0.5-da );
+
+ display_slogan();
+ fb_page_refresh(&gv_fb_dev);
+
+ tm_delayms(3000);
+
+}
+	return 0;
+#endif
+
+#if 0  /* <<<<<<<<<<<<<<  6. test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*
 	EGI_POINT p1,p2;
 	EGI_BOX box={{0,0},{240-1,320-1,}};
@@ -269,12 +410,24 @@ while(1)
 #endif
 
 
-  	/* quit logger */
-  	egi_quit_log();
-
-        /* close fb dev */
+        /* <<<<<-----------------  EGI general release  ----------------->>>>> */
+        printf("FTsymbol_release_allfonts()...\n");
+        FTsymbol_release_allfonts();
+        printf("symbol_release_allpages()...\n");
+        symbol_release_allpages();
+        printf("release_fbdev()...\n");
+        fb_filo_flush(&gv_fb_dev); /* Flush FB filo if necessary */
         release_fbdev(&gv_fb_dev);
+        printf("egi_end_touchread()...\n");
+        egi_end_touchread();
+        printf("egi_quit_log()...\n");
+#if 0
+        egi_quit_log();
+        printf("<-------  END  ------>\n");
+#endif
 
 	return 0;
 }
+
+
 

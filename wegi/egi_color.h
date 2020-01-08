@@ -23,7 +23,7 @@ typedef uint32_t			 EGI_24BIT_COLOR;
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
 
-#if 0 ///////////
+#if 0 /////////////// TODO:  round rgb, NOT truncate   ///////////
 #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ( ( (r)+(r)& ) >>3)<<11 )			\
 						| ( ((g)>>2)<<5 )			\
 						| ((b)>>3) ) )

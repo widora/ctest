@@ -263,6 +263,7 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 
 @fb_dev:	struct FBDEV whose buffer to be cleared.
 @color:		Color used to fill the buffer, 16bit or 32bits.
+		Depends on fb_dev->vinfo.bits_per_pixel.
 
     !!! Note: to make sure that type INT is 32bits !!!
 ------------------------------------------------------------*/
@@ -507,7 +508,7 @@ inline void fb_filo_flush(FBDEV *dev)
 		#ifdef LETS_NOTE  /*--- 4 bytes per pixel ---*/
 		  *((uint32_t *)(dev->map_bk+fpix.position)) = fpix.argb;
 
-		#else		/*--- 2 bytes per pixel ---*/
+		#else		  /*--- 2 bytes per pixel ---*/
 		   #ifdef ENABLE_BACK_BUFFER
                    *((uint16_t *)(dev->map_bk+fpix.position)) = fpix.color;
 		   #else
@@ -534,6 +535,13 @@ void fb_filo_dump(FBDEV *dev)
 /*--------------------------------------------------
 Rotate FB displaying position relative to LCD screen.
 
+Pos	Rotatio(clockwise)
+0	0   ( --- LCD original position --- )
+1	90
+2	180
+3	270
+
+For 240x320:
 Landscape displaying: pos=1 or 3
 Portrait displaying: pos=0 or 2
 

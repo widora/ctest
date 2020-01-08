@@ -197,7 +197,7 @@ while(1) {
         egi_end_touchread();
         printf("egi_quit_log()...\n");
 
-#if 0
+#if 1
         egi_quit_log();
         printf("<-------  END  ------>\n");
 #endif

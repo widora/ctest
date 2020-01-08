@@ -903,6 +903,165 @@ int draw_filled_rect2(FBDEV *dev, uint16_t color, int x1,int y1,int x2,int y2)
 }
 
 
+/*--------------------------------------------------------------------------
+Draw  arc
+
+Angle direction, apply right_hand rule:
+	Z as thumb, X->Y as positive rotation direction.
+
+
+@x0,y0:		circle center
+@r:		radius
+@Sang:		start angle, in radian.
+@Eang:		end angle
+@w:		width of arc
+
+Midas Zhou
+-----------------------------------------------------------------------------*/
+void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w)
+#if 0	/////////////////////   ONLY for w=1     /////////////////////////////////
+{
+	int n,i;
+	double step_angle;
+	double x[2],y[2];
+
+	/* start point */
+	x[0]=x0+r*cos(Sang);
+	y[0]=y0+r*sin(Sang); /* Notice LCD -Y direction */
+
+	/* get step angle, 1 pixel arc */
+//	step_angle=2.0*asin(0.5/r);
+	step_angle=1.0*asin(0.5/r);
+	n=(Eang-Sang)/step_angle;
+	if(n<0) {
+		n=-n;
+		step_angle=-step_angle;
+	}
+
+	/* draw arcs */
+	//for(i=1; i<n-1; i++) {
+	for(i=1; i<=n; i++) {
+		x[1]=x0+r*cos(Sang+i*step_angle);
+		y[1]=y0+r*sin(Sang+i*step_angle);   /* Notice LCD -Y direction */
+		draw_wline_nc(dev, round(x[0]), round(y[0]), round(x[1]), round(y[1]), w);
+		x[0]=x[1];
+		y[0]=y[1];
+	}
+
+	/* draw the last short */
+	x[1]=x0+r*cos(Eang);  /* end point */
+	y[1]=y0+r*sin(Eang);
+	draw_wline_nc(dev, round(x[0]), round(y[0]), round(x[1]), round(y[1]), w);
+}
+#else   ///////////////////////  for w>=1 ///////////////////////////////////////
+{
+	int i,n,m;
+	int rad;
+	double step_angle;
+	double x[2],y[2];
+	double dcos,dsin;
+	double Stcos,Stsin,Edcos,Edsin;  /* for start/end angle */
+
+	if( w<1 ) w=1;
+	if( r<1 ) r=1;
+
+	/* make m in form of 2*m+1, so 2*m and 2*m+1 have same effect!! */
+	m=w/2;
+
+	/* start/end angle sin/cos value */
+	Stcos=cos(Sang);
+	Stsin=sin(Sang); /* Notice LCD -Y direction */
+	Edcos=cos(Eang);
+	Edsin=sin(Eang);
+
+	/* get step angle, 1 pixel arc */
+	//step_angle=2.0*asin(0.5/r)
+	step_angle=1.0*asin(0.5/r);
+	n=(Eang-Sang)/step_angle;
+	if(n<0) {
+		n=-n;
+		step_angle=-step_angle;
+	}
+
+	/* draw arcs */
+	for(i=1; i<=n; i++) {
+		dcos=cos(Sang+i*step_angle);
+		dsin=sin(Sang+i*step_angle);
+	        for( rad=r-m; rad<=r+m; rad++ ) {
+			/* generate starting pioints */
+			if(i==1) {
+				x[0]=x0+rad*Stcos;
+				y[0]=y0+rad*Stsin; /* Notice LCD -Y direction */
+			}
+			/* draw arc segments */
+			x[1]=x0+rad*dcos;
+			y[1]=y0+rad*dsin;
+			draw_wline_nc(dev, round(x[0]), round(y[0]), round(x[1]), round(y[1]), 1);
+			x[0]=x[1];
+			y[0]=y[1];
+			/* For remaining of n=(Eang-Sang)/step_angle: the last shorts, end points */
+			if(i==n) {
+				x[1]=x0+rad*Edcos;
+				y[1]=y0+rad*Edsin;
+				draw_wline_nc(dev, round(x[0]), round(y[0]), round(x[1]), round(y[1]), 1);
+			}
+		}
+	}
+
+}
+#endif
+
+
+/*--------------------------------------------------------------------------
+Draw slice of a pie chart.
+
+Angle direction, apply right_hand rule:
+	Z as thumb, X->Y as positive rotation direction.
+
+@x0,y0:		circle center
+@r:		radius
+@Sang:		start angle, in radian.
+@Eang:		end angle
+
+Midas Zhou
+-----------------------------------------------------------------------------*/
+void draw_filled_pieSlice(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang )
+{
+	int 		n,i;
+	double 		step_angle;
+	double 		x[2],y[2];
+	EGI_POINT 	points[3];
+	points[0].x=x0;
+	points[0].y=y0;
+
+	/* start point */
+	points[1].x=round(x0+r*cos(Sang));
+	points[1].y=round(y0+r*sin(Sang)); /* Notice LCD -Y direction */
+
+	/* get step angle, 1 pixel arc */
+//	step_angle=2.0*asin(0.5/r);
+	step_angle=1.0*asin(0.5/r);
+	n=(Eang-Sang)/step_angle;
+	if(n<0) {
+		n=-n;
+		step_angle=-step_angle;
+	}
+
+	/* draw arcs */
+	for(i=1; i<n-1; i++) {
+		points[2].x=round(x0+r*cos(Sang+i*step_angle));
+		points[2].y=round(y0+r*sin(Sang+i*step_angle));   /* Notice LCD -Y direction */
+		draw_filled_triangle(dev, points);
+		points[1].x=points[2].x;
+		points[1].y=points[2].y;
+	}
+
+	/* draw the last short */
+	points[2].x=round(x0+r*cos(Eang));  /* end point */
+	points[2].y=round(y0+r*sin(Eang));
+	draw_filled_triangle(dev, points);
+}
+
 
 /*----------------------------------------------
 draw a circle,

@@ -69,6 +69,8 @@ void 	draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wrect(FBDEV *dev,int x1,int y1,int x2,int y2, int w);
 int 	draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 int     draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2);
+void 	draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w);
+void 	draw_filled_pieSlice(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang );
 void 	draw_circle(FBDEV *dev, int x, int y, int r);
 void 	draw_pcircle(FBDEV *dev, int x0, int y0, int r, unsigned int w);
 void 	draw_filled_triangle(FBDEV *dev, EGI_POINT *points);
