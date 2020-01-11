@@ -21,15 +21,24 @@ typedef uint16_t			 EGI_16BIT_COLOR;
 typedef uint32_t			 EGI_24BIT_COLOR;
 
 /* convert 24bit rgb(3*8bits) to 16bit LCD rgb */
-#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
+#if 0  /* Just truncate other bits to get 565 RBG bits */
+ #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ((r)>>3)<<11 ) | ( ((g)>>2)<<5 ) | ((b)>>3) ))
 
-#if 0 /////////////// TODO:  round rgb, NOT truncate   ///////////
-#define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)( ( ( ( (r)+(r)& ) >>3)<<11 )			\
-						| ( ((g)>>2)<<5 )			\
-						| ((b)>>3) ) )
+#else  /* Round NOT truncate, to get 565 RGB bits  */
+  #if 0
+  #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)(    ( ((((r)>>2)+1)>>1)<<11 )	\
+							| ( ((((g)>>1)+1)>>1)<<5 )	\
+							| ( (((b)>>2)+1)>>1 )		\
+						      ))
+  #endif
+ #define COLOR_RGB_TO16BITS(r,g,b)	  ((uint16_t)(    ( ( ( (((r)>>2)+1)>0x3F ? ((r)>>2):(((r)>>2)+1) ) >>1) <<11 )	\
+							| ( ( ( (((g)>>1)+1)>0x7F ? ((g)>>1):(((g)>>1)+1) ) >>1) <<5 )	\
+							|   ( ( (((b)>>2)+1)>0x3F ? ((b)>>2):(((b)>>2)+1) ) >>1 )	\
+						      ))
 
-#endif /////////////
+#endif
 
+/* convert between 24bits and 16bits color */
 #define COLOR_24TO16BITS(rgb)	(COLOR_RGB_TO16BITS( ((rgb)>>16), (((rgb)&0x00ff00)>>8), ((rgb)&0xff) ) )
 #define COLOR_16TO24BITS(rgb)   ((uint32_t)( (((rgb)&0xF800)<<8) + (((rgb)&0x7E0)<<5) + (((rgb)&0x1F)<<3) ))
 

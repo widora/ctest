@@ -904,22 +904,21 @@ int draw_filled_rect2(FBDEV *dev, uint16_t color, int x1,int y1,int x2,int y2)
 
 
 /*--------------------------------------------------------------------------
-Draw  arc
+Draw a short of arc with corresponding angle from Sang to Eang.
 
-Angle direction, apply right_hand rule:
-	Z as thumb, X->Y as positive rotation direction.
-
+Angle direction: 	--- Right_hand Rule ---
+Z as thumb, X->Y as positive rotation direction.
 
 @x0,y0:		circle center
 @r:		radius
 @Sang:		start angle, in radian.
-@Eang:		end angle
-@w:		width of arc
+@Eang:		end angle, in radian.
+@w:		width of arc ( to be ajusted in form of 2*m+1 )
 
 Midas Zhou
 -----------------------------------------------------------------------------*/
 void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w)
-#if 0	/////////////////////   ONLY for w=1     /////////////////////////////////
+#if 0	/* ONLY for w=1:   with big w value, it looks ugly! */
 {
 	int n,i;
 	double step_angle;
@@ -929,7 +928,7 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 	x[0]=x0+r*cos(Sang);
 	y[0]=y0+r*sin(Sang); /* Notice LCD -Y direction */
 
-	/* get step angle, 1 pixel arc */
+	/* get step angle, 1 pixel arc  */
 //	step_angle=2.0*asin(0.5/r);
 	step_angle=1.0*asin(0.5/r);
 	n=(Eang-Sang)/step_angle;
@@ -953,7 +952,7 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 	y[1]=y0+r*sin(Eang);
 	draw_wline_nc(dev, round(x[0]), round(y[0]), round(x[1]), round(y[1]), w);
 }
-#else   ///////////////////////  for w>=1 ///////////////////////////////////////
+#else   /* OK, for w>=1 */
 {
 	int i,n,m;
 	int rad;
@@ -975,8 +974,8 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 	Edsin=sin(Eang);
 
 	/* get step angle, 1 pixel arc */
-	//step_angle=2.0*asin(0.5/r)
-	step_angle=1.0*asin(0.5/r);
+	//step_angle=2.0*asin(0.5/(r+m));
+	step_angle=1.0*asin(0.5/(r+m));
 	n=(Eang-Sang)/step_angle;
 	if(n<0) {
 		n=-n;
@@ -987,6 +986,7 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 	for(i=1; i<=n; i++) {
 		dcos=cos(Sang+i*step_angle);
 		dsin=sin(Sang+i*step_angle);
+		/* draw 2*m+1 arcs, as width */
 	        for( rad=r-m; rad<=r+m; rad++ ) {
 			/* generate starting pioints */
 			if(i==1) {
@@ -1013,15 +1013,15 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 
 
 /*--------------------------------------------------------------------------
-Draw slice of a pie chart.
+Draw a slice of a pie chart.
 
-Angle direction, apply right_hand rule:
+Angle direction: 	--- Right_Hand Rule ---
 	Z as thumb, X->Y as positive rotation direction.
 
 @x0,y0:		circle center
 @r:		radius
 @Sang:		start angle, in radian.
-@Eang:		end angle
+@Eang:		end angle, in radian.
 
 Midas Zhou
 -----------------------------------------------------------------------------*/

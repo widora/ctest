@@ -3,7 +3,7 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
-		Usage:  %s [-h] [-t] [-d] fpath
+		Usage:  %s [-h] [-t] [-d] [-p] fpath
 
 Test gif file:
 1. muyu.gif
@@ -40,6 +40,7 @@ int main(int argc, char **argv)
 	EGI_GIF *egif=NULL;
 	EGI_GIF_CONTEXT gif_ctxt;
 
+	bool PortraitMode=false; /* LCD display mode: Portrait or Landscape */
 	bool ImgTransp_ON=false; /* Suggest: TURE */
 	bool DirectFB_ON=false; /* For transparency_off GIF,to speed up,tear line possible. */
 	int User_DispMode=-1;   /* <0, disable */
@@ -51,16 +52,17 @@ int main(int argc, char **argv)
 
 
 	/* parse input option */
-	while( (opt=getopt(argc,argv,"htd"))!=-1)
+	while( (opt=getopt(argc,argv,"htdp"))!=-1)
 	{
     		switch(opt)
     		{
 		       case 'h':
-		           printf("usage:  %s [-h] [-t] [-d] fpath \n", argv[0]);
+		           printf("usage:  %s [-h] [-t] [-d] [-p] fpath \n", argv[0]);
 		           printf("         -h   help \n");
 		           printf("         -t   Image_transparency ON. ( default is OFF ) \n");
 		           printf("         -d   Wirte to FB mem directly, without buffer. ( default use FB working buffer ) \n");
-			   printf("	 fpath   Gif file path \n");
+		           printf("         -p   Portrait mode. ( default is Landscape mode ) \n");
+			   printf("fpath   Gif file path \n");
 		           return 0;
 		       case 't':
 		           printf(" Set ImgTransp_ON=true.\n");
@@ -70,6 +72,10 @@ int main(int argc, char **argv)
 		           printf(" Set DirectFB_ON=true.\n");
 		           DirectFB_ON=true;
 		           break;
+		       case 'p':
+			   printf(" Set PortraitMode=true.\n");
+			   PortraitMode=true;
+			   break;
 		       default:
 		           break;
 	    	}
@@ -78,7 +84,7 @@ int main(int argc, char **argv)
 	printf(" optind=%d, argv[%d]=%s\n", optind, optind, argv[optind] );
 	fpath=argv[optind];
 	if(fpath==NULL) {
-	           printf("usage:  %s [-h] [-t] [-d] fpath\n", argv[0]);
+	           printf("usage:  %s [-h] [-t] [-d] [-p] fpath\n", argv[0]);
 	           exit(-1);
 	}
 
@@ -119,7 +125,11 @@ int main(int argc, char **argv)
         //clear_screen(&gv_fb_dev, WEGI_COLOR_GRAY);
 
 	/* Set FB mode as LANDSCAPE  */
-        fb_position_rotate(&gv_fb_dev,0);
+	if(PortraitMode)
+        	fb_position_rotate(&gv_fb_dev,0);
+	else
+        	fb_position_rotate(&gv_fb_dev,3);
+
     	xres=gv_fb_dev.pos_xres;
     	yres=gv_fb_dev.pos_yres;
 
@@ -139,13 +149,14 @@ int main(int argc, char **argv)
         /* <<<<------------------  End FB Setup ----------------->>>> */
 
 
-	/* ------------------  TEST:  egi_gif_playFile()  ------------------ */
+#if 0	/* ------------------  TEST:  egi_gif_playFile()  ------------------ */
+
          // egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount)
 	while(1) {
 	 	memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_buff+gv_fb_dev.screensize, gv_fb_dev.screensize);
 		 egi_gif_playFile(fpath, false, ImgTransp_ON, NULL);
 	}
-
+#endif
 
 while(1) {  ////////////////////////////////  ---  LOOP TEST  ---  /////////////////////////////////////
 

@@ -200,14 +200,19 @@ while(1) {
 
 while(1) {
 
- fb_clear_backBuff(&gv_fb_dev, COLOR_RGB_TO16BITS(190,190,190)); //WEGI_COLOR_GRAY3);
+ fb_clear_backBuff(&gv_fb_dev, COLOR_RGB_TO16BITS(120,120,120)); //WEGI_COLOR_GRAY3);
  //fbset_color(egi_color_random(color_deep));
  fbset_color(WEGI_COLOR_DARKRED);
 
 // display_slogan();
 //for( i=0; i<n; i++)
- for(ka=0.5; ka<MATH_PI*2.0-0.5; ka += da )
+// for(ka=0.5; ka<MATH_PI*2.0-0.5; ka += da )
+ for(ka=0.5; ka<MATH_PI*2.0+0.5; ka += da )
  {
+     for( i=0; i<10; i++ ) {
+	fbset_color(egi_color_random(color_all));
+	draw_arc(&gv_fb_dev, x0, y0, 110+10*i, -ka-da, -ka, 10);
+     }
 	fbset_color(WEGI_COLOR_WHITE);
 	draw_arc(&gv_fb_dev, x0, y0, 92, -ka-da, -ka, 5); //0.5-MATH_PI*2.0, -0.5, 5); //MATH_PI-0.5, 0, 3);
 	fbset_color(WEGI_COLOR_RED);
@@ -217,81 +222,30 @@ while(1) {
 	fbset_color(WEGI_COLOR_BLUE);
  	draw_arc(&gv_fb_dev, x0, y0, 15, -ka-da, -ka, 30); //0.5-MATH_PI*2.0, -0.5, 30); //MATH_PI-0.5, 0, 3);
 
- 	display_slogan();
+ 	//display_slogan();
   	fb_page_refresh(&gv_fb_dev);
-	tm_delayms(25);
+	tm_delayms(10);
  }
 
  /* wedge */
 // for(ka=-MATH_PI/20*4; ka< 6/5*MATH_PI; ka += MATH_PI/60 ) {
  for(i=-2; i<12; i++) {
  	fbset_color(WEGI_COLOR_PINK); //egi_color_random(color_deep));
-	draw_filled_pieSlice(&gv_fb_dev, x0, y0, 140, MATH_PI/10*i, MATH_PI/10*(i+1));  //MATH_PI*2.0-ka);//  0.5-da );
- 	display_slogan();
+	draw_filled_pieSlice(&gv_fb_dev, x0, y0, 65, MATH_PI/10*i, MATH_PI/10*(i+1));  //MATH_PI*2.0-ka);//  0.5-da );
+ 	//display_slogan();
   	fb_page_refresh(&gv_fb_dev);
-	tm_delayms(25);
-}
-
- display_slogan();
- fb_page_refresh(&gv_fb_dev);
-
- tm_delayms(3000);
-
-}
-
-////////////////////////////////////////////////////////////////
-
-while(1) {
-
- for(ka=0.5; ka<MATH_PI*2.0-0.5; ka += da )
- {
-#if 0
-	/* outer fan */
-	fbset_color(WEGI_COLOR_WHITE);
-   	for(i=90; i<95; i+=1 )  /* i: rmin -> rmax */
-   	{
-       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
-		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
-   	}
-	/* outer fan2 */
-	fbset_color(WEGI_COLOR_RED);
-   	for(i=70; i<80; i+=1 )  /* i: rmin -> rmax */
-   	{
-       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
-		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
-   	}
-	/* middle fan */
-	fbset_color(WEGI_COLOR_GREEN);
-   	for(i=40; i<60; i+=1 )  /* i: rmin -> rmax */
-   	{
-       		/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
-		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
-   	}
-	/* inner fan */
-	fbset_color(WEGI_COLOR_BLUE);
-   	for(i=0; i<30; i+=1 )  /* i: rmin -> rmax */
-   	{
-		draw_arc(&gv_fb_dev, x0, y0, i, -ka-da, -ka, 1); //MATH_PI-0.5, 0, 3);
-   	}
-#endif
-	display_slogan();
-  	fb_page_refresh(&gv_fb_dev);
-	tm_delayms(55);
+	tm_delayms(10);
  }
-  	tm_delayms(55);
 
- /* wedge */
- fbset_color(WEGI_COLOR_PINK); //egi_color_random(color_deep));
- draw_filled_pieSlice(&gv_fb_dev, x0+15, y0, 110, -0.5,  MATH_PI*2.0-ka);//  0.5-da );
-
- display_slogan();
+ //display_slogan();
  fb_page_refresh(&gv_fb_dev);
 
  tm_delayms(3000);
 
 }
-	return 0;
+
 #endif
+
 
 #if 0  /* <<<<<<<<<<<<<<  6. test draw_wline & draw_pline  <<<<<<<<<<<<<<<*/
 /*

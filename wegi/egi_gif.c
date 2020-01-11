@@ -20,7 +20,7 @@ Midas-Zhou
 #include "egi_common.h"
 
 #define GIF_MAX_CHECKSIZE	32  /* in Mbytes, 1024*1024*GIF_MAX_CHECKSIZE bytes,
-				     * For checking GIF data size */
+				     * For checking GIF data size,estimated. */
 
 /* static functions */
 static void PrintGifError(int ErrorCode);
@@ -82,7 +82,7 @@ Note:
 2. The passed ImageCount starts from 1, and ends with the total number of images.
 
 @fpath: File path
-@Silent_Mode:	 TRUE: Do NOT display and delay, just read frame by frame and pass
+@Silent_Mode:	 TRUE: Do NOT display or delay, just read frame by frame and pass
 		       image count to the caller.
 		 FALE: Do display and delay.
 
@@ -95,11 +95,11 @@ Note:
 		 If NULL, ignore.
 
 
-				( --- Basic Precedure --- )
+				( --- Basic Procedure --- )
 
   1. Open gif file, get canvas size and global OR local color map pointer.
-  1. Read RecordType
-  2. Switch(RecordType)
+  2. Read RecordType by DGifGetRecordType(GifFile, &RecordType), update GifFile->Image.ColorMap if local colormap applys.
+  3. Switch(RecordType)
 	     |
 	     |_	UNDEFINED
 	     |_	SCREEN_DESC_RECORD
@@ -114,7 +114,7 @@ Note:
              |    		           |_ APPLICATION_EXT_FUNC (GIF89)
 	     |
 	     |_ TERMINATE_RECORD   ----->>> END
-  3. Go to 1 and Continue
+  4. Go to 1 and Continue
 
   !!! Note: Usually EXTENSION_RECORD type with RAPHICS_EXT_FUNC code comes first, then the IMAGE_DESC_RECORD type.
 
@@ -279,7 +279,7 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
 	    Error=-6;
 	    goto END_FUNC;
 	}
-
+        printf("\n\nDGifGetRecordType()	 ----> \n");
 	/*---------- GIFLIB DEFINED RECORD TYPE ---------
 	    UNDEFINED_RECORD_TYPE,
 	    SCREEN_DESC_RECORD_TYPE,
@@ -310,7 +310,7 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
 		++ImageNum;
 #if 1  /* For TEST: */
 		/* check block image size and position */
-    		printf("\nGIF ImageCount=%d\n", GifFile->ImageCount);
+    		printf("GIF ImageCount=%d\n", GifFile->ImageCount);
 
 		//GifQprintf("GIF Image %d at (%d, %d) [%dx%d]:     ",
 		printf("GIF Image %d at (%d, %d) [%dx%d]\n",
@@ -416,11 +416,14 @@ if(!Silent_Mode) {
                 	 * to 0 while Disposal_Mode==2, so it will be transparent to the back ground image!
                 	 * BUT for Disposal_Mode==1, it only keep previous color/alpha unchanged.
 	        	 */
+			#if 1
 	        	if(ImgTransp_ON && Disposal_Mode==2) {
-	          		if( GifRow[offx+j] == trans_color || GifRow[offx+j] == User_TransColor) {   /* ???? if trans_color == bkg_color */
+	          		//if( GifRow[offx+j] == trans_color || GifRow[offx+j] == User_TransColor) {   /* ???? if trans_color == bkg_color */
+				if( GifRow[offx+j] == User_TransColor) {
 		      			Simgbuf->alpha[spos]=0;
 				}
 	          	}
+			#endif
 	      		/*  ELSE : Keep old color and alpha value in Simgbuf->imgbuf */
 	      }
           }
@@ -486,7 +489,7 @@ if(!Silent_Mode) {
     	} /* --- End switch() Disposal_Mode --- */
        #endif ///////////////////////////////////////////////////////////////
  }
-        //printf(" Finish displaying ImageNum=%d (>=1)\n", ImageNum );
+        //printf(" --- Finish displaying ImageNum=%d (>=1) --- \n", ImageNum );
 	//getchar();
 
 #endif /* ----------------------->   END  Display   <------------------------- */
@@ -1266,7 +1269,8 @@ inline static void egi_gif_rasterWriteFB( FBDEV *fbdev, EGI_GIF *egif,
          * BUT for Disposal_Mode==1, it only keep previous color/alpha unchanged.
 	      */
 	      if(ImgTransp_ON && Disposal_Mode==2) {
-	          if( buffer[pos] == trans_color || buffer[pos] == User_TransColor) {   /* ???? if trans_color == bkg_color */
+	          /// xxxxx if( buffer[pos] == trans_color || buffer[pos] == User_TransColor) {   /* ???? if trans_color == bkg_color */
+		  if( buffer[pos] == User_TransColor) {
 		      Simgbuf->alpha[spos]=0;
 	          }
 	      }
