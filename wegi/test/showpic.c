@@ -36,6 +36,8 @@ int main(int argc, char** argv)
 	int yres;
 	int xp,yp;
 	int step=50;
+	int Sh,Sw;	/* Show_height, Show_width */
+	/* percentage step  1/4 */
 	EGI_IMGBUF* eimg=NULL;
 	EGI_IMGBUF* tmpimg=NULL;
 
@@ -114,6 +116,10 @@ for( i=optind; i<argc; i++) {
 		continue;
 	}
 
+	Sh=eimg->height;
+	Sw=eimg->width;
+	tmpimg=egi_imgbuf_resize(eimg, Sw, Sh);
+
 	/* rotate the imgbuf */
 
         /* 2. resize the imgbuf  */
@@ -127,6 +133,21 @@ for( i=optind; i<argc; i++) {
   do {
 	switch(cmdchar)
 	{
+		/* ---------------- Parse 'z' and 'n' ------------------- */
+		case 'z':	/* zoom up */
+			xp = (xp+xres/2)*5/4 - xres/2;	/* keep focus on center of LCD */
+			yp = (yp+yres/2)*5/4 - yres/2;
+ 			Sh = Sh*5/4;
+			Sw = Sw*5/4;
+			tmpimg=egi_imgbuf_resize(eimg, Sw, Sh);
+			break;
+		case 'n':
+			xp = (xp+xres/2)*3/4 - xres/2;	/* keep focus on center of LCD */
+			yp = (yp+yres/2)*3/4 - yres/2;
+			Sh = Sh*3/4;
+			Sw = Sw*3/4;
+			tmpimg=egi_imgbuf_resize(eimg, Sw, Sh);
+			break;
 		/* ---------------- Parse arrow keys -------------------- */
 		case '\033':
 			byte_deep=1;
@@ -144,7 +165,7 @@ for( i=optind; i<argc; i++) {
 				break;
 			}
                         xp-=step;
-                        if(xp<0)xp=0;
+//                       if(xp<0)xp=0;
 
 			byte_deep=0;
                         break;
@@ -154,8 +175,8 @@ for( i=optind; i<argc; i++) {
 				break;
 			}
 			xp+=step;
-			if(xp > eimg->width-xres )
-				xp=eimg->width-xres>0 ? eimg->width-xres:0;
+//			if(xp > tmpimg->width-xres )
+//				xp=tmpimg->width-xres>0 ? tmpimg->width-xres:0;
 
 			byte_deep=0;
                         break;
@@ -165,7 +186,7 @@ for( i=optind; i<argc; i++) {
 				break;
 			}
 			yp-=step;
-			if(yp<0)yp=0;
+//			if(yp<0)yp=0;
 
 			byte_deep=0;
 			break;
@@ -173,29 +194,29 @@ for( i=optind; i<argc; i++) {
 			if(byte_deep!=2)
 				break;
 			yp+=step;
-			if(yp > eimg->height-yres )
-				yp=eimg->height-yres>0 ? eimg->height-yres:0;
+//			if(yp > tmpimg->height-yres )
+//				yp=tmpimg->height-yres>0 ? tmpimg->height-yres:0;
 
 			byte_deep=0;
 			break;
 		/* ---------------- Parse Key 'a' 'd' 'w' 's' -------------------- */
 		case 'a':
 			xp-=step;
-			if(xp<0)xp=0;
+//			if(xp<0)xp=0;
 			break;
 		case 'd':
 			xp+=step;
-			if(xp > eimg->width-xres )
-				xp=eimg->width-xres>0 ? eimg->width-xres:0;
+			if(xp > tmpimg->width-xres )
+				xp=tmpimg->width-xres>0 ? tmpimg->width-xres:0;
 			break;
 		case 'w':
 			yp-=step;
-			if(yp<0)yp=0;
+//			if(yp<0)yp=0;
 			break;
 		case 's':
 			yp+=step;
-			if(yp > eimg->height-yres )
-				yp=eimg->height-yres>0 ? eimg->height-yres:0;
+			if(yp > tmpimg->height-yres )
+				yp=tmpimg->height-yres>0 ? tmpimg->height-yres:0;
 			break;
 		default:
 			byte_deep=0;
@@ -203,9 +224,9 @@ for( i=optind; i<argc; i++) {
 	}
 
 	 fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_GRAY); /* for transparent picture */
-       	 egi_imgbuf_windisplay( eimg, &gv_fb_dev, -1,
+       	 egi_imgbuf_windisplay( tmpimg, &gv_fb_dev, -1,
          	               xp, yp, 0, 0,
-               		       eimg->width, eimg->height);
+               		       xres, yres ); //tmpimg->width, tmpimg->height);
 
         /* 4.1 Refresh FB by memcpying back buffer to FB */
         fb_page_refresh(&gv_fb_dev);
@@ -213,9 +234,12 @@ for( i=optind; i<argc; i++) {
   } while( (cmdchar=imd_getchar()) != ' ' ); /* input SPACE to quit */
 
          fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
+
 	/* 5. Free tmpimg */
 	egi_imgbuf_free(eimg);
 	eimg=NULL;
+	egi_imgbuf_free(tmpimg);
+	tmpimg=NULL;
 
 } /* End displaying all image files */
 
@@ -257,10 +281,10 @@ Immediatly get a char from terminal input without delay.
 		VMIN   Minimum number of characters for noncanonical read (MIN).
 		There are four cases:
 	  	MIN == 0, TIME == 0 (polling read)
-		MIN > 0, TIME == 0 (blocking read)
-		MIN == 0, TIME > 0 (read with timeout)
+		MIN > 0, TIME == 0  (blocking read)
+		MIN == 0, TIME > 0  (read with timeout)
         	      TIME  specifies  the  limit for a timer in tenths of a second.
-		MIN > 0, TIME > 0 (read with interbyte timeout)
+		MIN > 0, TIME > 0  (read with interbyte timeout)
         	      TIME specifies the limit for a timer in tenths of a second.  Once an initial byte
 		      of input becomes available, the timer is restarted after each further byte is received.
    " --- man tcgetattr / Linux Programmer's Manual
@@ -273,8 +297,8 @@ char imd_getchar(void)
 
 	tcgetattr(0, &old_settings);
 	new_settings=old_settings;
-	new_settings.c_lflag &= (~ICANON);      /* disable canonical mode */
-	new_settings.c_lflag &= (~ECHO);   /* disable echo */
+	new_settings.c_lflag &= (~ICANON);      /* disable canonical mode, no buffer */
+	new_settings.c_lflag &= (~ECHO);   	/* disable echo */
 	new_settings.c_cc[VMIN]=1;
 	new_settings.c_cc[VTIME]=0;
 	tcsetattr(0, TCSANOW, &new_settings);

@@ -86,7 +86,7 @@ void ripple_mark(EGI_POINT touch_pxy, uint8_t alpha, EGI_16BIT_COLOR color);
 --------------------------------------------------------------------*/
 static char* news_type[]=
 {
-   "guoji" //"top", "caijing", "keji", "guoji", "yule"
+   "top", "caijing", "keji", "guoji", "yule"
 };
 
 
@@ -242,7 +242,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
         	strcat(strRequest,strkey);
 
 		printf("\n\n ------- [%s] News API powered by www.juhe.cn  ------ \n\n", news_type[k]);
-        	//printf("Request:%s\n", strRequest);
+        	printf("Request:%s\n", strRequest);
 
 	        /* Https GET request */
 	        if( (err=https_curl_request(strRequest, buff, NULL, curlget_callback)) != 0 ) {
@@ -450,7 +450,7 @@ while(1) { /////////////////////////	  LOOP TEST      //////////////////////////
 		/* save FB data to a PNG file */
 		//egi_save_FBpng(&gv_fb_dev, pngNews_path);
 
-
+#if 0
 if(i==5) { //////////////////////////// INSERT GIF  //////////////////////
 
         int xres=gv_fb_dev.pos_xres;
@@ -495,7 +495,7 @@ if(i==5) { //////////////////////////// INSERT GIF  //////////////////////
         egi_gif_free(&egif);
 
 }  ////////////////////////////////////////////////////////////
-
+#endif
 
 		/*** 		Hold on and wait .....
 		 *  If the reader touch the screen within xs, then display the item content,

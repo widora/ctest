@@ -443,3 +443,57 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
          return fpbuff;
 }
 
+
+/* Base64 element table */
+const char BASE64_ETABLE[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/*---------------------------------------------------------------------------
+Encode input data to base64 string.
+
+@data:	Input data.
+@size:  Input data size.
+@buff:	Buffer to hold enconded data.
+	Note: Caller MUST allocate enought space for buff!
+
+Return:
+	<0	Fails
+	>=0	Length of output base64 data.
+----------------------------------------------------------------------------*/
+int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
+{
+	int i,n,m;
+	int ret=0;
+
+	n=size/3;	/* every 3_byte data convert to 4_byte buff */
+	m=size%3;	/* remaining byte */
+
+	if(data==NULL || size==0 || buff==NULL)
+		return -1;
+
+	/* Encode n*3_bytes of input data */
+	for(i=0; i<n; i++) {
+		buff[4*i+0]=BASE64_ETABLE[ data[3*i]>>2 ];				/*  first 6bits of data[0] */
+		buff[4*i+1]=BASE64_ETABLE[ ((data[3*i]&0x3)<<4) + (data[3*i+1]>>4) ];	/*  2bits of data[0] AND 4bits of data[1] */
+		buff[4*i+2]=BASE64_ETABLE[ ((data[3*i+1]&0x0F)<<2) + (data[3*i+2]>>6) ];	/*  4bits of data[1] AND 2bits of data[2] */
+		buff[4*i+3]=BASE64_ETABLE[ data[3*i+2]&0x3F ];  			/*  last 6bits of data[2] */
+	}
+	ret = n*4;
+
+	/* Encode remaining data */
+	if(m==1) {
+		buff[4*n+0]=BASE64_ETABLE[data[3*n]>>2];		/* first 6 bits of data[0] */
+		buff[4*n+1]=BASE64_ETABLE[(data[3*n]&0x3)<<4];		/* last 2 bits of data[0]  */
+		buff[4*n+2]='=';					/* padding */
+		buff[4*n+3]='=';
+		ret +=4;
+	}
+	else if(m==2) {
+		buff[4*n+0]=BASE64_ETABLE[data[3*n]>>2];					/*  first 6bits of data[0] */
+		buff[4*n+1]=BASE64_ETABLE[ ((data[3*n]&0x3)<<4) + (data[3*n+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
+		buff[4*n+2]=BASE64_ETABLE[ (data[3*n+1]&0x0F)<<2 ];				/*  last 4bits of data[1] */
+		buff[4*n+3]='=';
+		ret +=4;
+	}
+
+	return ret;
+}

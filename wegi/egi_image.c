@@ -1145,6 +1145,18 @@ EGI_IMGBUF  *egi_imgbuf_resize( const EGI_IMGBUF *ineimg,
 		outeimg->alpha=NULL;
 	}
 
+	/* if same size, just memcpy data */
+	if( height==ineimg->height && width==ineimg->width ) {
+		memcpy( outeimg->imgbuf, ineimg->imgbuf, sizeof(EGI_16BIT_COLOR)*height*width);
+		if(alpha_on) {
+			memcpy( outeimg->alpha, ineimg->alpha, sizeof(unsigned char)*height*width);
+		}
+
+		return outeimg;
+	}
+
+	/* TODO: if height or width is the same size, to speed up */
+
 	/* Allocate mem to hold oldheight x width image for intermediate processing */
 	icolors=(EGI_16BIT_COLOR **)egi_malloc_buff2D(oldheight,width*sizeof(EGI_16BIT_COLOR));
 	if(icolors==NULL) {

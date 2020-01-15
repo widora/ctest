@@ -23,7 +23,7 @@ Midas Zhou
 #include "dict.h"
 
 
-#define EGI_ENABLE_TICK 1	/* Tick alarm signal may conflic with other app thread! */
+#define EGI_ENABLE_TICK 0	/* Tick alarm signal may conflic with other app thread! */
 
 struct itimerval tm_val, tm_oval;
 
