@@ -38,6 +38,25 @@ int main(int argc, char **argv)
         /* --- prepare fb device --- */
         init_fbdev(&fb_dev);
 
+#if 1   /*  --------------  TEST:  egi_save_FBpng()  ------------- */
+        /* get time stamp */
+        time_t t=time(NULL);
+        struct tm *tm=localtime(&t);
+
+	if(argc>1)
+	     sprintf(path,argv[1]);
+	else {
+		sprintf(path,"/tmp/FB%d-%02d-%02d_%02d:%02d:%02d.png",
+        	                   tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour, tm->tm_min,tm->tm_sec);
+	}
+
+	/* set pos_rotate, WARNING!!! Make sure that screen image is posed the same way! */
+	fb_dev.pos_rotate=1;
+	egi_save_FBpng(&fb_dev, path); /* imgbuf will rotated as per pos_rotate */
+
+	exit(0);
+#endif
+
 
 #if 0   /*  --------------  TEST:  egi_save_FBbmp()  ------------- */
         /* get time stamp */
@@ -58,7 +77,7 @@ int main(int argc, char **argv)
 #endif	/* -------- END TEST  ------- */
 
 
-#if 1   /*  --------------  TEST:  egi_save_FBbmp()  ------------- */
+#if 1   /*  --------------  TEST:  egi_raompic_inwin()  ------------- */
 	if( argc < 2 ) {
 		printf("Usage: %s file\n", argv[0]);
 		exit(-1);

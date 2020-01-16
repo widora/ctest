@@ -124,6 +124,7 @@ void    release_fbdev(FBDEV *dev);
 int 	init_virt_fbdev(FBDEV *fr_dev, EGI_IMGBUF *eimg);
 void	release_virt_fbdev(FBDEV *dev);
 void 	fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg);
+void 	fb_set_directFB(FBDEV *fb_dev, bool NoBuff);
 void 	fb_clear_backBuff(FBDEV *dev, uint32_t color);
 void 	fb_page_refresh(FBDEV *dev);
 //void	fb_render()

@@ -453,7 +453,7 @@ Encode input data to base64 string.
 @data:	Input data.
 @size:  Input data size.
 @buff:	Buffer to hold enconded data.
-	Note: Caller MUST allocate enought space for buff!
+	Note: The caller MUST allocate enought space for buff!
 
 Return:
 	<0	Fails
@@ -462,7 +462,7 @@ Return:
 int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
 {
 	int i,n,m;
-	int ret=0;
+	int ret=0;	/* Length of encoded base64 data */
 
 	n=size/3;	/* every 3_byte data convert to 4_byte buff */
 	m=size%3;	/* remaining byte */
@@ -472,10 +472,10 @@ int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
 
 	/* Encode n*3_bytes of input data */
 	for(i=0; i<n; i++) {
-		buff[4*i+0]=BASE64_ETABLE[ data[3*i]>>2 ];				/*  first 6bits of data[0] */
-		buff[4*i+1]=BASE64_ETABLE[ ((data[3*i]&0x3)<<4) + (data[3*i+1]>>4) ];	/*  2bits of data[0] AND 4bits of data[1] */
+		buff[4*i+0]=BASE64_ETABLE[ data[3*i]>>2 ];					/*  first 6bits of data[0] */
+		buff[4*i+1]=BASE64_ETABLE[ ((data[3*i]&0x3)<<4) + (data[3*i+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
 		buff[4*i+2]=BASE64_ETABLE[ ((data[3*i+1]&0x0F)<<2) + (data[3*i+2]>>6) ];	/*  4bits of data[1] AND 2bits of data[2] */
-		buff[4*i+3]=BASE64_ETABLE[ data[3*i+2]&0x3F ];  			/*  last 6bits of data[2] */
+		buff[4*i+3]=BASE64_ETABLE[ data[3*i+2]&0x3F ];  				/*  last 6bits of data[2] */
 	}
 	ret = n*4;
 
@@ -497,3 +497,85 @@ int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
 
 	return ret;
 }
+
+
+/*-------------------------------------------------------------------------------------
+Encode base64 string into URL, by
+	1. Replace '+', ASICC code 2B, with '%2B'
+	2. Replace '/', ASIIC code 2F, with '%2F'
+	3. Replace '=', ASIIC code 3D, with '%3D'
+
+@base64_data:  	Input data in base64 encoding.
+@data_size:  	Input data size.
+@buff:  	Buffer to hold enconded URL data.
+@buff_size:	Buff size.
+        	Note: The caller MUST allocate enought space for buff!
+		      If buff_size if less than length of encoded data + 1, then it fails.
+Return:
+        <0      Fails
+        >=0     Length of output base64URL data.
+---------------------------------------------------------------------------------------*/
+int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size)
+{
+	int i,j;
+
+	int ret=buff_size; /* Length of encoded base64URL data */
+
+	if(base64_data==NULL || data_size==0 || buff==NULL )
+		return -1;
+
+	j=0; /* buff index */
+
+	for(i=0; i<data_size; i++)
+	{
+		switch(base64_data[i]) {
+			case	'+':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='2'; buff[j+2]='B';
+					j += 3;
+					break;
+			case	'/':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='2'; buff[j+2]='F';
+					j += 3;
+					break;
+			case	'=':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='3'; buff[j+2]='D';
+					j += 3;
+					break;
+			default:
+					buff_size -=1;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]=base64_data[i];
+					j++;
+					break;
+		}
+
+	}
+
+	/* cal output URL  length */
+	if(buff_size==0) {
+		printf("%s: Buffer has no space for the closing NULL character. \n",__func__);
+		ret=-3;
+	}
+	else {
+		buff[j]='\0';
+		buff_size -= 1;
+
+		/* cal output URL  length */
+		ret -= buff_size;
+	}
+
+
+END_ENCODE:
+	if(ret<0)
+		printf("%s: Buffer size is NOT enough, quit encoding. \n",__func__);
+
+	return ret;
+}
+
+

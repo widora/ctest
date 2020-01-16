@@ -111,6 +111,7 @@ int init_fbdev(FBDEV *fb_dev)
 //		fb_dev->buffer[i]=NULL;
 //	}
 
+#if 0
 //      printf("init_dev successfully. fb_dev->map_fb=%p\n",fb_dev->map_fb);
         printf(" \n------- FB Parameters -------\n");
         printf(" bits_per_pixel: %d bits \n",fb_dev->vinfo.bits_per_pixel);
@@ -120,7 +121,7 @@ int init_fbdev(FBDEV *fb_dev)
         printf(" screensize: %ld bytes\n", fb_dev->screensize);
         printf(" Total buffer pages: %d\n", FBDEV_BUFFER_PAGES);
         printf(" ----------------------------\n\n");
-
+#endif
         return 0;
 }
 
@@ -257,6 +258,23 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 	numpg=numpg%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
 	fb_dev->map_bk=fb_dev->map_buff+fb_dev->screensize*numpg;
 }
+
+/*----------------------------------------------
+	Set/Reset DirectFB mode.
+-----------------------------------------------*/
+void fb_set_directFB(FBDEV *fb_dev, bool NoBuff)
+{
+        if( fb_dev==NULL || fb_dev->map_bk==NULL)
+                return;
+
+	if(NoBuff)
+		fb_dev->map_bk=fb_dev->map_fb;
+	else
+		fb_dev->map_bk=fb_dev->map_buff;
+
+}
+
+
 
 /*-----------------------------------------------------------
     Clear all FB back buffs by filling with given color

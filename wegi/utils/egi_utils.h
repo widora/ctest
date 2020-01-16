@@ -27,5 +27,6 @@ char** 	egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 /* Note: call egi_free_buff2D() to free it */
 
 int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff);
+int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size);
 
 #endif

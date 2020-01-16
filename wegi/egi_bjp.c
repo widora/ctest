@@ -1088,6 +1088,7 @@ int egi_save_FBbmp(FBDEV *fb_dev, const char *fpath)
 
 
 
+
 /*---------------------------------------------------
 Save FB data to a PNG file.
 
@@ -1101,21 +1102,39 @@ Return:
 int egi_save_FBpng(FBDEV *fb_dev, const char *fpath)
 {
 	int ret=0;
-	EGI_IMGBUF* imgbuf=NULL;
+//	EGI_IMGBUF* imgbuf=NULL;
 
 	if(fb_dev==NULL || fb_dev->map_fb==NULL || fpath==NULL)
 		return -1;
 
+        EGI_IMGBUF *imgbuf=egi_imgbuf_alloc();
+        if(imgbuf==NULL)
+                return -2;
+
 	/* create an EGI_IMG with same size as FB */
-        imgbuf=egi_imgbuf_create(fb_dev->vinfo.yres, fb_dev->vinfo.xres, 255, 0);
+//        imgbuf=egi_imgbuf_create(fb_dev->vinfo.yres, fb_dev->vinfo.xres, 255, 0);
+
+	/* assign width and height as per FB POSITION ROTATION */
+	imgbuf->width=fb_dev->pos_xres;
+	imgbuf->height=fb_dev->pos_yres;
 
 	/* save imgbuf to PNG file */
-	free(imgbuf->imgbuf);
+//	free(imgbuf->imgbuf);
         imgbuf->imgbuf=(EGI_16BIT_COLOR *)fb_dev->map_fb; /* !!! WARNING: temporary refrence !!! */
+	/* imgbuf->alpha keeps NULL, as FB buffer has no alpha. */
+
+	/* rotate imgbuf */
+	imgbuf=egi_imgbuf_rotate(imgbuf, 90*fb_dev->pos_rotate);
+	if(imgbuf==NULL) {
+		printf("%s: Fail to call egi_imgbuf_rotate()!\n",__func__);
+		return -3;
+	}
+
+	/* save to png */
         if(egi_imgbuf_savepng(fpath, imgbuf) != 0 )
 		ret=-2;
 
-	imgbuf->imgbuf=NULL;	/* !!! Dereference, return ownership to fb_dev */
+	//imgbuf->imgbuf=NULL;	/* !!! Dereference, return ownership to fb_dev */
 	egi_imgbuf_free(imgbuf);
 
 	return ret;
