@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 	FTsymbol_uft8strings_writeFB( 	&gv_fb_dev, egi_appfonts.bold,         	/* FBdev, fontface */
 				      	60, 60,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
 				      	320, 3, 15,                    	    	/* pixpl, lines, gap */
-					80, 80,                           	/* x0,y0, */
+					20, 20,                           	/* x0,y0, */
                                      	WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 

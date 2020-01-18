@@ -72,16 +72,17 @@ static void PrintGifError(int ErrorCode)
 Read a GIF file and display images one by one, Meanwhile, the corresponding ImageCount
 is passed to the caller. If Silent_Mode is TRUE, then only ImageCount is passed out,
 Finally, ImageCount gets to the total number of images in the GIF file.
+The image is displayed in the center of the screen.
 
 Note:
-1. This function is for big size GIF file, it reads in and display frame by frame.
+1. This function is for big size GIF file, it reads and displays frame by frame.
    For small size GIF file, just call egi_gif_slurpFile() to load to EGI_GIF first,
    then call egi_gif_display().  OR first call egi_gifdata_readFile() to read out
    EGI_GIF_DATA.
 
 2. The passed ImageCount starts from 1, and ends with the total number of images.
 
-@fpath: File path
+@fpath: 	 File path
 @Silent_Mode:	 TRUE: Do NOT display or delay, just read frame by frame and pass
 		       image count to the caller.
 		 FALE: Do display and delay.
@@ -94,6 +95,11 @@ Note:
 @ImageCount:	 Number of images that have been displayed/parsed.
 		 If NULL, ignore.
 
+@nloop:          loop times for each function call:
+                 <=0 : loop displaying GIF frames forever
+                 >0 : nloop times
+@sigstop:	 Quit if Ture
+		 If NULL, ignore.
 
 				( --- Basic Procedure --- )
 
@@ -104,7 +110,7 @@ Note:
 	     |_	UNDEFINED
 	     |_	SCREEN_DESC_RECORD
 	     |
-	     |_	IMAGE_DESC_RECORD  ----->>> Get image data and display it.
+	     |_	IMAGE_DESC_RECORD  ----->>>   [[[ --- Get image data and display it  --- ]]]
 	     |
 	     |_	EXTENSION_RECORD   ----->>>|
              |    		           |_ CONTINUE_EXT_FUNC
@@ -114,7 +120,7 @@ Note:
              |    		           |_ APPLICATION_EXT_FUNC (GIF89)
 	     |
 	     |_ TERMINATE_RECORD   ----->>> END
-  4. Go to 1 and Continue
+  4. Go to 2 and Continue
 
   !!! Note: Usually EXTENSION_RECORD type with RAPHICS_EXT_FUNC code comes first, then the IMAGE_DESC_RECORD type.
 
@@ -124,10 +130,11 @@ Return:
 	<0	Fails
         >0	Final DGifCloseFile() fails
 -------------------------------------------------------------------------------------------*/
-int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount)
+int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount, int nloop , bool *sigstop)
 {
     int Error=0;
     int	i, j, Size;
+    int k;
 
     int SWidth=0, SHeight=0;   /* screen(gif canvas) width and height, defined in gif file */
     int pos=0;
@@ -271,9 +278,14 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
     	}
     }
 
+    k=0; /* start nloop count */
     /* Scan the content of the GIF file and load the image(s) in: */
     do {
+	/* check if sigstop */
+	if(sigstop != NULL && *sigstop==true)
+		break;
 
+	/* read recordtype */
 	if (DGifGetRecordType(GifFile, &RecordType) == GIF_ERROR) {
 	    PrintGifError(GifFile->Error);
 	    Error=-6;
@@ -605,8 +617,24 @@ if(!Silent_Mode) {
 	if(ImageCount != NULL)
 		*ImageCount=ImageNum;
 
+	if(RecordType == TERMINATE_RECORD_TYPE) {
+		//printf(" --------------- TERMINATE_RECORD_TYPE  --------------\n");
+		//sleep(3);
+		k++; /* loop count */
+		if( k<nloop || nloop<=0 ) {
+		    	/* Close file and reOpen */
+    			if (DGifCloseFile(GifFile, &Error) == GIF_ERROR) {
+				PrintGifError(Error);
+				return Error;
+    			}
+    			if((GifFile = DGifOpenFileName(fpath, &Error)) == NULL) {
+	    			PrintGifError(Error);
+		    		return Error;
+    			}
+		}
+	}
 
-    } while (RecordType != TERMINATE_RECORD_TYPE);
+    } while (RecordType != TERMINATE_RECORD_TYPE || GifFile->ImageCount==0);
 
 
 END_FUNC:
@@ -648,7 +676,7 @@ EGI_GIF_DATA*  egi_gifdata_readFile(const char *fpath)
     int ImageTotal=0;
 
     /* Try to get total number of images, for size check */
-    if( egi_gif_playFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
+    if( egi_gif_playFile(fpath, true, true, &ImageTotal,1, NULL) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
     {
 	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
 	return NULL;
@@ -884,7 +912,7 @@ EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON)
     EGI_16BIT_COLOR img_bkcolor;
 
     /* Try to get total number of images, for size check */
-    if( egi_gif_playFile(fpath, true, true, &ImageTotal) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
+    if( egi_gif_playFile(fpath, true, true, &ImageTotal,1, NULL) !=0 ) /* fpath, Silent, ImgTransp_ON, *ImageCount */
     {
 	printf("%s: Fail to egi_gif_readFile() '%s'\n",__func__,fpath);
 	return NULL;
@@ -1310,7 +1338,7 @@ Display current frame of GIF, then increase count of EGI_GIF, If dev==NULL, then
 and return!
 Note: If dev is NOT NULL, it will affect whole FB data with memcpy and page fresh operation!
 
-	---- Parameters in EGI_GIF_CONTEXT gif_ctxt ----
+	<<<---- Parameters in EGI_GIF_CONTEXT gif_ctxt ---->>>
 
 @dev:	     	 FB Device.
 		 If NULL, update egif->Simgbuf, but will DO NOT write to FB.

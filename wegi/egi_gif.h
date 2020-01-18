@@ -151,7 +151,7 @@ static void *egi_gif_threadDisplay(void *argv);
 
 */
 
-int  	  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount);
+int  	  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, int *ImageCount, int nloop, bool *sigstop);
 EGI_GIF_DATA*  egi_gifdata_readFile(const char *fpath);
 EGI_GIF*  egi_gif_create(const EGI_GIF_DATA *gif_data, bool ImgTransp_ON);
 EGI_GIF*  egi_gif_slurpFile(const char *fpath, bool ImgTransp_ON);

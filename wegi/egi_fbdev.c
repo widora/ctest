@@ -259,9 +259,12 @@ inline void fb_shift_buffPage(FBDEV *fb_dev, unsigned int numpg)
 	fb_dev->map_bk=fb_dev->map_buff+fb_dev->screensize*numpg;
 }
 
-/*----------------------------------------------
-	Set/Reset DirectFB mode.
------------------------------------------------*/
+/*-----------------------------------------------------
+		Set/Reset DirectFB mode
+
+@NoBuff:	True,  set map_bk to map_fb
+		False, set map_bk to map_buff
+------------------------------------------------------*/
 void fb_set_directFB(FBDEV *fb_dev, bool NoBuff)
 {
         if( fb_dev==NULL || fb_dev->map_bk==NULL)
@@ -270,8 +273,24 @@ void fb_set_directFB(FBDEV *fb_dev, bool NoBuff)
 	if(NoBuff)
 		fb_dev->map_bk=fb_dev->map_fb;
 	else
-		fb_dev->map_bk=fb_dev->map_buff;
+		fb_dev->map_bk=fb_dev->map_buff;  /* Default as in init_fbdev() */
+}
 
+
+/*-------------------------------------------
+Prepare FB background and working buffer.
+Init buffers with current FB mmap data.
+-------------------------------------------*/
+void fb_init_FBbuffers(FBDEV *fb_dev)
+{
+        if( fb_dev==NULL || fb_dev->map_bk==NULL)
+                return;
+
+         /* Prepare FB background buffer */
+         memcpy(fb_dev->map_buff+fb_dev->screensize, fb_dev->map_fb, fb_dev->screensize);
+
+         /* prepare FB working buffer */
+         memcpy(fb_dev->map_buff, fb_dev->map_buff+fb_dev->screensize, fb_dev->screensize);
 }
 
 
