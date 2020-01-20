@@ -14,6 +14,9 @@ Midas Zhou
 
 int main(int argc, char **argv)
 {
+	if(argc < 1)
+		return 1;
+
         /* <<<<<  EGI general init  >>>>>> */
 #if 0
         printf("tm_start_egitick()...\n");
@@ -54,6 +57,19 @@ int main(int argc, char **argv)
 	/* set pos_rotation */
 	gv_fb_dev.pos_rotate=3;
 
+#if 0
+	/* draw box */
+	int offx=atoi(argv[1]);
+	int offy=atoi(argv[2]);
+	int width=atoi(argv[3]);
+	int height=atoi(argv[4]);
+
+	fbset_color(WEGI_COLOR_RED);
+	draw_wrect(&gv_fb_dev, offx, offy, offx+width, offy+height,3);
+#endif
+
+#if 1
+
         #if 0
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
                                           17, 17, wstr1,                    /* fw,fh, pstr */
@@ -62,15 +78,18 @@ int main(int argc, char **argv)
                                           COLOR_RGB_TO16BITS(0,151,169), -1, 255 );   /* fontcolor, transcolor,opaque */
 	#endif
 
-	printf("%s\n", argv[1]);
+	//printf("%s\n", argv[1]);
 	FTsymbol_uft8strings_writeFB( 	&gv_fb_dev, egi_appfonts.bold,         	/* FBdev, fontface */
-				      	60, 60,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
-				      	320, 3, 15,                    	    	/* pixpl, lines, gap */
-					20, 20,                           	/* x0,y0, */
+				      	//60, 60,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
+				      	//320, 3, 15,                    	    	/* pixpl, lines, gap */
+					//20, 20,                           	/* x0,y0, */
+				      	24, 24,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
+				      	320-10, 2, 5,                    	    	/* pixpl, lines, gap */
+					10, 240-55,                           	/* x0,y0, */
                                      	WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
+#endif
 
-	
 
         /* <<<<<-----------------  EGI general release  ----------------->>>>> */
         printf("FTsymbol_release_allfonts()...\n");

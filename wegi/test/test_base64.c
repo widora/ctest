@@ -26,18 +26,49 @@ int main(int argc, char **argv)
 	int fd;
 	struct stat sb;
 	size_t fsize;
-	unsigned char *fmap;
-	char *buff;	/* For base64 data */
-	char *URLbuff;  /* For base64URL data */
+	unsigned char *fmap=NULL;
+	char *buff=NULL;	/* For base64 data */
+	char *URLbuff=NULL;  /* For base64URL data */
 	int ret=0;
+	int opt;
+	bool notail=false; /* If true:  No '='s at tail */
+	bool enurl=false;
+	int  base64type=0; /* BASE64 ETABLE index */
 
 	if(argc<2) {
-		printf("Usage: %s fpath \n", argv[0]);
+                printf("usage:  %s [-h] [-n] [-u] [-t type] fpath \n", argv[0]);
 		exit(1);
 	}
 
+        /* parse input option */
+        while( (opt=getopt(argc,argv,"hnut:"))!=-1)
+        {
+                switch(opt)
+                {
+                       	case 'h':
+                           printf("usage:  %s [-h] [-n] [-t type] fpath \n", argv[0]);
+                           printf("         -h   	this help \n");
+                           printf("         -n   	No '='s at tail.\n");
+                           printf("         -u   	encode to URL \n");
+                           printf("         -t type   	BASE64 ETABLE index.\n");
+                           printf("         fpath       file path \n");
+                           return 0;
+                       	case 'n':
+                           notail=true;
+                           break;
+			case 'u':
+			   enurl=true;
+			   break;
+		       	case 't':
+			   base64type=atoi(optarg);
+			   break;
+                       	default:
+                           break;
+                }
+        }
 
-	fd=open(argv[1],O_RDONLY);
+
+	fd=open(argv[optind],O_RDONLY);
 	if(fd<0) {
 		perror("open");
 		return -1;
@@ -48,7 +79,6 @@ int main(int argc, char **argv)
 		return -2;
 	}
 	fsize=sb.st_size;
-
 
 	/* allocate buff */
 	buff=calloc((fsize+2)/3+1, 4); /* 3byte to 4 byte, 1 more*/
@@ -66,8 +96,12 @@ int main(int argc, char **argv)
         }
 
 	/* Encode to base64 */
-	ret=egi_encode_base64(fmap, fsize, buff);
+	ret=egi_encode_base64(base64type,fmap, fsize, buff);
 //	printf("\nEncode base64: input size=%d, output size ret=%d, result buff contest:\n%s\n",fsize, ret,buff);
+	if(!enurl) {
+		printf("%s",buff);
+		goto CODE_END;
+	}
 
 	/* allocate URLbuff */
 	URLbuff=calloc(ret, 2); /*  !!! NOTICE HERE:  2*ret, 2 times base64 data size for URLbuff */
@@ -80,12 +114,12 @@ int main(int argc, char **argv)
 	}
 
 	/* Encode base64 to URL */
-	ret=egi_encode_base64URL((const unsigned char *)buff, strlen(buff), URLbuff, ret*2);
+	ret=egi_encode_base64URL((const unsigned char *)buff, strlen(buff), URLbuff, ret*2, notail); /* TRUE notail '=' */
 //	printf("\nEncode base64 to URL: input size strlen(buff)=%d, output size ret=%d, URLbuff contest:\n%s\n",
 //										strlen(buff), ret, URLbuff);
 	printf("%s", URLbuff);
 
-
+CODE_END:
 	munmap(fmap,fsize);
 	close(fd);
 	free(buff);

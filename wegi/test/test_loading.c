@@ -48,12 +48,12 @@ int main(int argc, char **argv)
 
 
 	/* ------------ SHM_MSG communication ---------- */
-	EGI_SHM_MSG shm_msg= {
+	EGI_SHMEM shm_msg= {
 	  .shm_name="loading_ctrl",
 	  .shm_size=4*1024,
 	};
 
-	if( egi_shmmsg_open(&shm_msg) !=0 ) {
+	if( egi_shmem_open(&shm_msg) !=0 ) {
 		printf("Fail to open shm_msg!\n");
 		exit(1);
 	}
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 				tm_delayms(100);
 			}
 		}
-		egi_shmmsg_close(&shm_msg);
+		egi_shmem_close(&shm_msg);
 		exit(1);
         }
 	else {					/* Not active, activate it.  */
@@ -145,12 +145,12 @@ int main(int argc, char **argv)
 
         #if 1
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
-                                          30, 30, (wchar_t *)L"图像识别中...",                    /* fw,fh, pstr */
+                                          30, 30, (wchar_t *)L"人脸检测中...",	 //"图像识别中...",     /* fw,fh, pstr */
                                           320, 1, 0,                    /* pixpl, lines, gap */
                                           75,  10,                           /* x0,y0, */
                                           COLOR_24TO16BITS(0xFF6600), -1, 255 );   /* fontcolor, transcolor,opaque */
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
-                                          30, 30, (wchar_t *)L"图像识别中...",                    /* fw,fh, pstr */
+                                          30, 30, (wchar_t *)L"人脸检测中...",	//"图像识别中...",                    /* fw,fh, pstr */
                                           320, 1, 0,                    /* pixpl, lines, gap */
                                           75,  240-50,                           /* x0,y0, */
                                           COLOR_24TO16BITS(0x0099FF), -1, 255 );   /* fontcolor, transcolor,opaque */
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 	}
 
 RELEASE_EGI:
-	egi_shmmsg_close(&shm_msg);
+	egi_shmem_close(&shm_msg);
 
         /* <<<<<-----------------  EGI general release  ----------------->>>>> */
         printf("FTsymbol_release_allfonts()...\n");

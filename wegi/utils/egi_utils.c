@@ -445,11 +445,38 @@ char ** egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 
 
 /* Base64 element table */
-const char BASE64_ETABLE[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+#define BASE64_ETABLE_MAX	12
+static const char BASE64_ETABLE[BASE64_ETABLE_MAX][65]=
+{
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/+",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!-",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-!",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:_",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_:"
+};
 
-/*---------------------------------------------------------------------------
-Encode input data to base64 string.
+/*--------------------------------------------------------------------------------------------------
+Encode input data to base64 string without any line breaks.
 
+Ignore RFC2045 requirements:
+ "
+   (5)  (Soft Line Breaks) The Quoted-Printable encoding
+      	REQUIRES that encoded lines be no more than 76
+      	characters long.  If longer lines are to be encoded
+      	with the Quoted-Printable encoding, "soft" line breaks
+      	must be used.  An equal sign as the last character on a
+      	encoded line indicates such a non-significant ("soft")
+      	line break in the encoded text.
+ "
+
+@type: 	Type of BASE64_ETAB, index of it. default 0;
 @data:	Input data.
 @size:  Input data size.
 @buff:	Buffer to hold enconded data.
@@ -458,8 +485,8 @@ Encode input data to base64 string.
 Return:
 	<0	Fails
 	>=0	Length of output base64 data.
-----------------------------------------------------------------------------*/
-int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
+--------------------------------------------------------------------------------------------------*/
+int egi_encode_base64(int type, const unsigned char *data, unsigned int size, char *buff)
 {
 	int i,n,m;
 	int ret=0;	/* Length of encoded base64 data */
@@ -470,27 +497,31 @@ int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
 	if(data==NULL || size==0 || buff==NULL)
 		return -1;
 
+	/* check type number, or use default as 0 */
+	if( type<0 || type > BASE64_ETABLE_MAX-1 )
+			type=0;
+
 	/* Encode n*3_bytes of input data */
 	for(i=0; i<n; i++) {
-		buff[4*i+0]=BASE64_ETABLE[ data[3*i]>>2 ];					/*  first 6bits of data[0] */
-		buff[4*i+1]=BASE64_ETABLE[ ((data[3*i]&0x3)<<4) + (data[3*i+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
-		buff[4*i+2]=BASE64_ETABLE[ ((data[3*i+1]&0x0F)<<2) + (data[3*i+2]>>6) ];	/*  4bits of data[1] AND 2bits of data[2] */
-		buff[4*i+3]=BASE64_ETABLE[ data[3*i+2]&0x3F ];  				/*  last 6bits of data[2] */
+		buff[4*i+0]=BASE64_ETABLE[type][ data[3*i]>>2 ];					/*  first 6bits of data[0] */
+		buff[4*i+1]=BASE64_ETABLE[type][ ((data[3*i]&0x3)<<4) + (data[3*i+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
+		buff[4*i+2]=BASE64_ETABLE[type][ ((data[3*i+1]&0x0F)<<2) + (data[3*i+2]>>6) ];	/*  4bits of data[1] AND 2bits of data[2] */
+		buff[4*i+3]=BASE64_ETABLE[type][ data[3*i+2]&0x3F ];  				/*  last 6bits of data[2] */
 	}
 	ret = n*4;
 
 	/* Encode remaining data */
 	if(m==1) {
-		buff[4*n+0]=BASE64_ETABLE[data[3*n]>>2];		/* first 6 bits of data[0] */
-		buff[4*n+1]=BASE64_ETABLE[(data[3*n]&0x3)<<4];		/* last 2 bits of data[0]  */
+		buff[4*n+0]=BASE64_ETABLE[type][data[3*n]>>2];		/* first 6 bits of data[0] */
+		buff[4*n+1]=BASE64_ETABLE[type][(data[3*n]&0x3)<<4];		/* last 2 bits of data[0]  */
 		buff[4*n+2]='=';					/* padding */
 		buff[4*n+3]='=';
 		ret +=4;
 	}
 	else if(m==2) {
-		buff[4*n+0]=BASE64_ETABLE[data[3*n]>>2];					/*  first 6bits of data[0] */
-		buff[4*n+1]=BASE64_ETABLE[ ((data[3*n]&0x3)<<4) + (data[3*n+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
-		buff[4*n+2]=BASE64_ETABLE[ (data[3*n+1]&0x0F)<<2 ];				/*  last 4bits of data[1] */
+		buff[4*n+0]=BASE64_ETABLE[type][data[3*n]>>2];					/*  first 6bits of data[0] */
+		buff[4*n+1]=BASE64_ETABLE[type][ ((data[3*n]&0x3)<<4) + (data[3*n+1]>>4) ];		/*  2bits of data[0] AND 4bits of data[1] */
+		buff[4*n+2]=BASE64_ETABLE[type][ (data[3*n+1]&0x0F)<<2 ];				/*  last 4bits of data[1] */
 		buff[4*n+3]='=';
 		ret +=4;
 	}
@@ -499,7 +530,7 @@ int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff)
 }
 
 
-/*-------------------------------------------------------------------------------------
+/*--------------------------------------------------------------------------------------------------
 Encode base64 string into URL, by
 	1. Replace '+', ASICC code 2B, with '%2B'
 	2. Replace '/', ASIIC code 2F, with '%2F'
@@ -511,11 +542,14 @@ Encode base64 string into URL, by
 @buff_size:	Buff size.
         	Note: The caller MUST allocate enought space for buff!
 		      If buff_size if less than length of encoded data + 1, then it fails.
+@notail:	If true, get rid of '='
+
 Return:
         <0      Fails
         >=0     Length of output base64URL data.
----------------------------------------------------------------------------------------*/
-int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size)
+---------------------------------------------------------------------------------------------------*/
+int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff,
+								unsigned int buff_size, bool notail)
 {
 	int i,j;
 
@@ -541,12 +575,49 @@ int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_siz
 					buff[j]='%'; buff[j+1]='2'; buff[j+2]='F';
 					j += 3;
 					break;
+			case	'!':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='2'; buff[j+2]='1';
+					j += 3;
+					break;
+			case	'-':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='2'; buff[j+2]='D';
+					j += 3;
+					break;
+			case	'_':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='5'; buff[j+2]='F';
+					j += 3;
+					break;
+			case	'.':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='2'; buff[j+2]='E';
+					j += 3;
+					break;
+			case	':':
+					buff_size -= 3;
+					if(buff_size<0) { ret=-2; goto END_ENCODE; }
+					buff[j]='%'; buff[j+1]='3'; buff[j+2]='A';
+					j += 3;
+					break;
+
+
 			case	'=':
+				 if(notail) {
+					break; /* get rid of '=' */
+				 }
+				 else {
 					buff_size -= 3;
 					if(buff_size<0) { ret=-2; goto END_ENCODE; }
 					buff[j]='%'; buff[j+1]='3'; buff[j+2]='D';
 					j += 3;
 					break;
+				}
 			default:
 					buff_size -=1;
 					if(buff_size<0) { ret=-2; goto END_ENCODE; }

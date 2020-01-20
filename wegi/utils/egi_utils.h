@@ -9,6 +9,7 @@ Midas Zhou
 
 #include <stdio.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #define EGI_URL_MAX  256 /* Max length for a URL address */
 #define EGI_PATH_MAX 256 /* Max length for a file path, 4096 for PATH_MAX in <limit.h>  */
@@ -26,7 +27,7 @@ void 	egi_free_buff2D(unsigned char **buff, int items);
 char** 	egi_alloc_search_files(const char* path, const char* fext,  int *pcount );
 /* Note: call egi_free_buff2D() to free it */
 
-int egi_encode_base64(const unsigned char *data, unsigned int size, char *buff);
-int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size);
+int egi_encode_base64(int type, const unsigned char *data, unsigned int size, char *buff);
+int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size, bool notail);
 
 #endif
