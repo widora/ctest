@@ -328,11 +328,10 @@ void fb_clear_backBuff(FBDEV *fb_dev, uint32_t color)
 }
 
 
-/*-----------------------------------------
- Refresh FB with current working back buff
- pointed by fb_dev->map_bk.
-------------------------------------------*/
-void fb_page_refresh(FBDEV *dev)
+/*-------------------------------------------------
+ Refresh FB screen with FB back buffer map_buff[numpg]
+--------------------------------------------------*/
+void fb_page_refresh(FBDEV *dev, unsigned int numpg)
 {
 	if(dev==NULL)
 		return;
@@ -340,15 +339,29 @@ void fb_page_refresh(FBDEV *dev)
 	if( dev->map_bk==NULL || dev->map_fb==NULL )
 		return;
 
+        numpg=numpg%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
+
 	/* Try to synchronize with FB kernel VSYNC */
 	if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
 #ifdef LETS_NOTE
                 printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
         } else { /* memcpy to FB, ignore VSYNC signal. */
 #endif
-		memcpy(dev->map_fb, dev->map_bk, dev->screensize);
+		switch(numpg) {
+			case 0:
+				memcpy(dev->map_fb, dev->map_buff, dev->screensize);
+				break;
+			case 1:
+				memcpy(dev->map_fb, dev->map_buff+dev->screensize, dev->screensize);
+				break;
+			case 2:
+				memcpy(dev->map_fb, dev->map_buff+(dev->screensize<<1), dev->screensize);
+				break;
+			default:
+				memcpy(dev->map_fb, dev->map_buff+dev->screensize*numpg, dev->screensize);
+				break;
+		}
 	}
-
 }
 
 
@@ -366,9 +379,10 @@ Retrun:
 ------------------------------------------------------*/
 int fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum)
 {
-	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL
-		      || buffNum > FBDEV_BUFFER_PAGES-1 )
+	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL )
 		return -1;
+
+        buffNum=buffNum%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
 
         memcpy( dev->map_buff+(buffNum*dev->screensize), dev->map_fb, dev->screensize);
 
@@ -376,7 +390,8 @@ int fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum)
 }
 
 
-/*-----------------------------------------------------
+/*---------- !!! similar to fb_page_refresh() !!! -----------
+
  Backup current page data in dev->map_fb
  to dev->map_buff[index], which normally is
  NOT current working back buff!
@@ -387,13 +402,13 @@ int fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum)
 Retrun:
 	0	OK
 	<0 	Fails
-------------------------------------------------------*/
+-----------------------------------------------------------*/
 int fb_page_restoreFromBuff(FBDEV *dev, unsigned int buffNum)
 {
-	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL
-		      || buffNum > FBDEV_BUFFER_PAGES-1 )
+	if( dev==NULL || dev->map_fb==NULL || dev->map_buff==NULL )
 		return -1;
 
+        buffNum=buffNum%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
         memcpy( dev->map_fb, dev->map_buff+(buffNum*dev->screensize), dev->screensize);
 
 	return 0;

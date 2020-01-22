@@ -218,6 +218,12 @@ for( i=optind; i<argc; i++) {
 			if(yp > tmpimg->height-yres )
 				yp=tmpimg->height-yres>0 ? tmpimg->height-yres:0;
 			break;
+		case 'o':
+			system("/tmp/facerecog.sh");
+			break;
+		case 'p':
+			system("/tmp/imgrecog.sh");
+			break;
 		default:
 			byte_deep=0;
 			break;

@@ -450,7 +450,7 @@ if(!Silent_Mode) {
 
     	/* Refresh FB page if NOT DirectFB_ON */
     	if(!DirectFB_ON && fbdev != NULL )
-    		fb_page_refresh(fbdev);
+    		fb_page_refresh(fbdev,0);
 
     #if 1 //////////////////////////////////////////////////////
     	/* Delay */
@@ -1591,7 +1591,7 @@ void egi_gif_displayGifCtxt( EGI_GIF_CONTEXT *gif_ctxt )
 
     /* Refresh FB page if NOT DirectFB_ON */
     if(!DirectFB_ON && fbdev != NULL )
-    	fb_page_refresh(fbdev);
+    	fb_page_refresh(fbdev,0);
 
     /* Delay */
     tm_delayms(DelayMs); /* Need to hold on here, even fddev==NULL */
