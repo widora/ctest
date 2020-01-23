@@ -14,8 +14,8 @@ Midas Zhou
 
 /* typedef struct egi_touch_data EGI_TOUCH_DATA in "egi.h" */
 
-int 		egi_touch_timeWait_press(unsigned int s, EGI_TOUCH_DATA *touch_data);
-int 		egi_touch_timeWait_release(unsigned int s, EGI_TOUCH_DATA *touch_data);
+int 		egi_touch_timeWait_press(unsigned int s, unsigned int ms, EGI_TOUCH_DATA *touch_data);
+int 		egi_touch_timeWait_release(unsigned int s, unsigned int ms, EGI_TOUCH_DATA *touch_data);
 void 		egi_touchread_nowait(bool nowait);
 int 		egi_start_touchread(void);
 int 		egi_end_touchread(void);

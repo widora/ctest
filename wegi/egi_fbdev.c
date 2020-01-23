@@ -365,6 +365,58 @@ void fb_page_refresh(FBDEV *dev, unsigned int numpg)
 }
 
 
+/*------------------------------------------------------------------------------------
+ Refresh FB screen lines with FB back buffer map_buff[numpg]
+ !!! NOTE: Soft Pos_roation has NO effect for this function. !!!
+
+@sind:	Starting Line index. [0  FBDEV.vinfo.yres-1]
+@n: 	Number of lines to be refreshed.
+-------------------------------------------------------------------------------------*/
+void fb_lines_refresh(FBDEV *dev, unsigned int numpg, unsigned int sind, unsigned int n)
+{
+	unsigned int xres;
+	unsigned int Bpp; /* byte per pixel */
+	unsigned int Bpl; /* bytes per line */
+
+        if(dev==NULL)
+                return;
+        if( dev->map_bk==NULL || dev->map_fb==NULL )
+                return;
+	if( n==0 || sind > dev->vinfo.yres-1 )
+		return;
+
+	if( sind+n > dev->vinfo.yres ) /* sind+n-1 > dev->vinfo.yres-1 */
+		n=dev->vinfo.yres-sind;
+
+        numpg=numpg%FBDEV_BUFFER_PAGES; /* Note: Modulo result is compiler depended */
+	xres=dev->vinfo.xres;
+	Bpp=dev->vinfo.bits_per_pixel>>3;
+	Bpl=Bpp*xres;
+
+        /* Try to synchronize with FB kernel VSYNC */
+        if( ioctl( dev->fbfd, FBIO_WAITFORVSYNC, 0) !=0 ) {
+#ifdef LETS_NOTE
+                printf("Fail to ioctl FBIO_WAITFORVSYNC.\n");
+        } else { /* memcpy to FB, ignore VSYNC signal. */
+#endif
+		switch(numpg) {
+			case 0:
+				memcpy(dev->map_fb+sind*Bpl, dev->map_buff+sind*Bpl, n*Bpl);
+				break;
+			case 1:
+				memcpy(dev->map_fb+sind*Bpl, dev->map_buff+dev->screensize+sind*Bpl, n*Bpl);
+				break;
+			case 2:
+				memcpy(dev->map_fb+sind*Bpl, dev->map_buff+(dev->screensize<<1)+sind*Bpl, n*Bpl);
+				break;
+			default:
+				memcpy(dev->map_fb+sind*Bpl, dev->map_buff+dev->screensize*numpg+sind*Bpl, n*Bpl);
+				break;
+		}
+	}
+}
+
+
 /*-----------------------------------------------------
  Backup current page data in dev->map_fb
  to dev->map_buff[index], which normally is
@@ -413,7 +465,6 @@ int fb_page_restoreFromBuff(FBDEV *dev, unsigned int buffNum)
 
 	return 0;
 }
-
 
 
 /*-------------------------------------------

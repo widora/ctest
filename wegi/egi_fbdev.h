@@ -128,6 +128,7 @@ void 	fb_set_directFB(FBDEV *fb_dev, bool NoBuff);
 void 	fb_init_FBbuffers(FBDEV *fb_dev);
 void 	fb_clear_backBuff(FBDEV *dev, uint32_t color);
 void 	fb_page_refresh(FBDEV *dev, unsigned int numpg);
+void 	fb_lines_refresh(FBDEV *dev, unsigned int numpg, unsigned int sind, unsigned int n);
 //void	fb_render()
 int 	fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum);
 int 	fb_page_restoreFromBuff(FBDEV *dev, unsigned int buffNum);

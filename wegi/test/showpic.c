@@ -43,6 +43,7 @@ int main(int argc, char** argv)
 
 	int 	opt;
 	bool 	PortraitMode=false;
+	bool	TranspMode=false;
 	bool	DirectFB_ON=false;
 
 	char	cmdchar=0;		/* A char as for command */
@@ -55,8 +56,9 @@ int main(int argc, char** argv)
                 switch(opt)
                 {
                        case 'h':
-                           printf("usage:  %s [-h] [-p] fpath \n", argv[0]);
+                           printf("usage:  %s [-h] [-p] [-t] fpath \n", argv[0]);
                            printf("         -h   help \n");
+			   printf("         -t   Transparency on\n");
                            printf("         -p   Portrait mode. ( default is Landscape mode ) \n");
                            printf("fpath    file path \n");
                            return 0;
@@ -64,6 +66,10 @@ int main(int argc, char** argv)
                            printf(" Set PortraitMode=true.\n");
                            PortraitMode=true;
                            break;
+			case 't':
+			   printf(" Set TranspMode=true.\n");
+			   TranspMode=true;
+			   break;
                        default:
                            break;
                 }
@@ -229,13 +235,14 @@ for( i=optind; i<argc; i++) {
 			break;
 	}
 
-	 fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_GRAY); /* for transparent picture */
+	 if(!TranspMode)
+	 	fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_GRAY); /* for transparent picture */
        	 egi_imgbuf_windisplay( tmpimg, &gv_fb_dev, -1,
-         	               xp, yp, 0, 0,
-               		       xres, yres ); //tmpimg->width, tmpimg->height);
+         	                xp, yp, 0, 0,
+               		        xres, yres ); //tmpimg->width, tmpimg->height);
 
         /* 4.1 Refresh FB by memcpying back buffer to FB */
-        fb_page_refresh(&gv_fb_dev);
+        fb_page_refresh(&gv_fb_dev,0);
 
   } while( (cmdchar=imd_getchar()) != ' ' ); /* input SPACE to quit */
 

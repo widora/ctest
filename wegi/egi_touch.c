@@ -49,11 +49,12 @@ static bool tok_loopread_nowait;	/* If ture, touch_loopread will run nonstop,
 					 * after last data is read out.
 					 */
 
-/*---------------------------------------------------------
+/*----------------------------------------------------------------------------------
 Wait for a touch 'pressing' event, return on the event or
 when time is out.
 
-@s:	  Timeout value, in secondes.
+@s:	      Timeout in secondes.
+@ms:	      Timeout in Millisecond.
 @touch_data   Touch data on the event
 	      If NULL, ignored.
 
@@ -61,13 +62,14 @@ Retrun:
 	0	Ok
 	<0	Fails / Errors
 	>0	Time out.
-----------------------------------------------------*/
-int egi_touch_timeWait_press(unsigned int s, EGI_TOUCH_DATA *touch_data) //EGI_POINT *pxy)
+-------------------------------------------------------------------------------------*/
+int egi_touch_timeWait_press(unsigned int s, unsigned int ms, EGI_TOUCH_DATA *touch_data) //EGI_POINT *pxy)
 {
 	int ret=0;
 	int wait_ret=0;
 	struct timeval now;
 	struct timespec outtime;
+	unsigned int ns;
 
 	/* Assert thread loop_read is running */
 	if(!tok_loopread_running)
@@ -87,8 +89,14 @@ int egi_touch_timeWait_press(unsigned int s, EGI_TOUCH_DATA *touch_data) //EGI_P
 		while(flag_cond==0) {
 			/* ??? If invoked by incorrect signal, then outtime will reset ?!!! */
 			gettimeofday(&now, NULL);
-			outtime.tv_sec = now.tv_sec + s;
-			outtime.tv_nsec = now.tv_usec*1000;
+			ns=now.tv_usec*1000+ms*1000000;
+			if(ms ==0 ) {
+				outtime.tv_sec = now.tv_sec + s;
+				outtime.tv_nsec = ns; //now.tv_usec*1000+ms*1000000;
+			} else {
+				outtime.tv_sec = now.tv_sec+s+ns/1000000000;
+				outtime.tv_nsec = ns%1000000000;
+			}
 			/* timedwait, wait_ret==0 if cond_touch is received.*/
 			wait_ret=pthread_cond_timedwait(&cond_touch, &mutex_lockCond, &outtime);
 			if(wait_ret==ETIMEDOUT)
@@ -139,7 +147,8 @@ int egi_touch_timeWait_press(unsigned int s, EGI_TOUCH_DATA *touch_data) //EGI_P
 /*------------------------------------------------------------------------
 Wait for a touch 'releasing' event, return on the event or when time is out.
 
-@s:	      Timeout value, in secondes.
+@s:	      Timeout in secondes.
+@ms:	      Timeout in Millisecond.
 @touch_data   Touch data on the event
 	      If NULL, ignored.
 Retrun:
@@ -147,12 +156,13 @@ Retrun:
 	<0	Fails / Errors
 	>0	Time out.
 ------------------------------------------------------------------------*/
-int egi_touch_timeWait_release(unsigned int s, EGI_TOUCH_DATA *touch_data)
+int egi_touch_timeWait_release(unsigned int s, unsigned int ms, EGI_TOUCH_DATA *touch_data)
 {
 	int ret=0;
 	int wait_ret=0;
 	struct timeval now;
 	struct timespec outtime;
+	unsigned int ns;
 
 	/* Assert thread loop_read is running */
 	if(!tok_loopread_running)
@@ -172,8 +182,14 @@ int egi_touch_timeWait_release(unsigned int s, EGI_TOUCH_DATA *touch_data)
 		while(flag_cond==1) {
 			/* ??? If invoked by incorrect signal, then outtime will reset ?!!! */
 			gettimeofday(&now, NULL);
-			outtime.tv_sec = now.tv_sec + s;
-			outtime.tv_nsec = now.tv_usec*1000;
+			ns=now.tv_usec*1000+ms*1000000;
+			if(ms ==0 ) {
+				outtime.tv_sec = now.tv_sec + s;
+				outtime.tv_nsec = ns; //now.tv_usec*1000+ms*1000000;
+			} else {
+				outtime.tv_sec = now.tv_sec+s+ns/1000000000;
+				outtime.tv_nsec = ns%1000000000;
+			}
 			/* timedwait, wait_ret==0 if cond_touch is received.*/
 			wait_ret=pthread_cond_timedwait(&cond_touch, &mutex_lockCond, &outtime);
 			if(wait_ret==ETIMEDOUT)

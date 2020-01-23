@@ -1090,12 +1090,14 @@ int  FTsymbol_uft8strings_writeFB( FBDEV *fb_dev, FT_Face face, int fw, int fh, 
 	/* if finishing writing whole strings, ln++ to get written lines, as ln index from 0 */
 	ln++;
 
-	/* if finishing writing whole strings, reset px,py to next line. */
+	/* ??? TODO: if finishing writing whole strings, reset px,py to next line. */
+#if 0
 	if( *wcstr != '\n' ) { /* To avoid 2 line returns */
 		//px=x0;
 		xleft=pixpl;
 		py+=fh+gap;
 	}
+#endif
 
 FUNC_END:
 	//printf("%s: %d characters written to FB.\n", __func__, count);
@@ -1103,10 +1105,10 @@ FUNC_END:
 		*cnt=count;
 	if(lnleft != NULL)
 		*lnleft=lines-ln; /* here ln is written lines, not index number */
-	if(penx != NULL) {
-		*penx=x0; //+pixpl-xleft;
+	if(penx != NULL)
+		*penx=x0+pixpl-xleft;
+	if(peny != NULL)
 		*peny=py;
-	}
 
 	return p-pstr;
 }
