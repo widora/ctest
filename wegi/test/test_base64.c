@@ -31,23 +31,25 @@ int main(int argc, char **argv)
 	char *URLbuff=NULL;  /* For base64URL data */
 	int ret=0;
 	int opt;
+	bool enuft8url=false; /* If true: call egi_encode_uft8URL() and return */
 	bool notail=false; /* If true:  No '='s at tail */
 	bool enurl=false;
 	int  base64type=0; /* BASE64 ETABLE index */
 
 	if(argc<2) {
-                printf("usage:  %s [-h] [-n] [-u] [-t type] fpath \n", argv[0]);
+                printf("usage:  %s [-h] [-f] [-n] [-u] [-t type] fpath \n", argv[0]);
 		exit(1);
 	}
 
         /* parse input option */
-        while( (opt=getopt(argc,argv,"hnut:"))!=-1)
+        while( (opt=getopt(argc,argv,"hfnut:"))!=-1)
         {
                 switch(opt)
                 {
                        	case 'h':
                            printf("usage:  %s [-h] [-n] [-t type] fpath \n", argv[0]);
                            printf("         -h   	this help \n");
+			   printf("	    -f		uft8URL encode \n");
                            printf("         -n   	No '='s at tail.\n");
                            printf("         -u   	encode to URL \n");
                            printf("         -t type   	BASE64 ETABLE index.\n");
@@ -56,6 +58,9 @@ int main(int argc, char **argv)
                        	case 'n':
                            notail=true;
                            break;
+			case 'f':
+			   enuft8url=true;
+			   break;
 			case 'u':
 			   enurl=true;
 			   break;
@@ -95,6 +100,17 @@ int main(int argc, char **argv)
                 return -2;
         }
 
+	/* Encode to uft8URL */
+	if(enuft8url)
+	{
+		if( realloc(buff,fsize*2)==NULL )
+			goto CODE_END;
+
+		ret=egi_encode_uft8URL(fmap, buff, fsize*2);
+		printf("%s\n",buff);
+		goto CODE_END;
+	}
+
 	/* Encode to base64 */
 	ret=egi_encode_base64(base64type,fmap, fsize, buff);
 //	printf("\nEncode base64: input size=%d, output size ret=%d, result buff contest:\n%s\n",fsize, ret,buff);
@@ -118,6 +134,9 @@ int main(int argc, char **argv)
 //	printf("\nEncode base64 to URL: input size strlen(buff)=%d, output size ret=%d, URLbuff contest:\n%s\n",
 //										strlen(buff), ret, URLbuff);
 	printf("%s", URLbuff);
+
+
+
 
 CODE_END:
 	munmap(fmap,fsize);

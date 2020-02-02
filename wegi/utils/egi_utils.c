@@ -10,6 +10,7 @@ Midas Zhou
 -----------------------------------------------------------------*/
 #include "egi_utils.h"
 #include "egi_log.h"
+#include "egi_cstring.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -462,6 +463,9 @@ static const char BASE64_ETABLE[BASE64_ETABLE_MAX][65]=
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_:"
 };
 
+static const char HEXBIT_TABLE[]="0123456789abcdef";
+
+
 /*--------------------------------------------------------------------------------------------------
 Encode input data to base64 string without any line breaks.
 
@@ -553,7 +557,7 @@ int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_siz
 {
 	int i,j;
 
-	int ret=buff_size; /* Length of encoded base64URL data */
+	int ret=buff_size; /* Length of final encoded base64URL data */
 
 	if(base64_data==NULL || data_size==0 || buff==NULL )
 		return -1;
@@ -650,3 +654,110 @@ END_ENCODE:
 }
 
 
+
+/*--------------------------------------------------------------------------------------------------
+Encode UFT8 string into URL, by
+        1. Replace '+', ASICC code 2B, with '%2B'
+        2. Replace '/', ASIIC code 2F, with '%2F'
+        3. Replace '=', ASIIC code 3D, with '%3D'
+	4. Replace other uft8 chars with '%xx','%xx%xx' OR '%xx%xx%xx' etc.
+
+@ustr:   	Input data in UFT8 encoding.
+@data_size:     Input data size.
+@buff:          Buffer to hold enconded URL data.
+@buff_size:     Buff size.
+                Note: The caller MUST allocate enought space for buff!
+                      If buff_size if less than length of encoded data + 1, then it fails.
+
+Return:
+        <0      Fails
+        >=0     Length of output.
+---------------------------------------------------------------------------------------------------*/
+int egi_encode_uft8URL(const unsigned char *ustr, char *buff, unsigned int buff_size)
+{
+        int i,j,k;
+	int len;	/* in bytes, lenght of current UFT8 char */
+	const unsigned char *ps=NULL;	    /* pointer to curretn UFT8 char */
+	int usize; /* Get total number of uft8 chars in input string */
+
+        int ret=buff_size; /* Length of final encoded URL data */
+
+        if(ustr==NULL || buff==NULL )
+                return -1;
+
+	/* Get total number of uft8 chars in input string */
+	usize=cstr_strcount_uft8(ustr);
+        if( usize<1 )
+                return -2;
+
+        j=0; 	/* buff index */
+	ps=ustr;
+
+	for(i=0; i<usize; i++)
+	{
+		len=cstr_charlen_uft8(ps);
+#if 0	/* --- TEST ---- */
+		char strbuf[16]={0};
+		printf("%s: i=%d len=%d\n",__func__,i,len);
+		memset(strbuf,0,16);
+		for(k=0; k<len; k++)
+			strbuf[k]=*(ps+k);
+		//snprintf(strbuf,len,"%s", ps);
+		printf("%s: %s\n",__func__, strbuf);
+#endif
+		/* IF: ASCII chars */
+		if(len==1) {
+			/* case '+''/' */
+			switch(*ps) {
+				case '+':
+				case '/':
+		                        buff_size -= 3;
+		                        if(buff_size<0) { ret=-3; goto END_ENCODE; }
+					buff[j]='%';
+					buff[j+1]=HEXBIT_TABLE[(*ps)>>4];	/* LSB first */
+					buff[j+2]=HEXBIT_TABLE[*(ps++)&0xF];
+					j+=3;
+					break;
+
+				default: /* Other printable ASCII chars */
+                                        buff_size -= 1;
+                                        if(buff_size<0) { ret=-3; goto END_ENCODE; }
+					buff[j]=*(ps++);
+					j+=1;
+					break;
+			}
+		}
+		/* ELSE IF: len>1, local chars */
+		else {
+			buff_size -= 3*len; 	/* %xx %xx ... */
+			if(buff_size<0) { ret=-3; goto END_ENCODE; }
+			for(k=0; k<len; k++) {
+				//printf("0x%x\n",*ps);
+                        	buff[j]='%';
+                                buff[j+1]=HEXBIT_TABLE[(*ps)>>4];
+                                buff[j+2]=HEXBIT_TABLE[*(ps++)&0xF];
+				j+=3;
+			}
+		}
+	} /* END for() */
+
+        /* cal output URL  length */
+        if(buff_size==0) {
+                printf("%s: Buffer has no space for the closing NULL character. \n",__func__);
+                ret=-4;
+        }
+        else {
+                buff[j]='\0';
+                buff_size -= 1;
+
+                /* cal output URL  length */
+                ret -= buff_size;
+        }
+
+
+END_ENCODE:
+        if(ret<0)
+                printf("%s: Buffer size is NOT enough, quit encoding. \n",__func__);
+
+	return ret;
+}

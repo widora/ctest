@@ -29,5 +29,7 @@ char** 	egi_alloc_search_files(const char* path, const char* fext,  int *pcount 
 
 int egi_encode_base64(int type, const unsigned char *data, unsigned int size, char *buff);
 int egi_encode_base64URL(const unsigned char *base64_data, unsigned int data_size, char *buff, unsigned int buff_size, bool notail);
+int egi_encode_uft8URL(const unsigned char *ustr, char *buff, unsigned int buff_size);
+
 
 #endif
