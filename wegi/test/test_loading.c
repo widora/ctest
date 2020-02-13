@@ -145,12 +145,12 @@ int main(int argc, char **argv)
 
         #if 1
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
-                                          30, 30, (wchar_t *)L"人脸检测中...",	 //"图像识别中...",     /* fw,fh, pstr */
+                                          30, 30, (wchar_t *)L"OCR检测中...",	 //"图像识别中...",     /* fw,fh, pstr */
                                           320, 1, 0,                    /* pixpl, lines, gap */
                                           75,  10,                           /* x0,y0, */
                                           COLOR_24TO16BITS(0xFF6600), -1, 255 );   /* fontcolor, transcolor,opaque */
         FTsymbol_unicstrings_writeFB(&gv_fb_dev, egi_appfonts.bold,         /* FBdev, fontface */
-                                          30, 30, (wchar_t *)L"人脸检测中...",	//"图像识别中...",                    /* fw,fh, pstr */
+                                          30, 30, (wchar_t *)L"OCR检测中...",	//"图像识别中...",                    /* fw,fh, pstr */
                                           320, 1, 0,                    /* pixpl, lines, gap */
                                           75,  240-50,                           /* x0,y0, */
                                           COLOR_24TO16BITS(0x0099FF), -1, 255 );   /* fontcolor, transcolor,opaque */
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
                                         WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                         NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 	#endif
-	fb_page_refresh(&gv_fb_dev);
+	fb_page_refresh(&gv_fb_dev,0);
 	if(!DirectFB_ON)
 		fb_init_FBbuffers(&gv_fb_dev); /* if NOT direct FB */
 

@@ -80,11 +80,7 @@ egi_image.c	EGI_IMGBUF functions
 egi_timer.c	timer and delay 
 egi_debug.c	for debug
 egi_log.c	for logger operation 
-egi_utils.c	some helper functions
-egi_https.c	curl https API
 egi_math.c	a common math function module
-egi_fifo.c	a common fifo module for EGI
-egi_filo.c	a common filo module for EGI
 egi_iotclient.c		A BIGIOT client application.
 egi_ring.c	a ERING mechanism ( for process communication between UI and APPs --- TDB )
 egi_txt.c	type_txt ebox functions
@@ -92,8 +88,16 @@ egi_btn.c	type_btn ebox
 egi_slider.c	type_slier ebox, for sliding bar.
 egi_list.c	type_list ebox
 egi_pic.c	type_pic ebox
-egi_iwinfo.c	wifi info. extraction
 egi_procman.c   subprocess handling and its signal actions.
+
+egi_utils.c	some helper functions
+egi_fifo.c	a common fifo module for EGI
+egi_filo.c	a common filo module for EGI
+egi_cstring.c   string helper
+egi_shmem.c	share memory helper functions
+egi_https.c	curl https API
+egi_iwinfo.c	wifi info. extraction
+
 
 sys_list.h	list operation derived from Linux kernel codes. 
 

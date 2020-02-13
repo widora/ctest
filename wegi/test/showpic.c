@@ -18,6 +18,10 @@ Control key:
 	'd' or RIGHT_ARROW	to pan right
 	SPACE			to display next picture OR quit.
 
+	'i' --- General image recognization
+	'O' --- OCR detect
+	'P' --- Face detect
+
 Midas Zhou
 midaszhou@yahoo.com
 ------------------------------------------------------------------*/
@@ -224,11 +228,16 @@ for( i=optind; i<argc; i++) {
 			if(yp > tmpimg->height-yres )
 				yp=tmpimg->height-yres>0 ? tmpimg->height-yres:0;
 			break;
-		case 'o':
-			system("/tmp/facerecog.sh");
-			break;
-		case 'p':
+
+		/* ---------------- Parse Key 'i' 'o' 'p' -------------------- */
+		case 'i':	/* General image recognization */
 			system("/tmp/imgrecog.sh");
+			break;
+		case 'o':	/* OCR detect */
+			system("/tmp/ocr.sh");
+			break;
+		case 'p':	/* Face detect */
+			system("/tmp/facerecog.sh");
 			break;
 		default:
 			byte_deep=0;

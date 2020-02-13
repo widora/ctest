@@ -709,7 +709,7 @@ int egi_encode_uft8URL(const unsigned char *ustr, char *buff, unsigned int buff_
 		if(len==1) {
 			/* case '+''/' */
 			switch(*ps) {
-				case '+':
+				//case '+':
 				case '/':
 		                        buff_size -= 3;
 		                        if(buff_size<0) { ret=-3; goto END_ENCODE; }

@@ -83,9 +83,9 @@ int main(int argc, char **argv)
 				      	//60, 60,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
 				      	//320, 3, 15,                    	    	/* pixpl, lines, gap */
 					//20, 20,                           	/* x0,y0, */
-				      	24, 24,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
-				      	320-10, 2, 5,                    	    	/* pixpl, lines, gap */
-					10, 240-55,                           	/* x0,y0, */
+				      	30, 30,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
+				      	320-10, 2, 4,                    	/* pixpl, lines, gap */
+					10, 10,                           	/* x0,y0, */
                                      	WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 #endif
