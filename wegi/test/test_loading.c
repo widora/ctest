@@ -18,7 +18,7 @@ Midas Zhou
 
 int main(int argc, char **argv)
 {
-	int opt;	/* imput option */
+	int opt;	/* input option */
 	char *fpath=NULL;
 	bool	sigstop=false;
 

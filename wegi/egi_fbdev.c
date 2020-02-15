@@ -444,8 +444,8 @@ int fb_page_saveToBuff(FBDEV *dev, unsigned int buffNum)
 
 /*---------- !!! similar to fb_page_refresh() !!! -----------
 
- Backup current page data in dev->map_fb
- to dev->map_buff[index], which normally is
+ Restore current page data in dev->map_fb
+ from dev->map_buff[index], which normally is
  NOT current working back buff!
 
 @dev:	 current FB device.

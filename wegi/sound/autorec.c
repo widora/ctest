@@ -4,9 +4,12 @@ it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
 
 Note:
-1. Record sound and encode it to mp3 by shine. use Ctrl+C to interrupt.
-2. Usage: recmp3 save_path (xxx.pcm)
-3. Play:  aplay -r 16000 -f S16_LE -t raw xxx.pcm
+1. If sound strenght is detected to reach the threshold value, then record sound 
+   and save it to a PCM file.
+   use Ctrl+C to interrupt.
+2. Usage: autorec asr_snd.pcm.  ( The name of 'asr_snd.pcm' is defined in asr_pcm.sh)
+3. It will call /tmp/asr_pcm.sh to upload /tmp/asr_snd.pcm and get txt.
+4. Play PCM:  aplay -r 16000 -f S16_LE -t raw asr_snd.pcm
 
 
 			<<   Glossary  >>
@@ -44,9 +47,9 @@ Midas Zhou
 #include <signal.h>
 //#include "pcm2wav.h"
 
-
-#define PCMBUFF_MAX	(1024*64)  /*  *2 bits */
-#define RECHECK_FRAMES	20
+#define BASE_SSVALUE  	21  /* Base (silence) voice strength factor value indicator,  */
+#define PCMBUFF_MAX	(1024*64)  /* in samples */
+#define RECHECK_FRAMES	10
 
 bool sig_stop=false;
 
@@ -64,7 +67,7 @@ int main(int argc, char** argv)
 	snd_pcm_t *pcm_handle;
 	int nchanl=1;	/* number of channles */
 	int format=SND_PCM_FORMAT_S16_LE;
-	int bits_per_sample=16;
+//	int bits_per_sample=16;
 	int frame_size=2;		/*bytes per frame, for 1 channel, format S16_LE */
 	int sample_rate=16000; //8000; 		/* HZ,sample rate */
 	bool enable_resample=true;	/* whether to enable resample */
@@ -76,27 +79,27 @@ int main(int argc, char** argv)
 	int frame_count;
 	int tail_frames;		/* the last frames, if voice check during tail_frames, then the tail_frames will reset to RECHECK_FRAMES again */
 	int chunk_size;			/* =frame_size*chunk_frames */
-	int record_size=64*1024;	/* total pcm raw size for recording/encoding */
+//	int record_size=64*1024;	/* total pcm raw size for recording/encoding */
 
 	/* chunk_frames=576, */
 	int16_t buff[SHINE_MAX_SAMPLES]; /* 1152, enough size of buff to hold pcm raw data AND encoding results */
-	int16_t *pbuf=buff;
+//	int16_t *pbuf=buff;
 	int16_t pcmbuff[PCMBUFF_MAX];
-	int16_t *pt;			/* pointer to current position in pcmbuff[] */
 	unsigned long sample_count; /* count of samples, for 1 channel */
 	unsigned long pvsum; /* sum of pcm value */
 
-
+#if 0
 	/* for shine encoder */
 	shine_t	sh_shine;		/* handle to shine encoder */
 	shine_config_t	sh_config; 	/* config structure for shine */
 	int sh_bitrate=16; 		/* kbit */
 	int ssamples_per_chanl; /* expected shine_samples (16bit depth) per channel to feed to the shine encoder each session */
-//	int ssamples_per_pass;	/* nchanl*ssamples_per_chanl, for each encoding pass/session */
+	int ssamples_per_pass;	/* nchanl*ssamples_per_chanl, for each encoding pass/session */
 	unsigned char *mp3_pout; /* pointer to mp3 data after each encoding pass */
 	int mp3_count;		/* byte counter for shine mp3 output per pass */
-
 	FILE *fmp3;
+#endif
+
 	FILE *fpcm;
 
 	bool force_exit=false;
@@ -146,6 +149,7 @@ int main(int argc, char** argv)
 	system("amixer -D hw:0 set Capture 90%");
 	system("amixer -D hw:0 set 'ADC PCM' 85%");
 
+#if 0
 	/* init shine */
 	if( init_shine_mono(&sh_shine, &sh_config, sample_rate, sh_bitrate) <0 ) {
 		snd_pcm_close(pcm_handle);
@@ -155,20 +159,21 @@ int main(int argc, char** argv)
 	/* get number of ssamples per channel, to feed to the encoder */
 	ssamples_per_chanl=shine_samples_per_pass(sh_shine); /* return audio ssamples expected  */
 	printf("%s: MONO ssamples_per_chanl=%d frames for Shine encoder.\n",__func__, ssamples_per_chanl);
+
 	/* change to frames for snd_pcm_readi() */
 	chunk_frames=ssamples_per_chanl*16/bits_per_sample*nchanl; /* 16bits for a shine input sample */
 	chunk_size=chunk_frames*frame_size;
 	printf("Expected pcm readi chunk_frames for the shine encoder is %ld frames per pass.\n",chunk_frames);
 	printf("SHINE_MAX_SAMPLES = %d \n",SHINE_MAX_SAMPLES);
 	printf("Shine bitrate:%d kbps\n",sh_config.mpeg.bitr);
-
+#endif
+	chunk_frames=1152;
 
 	/* capture pcm */
 	sample_count=0;
 	frame_count=0;
 	pvsum=0;
 	tail_frames=0;
-	pt=pcmbuff;
 	printf("Start recording and encoding ...\n");
 	while(1) /* let user to interrupt, or if(count<record_size) */
 	{
@@ -217,10 +222,11 @@ int main(int argc, char** argv)
 			k++;
 		}
 		/* print strength indicator */
-		#define BASE_SSVALUE  21  /* Base (silence) voice strength factor value indicator,  */
-		for(i=BASE_SSVALUE-1; i<k; i++)
-			printf("-");
-		printf("\n");
+		if( k>BASE_SSVALUE-1 ) {
+			for(i=BASE_SSVALUE-1; i<k; i++)
+				printf("-");
+			printf("\n");
+		}
 
 		/* check remaining tail frames */
 		if( k >= BASE_SSVALUE )
@@ -228,7 +234,7 @@ int main(int argc, char** argv)
 		else
 			tail_frames--;
 
-		printf("tail_frames=%d\n", tail_frames);
+//		printf("tail_frames=%d\n", tail_frames);
 
 		/* pcm raw data count */
 		sample_count += chunk_frames;  /* 1 channel */
@@ -243,8 +249,8 @@ int main(int argc, char** argv)
 
 #if 1
 		/* If voice is too short, ignore it ... */
-		if(  frame_count < 30 ) {
-			printf("Total frame_count=%d, Ignore short voice...\n", frame_count);
+		if(  frame_count < 15 ) {
+			// printf("Total frame_count=%d, Ignore short voice...\n", frame_count);
 			/* reset params and continue */
 			sample_count=0;
 			frame_count=0;
@@ -257,11 +263,14 @@ int main(int argc, char** argv)
 SAVE_PCM:
 		/* write to PCM file */
 		printf("frame_count=%d, save PCM to file ...\n", frame_count);
-		if(sample_count>0) {
+		if( sample_count>0 ) {
 		   fpcm=fopen(argv[1],"wb");
 		   if(fpcm==NULL)exit(1);
 		   fwrite(pcmbuff, sample_count*2,1, fpcm); /* 2bytes for each frame, 1 channel per frame  */
 		   fclose(fpcm);
+		   /*  ASR  */
+		   printf("ASR...\n");
+		   system("/tmp/asr_pcm.sh");
 		}
 
 
@@ -277,10 +286,6 @@ SAVE_PCM:
 
          /* write to PCM file */
          fwrite(pcmbuff, sample_count*2, 1, fpcm); /* 2bytes for each frame, 1 channel per frame  */
-
-
-	/* close files and release soruces */
-	fclose(fpcm);
 
 	return 0;
 }

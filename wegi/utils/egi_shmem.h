@@ -21,17 +21,21 @@ typedef struct {
 	char* shm_map;
 	size_t shm_size;
 
+	/* DATA shm_map, struct pointer to shm_map */
 	struct {
 		//pthread_mutex_t shm_mutex;	/* Ensure no race in first mutex create */
         	bool    active;			/* status to indicate that data is being processed.
 						 * The process occupying the data may quit abnormally, so other processes shall confirm
 						 * this status by other means.
 						 */
-		bool 	sigstop;		/* siganl to stop data processing */
-        	int     signum;			/* signal number */
-		char    msg[64];
-		void*	data;			/* for other type of data */
+		bool 		sigstop;	/* siganl to stop data processing */
+        	int     	signum;		/* signal number */
+		char    	msg[64];
+		void*		data;		/* more data, pointer value, !!! AS FOR VALUE, NOT FOR ADDR !!! */
 	}* msg_data;
+
+	/* Offset to somewhere in mem block */
+	unsigned int	offset;		/* data block offset from shm_map */
 
 } EGI_SHMEM;
 

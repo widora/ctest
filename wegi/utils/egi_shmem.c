@@ -61,7 +61,7 @@ int egi_shmem_open(EGI_SHMEM *shmem)
         }
 
 	/* get msg_data pointer */
-	shmem->msg_data=(typeof(shmem->msg_data))shmem->shm_map;
+	shmem->msg_data=(typeof(shmem->msg_data))(shmem->shm_map);
 
 
 	return 0;

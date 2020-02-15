@@ -14,8 +14,15 @@ Midas Zhou
 
 int main(int argc, char **argv)
 {
+	int ts=0;
+
 	if(argc < 1)
-		return 1;
+		return 2;
+
+	if(argc > 2)
+		ts=atoi(argv[2]);
+	else
+	 	ts=1;
 
         /* <<<<<  EGI general init  >>>>>> */
 #if 0
@@ -57,6 +64,9 @@ int main(int argc, char **argv)
 	/* set pos_rotation */
 	gv_fb_dev.pos_rotate=3;
 
+	/* backup current screen */
+       fb_page_saveToBuff(&gv_fb_dev, 0);
+
 #if 0
 	/* draw box */
 	int offx=atoi(argv[1]);
@@ -67,6 +77,8 @@ int main(int argc, char **argv)
 	fbset_color(WEGI_COLOR_RED);
 	draw_wrect(&gv_fb_dev, offx, offy, offx+width, offy+height,3);
 #endif
+
+
 
 #if 1
 
@@ -84,12 +96,16 @@ int main(int argc, char **argv)
 				      	//320, 3, 15,                    	    	/* pixpl, lines, gap */
 					//20, 20,                           	/* x0,y0, */
 				      	30, 30,(const unsigned char *)argv[1], 	/* fw,fh, pstr */
-				      	320-10, 2, 4,                    	/* pixpl, lines, gap */
+				      	320-10, 5, 4,                    	/* pixpl, lines, gap */
 					10, 10,                           	/* x0,y0, */
                                      	WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 #endif
 
+
+	/* restore current screen */
+	sleep(ts);
+	fb_page_restoreFromBuff(&gv_fb_dev, 0);
 
         /* <<<<<-----------------  EGI general release  ----------------->>>>> */
         printf("FTsymbol_release_allfonts()...\n");
