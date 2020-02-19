@@ -15,6 +15,9 @@ Note:
 	./test_writext -q
 4. It uses shared memory as IPC to communicate between the server and
    the client process.
+5. To incoorperate:
+   autorec  /tmp/asr_snd.pcm  ( autorec ---> asr_pcm.sh ---> writetxt )
+   
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -218,7 +221,7 @@ while(1) {
 			printf("Turn on all lights!\n");
 			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20, 140, 20+80, 140+80);
                         draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+100, 140, 20+100+80, 140+80);
-                        draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRYA5, 20+200, 140, 20+200+80, 140+80);
+                        draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+200, 140, 20+200+80, 140+80);
 		}
 	    }
 	}

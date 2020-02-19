@@ -47,7 +47,7 @@ Midas Zhou
 #include <signal.h>
 //#include "pcm2wav.h"
 
-#define BASE_SSVALUE  	21  /* Base (silence) voice strength factor value indicator,  */
+#define BASE_SSVALUE  	22  /* Base (silence) voice strength factor value indicator,  */
 #define PCMBUFF_MAX	(1024*64)  /* in samples */
 #define RECHECK_FRAMES	10
 

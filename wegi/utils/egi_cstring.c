@@ -292,6 +292,28 @@ inline int cstr_charlen_uft8(const unsigned char *cp)
 }
 
 
+/*--------------------------------------------------
+Get length of a character with UTF-8 encoding.
+
+@cp:	A pointer to a string with UTF-8 encoding.
+
+Return:
+	>0	OK, string length in bytes.
+	<0	Fails
+-------------------------------------------------*/
+int cstr_strlen_uft8(const unsigned char *cp)
+{
+	int len=0;
+	int sum=0;
+
+	while( *(cp+sum) != '\0'  &&  (len=cstr_charlen_uft8(cp+sum))>0 )
+	{
+		sum+=len;
+	}
+
+	return sum;
+}
+
 
 /*-----------------------------------------------------------------------
 Get total number of characters in a string with UTF-8 encoding.
@@ -895,3 +917,253 @@ char* cstr_parse_html_tag(const char* str_html, const char *tag, char **content,
 	/* Now pst is pointer to the beginning of the content */
 	return ( (pst!=NULL && pet!=NULL) ? pst:NULL);
 }
+
+/* Time related keywords in CHN UFT-8 encoding */
+static const char CHNS_TIME_KEYWORDS[]="0123456789零半个一二三四五六七八九十百千秒分刻钟小时点号日月年";
+
+/*-------------------------------------------------------------------------
+Extract time related string from UFT-8 encoded Chinese string.
+It only extracts the first available time_related string contained in src.
+
+Note: Time string MUST be continous. ????
+"862小时58分钟，72秒"
+
+
+@src:	Pointer to Source string.
+@buff:	Pointer to extacted time string.
+	Note: The caller MUST ensure enough space for then buff.
+@bufflen: Space of the buff.
+
+
+Return:
+	0	Ok
+	<0	Fails, or No time related string.
+-------------------------------------------------------------------------*/
+int cstr_extract_ChnUft8TimeStr(const char *src, char *buff, int bufflen)
+{
+	const char* sp=src;
+	char *dp=buff;
+	int size;
+	char uchar[8];
+
+	if( sp==NULL || dp==NULL )
+		return -1;
+
+	/* If no time units  */
+	if( strstr(sp,"秒")==NULL && strstr(sp,"分")==NULL && strstr(sp,"刻")==NULL && strstr(sp,"时")==NULL )
+		return -2;
+
+	/* search time related keywords */
+	while( *sp != '\0' ) {
+		size=cstr_charlen_uft8((const unsigned char *)sp); /* bytes of one CHN uft8 char */
+		/* check buff space */
+		if( dp+size-buff > bufflen-1 ) {
+			printf("%s: --- WARNING ---  buff len is NOT enough!\n",__func__);
+			break;
+		}
+		memset(uchar,0,sizeof(uchar));
+		strncpy(uchar,sp,size);
+		//printf("uchar:%s\n",uchar);
+		/* copy time keywords to buff */
+		if( strstr(CHNS_TIME_KEYWORDS, uchar)!=NULL ) {
+			strncpy(dp,sp,size);
+			dp+=size;
+		}
+#if 0 /* 1 Time string MUST be continous. */
+		else {
+			/* check end of the first time related string */
+			if(dp!=buff)
+				break;
+		}
+#endif
+		sp+=size;
+	}
+
+	/* No result */
+	if(dp==buff)
+		return -3;
+
+	return 0;
+}
+
+
+/* ----------------------------------------------------------------------------
+Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
+(strunit[6]) contained in the string, then it will return 0;
+
+0. If arabic number found, then call atoi() to convert it to numbers.
+
+1. Parse "小时" "分钟" "秒" keywords in the string and add up to total seconds.
+
+2. Suppose that "小时" "分钟" "秒" will appear no more than once in the string.
+
+3. If "点" or "时" is found in the string then it will be deemed as time point,
+   otherwise it's time span (time duration).
+
+4. Digit palces greater than "千" are ignored to avoid recursive numbering.
+   Example: "一千六百三十七万五千八百六十三"
+
+5. 中文描述格式必须为: x千x百x十x   其中x为中文数字"零一二三四五六七八九"中之一。
+   如果x为连续多个中文数字，那么仅第一个被搜索到的数有效。
+   如： 三六八八九  被解释为 3
+	九八三七四  被解释为 3 （3第一个被搜索到！）
+
+   重复累计：
+	35分钟10分钟   被解释为45分钟
+
+6. 阿拉伯数字与中文数字混合的情况：
+   三十九分78秒  	--->  39分78秒  OK!
+   九千零3十七小时	--->  9017小时  WRONG!!!
+
+7. 必须包含时间单位，不然返回0.
+
+
+@src:	Pointer to Source string containing time_related words.
+
+TODO: 1. return as a time point. (struct tm)
+      2. "半个小时"
+
+Return:
+	>0	Ok, total seconds expressed in the string.
+	<=0	Fails, or No time related string.
+--------------------------------------------------------------------------- */
+int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
+{
+	int i,j,k;
+	int num=0;
+	int ones=0;
+	char *ps=(char *)src; 	/* start of possible number string */
+	char *pe=ps;  	        /* end of number string */
+	char *pps=NULL, *ppe=NULL; /* to locate Thousand/Hundred/Ten digit place */
+	char *pn=NULL;  /* to locate digit number */
+	char *pu=NULL;  /* to locate single number in units postion  */
+	char buff[128];	/* to buffer number string */
+
+	/* time description as per strunit[]，
+	 * if "点" or "时" >=0: its TIME POINT;  otherwise its TIME SPACE(DURATION)
+	 */
+	int	    tmkeys=9;
+	int	    tmdes[9]   ={  -1,   0,      0,       0,       0,     -1,    0,      0,    0 };
+	/* To incorporate with CHNS_TIME_KEYWORDS[]  */
+	const char *strunit[9] ={ "点", "刻钟", "刻", "半个小时","小时", "时", "分钟", "分", "秒" }; 	/* put "分钟" before "分", and "小时" befor "时" */
+
+	/* digit place: Thousand/Hundred/Ten */
+	int	    dplace[3]	={ 1000, 100, 10};
+	const char *strplace[3] ={ "千", "百", "十" };
+
+	/* number chars */
+//	const char *strnum[20]={ "0","1","2","3","4","5","6","7","8","9",
+//			      "零","一","二","三","四","五","六","七","八","九" };
+
+	/*  Note: '零' in the string will be ignored:
+	 *  Example: 一千零六十， 三百零八,  parsed to be  一千六十， 三百八,
+	 */
+	const char *strnum[9]={ "一","二","三","四","五","六","七","八","九" };
+
+	if(src==NULL)
+		return -1;
+
+	/* check time-related words */
+	for(i=0; i<tmkeys; i++) {
+		printf("check %s\n", strunit[i]);
+		if( strstr(src, strunit[i]) != NULL )
+			break;
+		if( i == (tmkeys-1) ) {
+			printf("%s: No time_related Chinese key words found in the string!\n",__func__);
+			return -2;
+		}
+	}
+
+	/* Tranverse time units descriptor  strunit[i] */
+	for(i=0; i<tmkeys; i++) {
+		if( ( pe=strstr(ps, strunit[i])) != NULL )  {  /* --- To locate time unit --- */
+			memset(buff,0, sizeof(buff));
+			if( pe-ps+1 > 128-1 ) {
+				printf("%s: Buff size NOT enough!\n",__func__);
+				return -2;
+			}
+			strncpy(buff,ps, pe-ps ); /* copy digit string ( OR string before strunit[]) into buff */
+			printf("\nbuff for %s: %s\n",strunit[i], buff);
+
+
+			num = atoi(buff);
+			printf("--- %s:  atoi()=%d\n", strunit[i], num);
+
+			/* CASE chinese char number: to locate digit place before time unit */
+			if(num==0) {
+				pu=buff;
+				/* To locate digit place before time unit */
+				pps=ppe=buff;
+				for(j=0; j<3; j++) {
+					//if( (pp=strstr(buff+pos, strplace[j])) != NULL ) {  /* --- To locate digit place ...千百十， 从大单位到小单位 --- */
+					if( (ppe=strstr(pps, strplace[j])) != NULL ) {  /* --- To locate digit place ...千百十， 从大单位到小单位 --- */
+						printf("	%s位: ",strplace[j]);
+
+						/* to locate digit number, before digit place */
+						ones=1; /* Presume digit number 1 for all digit place.
+							 * Example: 十五, 百二十，presumed as 一十五， 一百二十
+							 * Renew it later if digit number exists. */
+
+						pn=NULL;
+						for(k=0; k<9; k++) {  /* k=20 */
+							//if( (pn=strstr(buff+pos, strnum[k]))!=NULL && pp-pn > 0 ) {
+							if( (pn=strstr(pps, strnum[k]))!=NULL && ppe-pn > 0 ) {
+								printf("		%s\n",strnum[k]);
+								ones=k+1; /* --- renew digit number ----*/
+								break; /* Only one digit number for each digit place unit */
+							}
+						}
+
+						/* ones==1, inexplict: 三百十五 not as 三百一十五  */
+						if(pn==NULL || ppe-pn<0 ) printf("		一\n");
+
+						/* add up tmdes[i] */
+						if(tmdes[i]<0) tmdes[i]=0; /* init value may be -1 */
+						tmdes[i] += ones*dplace[j];
+
+						/* move pu, as for unit position */
+						pu = ppe+cstr_strlen_uft8((const unsigned char *)strplace[j]);
+
+						/* adjust ppe */
+						pps=pu;
+
+					}
+					else {  /* Digit place strplace[j] not found */
+						printf("	%s位:		零\n",strplace[j]);
+					}
+				}
+				/* To locate Single digit in units position */
+				printf("	个位:		%s\n",pu);
+				for(k=0; k<9; k++) {
+					if( strstr(pu, strnum[k])!=NULL ) {
+						if(tmdes[i]<0) tmdes[i]=0; /* init value may be -1 */
+						tmdes[i] += k+1;	/* i as for strunit[i] */
+						break;
+					}
+				}
+			}
+
+			/* CASE arabic numbers: to extract arabic number */
+			else {
+				tmdes[i] = num;
+			}
+
+			/* move on ps */
+			ps = pe+cstr_strlen_uft8((const unsigned char *)strunit[i]);
+		}
+	}
+
+	/* For time point: tmdes[0] "点"  tmdes[2] "时" */
+	if(tmdes[0] >=0 )
+		printf("Time point: %02d:%02d:%02d \n", tmdes[0], tmdes[3]*30+(tmdes[1]+tmdes[2])*15+tmdes[6]+tmdes[7], tmdes[8]);
+
+	else if(tmdes[5] >=0 )
+		printf("Time point: %02d:%02d:%02d \n", tmdes[5],  tmdes[3]*30+(tmdes[1]+tmdes[2])*15+tmdes[6]+tmdes[7], tmdes[8]);
+	/* For time span or duration */
+	else
+		printf("Time duration: %dH_%dMin_%dSec\n", tmdes[4],  tmdes[3]*30+(tmdes[1]+tmdes[2])*15+tmdes[6]+tmdes[7], tmdes[8]);
+
+
+	return tmdes[4]*3600 + ((tmdes[1]+tmdes[2])*15+tmdes[3]*30+tmdes[6]+tmdes[7])*60 + tmdes[8];
+}
+
