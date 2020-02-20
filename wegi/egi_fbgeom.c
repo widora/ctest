@@ -910,7 +910,7 @@ Angle direction: 	--- Right_hand Rule ---
 Z as thumb, X->Y as positive rotation direction.
 
 @x0,y0:		circle center
-@r:		radius
+@r:		radius, in mid of width.
 @Sang:		start angle, in radian.
 @Eang:		end angle, in radian.
 @w:		width of arc ( to be ajusted in form of 2*m+1 )

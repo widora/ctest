@@ -5,19 +5,20 @@ published by the Free Software Foundation.
 
 An example of displaying input TXT on screen, and a simple way of
 extracting key words in TXT to control 3 lights .
+!!! For 'One Server One Client' scenario only !!!
 
 Note:
-1. Run server process in back ground:
-	./test_writetxt
+1. Run server process in back ground, if '/dev/shm/writetxt_ctrl' exists,
+   remove it first!
+        ./test_writetxt >/dev/null 2>&1 &
 2. Run a client process to send TXT to server for displaying:
-	./test_writetxt -t 3 "Hello world!世界你好！"
+        ./test_writetxt -t 3 "Hello world!世界你好！"
 3. To quit the server process:
-	./test_writext -q
+        ./test_writext -q
 4. It uses shared memory as IPC to communicate between the server and
    the client process.
 5. To incoorperate:
    autorec  /tmp/asr_snd.pcm  ( autorec ---> asr_pcm.sh ---> writetxt )
-   
 
 Midas Zhou
 ------------------------------------------------------------------*/
@@ -236,7 +237,7 @@ while(1) {
                                      	WEGI_COLOR_RED, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 
-	/* restore current screen */
+	/* hold on */
 	ts=shm_msg.msg_data->signum;
 	sleep(ts);
 	/* reset data */

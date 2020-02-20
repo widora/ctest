@@ -269,8 +269,12 @@ SAVE_PCM:
 		   fwrite(pcmbuff, sample_count*2,1, fpcm); /* 2bytes for each frame, 1 channel per frame  */
 		   fclose(fpcm);
 		   /*  ASR  */
+#if 0
 		   printf("ASR...\n");
 		   system("/tmp/asr_pcm.sh");
+#else
+		   system("/tmp/asr_timer.sh");
+#endif
 		}
 
 

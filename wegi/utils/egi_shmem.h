@@ -42,6 +42,6 @@ typedef struct {
 
 int egi_shmem_open(EGI_SHMEM *shmem);
 int egi_shmem_close(EGI_SHMEM *shmem);
-
+int egi_shmem_remove(const char *name);
 
 #endif

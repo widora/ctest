@@ -101,3 +101,24 @@ int egi_shmem_close(EGI_SHMEM *shmem)
 }
 
 
+/*----------------------------------------------------------------------------
+Removes a shared memory object name. once all processes have unmapped  the
+object, de-allocates and destroys the contents of the associated memory region.
+
+@name:	Name of the shared mem.
+
+Return:
+	0	OK
+	<0	Fails
+-----------------------------------------------------------------------------*/
+int egi_shmem_remove(const char *name)
+{
+	int err;
+
+	err=shm_unlink(name);
+
+	if(err!=0)
+		printf("%s: %s\n",__func__, strerror(errno));
+
+	return err;
+}

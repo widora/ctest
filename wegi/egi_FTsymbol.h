@@ -47,8 +47,9 @@ struct FTsymbol_library {
 };
 
 extern EGI_SYMPAGE sympg_ascii;  /* default font  LiberationMono-Regular */
+
 extern EGI_FONTS   egi_sysfonts; /* system font set */
-extern EGI_FONTS   egi_appfonts; /* system font set */
+extern EGI_FONTS   egi_appfonts; /* APP font set */
 
 int 	FTsymbol_load_library( EGI_FONTS *symlib );
 FT_Face FTsymbol_create_newFace( EGI_FONTS *symlib, const char *ftpath);
