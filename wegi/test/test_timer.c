@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------
+/*--------------------------------------------------------------------
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
 published by the Free Software Foundation.
@@ -12,8 +12,12 @@ Note:
 2. Send TXT as command:
 	test_timer "一小时3刻钟后提醒"
 
+3. To incoorperate:
+   screen -dmS TXTSVR ./txt_timer -s
+   autorec_timer  /tmp/asr_snd.pcm  ( autorec_timer ---> asr_timer.sh ---> txt_timer(test_timer)  )
+
 Midas Zhou
-------------------------------------------------------------------*/
+--------------------------------------------------------------------*/
 #include <stdio.h>
 #include <getopt.h>
 #include "egi_common.h"
@@ -21,6 +25,7 @@ Midas Zhou
 #include "egi_FTsymbol.h"
 #include "egi_gif.h"
 #include "egi_shmem.h"
+#include "egi_pcm.h"
 
 #define SHMEM_SIZE 	(1024*4)
 #define TXTDATA_OFFSET	1024
@@ -32,6 +37,7 @@ struct timer_data {
 	time_t  ts;  		/*  typedef long time_t  */
 	bool	active;
 	bool	sigstop;
+	EGI_PCMBUF *pcmalarm;
 };
 
 struct timer_data timer1={0,0};
@@ -187,6 +193,11 @@ int main(int argc, char **argv)
 #endif
         /* <<<<------------------  End EGI Init  ----------------->>>> */
 
+	/* Load sound pcmbuf for Timer */
+	timer1.pcmalarm=egi_pcmbuf_readfile("/mmc/timer2.wav");
+        if(timer1.pcmalarm==NULL || (timer1.pcmalarm)->pcmbuf==NULL ) {
+                printf("%s: Fail to load sound file for pcmbuf_alarm.\n", __func__);
+        }
 
 	/* Setup FB */
 	fb_set_directFB(&gv_fb_dev, false);
@@ -197,25 +208,23 @@ int main(int argc, char **argv)
 
 	/* Timer Circle */
 	fbset_color(WEGI_COLOR_LTGREEN);
-	// draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w)
-	//draw_arc(&gv_fb_dev, 100, 120, 90, 3.14159/2, -3.14159/2*3, 10);
+	/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
 	draw_arc(&gv_fb_dev, 100, 120, 90, -3.14159/2, 3.14159/2*3, 10);
-
-	//fb_page_refresh(&gv_fb_dev,0);
 
 	/* init FB back ground buffer page with working buffer */
         memcpy(gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.map_bk, gv_fb_dev.screensize);
 
 	/* write 00:00:00 */
-        FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          /* FBdev, fontface */
-                                        30, 30,"00:00:00",    			/* fw,fh, pstr */
+        FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          	/* FBdev, fontface */
+                                        30, 30, (const unsigned char *)"00:00:00",    	/* fw,fh, pstr */
                                         320-10, 5, 4,                           /* pixpl, lines, gap */
                                         38, 100,                                /* x0,y0, */
                                         WEGI_COLOR_GRAY, -1, -1,      /* fontcolor, transcolor,opaque */
                                         NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
+	/* display */
         fb_page_refresh(&gv_fb_dev,0);
 
-        /* init FB 3rd buffer page */
+        /* init FB 3rd buffer page, with mark 00:00:00  */
         fb_page_saveToBuff(&gv_fb_dev, 2);
 
 
@@ -255,30 +264,41 @@ while(1) {
 	}
 
 	/* Simple NLU: parse input txt data and extract key words */
-	/*  Light size 80x80 */
-	if( timer1.active==false && ( strstr(pdata,"定时") || strstr(pdata,"提醒") ) )
-	{
 
+	/* CASE 1:  Set the timer --- */
+	if(  timer1.active==false
+	     	&& ( strstr(pdata,"定时") || strstr(pdata,"提醒") || strstr(pdata,"以后") )
+          )
+	{
 		/* Extract time related string */
 		memset(strtm,0,sizeof(strtm));
    		if( cstr_extract_ChnUft8TimeStr(pdata, strtm, sizeof(strtm))==0 )
         		printf("Extract time string: %s\n",strtm);
 
-		/* Get time span in seconds */
-		timer1=(struct timer_data){0};
+		/* Reset Timer and get time span in seconds */
+		timer1.sigstop=false;
+		timer1.active=false;
    		timer1.ts=(time_t)cstr_getSecFrom_ChnUft8TimeStr(strtm);
 		if(timer1.ts==0) {
 			pdata[0]='\0';
 			continue;
 		}
-   		printf("Total %ld seconds.\n",(long)timer1.ts);
+   		printf("Totally %ld seconds.\n",(long)timer1.ts);
+
+		/* Check for actions */
+		
+
 
 		/* Start timer thread */
-		printf(" Start Timer thread\n");
+		printf("Start Timer thread ...\n");
 		if( pthread_create(&timer_thread,NULL,timer_process, (void *)&timer1) != 0 )
 			printf("Fail to start timer process!\n");
 	}
-	if( timer1.active==true && strstr(pdata,"取消") && ( strstr(pdata,"定时") || strstr(pdata,"提醒") ) )
+	/* CASE 2:  --- Stop the timer --- */
+	else if( timer1.active==true
+		 	&& ( strstr(pdata,"取消") || strstr(pdata,"停止") )
+		 	&& ( strstr(pdata,"时") || strstr(pdata,"提醒") )
+	        )
 	{
 		timer1.sigstop=true;
 		if( pthread_join(timer_thread, NULL) != 0) {
@@ -288,8 +308,13 @@ while(1) {
 		}
 
 	}
+	/* CASE 3:  --- Timer is working! --- */
+	else if ( timer1.active==true )
+		printf("Timer is busy!\n");
+
 
 #if 0  /////////////////////////////////////////////////////////////////////////////////////////////////////
+	/*  Light size 80x80 */
 	if(strstr(pdata,"关")) {
 	    if(strstr(pdata,"灯")) {
 		if( strstr(pdata,"红") ) {
@@ -320,6 +345,10 @@ while(1) {
 
 }
 
+	/* free Timer data */
+	if(timer1.pcmalarm)
+		egi_pcmbuf_free(&timer1.pcmalarm);
+
 	/* close shmem */
         egi_shmem_close(&shm_msg);
 
@@ -348,26 +377,32 @@ Timer process function
 ----------------------------------*/
 void *timer_process(void *arg)
 {
-	long ts, tset;
+	long tset,ts; 		/* set seconds, left seconds */
+	long tm_end;  		/* end time in time_t */
 	int hour,min,second;
 	char strtm[128];
 	float fang;
 
 	struct timer_data *tmdata=(struct timer_data *)arg;
 
-	/* get timer_secs */
-	tset=ts=tmdata->ts;
+	/* check data */
+	if( tmdata->ts <=0 )
+		return (void *)-1;
+
 	tmdata->active=true;
 
 	/* Load page without 00:00:00  */
 	fb_page_restoreFromBuff(&gv_fb_dev, 1);
 
-   while( ts > 0 ) {
+	/* get timer set seconds */
+	tset=ts=tmdata->ts;
+	tm_end=time(NULL)+tset;
+
+
+   while( ts>=0 ) {
 	/* signal to stop */
-	if(tmdata->sigstop) {
-		fb_page_restoreFromBuff(&gv_fb_dev, 2);
+	if(tmdata->sigstop)
 		break;
-	}
 
 	/* convert to 00:00:00  */
 	memset(strtm,0,sizeof(strtm));
@@ -376,11 +411,10 @@ void *timer_process(void *arg)
 	second=ts-hour*3600-min*60;
 	sprintf(strtm,"%02d:%02d:%02d", hour,min,second );
 
-	/* Timing Display */
-
         /*  init FB working buffer page with back ground buffer */
         memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
+	/* Timing Display */
 	FTsymbol_uft8strings_writeFB( 	&gv_fb_dev, egi_sysfonts.bold,  	/* FBdev, fontface */
 				      	30, 30,(const unsigned char *)strtm, 	/* fw,fh, pstr */
 				      	320-10, 5, 4,                    	/* pixpl, lines, gap */
@@ -396,12 +430,18 @@ void *timer_process(void *arg)
 	/* refresh FB */
 	fb_page_refresh(&gv_fb_dev,0);
 
-	/* sleep and decrement */
-	egi_sleep(0,1,0);
-	ts--;
+	/* sleep and decrement, skip ts==0  */
+	while( tm_end-ts >= time(NULL) && ts>0 ) {
+		egi_sleep(0,0,200);
+	}
 
-	/* restore screen */
-	//fb_page_restoreFromBuff(&gv_fb_dev, 1);
+	/* Play alarm sound, until sigstop */
+	if(ts==0) {
+		/* Loop playback, until sigstop */
+		egi_pcmbuf_playback("default", (const EGI_PCMBUF *)tmdata->pcmalarm, 1024, 0, &tmdata->sigstop);
+	}
+
+	ts--;
   }
 
 	/* restore screen */
@@ -412,5 +452,6 @@ void *timer_process(void *arg)
 	tmdata->active=false;
 	tmdata->sigstop=false;
 
+	printf("End timer process!\n");
 	return (void *)0;
 }

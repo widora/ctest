@@ -930,6 +930,10 @@ Note:
  1. Time string MUST be continous. ????  --- See Note in the codes.
     Example: "862小时58分钟，72秒"
 
+ 2. substitue "定时" with "定定", to get rid of ambiguous '时':
+     Error without substitution:
+     scr: 1分20秒定时  	---->  extract: 1分20秒时  ---> getSecFrom: Time point: 00:00:00
+     scr: 定时3小时  	---->  extract: 时3小时    ---> getSecFrom: Time duration: 0H_0Min_0Sec
 
 @src:	Pointer to Source string.
 @buff:	Pointer to extacted time string.
@@ -943,17 +947,43 @@ Return:
 -------------------------------------------------------------------------*/
 int cstr_extract_ChnUft8TimeStr(const char *src, char *buff, int bufflen)
 {
-	const char* sp=src;
+	const char* sp=NULL;
 	char *dp=buff;
-	int size;
-	char uchar[8];
+	char *pt=NULL;
+	char *srcbuff=NULL;
+	long  size;
+	char  uchar[8];
+	int   ret=0;
 
-	if( sp==NULL || dp==NULL )
+	if( src==NULL || buff==NULL )
 		return -1;
+
+	/* copy src to srcbuff */
+	size=cstr_strlen_uft8((const unsigned char *)src) +1;
+	srcbuff=calloc(1, size);
+	if(srcbuff==NULL) {
+		printf("%s: Fail to calloc srcbuff with size=%ld bytes!\n",__func__,size);
+		return -1;
+	}
+	strncpy(srcbuff,src,size);
+
+	/* To rule out some ambiguous keywords */
+	/* 1. substitue "定时" with "定定", to get rid of '时' */
+	if( (pt=strstr(srcbuff,"定时")) ) {
+		strncpy(pt,"定定",cstr_strlen_uft8((const unsigned char *)"定定") );
+	}
+	/* 2. TODO: to rule out more ambiguous keywords... */
+	printf("%s: srcbuff='%s'\n",__func__,srcbuff);
+
+	/* assign source pointer, sp */
+	sp=srcbuff;
 
 	/* If no time units  */
 	if( strstr(sp,"秒")==NULL && strstr(sp,"分")==NULL && strstr(sp,"刻")==NULL && strstr(sp,"时")==NULL )
-		return -2;
+	{
+		ret=-2;
+		goto END_FUNC;
+	}
 
 	/* search time related keywords */
 	while( *sp != '\0' ) {
@@ -971,10 +1001,10 @@ int cstr_extract_ChnUft8TimeStr(const char *src, char *buff, int bufflen)
 			strncpy(dp,sp,size);
 			dp+=size;
 		}
-#if 0 /* 1 Time string MUST be continous. */
+#if 0 /* 1  Enable it if time_related string MUST be continous. */
 		else {
-			/* check end of the first time related string */
-			if(dp!=buff)
+			/* If not the first time_related string, break then */
+			if(dp!=srcbuff)
 				break;
 		}
 #endif
@@ -982,16 +1012,19 @@ int cstr_extract_ChnUft8TimeStr(const char *src, char *buff, int bufflen)
 	}
 
 	/* No result */
-	if(dp==buff)
-		return -3;
+	if(dp==srcbuff)
+		ret=-3;
 
-	return 0;
+END_FUNC:
+	free(srcbuff);
+	return ret;
 }
 
 
 /* ----------------------------------------------------------------------------
 Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
 (strunit[]) contained in the string, then it will return 0;
+输入字符串中必须包含时间单位，不然返回0.
 
 0. If arabic number found, then call atoi() to convert it to numbers.
 
@@ -1006,21 +1039,22 @@ Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
    Example: "一千六百三十七万五千八百六十三"
 
 5. 中文描述格式必须为: x千x百x十x   其中x为中文数字"零一二三四五六七八九"中之一。
-   如果x为连续多个中文数字，那么仅第一个被搜索到的数有效。
+
+   5.1 如果x为连续多个中文数字，那么仅第一个被搜索到的数有效。
    如： 三六八八九  被解释为 3
 	九八三七四  被解释为 3 （3第一个被搜索到！）
 
-   重复累计：
+   5.2 重复累计：
 	35分钟10分钟   		被解释为45分钟
 
-   单位必须大到小排列，单位由大到小逐一解释：
+   5.3 单位必须大到小排列，单位由大到小逐一解释：
 	五秒八分钟6小时		被解释为5小时
 
-6. 阿拉伯数字与中文数字混合的情况：
-   三十九分78秒  	--->  39分78秒  OK!
-   九千零3十七小时	--->  9017小时  WRONG!!!
+   5.4 时间单位前数字要么全部用阿拉伯数字，要么全部用中文数字，混合情况会出错：
+   	三十九分78秒  	--->  39分78秒  OK!
+   	九千零3十七小时	--->  9017小时  WRONG!!!
+	1刻6十八秒      --->  15分6秒	WRONG!!!
 
-7. 必须包含时间单位，不然返回0.
 
 
 @src:	Pointer to Source string containing time_related words.

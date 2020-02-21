@@ -909,28 +909,39 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
 
 
 
-/*----------------------------------------------
+/*--------------------------------------------------------------------
 Playback a EGI_PCMIMG
 
 @dev_name:	PCM device
 @pcmbuf:	An EGI_PCMBUF holding pcm data.
 @nf:		frames for each write to HW.
 		take a small proper value
+@nloop:         loop times:
+                 <=0 : loop forever
+                 >0 :  nloop times
+@sigstop:        Quit if Ture
+                 If NULL, ignore.
+
 Return:
 	0	OK
 	<0	Fails
------------------------------------------------*/
-int  egi_pcmbuf_playback(const char* dev_name, const EGI_PCMBUF *pcmbuf, unsigned int nf)
+----------------------------------------------------------------------*/
+int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
+			  unsigned int nf , int nloop, bool *sigstop)
 {
 	int ret;
 	int frames;
+	unsigned int wf;
 	unsigned char *pbuf=NULL;
-	int pos;
+	int count; /* for loop count */
+	//int pos;
 	snd_pcm_t *pcm_handle=NULL;
 
 	/* check input data */
-	if(pcmbuf==NULL || pcmbuf->pcmbuf==NULL)
+	if(pcmbuf==NULL || pcmbuf->pcmbuf==NULL) {
+		printf("%s: Input pcmbuf is empty!\n",__func__);
 		return -1;
+	}
 
 	/* open pcm device */
 	printf("%s: open playback device...\n",__func__);
@@ -945,49 +956,66 @@ int  egi_pcmbuf_playback(const char* dev_name, const EGI_PCMBUF *pcmbuf, unsigne
 
 	/* Write data to PCM for PLAYBACK */
 	printf("%s: start pcm write...\n",__func__);
-	frames=pcmbuf->size/pcmbuf->depth/pcmbuf->nchanl; /* Total frames */
-	pos=0;
-	pbuf=pcmbuf->pcmbuf;
 
-	while( frames !=0 )
-	{
-        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
-			printf("%s:snd_pcm_writei()...\n",__func__);
-                	ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)nf );
-		}
-	        else {  /* TODO: TEST,   write noninterleaved frame data */
-			printf("%s:snd_pcm_writen()...\n",__func__);
-                	//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
-        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)nf );
-		}
-		printf("%s: pcm written ret=%d\n", __func__, ret);
+   	count=0; /* for nloop count */
+   	do {
+		wf=nf;	/* reset frames for each iwrite */
+		frames=pcmbuf->size/pcmbuf->depth/pcmbuf->nchanl; /* Total frames */
+		//pos=0;
+		pbuf=pcmbuf->pcmbuf;
 
-	        if (ret == -EPIPE) {
-        	    /* EPIPE means underrun */
-	            fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
-        	    //EGI_PDEBUG(DBG_PCM,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n" );
-	            snd_pcm_prepare(pcm_handle);
-		    continue;
-        	}
-	        else if(ret<0) {
-        	    fprintf(stderr,"snd_pcm_writei():%s\n",snd_strerror(ret));
-		    snd_pcm_close(pcm_handle);
-		    return -3;
-		    //continue;
-	        }
-        	else if (ret!=nf) {
-                	 fprintf(stderr,"snd_pcm_writei(): short write, write %d of total %d frames\n",
-                        	                                                        ret, nf );
-		}
+		while( frames !=0 )
+		{
+			/* check sigstop */
+			if( sigstop!=NULL && *sigstop==true)
+				break;
 
-		/* move pos forward */
-		frames -= ret;
-		if(frames<nf)nf=frames; /* for the last write session */
+	        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
+				printf("%s:snd_pcm_writei()...\n",__func__);
+                		ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)wf );
+			}
+		        else {  /* TODO: TEST,   write noninterleaved frame data */
+				printf("%s:snd_pcm_writen()...\n",__func__);
+                		//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
+	        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)wf );
+			}
+			printf("%s: pcm written ret=%d\n", __func__, ret);
 
-		pos += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
-		pbuf=pcmbuf->pcmbuf+pos;
-	   }
+		        if (ret == -EPIPE) {
+        		    /* EPIPE means underrun */
+	        	    fprintf(stderr,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n");
+	        	    //EGI_PDEBUG(DBG_PCM,"snd_pcm_writen() or snd_pcm_writei(): underrun occurred\n" );
+		            snd_pcm_prepare(pcm_handle);
+		    	    continue;
+        		}
+	        	else if(ret<0) {
+        	    		fprintf(stderr,"snd_pcm_writei():%s\n",snd_strerror(ret));
+		    		snd_pcm_close(pcm_handle);
+		    		return -3;
+		    		//continue;
+	        	}
+        		else if (ret!=wf) {
+                	 	fprintf(stderr,"snd_pcm_writei(): short write, write %d of total %d frames\n",
+                        	                                                        ret, wf );
+			}
 
+			/* move pbuf forward */
+			frames -= ret;
+			if(frames<nf)wf=frames; /* for the last write session */
+
+			//pos += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
+			//pbuf=pcmbuf->pcmbuf+pos;
+			pbuf += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
+	   	}
+
+	  	/* check sigstop */
+	  	if( sigstop!=NULL && *sigstop==true)
+			break;
+
+	  	/* loop count */
+	  	count++;
+
+  	} while ( nloop<=0 || count<nloop );
 
 	/* close pcm handle */
 	snd_pcm_close(pcm_handle);
