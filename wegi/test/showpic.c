@@ -6,17 +6,21 @@ published by the Free Software Foundation.
 To display a png/jpg file on the LCD.
 
 Usage:
-	./showpic  fpath
+	showpic  file
+
 Exampe:
 	./showpic /tmp/bird.png
 	./showpic /tmp/*
 
 Control key:
-	'w' or UP_ARROW	 	to pan up
-	's' or DOWN_ARROW	to pan down
-	'a' or LEFT_ARROW	to pan left
-	'd' or RIGHT_ARROW	to pan right
-	SPACE			to display next picture OR quit.
+	'w' or UP_ARROW	 	pan up
+	's' or DOWN_ARROW	pan down
+	'a' or LEFT_ARROW	pan left
+	'd' or RIGHT_ARROW	pan right
+	'z'			zoom up
+	'n'			zoom down
+	SPACE			to display next picture.
+	'q'			quit
 
 	'i' --- General image recognization
 	'O' --- OCR detect
@@ -143,6 +147,10 @@ for( i=optind; i<argc; i++) {
   do {
 	switch(cmdchar)
 	{
+		/* ---------------- Parse 'q' ------------------- */
+		case 'q':
+			goto END_DISPLAY;
+
 		/* ---------------- Parse 'z' and 'n' ------------------- */
 		case 'z':	/* zoom up */
 			xp = (xp+xres/2)*5/4 - xres/2;	/* keep focus on center of LCD */
@@ -151,7 +159,7 @@ for( i=optind; i<argc; i++) {
 			Sw = Sw*5/4;
 			tmpimg=egi_imgbuf_resize(eimg, Sw, Sh);
 			break;
-		case 'n':
+		case 'n':	/* zoom down */
 			xp = (xp+xres/2)*3/4 - xres/2;	/* keep focus on center of LCD */
 			yp = (yp+yres/2)*3/4 - yres/2;
 			Sh = Sh*3/4;
@@ -253,7 +261,7 @@ for( i=optind; i<argc; i++) {
         /* 4.1 Refresh FB by memcpying back buffer to FB */
         fb_page_refresh(&gv_fb_dev,0);
 
-  } while( (cmdchar=imd_getchar()) != ' ' ); /* input SPACE to quit */
+  } while( (cmdchar=imd_getchar()) != ' ' ); /* input SPACE to end displaying current image */
 
          fbclear_bkBuff(&gv_fb_dev, WEGI_COLOR_BLACK);
 
@@ -266,6 +274,7 @@ for( i=optind; i<argc; i++) {
 } /* End displaying all image files */
 
 
+END_DISPLAY:
         /* <<<<<  EGI general release >>>>> */
 	printf("release_fbdev()...\n");
         fb_filo_flush(&gv_fb_dev);

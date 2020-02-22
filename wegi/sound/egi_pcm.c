@@ -827,7 +827,7 @@ EGI_PCMBUF* egi_pcmbuf_readfile(char *path)
         }
 
 #if 1 /* ------------  verbos  ----------- */
-        printf("--- Sound File Info. --- \n");
+        printf("Open sound File '%s':\n", path);
         printf("Frames:         %"PRIu64"\n", sinfo.frames);
         printf("Sample Rate:    %d\n", sinfo.samplerate);
         printf("Channels:       %d\n", sinfo.channels);
@@ -917,17 +917,20 @@ Playback a EGI_PCMIMG
 @nf:		frames for each write to HW.
 		take a small proper value
 @nloop:         loop times:
-                 <=0 : loop forever
-                 >0 :  nloop times
-@sigstop:        Quit if Ture
-                 If NULL, ignore.
-
+                	<=0 : loop forever
+                	>0 :  nloop times
+@sigstop:       Quit if Ture
+                If NULL, ignore.
+@sigsynch:	If true, synchronize to play from the beginning of the pcmbuf.
+		and reset *sigsynch to false then.
+		If nf is a big value, then it maybe nonsense!
+		If NULL, ignore.
 Return:
 	0	OK
 	<0	Fails
 ----------------------------------------------------------------------*/
 int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
-			  unsigned int nf , int nloop, bool *sigstop)
+			  unsigned int nf , int nloop, bool *sigstop, bool *sigsynch)
 {
 	int ret;
 	int frames;
@@ -955,7 +958,7 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 	}
 
 	/* Write data to PCM for PLAYBACK */
-	printf("%s: start pcm write...\n",__func__);
+//	printf("%s: start pcm write...\n",__func__);
 
    	count=0; /* for nloop count */
    	do {
@@ -970,6 +973,12 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 			if( sigstop!=NULL && *sigstop==true)
 				break;
 
+			/* check sigsynch */
+			if( sigsynch!=NULL && *sigsynch==true) {
+				*sigsynch=false;
+				break;
+			}
+
 	        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
 				printf("%s:snd_pcm_writei()...\n",__func__);
                 		ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)wf );
@@ -979,7 +988,7 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
                 		//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
 	        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)wf );
 			}
-			printf("%s: pcm written ret=%d\n", __func__, ret);
+//			printf("%s: pcm written ret=%d\n", __func__, ret);
 
 		        if (ret == -EPIPE) {
         		    /* EPIPE means underrun */
