@@ -1032,8 +1032,8 @@ Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
 
 2. Suppose that "小时" "分钟" "秒" will appear no more than once in the string.
 
-3. If "点" or "时" is found in the string then it will be deemed as time point,
-   otherwise it's time span (time duration).
+3. If "点" or "时" is found in the string then it will be deemed as a time point,
+   otherwise it's a time span (time duration).
 
 4. Digit palces greater than "千" are ignored to avoid recursive numbering.
    Example: "一千六百三十七万五千八百六十三"
@@ -1053,7 +1053,7 @@ Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
    5.4 时间单位前数字要么全部用阿拉伯数字，要么全部用中文数字，混合情况会出错：
    	三十九分78秒  	--->  39分78秒  OK!
    	九千零3十七小时	--->  9017小时  WRONG!!!
-	1刻6十八秒      --->  15分6秒	WRONG!!!
+	1刻3十八秒      --->  15分3秒	WRONG!!!
 
 
 
@@ -1100,7 +1100,6 @@ int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
 	/* number chars */
 //	const char *strnum[20]={ "0","1","2","3","4","5","6","7","8","9",
 //			      "零","一","二","三","四","五","六","七","八","九" };
-
 	/*  Note: '零' in the string will be ignored:
 	 *  Example: 一千零六十， 三百零八,  parsed to be  一千六十， 三百八,
 	 */

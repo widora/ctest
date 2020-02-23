@@ -16,6 +16,9 @@ Note:
    screen -dmS TXTSVR ./txt_timer -s
    autorec_timer  /tmp/asr_snd.pcm  ( autorec_timer ---> asr_timer.sh ---> txt_timer(test_timer)  )
 
+4. Two sound playing threads
+
+
 Midas Zhou
 --------------------------------------------------------------------*/
 #include <stdio.h>
@@ -27,9 +30,9 @@ Midas Zhou
 #include "egi_shmem.h"
 #include "egi_pcm.h"
 
-#define SHMEM_SIZE 	(1024*4)
-#define TXTDATA_OFFSET	1024
-#define TXTDATA_SIZE 	1024
+#define SHMEM_SIZE 		(1024*4)
+#define TXTDATA_OFFSET		1024
+#define TXTDATA_SIZE 		1024
 #define DEFAULT_ALARM_SOUND	"/mmc/alarm.wav"
 #define DEFAULT_TICK_SOUND	"/mmc/tick.wav"
 #define TIMER_BKGIMAGE		"/mmc/linux.jpg"
@@ -57,6 +60,7 @@ etimer_t timer1={0,0};
 static void *timer_process(void *arg);
 static void * thread_ticking(void *arg);
 
+static EGI_16BIT_COLOR light_colors[]={ WEGI_COLOR_BLUE, WEGI_COLOR_RED, WEGI_COLOR_GREEN };
 
 
 /*=====================================
@@ -66,6 +70,8 @@ int main(int argc, char **argv)
 {
 	int dts=1; /* Default displaying for 1 second */
 	int opt;
+	int i;
+	double sang;
 	bool Is_Server=false;
 	bool sigstop=false;
 	char *ptxt=NULL;
@@ -235,7 +241,6 @@ int main(int argc, char **argv)
 	fb_position_rotate(&gv_fb_dev,3);
 
 	/* init FB working buffer with image */
-        //fb_page_saveToBuff(&gv_fb_dev, 0);
         EGI_IMGBUF *eimg=egi_imgbuf_readfile(TIMER_BKGIMAGE);
         if(eimg==NULL)
                 printf("Fail to read and load file '%s'!", TIMER_BKGIMAGE);
@@ -243,10 +248,25 @@ int main(int argc, char **argv)
                                0, 0, 0, 0,
                                gv_fb_dev.pos_xres, gv_fb_dev.pos_yres );
 
-	/* Timer Circle */
-	fbset_color(WEGI_COLOR_LTGREEN);
+	/* draw lights */
+	for(i=0; i<3; i++)
+		draw_filled_rect2(&gv_fb_dev, light_colors[i], 185+i*(30+15), 200, 185+30+i*(30+15), 200+30);
+
+	/* Draw timing circle */
+	fbset_color(WEGI_COLOR_GRAY3);//LTGREEN);
 	/* FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w */
-	draw_arc(&gv_fb_dev, 100, 120, 90, -3.14159/2, 3.14159/2*3, 10);
+	draw_arc(&gv_fb_dev, 100, 120, 90, -MATH_PI/2, MATH_PI/2*3, 10);
+	fbset_color(WEGI_COLOR_GRAY);
+	draw_arc(&gv_fb_dev, 100, 120, 80, -MATH_PI/2, MATH_PI/2*3, 10);
+
+
+	/* Draw second_mark circle */
+	fbset_color(WEGI_COLOR_WHITE);
+	for(i=0; i<60; i++) {
+		sang=(90.0-1.0*i/60.0*360)/180*MATH_PI;
+		/* FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w */
+		draw_wline_nc(&gv_fb_dev, 100+75.0*cos(sang), 120-75.0*sin(sang), 100+85.0*cos(sang), 120-85.0*sin(sang), 3);
+	}
 
 	/* init FB back ground buffer page with working buffer */
         memcpy(gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.map_bk, gv_fb_dev.screensize);
@@ -297,7 +317,8 @@ while(1) {
 	/* Check txt data for display  */
 	if( pdata[0]=='\0') {
 		//printf(" --- \n");
-		usleep(200000);
+		//usleep(200000);
+		egi_sleep(0,0,100);
 		continue;
 	} else {
 		printf("shm_msg.msg_data->signum=%d\n", shm_msg.msg_data->signum);
@@ -416,7 +437,7 @@ while(1) {
 
 
 /*---------------------------------
-Timer process function
+	Timer process function
 ----------------------------------*/
 static void *timer_process(void *arg)
 {
@@ -426,13 +447,13 @@ static void *timer_process(void *arg)
 	char strtm[128];
 	float fang;	/* for arc */
 	float sang;	/* for second hand */
-//	bool enable_tick=false;
+	bool once_more=false;  /* init as false */
 	pthread_t tick_thread;
 
 	etimer_t *etimer=(etimer_t *)arg;
 
-	/* Load page without 00:00:00  */
-	fb_page_restoreFromBuff(&gv_fb_dev, 1);
+	/* Load page with 00:00:00  */
+	fb_page_restoreFromBuff(&gv_fb_dev, 2);
 
    while(1) {
 	/* Signal to start timer */
@@ -490,24 +511,37 @@ static void *timer_process(void *arg)
         memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
 	/* Draw second ticking hand */
-	fbset_color(WEGI_COLOR_GRAY);
-	//draw_wline(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w);
+	fbset_color(WEGI_COLOR_ORANGE);
 	/* center(100,120) r=80 */
-	sang=(90.0-(tset-ts)%60/60.0*360)/180*3.14159;
-	draw_wline(&gv_fb_dev, 100, 120, 100+80.0*cos(sang),120-80.0*sin(sang), 5);
+//	draw_filled_circle(&gv_fb_dev, 100, 120, 15);
+	sang=(90.0-(tset-ts)%60/60.0*360)/180*MATH_PI;
+	if(once_more){
+		sang += 360.0/(2*60)/180*MATH_PI; /* for 0.5s */
+	}
+
+	/* FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w */
+//	draw_wline(&gv_fb_dev, 100, 120, 100+80.0*cos(sang),120-80.0*sin(sang), 5);
+	draw_wline_nc(&gv_fb_dev, 100+65*cos(sang), 120-65*sin(sang), 100+85.0*cos(sang),120-85.0*sin(sang), 7);
 
 	/* Timing Display */
+        FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          /* FBdev, fontface */
+                                        20, 20,(const unsigned char *)"剩余时间",    /* fw,fh, pstr */
+                                        320-10, 1, 4,                           /* pixpl, lines, gap */
+                                        60, 75,           //38,100                     /* x0,y0, */
+                                        WEGI_COLOR_WHITE, -1, -1,      /* fontcolor, transcolor,opaque */
+                                        NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
+
 	FTsymbol_uft8strings_writeFB( 	&gv_fb_dev, egi_sysfonts.bold,  	/* FBdev, fontface */
-				      	30, 30,(const unsigned char *)strtm, 	/* fw,fh, pstr */
+				      	28, 28,(const unsigned char *)strtm, 	/* fw,fh, pstr */
 				      	320-10, 5, 4,                    	/* pixpl, lines, gap */
-					38, 100,                           	/* x0,y0, */
-                                     	WEGI_COLOR_YELLOW, -1, -1,      /* fontcolor, transcolor,opaque */
+					40, 100,           //38,100               	/* x0,y0, */
+                                     	WEGI_COLOR_ORANGE, -1, -1,      /* fontcolor, transcolor,opaque */
                                      	NULL, NULL, NULL, NULL);      /* int *cnt, int *lnleft, int* penx, int* peny */
 
 	fbset_color(WEGI_COLOR_ORANGE);
-	//fang=-3.14159/2+(2*3.14159)*(tset-ts)/tset;
-	fang=3.14159*3/2-2*3.14159*ts/tset;
-	draw_arc(&gv_fb_dev, 100, 120, 90, -3.14159/2, fang, 10);
+	//fang=-MATH_PI/2+(2*MATH_PI)*(tset-ts)/tset;
+	fang=MATH_PI*3/2-2*MATH_PI*ts/tset;
+	draw_arc(&gv_fb_dev, 100, 120, 90, -MATH_PI/2, fang, 10);
 
 	/* refresh FB */
 	fb_page_refresh(&gv_fb_dev,0);
@@ -516,19 +550,31 @@ static void *timer_process(void *arg)
 	//if(ts%4==0)
 	//	etimer->ticksynch=true;
 
-	/* sleep and decrement, skip ts==0  */
+	/* Refresh 2 times for 1 second */
+	if(once_more) {
+		egi_sleep(0,0,400);
+		once_more=false;
+		continue;
+	} else {
+		once_more=true;
+	}
+
+	/* Wait for next second, sleep and decrement, skip ts==0  */
 	while( tm_end-ts >= time(NULL) && ts>0 ) {
-		egi_sleep(0,0,200);
+		egi_sleep(0,0,100);
 	}
 
 	/* Play alarm sound, until sigstop */
 	if(ts==0) {
 		/* disable/stop ticking */
 		etimer->notick=true;
+		if(pthread_join(tick_thread,NULL)!=0)
+			printf("%s:Fail to join tick_thread!\n",__func__);
 		/* Loop playback, until sigstop */
 		egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmalarm, 1024, 0, &etimer->sigstop, NULL);
 	}
 
+	/* ts decrement */
 	ts--;
   }
 
@@ -551,11 +597,10 @@ static void * thread_ticking(void *arg)
 {
      etimer_t *etimer=(etimer_t *)arg;
 
-     pthread_detach(pthread_self());
-     printf("%s: Start ticking.\n", __func__);
+//    pthread_detach(pthread_self());  To avoid multimixer error
      egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmtick, 1024, 0, &etimer->notick, NULL); //&etimer->ticksynch);
-     printf("%s: End ticking.\n", __func__);
 
-     pthread_exit((void *)0);
+//     pthread_exit((void *)0);
+	return (void *)0;
 }
 
