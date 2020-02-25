@@ -304,7 +304,7 @@ int draw_dot(FBDEV *fb_dev,int x,int y)
 	unsigned char *map;
 	int fx=0;
 	int fy=0;
-        long int location=0;
+      	long int location=0;
 	unsigned char* pARGB=NULL; /* For LETS_NOTE */
 	int xres;
 	int yres;
@@ -922,7 +922,7 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 {
 	int n,i;
 	double step_angle;
-	double x[2],y[2];
+	double x[2]=,y[2];
 
 	/* start point */
 	x[0]=x0+r*cos(Sang);
@@ -957,7 +957,7 @@ void draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigne
 	int i,n,m;
 	int rad;
 	double step_angle;
-	double x[2],y[2];
+	double x[2]={0},y[2]={0};
 	double dcos,dsin;
 	double Stcos,Stsin,Edcos,Edsin;  /* for start/end angle */
 

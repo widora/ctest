@@ -30,6 +30,7 @@ extern char tm_strbuf[];
 long long unsigned int tm_get_tmstampms(void);
 void tm_get_strtime(char *tmbuf);
 void tm_get_strday(char *tmdaybuf);
+void tm_get_ustrday(char *udaybuf);
 void tm_sigroutine(int signo);
 void tm_settimer(int us);
 //static void tm_tick_settimer(int us);

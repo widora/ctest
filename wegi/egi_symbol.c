@@ -730,7 +730,7 @@ int symbol_string_pixlen(char *str, const EGI_SYMPAGE *font)
 		write a symbol/font pixel data to FB device
 
 1. Write a symbol data to FB.
-2. Only alpha data is available in a FT2 symbol page, use WEGI_COLOR_BLACK as default front
+2. Alpha data is available in a FT2 symbol page, use WEGI_COLOR_BLACK as default front
    color.
 4. Note: put page check in symbol_string_writeFB()!!!
 5. Points out of fb_map page(one screen buffer) will be ruled out.
@@ -1190,7 +1190,7 @@ void symbol_string_writeFB(FBDEV *fb_dev, const EGI_SYMPAGE *sym_page, 	\
 	if(transpcolor>=0 && sym_page->bkcolor>=0 )
 		transpcolor=sym_page->bkcolor;
 
-	while(*p) /* code '0' will be deemed as end token here !!! */
+	while(*p) /* code '\0' will be deemed as end token here !!! */
 	{
 		symbol_writeFB(fb_dev,sym_page,fontcolor,transpcolor,x,y0,*p,opaque);/* at same line, so y=y0 */
 		x+=sym_page->symwidth[(int)(*p)]; /* increase current x position */

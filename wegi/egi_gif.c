@@ -142,7 +142,8 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
     int offx=0, offy=0;	/* gif block image width and height, defined in gif file */
     int BWidth=0, BHeight=0;  /* image block size */
     int Row=0, Col=0;	    /* init. as image block offset relative to screen/canvvas */
-    int ExtCode, Count;     /* Count: for test */
+    int ExtCode;
+    int Count;     	    /* Count: for test */
     int DelayMs=0;	    /* delay time in ms */
     int DelayFact;	    /* adjust delay time according to block image size */
 
@@ -165,8 +166,7 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
     GifColorType *ColorMapEntry=NULL;
     GraphicsControlBlock gcb;
 
-    bool Is_LocalColorMap=false;   /* TRUE If color map is image color map, NOT global screen color map
-				    Defined in gif file. */
+//  bool Is_LocalColorMap=false;   /* TRUE If color map is image color map, NOT global screen color map defined in gif file */
     bool DirectFB_ON=false;	   /* With or without FB buffer */
     int  Disposal_Mode=0;	   /* Defined in gif file:
 					0. No disposal specified
@@ -177,7 +177,7 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
     int  trans_color=-1;        /* Palette index for transparency, -1 if none, or NO_TRANSPARENT_COLOR
 				 * Defined in gif file. */
     int  User_TransColor=-1;    /* -1, User defined palette index for the transparency */
-    bool Bkg_Transp=false;      /* If true, make backgroud transparent. User define. */
+//  bool Bkg_Transp=false;      /* If true, make backgroud transparent. User define. */
     int  bkg_color=0;	  	/* Back ground color index, defined in gif file, default as 0 */
     EGI_16BIT_COLOR img_bkcolor=0;  /* 16bit back color */
 
@@ -200,12 +200,12 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
     /* Get global color map */
 #if 1
     if(GifFile->Image.ColorMap) {
-	Is_LocalColorMap=true;
+//	Is_LocalColorMap=true;
 	ColorMap=GifFile->Image.ColorMap;
 	printf("	Use local ColorMap, ColorCount=%d\n", GifFile->Image.ColorMap->ColorCount);
     }
     else {
-	Is_LocalColorMap=false;
+//	Is_LocalColorMap=false;
 	ColorMap=GifFile->SColorMap;
 	printf("	Use global ColorMap Colorcount=%d\n", GifFile->SColorMap->ColorCount);
     }
@@ -371,12 +371,12 @@ int  egi_gif_playFile(const char *fpath, bool Silent_Mode, bool ImgTransp_ON, in
 
 	       /* Get color map, colormap may be updated/changed here! */
 	       if(GifFile->Image.ColorMap) {
-			Is_LocalColorMap=true;
+//			Is_LocalColorMap=true;
 			ColorMap=GifFile->Image.ColorMap;
 			//printf("GIF Image ColorCount=%d\n", GifFile->Image.ColorMap->ColorCount);
     	       }
 	       else {
-			Is_LocalColorMap=false;
+//			Is_LocalColorMap=false;
 			ColorMap=GifFile->SColorMap;
 //			printf("GIF Global Colorcount=%d\n", GifFile->SColorMap->ColorCount);
 	       }
@@ -394,12 +394,12 @@ if(!Silent_Mode) {
 
 	/* get colormap */
         if(GifFile->Image.ColorMap) {
-		Is_LocalColorMap=true;
+//		Is_LocalColorMap=true;
 		ColorMap=GifFile->Image.ColorMap;
 		printf("Use local ColorMap, ColorCount=%d\n", GifFile->Image.ColorMap->ColorCount);
     	}
     	else {
-		Is_LocalColorMap=false;
+//		Is_LocalColorMap=false;
 		ColorMap=GifFile->SColorMap;
 		printf("Use global ColorMap Colorcount=%d\n", GifFile->SColorMap->ColorCount);
     	}

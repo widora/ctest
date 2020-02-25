@@ -22,8 +22,7 @@ Midas Zhou
 #include "egi_fbgeom.h"
 #include "dict.h"
 
-
-#define EGI_ENABLE_TICK 1	/* Tick alarm signal may conflic with other app thread! */
+#define EGI_ENABLE_TICK  1	/* Tick alarm signal may conflic with other app thread! */
 
 struct itimerval tm_val, tm_oval;
 
@@ -31,16 +30,14 @@ char tm_strbuf[50]={0};
 const char *str_weekday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
 //const char *str_weekday[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 const char *str_month[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Sub"};
+
 /* encoding uft8 */
 const char *stru8_weekday[]={"星期日","星期一","星期二","星期三","星期四","星期五","星期六"};
 const char *stru8_month[]={"一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"};
 
-
-
 /* global tick */
 static struct itimerval tm_tick_val; //tm_tick_oval;
 static long long unsigned int tm_tick_count=0;
-
 
 //   struct timespec ts;
 //   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -59,7 +56,7 @@ long long unsigned int tm_get_tmstampms(void)
 
 
 /*---------------------------------------------
- Get local time string in format of:
+ Get local time string in form of:
  		H:M:S 	(in 24hours)
  The caller must ensure enough space for tmbuf.
 ---------------------------------------------*/
@@ -70,42 +67,57 @@ void tm_get_strtime(char *tmbuf)
 
 	time(&tm_t);
 	tm_s=localtime(&tm_t);
-
-	/*
-		tm_s->tm_year start from 1900
-		tm_s->tm_mon start from 0
+	/*  tm_s->tm_year start from 1900
+	    tm_s->tm_mon start from 0
 	*/
 	sprintf(tmbuf,"%02d:%02d:%02d",tm_s->tm_hour,tm_s->tm_min,tm_s->tm_sec);
 }
 
 
-/*--------------------------------------------
-Get local time in string,
-  in format of:
+/*---------------------------------------------
+Get local time in string, in form of:
  	Year_Mon_Day  Weekday
- The caller must ensure enough space for tmbuf.
+The caller must ensure enough space for tmdaybuf.
 ---------------------------------------------*/
-void tm_get_strday(char *tmdaybuf)
+void tm_get_strday(char *daybuf)
 {
-	time_t tm_t; /* time in seconds */
-	struct tm *tm_s; /* time in struct */
+	time_t tm_t; 	  /* time in seconds */
+	struct tm *tm_s;  /* time in struct tm */
 
 	time(&tm_t);
 	tm_s=localtime(&tm_t);
 
-	sprintf(tmdaybuf,"%d-%d-%d   %s",tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday,\
-			str_weekday[tm_s->tm_wday] );
+	sprintf(daybuf,"%d-%d-%d   %s", tm_s->tm_year+1900,tm_s->tm_mon+1,tm_s->tm_mday, \
+					str_weekday[tm_s->tm_wday] );
+}
+
+/*-----------------------------------
+Get local time in uft-8 string:
+	x月x日
+The caller must enusre enough space for
+udaybuf.
+------------------------------------*/
+void tm_get_ustrday(char *udaybuf)
+{
+        time_t tm_t;      /* time in seconds */
+        struct tm *tm_s;  /* time in struct tm */
+
+        time(&tm_t);
+        tm_s=localtime(&tm_t);
+
+        sprintf(udaybuf,"%d月%d日", tm_s->tm_mon+1,tm_s->tm_mday);
+
 }
 
 
-/* -----------------------------
- timer routine
+
+/*------------------------------
+ 	Timer routine
 -------------------------------*/
 void tm_sigroutine(int signo)
 {
 	if(signo == SIGALRM)
 	{
-//		printf(" . tick . \n");
 
 	/* ------- routine action every tick -------- */
 #if 0	// put heavy action here is not a good idea ??????  !!!!!!
@@ -116,7 +128,6 @@ void tm_sigroutine(int signo)
         symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,45,2,tm_strbuf);
         //symbol_string_writeFB(&gv_fb_dev, &sympg_testfont,0xffff,32,90,tm_strbuf);
 #endif
-
 	}
 
 	/* restore tm_sigroutine */
@@ -200,6 +211,7 @@ if ms<0, return.
 void tm_delayms(unsigned long ms)
 {
 	unsigned int nticks;
+	long long unsigned int tm_now;
 #if EGI_ENABLE_TICK
 
 	if(ms < TM_TICK_INTERVAL/1000)
@@ -207,7 +219,7 @@ void tm_delayms(unsigned long ms)
 	else
 		nticks=ms*1000/TM_TICK_INTERVAL;
 
-	long tm_now=tm_tick_count;
+	tm_now=tm_tick_count;
 
 	while(tm_tick_count-tm_now < nticks)
 	{

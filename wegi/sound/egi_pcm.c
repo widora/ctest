@@ -980,11 +980,11 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 			}
 
 	        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
-				printf("%s:snd_pcm_writei()...\n",__func__);
+//				printf("%s:snd_pcm_writei()...\n",__func__);
                 		ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)wf );
 			}
 		        else {  /* TODO: TEST,   write noninterleaved frame data */
-				printf("%s:snd_pcm_writen()...\n",__func__);
+				printf("%s: noninterleaved snd_pcm_writen()...\n",__func__);
                 		//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
 	        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)wf );
 			}

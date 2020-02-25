@@ -125,7 +125,7 @@ juhe_news.c		API for www.juhe.cn
 
 			( --- 3.5 APP Suites --- )
 
-app_ffmusic		A music playe
+app_ffmusic		A music player
 app_ffmotion		A video player
 app_ebook		An ebook
 app_avenger		A game

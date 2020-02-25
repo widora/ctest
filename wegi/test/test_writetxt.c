@@ -8,8 +8,8 @@ extracting key words in TXT to control 3 lights .
 !!! For 'One Server One Client' scenario only !!!
 
 Note:
-1. Run server process in back ground, if '/dev/shm/writetxt_ctrl' exists,
-   remove it first!
+1. Run server process in back ground.
+   (If '/dev/shm/writetxt_ctrl' exists already, it will remove it first!)
         ./test_writetxt >/dev/null 2>&1 &
 2. Run a client process to send TXT to server for displaying:
         ./test_writetxt -t 3 "Hello world!世界你好！"
@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 			   printf("	    -q   to end the server process.\n");
                            printf("         -t   holdon time, in seconds.\n");
                            printf("         text Text for displaying \n");
-                           return 0;
+			   printf(" Run server process in back ground: test_writetxt >/dev/null 2>&1 & \n" );
+			   printf(" Run a client process to send TXT to server for displaying: test_writetxt -t 3 世界你好！\n");                           return 0;
 		 	case 't':
 			   ts=atoi(optarg);
 			   printf("ts=%d\n",ts);
