@@ -273,7 +273,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 	int ret;
 	static long  min=-1; /* selem volume value limit */
 	static long  max=-2;
-	static long  vrange;
+	//static long  vrange;
 	int	     pvol;   /* vol in percentage*100 */
 	long int     vol;
 
@@ -395,7 +395,7 @@ int egi_getset_pcm_volume(int *pgetvol, int *psetvol)
 		ret=-6;
 		goto FAILS;
 	}
-	vrange=max-min+1;
+	// vrange=max-min+1;
 	EGI_PLOG(LOGLV_CRITICAL,"%s: Get playback volume range Min.%ld - Max.%ld.", __func__, min, max);
 
 	/* Get dB range for playback volume of a mixer simple element
@@ -914,6 +914,15 @@ Playback a EGI_PCMIMG
 
 @dev_name:	PCM device
 @pcmbuf:	An EGI_PCMBUF holding pcm data.
+@vstep:		Volume step up/down, each step is 1/16 strength of original PCM value.
+		So Min. value of vstep is -16.  If vstep<-16, then the sign of PCM value
+		will reverse!
+		Note:
+		1. For SND_PCM_FORMAT_S16 only!
+		2. Shift operation is compiler depended!
+		   !!! Suppose that Left/Right bit_shifting are both arithmetic here !!!
+		3. Volume step_up operation may cause sound distorted !!!
+		TODO: real time volume adjust, use pointer to vstep!
 @nf:		frames for each write to HW.
 		take a small proper value
 @nloop:         loop times:
@@ -929,16 +938,22 @@ Return:
 	0	OK
 	<0	Fails
 ----------------------------------------------------------------------*/
-int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
+int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf, int vstep,
 			  unsigned int nf , int nloop, bool *sigstop, bool *sigsynch)
 {
-	int ret;
-	int frames;
-	unsigned int wf;
-	unsigned char *pbuf=NULL;
-	int count; /* for loop count */
-	//int pos;
+	int		i;
+	int 		ret;
+	int 		frames;
+	unsigned int 	wf;
+	unsigned char 	*pbuf=NULL;	/* pointer to pcm data position */
+	int16_t  	*vbuf=NULL;	/* for modified pcm data */
+	int count; 			/* for loop count */
 	snd_pcm_t *pcm_handle=NULL;
+
+
+	/* Check sigstop before re_check in while() */
+	if( sigstop!=NULL && *sigstop==true)
+		return 1;
 
 	/* check input data */
 	if(pcmbuf==NULL || pcmbuf->pcmbuf==NULL) {
@@ -946,19 +961,34 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 		return -1;
 	}
 
+	/* allocate vpbuf */
+	if( vstep!=0 && pcmbuf->sformat==SND_PCM_FORMAT_S16 )  {  /* pcmbuf->depth==2, For PCM_S16 format only */
+		vbuf=calloc(nf, pcmbuf->nchanl*2);
+		if(vbuf==NULL) {
+			printf("%s:Fail to calloc vbuf!\n",__func__);
+			return -1;
+		}
+	}
+	else if ( vstep!=0 && pcmbuf->sformat!=SND_PCM_FORMAT_S16 ) {
+		EGI_PLOG(LOGLV_WARN,"%s: Soft volume adjustment only supports SND_PCM_FORMAT_S16!",__func__);
+	}
+
+
 	/* open pcm device */
-	printf("%s: open playback device...\n",__func__);
+	//printf("%s: open playback device...\n",__func__);
 	pcm_handle=egi_open_playback_device( dev_name, pcmbuf->sformat,     /* dev_name, sformat */
                                              pcmbuf->access_type, true,	    /* access_type, bool soft_resample */
 					     pcmbuf->nchanl, pcmbuf->srate, /* nchanl, srate */
                                              50000			    /* latency (us), syssrate, */
                                     	    );
 	if(pcm_handle==NULL) {
+		if(vbuf!=NULL) /* free vbuf first */
+			free(vbuf);
 		return -2;
 	}
 
 	/* Write data to PCM for PLAYBACK */
-//	printf("%s: start pcm write...\n",__func__);
+	//printf("%s: start pcm write...\n",__func__);
 
    	count=0; /* for nloop count */
    	do {
@@ -979,14 +1009,23 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 				break;
 			}
 
+			/* vstep operation for volume adjustment, !!! Suppose that Left/Right bit_shifting are both arithmetic here !!! */
+			if( vstep != 0 && pcmbuf->sformat==SND_PCM_FORMAT_S16 ) {   /* !! pcmbuf->depth==2, for PCM_S16 format only */
+				memcpy(vbuf, pbuf, wf*pcmbuf->nchanl*2);
+				for(i=0; i < wf*pcmbuf->nchanl; i++)
+					vbuf[i] += (vbuf[i]>>4)*vstep; /* whatever vstep > or < 0 */
+			}
+			else  /* No volume step_up/down operation, just assign pbuf to vbuf */
+				vbuf=(int16_t *)pbuf;
+
 	        	if(!pcmbuf->noninterleaved) { /* write interleaved frame data */
 //				printf("%s:snd_pcm_writei()...\n",__func__);
-                		ret=snd_pcm_writei( pcm_handle, (void *)pbuf, (snd_pcm_uframes_t)wf );
+                		ret=snd_pcm_writei( pcm_handle, (void *)vbuf, (snd_pcm_uframes_t)wf );  /* pbuf */
 			}
 		        else {  /* TODO: TEST,   write noninterleaved frame data */
 				printf("%s: noninterleaved snd_pcm_writen()...\n",__func__);
                 		//ret=snd_pcm_writen( pcm_handle, (void **)&(pcmbuf->pcmbuf), (snd_pcm_uframes_t)frames );
-	        	        ret=snd_pcm_writen( pcm_handle, (void **)&pbuf, (snd_pcm_uframes_t)wf );
+	        	        ret=snd_pcm_writen( pcm_handle, (void **)&vbuf, (snd_pcm_uframes_t)wf );  /* pbuf */
 			}
 //			printf("%s: pcm written ret=%d\n", __func__, ret);
 
@@ -1012,8 +1051,6 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 			frames -= ret;
 			if(frames<nf)wf=frames; /* for the last write session */
 
-			//pos += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
-			//pbuf=pcmbuf->pcmbuf+pos;
 			pbuf += ret*(pcmbuf->nchanl)*(pcmbuf->depth);
 	   	}
 
@@ -1028,5 +1065,10 @@ int  egi_pcmbuf_playback( const char* dev_name, const EGI_PCMBUF *pcmbuf,
 
 	/* close pcm handle */
 	snd_pcm_close(pcm_handle);
+
+	/* free vbuf */
+	if( vstep !=0 && pcmbuf->sformat==SND_PCM_FORMAT_S16 )    //pcmbuf->depth==2   NOTE: vbuf may be referred to pbuf!
+		free(vbuf);
+
 	return 0;
 }

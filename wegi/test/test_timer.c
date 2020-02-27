@@ -7,13 +7,13 @@ An example of a timer controled by input TXT.
 !!! For 'One Server One Client' scenario only !!!
 
 Note:
-1. Run server in back ground:
+1. Run timer server in back ground:
 	test_timer -s >/dev/null 2>&1 &  ( OR use screen )
 2. Send TXT as command:
 	test_timer "一小时3刻钟后提醒"
 	test_timer "取消提醒"
 
-3. To incoorperate:
+3. To incoorperate with ASR:
    screen -dmS TXTSVR ./txt_timer -s
    autorec_timer  /tmp/asr_snd.pcm  ( autorec_timer ---> asr_timer.sh ---> txt_timer(test_timer)  )
 
@@ -43,7 +43,7 @@ Midas Zhou
 /* Timer data struct */
 typedef struct {
 	time_t  ts;  		/*  time span/duration value for countdown, typedef long time_t   */
-	time_t  tp;		/*  preset time point, tnow+ts=tp  */
+	time_t  tp;		/*  tp=tnow+ts. Seconds from 1970-01-01 00:00:00 +0000 UTC to the preset time point.   */
 
 	bool	statActive;	/*  status/indicator: true while timer is ticking  */
 	bool	sigStart;	/*  signal: to start timer */
@@ -52,23 +52,33 @@ typedef struct {
 
 	EGI_PCMBUF *pcmalarm;   /*  for alarm sound effect */
 	EGI_PCMBUF *pcmtick;    /*  for ticking effect 	*/
+	int	vstep;		/*  vstep for volume control */
+
 	bool	tickSynch;	/*  signal: for synchronizing ticking sound */
 	bool	sigNoTick;	/*  signal: to stop ticking sound */
 	bool	statTick;	/*  status/indicator: true while playing pcmtick */
 	bool	sigNoAlarm;	/*  signal: to stop alarming */
 	bool	statAlarm;	/*  status/indicator: true while playing pcmalarm */
 
+	char	utxtCmd[TXTDATA_SIZE];	/* UFT-8 TXT Command, to be executed when preset time has come. */
+	bool	SetLights[3];	/*  set lights ON/OFF */
 } etimer_t;
 etimer_t timer1={0,0};
+
+
+
+
+/* lights */
+static EGI_16BIT_COLOR light_colors[]={ WEGI_COLOR_BLUE, WEGI_COLOR_RED, WEGI_COLOR_GREEN };
 
 /* timer function */
 static void *timer_process(void *arg);
 static void *thread_ticking(void *arg);
 static void *thread_alarming(void *arg);
 static void writefb_datetime(void);
+static void writefb_lights(void);
+static void parse_utxtCmd(const char *utxt);
 
-/* lights */
-static EGI_16BIT_COLOR light_colors[]={ WEGI_COLOR_BLUE, WEGI_COLOR_RED, WEGI_COLOR_GREEN };
 
 
 /*=====================================
@@ -82,8 +92,8 @@ int main(int argc, char **argv)
 	double sang;
 	bool Is_Server=false;
 	bool sigstop=false;
-	char *ptxt=NULL;
-	char *pdata=NULL;
+	char *ptxt=NULL;	/* pointer to client input txt, to shm */
+	char *pdata=NULL;	/* pointer to txt data in shm, pdata=shm_msg.shm_map+TXTDATA_OFFSET */
 	char *wavpath=NULL;
         char strtm[128]={0};  /* Buffer for extracted time-related string */
 	pthread_t	timer_thread;
@@ -92,7 +102,7 @@ int main(int argc, char **argv)
 		return 2;
 
         /* parse input option */
-        while( (opt=getopt(argc,argv,"hsw:t:q"))!=-1)
+        while( (opt=getopt(argc,argv,"hsv:w:t:q"))!=-1)
         {
                 switch(opt)
                 {
@@ -107,6 +117,10 @@ int main(int argc, char **argv)
                            return 0;
 			case 's':
 			   Is_Server=true;
+			   break;
+			case 'v':
+			   timer1.vstep=atoi(optarg);
+			   printf("Volume control vstep=%d for timer tick/alarm.\n",timer1.vstep);
 			   break;
 			case 'w':
 			   wavpath=optarg;
@@ -136,7 +150,7 @@ int main(int argc, char **argv)
         };
 
 
-	/* Open shmem,  For server, If /dev/shm/timer_ctrl exits, remove it first.  */
+	/* Open shmem,  For server, If /dev/shm/timer_ctrl exits, remove it first.  TODO: */
 	if( Is_Server ) {
 		if( egi_shmem_remove(shm_msg.shm_name) ==0 )
 			printf("Old shm dev removed!\n");
@@ -236,6 +250,7 @@ int main(int argc, char **argv)
 #endif
         /* <<<<------------------  End EGI Init  ----------------->>>> */
 
+
 	/* Load sound pcmbuf for Timer */
 	if(wavpath != NULL) {
 		timer1.pcmalarm=egi_pcmbuf_readfile(wavpath);
@@ -251,11 +266,11 @@ int main(int argc, char **argv)
 	if(timer1.pcmtick==NULL)
                	printf("Fail to load sound file '%s' for default ticking sound.\n", DEFAULT_TICK_SOUND);
 
-	/* Setup FB */
+	/* Set FB mode */
 	fb_set_directFB(&gv_fb_dev, false);
 	fb_position_rotate(&gv_fb_dev,3);
 
-	/* init FB working buffer with image */
+	/* Init FB working buffer with image */
         EGI_IMGBUF *eimg=egi_imgbuf_readfile(TIMER_BKGIMAGE);
         if(eimg==NULL)
                 printf("Fail to read and load file '%s'!", TIMER_BKGIMAGE);
@@ -263,9 +278,8 @@ int main(int argc, char **argv)
                                0, 0, 0, 0,
                                gv_fb_dev.pos_xres, gv_fb_dev.pos_yres );
 
-	/* draw lights */
-	for(i=0; i<3; i++)
-		draw_filled_rect2(&gv_fb_dev, light_colors[i], 185+i*(30+15), 200, 185+30+i*(30+15), 200+30);
+	/* Draw lights */
+	//writefb_lights();
 
 	/* Draw timing circle */
 	fbset_color(WEGI_COLOR_GRAY3);//LTGREEN);
@@ -283,20 +297,20 @@ int main(int argc, char **argv)
 		draw_wline_nc(&gv_fb_dev, 100+75.0*cos(sang), 120-75.0*sin(sang), 100+85.0*cos(sang), 120-85.0*sin(sang), 3);
 	}
 
-	/* init FB back ground buffer page with working buffer */
+	/* Init FB back ground buffer page with working buffer */
         memcpy(gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.map_bk, gv_fb_dev.screensize);
 
-	/* write 00:00:00 */
+	/* Write 00:00:00 */
         FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          	/* FBdev, fontface */
                                         30, 30, (const unsigned char *)"00:00:00",    	/* fw,fh, pstr */
                                         320-10, 5, 4,                           /* pixpl, lines, gap */
-                                        38, 100,                                /* x0,y0, */
+                                        37, 100,                                /* x0,y0, */
                                         WEGI_COLOR_GRAY, -1, -1,      	/* fontcolor, transcolor,opaque */
                                         NULL, NULL, NULL, NULL  );      /* int *cnt, int *lnleft, int* penx, int* peny */
-	/* display */
+	/* Display */
         fb_page_refresh(&gv_fb_dev,0);
 
-        /* init FB 3rd buffer page, with mark 00:00:00  */
+        /* Init FB 3rd buffer page, with mark 00:00:00  */
         fb_page_saveToBuff(&gv_fb_dev, 2);
 
 	/* Start timer thread */
@@ -309,7 +323,7 @@ int main(int argc, char **argv)
 	printf("Start timer control service loop ...\n");
 while(1) {
 
-	/* check EGI_SHM_MSG: Signal to quit */
+	/* Check EGI_SHM_MSG: Signal to quit */
         if(shm_msg.msg_data->sigstop ) {
         	printf(" ------ shm_msg: sigstop received! ------ \n");
                 /* reset data */
@@ -334,9 +348,11 @@ while(1) {
 
 	/* Simple NLU: parse input txt data and extract key words */
 
-	/* CASE 1:  Set the timer --- */
+	/* CASE 1:  --- Set the timer --- */
 	if(  timer1.statActive==false
-	     	&& ( strstr(pdata,"定时") || strstr(pdata,"提醒") || strstr(pdata,"以后") )
+		/* Note: OR if timer1.ts>0, ignore following keywords checking !! Just start timer and parse command when preset time comes! */
+	     	&& ( strstr(pdata,"定时") || strstr(pdata,"提醒") || strstr(pdata,"后") || strstr(pdata,"再过")
+		     || strstr(pdata,"开") || strstr(pdata,"关") || strstr(pdata,"放") )
           )
 	{
 		/* Extract time related string */
@@ -347,25 +363,29 @@ while(1) {
 		/* Reset Timer and get time span in seconds */
 		timer1.sigStop=false;
 		timer1.sigQuit=false;
-		timer1.statActive=false;
+		timer1.sigNoTick=false;
+		timer1.sigNoAlarm=false;
+
 		/* check ts */
-   		timer1.ts=(time_t)cstr_getSecFrom_ChnUft8TimeStr(strtm);
-		if(timer1.ts==0) {
-			pdata[0]='\0';
-			continue;
+   		timer1.ts=(time_t)cstr_getSecFrom_ChnUft8TimeStr(strtm, &timer1.tp);
+//		if(timer1.ts==0) {
+//			pdata[0]='\0';
+//			continue;
+//		}
+
+		/* Start timer only ts is valid! */
+		if( timer1.ts > 0 ) {
+			/* set sigStart at last! */
+			timer1.sigStart=true;
+   			printf("Totally %ld seconds.\n",(long)timer1.ts);
+
+			/* Save TXT command to timer */
+			strcpy(timer1.utxtCmd, pdata);
 		}
-		/* set sigStart at last! */
-		timer1.sigStart=true;
-
-   		printf("Totally %ld seconds.\n",(long)timer1.ts);
-
-		/* Check for actions */
-
-
 	}
 	/* CASE 2:  --- Stop timer alarming sound --- */
 	else if( timer1.statActive==true
-		 	&& ( strstr(pdata,"结束") || strstr(pdata,"取消") || strstr(pdata,"停止") )
+		 	&& ( strstr(pdata,"结束") || strstr(pdata,"取消") || strstr(pdata,"停止") || strstr(pdata,"关闭"))
 		 	&& ( strstr(pdata,"时") || strstr(pdata,"提醒")  || strstr(pdata,"定时") || strstr(pdata,"闹钟") || strstr(pdata,"响") )
 	        )
 	{
@@ -375,40 +395,18 @@ while(1) {
 	else if ( timer1.statActive==true )
 		printf("Timer is busy!\n");
 
-
-#if 0  /////////////////////////////////////////////////////////////////////////////////////////////////////
-	/*  Light size 80x80 */
-	if(strstr(pdata,"关")) {
-	    if(strstr(pdata,"灯")) {
-		if( strstr(pdata,"红") ) {
-			printf("Turn off red light!\n");
-			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20, 140, 20+80, 140+80);
-		}
-		if(strstr(pdata,"绿") ) {
-			printf("Turn off green light!\n");
-			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+100, 140, 20+100+80, 140+80);
-		}
-		if(strstr(pdata,"蓝") ) {
-			printf("Turn off blue light!\n");
-			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+200, 140, 20+200+80, 140+80);
-		}
-		if(strstr(pdata,"所有") || strstr(pdata,"全部")) {
-			printf("Turn on all lights!\n");
-			draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20, 140, 20+80, 140+80);
-                        draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+100, 140, 20+100+80, 140+80);
-                        draw_filled_rect2(&gv_fb_dev, WEGI_COLOR_GRAY5, 20+200, 140, 20+200+80, 140+80);
-		}
-	    }
+	/* CASE ts<=0:  Parse and execute if NOT timer setting command in TXT. Otherwise to be parsed in Timer process when time is up. */
+	if( timer1.ts <= 0 ) {
+		parse_utxtCmd(pdata);
+		writefb_lights();
 	}
-#endif	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-	/* reset data */
+	/* Reset shmem data */
 	pdata[0]='\0';
 
 }
 
-	/* joint timer thread */
+	/* Join timer thread */
 	printf("Try to join timer_thread...\n");
 	timer1.sigStop=true; /* To end loop playing alarm PCM first if it's just doing so! ... */
 	timer1.sigQuit=true;
@@ -418,14 +416,14 @@ while(1) {
 		printf("Timer thread is joined!\n");
 
 
-	/* free Timer data */
+	/* Free Timer data */
 	printf("Try to free pcm data in etimer ...\n");
 	if(timer1.pcmalarm)
 		egi_pcmbuf_free(&timer1.pcmalarm);
 	if(timer1.pcmtick)
 		egi_pcmbuf_free(&timer1.pcmtick);
 
-	/* close shmem */
+	/* Close shmem */
 	printf("Closing shmem...\n");
         egi_shmem_close(&shm_msg);
 
@@ -473,7 +471,8 @@ static void *timer_process(void *arg)
 	fb_page_restoreFromBuff(&gv_fb_dev, 2);
 
    while(1) {
-	/* Signal to quit */
+
+	/* Check signal to quit */
 	if( etimer->sigQuit==true ) {
 		printf("%s:Signaled to quit timer thread!\n",__func__);
 		/* Try to stop ticking */
@@ -496,7 +495,7 @@ static void *timer_process(void *arg)
 		etimer->sigQuit=false;
 		break;
 	}
-	/* Signal to start timer */
+	/* Check signal to start timer */
 	else if( etimer->sigStart && etimer->statActive==false && etimer->ts>0 ) {
 
 		/* restore screen */
@@ -514,7 +513,10 @@ static void *timer_process(void *arg)
 		etimer->statActive=true;
 		etimer->sigStart=false;
 
-		/* start ticking */
+		/* reset once_more token */
+		once_more=false;
+
+		/* start ticking sound */
 		etimer->sigNoTick=false;
 		if( pthread_create(&tick_thread, NULL, thread_ticking, arg) != 0 )
 			printf("%s: Fail to start ticking thread!\n",__func__);
@@ -528,6 +530,8 @@ static void *timer_process(void *arg)
 
 		/* Display current time */
 		writefb_datetime();
+	        /* Display lights */
+        	writefb_lights();
 
 		/* refresh FB */
 		fb_page_refresh(&gv_fb_dev,0);
@@ -536,7 +540,7 @@ static void *timer_process(void *arg)
 		continue;
 	}
 
-	/* Signal to stop timer */
+	/* Check signal to stop timer */
 	if(etimer->sigStop) {
 		/* Try to stop ticking */
 		etimer->sigNoTick=true;
@@ -556,6 +560,7 @@ static void *timer_process(void *arg)
 		}
 
 		/* Reset Timer signals and indicators */
+		etimer->ts=0;
 		etimer->statActive=false;
 		etimer->sigStop=false;
 		etimer->sigNoTick=false;
@@ -567,25 +572,32 @@ static void *timer_process(void *arg)
 		continue;
 	}
 
-	/* convert to 00:00:00  */
+
+	/* Convert to H:M:S  */
 	memset(strCntTm,0,sizeof(strCntTm));
 	hour=ts/3600;
 	min=(ts-hour*3600)/60;
 	second=ts-hour*3600-min*60;
 	sprintf(strCntTm,"%02d:%02d:%02d", hour,min,second );
 
-        /*  init FB working buffer page with back ground buffer */
+        /*  Init FB working buffer page with back ground buffer */
         memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
-	/* Draw second ticking hand */
+	/* Draw a moving boject as second hand */
 	fbset_color(WEGI_COLOR_GREEN);
 	/* center(100,120) r=80 */
 	sang=(90.0-(tset-ts)%60/60.0*360)/180*MATH_PI;
-	if(once_more){
+	if(once_more && ts!=0 ){ /* skip when ts==0, but enable first time when ts turns to be 0 */
 		sang += 360.0/(2*60)/180*MATH_PI; /* for 0.5s */
 	}
-	/* FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w */
+	//printf("tset=%ld, ts=%ld, sang=%f \n",tset, ts, sang);
+	#if 0
+	/* draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w) */
 	draw_wline_nc(&gv_fb_dev, 100+65*cos(sang), 120-65*sin(sang), 100+85.0*cos(sang),120-85.0*sin(sang), 7);
+	#else
+	/* Draw a small dot. draw_filled_circle(FBDEV *dev, int x, int y, int r) */
+	draw_filled_circle(&gv_fb_dev, 100+75*cos(sang), 120-75*sin(sang), 10);
+	#endif
 
 	/* Timing Display */
         FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          /* FBdev, fontface */
@@ -631,6 +643,7 @@ static void *timer_process(void *arg)
 	if(once_more) {
 		fbset_color(WEGI_COLOR_GREEN);
 		draw_filled_triangle(&gv_fb_dev, tripts); /* draw a triangle mark */
+		writefb_lights();
 	}
 
 	fbset_color(WEGI_COLOR_ORANGE);
@@ -640,11 +653,12 @@ static void *timer_process(void *arg)
 
 	/* Display current time H:M:S */
 	writefb_datetime();
+	writefb_lights();
 
-	/* refresh FB */
+	/* Refresh FB */
 	fb_page_refresh(&gv_fb_dev,0);
 
-	/* --------- while alraming, loop back -------- */
+	/* --------- While alraming, loop back -------- */
 	if(etimer->statAlarm && ts==0 )
 		continue;
 
@@ -669,6 +683,9 @@ static void *timer_process(void *arg)
 
 	/* Stop ticking and start to alarm, skip while alarming  */
 	if(ts==0 && etimer->statAlarm==false ) {
+		/* reset */
+		etimer->ts=0;
+
 		/* Disable/stop ticking first */
 		etimer->sigNoTick=true;
 		if(pthread_join(tick_thread,NULL)!=0)
@@ -677,12 +694,15 @@ static void *timer_process(void *arg)
 			etimer->statTick=false;
 		etimer->sigNoTick=false; /* reset sig */
 
-		/* start alarming */
+		/* Start alarming */
 		if( pthread_create(&alarm_thread, NULL, thread_alarming, arg) != 0 )
 			printf("%s: Fail to start alarming thread!\n",__func__);
 		else
 			etimer->statAlarm=true;
 
+		/* ---- Execute TXT command in etimer->utxtCmd[] ---- */
+		parse_utxtCmd(etimer->utxtCmd);
+		writefb_lights();
 	}
 
 	/* ts decrement */
@@ -718,7 +738,7 @@ static void *thread_ticking(void *arg)
      etimer_t *etimer=(etimer_t *)arg;
 
 //    pthread_detach(pthread_self());  To avoid multimixer error
-     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmtick, 1024, 0, &etimer->sigNoTick, NULL); //&etimer->tickSynch);
+     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmtick, etimer->vstep, 1024, 0, &etimer->sigNoTick, NULL); //&etimer->tickSynch);
 
 //     pthread_exit((void *)0);
 	return (void *)0;
@@ -733,7 +753,7 @@ static void *thread_alarming(void *arg)
      etimer_t *etimer=(etimer_t *)arg;
 
 //    pthread_detach(pthread_self());  To avoid multimixer error
-     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmalarm, 1024, 0, &etimer->sigNoAlarm, NULL);
+     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmalarm, etimer->vstep, 1024, 0, &etimer->sigNoAlarm, NULL);
 
 //     pthread_exit((void *)0);
 	return (void *)0;
@@ -770,4 +790,79 @@ static void writefb_datetime(void)
                                	        214, 140,                         /* x0,y0, */
                                        	WEGI_COLOR_GRAYB, -1, -1,      	  /* fontcolor, transcolor,opaque */
                                         NULL, NULL, NULL, NULL);      	  /* int *cnt, int *lnleft, int* penx, int* peny */
+}
+
+
+
+/*----------------------------------------------
+    Parse and exectue uft-8 TXT command
+1. Parse light control and set TIMER.SetLights[]
+2.
+-----------------------------------------------*/
+static void parse_utxtCmd(const char *utxt)
+{
+
+	printf(" -------- Parse etimer->utxtCmd --------- \n");
+
+        if(strstr(utxt,"开")) {
+            /*  Control Lights */
+            if(strstr(utxt,"灯")) {
+                if( strstr(utxt,"蓝") )
+			timer1.SetLights[0]=true;
+                if(strstr(utxt,"红") )
+			timer1.SetLights[1]=true;
+                if(strstr(utxt,"绿") )
+			timer1.SetLights[2]=true;
+                if(strstr(utxt,"所有") || strstr(utxt,"全部") )
+			timer1.SetLights[0]=timer1.SetLights[1]=timer1.SetLights[2]=true;
+            }
+        }
+
+        if(strstr(utxt,"关")) {
+            /*  Control Lights */
+            if(strstr(utxt,"灯")) {
+                if( strstr(utxt,"蓝") )
+                        timer1.SetLights[0]=false;
+                if(strstr(utxt,"红") )
+                        timer1.SetLights[1]=false;
+                if(strstr(utxt,"绿") )
+                        timer1.SetLights[2]=false;
+                if(strstr(utxt,"所有") || strstr(utxt,"全部") )
+			timer1.SetLights[0]=timer1.SetLights[1]=timer1.SetLights[2]=false;
+            }
+        }
+
+	/* Control MPLAYER */
+	if(strstr(utxt,"播放")) {
+		system("/home/mp3.sh");
+	}
+
+	if(strstr(utxt,"停止")) {
+		system("killall mplayer");
+	}
+
+
+	/* Stop Timer and alarming if NOT required */
+	if(!strstr(utxt,"提醒")) {
+		timer1.sigStop=true;
+	}
+	//timer1.sigNoAlarm=true;
+
+}
+
+/*--------------------------------------------------
+ Write lights to FB according to etimer->SetLights
+--------------------------------------------------*/
+static void writefb_lights(void)
+{
+	int i;
+	EGI_16BIT_COLOR color;
+
+	for(i=0; i<3; i++) {
+		if(timer1.SetLights[i])
+			color=light_colors[i];
+		else
+			color=WEGI_COLOR_DARKGRAY;
+                draw_filled_rect2(&gv_fb_dev, color, 185+i*(30+15), 200, 185+30+i*(30+15), 200+30);
+	}
 }

@@ -1026,6 +1026,12 @@ Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
 (strunit[]) contained in the string, then it will return 0;
 输入字符串中必须包含时间单位，不然返回0.
 
+@src:	Pointer to Source string containing time_related words.
+@tp:	Pointer to time_t, as preset time point.
+	If tp==NULL, then ignore.
+	If parsed result ts==0, then ignore.
+
+
 0. If arabic number found, then call atoi() to convert it to numbers.
 
 1. Parse "小时" "分钟" "秒" keywords in the string and add up to total seconds.
@@ -1057,16 +1063,13 @@ Convert time-related UFT-8 encoded string to seconds. if no time-related keyword
 
 
 
-@src:	Pointer to Source string containing time_related words.
-
-TODO: 1. return as a time point. (struct tm)
-      2. "半个小时"
+TODO:  1. To parse string containing  "半个小时"
 
 Return:
 	>0	Ok, total time span in seconds.
 	<=0	Fails, or No time related string.
 --------------------------------------------------------------------------- */
-int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
+int cstr_getSecFrom_ChnUft8TimeStr(const char *src, time_t *tp)
 {
 	int i,j,k;
 	int num=0;
@@ -1077,16 +1080,18 @@ int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
 	char *pn=NULL;  /* to locate digit number */
 	char *pu=NULL;  /* to locate single number in units postion  */
 	char buff[128];	/* to buffer number string */
+	long ts=0;	/* time span/duration in seconds, from NOW to the preset time point */
+	time_t tnow;
+	struct tm *tmp;	/* of the preset local time point, NOTE: struct tm * ONLY one case in a process. */
+
+	/* get NOW time in struct tm */
+	tnow=time(NULL);
+	tmp=localtime(&tnow);
 
 	/* time description as per strunit[]，
 	 * if "点" or "时" >=0: its TIME POINT;  otherwise its TIME SPACE(DURATION)
 	 */
 	int	    tmkeys=9;
-
-
-	//int	    tmdes[9]   ={  -1,   0,      0,       0,       0,     -1,    0,      0,    0 };
-	/* To incorporate with CHNS_TIME_KEYWORDS[]  */
-	//const char *strunit[9] ={ "点", "刻钟", "刻", "半个小时","小时", "时", "分钟", "分", "秒" }; 	/* put "分钟" before "分", and "小时" befor "时" */
 
 	int	    tmdes[9]   ={  -1,      0,        0,     -1,    0,     0,     0,     0,    0 };  /* time_point: -1, time_span: 0 */
 	/* To incorporate with CHNS_TIME_KEYWORDS[], sorted by time value AND size of each strunit[]!!!  */
@@ -1098,8 +1103,8 @@ int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
 	const char *strplace[3] ={ "千", "百", "十" };
 
 	/* number chars */
-//	const char *strnum[20]={ "0","1","2","3","4","5","6","7","8","9",
-//			      "零","一","二","三","四","五","六","七","八","九" };
+	//const char *strnum[20]={ "0","1","2","3","4","5","6","7","8","9",
+	//		      "零","一","二","三","四","五","六","七","八","九" };
 	/*  Note: '零' in the string will be ignored:
 	 *  Example: 一千零六十， 三百零八,  parsed to be  一千六十， 三百八,
 	 */
@@ -1198,18 +1203,53 @@ int cstr_getSecFrom_ChnUft8TimeStr(const char *src)
 		}
 	}
 
-	/* For time point: tmdes[0] "点"  tmdes[3] "时" */
-	if(tmdes[0] >=0 )
-		printf("Time point: %02d:%02d:%02d \n", tmdes[0], tmdes[1]*30+(tmdes[4]+tmdes[5])*15+tmdes[6]+tmdes[7], tmdes[8]);
+	/* Parsed as a time point: tmdes[0] "点"  tmdes[3] "时" */
+	if(tmdes[0] >=0 ) {  	  /* containing "点" */
 
-	else if(tmdes[3] >=0 )
-		printf("Time point: %02d:%02d:%02d \n", tmdes[5], tmdes[1]*30+(tmdes[4]+tmdes[5])*15+tmdes[6]+tmdes[7], tmdes[8]);
-	/* For time span or duration */
-	else
+		/* Modify tmp as to preset H:M:S */
+		tmp->tm_hour = tmdes[0];
+  		tmp->tm_min  = tmdes[1]*30+(tmdes[4]+tmdes[5])*15+tmdes[6]+tmdes[7];
+		tmp->tm_sec  = tmdes[8];
+		printf("Preset time point: %02d:%02d:%02d \n", tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+		/* pass out tp */
+		if( tp != NULL )
+			*tp=mktime(tmp);
+
+		/* return time span in seconds */
+		ts=mktime(tmp)-tnow;
+		printf("mktime(tmp)=%ld, tnow=%ld Time span ts=tmp-tnow=%ld\n", mktime(tmp),tnow,ts);
+		return ts;
+	}
+	else if(tmdes[3] >=0 ) {  /* containing "时" */
+
+		/* Modify tmp as to preset H:M:S */
+		tmp->tm_hour = tmdes[3];
+  		tmp->tm_min  = tmdes[1]*30+(tmdes[4]+tmdes[5])*15+tmdes[6]+tmdes[7];
+		tmp->tm_sec  = tmdes[8];
+		printf("Preset time point: %02d:%02d:%02d \n", tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+		/* pass out tp */
+		if( tp != NULL )
+			*tp=mktime(tmp);
+
+		/* return time span in seconds */
+		ts=mktime(tmp)-tnow;
+		printf("mktime(tmp)=%ld, tnow=%ld Time span ts=tmp-tnow=%ld\n", mktime(tmp),tnow,ts);
+		return ts;
+
+	}
+
+	/* Parsed as time span or duration */
+	else  {
 		printf("Time duration: %dH_%dMin_%dSec\n", tmdes[2], tmdes[1]*30+(tmdes[4]+tmdes[5])*15+tmdes[6]+tmdes[7], tmdes[8]);
+		ts=tmdes[2]*3600 + ((tmdes[4]+tmdes[5])*15+tmdes[1]*30+tmdes[6]+tmdes[7])*60 + tmdes[8];
 
+		/* pass out tp */
+		if( tp!=NULL && ts>0 ) {
+			*tp= tnow+ts;
+		}
+	}
 
 	/* return time span/duration in seconds */
-	return tmdes[2]*3600 + ((tmdes[4]+tmdes[5])*15+tmdes[1]*30+tmdes[6]+tmdes[7])*60 + tmdes[8];
+	return ts;
 }
 
