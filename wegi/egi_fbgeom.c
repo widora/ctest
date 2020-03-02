@@ -38,6 +38,20 @@ EGI_BOX gv_fb_box;
 static uint16_t fb_color=(30<<11)|(10<<5)|10;  //r(5)g(6)b(5)   /* For 16bpp */
 static uint32_t fb_rgb=0x0000ff;				/* For 24/32 bpp */
 
+/* For DEBUG : print out sys.fb_color and FBDEV.pixcolor and FBDEV.pixalpha */
+void fbprint_fbcolor(void)
+{
+   printf(" -- fb_color=%#04X -- \n", fb_color);
+
+}
+void fbprint_fbpix(FBDEV *dev)
+{
+  printf("pixcolor_on:%s, pixcolor=%#04X;  pixalpha_hold:%s, pixalpha=%d\n",
+				dev->pixcolor_on?"true":"false", dev->pixcolor,
+				dev->pixalpha_hold?"true":"false", dev->pixalpha );
+}
+
+
 /*  set color for every dot */
 inline void fbset_color(uint16_t color)
 {
@@ -862,6 +876,32 @@ int draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2)
 	return 0;
 }
 
+/*------------------------------------------------------------------
+draw a filled rectangle blended with backcolor of FB.
+
+Midas
+-------------------------------------------------------------------*/
+void draw_blend_filled_rect( FBDEV *dev, int x1, int y1, int x2, int y2,
+			     	EGI_16BIT_COLOR color, uint8_t alpha )
+{
+        if(dev==NULL)
+                return;
+
+        /* turn on FBDEV pixcolor and pixalpha_hold */
+        dev->pixcolor_on=true;
+        dev->pixcolor=color;
+        dev->pixalpha_hold=true;
+        dev->pixalpha=alpha;
+
+	draw_filled_rect(dev,x1,y1,x2,y2);
+
+        /* turn off FBDEV pixcolor and pixalpha_hold */
+	dev->pixcolor_on=false;
+	dev->pixalpha_hold=false;
+	dev->pixalpha=255;
+}
+
+
 /*--------------------------------------------------------------------------
 Same as draw_filled_rect(), but with color.
 Midas Zhou
@@ -1295,7 +1335,7 @@ draw a filled annulus blended with backcolor of FB.
 Note:
 	1. When w=1, the result annulus is a circle with some
 	   unconnected dots.!!!
-Midas
+Midas Zhou
 --------------------------------------------------------------------------*/
 void draw_blend_filled_annulus( FBDEV *dev, int x0, int y0, int r, unsigned int w,
 			 	EGI_16BIT_COLOR color, uint8_t alpha )
@@ -1306,14 +1346,15 @@ void draw_blend_filled_annulus( FBDEV *dev, int x0, int y0, int r, unsigned int 
 	/* turn on FBDEV pixcolor and pixalpha_hold */
 	dev->pixcolor_on=true;
 	dev->pixcolor=color;
-	dev->pixalpha=alpha;
 	dev->pixalpha_hold=true;
+	dev->pixalpha=alpha;
 
 	draw_filled_annulus( dev, x0, y0, r, w);
 
 	/* turn off FBDEV pixcolor and pixalpha_hold */
 	dev->pixcolor_on=false;
 	dev->pixalpha_hold=false;
+	dev->pixalpha=255;
 }
 
 
@@ -1361,14 +1402,15 @@ void draw_blend_filled_circle( FBDEV *dev, int x, int y, int r,
 	/* turn on FBDEV pixcolor and pixalpha_hold */
 	dev->pixcolor_on=true;
 	dev->pixcolor=color;
-	dev->pixalpha=alpha;
 	dev->pixalpha_hold=true;
+	dev->pixalpha=alpha;
 
 	draw_filled_circle( dev, x, y, r);
 
 	/* turn off FBDEV pixcolor and pixalpha_hold */
 	dev->pixcolor_on=false;
 	dev->pixalpha_hold=false;
+	dev->pixalpha=255;
 }
 
 

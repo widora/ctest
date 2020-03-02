@@ -350,7 +350,7 @@ pass touch data to the caller
 
 return:
 	true	get updated data
-	false	ingore obsolet data
+	false	obsolet data
 ------------------------------------------*/
 bool egi_touch_getdata(EGI_TOUCH_DATA *data)
 {

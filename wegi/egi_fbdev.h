@@ -76,6 +76,8 @@ typedef struct fbdev{
 					 * True: pixalpha will NOT be reset after draw_dot(), it keeps effective
 					 *	 to all draw_dot()/writeFB() operations afterward.
 					 * False: As defaulst set.
+					 * Note: Any function that need to set pixalpha_hold MUST reset it and
+ 					 *       reassign pixcolor to 255 before the end.
 					 */
 
 	 /*  Screen Position Rotation:  Not applicable for virtual FBDEV!

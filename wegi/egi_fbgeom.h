@@ -32,21 +32,14 @@ midaszhou@yahoo.com
 extern EGI_BOX gv_fb_box;
 
 /* functions */
-#if 0
-int 	init_fbdev(FBDEV *dev);
-void	release_fbdev(FBDEV *dev);
-void	fbset_homepage_loop(bool loop);
-void	fb_filo_flush(FBDEV *dev);
-void 	fb_filo_on(FBDEV *dev);
-void 	fb_filo_off(FBDEV *dev);
-#endif
-
 //////////////////////////////////////////////////////////
+void    fbprint_fbcolor(void);
+void    fbprint_fbpix(FBDEV *dev);
+
 void 	fbset_color(uint16_t color);
 void	fbset_color2(FBDEV *dev, uint16_t color);
 void 	clear_screen(FBDEV *dev, uint16_t color);
 void 	fbclear_bkBuff(FBDEV *dev, uint16_t color);
-
 
 //bool 	point_inbox(int px,int py,int x1,int y1,int x2,int y2);
 bool 	pxy_inbox(int px,int py,int x1,int y1,int x2,int y2);
@@ -68,6 +61,8 @@ void 	draw_oval(FBDEV *dev,int x,int y);
 void 	draw_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
 void 	draw_wrect(FBDEV *dev,int x1,int y1,int x2,int y2, int w);
 int 	draw_filled_rect(FBDEV *dev,int x1,int y1,int x2,int y2);
+void 	draw_blend_filled_rect( FBDEV *dev, int x1, int y1, int x2, int y2,
+                                		EGI_16BIT_COLOR color, uint8_t alpha );
 int     draw_filled_rect2(FBDEV *dev,uint16_t color, int x1,int y1,int x2,int y2);
 void 	draw_arc(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang, unsigned int w);
 void 	draw_filled_pieSlice(FBDEV *dev, int x0, int y0, int r, float Sang, float Eang );

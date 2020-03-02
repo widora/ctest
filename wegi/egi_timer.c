@@ -321,9 +321,11 @@ NOTE:
 //static unsigned char gv_tm_fd[128]={0};
 void egi_sleep(unsigned char fd, unsigned int s, unsigned int ms)
 {
+#if EGI_ENABLE_TICK
+	tm_delayms(s*1000+ms);
+#else
 	int err;
 	struct timeval tmval;
-
 	tmval.tv_sec=s;
 	tmval.tv_usec=1000*ms;
 
@@ -331,4 +333,6 @@ void egi_sleep(unsigned char fd, unsigned int s, unsigned int ms)
 		err=select(fd,NULL,NULL,NULL,&tmval); /* wait until timeout */
 		if(err<0)printf("%s: err<0\n",__func__);
 	}while( err < 0 && errno==EINTR ); 	      /* Ingore any signal */
+
+#endif
 }

@@ -13,6 +13,15 @@ Note:
 	test_timer "一小时3刻钟后提醒"
 	test_timer "取消提醒"
 
+    命令格式：
+    1. 一个命令只能有一个目标和一个操作：
+	“5秒后打开收音机”
+	“一小时3刻钟后关闭红灯和蓝灯”
+    2. 同样操作词后可以跟多个目标：
+	“15分钟后打开收音机和所有的灯”
+    3. 如果命令中包含“提醒”关键词，到时会报警。
+    4. “取消提醒”结束当前提醒设置和报警音乐。
+
 3. To incoorperate with ASR:
    screen -dmS TXTSVR ./txt_timer -s
    autorec_timer  /tmp/asr_snd.pcm  ( autorec_timer ---> asr_timer.sh ---> txt_timer(test_timer)  )
@@ -62,9 +71,9 @@ typedef struct {
 
 	char	utxtCmd[TXTDATA_SIZE];	/* UFT-8 TXT Command, to be executed when preset time has come. */
 	bool	SetLights[3];	/*  set lights ON/OFF */
+	bool	SetHidden;	/*  set hidden as ON/OFF */
 } etimer_t;
-etimer_t timer1={0,0};
-
+etimer_t timer1={ .SetLights[0]=1, .SetLights[1]=1, .SetLights[2]=1 };
 
 
 
@@ -78,6 +87,8 @@ static void *thread_alarming(void *arg);
 static void writefb_datetime(void);
 static void writefb_lights(void);
 static void parse_utxtCmd(const char *utxt);
+static void writefb_utxtCmd(const char *utxt);
+static void touch_event(void);
 
 
 
@@ -97,6 +108,7 @@ int main(int argc, char **argv)
 	char *wavpath=NULL;
         char strtm[128]={0};  /* Buffer for extracted time-related string */
 	pthread_t	timer_thread;
+	time_t	ts;
 
 	if(argc < 1)
 		return 2;
@@ -211,10 +223,10 @@ int main(int argc, char **argv)
 
 
         /* <<<<<  EGI general init  >>>>>> */
-#if 0
+
         printf("tm_start_egitick()...\n");
         tm_start_egitick();                     /* start sys tick */
-
+#if 0
         printf("egi_init_log()...\n");
         if(egi_init_log("/mmc/log_gif") != 0) {        /* start logger */
                 printf("Fail to init logger,quit.\n");
@@ -226,7 +238,6 @@ int main(int argc, char **argv)
                 return -2;
         }
 #endif
-
 
         printf("FTsymbol_load_allpages()...\n");
         if(FTsymbol_load_allpages() !=0 ) {
@@ -244,7 +255,7 @@ int main(int argc, char **argv)
         if( init_fbdev(&gv_fb_dev) )            /* init sys FB */
                 return -1;
 
-#if 0
+#if 1
         printf("start touchread thread...\n");
         egi_start_touchread();                  /* start touch read thread */
 #endif
@@ -346,8 +357,19 @@ while(1) {
         	printf("shm priv data: %s\n", pdata);
 	}
 
+
+	/* If pdata[0] != '\0':  Extract time related string */
+	memset(strtm,0,sizeof(strtm));
+	if( cstr_extract_ChnUft8TimeStr(pdata, strtm, sizeof(strtm))==0 )
+        		printf("Extract time string from pdata: %s\n",strtm);
+	/* Get ts */
+	ts=(time_t)cstr_getSecFrom_ChnUft8TimeStr(strtm, &timer1.tp);
+
+
 	/* Simple NLU: parse input txt data and extract key words */
 
+
+	/* ------------------- Parse Timer Command --------------------- */
 	/* CASE 1:  --- Set the timer --- */
 	if(  timer1.statActive==false
 		/* Note: OR if timer1.ts>0, ignore following keywords checking !! Just start timer and parse command when preset time comes! */
@@ -355,23 +377,14 @@ while(1) {
 		     || strstr(pdata,"开") || strstr(pdata,"关") || strstr(pdata,"放") )
           )
 	{
-		/* Extract time related string */
-		memset(strtm,0,sizeof(strtm));
-   		if( cstr_extract_ChnUft8TimeStr(pdata, strtm, sizeof(strtm))==0 )
-        		printf("Extract time string: %s\n",strtm);
+		/* assign timer1.ts */
+		timer1.ts=ts;
 
-		/* Reset Timer and get time span in seconds */
+		/* Reset Timer and check time span in seconds */
 		timer1.sigStop=false;
 		timer1.sigQuit=false;
 		timer1.sigNoTick=false;
 		timer1.sigNoAlarm=false;
-
-		/* check ts */
-   		timer1.ts=(time_t)cstr_getSecFrom_ChnUft8TimeStr(strtm, &timer1.tp);
-//		if(timer1.ts==0) {
-//			pdata[0]='\0';
-//			continue;
-//		}
 
 		/* Start timer only ts is valid! */
 		if( timer1.ts > 0 ) {
@@ -395,15 +408,17 @@ while(1) {
 	else if ( timer1.statActive==true )
 		printf("Timer is busy!\n");
 
-	/* CASE ts<=0:  Parse and execute if NOT timer setting command in TXT. Otherwise to be parsed in Timer process when time is up. */
-	if( timer1.ts <= 0 ) {
+
+	/* ------------------ Parse NON_Timer Command, parse it wright now! --------------------- */
+
+	/* CASE ts<=0 :  Parse and execute if NO timer setting command found in TXT. Otherwise to be parsed in Timer process when time is up. */
+	if( ts <= 0 ) {
 		parse_utxtCmd(pdata);
-		writefb_lights();
 	}
+
 
 	/* Reset shmem data */
 	pdata[0]='\0';
-
 }
 
 	/* Join timer thread */
@@ -533,10 +548,15 @@ static void *timer_process(void *arg)
 	        /* Display lights */
         	writefb_lights();
 
-		/* refresh FB */
-		fb_page_refresh(&gv_fb_dev,0);
+		/* Check touch  */
+		touch_event();
 
-		egi_sleep(0,0,100);
+		/* refresh FB */
+		if(!etimer->SetHidden)
+			fb_page_refresh(&gv_fb_dev,0);
+
+		/* sleep a while */
+		egi_sleep(0,0,75);
 		continue;
 	}
 
@@ -573,7 +593,7 @@ static void *timer_process(void *arg)
 	}
 
 
-	/* Convert to H:M:S  */
+	/* Convert remaining time to H:M:S  */
 	memset(strCntTm,0,sizeof(strCntTm));
 	hour=ts/3600;
 	min=(ts-hour*3600)/60;
@@ -583,7 +603,7 @@ static void *timer_process(void *arg)
         /*  Init FB working buffer page with back ground buffer */
         memcpy(gv_fb_dev.map_bk, gv_fb_dev.map_bk+gv_fb_dev.screensize, gv_fb_dev.screensize);
 
-	/* Draw a moving boject as second hand */
+	/* Draw a moving oject as a moving second hand */
 	fbset_color(WEGI_COLOR_GREEN);
 	/* center(100,120) r=80 */
 	sang=(90.0-(tset-ts)%60/60.0*360)/180*MATH_PI;
@@ -591,13 +611,13 @@ static void *timer_process(void *arg)
 		sang += 360.0/(2*60)/180*MATH_PI; /* for 0.5s */
 	}
 	//printf("tset=%ld, ts=%ld, sang=%f \n",tset, ts, sang);
-	#if 0
 	/* draw_wline_nc(FBDEV *dev,int x1,int y1,int x2,int y2, unsigned w) */
-	draw_wline_nc(&gv_fb_dev, 100+65*cos(sang), 120-65*sin(sang), 100+85.0*cos(sang),120-85.0*sin(sang), 7);
-	#else
+	// draw_wline_nc(&gv_fb_dev, 100+65*cos(sang), 120-65*sin(sang), 100+85.0*cos(sang),120-85.0*sin(sang), 7);
+
 	/* Draw a small dot. draw_filled_circle(FBDEV *dev, int x, int y, int r) */
 	draw_filled_circle(&gv_fb_dev, 100+75*cos(sang), 120-75*sin(sang), 10);
-	#endif
+	fbprint_fbcolor();
+	//fbprint_fbpix(&gv_fb_dev);
 
 	/* Timing Display */
         FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          /* FBdev, fontface */
@@ -640,12 +660,6 @@ static void *timer_process(void *arg)
 
 	#endif
 
-	if(once_more) {
-		fbset_color(WEGI_COLOR_GREEN);
-		draw_filled_triangle(&gv_fb_dev, tripts); /* draw a triangle mark */
-		writefb_lights();
-	}
-
 	fbset_color(WEGI_COLOR_ORANGE);
 	//fang=-MATH_PI/2+(2*MATH_PI)*(tset-ts)/tset;
 	fang=MATH_PI*3/2-2*MATH_PI*ts/tset;
@@ -655,8 +669,20 @@ static void *timer_process(void *arg)
 	writefb_datetime();
 	writefb_lights();
 
+	/* Display memo message */
+	if((tset-ts)/2%2==0 || ts==0)
+		writefb_utxtCmd(etimer->utxtCmd);
+
+	/* Display a triangle mark */
+	if(once_more) {
+		fbset_color(WEGI_COLOR_GREEN);
+		draw_filled_triangle(&gv_fb_dev, tripts); /* draw a triangle mark */
+
+	}
+
 	/* Refresh FB */
-	fb_page_refresh(&gv_fb_dev,0);
+	if(!etimer->SetHidden)
+		fb_page_refresh(&gv_fb_dev,0);
 
 	/* --------- While alraming, loop back -------- */
 	if(etimer->statAlarm && ts==0 )
@@ -753,7 +779,10 @@ static void *thread_alarming(void *arg)
      etimer_t *etimer=(etimer_t *)arg;
 
 //    pthread_detach(pthread_self());  To avoid multimixer error
-     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmalarm, etimer->vstep, 1024, 0, &etimer->sigNoAlarm, NULL);
+
+     /* Alarm, Max. 100 loops */
+     egi_pcmbuf_playback(PCM_MIXER, (const EGI_PCMBUF *)etimer->pcmalarm, etimer->vstep, 1024, 100, &etimer->sigNoAlarm, NULL);
+     etimer->sigStop=true;
 
 //     pthread_exit((void *)0);
 	return (void *)0;
@@ -793,16 +822,24 @@ static void writefb_datetime(void)
 }
 
 
-
-/*----------------------------------------------
+/*----------------------------------------------------------
     Parse and exectue uft-8 TXT command
 1. Parse light control and set TIMER.SetLights[]
-2.
------------------------------------------------*/
+2. TODO: Use ANN to learn and build a mode as for simple NLU.
+-----------------------------------------------------------*/
 static void parse_utxtCmd(const char *utxt)
 {
+	if(utxt==NULL)return;
 
-	printf(" -------- Parse etimer->utxtCmd --------- \n");
+	printf(" -------- Parse etimer->utxtCmd: %s \n", utxt);
+
+	/* Stop alarming if NOT required */
+	if(!strstr(utxt,"提醒")) {
+		printf("--- Alarm is off! ---\n");
+		timer1.sigNoAlarm=true;
+	}
+	else
+		timer1.sigNoAlarm=false;
 
         if(strstr(utxt,"开")) {
             /*  Control Lights */
@@ -832,21 +869,92 @@ static void parse_utxtCmd(const char *utxt)
             }
         }
 
-	/* Control MPLAYER */
-	if(strstr(utxt,"播放")) {
+        /* MPLAYER  NEXT/PREV control
+	 * Note: Parsing sequence is improtant!!!
+	 */
+        if( ( strstr(utxt,"首") || strstr(utxt,"曲") || strstr(utxt,"歌") || strstr(utxt,"台") || strstr(utxt,"节目") || strstr(utxt,"个") )
+	    && ( strstr(utxt,"下") || strstr(utxt,"进") ) 	/* strstr(utxt,"后") 与定时 “后” 冲突  */
+	  )
+	{
+			printf("Timer NLU: Play next...\n");
+                 	system("/home/mp_next.sh 1");
+			system("/home/vmplay.sh next &");
+                	system("/home/myradio.sh next &");
+	}
+	else if( ( strstr(utxt,"首") || strstr(utxt,"曲") || strstr(utxt,"歌") || strstr(utxt,"台") || strstr(utxt,"节目") )
+		 && ( strstr(utxt,"前") ||  strstr(utxt,"上") ||  strstr(utxt,"退") )
+	       )
+	{
+			printf("Timer NLU: Play prev...\n");
+                 	system("/home/mp_next.sh -1");
+			system("/home/vmplay.sh prev &");
+                	system("/home/myradio.sh prev &");
+        }
+	/* MPLAYER PLAY control */
+	else if( ( strstr(utxt,"停止") || strstr(utxt,"关闭") || strstr(utxt,"结束") )
+		&&  ( strstr(utxt,"电影") || strstr(utxt,"MTV") ) )
+	{
+		timer1.SetHidden=false;
+		system("/home/vmplay.sh quit &");
+	}
+	else if(  ( strstr(utxt,"停止") || strstr(utxt,"关闭") || strstr(utxt,"结束") )
+		&& ( strstr(utxt,"歌曲") || strstr(utxt,"MP3") || strstr(utxt,"mp3") || strstr(utxt,"音乐")) )
+	{
+		printf("Timer NLU: Quit MP ...\n");
+		system("/home/mp_quit.sh &");
+	}
+
+        else if( ( strstr(utxt,"停止") || strstr(utxt,"关闭") || strstr(utxt,"结束") )
+                && ( strstr(utxt,"广播") || strstr(utxt,"收音机") ) )
+        {
+                printf("Timer NLU: stop radio ...\n");
+                system("/home/myradio.sh quit &");
+        }
+	/* Stop all */
+	else if ( ( strstr(utxt,"停止") || strstr(utxt,"结束") )
+		 &&  strstr(utxt,"播放")  )
+	{
+		printf("Timer NLU: stop all, vmplay/mp3/radio ...\n");
+		system("/home/vmplay.sh quit &");
+		system("/home/mp_quit.sh &");
+		system("/home/myradio.sh quit &");
+	}
+	else if( strstr(utxt,"播放") && ( !strstr(utxt,"停止") && !strstr(utxt,"结束") )
+		&& ( strstr(utxt,"音乐") || strstr(utxt,"歌曲") || strstr(utxt,"MP3") || strstr(utxt,"mp3") ) )
+	{
+		printf("Timer NLU: Start to play mp3...\n");
 		system("/home/mp3.sh");
 	}
+        else if( ( ( strstr(utxt,"打开") || strstr(utxt,"播放") ) && !strstr(utxt,"停止")  )
+                 && ( strstr(utxt,"广播") || strstr(utxt,"新闻") || strstr(utxt,"收音机") )
+	        )
+        {
+                printf("Timer NLU: Start to play radio...\n");
+                system("/home/myradio.sh start &");
+        }
 
-	if(strstr(utxt,"停止")) {
-		system("killall mplayer");
+	else if( strstr(utxt,"播放") && ( !strstr(utxt,"停止") && !strstr(utxt,"结束") )
+		 && ( strstr(utxt,"电影") || strstr(utxt,"MTV") ) )
+	{
+		printf("Timer NLU: Start to play video...\n");
+		timer1.SetHidden=true;
+		system("/home/vmplay.sh start &");
 	}
-
-
-	/* Stop Timer and alarming if NOT required */
-	if(!strstr(utxt,"提醒")) {
-		timer1.sigStop=true;
+	/* MPLAYER volume control */
+	else if( strstr(utxt,"声") || strstr(utxt,"音") ) {
+		if( strstr(utxt,"大") || strstr(utxt,"高") || strstr(utxt,"增") ) {
+			printf("Timer NLU: increase volume...\n");
+			system("/home/mp_vol.sh up &");
+			system("/home/myradio.sh up &");
+		}
+		else if( strstr(utxt,"小") || strstr(utxt,"低") ||  strstr(utxt,"减") ) {
+			printf("Timer NLU: decrease volume...\n");
+			system("/home/mp_vol.sh down &");
+			system("/home/myradio.sh down &");
+		}
 	}
-	//timer1.sigNoAlarm=true;
+	else
+		printf("Timer NLU: no command for MP.\n");
 
 }
 
@@ -866,3 +974,50 @@ static void writefb_lights(void)
                 draw_filled_rect2(&gv_fb_dev, color, 185+i*(30+15), 200, 185+30+i*(30+15), 200+30);
 	}
 }
+
+/*-----------------------------------------
+	 Write timer.utxtCmd[]
+------------------------------------------*/
+static void writefb_utxtCmd(const char *utxt)
+{
+	if(utxt[0]=='\0')
+		return;
+	/* Draw a pad */
+	draw_blend_filled_rect(&gv_fb_dev, 0, 95, 319, 95+40, WEGI_COLOR_GRAY, 230); /* fbdev, x1, y1, x2, y2, color, alpha */
+	/* WriteFB utxt in 2 lines */
+        FTsymbol_uft8strings_writeFB(   &gv_fb_dev, egi_sysfonts.bold,          /* FBdev, fontface */
+                                        20, 20,(const unsigned char *)utxt,   	/* fw,fh, pstr */
+                                        320-10, 2, 2,                           /* pixpl, lines, gap */
+                                        10, 95+8,                         		/* x0,y0, */
+                                        WEGI_COLOR_BLACK, -1, -1,         	/* fontcolor, transcolor,opaque */
+                                        NULL, NULL, NULL, NULL);          /* int *cnt, int *lnleft, int* penx, int* peny */
+}
+
+/*----------------------------
+	Timer touch event
+----------------------------*/
+static void touch_event(void)
+{
+	EGI_TOUCH_DATA touch_data;
+
+	/* center(100,120) r=80 */
+	int rad=80;
+	static EGI_IMGBUF *imgbuf_circle=NULL;
+
+	if(imgbuf_circle==NULL)
+		imgbuf_circle=egi_imgbuf_newFrameImg( 160, 160,					/* height, width */
+                                 		      200,  WEGI_COLOR_PINK,frame_round_rect,	/* alpha, color, imgframe_type */
+                                 		      1, &rad ); 					/* pn, *param */
+
+	if( egi_touch_getdata(&touch_data) ) {
+		if( touch_data.status==pressed_hold || touch_data.status==pressing ) {
+			printf(" 	--- Circle touched ---\n");
+			/* center(100,120) r=80 */
+			//SLOW: draw_blend_filled_circle(&gv_fb_dev, 100, 120, 80, WEGI_COLOR_TURQUOISE, 200);
+			egi_subimg_writeFB(imgbuf_circle, &gv_fb_dev, 0, -1, 100-80, 120-80);	 /* imgbuf, fbdev, subnum, subcolor, x0, y0 */
+
+		}
+	}
+
+}
+

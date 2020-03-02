@@ -255,7 +255,7 @@ int FTsymbol_load_library( EGI_FONTS *symlib )
 	return ret;
 
 
-FT_FAIL:
+//FT_FAIL:
  	FT_Done_Face    ( symlib->regular );
   	FT_Done_Face    ( symlib->light );
   	FT_Done_Face    ( symlib->bold );
