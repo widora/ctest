@@ -1,19 +1,33 @@
+#####################################################################################
+
+			    !!!!  WARNING   !!!
+
+       New repository is transtered to  https://github.com/widora/wegi 
+
+######################################################################################
+
+
+
+
 			----- 1. Basic Concepts -----
 
 0. EBOX is the basic graphic element, and all other elements such as Buttons, Txtbox, Slider, 
    List ... are derived from and based on it.
    Please see basic EBOX concept in egi.h/egi.c, see symbol concept in symbol.c/FTsymbol.c
 
-1. The EGI mainly focus on EGI_IMG type data processing and PAGE managing/displaying, 
+   Note: EBOX is a heavy element for button application, and it's not necessary for a simple 
+	 button/keypad application. See such an example in test_keypad.c.
+
+1. The EGI mainly focus on EGI_IMGBUF/EGI_PCMBUF data processing and PAGE managing/displaying, 
    Always try to avoid processing other type data and handling other events, which shall be
    taken on by specific APPs.
 
-2. An APP will handle/process its own business data, and convert it to EGI_IMG type if
-   it needs graphic displaying.
+2. An APP will handle/process its own business data, and convert to EGI_IMGBUF/EGI_PCMBUF first
+   when it need to display image or playback sound.
 
 3. or, The EGI prepare/set PAGE environment according to APP's request, then the APP
    will use EGI interface to displaying any content by itself. ERING will be applied
-   as a way of IPC,	 ---NOPE
+   as a way of IPC	 ---NOPE
 
 4. An APP consists of two kinds of components: EGI_UI PAGEs, and executable APP files.
    They will be forked and launched as child processes of homepage program.
@@ -43,8 +57,8 @@ NOTE:
 4. The homepage main process shall be as small as possible, most heavier codes and jobs
    are to be carried out by the APP, so it will be fast enough to fork()/vfork() and execv() a
    new APP. 
-5. For little_endian system only.
-6. For 32-bit processor/system only.
+5. For little_endian system only.  ---NOW
+6. For 32-bit processor/system only.  ---NOW
 
 			-----   2. TODO List   -----
 
@@ -139,7 +153,7 @@ libubus,
 libpng, libjpeg, 
 libasound,
 libjson-c, 
-libfreetype2
+libfreetype2		/* Option,  or use EGI_SYMPAGE instead */
 libffmpeg,		/* Option,  for FFMUSIC and FFMOTION */
 libshine,		/* Option,  for fixed point MP3 enconding */
 libcurl,		/* Option,  for HTTP and HTTPS */ 
@@ -149,9 +163,12 @@ libcurl,		/* Option,  for HTTP and HTTPS */
 
 prototype.jpg		A prototype with Widora_NEO
 neo_lcd_wiring.png	Wiring for Widora_NEO to TFT LCD with touch
+
 spi_cs2.patch		A patch to add two more SPI select pin ( dts to be modified accordingly ),
 			one is for LCD touch SPI selection.
+			With reference to: https://blog.csdn.net/liuchen_csdn/article/details/51248049
 dts_spidev.jpg		dts for additional SPI devices.
+
 FB device		Create a FB device according to https://www.widora.io/zh/ips
 
 

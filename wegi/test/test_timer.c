@@ -13,14 +13,16 @@ Note:
 	test_timer "一小时3刻钟后提醒"
 	test_timer "取消提醒"
 
-    命令格式：
-    1. 一个命令只能有一个目标和一个操作：
+    命令格式说明：
+    1. 命令中如果没有时间词语，则会立即执行操作。如有，则计时等待，
+       设定时间到时执行操作。
+    2. 一个命令只能有一个目标和一个操作类：
 	“5秒后打开收音机”
 	“一小时3刻钟后关闭红灯和蓝灯”
-    2. 同样操作词后可以跟多个目标：
+    3. 同样操作词后可以跟多个目标：
 	“15分钟后打开收音机和所有的灯”
-    3. 如果命令中包含“提醒”关键词，到时会报警。
-    4. “取消提醒”结束当前提醒设置和报警音乐。
+    4. 如果命令中包含“提醒”关键词，设定时间到时会发报警声。
+    5. 输入“取消提醒” 则结束当前提醒设置或结束当前报警音乐。
 
 3. To incoorperate with ASR:
    screen -dmS TXTSVR ./txt_timer -s
@@ -796,7 +798,7 @@ static void *thread_alarming(void *arg)
 static void writefb_datetime(void)
 {
 	char strHMS[32];  	/* Hour_Min_Sec */
-	char ustrMD[64]; 	/* Mon_Day in uft-8 chn */
+	char ustrMD[64]; 	/* Month_Day in uft-8 chn */
 
        	tm_get_strtime(strHMS);
 	tm_get_ustrday(ustrMD);
@@ -833,7 +835,7 @@ static void parse_utxtCmd(const char *utxt)
 
 	printf(" -------- Parse etimer->utxtCmd: %s \n", utxt);
 
-	/* Stop alarming if NOT required */
+	/* Disable alarm, if NOT required */
 	if(!strstr(utxt,"提醒")) {
 		printf("--- Alarm is off! ---\n");
 		timer1.sigNoAlarm=true;
@@ -841,8 +843,23 @@ static void parse_utxtCmd(const char *utxt)
 	else
 		timer1.sigNoAlarm=false;
 
+	/* Enable/Disable SetHidden */
+	if( strstr(utxt,"现身") || strstr(utxt,"出来") ) {
+		timer1.SetHidden=false;
+		system("/etc/init.d/juhe-news stop");
+	}
+        else if( ( strstr(utxt,"隐藏") || strstr(utxt,"隐身") )
+                && ( strstr(utxt,"停止") || strstr(utxt,"结束") ) ) {
+		timer1.SetHidden=false;
+		system("/etc/init.d/juhe-news stop");
+        }
+	else if( strstr(utxt,"隐藏") || strstr(utxt,"隐身") ) {
+		timer1.SetHidden=true;
+		system("/etc/init.d/juhe-news start");
+	}
+
+	/* Control Lights */
         if(strstr(utxt,"开")) {
-            /*  Control Lights */
             if(strstr(utxt,"灯")) {
                 if( strstr(utxt,"蓝") )
 			timer1.SetLights[0]=true;
@@ -854,9 +871,7 @@ static void parse_utxtCmd(const char *utxt)
 			timer1.SetLights[0]=timer1.SetLights[1]=timer1.SetLights[2]=true;
             }
         }
-
         if(strstr(utxt,"关")) {
-            /*  Control Lights */
             if(strstr(utxt,"灯")) {
                 if( strstr(utxt,"蓝") )
                         timer1.SetLights[0]=false;
@@ -1002,12 +1017,12 @@ static void touch_event(void)
 
 	/* center(100,120) r=80 */
 	int rad=80;
-	static EGI_IMGBUF *imgbuf_circle=NULL;
+	static EGI_IMGBUF *imgbuf_circle=NULL; /* Duration: until end of main() */
 
 	if(imgbuf_circle==NULL)
 		imgbuf_circle=egi_imgbuf_newFrameImg( 160, 160,					/* height, width */
                                  		      200,  WEGI_COLOR_PINK,frame_round_rect,	/* alpha, color, imgframe_type */
-                                 		      1, &rad ); 					/* pn, *param */
+                                 		      1, &rad ); 				/* pn, *param */
 
 	if( egi_touch_getdata(&touch_data) ) {
 		if( touch_data.status==pressed_hold || touch_data.status==pressing ) {
