@@ -1,0 +1,19 @@
+include ../PC_Makefile
+
+#PC_APP = test_surfman test_surfuser
+
+pc_all:	test_surfman test_surfuser
+
+
+test_surfman:   test_surfman.c
+ifeq ($(EGILIB),static)
+	$(CC) test_surfman.c -o test_surfman $(CFLAGS) $(LDFLAGS) \
+-Wl,-Bstatic -legi -Wl,-Bdynamic $(LIBS)
+else
+	$(CC) -o test_surfman test_surfman.c $(CFLAGS) $(LDFLAGS) -legi $(LIBS)
+endif
+
+test_surfuser:   test_surfuser.c
+	$(CC) test_surfuser.c -o test_surfuser $(CFLAGS) $(LDFLAGS) \
+-legi $(LIBS)
+

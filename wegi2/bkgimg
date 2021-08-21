@@ -1,0 +1,259 @@
+egi_surface.c:	1. Apply surfman->mcursor.
+egi_surface.c:	   Modify: egi_create_surfman(), egi_destroy_surfman() --- create/remove surfman->msgid.
+egi_surface.c:	2. surfman_render_thread(): Draw surfman->menulist.
+egi_surface.c:	/* Reset all surface->id as index of surfman->surfaces[], Reset all zseq */
+egi_surface.c:			surfaces[i]->id=i;  /* Reset index of surfman->surfaces[] as ascending order */
+egi_surface.c:	int sfID; /* surface id, as index of surfman->surface[] */
+egi_surface.c:	if(surfman==NULL || surfman->userv==NULL)
+egi_surface.c:	EGI_USERV_SESSION *sessions=surfman->userv->sessions;
+egi_surface.c:	surfman->repThread_on=true;
+egi_surface.c:	while( surfman->cmd != 1 ) {
+egi_surface.c:		if( surfman->userv->ccnt==0) {
+egi_surface.c:			//if( surfman->userv->sessions[i].alive ) { //csFD>0 )
+egi_surface.c:				//csFD=surfman->userv->sessions[i].csFD;
+egi_surface.c:				//csFD=surfman->userv->sessions[i].csFD;
+egi_surface.c:									//surfman->userv->sessions[i].addrCLIT.sun_path, csFD);
+egi_surface.c:		if(surfman->scnt==SURFMAN_MAX_SURFACES)
+egi_surface.c:	egi_dpstd("surfman->Surface[%d] registered!\n", sfID);
+egi_surface.c:	memfd=surfman->surfaces[sfID]->memfd;
+egi_surface.c:surfman_request_process_thread(): surfman->Surface[7] registered!
+egi_surface.c:	surfman->repThread_on=false;
+egi_surface.c:        if(pthread_mutex_init(&surfman->surfman_mutex, NULL) != 0) {
+egi_surface.c:	surfman->userv=unet_create_Userver(svrpath);
+egi_surface.c:	if(surfman->userv==NULL) {
+egi_surface.c:		pthread_mutex_destroy(&surfman->surfman_mutex);
+egi_surface.c:        if( pthread_create(&surfman->repThread, NULL, (void *)surfman_request_process_thread, surfman) !=0 ) {
+egi_surface.c:                egi_dperr("Fail to launch surfman->repThread to process request!");
+egi_surface.c:		unet_destroy_Userver(&surfman->userv);
+egi_surface.c:		pthread_mutex_destroy(&surfman->surfman_mutex);
+egi_surface.c:	surfman->msgid = msgget(mqkey, IPC_CREAT|0666);
+egi_surface.c:        if(surfman->msgid<0) {
+egi_surface.c:		unet_destroy_Userver(&surfman->userv);
+egi_surface.c:		pthread_mutex_destroy(&surfman->surfman_mutex);
+egi_surface.c:	surfman->imgbuf=egi_imgbuf_alloc();
+egi_surface.c:	if(surfman->imgbuf==NULL) {
+egi_surface.c:		/* -------- NOW: use egi_destroy_surfman() aft surfman->repThread, ... */
+egi_surface.c:		pthread_mutex_destroy(&surfman->surfman_mutex);
+egi_surface.c:	surfman->fbdev.devname = gv_fb_dev.devname;  /* USE global FB device name */
+egi_surface.c:	if( init_fbdev(&surfman->fbdev) !=0 ) {
+egi_surface.c:	surfman->fbdev.zbuff_on=true;
+egi_surface.c:	egi_dpstd("surfman->fbdev is initialized with zbuff_on!\n");
+egi_surface.c:        if( pthread_create(&surfman->renderThread, NULL, (void *)surfman_render_thread, surfman) !=0 ) {
+egi_surface.c:                egi_dperr("Fail to launch surfman->renderThread to render surfaces!");
+egi_surface.c:Create and register a surface into surfman->surfaces[] for the surfuser
+egi_surface.c:@userID		SurfuserID == SessionID of related surfman->userv->session[].
+egi_surface.c:	>=0	OK, Index of the surfman->surfaces[]
+egi_surface.c:        if(pthread_mutex_lock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:	if( surfman->userv->sessions[userID].alive==false ) {
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	if(surfman->scnt >= SURFMAN_MAX_SURFACES) {
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	/* 7. Register to surfman->surfaces[], insertSort_zseq later.. */
+egi_surface.c:		if( surfman->surfaces[k]==NULL ) {
+egi_surface.c:			surfman->surfaces[k]=eface;
+egi_surface.c:			surfman->scnt +=1; /* increase surfaces counter */
+egi_surface.c:			egi_dpstd("\t\t----- (+)surfaces[%d], scnt=%d -----\n", k, surfman->scnt);
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		if( surfman->surfaces[k] && surfman->surfaces[k]->pid==pid ) { /* NOW: eface->pid==0 */
+egi_surface.c:			surfman->surfaces[k]->zseq=SURFMAN_MAX_SURFACES; /* Let surface_insertSort_zseq() to adjust later. */
+egi_surface.c:	// eface->zseq=surfman->scnt; /* ==scnt, The lastest surface has the biggest zseq!  All surface.zseq >0!  */
+egi_surface.c:	eface->csFD=surfman->userv->sessions[userID].csFD;  /* <--- csFD / surf_userID */
+egi_surface.c:	/* 7. Sort surfman->surfaces[] in ascending order of their zseq value */
+egi_surface.c:	surface_insertSort_zseq(&surfman->surfaces[0], SURFMAN_MAX_SURFACES);
+egi_surface.c:		printf(" %d", surfman->surfaces[k] ? surfman->surfaces[k]->zseq : 0);
+egi_surface.c:        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:Unregister/unmap a surface from surfman->surfaces[].
+egi_surface.c:@surfID Surface ID as of surfman->surfaces[surfID]
+egi_surface.c:        if(pthread_mutex_lock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:	if(surfman->surfaces[surfID]==NULL) {
+egi_surface.c:	        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	eface=surfman->surfaces[surfID];
+egi_surface.c:	        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	free(surfman->surfaces[surfID]);
+egi_surface.c:	/* 4. Reset surfman->surfaces and update scnt */
+egi_surface.c:	surfman->surfaces[surfID]=NULL; /* !!! */
+egi_surface.c:	surfman->scnt -=1;
+egi_surface.c:	/* 5. Re_sort surfman->surfaces[] in ascending order of their zseq value */
+egi_surface.c:	surface_insertSort_zseq(&surfman->surfaces[0], SURFMAN_MAX_SURFACES);
+egi_surface.c:		egi_dpstd(" %d", surfman->surfaces[i] ? surfman->surfaces[i]->zseq : 0);
+egi_surface.c:	egi_dpstd("\t\t----- (-)surfaces[%d], scnt=%d -----\n", surfID, surfman->scnt);
+egi_surface.c:        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:1.  Bring surfman->surfaces[surfID] to the top layer by updating
+egi_surface.c:Assume that zseq of input surfman->surfaces are sorted in ascending order.
+egi_surface.c:@surfID		Index to surfman->surfaces[].
+egi_surface.c:	if(surfman->surfaces[surfID]==NULL) {
+egi_surface.c:	//if(surfman->surfaces[surfID]->zseq==surfman->scnt) {
+egi_surface.c:	if( surfman->surfaces[surfID]->surfshmem->status == SURFACE_STATUS_MINIMIZED )
+egi_surface.c:		if( surfman->surfaces[surfID]->surfshmem->nw == 0 )
+egi_surface.c:			surfman->surfaces[surfID]->surfshmem->status=SURFACE_STATUS_NORMAL;
+egi_surface.c:			surfman->surfaces[surfID]->surfshmem->status=SURFACE_STATUS_MAXIMIZED;
+egi_surface.c:		/* Assume that zseq of surfman->surfaces are sorted in ascending order, as of surfman->surfaces[i] */
+egi_surface.c:			if(  surfman->surfaces[i]->pid == surfman->surfaces[surfID]->pid 	/* Same pid */
+egi_surface.c:			     && surfman->surfaces[i]->level > surfman->surfaces[surfID]->level ) {
+egi_surface.c:	/* Set its zseq to Max. of the surfman->surfaces */
+egi_surface.c:	egi_dpstd("Set surfaces[%d] zseq to %d\n",surfID, surfman->scnt);
+egi_surface.c:	surfman->surfaces[surfID]->zseq=surfman->scnt;
+egi_surface.c:	tmpface=surfman->surfaces[surfID];
+egi_surface.c:		surfman->surfaces[i]->zseq -=1;
+egi_surface.c:		surfman->surfaces[i-1] = surfman->surfaces[i];
+egi_surface.c:		surfman->surfaces[i-1]->id=i-1;
+egi_surface.c:	surfman->surfaces[SURFMAN_MAX_SURFACES-1]=tmpface;
+egi_surface.c:	surfman->surfaces[SURFMAN_MAX_SURFACES-1]->id=SURFMAN_MAX_SURFACES-1; /* Reset is */
+egi_surface.c:	if(surfman->surfaces[surfID]==NULL) {
+egi_surface.c:	//if(surfman->surfaces[surfID]->zseq==surfman->scnt) {
+egi_surface.c:	if( surfman->surfaces[surfID]->surfshmem->status == SURFACE_STATUS_MINIMIZED )
+egi_surface.c:		if( surfman->surfaces[surfID]->surfshmem->nw == 0 )
+egi_surface.c:			surfman->surfaces[surfID]->surfshmem->status=SURFACE_STATUS_NORMAL;
+egi_surface.c:			surfman->surfaces[surfID]->surfshmem->status=SURFACE_STATUS_MAXIMIZED;
+egi_surface.c:		/* Assume that zseq of surfman->surfaces are sorted in ascending order, as of surfman->surfaces[i] */
+egi_surface.c:			if( surfman->surfaces[i]!=NULL &&  surfman->surfaces[i]->pid == surfman->surfaces[surfID]->pid ) {
+egi_surface.c:				surfman->surfaces[i]->zseq=SURFMAN_MAX_SURFACES +1; /* +1 to enusure > all other surfaces.zseq */
+egi_surface.c:			     	if( surfman->surfaces[i]->level > surfman->surfaces[surfID]->level ) {
+egi_surface.c:	surfman->surfaces[surfID]->zseq=SURFMAN_MAX_SURFACES +1 +1;  /* +1+1 to ensure is the biggest zseq */
+egi_surface.c:        /* Sort surfman->surfaces[] in ascending order of their zseq value */
+egi_surface.c:        surface_insertSort_zseq(&surfman->surfaces[0], SURFMAN_MAX_SURFACES);
+egi_surface.c:Bring surfman->surfaces[surfID] to the top layer by updating
+egi_surface.c:Assume that zseq of surfman->surfaces are sorted in ascending order.
+egi_surface.c:@surfID		Index to surfman->surfaces[].
+egi_surface.c:        if(pthread_mutex_lock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:	if(surfman->surfaces[surfID]==NULL) {
+egi_surface.c:	        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	/* Set its zseq to Max. of the surfman->surfaces */
+egi_surface.c:	egi_dpstd("Set surfaces[%d] zseq to %d\n",surfID, surfman->scnt);
+egi_surface.c:	surfman->surfaces[surfID]->zseq=surfman->scnt;
+egi_surface.c:	tmpface=surfman->surfaces[surfID];
+egi_surface.c:		surfman->surfaces[i]->zseq -=1;
+egi_surface.c:		surfman->surfaces[i-1] = surfman->surfaces[i];
+egi_surface.c:		surfman->surfaces[i-1]->id=i-1;
+egi_surface.c:	 surfman->surfaces[SURFMAN_MAX_SURFACES-1]=tmpface;
+egi_surface.c:	surfman->surfaces[SURFMAN_MAX_SURFACES-1]->id=SURFMAN_MAX_SURFACES-1; /* Reset is */
+egi_surface.c:        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:and all related surfman->surfaces[]
+egi_surface.c:@sessionID	SessionID of related surfman->userv->session[].
+egi_surface.c:	//NOTE: surfman->scnt MAYBE <1;
+egi_surface.c:        if(pthread_mutex_lock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:	 *    1. All clients(csFDs) are accpeted by userv_listen_thread() in surfman->userv.
+egi_surface.c:	csFD=surfman->userv->sessions[sessionID].csFD;
+egi_surface.c:	        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		eface=surfman->surfaces[k];
+egi_surface.c:		        if(close(surfman->surfaces[k]->memfd)<0) {
+egi_surface.c:			        //pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:				egi_dpstd("Fail to unmap surfman->surfaces[%d]!\n", k);
+egi_surface.c:			free(surfman->surfaces[k]);
+egi_surface.c:			surfman->surfaces[k]=NULL;
+egi_surface.c:			surfman->scnt -=1;
+egi_surface.c:		        egi_dpstd("\t\t----- (-)surfaces[%d], scnt=%d -----\n", k, surfman->scnt);
+egi_surface.c:	surfman->userv->sessions[sessionID].csFD = 0;
+egi_surface.c:	surfman->userv->sessions[sessionID].alive = false;
+egi_surface.c:	surfman->userv->ccnt -= 1;
+egi_surface.c:       	egi_dpstd("\t\t----- (-)userv->sessions[%d], ccnt=%d -----\n", sessionID, surfman->userv->ccnt);
+egi_surface.c:	/* 5. Resort surfman->surfaces[] in ascending order of their zseq value */
+egi_surface.c:	surface_insertSort_zseq(&surfman->surfaces[0], SURFMAN_MAX_SURFACES);
+egi_surface.c://	if(surfman->surfaces[SURFMAN_MAX_SURFACES-1])
+egi_surface.c:        pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:	if(surfman==NULL || surfman->fbdev.fbfd<=0 )
+egi_surface.c:	return fbget_zbuff(&surfman->fbdev, x, y);
+egi_surface.c:Return surface ID to surfman->surfaces[].
+egi_surface.c:        >=0     Ok, as index to surfman->surfaces[].
+egi_surface.c:	zseq=fbget_zbuff(&surfman->fbdev, x, y); /* 0 for bkground layer */
+egi_surface.c:	return  zseq>0 ? SURFMAN_MAX_SURFACES -surfman->scnt +zseq -1 : -1;
+egi_surface.c:Return index of a surfman->surfaces[], which appears at the top of
+egi_surface.c:Assume all surfman->surfaces in ascending order, as ascendingly sorted.
+egi_surface.c:	if(surfman==NULL || surfman->scnt<1)
+egi_surface.c:	for(i=0; i < surfman->scnt; i++) {
+egi_surface.c:		if(surfman->surfaces[SURFMAN_MAX_SURFACES-1-i]==NULL)
+egi_surface.c:		//		surfman->surfaces[SURFMAN_MAX_SURFACES-1-i]->surfshmem->status );
+egi_surface.c:        	if( surfman->surfaces[SURFMAN_MAX_SURFACES-1-i]->surfshmem->status != SURFACE_STATUS_MINIMIZED )
+egi_surface.c:		if(surfman->surfaces[i]==NULL) {
+egi_surface.c:		//if(surfman->surfaces[i]->status !=SURFACE_STATUS_MINIMIZED )
+egi_surface.c:		if(surfman->surfaces[i]->surfshmem->status !=SURFACE_STATUS_MINIMIZED )
+egi_surface.c:Render surfman->surfaces[] one by one, and bring
+egi_surface.c:	int  TopDispSurfID; /* Top displayed surface index as of surfman->surfaces[],  Invalid if <0. */
+egi_surface.c:	if( surfman->fbdev.fbfd <=0 ) {
+egi_surface.c:        surfmsg_send(surfman->msgid, SURFMSG_REQUEST_REFRESH, NULL, IPC_NOWAIT);
+egi_surface.c:	surfman->renderThread_on = true;
+egi_surface.c:	while( surfman->cmd !=1 ) {
+egi_surface.c:		if( surfmsg_recv(surfman->msgid, &msgdata, SURFMSG_REQUEST_REFRESH, MSG_NOERROR) <0 ) {
+egi_surface.c:	        if(pthread_mutex_lock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:	        //if(pthread_mutex_trylock(&surfman->surfman_mutex) !=0 ) {
+egi_surface.c:		//fb_clear_workBuff(&surfman->fbdev, WEGI_COLOR_GRAY2);
+egi_surface.c:		fb_reset_zbuff(&surfman->fbdev);
+egi_surface.c:		mrefimg=surfman->mcursor;
+egi_surface.c:		if(surfman->bkgimg) {
+egi_surface.c:			surfman->fbdev.pixz=0;
+egi_surface.c:			egi_subimg_writeFB(surfman->bkgimg, &surfman->fbdev, 0, -1, 0, 0);
+egi_surface.c:		if( TopDispSurfID>=0 && userID != surfman->surfaces[TopDispSurfID]->csFD ) { /* A new TOP surface */
+egi_surface.c:			userID = surfman->surfaces[TopDispSurfID]->csFD;
+egi_surface.c:		//memset(surfman->minsurfaces, 0, SURFMAN_MAX_SURFACES*sizeof(typeof(surfman->minsurfaces)));
+egi_surface.c:			surfman->minsurfaces[i]=NULL;
+egi_surface.c:		surfman->mincnt=0;
+egi_surface.c:			surface = surfman->surfaces[i];
+egi_surface.c:			/* As surfman->surfaces sorted in ascending order of zseq, NULL followed by NULL. */
+egi_surface.c:				surfman->minsurfaces[surfman->mincnt]=surface;
+egi_surface.c:				surfman->mincnt++;
+egi_surface.c:			surfman->fbdev.pixz=surface->zseq;
+egi_surface.c:			egi_subimg_writeFB(imgbuf, &surfman->fbdev, 0, -1,  surfshmem->x0, surfshmem->y0);
+egi_surface.c:				fbset_color2(&surfman->fbdev, WEGI_COLOR_GRAY);
+egi_surface.c:				draw_wrect( &surfman->fbdev, surfshmem->x0, surfshmem->y0 ,
+egi_surface.c:					mrefimg = surfman->mgrab;
+egi_surface.c:					mrefimg = surfman->mcursor;
+egi_surface.c:		if(surfman->bkgimg) {
+egi_surface.c:			surfman->fbdev.pixz=0;
+egi_surface.c:			egi_subimg_writeFB(surfman->bkgimg, &surfman->fbdev, 0, -1, 0, 0);
+egi_surface.c:			surfman->fbdev.pixz=0;
+egi_surface.c:			draw_filled_rect2(&surfman->fbdev, WEGI_COLOR_BLACK, 0,0, surfman->fbdev.pos_xres-1, surfman->fbdev.pos_yres-1 );
+egi_surface.c:		surfman->fbdev.pixz=0; 		/* All minimized surfaces drawn just overlap bkground! */
+egi_surface.c:		surfman->IndexMpMinSurf = -1;   /* Initial mouse NOT on minibar menu */
+egi_surface.c:		for(i=0; i < surfman->mincnt; i++) {
+egi_surface.c:			surfshmem=surfman->minsurfaces[i]->surfshmem;
+egi_surface.c:			if( surfman->mx < MiniBarWidth && surfman->my < surfman->mincnt*MiniBarHeight ) {
+egi_surface.c:				if( surfman_xyget_Zseq(surfman, surfman->mx, surfman->my)==0 ) /* Mouse on pixz=0 level */
+egi_surface.c:					surfman->IndexMpMinSurf=surfman->my/MiniBarHeight;
+egi_surface.c:			draw_blend_filled_rect(&surfman->fbdev,0, i*MiniBarHeight, MiniBarWidth-1, (i+1)*MiniBarHeight,
+egi_surface.c:	                                 i== surfman->IndexMpMinSurf ? WEGI_COLOR_DARKRED:WEGI_COLOR_DARKGRAY, 160);
+egi_surface.c:			fbset_color2(&surfman->fbdev, WEGI_COLOR_GRAYB); /* Draw div. line */
+egi_surface.c:			draw_wline(&surfman->fbdev, 0, (i+1)*MiniBarHeight, MiniBarWidth-1, (i+1)*MiniBarHeight, 2);
+egi_surface.c:		        FTsymbol_uft8strings_writeFB(&surfman->fbdev, egi_sysfonts.regular, /* FBdev, fontface */
+egi_surface.c:	surfman->IndexMpMinSurf = -1;   	     /* Initial mouse NOT on minibar menu */
+egi_surface.c:	if ( surfman->minibar_ON )
+egi_surface.c:		surfman->fbdev.pixz=SURFMAN_MINIBAR_PIXZ;    /* pixz >SURFMAN_MAX_SURFACES,  To make minibar at TOP layer */
+egi_surface.c:		for(i=0; i < surfman->mincnt; i++) {
+egi_surface.c:			surfshmem=surfman->minsurfaces[i]->surfshmem;
+egi_surface.c:			if( surfman->mx < MiniBarWidth && surfman->my < surfman->mincnt*MiniBarHeight ) {
+egi_surface.c:					surfman->IndexMpMinSurf=surfman->my/MiniBarHeight;
+egi_surface.c:			draw_blend_filled_rect(&surfman->fbdev,0, i*MiniBarHeight, MiniBarWidth-1, (i+1)*MiniBarHeight,
+egi_surface.c:	                                 i== surfman->IndexMpMinSurf ? WEGI_COLOR_DARKRED:WEGI_COLOR_DARKGRAY, 160);
+egi_surface.c:			fbset_color2(&surfman->fbdev, WEGI_COLOR_GRAYB); /* Draw div. line */
+egi_surface.c:			draw_wline(&surfman->fbdev, 0, (i+1)*MiniBarHeight, MiniBarWidth-1, (i+1)*MiniBarHeight, 2);
+egi_surface.c:		        FTsymbol_uft8strings_writeFB(&surfman->fbdev, egi_sysfonts.regular, /* FBdev, fontface */
+egi_surface.c:		if ( surfman->menulist_ON ) {
+egi_surface.c:			surfman->fbdev.pixz=SURFMAN_MENULIST_PIXZ;    /* pixz >SURFMAN_MAX_SURFACES,  To make minibar at TOP layer */
+egi_surface.c:			egi_surfMenuList_writeFB(&surfman->fbdev, surfman->menulist, 0, 0, 0);
+egi_surface.c:		if( !surfman->minibar_ON && !surfman->menulist_ON )
+egi_surface.c:		   if(surfman->mx < 60 && surfman->my < 60) {
+egi_surface.c:		     	surfman->fbdev.zbuff_on = false;
+egi_surface.c:			//fbset_color2(&surfman->fbdev, WEGI_COLOR_LTBLUE);
+egi_surface.c:			draw_blend_filled_triangle(&surfman->fbdev, points, WEGI_COLOR_LTBLUE,200);
+egi_surface.c:		     	surfman->fbdev.zbuff_on = true;
+egi_surface.c:		  else if ( !surfman->menulist_ON && surfman->mx < 60  && surfman->my > surfman->fbdev.pos_yres -60 ) {
+egi_surface.c:		     	surfman->fbdev.zbuff_on = false;
+egi_surface.c:			points[0] = (EGI_POINT){0, surfman->fbdev.pos_yres-1};
+egi_surface.c:			points[1] = (EGI_POINT){20,surfman->fbdev.pos_yres-1};
+egi_surface.c:			points[2] = (EGI_POINT){0,surfman->fbdev.pos_yres-1-20};
+egi_surface.c:			//fbset_color2(&surfman->fbdev, WEGI_COLOR_LTYELLOW);
+egi_surface.c:			draw_blend_filled_triangle(&surfman->fbdev, points, WEGI_COLOR_LTYELLOW,200);
+egi_surface.c:		     	surfman->fbdev.zbuff_on = true;
+egi_surface.c:			surfman->fbdev.zbuff_on = false;
+egi_surface.c:			//egi_subimg_writeFB(surfman->mcursor, &surfman->fbdev, 0, -1, surfman->mx, surfman->my);
+egi_surface.c:			egi_subimg_writeFB(mrefimg, &surfman->fbdev, 0, -1, surfman->mx + mdx, surfman->my +mdy);
+egi_surface.c:			surfman->fbdev.zbuff_on = true;
+egi_surface.c:		pthread_mutex_unlock(&surfman->surfman_mutex);
+egi_surface.c:		fb_render(&surfman->fbdev);
+egi_surface.c:	surfman->renderThread_on = false;
+egi_surface.c:        if( surfman->fbdev.fbfd <=0 ) {
+egi_surface.c:	 surfman->msgid;
