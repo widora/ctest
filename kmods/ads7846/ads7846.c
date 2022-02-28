@@ -23,13 +23,14 @@
 
 __Functions__:
  1. ads7846_setup_spi_msg(): setup xfers for ts->msg[]
- 2. ads7846_read_state(): read msg as as above setup ts-msg[].
+ //2. ads7846_read_state(): read msg as as above setup ts-msg[].
  3. ads7846_probe_dt(): read params from device tree.
  4. ads7846_get_value(ts, *m): Convert and return the meaningful value of the variable that  spi_message rx_buf refers.
  5. ads7846_update_value *m, val):  Update the value of the variable that spi_message pointer rx_buf refers
  6. ads7846_read_state(ts): SPI write commands then read data, item by item, as per ts->msg[5]. (READ_Y, READ_X, READ_Z1,READ_Z2, PWRDOWN)
 			   ts->msg[] are setup by ads7846_setup_spi_msg().
  7. ads7846_report_state(ts); Reprot x/y/Rt as ABS_X/Y/PRESSURE to input subsystem.
+ 8. ads7846_read12_ser(dev, command): read value separately. one call one read.
 
 __DTS_config__:
      ... ...
@@ -43,7 +44,9 @@ __DTS_config__:
 
 		 1. ///// gpio_to_irq() to get proper IRQ numerber  ///////
                       interrupt-parent = <&gpio1>;   // TODO: irq_of_parse_and_map() get wrong IRQ!
-                      interrupts = <8>;              // GPIO40 
+                      interrupts = <8>;              // GPIO40
+		      // interrupts = <8>;  of parse and get hwirq=8!
+		      // interrupts = <40>;  then of parse and get spi->irq=0, ERROR!
 
                       pendown-gpio = <&gpio1 8 1>;   // GPIO40
                       //vcc-supply = <&reg_vcc3>;
@@ -74,6 +77,8 @@ Note:
    4.4 To revert above values(see abov 4.1-4.2), and get ABS_PRESSURE as:
        ABS_PRESSURE = pressure_max - (Rt>>4)   ( pressure_max is given in dts, here =255 )
 5. x/y report as ABS_X/ABS_Y and keep in 12bit resolution.
+6. Delay a while after truning on inernal vREF, OR tmp0 value will be unstable.
+   See MidasHK_VrefDelay.
 
 Journal:
 2022-01-16:
@@ -86,6 +91,11 @@ Journal:
 	1. Set SPI_MODE = 3
 	2. Test X/Y/Rt
 	3. Test read /dev/input/eventX and mouseX
+2022-01-24:
+	1. Enable and test hwmon.
+2022-01-28:
+	1. ads7846_read12_ser(): delay a while after truning on inernal vREF, to let it be stable
+	   before reading tmp0/tmp1 etc...
 
 TODO:
 XXX 1. Second insmod will cause gpio_request_one() <test_and_set_bit??>  error!
@@ -96,6 +106,7 @@ XXX 1. Second insmod will cause gpio_request_one() <test_and_set_bit??>  error!
                 input_report_abs(input, ABS_PRESSURE, ts->pressure_max - Rt);
 3. spi->irq ERROR!
    spi->irq=irq_of_parse_and_map() and irq=gpio_to_irq(40) is NOT SAME!
+
 
 Midas Zhou
 midaszhou@yahoo.com
@@ -119,6 +130,11 @@ midaszhou@yahoo.com
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 #include <asm/irq.h>
+
+
+/* MidasHK_hwmon: -------------------------- */
+#define CONFIG_HWMON 1
+
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
@@ -239,6 +255,39 @@ struct ads7846 {
 
 /*--------------------------------------------------------------------------*/
 
+/*---------------------- ADS7846 Control Bytes --------------------
+   Control byte:
+    Bit 7(MSb)   6     5    4     3      2        1     0(LSB)
+        S       A2    A1    A0   MODE  SER/~DFR  PD1    PD0
+
+	  S:  Start bit
+      A2-A0:  Channel select bits.
+       MODE:  12-Bit/8-Bit conversion select bit.
+    ER/~DRF:  Single-Ended/Differential referene select bit.
+    PD1-PD0:  Power-down mode select.
+	      00  Power-down between conversion
+	      01  Disabled, Reference is OFF and ADC is ON
+	      10  Enabled, Reference is ON and ADC is OFF
+	      11  Disabled, device is always powered. Refrence is ON and ACD is ON.
+
+
+Note:
+   1. With Vrev equals to +2.5V, one LSB is 610uV = 2.5/4096.
+   2. Typically, the internal reference voltage is only used inn the single-ended mode
+      for battery monitoring, temperature measurement, and for using the auxiliary input.
+      TODO: pin vbatt NOW is grounded.
+   
+   3. Temperautre measurement:
+      The PENIRQ diode is used(turned on) during tmp0/tmp1 measurement cycle!
+      Vrev/4096=2.5v/4096=610uv=0.61mv
+      3.1 tmp0 ONLY: (typically 600mV at +25C, and -2.1mV/C)
+	C=25-(600-x*0.61)*2.1 = 25-(600-873*0.61)*2.1= XXX
+      3.2 tmp0+tmp1: (Dx=Xtmp1-Xtmp0)
+	C=2.573*DV(mv)-273 =2.573*Dx*0.61-273=1.57*Dx-273=
+	  1.57*(1003-873)-273= 	XXX (internal Vref ON)
+	  1.57*(891-773)-273=	    (internal Vref OFF)
+ ----------------------------------------------------------------*/
+
 /* The ADS7846 has touchscreen and other sensors.
  * Earlier ads784x chips are somewhat compatible.
  */
@@ -258,7 +307,7 @@ struct ads7846 {
 #define	ADS_PD10_PDOWN		(0 << 0)	/* low power mode + penirq */
 #define	ADS_PD10_ADC_ON		(1 << 0)	/* ADC on */
 #define	ADS_PD10_REF_ON		(2 << 0)	/* vREF on + penirq */
-#define	ADS_PD10_ALL_ON		(3 << 0)	/* ADC + vREF on */
+#define	ADS_PD10_ALL_ON		(3 << 0)	/* ADC + vREF on + penirq */
 
 #define	MAX_12BIT	((1<<12)-1)
 
@@ -366,6 +415,45 @@ static void ads7846_enable(struct ads7846 *ts)
 	mutex_unlock(&ts->lock);
 }
 
+/////////// MidasHK_15 : To test irq_of_parse_and_map() if it parse the right hwirq! ///////////
+
+int test_of_parse_hwirq(struct device_node *dev, int index)
+{
+        struct of_phandle_args oirq;
+        irq_hw_number_t hwirq;
+	struct irq_domain *domain;
+        unsigned int type = IRQ_TYPE_NONE;
+        unsigned int virq;
+
+        if (of_irq_parse_one(dev, index, &oirq)) {
+printk("of_irq_parse_one(dev, index, &oirq) fails!\n");
+                return 0;
+	}
+
+        domain = (oirq.np ? irq_find_host(oirq.np) : NULL);
+        if (!domain) {
+                pr_warn("no irq domain found for %s !\n",
+                        of_node_full_name(oirq.np));
+                return 0;
+        }
+
+        /* If domain has no translation, then we assume interrupt line */
+        if (domain->ops->xlate == NULL) {
+printk("%s: domain->ops->xlate == NULL! hwirq = oirq.args[0]! \n", __func__);
+                hwirq = oirq.args[0];
+	}
+        else {
+                if (domain->ops->xlate(domain, oirq.np, oirq.args,
+                                        oirq.args_count, &hwirq, &type))
+                        return 0;
+        }
+
+printk("%s: of parse and get hwireq=%d\n", __func__, (int)hwirq);
+
+	return hwirq;
+}
+
+
 /*--------------------------------------------------------------------------*/
 
 /*
@@ -449,11 +537,16 @@ int hdsync_write_then_read_spi(struct spi_device *spi, const void *txbuf, size_t
 	xfer[1].rx_buf=rxbuf;
 	xfer[1].len=rxlen;
 
-	/* TODO: CHECK DMA: m.is_dma_apped =1; */
-
 	spi_message_init(&m);
 	spi_message_add_tail(&xfer[0], &m);
 	spi_message_add_tail(&xfer[1], &m);
+
+#if 0 /* TEST: -------CHECK DMA: m.is_dma_mapped =1; */
+	if(m.is_dma_mapped)
+		printk(" ------ spi DMA ------\n");
+	else
+		printk(" ------ NO spi DMA ------\n");
+#endif
 
 	return spi_sync(spi, &m);
 }
@@ -508,6 +601,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	struct ads7846 *ts = dev_get_drvdata(dev);
 	struct ser_req *req;
 	int status=0;  /* <0 as fails */
+	int k;
 
 printk("%s: --- 0 ---\n", __func__);
 	req=kzalloc(sizeof *req, GFP_KERNEL);
@@ -520,8 +614,8 @@ printk("%s: --- 0 ---\n", __func__);
 	mutex_lock(&ts->lock);
 	ads7846_stop(ts);
 
-/* MidasHK_5: turn ON/OFF internal vREF */
-ts->use_internal=true;
+/* MidasHK_5: turn ON/OFF internal vREF --- OK, ALready set ts->use_internal in ads784x_hwmon_register().  */
+//ts->use_internal=true;
 
 	/* maybe trun on inernal vREF, and let it settle */
 	if(ts->use_internal) {
@@ -533,11 +627,18 @@ printk("%s: Use internal vREF!\n", __func__);
 		req->xfer[1].rx_buf=&req->scratch;
 		req->xfer[1].len=2;
 		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
-		req->xfer[1].delay_usecs = ts->vref_delay_usecs;
+		//req->xfer[1].delay_usecs = ts->vref_delay_usecs;
+		req->xfer[1].delay_usecs = 200;
 //		status +=hdsync_read_spi(spi, req->xfer[1].rx_buf, req->xfer[1].len);
 
+#if 0 /* ------------------ Only xfer[2] and xfer[3]! -- */
+		spi_message_add_tail(&req->xfer[0], &req->msg);
+		spi_message_add_tail(&req->xfer[1], &req->msg);
+		spi_sync(ts->spi, &req->msg);
+#else
 		status +=hdsync_write_then_read_spi(spi, req->xfer[0].tx_buf, req->xfer[0].len,
 							req->xfer[1].rx_buf, req->xfer[1].len );
+#endif
 
 		/* Enable refrence voltage */
 		command |= ADS_PD10_REF_ON;
@@ -546,20 +647,33 @@ printk("%s: Use internal vREF!\n", __func__);
 printk("%s: NOT use internal vREF!\n", __func__);
 	}
 
+/* MidasHK_VrefDelay: ------------delay to let internal vref settle down... */
+	udelay(100000);
+
 	/* Enable ADC in every case */
 	command |= ADS_PD10_ADC_ON;
 
+for(k=0; k<10; k++) {
 	/* take sample */
 	req->command = (u8)command;
 	req->xfer[2].tx_buf = &req->command;
 	req->xfer[2].len = 1;
-	req->xfer[3].rx_buf = &req->sample;
+	req->xfer[3].rx_buf = &req->sample;   /* <---------- SAMPLE --- */
 	req->xfer[3].len = 2;
 
+#if 0 /* ------------------ Only xfer[2] and xfer[3]! -- */
+	spi_message_add_tail(&req->xfer[2], &req->msg);
+	spi_message_add_tail(&req->xfer[3], &req->msg);
+	spi_sync(ts->spi, &req->msg);
+#else
 	status +=hdsync_write_then_read_spi(spi, req->xfer[2].tx_buf, req->xfer[2].len,
 						req->xfer[3].rx_buf, req->xfer[3].len);
-
+#endif
 	/* REVISIT:  take a few more samples, and compare ... */
+	if( req->sample !=0 )
+		break;
+	udelay(10000);
+}
 
 	/* convert in low power mode & enable PENIRQ */
 	req->ref_off = PWRDOWN;
@@ -568,6 +682,7 @@ printk("%s: NOT use internal vREF!\n", __func__);
 	req->xfer[5].rx_buf = &req->scratch;
 	req->xfer[5].len = 2;
 	CS_CHANGE(req->xfer[5]);
+
 
 	status +=hdsync_write_then_read_spi(spi, req->xfer[4].tx_buf, req->xfer[4].len,
 						req->xfer[5].rx_buf, req->xfer[5].len);
@@ -582,10 +697,11 @@ printk("%s: Sumup hdsync_spi() status=%d\n", __func__, status);
 	if(status==0) {
 		/* On-wire is a must-ignore bit, a BE12 value, then adding */
 		status = be16_to_cpu(req->sample);
+//printk("%s: ads7846 raw status: 0x%04X\n", __func__, status); // ==0x07F8
 		status = status >>3;
 		status &= 0x0fff;
 	}
-printk("%s: ads7846 ret status: 0x%04X\n", __func__, status); // ==0x07F8
+//printk("%s: ads7846 ret status: 0x%04X\n", __func__, status); // ==0x07F8
 
 	kfree(req);
 	return status;
@@ -711,6 +827,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 	return status;
 }
 
+
 #if IS_ENABLED(CONFIG_HWMON)
 
 #define SHOW(name, var, adjust) static ssize_t \
@@ -749,8 +866,8 @@ static inline unsigned vaux_adjust(struct ads7846 *ts, ssize_t v)
 	unsigned retval = v;
 
 	/* external resistors may scale vAUX into 0..vREF */
-	retval *= ts->vref_mv;
-	retval = retval >> 12;
+	retval *= 2500; //ts->vref_mv;  /* If internal, assume vref_mv = 2500, one LSB = 2.5v/4096 */
+	retval = retval >> 12; /* Convert to mV */
 
 	return retval;
 }
@@ -1140,6 +1257,7 @@ static void ads7846_report_state(struct ads7846 *ts)
 			dev_vdbg(&ts->spi->dev, "DOWN\n");
 		}
 
+/* MidasHK: TODO user space may NOT receive ABS_X/Y both as pair, one of them may be missed!??? */
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
 /* see MidasHK_8: Rt limits to 255 */
@@ -1577,6 +1695,9 @@ int irq;
 irq=irq_of_parse_and_map(node, 0);
 printk(" ---> irq=irq_of_parse_and_map =%d\n", irq);
 
+printk(" ---> hwirq=test_of_parse_hwirq(node, 0) =%d\n", test_of_parse_hwirq(node, 0));
+
+
 	match = of_match_device(ads7846_dt_ids, dev);
 	if (!match) {
 		dev_err(dev, "Unknown device model\n");
@@ -1589,38 +1710,69 @@ printk(" ---> irq=irq_of_parse_and_map =%d\n", irq);
 
 	pdata->model = (unsigned long)match->data;
 
+	/* vref supply delay in usecs, 0 for external vref (u16). */
 	of_property_read_u16(node, "ti,vref-delay-usecs",
 			     &pdata->vref_delay_usecs);
-	of_property_read_u16(node, "ti,vref-mv", &pdata->vref_mv);
-	pdata->keep_vref_on = of_property_read_bool(node, "ti,keep-vref-on");
 
+
+ 	/* The VREF voltage, in millivolts (u16). Set to 0 to use internal references(ADS7846) */
+	of_property_read_u16(node, "ti,vref-mv", &pdata->vref_mv);
+
+	/* set to keep vref on for differential measurements as well */
+	pdata->keep_vref_on = of_property_read_bool(node, "ti,keep-vref-on");
+/* MidasHK_mv: ----------- vref in The VREF voltage, in millivolts */
+	pdata->keep_vref_on=true;
+
+	/* swap x and y axis */
 	pdata->swap_xy = of_property_read_bool(node, "ti,swap-xy");
 
+	/* Settling time of the analog signals;
+	 *  a function of Vcc and the capacitance on the X/Y drivers.  If set to non-zero,
+	 *  two samples are taken with settle_delay us apart, and the second one is used.
+	 *  ~150 uSec with 0.01uF caps (u16).
+	 */
 	of_property_read_u16(node, "ti,settle-delay-usec",
 			     &pdata->settle_delay_usecs);
+
+	/* If set to non-zero, after samples are taken this delay is applied and penirq
+	   is rechecked, to help avoid false events.  This value is affected by the
+	   material used to build the touch layer(u16).
+	 */
 	of_property_read_u16(node, "ti,penirq-recheck-delay-usecs",
 			     &pdata->penirq_recheck_delay_usecs);
 
+	/* Resistance of the X/Y-plate, in Ohms (u16). */
 	of_property_read_u16(node, "ti,x-plate-ohms", &pdata->x_plate_ohms);
 	of_property_read_u16(node, "ti,y-plate-ohms", &pdata->y_plate_ohms);
 
+	/* Minimum value on the X/Y axis (u16). */
 	of_property_read_u16(node, "ti,x-min", &pdata->x_min);
 	of_property_read_u16(node, "ti,y-min", &pdata->y_min);
+
+	/* Maximum value on the X/Y axis (u16). */
 	of_property_read_u16(node, "ti,x-max", &pdata->x_max);
 	of_property_read_u16(node, "ti,y-max", &pdata->y_max);
 
+	/* Minimum reported pressure value(threshold) -u16. */
 	of_property_read_u16(node, "ti,pressure-min", &pdata->pressure_min);
+	/* Maximum reported pressure value(u16) */
 	of_property_read_u16(node, "ti,pressure-max", &pdata->pressure_max);
 
+	/*Max number of additional readings per sample (u16). */
 	of_property_read_u16(node, "ti,debounce-max", &pdata->debounce_max);
+	/* Tolerance used for filtering (u16). */
 	of_property_read_u16(node, "ti,debounce-tol", &pdata->debounce_tol);
+	/* Additional consecutive good readings	required after the first two (u16). */
 	of_property_read_u16(node, "ti,debounce-rep", &pdata->debounce_rep);
 
+	/* Platform specific debounce time for the pendown-gpio (u32). */
 	of_property_read_u32(node, "ti,pendown-gpio-debounce",
 			     &pdata->gpio_pendown_debounce);
 
+	/* use any event on touchscreen as wakeup event. (Legacy property support: "linux,wakeup") */
 	pdata->wakeup = of_property_read_bool(node, "linux,wakeup");
 
+	/* GPIO handle describing the pin the !PENIRQ line is connected to. */
 	pdata->gpio_pendown = of_get_named_gpio(dev->of_node, "pendown-gpio", 0);
 
 printk( "gpio_pendown =%d\n", pdata->gpio_pendown);
@@ -1755,6 +1907,9 @@ printk( "%s: ads7846_setup_pendown() failed!\n",__func__);
 
 	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
 
+/* MidasHK__  as display in log:
+   input: ADS7846 Touchscreen as /devices/10000000.palmbus/10000b00.spi/spi_master/spi32766/spi32766.2/input/input0
+*/
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&spi->dev));
 	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);
 
